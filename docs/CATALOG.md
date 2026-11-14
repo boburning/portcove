@@ -1948,8 +1948,9 @@ valid selectors. Prefer stable discriminating fragments, including the actual pa
 variant. Preserve numeric ABI/engine-generation requirements where intentional.
 Test unchanged rules through the production provider for N, N+1 and a fresh
 installation after N+1, including competing variants, foreign architectures and
-successor-specific integrity evidence. Ordinary observed release changes do not
-add a mandatory maintainer review or full gameplay campaign. Changed setup,
+successor-specific integrity evidence. Ordinary observed release changes from a
+continuing uploader (below) do not add a mandatory maintainer review or full
+gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
 
@@ -2013,6 +2014,83 @@ applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.
+
+A matching digest proves the bytes are what was uploaded, not who uploaded
+them. Ordinary GitHub selection therefore also checks uploader continuity, using
+the asset `uploader` and `created_at` and the repository `owner` from the same
+observation. After the asset is selected, and before any checksum request,
+download or selection caching, the selected asset continues the project's
+publishing identities when any of these holds:
+
+- it was uploaded before 2026-11-14T00:00:00Z, so existing releases keep their
+  behavior;
+- its uploader is the repository owner account;
+- its uploader is GitHub's Actions app account (`github-actions[bot]`, type
+  `Bot`, ID 41898282); a workflow's repository token can only upload to the
+  repository whose workflow ran;
+- its uploader also uploaded an asset of an observed release of this project
+  before that instant, which makes it an established uploader;
+- its numeric account ID is listed in the integration's reviewed
+  `release.accepted_uploaders`.
+
+Accounts are matched by numeric ID, so a renamed login still matches and a
+freed login taken by another account does not. GitHub's shared placeholder for
+deleted accounts (`ghost`, ID 10137) never establishes, owns or is accepted for
+a project; an upload it is credited with after the baseline is held with a
+reason saying GitHub shows a deleted account as the uploader. The
+baseline instant is fixed: an upload after it never makes its uploader
+established, so a later release from the same new account stays held too.
+Established status comes from assets still present in the observed listing,
+within the provider's existing page bound. When a project has deleted every
+release uploaded before the baseline, that evidence is gone, and a later upload
+by an account other than the owner or the project's automation is held until a
+maintainer accepts it.
+
+A known uploader matching none of these, or an asset uploaded after the
+baseline that GitHub reports with no uploader account (`uploader: null`), is
+refused through the existing unsupported-acquisition surface. The player reason
+says Portcove is holding back this version and why, and that nothing was
+downloaded or changed; details name the release tag, asset and uploader. The
+refusal covers every provider resolution, including fresh Install, Update,
+update checks and recommendations. It is not cached and changes nothing on
+disk; installed copies keep Play, backup, rollback and removal. Selection does
+not fall back to an older continuous release: while the newest matching release
+is held, a fresh Install of that route is refused too, and an installed copy
+stays on its current version.
+
+Coverage is judged for the whole response. When no asset in the observed
+listing carries an `uploader` field, the response does not cover uploaders, so
+continuity is UNKNOWN: Core claims none, logs a warning and keeps the earlier
+behavior rather than treating missing optional evidence as a known mismatch.
+GitHub's API always returns the field, so this applies to non-GitHub-shaped
+responses. When other assets in the same listing carry the field but the
+selected asset does not, the observation is inconsistent and the release is
+held (`provider_uploader_not_observed`), even if that asset predates the
+baseline; GitHub's real API does not produce this shape.
+
+The guard's limits are deliberate and narrow. An Actions-app upload passes, and
+anyone with write access can add, change or trigger the project's release
+workflow, so the guard stops direct manual or token uploads by a new account,
+not a release built by an altered or compromised workflow; binding releases to
+reviewed workflow provenance is tracked in
+[#5841](https://github.com/boburning/portcove/issues/5841). The configured repository
+is resolved by its current owner/name path and its owner is read from the same
+observation, so a transferred or re-registered repository namespace is not
+detected by this guard; existing repository-identity checks apply where a route
+binds a stable repository ID. Exact curated records, direct manifests,
+preserved-location failover and player-chosen catalog downloads are not
+automatic progression and keep their own identity checks. GitLab release links
+and generic-package rows carry no per-file uploader, and a release author is not
+the file uploader, so GitLab selection remains unevaluated.
+
+To accept a new uploader, review the account and the held release on the
+canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`
+to the integration's `release.accepted_uploaders`. The field is valid only on
+GitHub-provider routes, with unique positive IDs other than the deleted-account
+placeholder. Accepted uploaders are not part of an installed copy's retained
+execution identity. Because the catalog is embedded, acceptance reaches players
+with the next application release. A selected independent definition may keep
+or remove accepted uploaders but cannot add one.
 
 ### Generated reviewed package shapes (shadow)
 

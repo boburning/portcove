@@ -20,14 +20,16 @@ the detailed recipes and retained observations below do not add merge gates.
 - **Localization lint.** The patch applies to `i18next-cli@>=1.82.4 <2` and
   makes both primary-translation loaders try the configured string
   `extract.defaultNS` before their existing namespace fallbacks. Unset and false
-  defaults use the original fallbacks. The workspace pins 1.85.0. Published
-  1.87.0 still misses Portcove's `settings.json` and accepts a missing nested
-  interpolation argument. The patched CLI rejects that fixture and accepts the
+  defaults use the original fallbacks. The workspace pins 1.88.0. Published
+  1.88.0 still tries only `translation`, `common` and `default` in its linter
+  (checked in `src/linter.ts`), and published 1.87.0 still misses Portcove's
+  `settings.json` and accepts a missing nested interpolation argument. The patched CLI rejects that fixture and accepts the
   provided argument. A changed patch context or out-of-range version fails
   installation. Remove the patch when the selected upstream CLI handles the
   configured namespace and passes the existing nested missing/provided controls and
   placeholder checks in `check-i18n-negative-fixture.mts`.
-  [Published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
+  [Published CLI 1.88.0](https://www.npmjs.com/package/i18next-cli/v/1.88.0),
+  [published CLI 1.87.0](https://www.npmjs.com/package/i18next-cli/v/1.87.0)
 - **Signing transport.** The `@sigstore/sign@5.1.0` patch routes signing
   requests through the explicitly scoped Portcove transport. Published 5.1.0
   owns its HTTP client and retry loop. The existing signing tests exercise scope

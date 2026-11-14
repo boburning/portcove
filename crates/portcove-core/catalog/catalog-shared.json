@@ -172,6 +172,16 @@
         "live_url": "https://github.com/mstan/ApeEscapeRecomp/blob/master/DISC.md"
       },
       {
+        "id": "ape-escape-recompiled-0-5-7-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/ApeEscapeRecomp",
+        "authority_ref": "2f98ccab5fe510cedd924beebd773e5e2458d16d",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.5.7 Windows x64 package (46713030 bytes, SHA-256 d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f); no publisher checksum file was found and the provider release digest was not read, so the digest is computed only. At this tag DISC.md is byte-identical to v0.3.0 and keeps SCUS-94423, 432238800 bytes and SHA-256 1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a. Its RELEASE_MANIFEST.json names source commit 2f98ccab5fe510cedd924beebd773e5e2458d16d and PSXRecomp framework 1b84d4fd3a1c65f64c2d97b49320f769ba2e01fc. ApeEscapeRecomp.exe, game.toml and bios/openbios.bin keep their paths, and the framework still parses --no-launcher, --memcard-dir, --game, --bios and --disc. The package stages its built-in mods in mods/bundled and ships a default input.ini; the framework keeps added mods in mods/installed, migrates a flat mods/packages tree on start, and writes mods/state.toml through mods/state.toml.tmp, mods/.staging, mods/texture-packs and the derived-disc mods/cache. The in-game menu writes config.ini, an unparsable settings.toml is preserved as settings.toml.bad, and a retail BIOS module is built into cache/bios only when a retail BIOS is selected. The definition now declares these paths and leaves mods/bundled with the package. A disc-digest cache under the Windows local app data folder stays outside Portcove. Native execution, gameplay, saves and mod migration remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/ApeEscapeRecomp/blob/2f98ccab5fe510cedd924beebd773e5e2458d16d/DISC.md",
+        "live_url": "https://github.com/mstan/ApeEscapeRecomp/blob/master/DISC.md"
+      },
+      {
         "id": "mega-man-x5-recompiled-0-1-0-alpha-source-contract",
         "role": "upstream_support",
         "authority": "mstan/MegaManX5Recomp",
@@ -870,6 +880,16 @@
         "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/game.toml"
       },
       {
+        "id": "sonic-the-hedgehog-2-recomp-0-9-23-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehog2Recomp",
+        "authority_ref": "4cb77b3732547b467070ec8bda65135dc7cc9b3f",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.9.23 Windows x64 package (8126526 bytes, SHA-256 d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc) matches its published .sha256 file; the provider release digest was not read. At this tag game/sonic2_spec.c keeps the 1 MiB raw ROM with CRC 7B905383, and the independently enforced exact-stock SHA-256 is unchanged. SonicTheHedgehog2Recomp.exe keeps its path; the package drops build-info.json and licenses/ and adds PERMISSIONS.md, docs/PLAYER_FEEDBACK.md, tools/replay_diagnostic.py and assets/megamix/CREDITS.txt. Against v0.8.3 the game writes the same settings, party, campaign, native-save and diagnostic files. Its pinned engine a7433ace9311fd5ed44ad64a8816ff4ededbc7d5 adds only the default-on replayable feedback writer under logs beside the executable, which the definition now declares as disposable runtime output, and the pinned recomp-ui keeps the same data filenames. The package no longer carries build-info.json, so this source review binds the tag commit, not the package build. New Megamix v3 donor input is read from a player-selected path remembered in sonic2-party.ini. Native execution, gameplay, saves and replay recording remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/4cb77b3732547b467070ec8bda65135dc7cc9b3f/game/sonic2_spec.c",
+        "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/sonic2_spec.c"
+      },
+      {
         "id": "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity",
         "role": "byte_identity",
         "authority": "libretro/libretro-database No-Intro",
@@ -1200,6 +1220,16 @@
         "reviewed_at": "2026-11-04",
         "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
         "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "super-metroid-recomp-0-4-5-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "113951fc32f9783c1be0a947ea17c9aabfba9066",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.4.5 Windows x64 package (15522852 bytes, SHA-256 337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314) matches the published SHA256SUMS; the provider release digest was not read. At this tag rom_identity.txt is byte-identical to v0.4.2 and framework_pins.txt names the same snesrecomp, recomp-ui, recomp-net and rbengine commits. Against the bound v0.4.2 package the wrapper-prefixed file list adds only two mods/preloaded/packages manifests (run-by-default and single-missile-doors) and PERMISSIONS.md; SuperMetroidSNESRecomp.exe keeps its path. The release build now sets SNESRECOMP_ENABLE_NET, adding IPHLPAPI and BCRYPT imports; the pinned host offers netplay, account sign-in and peer mod transfer only from the pre-boot launcher or the SNES_NETPLAY environment, this title declares no in-game launcher, and --rom with SNESRECOMP_NO_LAUNCHER skips the pre-boot launcher, so the declared persistence and data-compatibility contract are unchanged. Linux and macOS packages, native execution, gameplay, saves, settings migration and the absence of runtime network use remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/rom_identity.txt",
         "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
       },
       {
@@ -18154,7 +18184,8 @@
         "evidence_ids": [
           "ape-escape-recompiled-0-3-0-source-contract",
           "ape-escape-recompiled-windows-2026-09-16",
-          "ape-escape-recompiled-windows-lifecycle-2026-09-16"
+          "ape-escape-recompiled-windows-lifecycle-2026-09-16",
+          "ape-escape-recompiled-0-5-7-source-contract"
         ],
         "authority_ref": "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
         "reviewed_at": "2026-09-16",
@@ -18165,6 +18196,10 @@
           {
             "upstream_ref": "v0.3.0",
             "artifact_sha256": "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9"
+          },
+          {
+            "upstream_ref": "v0.5.7",
+            "artifact_sha256": "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f"
           }
         ],
         "aliases": [],
@@ -19646,7 +19681,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
-          "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+          "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity",
+          "sonic-the-hedgehog-2-recomp-0-9-23-source-contract"
         ],
         "authority_ref": "e1451eee49cf2238164e282d0c1a8f79ce8a76aa",
         "reviewed_at": "2026-10-18",
@@ -19657,6 +19693,10 @@
           {
             "upstream_ref": "v0.8.3",
             "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+          },
+          {
+            "upstream_ref": "v0.9.23",
+            "artifact_sha256": "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc"
           }
         ],
         "aliases": [],
@@ -19764,7 +19804,8 @@
         "evidence_ids": [
           "super-metroid-recomp-0-3-12-source-contract",
           "super-metroid-snes-japan-usa-no-intro-byte-identity",
-          "super-metroid-recomp-0-4-2-source-contract"
+          "super-metroid-recomp-0-4-2-source-contract",
+          "super-metroid-recomp-0-4-5-source-contract"
         ],
         "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
         "reviewed_at": "2026-10-19",
@@ -19779,6 +19820,10 @@
           {
             "upstream_ref": "v0.4.2",
             "artifact_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+          },
+          {
+            "upstream_ref": "v0.4.5",
+            "artifact_sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
           }
         ],
         "aliases": [],

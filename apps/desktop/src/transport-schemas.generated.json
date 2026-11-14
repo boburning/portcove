@@ -4965,6 +4965,25 @@
   },
   "catalog": {
     "$defs": {
+      "AcceptedUploader": {
+        "additionalProperties": false,
+        "description": "One reviewed GitHub release uploader. The numeric ID is stable across login\nrenames; a freed login re-registered by another account does not match.",
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "login"
+        ],
+        "type": "object"
+      },
       "AdapterKind": {
         "oneOf": [
           {
@@ -6984,6 +7003,13 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "accepted_uploaders": {
+            "description": "GitHub accounts a maintainer reviewed and accepted as uploaders of this\nproject's release packages, in addition to the repository owner, the\nproject's own Actions automation and its established uploaders. Matched by\nnumeric account ID; the login records what was reviewed.",
+            "items": {
+              "$ref": "#/$defs/AcceptedUploader"
+            },
+            "type": "array"
+          },
           "archive_file_links": {
             "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
             "type": "boolean"
@@ -33250,6 +33276,25 @@
   },
   "port": {
     "$defs": {
+      "AcceptedUploader": {
+        "additionalProperties": false,
+        "description": "One reviewed GitHub release uploader. The numeric ID is stable across login\nrenames; a freed login re-registered by another account does not match.",
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "login"
+        ],
+        "type": "object"
+      },
       "AdapterKind": {
         "oneOf": [
           {
@@ -34396,6 +34441,13 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "accepted_uploaders": {
+            "description": "GitHub accounts a maintainer reviewed and accepted as uploaders of this\nproject's release packages, in addition to the repository owner, the\nproject's own Actions automation and its established uploaders. Matched by\nnumeric account ID; the login records what was reviewed.",
+            "items": {
+              "$ref": "#/$defs/AcceptedUploader"
+            },
+            "type": "array"
+          },
           "archive_file_links": {
             "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
             "type": "boolean"
@@ -47845,6 +47897,25 @@
   },
   "signed_catalog_payload": {
     "$defs": {
+      "AcceptedUploader": {
+        "additionalProperties": false,
+        "description": "One reviewed GitHub release uploader. The numeric ID is stable across login\nrenames; a freed login re-registered by another account does not match.",
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "login"
+        ],
+        "type": "object"
+      },
       "AdapterKind": {
         "oneOf": [
           {
@@ -49901,6 +49972,13 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "accepted_uploaders": {
+            "description": "GitHub accounts a maintainer reviewed and accepted as uploaders of this\nproject's release packages, in addition to the repository owner, the\nproject's own Actions automation and its established uploaders. Matched by\nnumeric account ID; the login records what was reviewed.",
+            "items": {
+              "$ref": "#/$defs/AcceptedUploader"
+            },
+            "type": "array"
+          },
           "archive_file_links": {
             "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
             "type": "boolean"

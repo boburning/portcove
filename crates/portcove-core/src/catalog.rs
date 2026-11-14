@@ -619,6 +619,7 @@ impl Catalog {
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
+            validate_accepted_uploaders(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,
@@ -2123,8 +2124,6 @@ pub(crate) fn rom_patch_fixture_document(
     document
 }
 
-/// A named portable marker is one plain file name that the port also declares persistent,
-/// because the engine keeps its own configuration in it.
 impl Catalog {
     /// The STFS binding's own limits, and its agreement with a content identity: such an
     /// identity is admitted only for a port that binds the same titles and content types.
@@ -2196,6 +2195,40 @@ impl Catalog {
     }
 }
 
+/// Reviewed release uploaders are GitHub account identities: unique, positive
+/// safe-integer IDs with the reviewed login, on a GitHub-provider route. GitHub's
+/// shared deleted-account placeholder (ID 10137) identifies no one.
+fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
+    let accepted = &port.release.accepted_uploaders;
+    if accepted.is_empty() {
+        return Ok(());
+    }
+    let mut ids = HashSet::new();
+    let valid = port.release.provider == ReleaseSource::Github
+        && accepted.iter().all(|uploader| {
+            uploader.id > 0
+                && uploader.id != 10_137
+                && uploader.id <= 9_007_199_254_740_991
+                && ids.insert(uploader.id)
+                && !uploader.login.is_empty()
+                && uploader.login.len() <= 64
+                && uploader
+                    .login
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"-[]".contains(&byte))
+        });
+    if valid {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage(format!(
+            "{} declares invalid accepted release uploaders",
+            port.id
+        )))
+    }
+}
+
+/// A named portable marker is one plain file name that the port also declares persistent,
+/// because the engine keeps its own configuration in it.
 fn validate_portable_marker_file(port: &PortDefinition) -> Result<()> {
     let Some(name) = &port.portable_marker_file else {
         return Ok(());
@@ -2287,6 +2320,57 @@ mod tests {
             port.portable_marker_file = Some(long.clone());
             port.persistent_paths.push(long);
         }));
+    }
+
+    #[test]
+    fn accepted_release_uploaders_are_unique_github_account_identities() {
+        let mut base = Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        assert_eq!(base.release.provider, ReleaseSource::Github);
+        let uploader = |id: u64, login: &str| crate::AcceptedUploader {
+            id,
+            login: login.into(),
+        };
+        base.release.accepted_uploaders = vec![
+            uploader(7, "reviewed-maintainer"),
+            uploader(8, "release-app[bot]"),
+        ];
+        assert!(validate_accepted_uploaders(&base).is_ok());
+        let refused = |change: &dyn Fn(&mut PortDefinition)| {
+            let mut port = base.clone();
+            change(&mut port);
+            let error = validate_accepted_uploaders(&port).unwrap_err();
+            assert!(error.message.contains("invalid accepted release uploaders"));
+        };
+        refused(&|port| port.release.provider = ReleaseSource::Gitlab);
+        refused(&|port| port.release.provider = ReleaseSource::DirectManifest);
+        refused(&|port| port.release.accepted_uploaders[0].id = 0);
+        refused(&|port| port.release.accepted_uploaders[0].id = 9_007_199_254_740_992);
+        refused(&|port| port.release.accepted_uploaders[0].id = 10_137);
+        refused(&|port| port.release.accepted_uploaders[1].id = 7);
+        refused(&|port| port.release.accepted_uploaders[0].login.clear());
+        refused(&|port| port.release.accepted_uploaders[0].login = "x".repeat(65));
+        for login in ["name with space", "caf\u{e9}", "a/b", "a.b"] {
+            refused(&|port| port.release.accepted_uploaders[0].login = login.into());
+        }
+        // Without the field, any provider remains valid.
+        let mut direct = base.clone();
+        direct.release.accepted_uploaders.clear();
+        direct.release.provider = ReleaseSource::DirectManifest;
+        assert!(validate_accepted_uploaders(&direct).is_ok());
+        // The catalog's own validation applies the rule.
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap()
+            .release
+            .accepted_uploaders = vec![uploader(0, "zero")];
+        assert!(Catalog::from_document(document).is_err());
     }
 
     use super::*;
@@ -3070,6 +3154,43 @@ mod tests {
         ] {
             assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
         }
+        // v0.9.23's default-on replay recorder is disposable diagnostics:
+        // adding a persistent path would hold receipt-governed installations.
+        assert!(
+            sonic2
+                .runtime_mutable_paths
+                .iter()
+                .any(|path| path == "logs")
+        );
+        assert!(!sonic2.persistent_paths.iter().any(|path| path == "logs"));
+        // The reviewed v0.8.3 package stays first; v0.9.23 is appended.
+        let sonic2_contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-2-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            sonic2_contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.8.3",
+                    "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+                ),
+                (
+                    "v0.9.23",
+                    "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc"
+                ),
+            ]
+        );
         assert_eq!(
             serde_json::to_value(&sonic2.persistent_file_patterns).unwrap(),
             serde_json::json!([
@@ -3077,6 +3198,131 @@ mod tests {
                 {"prefix": "sonic2-campaign.sav.", "suffix": ".tmp"}
             ])
         );
+    }
+
+    #[test]
+    fn mstan_snes_bindings_add_only_super_metroid_v0_4_5_under_its_hold() {
+        let catalog = Catalog::embedded().unwrap();
+        let sources = catalog.source_catalog().unwrap();
+        let bindings = |id: &str| {
+            sources
+                .contracts
+                .iter()
+                .find(|contract| contract.id == id)
+                .unwrap()
+                .applicability
+                .iter()
+                .map(|binding| {
+                    (
+                        binding.upstream_ref.as_str(),
+                        binding.artifact_sha256.as_deref().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
+        // mod selection to mods/preloaded. Adding that path to an installed
+        // receipt scope is not yet a supported transition, so both routes keep
+        // their reviewed binding and persistence until that rule exists.
+        for (id, contract, row) in [
+            (
+                "super-mario-world-recomp",
+                "super-mario-world-recomp-game-source",
+                (
+                    "v0.12.0",
+                    "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                ),
+            ),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+                (
+                    "v0.6.1",
+                    "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                ),
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            assert!(
+                !port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded")),
+                "{id}"
+            );
+            assert!(port.managed_acquisition_hold.is_none(), "{id}");
+            assert_eq!(bindings(contract), [row], "{id}");
+        }
+        // Super Metroid v0.4.5 keeps the v0.4.2 writer set and is appended after
+        // the reviewed packages; its partitioned data policy is unchanged.
+        let metroid = catalog.port("super-metroid-recomp").unwrap();
+        assert!(metroid.archive_data_compatibility_v1.is_some());
+        assert_eq!(
+            bindings("super-metroid-recomp-game-source"),
+            [
+                (
+                    "v0.3.12",
+                    "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+                ),
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+            ]
+        );
+        // v0.4.6 relaunches the game in an untracked successor process, so the
+        // route is held and only the reviewed Windows packages may activate.
+        let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        // The Windows packages plus each release's published Linux and Mac
+        // siblings, all matching their release SHA256SUMS.
+        assert_eq!(
+            hold.reviewed_artifacts
+                .iter()
+                .map(|artifact| (artifact.version.as_str(), artifact.sha256.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.2",
+                    "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a",
+                ),
+                (
+                    "v0.4.2",
+                    "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2",
+                ),
+                (
+                    "v0.4.2",
+                    "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+                (
+                    "v0.4.5",
+                    "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+                ),
+                (
+                    "v0.4.5",
+                    "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14",
+                ),
+                (
+                    "v0.4.5",
+                    "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946",
+                ),
+            ]
+        );
+        assert!(hold.reason.contains("Exit, not Quit to launcher"));
+        assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
+            artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+        }));
     }
 
     #[test]
@@ -8181,8 +8427,30 @@ mod tests {
         );
         assert!(port.persistent_paths.iter().any(|path| path == "saves"));
         assert!(!port.persistent_paths.iter().any(|path| path == "disc"));
+        // v0.5.7 stages its built-in mods in mods/bundled, which stays with
+        // each package; only the framework's player mod paths are carried.
+        // Installations created with whole-`mods` keep their definitions.
+        for path in [
+            "settings.toml.bad",
+            "config.ini",
+            "mods/installed",
+            "mods/packages",
+            "mods/.staging",
+            "mods/state.toml",
+            "mods/state.toml.tmp",
+            "mods/texture-packs",
+        ] {
+            assert!(port.persistent_paths.iter().any(|entry| entry == path));
+        }
+        assert!(
+            !port
+                .persistent_paths
+                .iter()
+                .any(|path| path == "mods" || path.starts_with("mods/bundled"))
+        );
         for path in [
             "cache",
+            "mods/cache",
             "disc",
             "overlay_captures.json",
             "overlay_captures.json.d",
@@ -8233,6 +8501,28 @@ mod tests {
         assert!(contract.evidence_ids.iter().any(|evidence_id| {
             evidence_id == "ape-escape-recompiled-windows-lifecycle-2026-09-16"
         }));
+        // The qualified v0.3.0 package stays first; the v0.5.7 package is
+        // appended after a static comparison under the split mod paths.
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.3.0",
+                    "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9"
+                ),
+                (
+                    "v0.5.7",
+                    "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f"
+                ),
+            ]
+        );
 
         let scope = crate::SourceEvidenceScope {
             port_id: port.id.clone(),
