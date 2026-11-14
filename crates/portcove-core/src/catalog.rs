@@ -3117,6 +3117,108 @@ mod tests {
     }
 
     #[test]
+    fn mstan_snes_routes_append_newest_bindings_after_reviewed_ones() {
+        let catalog = Catalog::embedded().unwrap();
+        let sources = catalog.source_catalog().unwrap();
+        let bindings = |id: &str| {
+            sources
+                .contracts
+                .iter()
+                .find(|contract| contract.id == id)
+                .unwrap()
+                .applicability
+                .iter()
+                .map(|binding| {
+                    (
+                        binding.upstream_ref.clone(),
+                        binding.artifact_sha256.clone().unwrap(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        let pairs = |rows: &[(&str, &str)]| {
+            rows.iter()
+                .map(|(tag, sha)| ((*tag).to_owned(), (*sha).to_owned()))
+                .collect::<Vec<_>>()
+        };
+        // The newer packages moved the mod root to mods/preloaded. The old
+        // selection pair stays declared so installations from the reviewed
+        // releases keep their data; the new pair is an empty expansion.
+        for (id, contract, rows) in [
+            (
+                "super-mario-world-recomp",
+                "super-mario-world-recomp-game-source",
+                [
+                    (
+                        "v0.12.0",
+                        "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                    ),
+                    (
+                        "v0.15.9",
+                        "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+                    ),
+                ],
+            ),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+                [
+                    (
+                        "v0.6.1",
+                        "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                    ),
+                    (
+                        "v0.6.6",
+                        "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
+                    ),
+                ],
+            ),
+        ] {
+            let port = catalog.port(id).unwrap();
+            for path in [
+                "mods/state.toml",
+                "mods/state.toml.tmp",
+                "mods/preloaded/state.toml",
+                "mods/preloaded/state.toml.tmp",
+            ] {
+                assert!(
+                    port.persistent_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            assert!(port.archive_data_compatibility_v1.is_none(), "{id}");
+            assert_eq!(bindings(contract), pairs(&rows), "{id}");
+        }
+        // Super Metroid v0.4.5 keeps the v0.4.2 writer set, so its partitioned
+        // data policy is unchanged and only the exact Windows package is added.
+        let metroid = catalog.port("super-metroid-recomp").unwrap();
+        assert!(metroid.archive_data_compatibility_v1.is_some());
+        assert!(
+            !metroid
+                .persistent_paths
+                .iter()
+                .any(|p| p == "mods/state.toml")
+        );
+        assert_eq!(
+            bindings("super-metroid-recomp-game-source"),
+            pairs(&[
+                (
+                    "v0.3.12",
+                    "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
+                ),
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+            ])
+        );
+    }
+
+    #[test]
     fn managed_dkc3_lifecycle_does_not_erase_its_known_startup_failure() {
         let catalog = Catalog::embedded().unwrap();
         let scope = crate::SourceEvidenceScope {

@@ -821,6 +821,16 @@
         "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
       },
       {
+        "id": "super-mario-world-recomp-0-15-9-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMarioWorldRecomp",
+        "authority_ref": "8c280aac7ea08456372cd2b42603bb2ad7ab51eb",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.15.9 Windows x64 package (26746609 bytes, SHA-256 8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82) was computed from the downloaded bytes; the release publishes no SHA256SUMS, SHA256SUMS.txt or per-asset .sha256 file and the provider release digest was not read. At this tag src/main.c keeps CRC B19ED489, SHA-256 0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b and the positional ROM argument. The pinned snesrecomp 3d73fa26b2b6ac1c6f932916c8229d1e561b6e31 moves the mod root from mods to mods/preloaded, so the selection writers become mods/preloaded/state.toml and its .tmp companion; the definition declares them beside the retained mods/state.toml pair, and packaged manifests under mods/preloaded/packages stay immutable. SuperMarioWorldSNESRecomp.exe keeps its root path. The package adds smw-falcon-cache.exe, which the player spawns for optional Falcon setup with its cache under LOCALAPPDATA, smw-controller-report.exe and the player-run Collect-Controller-Diagnostics.cmd/.ps1, which write diagnostics/, and drops the MinGW runtime DLLs. Native co-op data stays under saves. Netplay, account sign-in (netplay_secret), moderation.ini and peer mod transfer are reachable only from the pre-boot launcher or the SNES_NETPLAY/SMW_NET_AUTO_ROLE environment, which the positional launch with SNESRECOMP_NO_LAUNCHER skips; diagnostic replay recording under logs is a default-off mod feature. Native execution, gameplay, saves and the absence of runtime network use remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/main.c",
+        "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
+      },
+      {
         "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ZeldaAlttPSNESRecomp",
@@ -829,6 +839,16 @@
         "claim": "Pins the v0.6.1 original-input compatibility and direct positional invocation; selected package and source identities are separate from runtime or gameplay acceptance",
         "immutable_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/70b9c1a374d7d92a1d037516354036bf1bfebd5d/src/main.c",
         "live_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/main/src/main.c"
+      },
+      {
+        "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/ZeldaAlttPSNESRecomp",
+        "authority_ref": "961724bb5e09227207df5cf62f4b79b21e7c4452",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.6.6 Windows x64 package (12990200 bytes, SHA-256 53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2) matches the published SHA256SUMS.txt; the provider release digest was not read. At this tag rom_identity.txt and src/main.c keep CRC 777AAC2F and SHA-256 66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb with the positional ROM argument; v0.6.1's second accepted hash is gone. The pinned snesrecomp 68896b6fa93b47c9fa1ca68f0c9c2ef889969839 moves the mod root from mods to mods/preloaded, so the selection writers become mods/preloaded/state.toml and its .tmp companion; the definition declares them beside the retained mods/state.toml pair, and packaged manifests under mods/preloaded/packages stay immutable. ZeldaALttPSNESRecomp.exe stays the only program at its root path. The package no longer ships config.ini, which the player writes on first run under the existing persistent path, drops the MinGW runtime DLLs and adds LICENSE (PolyForm Noncommercial 1.0.0), docs/ and an MSU-1 manifest. src/main.c and src/config.c write the same config.ini, rom.cfg and copied-ROM paths as v0.6.1. The recomp-ui moderation.ini and netplay writers are reachable only from the pre-boot launcher, which the positional launch with SNESRECOMP_NO_LAUNCHER skips, and tier-2 coverage now writes under LOCALAPPDATA only when enabled. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/961724bb5e09227207df5cf62f4b79b21e7c4452/rom_identity.txt",
+        "live_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/main/rom_identity.txt"
       },
       {
         "id": "sonic-the-hedgehog-recomp-0-6-0-source-contract",
@@ -1220,6 +1240,16 @@
         "reviewed_at": "2026-11-04",
         "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
         "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "super-metroid-recomp-0-4-5-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "113951fc32f9783c1be0a947ea17c9aabfba9066",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.4.5 Windows x64 package (15522852 bytes, SHA-256 337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314) matches the published SHA256SUMS; the provider release digest was not read. At this tag rom_identity.txt is byte-identical to v0.4.2 and framework_pins.txt names the same snesrecomp, recomp-ui, recomp-net and rbengine commits. Against the bound v0.4.2 package the wrapper-prefixed file list adds only two mods/preloaded/packages manifests (run-by-default and single-missile-doors) and PERMISSIONS.md; SuperMetroidSNESRecomp.exe keeps its path. The release build now sets SNESRECOMP_ENABLE_NET, adding IPHLPAPI and BCRYPT imports; the pinned host offers netplay, account sign-in and peer mod transfer only from the pre-boot launcher or the SNES_NETPLAY environment, the in-game launcher omits netplay, and --rom with SNESRECOMP_NO_LAUNCHER skips the pre-boot launcher, so the declared persistence and data-compatibility contract are unchanged. Linux and macOS packages, native execution, gameplay, saves, settings migration and the absence of runtime network use remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/rom_identity.txt",
         "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
       },
       {
@@ -19547,7 +19577,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "super-mario-world-recomp-0-12-0-source-contract"
+          "super-mario-world-recomp-0-12-0-source-contract",
+          "super-mario-world-recomp-0-15-9-source-contract"
         ],
         "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
         "reviewed_at": "2026-10-18",
@@ -19558,6 +19589,10 @@
           {
             "upstream_ref": "v0.12.0",
             "artifact_sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd"
+          },
+          {
+            "upstream_ref": "v0.15.9",
+            "artifact_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82"
           }
         ],
         "aliases": [],
@@ -19574,7 +19609,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract"
+          "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
+          "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract"
         ],
         "authority_ref": "70b9c1a374d7d92a1d037516354036bf1bfebd5d",
         "reviewed_at": "2026-10-18",
@@ -19585,6 +19621,10 @@
           {
             "upstream_ref": "v0.6.1",
             "artifact_sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632"
+          },
+          {
+            "upstream_ref": "v0.6.6",
+            "artifact_sha256": "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2"
           }
         ],
         "aliases": [],
@@ -19794,7 +19834,8 @@
         "evidence_ids": [
           "super-metroid-recomp-0-3-12-source-contract",
           "super-metroid-snes-japan-usa-no-intro-byte-identity",
-          "super-metroid-recomp-0-4-2-source-contract"
+          "super-metroid-recomp-0-4-2-source-contract",
+          "super-metroid-recomp-0-4-5-source-contract"
         ],
         "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
         "reviewed_at": "2026-10-19",
@@ -19809,6 +19850,10 @@
           {
             "upstream_ref": "v0.4.2",
             "artifact_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+          },
+          {
+            "upstream_ref": "v0.4.5",
+            "artifact_sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
           }
         ],
         "aliases": [],
