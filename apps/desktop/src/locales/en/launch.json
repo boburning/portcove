@@ -6,5 +6,21 @@
     "label": "Last launch",
     "openActivity": "Open Activity",
     "restorePrevious": "Restore previous version"
+  },
+  "runtimes": {
+    "aspnetCore": "ASP.NET Core Runtime {{version}}",
+    "directxJune2010": "DirectX End-User Runtime (June 2010)",
+    "dotnetDesktop": ".NET Desktop Runtime {{version}}",
+    "dotnetFramework": ".NET {{name}} {{version}}",
+    "dotnetRuntime": ".NET Runtime {{version}}",
+    "download": "Download from Microsoft",
+    "item": "{{name}} ({{architecture}})",
+    "label": "Microsoft runtimes",
+    "missing": "Windows is most likely missing something this game needs to start:",
+    "nextAction": "Install what's listed from Microsoft, then start the game again.",
+    "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
+    "visualCpp2012": "Microsoft Visual C++ 2012 Redistributable",
+    "visualCpp2013": "Microsoft Visual C++ 2013 Redistributable",
+    "visualCpp2015OrLater": "Microsoft Visual C++ Redistributable (2015 or later)"
   }
 }

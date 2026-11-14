@@ -25,6 +25,7 @@ import type {
   InstallInput,
   LaunchResult,
   LaunchSessionView,
+  RuntimePrerequisiteReport,
 } from "./types";
 import type {
   GameUpdateAcquisition,
@@ -1279,6 +1280,9 @@ export const desktopApi = {
     invoke<SubmittedReport>("submit_report", { fields, kind }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
+  /** Microsoft runtimes the current installation most likely needs; read on request. */
+  runtimePrerequisites: (portId: string, generation: number) =>
+    invoke<RuntimePrerequisiteReport | null>("get_runtime_prerequisites", { portId, generation }),
   previewAdoption: (path: string, generation: number, portId?: string) =>
     invoke<AdoptionPreview>("preview_adoption", {
       path,

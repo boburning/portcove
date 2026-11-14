@@ -19616,6 +19616,30 @@
   },
   "launch_request": {
     "$defs": {
+      "DotnetFramework": {
+        "properties": {
+          "name": {
+            "description": "Shared framework name, e.g. `Microsoft.WindowsDesktop.App`.",
+            "type": "string"
+          },
+          "roll_forward": {
+            "description": "The program's declared roll-forward policy; absent means `Minor`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "Version the program was built against.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "type": "object"
+      },
       "ExitExplanation": {
         "properties": {
           "explanation": {
@@ -19748,6 +19772,17 @@
           "port_id": {
             "type": "string"
           },
+          "runtime_prerequisites": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RuntimePrerequisiteReport"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Microsoft runtimes the installation that ran most likely needs, present\nonly for an exit most likely caused by a missing DLL and only while that\ninstallation is still the current one. Derived on read, never stored."
+          },
           "started_at": {
             "format": "int64",
             "type": "integer"
@@ -19787,6 +19822,177 @@
           "finished_at"
         ],
         "type": "object"
+      },
+      "RuntimeHostCheck": {
+        "oneOf": [
+          {
+            "const": "checked",
+            "description": "This Windows host was asked about each requirement.",
+            "type": "string"
+          },
+          {
+            "const": "not_windows",
+            "description": "Presence cannot be checked on this host; every requirement is unknown.",
+            "type": "string"
+          }
+        ]
+      },
+      "RuntimeInspection": {
+        "oneOf": [
+          {
+            "const": "complete",
+            "description": "The launch program and every DLL it imports from its own folder were read.",
+            "type": "string"
+          },
+          {
+            "const": "partial",
+            "description": "Something could not be read or a limit was reached. Listed requirements are\nreal; others may be absent from the list.",
+            "type": "string"
+          },
+          {
+            "const": "not_windows_program",
+            "description": "The launch program is not a Windows program, so no Microsoft runtime applies.",
+            "type": "string"
+          },
+          {
+            "const": "unreadable",
+            "description": "The launch program could not be read or its format was not understood.",
+            "type": "string"
+          }
+        ]
+      },
+      "RuntimePrerequisite": {
+        "properties": {
+          "architecture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WindowsArchitecture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Architecture of the launch program; absent for an architecture Portcove\ndoes not assess."
+          },
+          "download_page": {
+            "description": "Microsoft's official download page for this runtime.",
+            "type": "string"
+          },
+          "files": {
+            "description": "Lowercase runtime DLL names the game imports and does not ship.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "framework": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DotnetFramework"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "missing_files": {
+            "description": "The part of `files` this host reports absent.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "presence": {
+            "$ref": "#/$defs/RuntimePresence"
+          },
+          "runtime": {
+            "$ref": "#/$defs/WindowsRuntime"
+          }
+        },
+        "required": [
+          "runtime",
+          "presence",
+          "download_page"
+        ],
+        "type": "object"
+      },
+      "RuntimePrerequisiteReport": {
+        "description": "Microsoft runtimes the active installation's launch program most likely\nneeds. Derived on request; nothing is stored.",
+        "properties": {
+          "host": {
+            "$ref": "#/$defs/RuntimeHostCheck"
+          },
+          "inspection": {
+            "$ref": "#/$defs/RuntimeInspection"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/$defs/RuntimePrerequisite"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "inspection",
+          "host",
+          "requirements"
+        ],
+        "type": "object"
+      },
+      "RuntimePresence": {
+        "oneOf": [
+          {
+            "enum": [
+              "present"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "missing",
+            "description": "This host affirmatively reports a required file or framework absent.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "Portcove could not tell; never presented as missing.",
+            "type": "string"
+          }
+        ]
+      },
+      "WindowsArchitecture": {
+        "enum": [
+          "x86",
+          "x64",
+          "arm64"
+        ],
+        "type": "string"
+      },
+      "WindowsRuntime": {
+        "oneOf": [
+          {
+            "enum": [
+              "visual_cpp_2013",
+              "visual_cpp_2012",
+              "visual_cpp_2010"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "visual_cpp_2015_or_later",
+            "description": "The shared Visual C++ Redistributable for Visual Studio 2015 and later.",
+            "type": "string"
+          },
+          {
+            "const": "directx_june_2010",
+            "description": "Legacy components installed by the DirectX End-User Runtime (June 2010).",
+            "type": "string"
+          },
+          {
+            "const": "dotnet",
+            "description": "A .NET shared framework named by the program's runtime configuration.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -46283,6 +46489,215 @@
     ],
     "title": "RetainedBuildRetirementPreview",
     "type": "object"
+  },
+  "runtime_prerequisite_report": {
+    "$defs": {
+      "DotnetFramework": {
+        "properties": {
+          "name": {
+            "description": "Shared framework name, e.g. `Microsoft.WindowsDesktop.App`.",
+            "type": "string"
+          },
+          "roll_forward": {
+            "description": "The program's declared roll-forward policy; absent means `Minor`.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "Version the program was built against.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "type": "object"
+      },
+      "RuntimeHostCheck": {
+        "oneOf": [
+          {
+            "const": "checked",
+            "description": "This Windows host was asked about each requirement.",
+            "type": "string"
+          },
+          {
+            "const": "not_windows",
+            "description": "Presence cannot be checked on this host; every requirement is unknown.",
+            "type": "string"
+          }
+        ]
+      },
+      "RuntimeInspection": {
+        "oneOf": [
+          {
+            "const": "complete",
+            "description": "The launch program and every DLL it imports from its own folder were read.",
+            "type": "string"
+          },
+          {
+            "const": "partial",
+            "description": "Something could not be read or a limit was reached. Listed requirements are\nreal; others may be absent from the list.",
+            "type": "string"
+          },
+          {
+            "const": "not_windows_program",
+            "description": "The launch program is not a Windows program, so no Microsoft runtime applies.",
+            "type": "string"
+          },
+          {
+            "const": "unreadable",
+            "description": "The launch program could not be read or its format was not understood.",
+            "type": "string"
+          }
+        ]
+      },
+      "RuntimePrerequisite": {
+        "properties": {
+          "architecture": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/WindowsArchitecture"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Architecture of the launch program; absent for an architecture Portcove\ndoes not assess."
+          },
+          "download_page": {
+            "description": "Microsoft's official download page for this runtime.",
+            "type": "string"
+          },
+          "files": {
+            "description": "Lowercase runtime DLL names the game imports and does not ship.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "framework": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DotnetFramework"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "missing_files": {
+            "description": "The part of `files` this host reports absent.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "presence": {
+            "$ref": "#/$defs/RuntimePresence"
+          },
+          "runtime": {
+            "$ref": "#/$defs/WindowsRuntime"
+          }
+        },
+        "required": [
+          "runtime",
+          "presence",
+          "download_page"
+        ],
+        "type": "object"
+      },
+      "RuntimePrerequisiteReport": {
+        "description": "Microsoft runtimes the active installation's launch program most likely\nneeds. Derived on request; nothing is stored.",
+        "properties": {
+          "host": {
+            "$ref": "#/$defs/RuntimeHostCheck"
+          },
+          "inspection": {
+            "$ref": "#/$defs/RuntimeInspection"
+          },
+          "requirements": {
+            "items": {
+              "$ref": "#/$defs/RuntimePrerequisite"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "inspection",
+          "host",
+          "requirements"
+        ],
+        "type": "object"
+      },
+      "RuntimePresence": {
+        "oneOf": [
+          {
+            "enum": [
+              "present"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "missing",
+            "description": "This host affirmatively reports a required file or framework absent.",
+            "type": "string"
+          },
+          {
+            "const": "unknown",
+            "description": "Portcove could not tell; never presented as missing.",
+            "type": "string"
+          }
+        ]
+      },
+      "WindowsArchitecture": {
+        "enum": [
+          "x86",
+          "x64",
+          "arm64"
+        ],
+        "type": "string"
+      },
+      "WindowsRuntime": {
+        "oneOf": [
+          {
+            "enum": [
+              "visual_cpp_2013",
+              "visual_cpp_2012",
+              "visual_cpp_2010"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "visual_cpp_2015_or_later",
+            "description": "The shared Visual C++ Redistributable for Visual Studio 2015 and later.",
+            "type": "string"
+          },
+          {
+            "const": "directx_june_2010",
+            "description": "Legacy components installed by the DirectX End-User Runtime (June 2010).",
+            "type": "string"
+          },
+          {
+            "const": "dotnet",
+            "description": "A .NET shared framework named by the program's runtime configuration.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "anyOf": [
+      {
+        "$ref": "#/$defs/RuntimePrerequisiteReport"
+      },
+      {
+        "type": "null"
+      }
+    ],
+    "title": "Nullable_RuntimePrerequisiteReport"
   },
   "save_folder_push_result": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
