@@ -15078,6 +15078,23 @@
               "kind"
             ],
             "type": "object"
+          },
+          {
+            "description": "As `RemoveOwned`, for one role only; the entry's other artwork stays.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned_role",
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/$defs/DestinationArtworkRole"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -15175,6 +15192,23 @@
         ],
         "type": "object"
       },
+      "SteamArtworkWithdrawnSource": {
+        "properties": {
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_evicted_at": {
+            "description": "When Portcove removed its own copy of the source image.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "role",
+          "source_evicted_at"
+        ],
+        "type": "object"
+      },
       "SteamClientState": {
         "enum": [
           "closed",
@@ -15243,6 +15277,13 @@
       "steam_user_id": {
         "type": "string"
       },
+      "withdrawn_sources": {
+        "description": "Roles whose Portcove-added Steam image came from a SteamGridDB image\nPortcove has since removed from its library. Display only: it is not\npart of the reviewed plan, and removal still needs its own review.\nEmpty when unknown.",
+        "items": {
+          "$ref": "#/$defs/SteamArtworkWithdrawnSource"
+        },
+        "type": "array"
+      },
       "writes_required": {
         "type": "boolean"
       }
@@ -15261,7 +15302,8 @@
       "steam_client_state",
       "writes_required",
       "recovered",
-      "recovered_shortcut_change"
+      "recovered_shortcut_change",
+      "withdrawn_sources"
     ],
     "title": "SteamArtworkReview",
     "type": "object"

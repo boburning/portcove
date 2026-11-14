@@ -814,6 +814,10 @@ writes the choice clear the marker and record the provenance, so a failed restor
 changes nothing. Evicted bytes do not count toward artwork storage or the transfer
 byte limit. Library metadata schema 10 carries withdrawals and evicted assets;
 evicted originals are not part of the transfer inventory.
+Desktop's Steam artwork review asks Core, by source hash, which Portcove-owned Steam
+files came from an evicted image (`evicted_artwork_sources`, a display fact that
+never authorizes removal) and offers a separate, player-confirmed per-role removal;
+Steam files are never changed because of an eviction alone.
 
 The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` and `check-listings`, which borrow the

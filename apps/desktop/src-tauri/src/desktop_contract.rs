@@ -314,6 +314,10 @@ pub enum SteamArtworkOperation {
     Update { replace_existing: bool },
     /// Remove only recorded, unchanged Portcove-written art for this entry.
     RemoveOwned,
+    /// As `RemoveOwned`, for one role only; the entry's other artwork stays.
+    RemoveOwnedRole {
+        role: portcove_core::DestinationArtworkRole,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -376,6 +380,18 @@ pub struct SteamArtworkReview {
     /// An interrupted shortcut (or, for shortcut reviews, artwork) change in this
     /// profile was settled before review.
     pub recovered_shortcut_change: bool,
+    /// Roles whose Portcove-added Steam image came from a SteamGridDB image
+    /// Portcove has since removed from its library. Display only: it is not
+    /// part of the reviewed plan, and removal still needs its own review.
+    /// Empty when unknown.
+    pub withdrawn_sources: Vec<SteamArtworkWithdrawnSource>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct SteamArtworkWithdrawnSource {
+    pub role: portcove_core::DestinationArtworkRole,
+    /// When Portcove removed its own copy of the source image.
+    pub source_evicted_at: i64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
