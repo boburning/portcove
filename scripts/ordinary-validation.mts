@@ -1854,7 +1854,15 @@ for (const [file, tests] of [
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mts"]],
-  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/release-preflight.ps1",
+    [
+      "scripts/repository-skills.test.mts",
+      // Both run the real preflight script under fixtures on Windows.
+      "scripts/dev-storage.test.mts",
+      "scripts/windows-helper-checks.test.mts",
+    ],
+  ],
   [
     "scripts/roadmap.mts",
     [
@@ -1964,7 +1972,13 @@ for (const [file, tests] of [
   ],
   [
     "crates/portcove-core/catalog/catalog.json",
-    [...catalogGeneratorContractTests, "scripts/repository-skills.test.mts"],
+    [
+      ...catalogGeneratorContractTests,
+      "scripts/repository-skills.test.mts",
+      // Runs the real catalog through the upstream health collector, so catalog
+      // growth that breaks it is caught on the pull request rather than on main.
+      "scripts/check-catalog-repositories.test.mts",
+    ],
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [

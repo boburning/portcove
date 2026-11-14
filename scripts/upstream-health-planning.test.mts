@@ -205,7 +205,7 @@ void test("validated forecasts bound full collections, and the batch ceiling nev
     assert.equal(report.coverage.repositories, count);
     assert.equal(report.scope.mode, "full");
     assert.equal(report.outcome, "complete");
-    assert.match(renderRepositoryHealth(report), /incremental batch ceiling 352; admitted\./);
+    assert.match(renderRepositoryHealth(report), /scheduled batch ceiling 352; admitted\./);
     const none = await collectRepositoryHealth(catalog, {
       portIds: [],
       fetch: () => assert.fail("Empty scope must not fetch"),
@@ -242,7 +242,7 @@ void test("incremental operations still stop at the 352-request batch ceiling", 
   assert.equal(report.observations.filter((r) => r.reason === "budget").length, 1);
 });
 
-void test("only the observation ceiling refuses a full collection before any network I/O", async () => {
+void test("inventory size never refuses a full collection", async () => {
   for (const count of [512, 513]) {
     const catalog = {
       ports: Array.from({ length: count }, (_, i) => capacityPort(`records-${i}`)),
@@ -253,24 +253,21 @@ void test("only the observation ceiling refuses a full collection before any net
       now: () => 0,
     });
     assert.equal(report.request_plan.observation_records, count);
+    // "overflow" only tells the scheduled planner that one batch is not enough.
     assert.equal(report.request_plan.status, count > 512 ? "overflow" : "admitted");
-    assert.equal(report.limits.requests, count > 512 ? 0 : count);
-    assert.equal(calls.length, count > 512 ? 0 : count);
-    if (count > 512) {
-      assert.equal(report.outcome, "incomplete");
-      assert.equal(report.scope.global_health, "not assessed");
-      assert.ok(
-        report.observations.every((r) => !r.attempted && !r.accounted_for && r.reason === "budget"),
-      );
-      assert.match(
-        renderRepositoryHealth(report),
-        /Preflight overflow: the selected inventory exceeds the observation ceiling; no live requests permitted/,
-      );
-    } else assert.equal(report.outcome, "complete");
+    assert.equal(report.limits.requests, count);
+    assert.equal(calls.length, count);
+    assert.equal(report.outcome, "complete");
+    assert.equal(report.scope.global_health, "collection attempted; not an installability claim");
+    assert.match(
+      renderRepositoryHealth(report),
+      count > 512 ? /more locations than one scheduled batch\./ : /; admitted\./,
+    );
+    assert.doesNotMatch(renderRepositoryHealth(report), /Preflight overflow/);
   }
 });
 
-void test("overflow preserves static missing-release and conflicting-identity classifications", async () => {
+void test("static missing-release and conflicting-identity classifications need no request", async () => {
   const direct = (id: string, conflict = false) => ({
     id,
     release: {
@@ -297,7 +294,7 @@ void test("overflow preserves static missing-release and conflicting-identity cl
   });
   const catalog = {
     ports: [
-      ...Array.from({ length: 511 }, (_, i) => capacityPort(`mixed-${i}`)),
+      ...Array.from({ length: 2 }, (_, i) => capacityPort(`mixed-${i}`)),
       direct("unlocated"),
       direct("conflicting", true),
     ],
@@ -313,14 +310,23 @@ void test("overflow preserves static missing-release and conflicting-identity cl
       ],
     },
   };
+  const calls: { url: string; options: HealthRequestOptions }[] = [];
   const report = await collectRepositoryHealth(catalog, {
-    fetch: () => assert.fail("Overflow must not fetch"),
+    fetch: capacityFetch(calls),
     now: () => 0,
   });
-  assert.equal(report.request_plan.status, "overflow");
-  assert.equal(report.limits.requests, 0);
-  assert.equal(report.observations.length, 514);
-  assert.equal(report.coverage.monitored_ports, 513);
+  assert.equal(report.observations.length, 5);
+  assert.equal(report.coverage.monitored_ports, 4);
+  // The two repositories and the current direct download are requested; the
+  // historical and conflicting records are classified without a request.
+  assert.deepEqual(
+    calls.map((call) => call.url),
+    [
+      "https://api.github.com/repos/fixture/mixed-0",
+      "https://api.github.com/repos/fixture/mixed-1",
+      "https://example.invalid/unlocated.zip",
+    ],
+  );
   assert.equal(
     requiredFixture(report.observations.find((r) => r.provider === "unlocated-historical")).reason,
     "release-identity-unavailable",
@@ -330,7 +336,13 @@ void test("overflow preserves static missing-release and conflicting-identity cl
       .reason,
     "identity-mismatch",
   );
-  assert.ok(report.observations.every((r) => !r.attempted && !r.accounted_for));
+  assert.ok(
+    report.observations
+      .filter(
+        (r) => r.provider === "unlocated-historical" || r.repository.endsWith("conflicting.zip"),
+      )
+      .every((r) => !r.attempted && !r.accounted_for),
+  );
 });
 
 void test("malformed inventories refuse before requests and historical byte bounds are independent of collection counts", async () => {
