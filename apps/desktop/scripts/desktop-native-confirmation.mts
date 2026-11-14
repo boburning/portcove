@@ -174,10 +174,11 @@ function ownedRuntimePicker(
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
       ],
-      // Calibrated from 15 s: the helper itself polls up to 30 s for the picker,
-      // 10 s for its buttons and 3 s for it to close, after a cold pwsh start.
-      // The 15 s outer budget killed it (spawnSync pwsh ETIMEDOUT, hosted job
-      // 132369155635) before it could report which phase it was in.
+      // Calibrated from 15 s: in -ObservePicker mode the helper waits up to 10 s
+      // for the picker and 2 s for it to close, after a cold pwsh start, process
+      // lookups and UI Automation scans. The 15 s outer budget killed it
+      // (spawnSync pwsh ETIMEDOUT at 20.7 s, hosted job 132369155635) before it
+      // could report which phase it was in.
       { encoding: "utf8", windowsHide: true, timeout: 60_000 },
     );
     return retainPickerResult({ output, artifacts }, name, before, result);

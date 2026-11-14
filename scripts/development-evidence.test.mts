@@ -168,6 +168,21 @@ void test("Core success still requires authoritative readiness and actual review
   assert.equal(required(input.observation.last).phase, "complete");
 });
 
+void test("a new preparation that ends without success is reported at once", async () => {
+  for (const status of ["failed", "cancelled"] as const) {
+    const input = preparationObservation({
+      readActivities: async () => ({
+        records: [{ id: "new", operation: "prepare", target_id: "owned-port", status }],
+      }),
+      readStatus: async () => assert.fail("No status work after a terminal non-success"),
+    });
+    await assert.rejects(
+      observePreparationCompletion(input),
+      new RegExp(`preparation new ended ${status} before readiness`),
+    );
+  }
+});
+
 void test("preparation observation refuses duplicate new operations", async () => {
   const input = preparationObservation({
     readActivities: async () => ({
