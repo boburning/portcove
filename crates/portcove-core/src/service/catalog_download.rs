@@ -1029,11 +1029,18 @@ impl PortcoveService {
                 &activity.id,
             )?;
             let transfer_result = async {
+                // Either digest is verified below, so either may enable resume.
+                let expected_sha256 = match &record.artifact.sha256 {
+                    Some(digest) => digest.clone(),
+                    None => self
+                        .known_catalog_artifact_hash(&request.port_id, &record.artifact)?
+                        .unwrap_or_default(),
+                };
                 let artifact = crate::ReleaseAsset {
                     name: record.artifact.name.clone(),
                     url: record.artifact.download_url.clone(),
                     size: record.artifact.size,
-                    sha256: record.artifact.sha256.clone().unwrap_or_default(),
+                    sha256: expected_sha256,
                 };
                 let source = stage.path().join("artifact.download");
                 Installer::download_with_client(

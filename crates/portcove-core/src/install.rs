@@ -1933,6 +1933,10 @@ impl Installer {
 
     /// Shared bounded byte transfer; callers supply a provider-constrained
     /// client and still own checksum verification and publication policy.
+    ///
+    /// Contract: a non-empty `asset.sha256` promises that the caller verifies
+    /// the complete file against it before use. Only then may a dropped body
+    /// continue with `Range`; an empty digest makes every retry start over.
     pub(crate) async fn download_with_client<F>(
         client: &reqwest::Client,
         asset: &ReleaseAsset,

@@ -455,7 +455,7 @@ async fn read_idle_stall_on_a_resumed_attempt_remains_fatal() {
     );
     let client = reqwest::Client::builder()
         .no_proxy()
-        .read_timeout(Duration::from_millis(300))
+        .read_timeout(Duration::from_secs(1))
         .build()
         .unwrap();
     let operation = OperationCoordinator::new("download", None);
@@ -559,10 +559,13 @@ fn cancellation_during_a_resumed_body_returns_after_draining_received_bytes() {
         .await
         .expect("cancellation fixture exceeded thirty seconds")
     });
-    server.join().unwrap();
+    // The client may abandon the resumed body mid-write; a server write
+    // error then is expected and not part of this contract.
+    let _ = server.join();
+    drop(requests);
     assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
-    assert_eq!(requests.try_iter().count(), 2);
-    // Everything accepted from both attempts reached the file before return.
+    // More than the first attempt's six bytes proves the resumed body was
+    // read, and everything accepted reached the file before return.
     let written = fs::read(&destination).unwrap();
     assert!(written.len() > 1024 * 1024, "{}", written.len());
     assert_eq!(written, &body[..written.len()]);

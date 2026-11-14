@@ -161,17 +161,16 @@ impl Transfer<'_> {
             file.get_mut().seek(SeekFrom::Start(0)).await?;
         }
         let shown = self.reported > 0;
+        let total = self
+            .length
+            .or(Some(self.asset.size))
+            .filter(|value| *value > 0);
         self.completed = 0;
         self.reported = 0;
         self.validator = None;
         self.length = None;
         if shown {
-            emit(operation.progress_with_unit(
-                "download",
-                crate::ProgressUnit::Bytes,
-                0,
-                Some(self.asset.size).filter(|size| *size > 0),
-            ));
+            emit(operation.progress_with_unit("download", crate::ProgressUnit::Bytes, 0, total));
         }
         Ok(())
     }
