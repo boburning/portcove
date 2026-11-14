@@ -21,9 +21,7 @@
     "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "-windows.zip"
-      ]
+      "windows-x86-64": ["-windows.zip"]
     },
     "manual_setup": {
       "steps": [
@@ -45,12 +43,7 @@
         "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
       ]
     },
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ]
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"]
   },
   "upstream_lineage": {
     "format_version": 1,
