@@ -875,7 +875,21 @@ async function assertReviewedUpdateOutcomes({
             : mutation === "unknown"
               ? "couldn't confirm whether anything changed"
               : "No files were changed";
-        assert.ok((await outcome.getText()).includes(consequence));
+        // Read textContent: getText omits text behind the still-open review
+        // dialog, and the consequence can render after the summary (hosted job
+        // 132524655921). Still required; only the single racy read is removed.
+        let outcomeText = "";
+        await browser
+          .wait(async () => {
+            outcomeText = (await outcome.getAttribute("textContent")) ?? "";
+            return outcomeText.includes(consequence);
+          }, 60_000)
+          .catch((error: unknown) => {
+            throw new Error(
+              `Update outcome did not state "${consequence}"; observed: ${outcomeText.slice(0, 400)}`,
+              { cause: error },
+            );
+          });
         await browser.wait(
           async () => (await browser.findElements(dialog)).length === 0,
           5_000,
@@ -2767,6 +2781,21 @@ export async function preparationScenarios({
       artifacts.push(screenshot);
     } finally {
       await browser.manage().window().setRect(originalWindow);
+      // Restore the Library view this journey narrowed (search and Ready), so
+      // later scenarios do not inherit a filter that hides a game which stops
+      // being ready (hosted job 132524655921). Best effort; never masks a failure.
+      try {
+        const reset = await browser.findElements(button("Reset view"));
+        if (reset[0]) {
+          await clickVisible(browser, reset[0]);
+          await browser.wait(
+            async () => (await browser.findElements(button("Reset view"))).length === 0,
+            15_000,
+          );
+        }
+      } catch (error) {
+        console.error(`Could not restore the Library view after game return: ${String(error)}`);
+      }
     }
   });
   await scenario("native-game-update-review", async () => {
