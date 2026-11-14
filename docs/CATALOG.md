@@ -1086,6 +1086,54 @@ An indexed definition that declares `optional_game_source` must require
 delivery](DEFINITION-DELIVERY.md)); the flag is part of the installed compatibility
 identity only when set.
 
+## ROM patching
+
+`rom-patch` produces the runtime file named by `runtime_source_filename` by applying an
+exactly identified patch to an exactly identified original, for example a fan translation
+that an upstream port requires. It is valid only on a `staged-source-portable` port whose
+destination is declared in `persistent_paths` (as for `copy`), with a `source_profile` of
+kind `file-set` that holds the original and the patch as two members. The player supplies
+both files in one folder or ZIP; Portcove never downloads a patch through this route.
+
+A port also declares `runtime_rom_patch`:
+
+| Field                | Meaning                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `format`             | `ips`, `bps` or `ups`.                                                                    |
+| `original_filenames` | The accepted filenames of the file-set member that holds the unmodified original.         |
+| `original_sha256`    | The one original the patch applies to; it must be one of that member's `accepted_sha256`. |
+| `patch_filenames`    | The accepted filenames of the member that holds the patch; no file is in both members.    |
+| `patch_sha256`       | The one reviewed patch file; it must be one of that member's `accepted_sha256`.           |
+
+`runtime_source_hashes` must be exactly `{runtime_source_filename: <patched SHA-256>}`: the
+output's identity is pinned like any other single-file runtime source. All three identities
+come from owner-provided or upstream-published evidence; never infer them. A port that
+declares `runtime_rom_patch` without `rom-patch`, or `rom-patch` without a complete
+declaration, is invalid.
+
+Before every launch Core reads both members (each at most 64 MiB), checks each against its
+pinned SHA-256 and refuses a mismatch as a source problem. An existing output whose marker
+records the same inputs and whose bytes still match the pinned output is used as it is.
+Otherwise Core applies the patch in memory and checks the result against the pinned output
+before writing; only a match is written, to a private file beside the destination that then
+atomically replaces it, and the marker is written last. A failure at any step leaves the
+previous file, the original and the patch untouched. The appliers are strict: a truncated
+record, an offset or copy range outside its buffer, an overlong number, bytes after the end
+of the patch, or a declared size above 64 MiB refuses the patch. BPS and UPS checks also
+compare the original, output and patch with the CRC32 values the patch records; UPS is
+applied in the forward direction only. IPS output may grow past the original and honours
+the optional truncation record.
+
+Identity is exact, so an original that carries a 512-byte copier header is a different file
+and is refused at registration. Accepting header variants of a pinned original needs
+header-aware source registration and is not part of this contract.
+
+An indexed definition that declares `runtime_rom_patch` must require
+`staged-source-portable` capability version 32 ([definition
+delivery](DEFINITION-DELIVERY.md)); the declaration joins the installed compatibility
+identity only when set. No shipped definition declares it yet; the first candidate
+consumer is tracked on its port issue.
+
 ## Default covers
 
 Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).

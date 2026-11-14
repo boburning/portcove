@@ -113,6 +113,7 @@ mod recovery;
 mod relative_file_set;
 mod release;
 mod retained_build;
+mod rom_patch;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;

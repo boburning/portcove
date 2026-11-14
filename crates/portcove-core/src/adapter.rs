@@ -553,16 +553,25 @@ impl Adapter for StandardAdapter {
                 }
                 None => RuntimeSourceInput::Legacy(source),
             };
-            prepare_runtime_source_input(
-                input,
-                &stored_source,
-                materialization,
-                &port.runtime_source_hashes,
-                None,
-                checkpoint,
-                crate::tool_process::ToolProcessObserver::default(),
-                disc.as_ref(),
-            )?;
+            match (materialization, &port.runtime_rom_patch) {
+                (RuntimeSourceMaterialization::RomPatch, Some(patch)) => prepare_rom_patch_source(
+                    source,
+                    &stored_source,
+                    patch,
+                    &port.runtime_source_hashes,
+                    checkpoint,
+                )?,
+                _ => prepare_runtime_source_input(
+                    input,
+                    &stored_source,
+                    materialization,
+                    &port.runtime_source_hashes,
+                    None,
+                    checkpoint,
+                    crate::tool_process::ToolProcessObserver::default(),
+                    disc.as_ref(),
+                )?,
+            }
             checkpoint()?;
         }
         (self.0 == AdapterKind::PsxRecompManaged)
@@ -1030,6 +1039,11 @@ fn prepare_runtime_source_input(
             // The staged tree was verified before it replaced the runtime; the
             // shared post-step below re-reads only the anchors.
         }
+        RuntimeSourceMaterialization::RomPatch => {
+            return Err(PortcoveError::usage(
+                "ROM patching requires its catalog patch declaration and a file-set source",
+            ));
+        }
     }
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
@@ -1232,6 +1246,156 @@ pub(crate) fn prepare_runtime_source_set_member(
         copy_runtime_reader(entry, destination, size, checkpoint)?;
     }
     atomic_write_json(&marker_path, &expected)
+}
+
+/// Upper bound for the marker that records which inputs produced a patched file.
+const ROM_PATCH_MARKER_BYTES: u64 = 16 * 1024;
+
+/// Produce the patched runtime file from the original and patch members of a
+/// file-set source (a folder or a ZIP). Both inputs are read once, bounded, and
+/// checked against their pinned SHA-256 before patching, and the output is
+/// checked against its pinned SHA-256 before anything is written. The source is
+/// only read; the destination is replaced atomically, so a failure leaves any
+/// previous file in place.
+fn prepare_rom_patch_source(
+    source_root: &Path,
+    destination: &Path,
+    patch: &crate::RomPatchProfile,
+    required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let mut outputs = required_hashes.values();
+    let (Some(expected_output), None) = (outputs.next(), outputs.next()) else {
+        return Err(PortcoveError::usage(
+            "ROM patching requires exactly one patched runtime identity",
+        ));
+    };
+    let (original, patch_bytes) = read_rom_patch_inputs(source_root, patch, checkpoint)?;
+    for (role, bytes, expected) in [
+        ("original", &original, &patch.original_sha256),
+        ("patch", &patch_bytes, &patch.patch_sha256),
+    ] {
+        let actual = hex::encode(Sha256::digest(bytes));
+        if !actual.eq_ignore_ascii_case(expected) {
+            return Err(PortcoveError::source(format!(
+                "the {role} for this ROM patch is not the reviewed file"
+            ))
+            .detail("role", role)
+            .detail("expected_sha256", expected)
+            .detail("actual_sha256", actual));
+        }
+    }
+    checkpoint()?;
+    let marker_path = runtime_source_marker_path(destination)?;
+    let canonical =
+        std::fs::canonicalize(source_root).unwrap_or_else(|_| source_root.to_path_buf());
+    let expected = RuntimeSourceMarker {
+        schema_version: 2,
+        source: crate::path::unicode(&canonical, "source")?,
+        source_member: Some(format!(
+            "original:{};patch:{}",
+            patch.original_sha256.to_ascii_lowercase(),
+            patch.patch_sha256.to_ascii_lowercase()
+        )),
+        storage_sha256: aggregate_sha256(&[
+            patch.original_sha256.to_ascii_lowercase(),
+            patch.patch_sha256.to_ascii_lowercase(),
+        ]),
+        storage_size: (original.len() as u64).saturating_add(patch_bytes.len() as u64),
+        materialization: RuntimeSourceMaterialization::RomPatch,
+    };
+    let marker_matches = destination.is_file()
+        && crate::path::read_bounded_regular(&marker_path, ROM_PATCH_MARKER_BYTES)
+            .ok()
+            .and_then(|value| serde_json::from_slice::<RuntimeSourceMarker>(&value).ok())
+            .as_ref()
+            == Some(&expected);
+    if marker_matches {
+        match verify_runtime_source_hashes(destination, required_hashes, checkpoint) {
+            Ok(()) => return checkpoint(),
+            Err(error) if error.code == crate::ErrorCode::Verification => {}
+            Err(error) => return Err(error),
+        }
+    }
+    let output = crate::rom_patch::apply(patch.format, &original, &patch_bytes, checkpoint)?;
+    drop(original);
+    drop(patch_bytes);
+    let actual = hex::encode(Sha256::digest(&output));
+    if !actual.eq_ignore_ascii_case(expected_output) {
+        return Err(
+            PortcoveError::verification("the patched file is not the reviewed result")
+                .detail("expected_sha256", expected_output)
+                .detail("actual_sha256", actual),
+        );
+    }
+    checkpoint()?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("ROM patch destination has no parent directory"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        destination,
+        &output,
+        true,
+        Some(".portcove-rom-patch-"),
+    )?;
+    verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
+    atomic_write_json(&marker_path, &expected)
+}
+
+/// Read the original and patch members of a file-set folder or ZIP, each bounded
+/// by the patch size limit. Members are chosen by their declared filenames,
+/// exactly as file-set admission chose them.
+fn read_rom_patch_inputs(
+    source_root: &Path,
+    patch: &crate::RomPatchProfile,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(Vec<u8>, Vec<u8>)> {
+    let limit = crate::rom_patch::MAX_ROM_PATCH_BYTES as u64;
+    if source_root.is_dir() {
+        let read = |filenames: &[String]| -> Result<Vec<u8>> {
+            let member = source_set_member_path(source_root, filenames)?;
+            let metadata = std::fs::symlink_metadata(&member)?;
+            if !metadata.is_file() || metadata.len() > limit {
+                return Err(PortcoveError::source(
+                    "a ROM patch input is not a regular file within the patch size limit",
+                )
+                .detail("path", member.display().to_string()));
+            }
+            read_runtime_bytes(File::open(&member)?, limit, checkpoint)
+        };
+        return Ok((
+            read(&patch.original_filenames)?,
+            read(&patch.patch_filenames)?,
+        ));
+    }
+    let is_zip = source_root
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"));
+    if !source_root.is_file() || !is_zip {
+        return Err(PortcoveError::source(format!(
+            "ROM patching expects a folder or ZIP holding the original and the patch: {}",
+            source_root.display()
+        )));
+    }
+    let mut archive = crate::source_zip::runtime_archive(File::open(source_root)?, checkpoint)?;
+    let mut read = |filenames: &[String]| -> Result<Vec<u8>> {
+        let index = source_set_zip_member_index(&mut archive, source_root, filenames, checkpoint)?;
+        let entry = archive.by_index(index).map_err(|error| {
+            PortcoveError::source(format!("invalid ROM patch ZIP entry: {error}"))
+        })?;
+        if entry.size() > limit {
+            return Err(PortcoveError::source(
+                "a ROM patch input is larger than the patch size limit",
+            ));
+        }
+        read_runtime_bytes(entry, limit, checkpoint)
+    };
+    let original = read(&patch.original_filenames)?;
+    let patch_bytes = read(&patch.patch_filenames)?;
+    Ok((original, patch_bytes))
 }
 
 fn materialize_stfs_directory(

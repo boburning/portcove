@@ -1497,6 +1497,30 @@ fn an_optional_game_source_requires_staged_source_version_31() {
 }
 
 #[test]
+fn rom_patch_entries_require_staged_source_version_32() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["runtime_rom_patch"] = json!({
+        "format": "bps",
+        "original_filenames": ["original.sfc"],
+        "original_sha256": "1".repeat(64),
+        "patch_filenames": ["translation.bps"],
+        "patch_sha256": "2".repeat(64),
+    });
+    for version in [15, 31] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 32"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(32);
+    entry["required_capabilities"][0]["maximum_version"] = json!(32);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
@@ -1561,7 +1585,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.optional_game_source {
+        let version = if port.runtime_rom_patch.is_some() {
+            // ROM patching needs staged-source capability version 32; keep it first.
+            32
+        } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.

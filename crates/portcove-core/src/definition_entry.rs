@@ -341,6 +341,16 @@ impl DefinitionContentIndex {
                 "disc-image unpacking requires staged-source capability version 30",
             ));
         }
+        if port.runtime_rom_patch.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 32
+            })
+        {
+            return Err(PortcoveError::verification(
+                "ROM patching requires staged-source capability version 32",
+            ));
+        }
         if port.optional_game_source
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

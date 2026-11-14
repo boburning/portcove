@@ -328,7 +328,11 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.optional_game_source {
+        let capability_version = if port.runtime_rom_patch.is_some() {
+            // ROM patching needs staged-source capability version 32; it is the newest
+            // staged-source requirement, so it stays first.
+            32
+        } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.
