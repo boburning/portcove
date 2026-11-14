@@ -10,7 +10,7 @@
 
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use portcove_core::PortcoveError;
 use tauri::ipc::Channel;
@@ -36,14 +36,47 @@ const MAX_PREFERENCE_BYTES: u64 = 4 * 1024;
 const FIRST_AUTOMATIC_CHECK_DELAY: Duration = Duration::from_secs(60);
 const AUTOMATIC_CHECK_INTERVAL: Duration = Duration::from_secs(6 * 60 * 60);
 const CHECK_TIMEOUT: Duration = Duration::from_secs(60);
+/// Bounds any single updater request, including the whole package download.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+/// A download that receives no bytes for this long is abandoned.
+const DOWNLOAD_STALL_TIMEOUT: Duration = Duration::from_secs(60);
 const PROGRESS_STEP_BYTES: u64 = 256 * 1024;
 
-/// Failure detail naming a known refusal so the renderer can show localized
-/// copy. The English message remains the fallback and technical summary.
-const REFUSAL_DETAIL: &str = "application_update_refusal";
+pub(crate) use crate::application_update_admission::{
+    RuntimeLease, UPDATE_IN_PROGRESS_DETAIL, refusal,
+};
 
-fn refusal(error: PortcoveError, reason: &'static str) -> DesktopError {
-    error.detail(REFUSAL_DETAIL, reason).into()
+/// Copy shown for a refusal reason, also used by the headless eligibility check.
+const PACKAGE_MANAGED_MESSAGE: &str = "This copy of Portcove was installed by your package manager. Update it through your package manager instead.";
+
+/// A `.deb` or `.rpm` installation is owned by the system package manager;
+/// replacing its files from inside the app would fight that owner.
+pub(crate) fn package_managed() -> bool {
+    matches!(
+        tauri::utils::platform::bundle_type(),
+        Some(tauri::utils::config::BundleType::Deb | tauri::utils::config::BundleType::Rpm)
+    )
+}
+
+fn package_managed_error() -> DesktopError {
+    refusal(
+        PortcoveError::unsupported(PACKAGE_MANAGED_MESSAGE),
+        "package-managed",
+    )
+}
+
+/// `--portcove-update-eligibility`: prints whether this installation updates
+/// itself, without a window, network request or file change. Exit 1 means the
+/// package manager owns updates.
+pub(crate) fn run_eligibility_check() -> i32 {
+    if package_managed() {
+        println!("{PACKAGE_MANAGED_MESSAGE}");
+        println!("Portcove did not check for, download or install an update.");
+        1
+    } else {
+        println!("This copy of Portcove can update itself.");
+        0
+    }
 }
 
 /// The release feed for a channel. Only these fixed URLs are ever requested.
@@ -255,6 +288,9 @@ async fn check(
     app: &AppHandle,
     state: &ApplicationUpdateState,
 ) -> DesktopResult<ApplicationUpdateStatus> {
+    if package_managed() {
+        return Err(package_managed_error());
+    }
     let preferences = state.preferences()?;
     {
         let mut activity = state.activity()?;
@@ -281,8 +317,13 @@ async fn check(
         installing: false,
     };
     let channel = preferences.channel;
+    // On Windows the plugin exits the process with `process::exit` after it
+    // starts the installer, so flush diagnostics first.
+    let diagnostics = app.state::<crate::ExitDiagnostics>().inner().clone();
     let updater = app
         .updater_builder()
+        .timeout(REQUEST_TIMEOUT)
+        .on_before_exit(move || diagnostics.shutdown())
         .endpoints(vec![
             url::Url::parse(feed_url(channel)).map_err(|_| unavailable_error())?,
         ])
@@ -332,15 +373,6 @@ fn check_failed_error() -> DesktopError {
             "Portcove couldn't check for updates. Check your internet connection, then try again.",
         ),
         "check-failed",
-    )
-}
-
-fn library_busy_error() -> DesktopError {
-    refusal(
-        PortcoveError::conflict(
-            "Portcove is still working on your library, so the update wasn't installed. Wait for installs, backups and running games to finish, then try again.",
-        ),
-        "library-busy",
     )
 }
 
@@ -404,27 +436,37 @@ pub(crate) async fn set_application_update_preferences(
     Ok(preferences)
 }
 
-/// Downloads the reviewed update, verifies it, then installs it while the
-/// library is protected. On Windows the plugin starts the per-user installer
-/// and exits Portcove; on Linux and macOS Portcove restarts into the new build.
+/// Downloads the reviewed update, verifies it, then installs it while Core's
+/// exclusive library and runtime guards are held (see
+/// `application_update_admission`). On Windows the plugin starts the per-user
+/// installer and exits Portcove; on Linux and macOS Portcove restarts into the
+/// new build. Any refusal or failure leaves the current version running with its
+/// library reopened.
 #[tauri::command]
 pub(crate) async fn install_application_update(
     app: AppHandle,
     state: tauri::State<'_, ApplicationUpdateState>,
     desktop: tauri::State<'_, DesktopState>,
+    runtime: tauri::State<'_, RuntimeLease>,
     generation: u64,
     version: String,
     on_event: Channel<ApplicationUpdateProgress>,
 ) -> DesktopResult<()> {
     let state = state.inner();
-    crate::require_library_generation(crate::state_generation(&desktop), generation)?;
+    if package_managed() {
+        return Err(package_managed_error());
+    }
+    // Refuse a busy library before spending a download on it.
+    crate::application_update_admission::preflight(&desktop, generation)?;
     let update = {
         let mut activity = state.activity()?;
         if activity.installing || activity.checking {
-            return Err(PortcoveError::conflict(
-                "Portcove is already checking for or installing an update.",
-            )
-            .into());
+            return Err(refusal(
+                PortcoveError::conflict(
+                    "Portcove is already checking for or installing an update.",
+                ),
+                "in-progress",
+            ));
         }
         let update = activity
             .pending
@@ -451,99 +493,118 @@ pub(crate) async fn install_application_update(
         installing: true,
     };
 
-    // The download is verified against the configured public key before any
-    // byte is returned. Library work may continue while it downloads.
-    let mut downloaded = 0_u64;
-    let mut reported = 0_u64;
-    let bytes = update
-        .download(
-            |chunk, total| {
-                downloaded = downloaded.saturating_add(chunk as u64);
-                if downloaded.saturating_sub(reported) >= PROGRESS_STEP_BYTES
-                    || Some(downloaded) == total
-                {
-                    reported = downloaded;
-                    let _ = on_event.send(ApplicationUpdateProgress::Downloading {
-                        downloaded_bytes: downloaded,
-                        total_bytes: total,
-                    });
-                }
-            },
-            || {},
-        )
-        .await
-        .map_err(|error| {
-            tracing::warn!(
-                operation_id = "application-update-install",
-                version = %update.version,
-                error = %error,
-                message = "application update download or verification failed"
-            );
-            refusal(
-                PortcoveError::verification(
-                    "Portcove couldn't download a verified copy of the update. Check your internet connection, then try again.",
-                ),
-                "download-failed",
-            )
-        })?;
+    let bytes = download_verified(&update, &on_event).await?;
+
+    // Save protection, held across the install call.
+    let admission = crate::application_update_admission::admit_install(
+        &desktop,
+        &runtime,
+        &crate::BLOCKING_WORKERS,
+        generation,
+    )
+    .inspect_err(|_| announce_library_reopened(&app))?;
     let _ = on_event.send(ApplicationUpdateProgress::Installing);
 
-    // Save protection: hold the library selection, refuse new library work in
-    // this process, and require that no install, backup, game launch or other
-    // durable operation is unfinished. These stay held through the install.
-    let initialization = desktop.initialization.lock().map_err(|_| {
-        DesktopError::from(PortcoveError::state(
-            "Desktop library state is unavailable.",
-        ))
-    })?;
-    let workers = crate::block_workers_for_restart().map_err(|_| library_busy_error())?;
-    crate::require_library_generation(crate::state_generation(&desktop), generation)?;
-    crate::require_no_library_handoff(&initialization).map_err(|_| library_busy_error())?;
-    if let Ok(ready) = initialization.as_ref() {
-        ready
-            .library
-            .require_application_update_idle()
-            .map_err(|error| {
-                tracing::info!(
-                    operation_id = "application-update-install",
-                    error = %error.message,
-                    message = "application update refused while the library is busy"
-                );
-                library_busy_error()
-            })?;
-    }
-
-    // On Windows a successful install starts the installer and exits here.
-    update.install(&bytes).map_err(|error| {
+    // On Windows a successful install flushes diagnostics, starts the
+    // installer and exits the process inside this call.
+    if let Err(error) = update.install(&bytes) {
         tracing::warn!(
             operation_id = "application-update-install",
             version = %update.version,
             error = %error,
             message = "application update install failed"
         );
-        refusal(
+        drop(admission);
+        announce_library_reopened(&app);
+        return Err(refusal(
             PortcoveError::install(
                 "Portcove couldn't install the update. Your current version is unchanged. Try again, or download the latest version from the Portcove website.",
             ),
             "install-failed",
-        )
-    })?;
+        ));
+    }
     tracing::info!(
         operation_id = "application-update-install",
         version = %update.version,
         message = "application update installed; restarting"
     );
-    // Keep new library work refused until the process restarts.
-    workers.commit();
-    drop(initialization);
+    // The library stays closed and new work stays refused in this process; the
+    // exclusive leases are released so the restarted build can start.
+    admission.finish_for_exit();
     app.restart()
+}
+
+/// Lets the renderer reload its library after a refused or failed install.
+fn announce_library_reopened(app: &AppHandle) {
+    let _ = emit_desktop_event::<()>(app, crate::transport::DESKTOP_EVENT_LIBRARY_CHANGED, ());
+}
+
+/// Downloads the package with progress. The plugin verifies its signature
+/// against the configured key before returning the bytes. A download that
+/// stalls is abandoned; the request timeout bounds the whole transfer.
+async fn download_verified(
+    update: &Update,
+    on_event: &Channel<ApplicationUpdateProgress>,
+) -> DesktopResult<Vec<u8>> {
+    let last_progress = Arc::new(Mutex::new(Instant::now()));
+    let observed = last_progress.clone();
+    let mut downloaded = 0_u64;
+    let mut reported = 0_u64;
+    let download = update.download(
+        move |chunk, total| {
+            if let Ok(mut last) = observed.lock() {
+                *last = Instant::now();
+            }
+            downloaded = downloaded.saturating_add(chunk as u64);
+            if downloaded.saturating_sub(reported) >= PROGRESS_STEP_BYTES
+                || Some(downloaded) == total
+            {
+                reported = downloaded;
+                let _ = on_event.send(ApplicationUpdateProgress::Downloading {
+                    downloaded_bytes: downloaded,
+                    total_bytes: total,
+                });
+            }
+        },
+        || {},
+    );
+    let stalled = async {
+        loop {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            let idle = last_progress
+                .lock()
+                .map_or(Duration::ZERO, |last| last.elapsed());
+            if idle >= DOWNLOAD_STALL_TIMEOUT {
+                break;
+            }
+        }
+    };
+    let failed = |reason: &str| {
+        tracing::warn!(
+            operation_id = "application-update-install",
+            version = %update.version,
+            error = %reason,
+            message = "application update download or verification failed"
+        );
+        refusal(
+            PortcoveError::verification(
+                "Portcove couldn't download a verified copy of the update. Check your internet connection, then try again.",
+            ),
+            "download-failed",
+        )
+    };
+    tokio::select! {
+        result = download => result.map_err(|error| failed(&error.to_string())),
+        () = stalled => Err(failed("the download stalled")),
+    }
 }
 
 /// Checks at startup (after a short delay) and then every six hours while the
 /// player keeps automatic checks on. A found update is only announced.
 /// Development builds never check automatically.
 pub(crate) fn start_automatic_checks(app: AppHandle) {
-    if cfg!(debug_assertions) {
+    // Package-managed installations update through their package manager.
+    if cfg!(debug_assertions) || package_managed() {
         return;
     }
     tauri::async_runtime::spawn(async move {

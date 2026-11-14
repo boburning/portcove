@@ -2,6 +2,7 @@
 #![recursion_limit = "256"]
 mod adoption;
 mod application_update;
+mod application_update_admission;
 mod artwork;
 mod atomic_files;
 mod automatic_snapshots;
@@ -109,7 +110,7 @@ struct DesktopState {
 type DesktopResult<T> = std::result::Result<T, DesktopError>;
 
 #[derive(Default)]
-struct BlockingWorkerState {
+pub(crate) struct BlockingWorkerState {
     active: usize,
     restart_pending: bool,
 }
@@ -136,14 +137,22 @@ impl BlockingWorkerState {
     }
 }
 
-static BLOCKING_WORKERS: std::sync::LazyLock<std::sync::Mutex<BlockingWorkerState>> =
+static BLOCKING_WORKERS: std::sync::LazyLock<BlockingWorkerGate> =
     std::sync::LazyLock::new(|| std::sync::Mutex::new(BlockingWorkerState::default()));
 
-struct ActiveBlockingWorker;
+pub(crate) type BlockingWorkerGate = std::sync::Mutex<BlockingWorkerState>;
+
+struct ActiveBlockingWorker {
+    gate: &'static BlockingWorkerGate,
+}
 
 impl ActiveBlockingWorker {
     fn begin() -> DesktopResult<Self> {
-        let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+        Self::begin_in(&BLOCKING_WORKERS)
+    }
+
+    fn begin_in(gate: &'static BlockingWorkerGate) -> DesktopResult<Self> {
+        let mut state = gate.lock().map_err(|_| {
             DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
         })?;
         state.begin_worker().map_err(|_| {
@@ -151,19 +160,22 @@ impl ActiveBlockingWorker {
                 "Portcove is installing an application update.",
             ))
         })?;
-        Ok(Self)
+        Ok(Self { gate })
     }
 }
 
 impl Drop for ActiveBlockingWorker {
     fn drop(&mut self) {
-        if let Ok(mut state) = BLOCKING_WORKERS.lock() {
+        if let Ok(mut state) = self.gate.lock() {
             state.finish_worker();
         }
     }
 }
 
+/// Refuses new backend workers (including game launches) until it is dropped
+/// uncommitted, or for the rest of the process once committed.
 pub(crate) struct BlockingWorkerRestartGuard {
+    gate: &'static BlockingWorkerGate,
     committed: bool,
 }
 
@@ -176,23 +188,47 @@ impl BlockingWorkerRestartGuard {
 impl Drop for BlockingWorkerRestartGuard {
     fn drop(&mut self) {
         if !self.committed
-            && let Ok(mut state) = BLOCKING_WORKERS.lock()
+            && let Ok(mut state) = self.gate.lock()
         {
             state.restart_pending = false;
         }
     }
 }
 
-pub(crate) fn block_workers_for_restart() -> DesktopResult<BlockingWorkerRestartGuard> {
-    let mut state = BLOCKING_WORKERS.lock().map_err(|_| {
+pub(crate) fn block_workers_for_restart_in(
+    gate: &'static BlockingWorkerGate,
+) -> DesktopResult<BlockingWorkerRestartGuard> {
+    let mut state = gate.lock().map_err(|_| {
         DesktopError::from(PortcoveError::state("Desktop worker state is unavailable."))
     })?;
     state.begin_restart().map_err(|_| {
         DesktopError::from(PortcoveError::conflict(
-            "Portcove is finishing active work. Wait for it to complete before restarting to update.",
+            "Portcove is finishing active work. Wait for it to complete before updating.",
         ))
     })?;
-    Ok(BlockingWorkerRestartGuard { committed: false })
+    Ok(BlockingWorkerRestartGuard {
+        gate,
+        committed: false,
+    })
+}
+
+/// The diagnostics producer, shared so both normal exit and the updater's
+/// Windows `process::exit` path can close it.
+#[derive(Clone)]
+pub(crate) struct ExitDiagnostics(
+    std::sync::Arc<std::sync::Mutex<Option<crate::diagnostics_writer::Guard>>>,
+);
+
+impl ExitDiagnostics {
+    fn new(guard: Option<crate::diagnostics_writer::Guard>) -> Self {
+        Self(std::sync::Arc::new(std::sync::Mutex::new(guard)))
+    }
+
+    pub(crate) fn shutdown(&self) {
+        if let Ok(mut guard) = self.0.lock() {
+            diagnostics::shutdown(&mut guard);
+        }
+    }
 }
 
 fn initialization_snapshot(state: &DesktopState) -> (DesktopResult<ReadyDesktopState>, u64) {
@@ -246,6 +282,9 @@ fn require_no_library_handoff(
     if initialization.as_ref().err().is_some_and(|error| {
         error.details.contains_key("transfer_in_progress")
             || error.details.contains_key("library_switch_in_progress")
+            || error
+                .details
+                .contains_key(application_update::UPDATE_IN_PROGRESS_DETAIL)
     }) {
         return Err(PortcoveError::conflict("a library handoff is already in progress").into());
     }
@@ -1773,13 +1812,14 @@ async fn launch_port(
     generation: u64,
 ) -> DesktopResult<LaunchResult> {
     let worker_state = state.inner().clone();
-    let (library, result) = tauri::async_runtime::spawn_blocking(move || {
+    // A launch is a backend worker: an application update refuses to start
+    // while one is being requested, and no launch starts once it has.
+    let (library, result) = blocking_worker(move || {
         let library = library_at_generation(&worker_state, generation)?;
         let result = request_supervised_launch(&library, port_id, source, arguments, disc)?;
         Ok::<_, DesktopError>((library, result))
     })
-    .await
-    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))??;
+    .await?;
     observe_launch_completion(&app, state.inner(), library, result.session_id.clone())?;
     Ok(result)
 }
@@ -2086,6 +2126,13 @@ pub fn run_hidden_helper() -> Option<i32> {
                     run_adapter_conformance_statuses(&library)
                 }
                 _ => 2,
+            })
+        }
+        Some(mode) if mode == "--portcove-update-eligibility" => {
+            Some(if arguments.next().is_none() {
+                application_update::run_eligibility_check()
+            } else {
+                2
             })
         }
         Some(mode) if mode == "--portcove-supervise" => {
@@ -2658,8 +2705,12 @@ pub fn run() -> std::process::ExitCode {
             return std::process::ExitCode::FAILURE;
         }
     };
-    let _application_runtime = match application_runtime_guard() {
-        Ok(guard) => guard,
+    // Held for the process lifetime; an update install trades it for the
+    // exclusive lease (see application_update_admission).
+    let application_runtime = match HostPreferenceStore::application_runtime_lock_path()
+        .and_then(|path| application_runtime_guard().map(|guard| (path, guard)))
+    {
+        Ok((path, guard)) => application_update::RuntimeLease::new(path, guard),
         Err(error) => {
             eprintln!(
                 "{}",
@@ -2690,6 +2741,7 @@ pub fn run() -> std::process::ExitCode {
     // state instead of no window at all.
     let initialization = std::sync::Arc::new(std::sync::Mutex::new(Err(startup_pending())));
     let startup_initialization = initialization.clone();
+    let exit_diagnostics = ExitDiagnostics::new(diagnostic_guard.take());
     let startup_preferences = preferences.clone();
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -2701,6 +2753,8 @@ pub fn run() -> std::process::ExitCode {
         .manage(host_diagnostics)
         .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update::ApplicationUpdateState::configured())
+        .manage(application_runtime)
+        .manage(exit_diagnostics.clone())
         .manage(DesktopState {
             initialization,
             preferences,
@@ -2960,11 +3014,11 @@ pub fn run() -> std::process::ExitCode {
             // ExitRequested can be prevented; only the actual Exit closes the
             // diagnostic producer and waits for its finite best-effort flush.
             if matches!(event, tauri::RunEvent::Exit) {
-                diagnostics::shutdown(&mut diagnostic_guard);
+                exit_diagnostics.shutdown();
             }
         }),
         Err(error) => {
-            diagnostics::shutdown(&mut diagnostic_guard);
+            exit_diagnostics.shutdown();
             eprintln!("Portcove desktop stopped: {error}");
         }
     }

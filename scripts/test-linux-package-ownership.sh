@@ -127,9 +127,23 @@ fi
 
 hash_before=$(sha256sum "$installed_executable" | cut -d ' ' -f 1)
 installed_mode=$(stat -c '%a' "$installed_executable")
+guidance_file="$evidence_root/$format-guidance.txt"
+set +e
+env -u APPIMAGE -u APPDIR -u DISPLAY \
+  "$installed_executable" --portcove-update-eligibility \
+  >"$guidance_file" 2>&1
+eligibility_status=$?
+set -e
+if (( eligibility_status != 1 )); then
+  echo "$expected_manager eligibility returned $eligibility_status instead of 1" >&2
+  cat "$guidance_file" >&2
+  exit 1
+fi
+grep -Fq "This copy of Portcove was installed by your package manager. Update it through your package manager instead." "$guidance_file"
+grep -Fq "Portcove did not check for, download or install an update." "$guidance_file"
 hash_after=$(sha256sum "$installed_executable" | cut -d ' ' -f 1)
 if [[ "$hash_before" != "$hash_after" ]]; then
-  echo "$expected_manager inspection modified the package-managed executable" >&2
+  echo "$expected_manager eligibility modified the package-managed executable" >&2
   exit 1
 fi
 
@@ -160,6 +174,7 @@ export PORTCOVE_PACKAGE_NAME="$package_name"
 export PORTCOVE_INSTALLED_SHA256="$hash_after"
 export PORTCOVE_INSTALLED_MODE="$installed_mode"
 export PORTCOVE_INSTALLED_EXECUTABLE="$installed_executable"
+export PORTCOVE_GUIDANCE_FILE="$guidance_file"
 node --input-type=module <<'NODE'
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -184,10 +199,12 @@ const evidence = {
     installed_executable: process.env.PORTCOVE_INSTALLED_EXECUTABLE,
     installed_sha256: process.env.PORTCOVE_INSTALLED_SHA256,
     installed_mode: process.env.PORTCOVE_INSTALLED_MODE,
+    guidance: readFileSync(process.env.PORTCOVE_GUIDANCE_FILE, "utf8").trim(),
   },
+  display_unset: true,
   package_managed_files_unchanged: true,
 };
 writeFileSync(join(root, "package-ownership-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
 NODE
 
-echo "$expected_manager package ownership passed."
+echo "$expected_manager package ownership guidance passed."

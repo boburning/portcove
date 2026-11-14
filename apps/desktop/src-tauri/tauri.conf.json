@@ -55,6 +55,7 @@
   "plugins": {
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEY5MkJEM0VBODdCQjc3QjAKUldTd2Q3dUg2dE1yK1FUSDNOZ3JuOVhBU1N0Yml2Tkt4aXN1UXEyN0d0L1JKb1VlZG1icWlYdUMK",
+      "requireSignedVersion": true,
       "windows": { "installMode": "passive" }
     }
   }

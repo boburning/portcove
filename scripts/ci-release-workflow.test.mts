@@ -253,6 +253,9 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   assert.match(rehearsal, /\.\/scripts\/test-linux-package-ownership\.sh/);
   assert.match(rehearsal, /retention-days: 1/);
 
+  assert.match(qualification, /env -u APPIMAGE -u APPDIR -u DISPLAY/);
+  assert.match(qualification, /--portcove-update-eligibility/);
+  assert.match(qualification, /installed by your package manager/);
   assert.match(qualification, /dpkg-query --search/);
   assert.match(qualification, /rpm --query --queryformat .* --file/);
   assert.match(qualification, /dnf --assumeyes --setopt=install_weak_deps=False install/);

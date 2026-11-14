@@ -43,9 +43,9 @@ The `app-release.yml` workflow turns it on with `--config` and signs with
 Preview gets new versions before Beta. There is no Stable channel before 1.0.
 Each feed is the plugin's static JSON format (`version`, `notes`, `pub_date` and
 per-platform `url` and `signature`). Linux is published as the AppImage under
-`linux-x86_64`. The plugin installs only a version newer than the running one;
-`requireSignedVersion` stays at the plugin default (off), and the release
-workflow keeps each feed's version monotonic.
+`linux-x86_64`. The plugin installs only a version newer than the running one, the
+signature must name that version (see [Signed version](#signed-version)), and the
+release workflow keeps each feed's version monotonic.
 
 The preference file `application-update-preferences.json` sits beside host
 preferences (`PORTCOVE_APPLICATION_UPDATE_PREFERENCES` overrides its path for
@@ -69,23 +69,49 @@ restarts.
 
 ## Save protection
 
-An update must not interrupt work on the player's library. After the download is
-verified and before the plugin's install call, the host:
+An update must not interrupt work on the player's library. Before downloading,
+the host runs Core's idle check so a busy library doesn't waste a download.
+After the download is verified, `application_update_admission`:
 
 1. takes the desktop's library-selection mutex, so the library cannot be switched
    or moved;
-2. blocks new backend workers in this process and refuses if any are running;
-3. refuses an unfinished library handoff or startup; and
-4. calls Core's `Library::require_application_update_idle`, which refuses while a
-   game launch is unrecovered, any durable activity (install, backup, restore and
-   so on) is still running, the library needs migration, or it has relocated.
+2. blocks new backend workers in this process, game launches included, and
+   refuses if any are running;
+3. refuses an unfinished library handoff or startup and repeats Core's
+   `Library::require_application_update_idle`, which refuses while a game launch
+   is unrecovered, any durable activity (install, backup, restore and so on) is
+   still running, the library needs migration, or it has relocated;
+4. swaps its open library for a placeholder, releasing its own shared library
+   lease, and releases its shared application runtime lease; and
+5. acquires Core's `ApplicationUpdateExclusivityGuard` (no other Portcove window,
+   CLI or launch supervisor process) and `ApplicationUpdateQuiescenceGuard`
+   (the exclusive library lease, with the idle check repeated under it).
 
-If any check fails, nothing is installed and the player sees “Portcove is still
-working on your library, so the update wasn't installed. Wait for installs,
-backups and running games to finish, then try again.” The guards stay held
-through the install call and, after success, until the process exits.
+These guards are held across the plugin's install call. If any step or the
+install fails, nothing is replaced: the guards are dropped, the shared runtime
+lease is reacquired and the same library is reopened. Each refusal names its
+cause to the player: work still running, another Portcove process or game using
+the library, a library that moved, or one that must finish an upgrade first.
 
-Core's `ApplicationUpdateQuiescenceGuard` (an exclusive library lease plus the
-same idle checks) and its tests remain in Core. The running desktop holds a shared
-lease on its own library, so it cannot take that exclusive lease in-process; the
-in-process admission above is the desktop's equivalent.
+On Windows the plugin flushes diagnostics, starts the installer and exits the
+process while the guards are held. On Linux and macOS the worker block stays
+committed and the library stays closed, and only the exclusive leases are
+released immediately before the restart so the new build can start.
+
+Package-managed `.deb` and `.rpm` installations never check for or install
+updates; they tell the player to use their package manager. The hidden
+`--portcove-update-eligibility` mode reports this without a window.
+
+## Timeouts
+
+A check is abandoned after 60 seconds. Each updater request, including the
+package download, is bounded to 30 minutes, and a download that receives no bytes
+for 60 seconds is abandoned. Either failure clears the in-progress state so the
+player can try again.
+
+## Signed version
+
+`plugins.updater.requireSignedVersion` is on: the package signature's trusted
+comment must name the version the feed announces, so a tampered feed cannot pair
+a newer version number with an older, validly signed package. The Tauri CLI used
+for releases records that version, and this key has no older signatures.

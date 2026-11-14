@@ -513,6 +513,9 @@ void test("base configuration carries the updater plugin baseline and release ov
   assert.equal(object(object(object(base.bundle).windows).nsis).installMode, "currentUser");
   assert.equal(object(object(base.bundle).macOS).signingIdentity, "-");
   assert.equal(object(updater.windows).installMode, "passive");
+  // The signature must name the version the feed announces, so a feed cannot
+  // pair a newer version number with an older, validly signed package.
+  assert.equal(updater.requireSignedVersion, true);
   assert.equal(
     Buffer.from(String(updater.pubkey), "base64").toString("utf8"),
     "untrusted comment: minisign public key: F92BD3EA87BB77B0\nRWSwd7uH6tMr+QTH3Ngrn9XASStbivNKxisuQq27Gt/RJoUedmbqiXuC\n",

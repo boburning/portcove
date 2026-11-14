@@ -154,6 +154,14 @@ function failureCopy(t: TFunction<"applicationUpdate">, failure: unknown) {
   switch (reason) {
     case "library-busy":
       return t("failure.libraryBusy");
+    case "library-in-use":
+      return t("failure.libraryInUse");
+    case "library-relocated":
+      return t("failure.libraryRelocated");
+    case "library-needs-recovery":
+      return t("failure.libraryNeedsRecovery");
+    case "package-managed":
+      return t("failure.packageManaged");
     case "in-progress":
       return t("failure.inProgress");
     case "check-failed":

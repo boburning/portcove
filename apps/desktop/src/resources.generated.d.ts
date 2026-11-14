@@ -26,6 +26,10 @@ export default interface Resources {
       "inProgress": "Portcove is already checking for or installing an update. Wait for it to finish.",
       "installFailed": "Portcove couldn’t install the update. Your current version is unchanged. Try again, or download the latest version from the Portcove website.",
       "libraryBusy": "Portcove is still working on your library, so the update wasn’t installed. Wait for installs, backups and running games to finish, then try again.",
+      "libraryInUse": "Another Portcove window, the Portcove command line or a running game is using your library, so the update wasn’t installed. Close it, then try again.",
+      "libraryNeedsRecovery": "Your library needs to finish an upgrade or recovery first, so the update wasn’t installed. Reopen Portcove and let it finish, then try again.",
+      "libraryRelocated": "Your library has moved, so the update wasn’t installed. Open the library at its new location, then try again.",
+      "packageManaged": "This copy of Portcove was installed by your package manager. Update it through your package manager instead.",
       "saveFailed": "Portcove couldn’t save your update settings. Try again.",
       "stale": "This update is no longer available. Check for updates, then try again.",
       "unavailable": "Updates aren’t available in this Portcove build. Download the latest version from the Portcove website."

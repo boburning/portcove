@@ -24,6 +24,10 @@
     "inProgress": "Portcove ya está buscando o instalando una actualización. Espera a que termine.",
     "installFailed": "Portcove no pudo instalar la actualización. Tu versión actual no ha cambiado. Inténtalo de nuevo o descarga la última versión desde el sitio web de Portcove.",
     "libraryBusy": "Portcove sigue trabajando en tu biblioteca, así que no se instaló la actualización. Espera a que terminen las instalaciones, las copias de seguridad y los juegos en ejecución, e inténtalo de nuevo.",
+    "libraryInUse": "Otra ventana de Portcove, la línea de comandos de Portcove o un juego en ejecución está usando tu biblioteca, así que no se instaló la actualización. Ciérralo e inténtalo de nuevo.",
+    "libraryNeedsRecovery": "Tu biblioteca debe terminar primero una actualización o recuperación, así que no se instaló la actualización. Vuelve a abrir Portcove, deja que termine e inténtalo de nuevo.",
+    "libraryRelocated": "Tu biblioteca se ha movido, así que no se instaló la actualización. Abre la biblioteca en su nueva ubicación e inténtalo de nuevo.",
+    "packageManaged": "Esta copia de Portcove la instaló tu gestor de paquetes. Actualízala desde tu gestor de paquetes.",
     "saveFailed": "Portcove no pudo guardar tus ajustes de actualización. Inténtalo de nuevo.",
     "stale": "Esta actualización ya no está disponible. Busca actualizaciones e inténtalo de nuevo.",
     "unavailable": "Las actualizaciones no están disponibles en esta versión de Portcove. Descarga la última versión desde el sitio web de Portcove."
