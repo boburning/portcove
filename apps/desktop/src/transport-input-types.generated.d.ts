@@ -136,7 +136,13 @@ export type SteamArtworkOperation =
   | {
       kind: "remove_owned";
       [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned_role";
+      role: DestinationArtworkRole;
+      [k: string]: unknown;
     };
+export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "hero_banner";
 export type SteamEntryOperation = "add_or_repair" | "remove";
 
 export interface TransportInputs {

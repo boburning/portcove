@@ -1220,6 +1220,44 @@ impl PortcoveService {
         Ok(result)
     }
 
+    /// Which of these stored images Portcove removed because every
+    /// SteamGridDB credit behind it was confirmed withdrawn. A destination
+    /// such as Steam uses it to point out copies it holds of those images. It
+    /// is a display fact only: it never authorizes removing anything. Images
+    /// Portcove kept (the player's own import, or one still credited) and
+    /// unknown hashes are not reported. At most 64 hashes are accepted.
+    pub fn evicted_artwork_sources(
+        &self,
+        asset_sha256s: &[String],
+    ) -> Result<Vec<ArtworkEvictedAsset>> {
+        const MAX_SOURCES: usize = 64;
+        if asset_sha256s.len() > MAX_SOURCES {
+            return Err(PortcoveError::usage(
+                "too many artwork sources to look up at once",
+            ));
+        }
+        for id in asset_sha256s {
+            crate::artwork_store::validate_hash(id)?;
+        }
+        let mut connection = self.library().connection()?;
+        let transaction = connection.transaction()?;
+        let mut found = Vec::new();
+        let mut seen = std::collections::BTreeSet::new();
+        for id in asset_sha256s {
+            if !seen.insert(id) {
+                continue;
+            }
+            if let Some(evicted_at) = crate::artwork_store::evicted_at(&transaction, id)? {
+                found.push(ArtworkEvictedAsset {
+                    asset_sha256: id.clone(),
+                    evicted_at,
+                });
+            }
+        }
+        transaction.commit()?;
+        Ok(found)
+    }
+
     pub fn unused_local_artwork(&self) -> Result<Vec<LocalArtworkAsset>> {
         let mut connection = self.library().connection()?;
         let transaction = connection.transaction()?;

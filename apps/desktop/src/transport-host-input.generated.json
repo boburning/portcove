@@ -1162,6 +1162,14 @@
   },
   "steam_artwork_selection": {
     "$defs": {
+      "DestinationArtworkRole": {
+        "enum": [
+          "portrait_cover",
+          "landscape_cover",
+          "hero_banner"
+        ],
+        "type": "string"
+      },
       "SteamArtworkOperation": {
         "description": "Separate reviewed Steam artwork action for one owned shortcut.",
         "oneOf": [
@@ -1192,6 +1200,23 @@
             },
             "required": [
               "kind"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "As `RemoveOwned`, for one role only; the entry's other artwork stays.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned_role",
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/$defs/DestinationArtworkRole"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
             ],
             "type": "object"
           }

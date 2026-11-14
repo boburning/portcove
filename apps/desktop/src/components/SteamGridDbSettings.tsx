@@ -104,6 +104,10 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
               ? "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
               : "Portcove recorded what it found. Nothing was removed.",
     );
+  if (report.recorded && (report.removed > 0 || removing))
+    lines.push(
+      "If Portcove added any of these images to Steam, choose the game's Steam shortcut button, then Review artwork update or Review artwork removal.",
+    );
   if (report.removal_deferred > 0)
     lines.push(
       `${plural(report.removal_deferred, "more copy", "more copies")} will be removed by the next check, export or move.`,

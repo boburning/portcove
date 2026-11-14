@@ -739,3 +739,58 @@ fn removals_are_bounded_per_call_and_the_rest_are_deferred() {
         crate::artwork_eviction::complete_pending_evictions(service.library(), Some(1)).unwrap();
     assert_eq!((counts.removed, counts.deferred, counts.failed), (1, 0, 0));
 }
+
+#[test]
+fn evicted_sources_report_only_copies_portcove_removed() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let sha = chosen.selection.clone().unwrap().sha256;
+    let unknown = "e".repeat(64);
+    let lookup = |ids: &[String]| service.evicted_artwork_sources(ids).unwrap();
+    // Not withdrawn yet, and an unknown hash, report nothing.
+    assert!(lookup(&[sha.clone(), unknown.clone()]).is_empty());
+    let report = absent(&service, Source::Gone);
+    let found = lookup(&[sha.clone(), unknown.clone(), sha.clone()]);
+    assert_eq!(
+        found,
+        vec![crate::ArtworkEvictedAsset {
+            asset_sha256: sha.clone(),
+            evicted_at: report.checked_at,
+        }]
+    );
+    // Invalid input and too many hashes are refused.
+    assert!(
+        service
+            .evicted_artwork_sources(&["NOT-A-HASH".into()])
+            .is_err()
+    );
+    assert!(
+        service
+            .evicted_artwork_sources(&vec![sha.clone(); 65])
+            .is_err()
+    );
+    // Restoring the image clears it.
+    choose_provider(&service, cover(&service).choice.revision);
+    assert!(lookup(&[sha]).is_empty());
+}
+
+#[test]
+fn a_withdrawn_image_the_player_imported_is_not_reported_as_removed() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let sha = chosen.selection.clone().unwrap().sha256;
+    let source = temp.path().join("cover.png");
+    fs::write(&source, encoded(12, 24, image::ImageFormat::Png)).unwrap();
+    service
+        .import_artwork(
+            "zelda64-recomp",
+            ArtworkSlot::Cover,
+            &source,
+            chosen.choice.revision,
+        )
+        .unwrap();
+    absent(&service, Source::Gone);
+    assert!(service.evicted_artwork_sources(&[sha]).unwrap().is_empty());
+}

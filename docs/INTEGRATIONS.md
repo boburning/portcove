@@ -607,6 +607,22 @@ kept but never claimed. A role's art recorded for an earlier shortcut AppID must
 be removed before new art is added. Only lower-case `png`, `jpg` and `jpeg`
 names are inspected. Shortcut Repair still never writes artwork.
 
+Removal can also cover one role. **Review removing this image** opens a review
+for that role alone, with the same ownership, unchanged-bytes, backup, journal,
+Steam-closed and consent rules. It is a general owned-role removal, not limited to
+withdrawn images. When the player changed or deleted the file, the review says
+nothing is removed and its action only stops tracking the image. Each artwork
+review also marks a role whose Portcove-owned, unchanged Steam file came from a
+SteamGridDB image that Portcove later removed from its library after a confirmed
+withdrawal (#527), and offers that per-role review there. This mark is display
+only: Core answers it from the eviction marker, a failed lookup or unreadable
+record leaves the role unmarked, and it is not part of the reviewed plan. Nothing
+changes in Steam until the player reviews and confirms the removal. If the player
+later removes the evicted image with `remove-unused`, its provenance goes and the
+Steam file is no longer marked; the full **Review artwork removal** still applies.
+The withdrawal acceptance item above is fixture-covered for this path; native
+Steam evidence remains with #292 and #217.
+
 Single and selected-batch shortcut setup offer **Include artwork when adding a
 shortcut**, on by default. For each game the shortcut plan newly adds, the same
 review shows the fill-missing artwork plan for the AppID that plan assigns; it

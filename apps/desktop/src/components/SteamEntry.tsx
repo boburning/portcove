@@ -326,7 +326,14 @@ export function SteamEntryDialog({
         )}
         {review && <SteamEntryReviewDetails review={review} />}
         {result && <SteamEntryResult result={result} batch={false} />}
-        {artworkReview && <SteamArtworkReviewDetails review={artworkReview} />}
+        {artworkReview && (
+          <SteamArtworkReviewDetails
+            review={artworkReview}
+            reviewRoleRemoval={(role) =>
+              void loadArtworkReview({ kind: "remove_owned_role", role })
+            }
+          />
+        )}
         {artworkResult && <SteamArtworkResult result={artworkResult} />}
         {error && <p role="alert">{error}</p>}
         <DialogFooter className="mt-4">
@@ -431,21 +438,32 @@ function SteamReviewActions({
           {artworkReview.writes_required && (
             <Button
               data-focusable
-              variant={artworkReview.operation.kind === "remove_owned" ? "destructive" : "primary"}
+              variant={removesArtwork(artworkReview) ? "destructive" : "primary"}
               disabled={Boolean(pending) || artworkReview.steam_client_state !== "closed"}
               onClick={() => applyArtwork()}
             >
-              {pending === "apply"
-                ? "Applying reviewed change…"
-                : artworkReview.operation.kind === "remove_owned"
-                  ? "Remove Portcove artwork"
-                  : "Update Steam artwork"}
+              {pending === "apply" ? "Applying reviewed change…" : artworkApplyLabel(artworkReview)}
             </Button>
           )}
         </>
       )}
     </>
   );
+}
+
+/** Whether applying this review deletes any file from Steam. */
+function removesArtwork(review: SteamArtworkReview) {
+  return review.roles.some((role) => role.action === "remove");
+}
+
+function artworkApplyLabel(review: SteamArtworkReview) {
+  const operation = review.operation;
+  if (operation.kind === "remove_owned") return "Remove Portcove artwork";
+  if (operation.kind === "remove_owned_role")
+    return removesArtwork(review)
+      ? `Remove ${steamArtworkRoleName(operation.role).toLowerCase()} from Steam`
+      : "Stop tracking this image";
+  return "Update Steam artwork";
 }
 
 function SteamArtworkActions({
@@ -1014,17 +1032,39 @@ function SteamEntryReviewDetails({ review }: { review: SteamEntryReview | SteamB
   );
 }
 
-function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
-  const removing = review.operation.kind === "remove_owned";
+function singleRoleHeading(review: SteamArtworkReview, role: SteamArtworkRole["role"]) {
+  const change = review.roles[0];
+  if (!review.writes_required)
+    return `There is no Portcove image to remove for the ${steamArtworkRoleName(role).toLowerCase()} in this Steam profile.`;
+  if (change?.action === "remove") return "Review the exact artwork change before applying it.";
+  if (change?.action === "absent")
+    return "This image is no longer in Steam, so nothing is removed.";
+  return "Portcove no longer recognizes this image in Steam, so nothing is removed.";
+}
+
+function SteamArtworkReviewDetails({
+  review,
+  reviewRoleRemoval,
+}: {
+  review: SteamArtworkReview;
+  reviewRoleRemoval: (role: SteamArtworkRole["role"]) => void;
+}) {
+  const operation = review.operation;
+  const removing = operation.kind === "remove_owned";
+  const singleRole = operation.kind === "remove_owned_role" ? operation.role : undefined;
+  const withdrawn = (role: SteamArtworkRole["role"]) =>
+    review.withdrawn_sources.find((source) => source.role === role);
   return (
     <section className="removal-review-details mt-6 grid gap-3" aria-label="Reviewed Steam artwork">
       <p className="[overflow-wrap:anywhere]">
         <strong>
-          {review.writes_required
-            ? "Review the exact artwork change before applying it."
-            : removing
-              ? "There is no Portcove artwork to remove for this game in the selected profile."
-              : "No artwork will change for this game in the selected profile."}
+          {singleRole
+            ? singleRoleHeading(review, singleRole)
+            : review.writes_required
+              ? "Review the exact artwork change before applying it."
+              : removing
+                ? "There is no Portcove artwork to remove for this game in the selected profile."
+                : "No artwork will change for this game in the selected profile."}
         </strong>
       </p>
       {review.recovered_shortcut_change && (
@@ -1041,11 +1081,35 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
         </p>
       )}
       <ul>
-        {review.roles.map((role) => (
-          <li className="[overflow-wrap:anywhere]" key={role.role}>
-            {steamArtworkRoleName(role.role)}: {steamArtworkPlanLabel(role)}
-          </li>
-        ))}
+        {review.roles.map((role) => {
+          const source = withdrawn(role.role);
+          return (
+            <li className="[overflow-wrap:anywhere]" key={role.role}>
+              {steamArtworkRoleName(role.role)}: {steamArtworkPlanLabel(role)}
+              {source && (
+                <>
+                  <span className="block">
+                    This Steam image came from SteamGridDB, which no longer lists it. Portcove
+                    removed its own copy on{" "}
+                    {new Date(source.source_evicted_at * 1000).toLocaleDateString()}. Steam keeps
+                    this image until you remove it.
+                  </span>
+                  {!singleRole && (
+                    <Button
+                      data-focusable
+                      variant="outline"
+                      size="sm"
+                      aria-label={`Review removing the ${steamArtworkRoleName(role.role).toLowerCase()} from Steam`}
+                      onClick={() => reviewRoleRemoval(role.role)}
+                    >
+                      Review removing this image
+                    </Button>
+                  )}
+                </>
+              )}
+            </li>
+          );
+        })}
       </ul>
       {review.steam_client_state === "running" && (
         <p className="[overflow-wrap:anywhere]" role="alert">
@@ -1058,9 +1122,11 @@ function SteamArtworkReviewDetails({ review }: { review: SteamArtworkReview }) {
         </p>
       )}
       <p className="[overflow-wrap:anywhere]">
-        {removing
-          ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
-          : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
+        {singleRole
+          ? "Only this image is removed, and only if Portcove added it and it has not changed since. The shortcut, the game, its saves and your other Steam artwork are not affected."
+          : removing
+            ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
+            : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
       </p>
       <details>
         <summary data-focusable>Technical details</summary>
@@ -1090,9 +1156,13 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
     <section className="removal-review-details" aria-label="Steam artwork result">
       <p className="[overflow-wrap:anywhere]" role="status">
         <strong>
-          {result.wrote
-            ? "Steam artwork updated. Restart Steam to see the change."
-            : "Steam artwork already matches this review."}
+          {!result.wrote
+            ? "Steam artwork already matches this review."
+            : result.roles.some((role) => ["write", "replace", "remove"].includes(role.action))
+              ? "Steam artwork updated. Restart Steam to see the change."
+              : result.roles.length === 1
+                ? "Nothing was removed. Portcove no longer tracks this image."
+                : "Nothing was removed. Portcove no longer tracks artwork that was changed outside Portcove."}
         </strong>
       </p>
       <ul>

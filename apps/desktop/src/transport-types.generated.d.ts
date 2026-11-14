@@ -1144,6 +1144,11 @@ export type SteamArtworkOperation =
   | {
       kind: "remove_owned";
       [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned_role";
+      role: DestinationArtworkRole;
+      [k: string]: unknown;
     };
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
@@ -6686,6 +6691,13 @@ export interface OutputDesktopSteamArtworkReview {
   steam_client_state: SteamClientState;
   steam_root: string;
   steam_user_id: string;
+  /**
+   * Roles whose Portcove-added Steam image came from a SteamGridDB image
+   * Portcove has since removed from its library. Display only: it is not
+   * part of the reviewed plan, and removal still needs its own review.
+   * Empty when unknown.
+   */
+  withdrawn_sources: SteamArtworkWithdrawnSource[];
   writes_required: boolean;
   [k: string]: unknown;
 }
@@ -6695,6 +6707,14 @@ export interface OutputDesktopSteamArtworkReview {
 export interface SteamArtworkRecovery {
   abandoned: DestinationArtworkRole[];
   completed: DestinationArtworkRole[];
+  [k: string]: unknown;
+}
+export interface SteamArtworkWithdrawnSource {
+  role: DestinationArtworkRole;
+  /**
+   * When Portcove removed its own copy of the source image.
+   */
+  source_evicted_at: number;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {

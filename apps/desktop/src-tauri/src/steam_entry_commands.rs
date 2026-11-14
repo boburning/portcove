@@ -6,8 +6,8 @@
 
 pub use crate::desktop_contract::{
     SteamArtworkApplyResult, SteamArtworkOperation, SteamArtworkReview, SteamArtworkSelection,
-    SteamBatchReview, SteamBatchSelection, SteamEntryArtworkOutcome, SteamEntryArtworkPreview,
-    SteamEntryOperation, SteamEntryReview, SteamEntrySelection,
+    SteamArtworkWithdrawnSource, SteamBatchReview, SteamBatchSelection, SteamEntryArtworkOutcome,
+    SteamEntryArtworkPreview, SteamEntryOperation, SteamEntryReview, SteamEntrySelection,
 };
 use crate::steam_artwork::{
     ROLES, SteamArtworkPlan, SteamArtworkPlanRequest, SteamArtworkRecovery,
@@ -284,6 +284,10 @@ pub(crate) async fn preview_steam_artwork(
         let plan = plan_steam_artwork(&plan_request).map_err(steam_error)?;
         let mut review = artwork_review(display_name, &plan, observe_steam_client(), recovered);
         review.recovered_shortcut_change = recovered_shortcut_change;
+        review.withdrawn_sources = withdrawn_sources(
+            |hashes| service.evicted_artwork_sources(hashes),
+            plan.owned_sources(),
+        );
         Ok(review)
     })
     .await
@@ -315,12 +319,37 @@ pub(crate) async fn apply_steam_artwork(
     let (title, action) = match request.operation {
         SteamArtworkOperation::Update {
             replace_existing: false,
-        } => ("Confirm Steam artwork update", "Add missing artwork"),
+        } => (
+            "Confirm Steam artwork update",
+            "Add missing artwork".to_owned(),
+        ),
         SteamArtworkOperation::Update {
             replace_existing: true,
-        } => ("Confirm Steam artwork replacement", "Replace artwork"),
-        SteamArtworkOperation::RemoveOwned => {
-            ("Confirm Steam artwork removal", "Remove Portcove artwork")
+        } => (
+            "Confirm Steam artwork replacement",
+            "Replace artwork".to_owned(),
+        ),
+        SteamArtworkOperation::RemoveOwned => (
+            "Confirm Steam artwork removal",
+            "Remove Portcove artwork".to_owned(),
+        ),
+        // The wording follows the reviewed plan: a role whose file the player
+        // changed or deleted is only forgotten, and nothing is removed.
+        SteamArtworkOperation::RemoveOwnedRole { role } => {
+            let name = artwork_role_name(role);
+            if reviewed.roles.iter().any(|change| {
+                change.action == crate::desktop_contract::SteamArtworkRoleAction::Remove
+            }) {
+                (
+                    "Confirm Steam artwork removal",
+                    format!("Remove the {}", name.to_lowercase()),
+                )
+            } else {
+                (
+                    "Confirm Steam artwork tracking",
+                    format!("Stop tracking the {}", name.to_lowercase()),
+                )
+            }
         }
     };
     let message = format!(
@@ -328,7 +357,7 @@ pub(crate) async fn apply_steam_artwork(
         reviewed.steam_user_id,
         reviewed.grid_path.display(),
     );
-    if !confirm_destructive(&app, title, message, action).await {
+    if !confirm_destructive(&app, title, message, &action).await {
         return Ok(None);
     }
     blocking_worker(move || {
@@ -562,6 +591,53 @@ fn artwork_request(
     ))
 }
 
+/// The player-facing name of a Steam artwork role, as the review shows it.
+fn artwork_role_name(role: portcove_core::DestinationArtworkRole) -> &'static str {
+    match role {
+        portcove_core::DestinationArtworkRole::PortraitCover => "Portrait cover",
+        portcove_core::DestinationArtworkRole::HeroBanner => "Hero banner",
+        portcove_core::DestinationArtworkRole::LandscapeCover => "Landscape cover",
+    }
+}
+
+/// Which planned roles show a Steam image whose source Portcove removed. This
+/// is optional evidence: an unreadable record or a failed lookup means "not
+/// known to be withdrawn", and never prevents a review.
+fn withdrawn_sources(
+    lookup: impl FnOnce(&[String]) -> portcove_core::Result<Vec<portcove_core::ArtworkEvictedAsset>>,
+    owned: &[(portcove_core::DestinationArtworkRole, String)],
+) -> Vec<SteamArtworkWithdrawnSource> {
+    let well_formed = |hash: &str| {
+        hash.len() == 64
+            && hash
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    };
+    let hashes = owned
+        .iter()
+        .map(|(_, hash)| hash.clone())
+        .filter(|hash| well_formed(hash))
+        .collect::<Vec<_>>();
+    if hashes.is_empty() {
+        return Vec::new();
+    }
+    let Ok(evicted) = lookup(&hashes) else {
+        return Vec::new();
+    };
+    owned
+        .iter()
+        .filter_map(|(role, hash)| {
+            evicted
+                .iter()
+                .find(|source| source.asset_sha256 == *hash)
+                .map(|source| SteamArtworkWithdrawnSource {
+                    role: *role,
+                    source_evicted_at: source.evicted_at,
+                })
+        })
+        .collect()
+}
+
 fn revalidate_artwork_plan(
     request: &SteamArtworkPlanRequest,
     reviewed: &SteamArtworkPlan,
@@ -596,6 +672,7 @@ fn artwork_review(
         writes_required: plan.writes_required(),
         recovered,
         recovered_shortcut_change: false,
+        withdrawn_sources: Vec::new(),
     }
 }
 
@@ -1171,5 +1248,55 @@ mod tests {
         unsafe { std::env::set_var("PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE", "invalid") };
         assert_eq!(qualification_steam_client_state(), None);
         unsafe { std::env::remove_var("PORTCOVE_QUALIFICATION_STEAM_CLIENT_STATE") };
+    }
+}
+
+#[cfg(test)]
+mod withdrawn_source_tests {
+    use super::*;
+    use portcove_core::{ArtworkEvictedAsset, DestinationArtworkRole as Role};
+
+    fn evicted(hash: &str) -> ArtworkEvictedAsset {
+        ArtworkEvictedAsset {
+            asset_sha256: hash.into(),
+            evicted_at: 1_790_000_000,
+        }
+    }
+
+    #[test]
+    fn only_owned_files_with_a_removed_source_are_flagged() {
+        let removed = "a".repeat(64);
+        let kept = "b".repeat(64);
+        let owned = [
+            (Role::PortraitCover, removed.clone()),
+            (Role::HeroBanner, kept.clone()),
+        ];
+        let flagged = withdrawn_sources(
+            |hashes| {
+                assert_eq!(hashes, [removed.clone(), kept.clone()]);
+                Ok(vec![evicted(&removed)])
+            },
+            &owned,
+        );
+        assert_eq!(
+            flagged,
+            [SteamArtworkWithdrawnSource {
+                role: Role::PortraitCover,
+                source_evicted_at: 1_790_000_000,
+            }]
+        );
+    }
+
+    #[test]
+    fn an_unreadable_record_or_failed_lookup_never_blocks_a_review() {
+        // A malformed record is never sent to Core.
+        let malformed = [(Role::PortraitCover, "NOT-HEX".repeat(9) + "a")];
+        assert!(withdrawn_sources(|_| unreachable!(), &malformed).is_empty());
+        // A failing lookup means "not known to be withdrawn".
+        let owned = [(Role::PortraitCover, "c".repeat(64))];
+        assert!(
+            withdrawn_sources(|_| Err(PortcoveError::state("library unavailable")), &owned)
+                .is_empty()
+        );
     }
 }

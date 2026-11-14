@@ -610,3 +610,124 @@ fn landscape_capsule_is_published_under_the_bare_app_id_and_kept_separate() {
     assert!(!capsule.exists());
     assert!(!fixture.config.join(JOURNAL_FILE).exists());
 }
+
+/// Portrait and landscape art written by Portcove for the owned shortcut.
+fn with_two_owned_roles(fixture: &Fixture) -> SteamArtworkPlanRequest {
+    let mut update = fixture.update(false, b"portrait art");
+    update.roles[1] = (
+        DestinationArtworkRole::LandscapeCover,
+        available(b"wide art"),
+    );
+    apply(&plan_steam_artwork(&update).unwrap(), &update);
+    update
+}
+
+fn remove_role(fixture: &Fixture, role: DestinationArtworkRole) -> SteamArtworkPlanRequest {
+    fixture.request(
+        SteamArtworkOperation::RemoveOwnedRole { role },
+        unprovided(),
+    )
+}
+
+#[test]
+fn removing_one_role_keeps_the_entrys_other_portcove_art() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let update = with_two_owned_roles(&fixture);
+    let portrait_path = fixture.grid().join(format!("{APP_ID}p.png"));
+    let landscape_path = fixture.grid().join(format!("{APP_ID}.png"));
+    assert!(portrait_path.exists() && landscape_path.exists());
+
+    let request = remove_role(&fixture, DestinationArtworkRole::PortraitCover);
+    let plan = plan_steam_artwork(&request).unwrap();
+    // Only the chosen role is reviewed.
+    assert_eq!(plan.roles.len(), 1);
+    assert_eq!(portrait(&plan).action, SteamArtworkRoleAction::Remove);
+    assert_eq!(plan.app_id, Some(APP_ID));
+    assert_eq!(
+        plan.owned_sources(),
+        [(
+            DestinationArtworkRole::PortraitCover,
+            sha256(b"portrait art")
+        )]
+    );
+    let result = apply(&plan, &request);
+    assert!(result.wrote);
+    assert!(!portrait_path.exists());
+    assert_eq!(fs::read(&landscape_path).unwrap(), b"wide art");
+    assert_eq!(fs::read(&result.backup_paths[0]).unwrap(), b"portrait art");
+    let records = read_ownership(&fixture.config).unwrap().1;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].role, DestinationArtworkRole::LandscapeCover);
+
+    // Nothing is left to remove for that role, and Update can add it again.
+    assert!(!plan_steam_artwork(&request).unwrap().writes_required());
+    let again = plan_steam_artwork(&update).unwrap();
+    assert_eq!(portrait(&again).action, SteamArtworkRoleAction::Write);
+}
+
+#[test]
+fn a_single_role_review_binds_its_role_and_forgets_changed_art() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    with_two_owned_roles(&fixture);
+    let portrait_request = remove_role(&fixture, DestinationArtworkRole::PortraitCover);
+    let landscape_request = remove_role(&fixture, DestinationArtworkRole::LandscapeCover);
+    let portrait_plan = plan_steam_artwork(&portrait_request).unwrap();
+    // A plan reviewed for one role never applies to another.
+    assert!(
+        apply_steam_artwork_plan(&portrait_plan, &landscape_request, SteamClientState::Closed)
+            .is_err()
+    );
+    assert!(fixture.grid().join(format!("{APP_ID}.png")).exists());
+
+    // Art the player changed is kept and only forgotten.
+    let portrait_path = fixture.grid().join(format!("{APP_ID}p.png"));
+    fs::write(&portrait_path, b"edited by player").unwrap();
+    let plan = plan_steam_artwork(&portrait_request).unwrap();
+    assert_eq!(
+        portrait(&plan).action,
+        SteamArtworkRoleAction::PreserveModified
+    );
+    assert!(portrait(&plan).forget_ownership);
+    // A changed file is no longer Portcove's copy, so it names no source.
+    assert!(plan.owned_sources().is_empty());
+    apply(&plan, &portrait_request);
+    assert_eq!(fs::read(&portrait_path).unwrap(), b"edited by player");
+    let records = read_ownership(&fixture.config).unwrap().1;
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].role, DestinationArtworkRole::LandscapeCover);
+
+    // Without a record there is nothing to review or write.
+    let plan = plan_steam_artwork(&portrait_request).unwrap();
+    assert_eq!(portrait(&plan).action, SteamArtworkRoleAction::Absent);
+    assert!(!plan.writes_required());
+}
+
+#[test]
+fn update_reports_the_source_of_each_unchanged_owned_file() {
+    let fixture = Fixture::new().with_owned_shortcut();
+    let update = with_two_owned_roles(&fixture);
+    let plan = plan_steam_artwork(&update).unwrap();
+    assert_eq!(
+        plan.owned_sources(),
+        [
+            (
+                DestinationArtworkRole::PortraitCover,
+                sha256(b"portrait art")
+            ),
+            (DestinationArtworkRole::LandscapeCover, sha256(b"wide art")),
+        ]
+    );
+    // Sources never enter the reviewed hash.
+    let mut unhashed = plan.clone();
+    unhashed.plan_sha256 = String::new();
+    unhashed.owned_sources = Vec::new();
+    let rehashed = sha256(
+        &serde_json::to_vec(&(
+            &unhashed,
+            &unhashed.ownership_after,
+            &unhashed.observed_variants,
+        ))
+        .unwrap(),
+    );
+    assert_eq!(rehashed, plan.plan_sha256);
+}
