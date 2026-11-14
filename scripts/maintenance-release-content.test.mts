@@ -32,9 +32,10 @@ const signal = {
   kind: "rom-or-disc-image",
   reason: "Nintendo 64 ROM image",
 };
-const unscanned = (id: string, platform: string, code: string) => ({
+const unscanned = (id: string, platform: string, code: string, provider = "github") => ({
   id,
   platform,
+  provider,
   code,
   reason: `free text for ${code}`,
 });
@@ -349,4 +350,36 @@ void test("signals cut by the scan's cap are counted in the inventory text", () 
   assert.equal(alpha.findings[0]!.signal_count, SIGNAL_CAP + 3);
   assert.match(signalSummary(alpha.findings[0]!), /; and 3 more$/u);
   assert.match(releaseContentAttention(alpha)[0]!, /and 3 more\)$/u);
+});
+
+void test("a newer gap copy of a stored finding wins, so a dismissal applies during partial runs", () => {
+  const stored = releaseContentFacts(report()).facts.get("port:alpha")!;
+  const accounted = {
+    reason: "Synthetic homebrew test file",
+    evidence: "https://github.com/boburning/portcove/pull/7",
+  };
+  const gap = { findings: [{ ...stored.findings[0]!, accounted }] };
+  assert.deepEqual(releaseContentFindings(stored, gap), gap.findings);
+  assert.deepEqual(releaseContentAttention(stored, gap), []);
+  assert.equal(
+    releaseContentAttention(stored).length,
+    1,
+    "the stored copy alone still needs review",
+  );
+});
+
+void test("an unavailable release keeps its provider so the handoff names the right route", () => {
+  const value = report();
+  value.unscanned.push(
+    unscanned("eta", "linux-x86-64", "release-unavailable", "gitlab"),
+    unscanned("eta", "windows-x86-64", "unlistable", "gitlab"),
+  );
+  const eta = releaseContentFacts(bound(value)).facts.get("port:eta")!;
+  assert.deepEqual(eta.unscannable, [
+    { platform: "linux-x86-64", code: "release-unavailable", provider: "gitlab" },
+    { platform: "windows-x86-64", code: "unlistable" },
+  ]);
+  const missing = report();
+  missing.unscanned[0] = { ...missing.unscanned[0]!, provider: "" };
+  assert.throws(() => releaseContentFacts(bound(missing)), /has no provider/u);
 });

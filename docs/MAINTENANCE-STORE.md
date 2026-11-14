@@ -535,17 +535,20 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   - Any other shape is unsupported. Each not-scanned target carries a
     stable `code`, and the consumer reads the scan's own code lists. Deferred
     codes are retried by a later run: `time-budget`, `asset-budget`,
-    `retry-budget` (the separate allowance for re-checking unlistable packages
-    was spent), `time-cut`, `release-read-failed` and `scan-failed` (transient
-    network, provider or tool failures). Persistent codes are deterministic for the same release and
+    `time-cut`, `release-read-failed` and `scan-failed` (transient network,
+    provider or tool failures). Persistent codes are deterministic for the same release and
     limits: `no-release` and `no-single-asset` (nothing to download),
     `release-unavailable` (a redirect, 404 or 410), `asset-too-large`,
     `digest-mismatch`, `encrypted-archive` and `unlistable`. The scan's
     checkpoint remembers `asset-too-large`, `digest-mismatch` and
     `encrypted-archive` for a downloaded asset and does not fetch it again for
-    the same release; `unlistable` is remembered as a retry and re-checked under
-    its own allowance, because a lister or environment fault can cause it too
-    ([scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)). Any other shape or
+    the same release; `unlistable` is remembered as a retry and re-checked in
+    rotation under its own allowance, because a lister or environment fault can
+    cause it too. A retry outside this run's rotation is reported as
+    `unlistable` again, never deferred, so it never makes its port a gap
+    ([scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)). A `release-unavailable`
+    entry also names its provider (`github` or `gitlab`), which decides its
+    route. Any other shape or
     code is unsupported and fails the read.
 - **Stored facts:** a port is a `port:<id>` fact only when none of its targets
   is deferred. The fact keeps each finding's platform, repository, tag, asset,
@@ -587,9 +590,12 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   listing leaves the scan targets, so the next `complete` run records its
   absence. A confirmed false positive instead gets a reviewed entry in
   `.github/release-content-accounting.json`, which the scan applies to that
-  exact package (port, platform, SHA-256 and rules version). A new digest or
-  rules version is not covered. The next `complete` run clears a handoff that
-  only the accounted finding held.
+  exact package (port, platform, SHA-256 and rules version). A dismissal covers
+  those package bytes under that rules version, not a particular set of
+  signals. A new digest or rules version is not covered. The next `complete`
+  run clears a handoff that only the accounted finding held. When a gap from
+  a later run and a stored fact hold the same package, the gap's copy is
+  shown, so a dismissal applies during `partial` runs too.
 - **Credentials:** as for release health, the artifact download needs the
   GitHub `actions` scope.
 
@@ -893,14 +899,14 @@ kind in code; it is never stored. Each entry names:
 - the original receipt that counts;
 - `dispatch: disabled` with the exact reason and the resume condition.
 
-| Kind                          | Existing action and invocation                                                                                                                                    | Authority  | Receipt that counts                                                 |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
-| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                            | Owner only | The next scheduled main `upstream-health` report no longer shows it |
-| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                     | Routine    | The next scheduled main report                                      |
-| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                     | Routine    | The next completed checkpoint snapshot                              |
-| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md)) | Owner only | A new bot receipt on #177                                           |
-| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                          | Owner only | A new bot receipt on #177                                           |
-| `release-content-finding`     | By condition: confirm flagged files or inspect an unreadable package, then a reviewed hold or accounting entry; an unavailable release takes the relocation route | Routine    | The next scheduled main release-content scan no longer reports it   |
+| Kind                          | Existing action and invocation                                                                                                                                                         | Authority  | Receipt that counts                                                 |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------- |
+| `release-health-relocation`   | `gh workflow run upstream-relocation-evidence.yml --ref main -f requests="<OWNER/NAME[@TAG]>"`, then a reviewed rename                                                                 | Owner only | The next scheduled main `upstream-health` report no longer shows it |
+| `release-health-condition`    | The monitor's recorded resume condition, then an accounting or fix PR; no dispatch is offered                                                                                          | Routine    | The next scheduled main report                                      |
+| `upstream-observer-exception` | The observer's recorded rule and resume condition and a fix PR; `gh workflow run configured-upstream-observer.yml --ref main`                                                          | Routine    | The next completed checkpoint snapshot                              |
+| `hosted-intake-blocked`       | `status --request <id> --json`; an owner reconciliation only when primary evidence changed, otherwise owner `process` dispatch ([route](DAILY-PORT-DISCOVERY.md))                      | Owner only | A new bot receipt on #177                                           |
+| `hosted-intake-holds`         | `gh workflow run hosted-discovery-intake.yml --ref main -f mode=process`                                                                                                               | Owner only | A new bot receipt on #177                                           |
+| `release-content-finding`     | By condition: confirm flagged files or inspect an unreadable package, then a reviewed hold or accounting entry; unavailable GitHub releases defer to the owner-only relocation handoff | Routine    | The next scheduled main release-content scan no longer reports it   |
 
 A test parses every referenced workflow and checks its name, trigger and input
 names against the registry.
@@ -931,10 +937,17 @@ names against the registry.
     naming its codes.
   - Either ends in a reviewed hold or, for a confirmed false positive, a
     reviewed accounting entry.
-  - A `release-unavailable` target names the release-health relocation route
-    instead (the port's `release-health-relocation` handoff, if open, then a
-    reviewed location change). Its receipt is the next scan reading the
-    release.
+  - For a `release-unavailable` GitHub target, the routine part is only to
+    confirm that the release is unavailable. Relocation evidence
+    (`upstream-relocation-evidence.yml`) and any rename are owner-only. They
+    follow the port's `release-health-relocation` handoff and its authority.
+  - The relocation route reads GitHub repositories only. A GitLab target is
+    fixed by a reviewed change to the listing's upstream location, and then the
+    next scan reads the release.
+  - In both cases the receipt is the next scan reading the release.
+  - Adding `signal_count` and the provider to the condition records one changed
+    condition for an already-open handoff on the first `complete` run after
+    deploy.
 - **Scheduled receipt:** `readReleaseHealth` accepts only scheduled `main`
   reports, so the release-health entries offer no `upstream-health.yml`
   dispatch; a dispatched run would never count as the receipt.

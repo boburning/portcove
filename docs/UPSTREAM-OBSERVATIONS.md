@@ -1076,12 +1076,16 @@ the package). The checkpoint remembers `asset-too-large`, `digest-mismatch`
 and `encrypted-archive` for a downloaded asset, so it is not fetched again
 until its release, the rules or, for its size, the per-asset limit changes.
 `unlistable` is remembered as a retry instead, because a lister or environment
-fault can cause it too. Known retries are re-checked every run under their own
-allowance (4 attempts and 2 GB by default, `--max-retry-assets` and
-`--max-retry-bytes`), which never spends the main asset or byte budget. When
-the allowance is spent, a retry is deferred as `retry-budget` and other targets
-are unaffected. A retry that now lists cleanly becomes an ordinary scanned
-record. The rest (`time-budget`, `asset-budget`, `retry-budget`, `time-cut`,
+fault can cause it too. Known retries are re-checked in rotation under their
+own allowance (4 attempts and 2 GB by default, `--max-retry-assets` and
+`--max-retry-bytes`), which never spends the main asset or byte budget. The
+least recently checked come first, and the checkpoint records each retry's
+last check (`checked_at`, a retry-run counter). A retry outside this run's
+rotation or byte allowance is reported as `unlistable` again, never deferred,
+so it cannot keep a port's coverage partial, and every retry is re-checked in
+turn. A retry that now lists cleanly becomes an ordinary scanned record. Each
+not-scanned target also names its provider. The rest (`time-budget`,
+`asset-budget`, `time-cut`,
 `release-read-failed` and `scan-failed` for transient network, provider or tool
 failures) continues in a later run. The report (format 3) declares how many
 targets the listings produced and a digest of that list, and a run with no

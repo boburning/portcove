@@ -179,9 +179,9 @@ export const handoffRegistry: readonly HandoffEntry[] = [
     kind: "release-content-finding",
     source: "release-content",
     action:
-      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable release goes through the release-health relocation route first. If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
+      "A person confirms the flagged files against the package, and inspects manually any package the scan could not read (digest mismatch, encrypted, unlistable or over the size limit); an unavailable GitHub release goes through the owner-only release-health relocation route, an unavailable GitLab release through a reviewed location change. If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead. The scan itself never writes a hold.",
     invocation:
-      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data; the next scheduled run of release-content-scan.yml on main reports the result",
+      "Review the finding's package entries in the scan report, or download and inspect the unscannable package, then a reviewed catalog PR setting download_block_reason when it is game data, or a reviewed .github/release-content-accounting.json entry for a confirmed false positive; the next scheduled run of release-content-scan.yml on main reports the result",
     authority: "routine",
     executor: "release-content-scan.yml",
     workflow: {
@@ -383,7 +383,11 @@ export function releaseContentHandoffs(facts: ReadonlyMap<string, unknown>): Han
     // Coverage notes (no release, no single asset) are not attention.
     const unscannable = releaseContentUnscannable(payload)
       .filter(({ attention }) => attention)
-      .map(({ platform, code }) => ({ platform, code }));
+      .map(({ platform, code, provider }) => ({
+        platform,
+        code,
+        ...(provider ? { provider } : {}),
+      }));
     if (findings.length || unscannable.length)
       result.push({
         kind: "release-content-finding",
@@ -633,12 +637,15 @@ export function handoffGuidance(entry: HandoffEntry, condition: unknown): Handof
 function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): HandoffGuidance {
   const value = isRecord(condition) ? condition : {};
   const findings = Array.isArray(value.findings) ? value.findings.length : 0;
-  const codes = (Array.isArray(value.unscannable) ? value.unscannable : []).flatMap((target) =>
-    isRecord(target) && typeof target.code === "string" ? [target.code] : [],
-  );
-  const unavailable = codes.includes("release-unavailable");
+  const targets = (Array.isArray(value.unscannable) ? value.unscannable : []).filter(isRecord);
+  const codes = targets.flatMap((target) => (typeof target.code === "string" ? [target.code] : []));
+  const unavailable = targets.filter((target) => target.code === "release-unavailable");
+  // The relocation evidence route reads GitHub repositories only.
+  const github = unavailable.some((target) => target.provider === "github");
+  const other = unavailable.some((target) => target.provider !== "github");
   const inspect = [...new Set(codes.filter((code) => code !== "release-unavailable"))];
   const actions: string[] = [];
+  const invocations: string[] = [];
   const receipts: string[] = [];
   if (findings) {
     actions.push("A person confirms the flagged files against the package.");
@@ -650,23 +657,35 @@ function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): 
     );
     receipts.push("no longer reports the not-scannable package");
   }
-  if (findings || inspect.length)
+  if (findings || inspect.length) {
     actions.push(
       "If it bundles original game data, a reviewed catalog change sets the listing's download_block_reason (docs/CATALOG.md#rights-basis-for-upstream-hosted-packages); a confirmed false positive gets a reviewed .github/release-content-accounting.json entry instead.",
     );
-  if (unavailable) {
-    actions.push(
-      "The release read is redirected or gone: fix the listing's upstream location through the release-health relocation route (the release-health-relocation handoff for this port, if open) in a reviewed catalog change, so the next scan can read the release and review its package.",
-    );
-    receipts.push("reads the release (the target is no longer release-unavailable)");
+    invocations.push(guidance.invocation);
   }
+  if (github) {
+    actions.push(
+      "The GitHub release read is redirected or gone. The routine part of this handoff is only to confirm that the release is unavailable; relocation evidence (upstream-relocation-evidence.yml) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority, not this one.",
+    );
+    invocations.push(
+      "confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (other) {
+    actions.push(
+      "The GitLab release read is redirected or gone: fix the listing's upstream location in a reviewed catalog change, then wait for the next scan.",
+    );
+    invocations.push(
+      "a reviewed catalog change to the listing's upstream location; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (unavailable.length)
+    receipts.push("reads the release (the target is no longer release-unavailable)");
   if (!actions.length) return guidance;
   return {
     ...guidance,
     action: `${actions.join(" ")} The scan itself never writes a hold.`,
-    invocation: unavailable
-      ? `${findings || inspect.length ? `${guidance.invocation}; for the unavailable release, ` : ""}the release-health-relocation route (upstream-relocation-evidence.yml), then a reviewed catalog change to the listing's location; the next scheduled run of release-content-scan.yml on main reports the result`
-      : guidance.invocation,
+    invocation: invocations.join("; for the unavailable release, "),
     receipt: `The next scheduled main release-content scan report ${receipts.join(" and ")}; a held listing leaves the scan targets.`,
   };
 }

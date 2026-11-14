@@ -691,31 +691,50 @@ void test("release-content guidance follows what the handoff holds", () => {
   );
   assert.match(inspect.action, /release-content-accounting\.json/u);
   assert.match(inspect.receipt, /no longer reports the not-scannable package/u);
-  // An unavailable release goes through the release-health relocation route.
+  // An unavailable GitHub release: only confirming it is routine; relocation is owner-only.
   const moved = guide({
     findings: [],
-    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable" }],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable", provider: "github" }],
   });
   assert.match(
     moved.action,
-    /fix the listing's upstream location through the release-health relocation route/u,
+    /The routine part of this handoff is only to confirm that the release is unavailable/u,
   );
-  assert.match(moved.action, /release-health-relocation handoff for this port, if open/u);
+  assert.match(
+    moved.action,
+    /relocation evidence \(upstream-relocation-evidence\.yml\) and any rename are owner-only and follow the port's release-health-relocation handoff and its authority/u,
+  );
   assert.doesNotMatch(moved.action, /download_block_reason/u);
   assert.match(
     moved.invocation,
-    /^the release-health-relocation route \(upstream-relocation-evidence\.yml\)/u,
+    /^confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff/u,
   );
+  assert.doesNotMatch(moved.invocation, /gh workflow run/u);
   assert.equal(
     moved.receipt,
     "The next scheduled main release-content scan report reads the release (the target is no longer release-unavailable); a held listing leaves the scan targets.",
   );
+  // GitLab has no relocation evidence route: a reviewed location change, then the next scan.
+  const gitlab = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable", provider: "gitlab" }],
+  });
+  assert.match(
+    gitlab.action,
+    /The GitLab release read is redirected or gone: fix the listing's upstream location in a reviewed catalog change, then wait for the next scan\./u,
+  );
+  assert.doesNotMatch(gitlab.action, /relocation|owner-only/u);
+  assert.match(gitlab.invocation, /^a reviewed catalog change to the listing's upstream location/u);
   const both = guide({
     findings: [finding],
-    unscannable: [{ platform: "windows-x86-64", code: "release-unavailable" }],
+    unscannable: [{ platform: "windows-x86-64", code: "release-unavailable", provider: "github" }],
   });
-  assert.match(both.action, /confirms the flagged files.*relocation route/u);
+  assert.match(both.action, /confirms the flagged files.*owner-only/u);
   assert.match(both.receipt, /no longer reports the finding and reads the release/u);
+  assert.match(
+    both.invocation,
+    /accounting\.json entry for a confirmed false positive.*; for the unavailable release, confirm/u,
+  );
   // An unreadable condition keeps the registry entry.
   assert.deepEqual(guide(null), {
     action: entry.action,

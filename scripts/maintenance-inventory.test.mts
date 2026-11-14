@@ -1330,6 +1330,7 @@ void test(
                     {
                       id: "2ship2harkinian",
                       platform: "linux-x86-64",
+                      provider: "github",
                       code: "asset-budget",
                       reason: "asset or byte budget reached; scanned in a later run",
                     },
@@ -1340,6 +1341,7 @@ void test(
                     {
                       id: "mdk-sdl-nemo22",
                       platform: "linux-x86-64",
+                      provider: "github",
                       code: "time-budget",
                       reason: "time budget reached; scanned in a later run",
                     },
@@ -1587,6 +1589,7 @@ void test(
     const target = (platform: string, code: string) => ({
       id: "2ship2harkinian",
       platform,
+      provider: "github",
       code,
       reason: `synthetic ${code}`,
     });
@@ -1694,6 +1697,7 @@ void test(
               {
                 id: "2ship2harkinian",
                 platform: "windows-x86-64",
+                provider: "github",
                 code: "scan-failed",
                 reason: "asset could not be scanned",
               },

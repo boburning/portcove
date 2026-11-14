@@ -183,7 +183,6 @@ export function accountingFor(
 export const DEFERRED_UNSCANNED = [
   "time-budget",
   "asset-budget",
-  "retry-budget",
   "time-cut",
   "release-read-failed",
   "scan-failed",
@@ -263,7 +262,14 @@ export interface ScanReport {
     sha256: string;
   }[];
   findings: ScanFinding[];
-  unscanned: { id: string; platform: string; code: UnscannedCode; reason: string }[];
+  /** `provider` lets a reader route a release it cannot read (GitHub relocation or a GitLab fix). */
+  unscanned: {
+    id: string;
+    platform: string;
+    provider: ScanTarget["provider"];
+    code: UnscannedCode;
+    reason: string;
+  }[];
   /** Accounting entries no finding of this run matched: stale, or their target was not reached. */
   accounting_unmatched: { port_id: string; platform: string; sha256: string; rules: number }[];
 }
@@ -349,7 +355,7 @@ export async function scan(
     deadline = Number.POSITIVE_INFINITY,
     clock = Date.now,
     failures: knownFailures = new Map<string, ScanFailure>(),
-    retries: knownRetries = new Set<string>(),
+    retries: knownRetries = new Map<string, number>(),
     maxRetryAssets = 4,
     maxRetryBytes = 2_000_000_000,
     accounting = [],
@@ -361,8 +367,11 @@ export async function scan(
     clock?: () => number;
     /** Persistent failures of downloaded assets from earlier runs, by asset key. */
     failures?: ReadonlyMap<string, ScanFailure>;
-    /** Asset keys an earlier run found unlistable; re-checked under their own allowance. */
-    retries?: ReadonlySet<string>;
+    /**
+     * Asset keys an earlier run found unlistable, with the retry run that last
+     * checked each; re-checked in rotation under their own allowance.
+     */
+    retries?: ReadonlyMap<string, number>;
     maxRetryAssets?: number | undefined;
     maxRetryBytes?: number | undefined;
     /** Reviewed dismissals ({@link readAccounting}). */
@@ -372,13 +381,15 @@ export async function scan(
   report: ScanReport;
   checkpoint: Map<string, ScanRecord>;
   failures: Map<string, ScanFailure>;
-  retries: Set<string>;
+  retries: Map<string, number>;
 }> {
   const next = new Map(checkpoint);
   const failures = new Map(knownFailures);
-  const retries = new Set(knownRetries);
+  const retries = new Map(knownRetries);
   const matched = new Set<AccountingEntry>();
-  const finding = (record: ScanRecord): ScanFinding => {
+  // Accounting comes only from the reviewed file: any `accounted` on the input is dropped.
+  const finding = (input: ScanRecord): ScanFinding => {
+    const { accounted: _ignored, ...record } = input as ScanFinding;
     const entry = accountingFor(accounting, record);
     if (!entry) return record;
     matched.add(entry);
@@ -400,37 +411,94 @@ export async function scan(
   let attempts = 0;
   // Re-checks of unlistable assets spend only their own allowance, never the main budgets.
   let retryBudget = maxRetryBytes;
-  let retryAttempts = 0;
+  // Phase 1: resolve each target's release and asset. Reads are cached per repository,
+  // so every retry candidate of this run is known before any allowance is spent.
+  type Plan =
+    | { target: ScanTarget; skip: { code: UnscannedCode; reason: string } }
+    | { target: ScanTarget; release: UpstreamRelease; asset: ReleaseAsset; key: string };
+  const plans: Plan[] = [];
   for (const target of targets) {
-    const skip = (code: UnscannedCode, reason: string) =>
-      report.unscanned.push({ id: target.id, platform: target.platform, code, reason });
-    if (clock() >= deadline) {
-      skip("time-budget", "time budget reached; scanned in a later run");
-      continue;
-    }
     let releases: UpstreamRelease[];
     try {
       const cacheKey = `${target.provider}|${target.repository.toLowerCase()}`;
       if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target));
       releases = await releaseCache.get(cacheKey)!;
     } catch (error) {
-      skip(
-        error instanceof ScanError ? error.code : "release-read-failed",
-        `release read failed: ${(error as Error).message}`,
-      );
+      plans.push({
+        target,
+        skip: {
+          code: error instanceof ScanError ? error.code : "release-read-failed",
+          reason: `release read failed: ${(error as Error).message}`,
+        },
+      });
       continue;
     }
     const release = channelRelease(releases, target.channel);
     if (!release) {
-      skip("no-release", "no published release in the channel");
+      plans.push({
+        target,
+        skip: { code: "no-release", reason: "no published release in the channel" },
+      });
       continue;
     }
     const asset = hintedAsset(release.assets, target.hints);
     if (!asset) {
-      skip("no-single-asset", `hints select no single asset in ${release.tag}`);
+      plans.push({
+        target,
+        skip: { code: "no-single-asset", reason: `hints select no single asset in ${release.tag}` },
+      });
       continue;
     }
-    const key = assetKey(target, release.tag, asset);
+    plans.push({ target, release, asset, key: assetKey(target, release.tag, asset) });
+  }
+  // Remembered unlistable assets are re-checked in rotation, least recently checked
+  // first, within their own allowance; the rest keep their persistent code this run.
+  const retryRun = Math.max(0, ...retries.values()) + 1;
+  const rechecks = new Set<string>();
+  let reserved = maxRetryBytes;
+  for (const plan of [
+    ...new Map(
+      plans.flatMap((plan) =>
+        "key" in plan &&
+        retries.has(plan.key) &&
+        !next.has(plan.key) &&
+        !failures.has(plan.key) &&
+        (plan.asset.size === null || plan.asset.size <= maxAssetBytes)
+          ? [[plan.key, plan] as const]
+          : [],
+      ),
+    ).values(),
+  ].sort(
+    (left, right) =>
+      retries.get(left.key)! - retries.get(right.key)! ||
+      (left.key < right.key ? -1 : left.key > right.key ? 1 : 0),
+  )) {
+    if (rechecks.size >= maxRetryAssets) break;
+    const size = plan.asset.size ?? 0;
+    if (size > reserved) continue;
+    reserved -= size;
+    rechecks.add(plan.key);
+  }
+  // Phase 2: scan in target order.
+  for (const plan of plans) {
+    const { target } = plan;
+    const skip = (code: UnscannedCode, reason: string) =>
+      report.unscanned.push({
+        id: target.id,
+        platform: target.platform,
+        provider: target.provider,
+        code,
+        reason,
+      });
+    if (clock() >= deadline) {
+      skip("time-budget", "time budget reached; scanned in a later run");
+      continue;
+    }
+    if ("skip" in plan) {
+      skip(plan.skip.code, plan.skip.reason);
+      continue;
+    }
+    const { release, asset, key } = plan;
     const known = next.get(key);
     if (known) {
       report.reused++;
@@ -465,20 +533,6 @@ export async function scan(
       continue;
     }
     const retry = retries.has(key);
-    const deferral = retry ? "retry-budget" : "asset-budget";
-    if (
-      retry
-        ? retryAttempts >= maxRetryAssets || retryBudget <= 0
-        : attempts >= maxAssets || budget <= 0
-    ) {
-      skip(
-        deferral,
-        retry
-          ? "unlistable re-check allowance reached; re-checked in a later run"
-          : "asset or byte budget reached; scanned in a later run",
-      );
-      continue;
-    }
     if (asset.size !== null && asset.size > maxAssetBytes) {
       skip(
         "asset-too-large",
@@ -486,14 +540,27 @@ export async function scan(
       );
       continue;
     }
-    if (asset.size !== null && asset.size > (retry ? retryBudget : budget)) {
+    // A remembered unlistable asset outside this run's rotation, or past its byte
+    // allowance, keeps its persistent code: never a deferral, so its port stays a fact.
+    if (retry && (!rechecks.has(key) || retryBudget <= 0)) {
       skip(
-        deferral,
-        `asset ${asset.name} exceeds the ${retry ? "re-check allowance" : "byte budget"}; retried when it allows`,
+        "unlistable",
+        `asset ${asset.name} was unlistable in an earlier run; re-checked in rotation in a later run`,
       );
       continue;
     }
-    if (retry) retryAttempts++;
+    if (!retry && (attempts >= maxAssets || budget <= 0)) {
+      skip("asset-budget", "asset or byte budget reached; scanned in a later run");
+      continue;
+    }
+    if (!retry && asset.size !== null && asset.size > budget) {
+      skip(
+        "asset-budget",
+        `asset ${asset.name} exceeds the byte budget; retried when the budget allows`,
+      );
+      continue;
+    }
+    if (retry) retries.set(key, retryRun);
     else attempts++;
     const limit = Math.max(1, Math.min(maxAssetBytes, retry ? retryBudget : budget));
     const dir = await mkdtemp(path.join(os.tmpdir(), "release-scan-"));
@@ -536,13 +603,14 @@ export async function scan(
       if (record.signals.length) report.findings.push(finding(record));
     } catch (error) {
       let code: UnscannedCode = error instanceof ScanError ? error.code : "scan-failed";
-      // A transfer cut by a smaller remaining budget is retried; only the per-asset cap is final.
-      if (code === "asset-too-large" && limit < maxAssetBytes) code = deferral;
+      // A transfer cut by a smaller remaining budget is retried; only the per-asset cap is
+      // final. A re-check cut by its own allowance stays a remembered unlistable asset.
+      if (code === "asset-too-large" && limit < maxAssetBytes)
+        code = retry ? "unlistable" : "asset-budget";
       if (RECORDED_FAILURES.includes(code)) {
         failures.set(key, { key, code, max_asset_bytes: maxAssetBytes });
         retries.delete(key);
-      }
-      if (code === "unlistable") retries.add(key);
+      } else if (code === "unlistable") retries.set(key, retryRun);
       skip(code, `asset ${asset.name} could not be scanned: ${(error as Error).message}`);
     } finally {
       // Failed transfers spend their budget too, so a bad asset cannot repeat unbounded.
@@ -883,13 +951,13 @@ export const escapeCommand = (text: string) =>
 export async function readCheckpoint(file: string | undefined) {
   const records = new Map<string, ScanRecord>();
   const failures = new Map<string, ScanFailure>();
-  const retries = new Set<string>();
+  const retries = new Map<string, number>();
   if (!file || file === "-") return { records, failures, retries };
   try {
     const stored = JSON.parse(await readFile(file, "utf8")) as {
       records?: ScanRecord[];
       failures?: ScanFailure[];
-      retries?: { key?: unknown; rules?: unknown }[];
+      retries?: { key?: unknown; rules?: unknown; checked_at?: unknown }[];
     };
     for (const retry of stored.retries ?? [])
       if (
@@ -897,9 +965,19 @@ export async function readCheckpoint(file: string | undefined) {
         retry.key.startsWith(`r${RULES_VERSION}|`) &&
         retry.rules === RULES_VERSION
       )
-        retries.add(retry.key);
+        // A retry written before rotation counts as never re-checked.
+        retries.set(
+          retry.key,
+          Number.isSafeInteger(retry.checked_at) && (retry.checked_at as number) >= 0
+            ? (retry.checked_at as number)
+            : 0,
+        );
     for (const record of stored.records ?? [])
-      if (record.rules === RULES_VERSION) records.set(record.key, record);
+      if (record.rules === RULES_VERSION) {
+        // Only the reviewed accounting file dismisses a finding, never a cached record.
+        const { accounted: _accounted, ...plain } = record as ScanFinding;
+        records.set(record.key, plain);
+      }
     for (const failure of stored.failures ?? [])
       if (
         typeof failure.key === "string" &&
@@ -982,7 +1060,11 @@ export async function main(argv: string[]) {
           format_version: 1,
           records: [...checkpoint.values()],
           failures: [...nextFailures.values()],
-          retries: [...nextRetries].map((key) => ({ key, rules: RULES_VERSION })),
+          retries: [...nextRetries].map(([key, checked_at]) => ({
+            key,
+            rules: RULES_VERSION,
+            checked_at,
+          })),
         },
         null,
         2,

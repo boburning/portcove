@@ -3315,6 +3315,9 @@ function classifyOnePath(
     selection.scopes.add("tooling");
     for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
+    // The release-content accounting is validated against the listings' port IDs.
+    if (file === "crates/portcove-core/catalog/listings.json")
+      addNodeTest(selection, "scripts/release-content-scan.test.mts");
     recognized = true;
   }
 

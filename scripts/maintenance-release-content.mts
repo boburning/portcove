@@ -57,11 +57,22 @@ export interface ContentFinding {
   accounted?: { reason: string; evidence: string };
 }
 
+/**
+ * A persistent not-scanned target. A `release-unavailable` one also names its
+ * provider, which decides the route that fixes it (GitHub relocation evidence,
+ * or a reviewed location change for GitLab).
+ */
+export interface UnscannableEntry {
+  platform: string;
+  code: string;
+  provider?: "github" | "gitlab";
+}
+
 /** A stored `port:<id>` fact. */
 export interface ReleaseContentFact {
   findings: ContentFinding[];
   /** Targets no run scans under the current limits, with the scan's code. */
-  unscannable: { platform: string; code: string }[];
+  unscannable: UnscannableEntry[];
 }
 
 /** A port some of whose targets a later run scans; carries what this report found. */
@@ -69,10 +80,10 @@ export interface ReleaseContentGap {
   subject_key: string;
   code: "release-content-deferred";
   message: string;
-  deferred: { platform: string; code: string }[];
+  deferred: UnscannableEntry[];
   findings: ContentFinding[];
   /** Persistent not-scanned targets this report already has for the port. */
-  unscannable: { platform: string; code: string }[];
+  unscannable: UnscannableEntry[];
 }
 
 const text = (value: unknown): value is string => typeof value === "string" && value.length > 0;
@@ -203,8 +214,8 @@ export function releaseContentFacts(report: unknown) {
         flagged: field === "scanned" ? (record.signals as unknown[]).length > 0 : null,
       });
     }
-  const deferred = new Map<string, { platform: string; code: string }[]>();
-  const unscannable = new Map<string, { platform: string; code: string }[]>();
+  const deferred = new Map<string, UnscannableEntry[]>();
+  const unscannable = new Map<string, UnscannableEntry[]>();
   for (const entry of unscanned) {
     const target = targetOf(entry, "unscanned");
     account(target);
@@ -215,7 +226,14 @@ export function releaseContentFacts(report: unknown) {
         ? unscannable
         : null;
     if (!into) throw unsupported(`unknown not-scanned code ${code}`);
-    into.set(target.id, [...(into.get(target.id) ?? []), { platform: target.platform, code }]);
+    if (entry.provider !== "github" && entry.provider !== "gitlab")
+      throw unsupported(`not-scanned entry for ${target.id} has no provider`);
+    into.set(target.id, [
+      ...(into.get(target.id) ?? []),
+      code === "release-unavailable"
+        ? { platform: target.platform, code, provider: entry.provider }
+        : { platform: target.platform, code },
+    ]);
   }
   const findings = new Map<string, ContentFinding[]>();
   const found = new Set<string>();
@@ -244,10 +262,8 @@ export function releaseContentFacts(report: unknown) {
   for (const [at, { flagged: hasSignals }] of packages)
     if (hasSignals && !found.has(at))
       throw unsupported(`scanned record ${at.replace("\t", " (")}) has signals but no finding`);
-  const ordered = (list: { platform: string; code: string }[] = []) =>
-    list
-      .map(({ platform, code }) => ({ platform, code }))
-      .sort((left, right) => byText(left.platform, right.platform));
+  const ordered = (list: UnscannableEntry[] = []) =>
+    list.sort((left, right) => byText(left.platform, right.platform));
   const facts = new Map<string, ReleaseContentFact>();
   const gaps: ReleaseContentGap[] = [];
   for (const id of [...ports.keys()].sort(byText)) {
@@ -371,10 +387,12 @@ const storedFindings = (value: unknown) => {
  * The flagged packages the report shows for a port: its stored facts, and the
  * findings the latest scan that did not fail carried on the port's deferral
  * gap, so a finding is visible before every target of its port is scanned.
+ * For the same package the gap's copy wins, because it comes from the latest
+ * run (for example with accounting added since the fact was stored).
  */
 export function releaseContentFindings(payload: unknown, gap?: unknown): ContentFinding[] {
   const seen = new Set<string>();
-  return [...storedFindings(payload), ...storedFindings(gap)].filter((entry) => {
+  return [...storedFindings(gap), ...storedFindings(payload)].filter((entry) => {
     const key = `${entry.platform}\t${entry.asset}\t${entry.sha256}`;
     if (seen.has(key)) return false;
     seen.add(key);
@@ -391,6 +409,7 @@ export const benignUnscannable: readonly string[] = ["no-release", "no-single-as
 export interface UnscannableTarget {
   platform: string;
   code: string;
+  provider?: "github" | "gitlab";
   /** False for a coverage note; true when a package exists that nobody has inspected. */
   attention: boolean;
 }
@@ -404,14 +423,21 @@ export interface UnscannableTarget {
 export function releaseContentUnscannable(payload: unknown, gap?: unknown): UnscannableTarget[] {
   const listed = (value: unknown) => {
     const list = (value as { unscannable?: unknown } | null | undefined)?.unscannable;
-    return Array.isArray(list) ? (list as { platform: string; code: string }[]) : [];
+    return Array.isArray(list) ? (list as UnscannableEntry[]) : [];
   };
   const seen = new Set<string>();
-  return [...listed(payload), ...listed(gap)].flatMap(({ platform, code }) => {
+  return [...listed(payload), ...listed(gap)].flatMap(({ platform, code, provider }) => {
     const key = `${platform}\t${code}`;
     if (seen.has(key)) return [];
     seen.add(key);
-    return [{ platform, code, attention: !benignUnscannable.includes(code) }];
+    return [
+      {
+        platform,
+        code,
+        ...(provider ? { provider } : {}),
+        attention: !benignUnscannable.includes(code),
+      },
+    ];
   });
 }
 
