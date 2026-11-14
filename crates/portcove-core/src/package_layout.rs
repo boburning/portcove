@@ -209,6 +209,7 @@ pub(crate) fn require_reviewed_layout(
     port: &PortDefinition,
     platform: Platform,
     payload_root: &Path,
+    portable_data: Option<&Path>,
 ) -> Result<()> {
     let Some(reviewed) = port.reviewed_package_layouts.get(&platform) else {
         return Ok(());
@@ -223,13 +224,13 @@ pub(crate) fn require_reviewed_layout(
         platform,
         reviewed.ignore_verified_macos_libraries,
     )?;
-    if let Some(name) = crate::native_portable_data::directory_name(port, platform) {
-        let data = root.join(name);
-        if data.is_dir() && fs::read_dir(data)?.next().transpose()?.is_none() {
-            observed
-                .directories
-                .retain(|directory| !directory.eq_ignore_ascii_case(name));
-        }
+    if let Some(name) = portable_data
+        .filter(|data| data.parent() == Some(root.as_path()))
+        .and_then(Path::file_name)
+    {
+        observed
+            .directories
+            .retain(|directory| directory != &lowercase_name(name));
     }
     match compare(reviewed, &observed) {
         None => Ok(()),
@@ -744,7 +745,9 @@ mod tests {
             .clone();
         port.reviewed_package_layouts.clear();
         let anything = package(None, &["whatever.exe"]);
-        assert!(require_reviewed_layout(&port, Platform::WindowsX86_64, anything.path()).is_ok());
+        assert!(
+            require_reviewed_layout(&port, Platform::WindowsX86_64, anything.path(), None).is_ok()
+        );
     }
 
     #[test]
@@ -758,7 +761,7 @@ mod tests {
         port.reviewed_package_layouts
             .insert(Platform::WindowsX86_64, reviewed());
         let same = package(Some("game-2.0"), REVIEWED_FILES);
-        assert!(require_reviewed_layout(&port, Platform::WindowsX86_64, same.path()).is_ok());
+        assert!(require_reviewed_layout(&port, Platform::WindowsX86_64, same.path(), None).is_ok());
         let drifted = package(
             Some("game-2.0"),
             &[
@@ -768,8 +771,8 @@ mod tests {
                 "lib/helper.dll",
             ],
         );
-        let refusal =
-            require_reviewed_layout(&port, Platform::WindowsX86_64, drifted.path()).unwrap_err();
+        let refusal = require_reviewed_layout(&port, Platform::WindowsX86_64, drifted.path(), None)
+            .unwrap_err();
         assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
         assert!(
             refusal.message.contains("updater.exe"),
