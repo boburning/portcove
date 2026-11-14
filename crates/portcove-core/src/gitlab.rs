@@ -2387,6 +2387,7 @@ mod tests {
         let project_url = provider.project_url("group/project").unwrap();
         let release = GitlabRelease {
             tag_name: "v1.0.0".into(),
+            name: None,
             description: String::new(),
             released_at: None,
             upcoming_release: false,
@@ -2521,6 +2522,7 @@ mod tests {
             GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
         let release = GitlabRelease {
             tag_name: "v1.0.0".into(),
+            name: None,
             description: String::new(),
             released_at: None,
             upcoming_release: false,

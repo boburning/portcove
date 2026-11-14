@@ -3379,6 +3379,8 @@ mod tests {
         let release = GithubRelease {
             id: None,
             tag_name: "v0.2.0-dev".into(),
+            name: None,
+            body: None,
             draft: false,
             prerelease: false,
             published_at: None,
@@ -3393,6 +3395,8 @@ mod tests {
         let release = GithubRelease {
             id: None,
             tag_name: "v1.2.3".into(),
+            name: None,
+            body: None,
             draft: false,
             prerelease: false,
             published_at: None,
