@@ -201,6 +201,7 @@ fn inspection(
         },
         record: None,
         message: "not a supported variant".into(),
+        integrity_advisories: Vec::new(),
     }
 }
 

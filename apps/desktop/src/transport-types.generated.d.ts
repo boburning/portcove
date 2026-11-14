@@ -588,6 +588,7 @@ export type CatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
 export type DestinationArtworkContent =
@@ -1040,6 +1041,7 @@ export type ApplicationUpdateInstallEligibility =
   "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
 export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
+export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
@@ -1189,6 +1191,7 @@ export interface TransportOutputs {
   catalog_update_plan: OutputCatalogUpdatePlan;
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
+  dat_reference_status: DatReferenceStatus;
   definition_authority_provisioning: OutputDefinitionAuthorityProvisioning;
   definition_authority_review: DefinitionAuthorityReview;
   definition_capability_report: OutputDefinitionCapabilityReport;
@@ -1333,6 +1336,8 @@ export interface TransportOutputs {
   desktop_catalog_download_candidates: OutputCatalogDownloadCandidates;
   desktop_catalog_download_preview: OutputCatalogDownloadPreview;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
+  desktop_dat_reference_status: DatReferenceStatus;
+  desktop_dat_reference_statuses: OutputDesktopDatReferenceStatuses;
   desktop_desktop_error: FailureReport;
   desktop_external_runtime_preview: ExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
@@ -3118,6 +3123,20 @@ export interface OutputCheckBatchOutcome {
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+export interface DatReferenceStatus {
+  entry_count: number;
+  file_count: number;
+  id: string;
+  message: string;
+  /**
+   * Name from the DAT header, for example `Sony - PlayStation`.
+   */
+  name: string;
+  path: string;
+  state: DatReferenceState;
+  version?: string | null;
   [k: string]: unknown;
 }
 export interface OutputDefinitionAuthorityProvisioning {
@@ -5096,6 +5115,11 @@ export interface PreparationTool {
  */
 export interface SourceInspectionReport {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;
@@ -5139,6 +5163,57 @@ export interface SourceReleaseApplicability {
    * `integration_contract_bound`, or `not_rebound`.
    */
   state_code: string;
+  [k: string]: unknown;
+}
+/**
+ * Informational naming of selected bytes against the player's DAT files.
+ */
+export interface DumpIdentification {
+  checked_reference_count: number;
+  /**
+   * Fixed statement of the admission boundary shown with every result.
+   */
+  limitation: string;
+  /**
+   * Total matching entries; `matches` holds at most the first sixteen.
+   */
+  match_count: number;
+  matches: DumpMatch[];
+  /**
+   * Open code: `identified`, `partially_identified`, `not_listed`,
+   * `not_checked` or `references_unavailable`.
+   */
+  state_code: string;
+  summary: string;
+  unavailable_references: DatReferenceStatus[];
+  [k: string]: unknown;
+}
+export interface DumpMatch {
+  /**
+   * True when every listed file other than a cue or gdi descriptor matched.
+   */
+  complete: boolean;
+  /**
+   * Files in the entry other than cue or gdi descriptors.
+   */
+  entry_file_count: number;
+  /**
+   * The DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.
+   */
+  entry_name: string;
+  matched_files: DumpMatchedFile[];
+  reference_id: string;
+  reference_name: string;
+  [k: string]: unknown;
+}
+export interface DumpMatchedFile {
+  algorithm: SourceDigestAlgorithm;
+  /**
+   * The observed component (for example `disc-1`) when the match was not the
+   * whole selection.
+   */
+  component_id?: string | null;
+  file_name: string;
   [k: string]: unknown;
 }
 export interface SourceEvidenceLink {
@@ -5680,6 +5755,11 @@ export interface SourceVerification {
  */
 export interface SourceInspectionReport1 {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;
