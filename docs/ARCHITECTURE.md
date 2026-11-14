@@ -1461,7 +1461,12 @@ generation under that same lock; successful selection and every attempted transf
 publish the reopened state and new generation together. A transfer error can follow
 committed changes or reopening through a relocation receipt, so it also expires
 earlier reviews. Rejected overlapping handoffs leave the owned operation untouched.
-Reviews from the previous generation must be requested again. Core still owns library leases, copy verification,
+Reviews from the previous generation must be requested again. Read-only adapter
+commands never hold that lock while Core works: game setting, setting review,
+capability and mod setup reads resolve the service at their generation, release the
+lock, and reject a result whose generation changed meanwhile, so one slow read cannot
+queue every other command behind it. Applying a game setting keeps the lock for its
+whole operation. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 

@@ -1,7 +1,7 @@
 //! Library-bound adapter; Core owns all settings eligibility and mutation.
 use crate::{
     DesktopError, DesktopResult, DesktopState, blocking_worker, require_library_generation,
-    state_generation,
+    service_at_generation, state_generation,
 };
 use portcove_core::{
     GameSettingChange, GameSettingReview, GameSettingsView, PortcoveError, PortcoveService,
@@ -26,6 +26,20 @@ pub(crate) fn at_generation<T>(
     operation(service).map_err(Into::into)
 }
 
+/// Read-only operations bind like every other read: the generation is checked
+/// before and after, and a library switch waits for their shared lease. Holding
+/// the desktop state lock here serialized every concurrent command behind one
+/// slow capability read (hosted traces showed ~10 s per waiter, #4879).
+pub(crate) fn read_at_generation<T>(
+    state: &DesktopState,
+    generation: u64,
+    operation: impl FnOnce(PortcoveService) -> portcove_core::Result<T>,
+) -> DesktopResult<T> {
+    let value = operation(service_at_generation(state, generation)?)?;
+    require_library_generation(state_generation(state), generation)?;
+    Ok(value)
+}
+
 #[tauri::command]
 pub(crate) async fn get_port_capabilities(
     state: tauri::State<'_, DesktopState>,
@@ -34,7 +48,7 @@ pub(crate) async fn get_port_capabilities(
 ) -> DesktopResult<portcove_core::PortCapabilityReport> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        at_generation(&state, generation, |service| {
+        read_at_generation(&state, generation, |service| {
             service.port_capabilities(&port_id)
         })
     })
@@ -49,7 +63,7 @@ pub(crate) async fn get_game_settings(
 ) -> DesktopResult<GameSettingsView> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        at_generation(&state, generation, |service| {
+        read_at_generation(&state, generation, |service| {
             service.get_game_settings(&port_id)
         })
     })
@@ -67,7 +81,7 @@ pub(crate) async fn review_game_setting(
 ) -> DesktopResult<GameSettingReview> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        at_generation(&state, generation, |service| {
+        read_at_generation(&state, generation, |service| {
             service.review_game_setting(&port_id, &file_id, &setting_id, change)
         })
     })
@@ -119,6 +133,63 @@ mod tests {
             Ok(())
         });
         assert!(!entered);
+        assert_eq!(result.unwrap_err().code, ErrorCode::Conflict);
+    }
+
+    fn ready_state(temporary: &tempfile::TempDir) -> DesktopState {
+        DesktopState {
+            initialization: Arc::new(Mutex::new(initialize_desktop_selection(LibrarySelection {
+                root: temporary.path().join("library"),
+                source: LibrarySelectionSource::Invocation,
+            }))),
+            preferences: HostPreferenceStore::new(temporary.path().join("preferences.json"))
+                .map_err(DesktopError::from),
+            generation: Arc::new(AtomicU64::new(1)),
+            launch_observer: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    #[test]
+    fn a_slow_settings_read_does_not_block_other_commands() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let temporary = tempfile::tempdir().unwrap();
+        let state = ready_state(&temporary);
+        let (entered_tx, entered) = channel();
+        let (release, release_rx) = channel::<()>();
+        let reader = {
+            let state = state.clone();
+            std::thread::spawn(move || {
+                read_at_generation(&state, 1, |_| {
+                    entered_tx.send(()).unwrap();
+                    let _ = release_rx.recv_timeout(Duration::from_secs(30));
+                    Ok(())
+                })
+            })
+        };
+        entered.recv_timeout(Duration::from_secs(30)).unwrap();
+        let (done_tx, done) = channel();
+        let other = {
+            let state = state.clone();
+            std::thread::spawn(move || done_tx.send(crate::ready(&state).is_ok()).unwrap())
+        };
+        let observed = done.recv_timeout(Duration::from_secs(5));
+        release.send(()).unwrap();
+        assert_eq!(observed, Ok(true), "another command waited for the read");
+        other.join().unwrap();
+        reader.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn a_library_switch_during_a_settings_read_rejects_its_result() {
+        let temporary = tempfile::tempdir().unwrap();
+        let state = ready_state(&temporary);
+        let result = read_at_generation(&state, 1, |_| {
+            state
+                .generation
+                .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+            Ok(())
+        });
         assert_eq!(result.unwrap_err().code, ErrorCode::Conflict);
     }
 }
