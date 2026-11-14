@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 
+const logEvidenceFileLimit = 256;
 const byteLimit = 12 * 1024 * 1024;
 const payloadLimit = 20 * 1024 * 1024;
 const compressedLimit = 8 * 1024 * 1024;
@@ -47,7 +48,10 @@ export async function encodeBackupEvidence(root: string) {
 }
 
 async function encodeFiles(root: string, files: string[]) {
-  assert.ok(files.length > 0 && files.length <= 128, "Missing or excessive native evidence");
+  assert.ok(
+    files.length > 0 && files.length <= logEvidenceFileLimit,
+    "Missing or excessive native evidence",
+  );
   let total = 0;
   const records = [];
   for (const file of files.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))) {
@@ -204,7 +208,9 @@ export async function recoverBackupEvidence(log: string, destination: string) {
   assert.ok(isRecord(payload), "Invalid evidence payload");
   assert.equal(payload.format_version, 1);
   assert.ok(
-    Array.isArray(payload.files) && payload.files.length > 0 && payload.files.length <= 128,
+    Array.isArray(payload.files) &&
+      payload.files.length > 0 &&
+      payload.files.length <= logEvidenceFileLimit,
   );
   let total = 0;
   const names = new Set<string>();
