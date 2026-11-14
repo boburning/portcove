@@ -1,0 +1,277 @@
+{
+  "format": 1,
+  "generator": "scripts/package-shape-baselines.mts",
+  "shape_version": 1,
+  "entries": [
+    {
+      "port_id": "ape-escape-recompiled",
+      "platform": "windows-x86-64",
+      "version": "v0.3.0",
+      "sha256": "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
+      "derivation_inputs_sha256": "34a6988d1213bcd98b970a5efe0d0af086cf4416c22106d287827fc9b88bbac6",
+      "size": 37806136,
+      "asset_name": "ApeEscapeRecomp-v0.3.0-windows-x64.zip",
+      "reviewed_by": "applicability:ape-escape-recompiled-game-source",
+      "shape": {
+        "programs": [
+          "apeescaperecomp.exe",
+          "overlay_toolchain/psxrecomp-game.exe",
+          "overlay_toolchain/python/python.exe",
+          "overlay_toolchain/python/pythonw.exe",
+          "overlay_toolchain/tcc/i386-win32-tcc.exe",
+          "overlay_toolchain/tcc/tcc.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "bios",
+          "cache",
+          "docs",
+          "mods",
+          "overlay_toolchain"
+        ],
+        "persistent_parent_children": [
+          "mods/bundled"
+        ],
+        "persistent_overlap": [
+          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/readme.txt",
+          "mods/bundled/ape.enhancement.quick-gadget-select/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/readme.txt",
+          "mods/bundled/ape.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.widescreen/1.0.0/readme.txt",
+          "mods/bundled/psx.enhancement.cd-speed/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.fast-loading/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.pgxp/1.0.0/manifest.toml",
+          "mods/bundled/psx.presentation.bezel/1.0.0/manifest.toml",
+          "mods/readme.md"
+        ],
+        "config_files": [
+          "aot_cache_audit.json",
+          "game.toml",
+          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.quick-gadget-select/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/manifest.toml",
+          "mods/bundled/ape.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.cd-speed/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.fast-loading/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.pgxp/1.0.0/manifest.toml",
+          "mods/bundled/psx.presentation.bezel/1.0.0/manifest.toml",
+          "overlay_toolchain/bios/openbios.toml",
+          "overlay_toolchain/bios/scph1001.toml"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "blake-stone-aliens-of-gold-bstone",
+      "platform": "windows-x86-64",
+      "version": "v1.3.4",
+      "sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "derivation_inputs_sha256": "aa451fcfcb7d9f4d42f89e1d81e715e999b8aacf9ba7a496048a2fd05af5991a",
+      "size": 2081399,
+      "asset_name": "bstone-1.3.4+e65a6b40-win64.zip",
+      "reviewed_by": "applicability:blake-stone-aliens-of-gold-bstone-game-source",
+      "shape": {
+        "programs": [
+          "bstone.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "blake-stone-planet-strike-bstone",
+      "platform": "windows-x86-64",
+      "version": "v1.3.4",
+      "sha256": "4bfe5c0bef00395a667a2c594399b13a1faddf817da602a38bff2fa80e02cd45",
+      "derivation_inputs_sha256": "aa451fcfcb7d9f4d42f89e1d81e715e999b8aacf9ba7a496048a2fd05af5991a",
+      "size": 2081399,
+      "asset_name": "bstone-1.3.4+e65a6b40-win64.zip",
+      "reviewed_by": "applicability:blake-stone-planet-strike-bstone-game-source",
+      "shape": {
+        "programs": [
+          "bstone.exe"
+        ],
+        "top_directories": [],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "diablo-devilutionx",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+      "derivation_inputs_sha256": "40a6208e29723d829500c3b8618423b023bc3246274fc66e4bce8202c2dbeaec",
+      "size": 10482049,
+      "asset_name": "devilutionx-windows-x86_64.zip",
+      "reviewed_by": "applicability:diablo-devilutionx-game-source",
+      "shape": {
+        "programs": [
+          "devilutionx.exe"
+        ],
+        "top_directories": [
+          "license"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "diablo-hellfire-devilutionx",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "a20cfb62cd611f76aac78f9bf09a28f57794fbfe63ae6da9245deca446680b2b",
+      "derivation_inputs_sha256": "40a6208e29723d829500c3b8618423b023bc3246274fc66e4bce8202c2dbeaec",
+      "size": 10482049,
+      "asset_name": "devilutionx-windows-x86_64.zip",
+      "reviewed_by": "applicability:diablo-hellfire-devilutionx-game-source",
+      "shape": {
+        "programs": [
+          "devilutionx.exe"
+        ],
+        "top_directories": [
+          "license"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "sonic-the-hedgehog-2-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.8.3",
+      "sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f",
+      "derivation_inputs_sha256": "67b6573af06584d14c1c493f3da41375e45946020e039fff4b4a79d62a3b2bfc",
+      "size": 7204657,
+      "asset_name": "SonicTheHedgehog2Recomp-windows-x64-v0.8.3.zip",
+      "reviewed_by": "applicability:sonic-the-hedgehog-2-recomp-game-source",
+      "shape": {
+        "programs": [
+          "sonicthehedgehog2recomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "licenses"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "build-info.json"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "super-mario-world-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.12.0",
+      "sha256": "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+      "derivation_inputs_sha256": "0235e195a34b892dad2c54e4f6efbbcdac5f6ec0c3c8ac9228bf668f5ef4e120",
+      "size": 9490376,
+      "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.12.0.zip",
+      "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape": {
+        "programs": [
+          "supermarioworldsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "lua",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/packages/super-mario-world.enhancement.msu1/1.0.0/manifest.toml",
+          "mods/packages/super-mario-world.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "super-metroid-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.4.2",
+      "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+      "derivation_inputs_sha256": "19dfa2b0c1249eb4160b3e383989462247d497c633fc937bf4c5e5cc28cd1c84",
+      "size": 14907383,
+      "asset_name": "supermetroid-0.4.2-windows-x64.zip",
+      "reviewed_by": "applicability:super-metroid-recomp-game-source",
+      "shape": {
+        "programs": [
+          "supermetroidsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+          "release-profile.json"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.6.1",
+      "sha256": "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+      "derivation_inputs_sha256": "611d2bffbde12364825636de73251f6ab7e63543f29ddfc38b72547e37a6ffe2",
+      "size": 11388312,
+      "asset_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.1.zip",
+      "reviewed_by": "applicability:the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+      "shape": {
+        "programs": [
+          "zeldaalttpsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/packages"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/packages/zelda-alttp.enhancement.widescreen/1.0.0/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      }
+    }
+  ],
+  "entries_sha256": "d8ce2fd918ea7eb476a9233ec8c73c55598b9133f941e7f7ce4dc89fba3d5c8e"
+}

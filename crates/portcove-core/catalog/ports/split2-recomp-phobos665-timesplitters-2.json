@@ -7,6 +7,7 @@
     "summary": "The project reports frontend, story and System Link deathmatch play. Challenge and MapMaker have had little testing. System Link is Windows-only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/phobos665/split2-recomp",
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/phobos665"],
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/phobos665/split2-recomp",

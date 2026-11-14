@@ -287,6 +287,10 @@ export type SteamGridDbUnknownReason =
   | "unavailable"
   | "invalid_response";
 /**
+ * The second signal that confirmed a withdrawal after a first absence.
+ */
+export type ArtworkWithdrawalSignal = "gone" | "absent_again";
+/**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
  * resolved image cannot be retrieved, decoded or presented safely.
@@ -447,11 +451,16 @@ export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-ret
  * Disc file-system an image is read as.
  */
 export type DiscImageFormat = "xdvdfs" | "iso9660";
+/**
+ * Patch file format applied by the `rom-patch` materialization.
+ */
+export type RomPatchFormat = "ips" | "bps" | "ups";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
   | "regaiden-gbc"
   | "xdvdfs-directory"
-  | "iso9660-directory";
+  | "iso9660-directory"
+  | "rom-patch";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -733,6 +742,11 @@ export type GameSettingChange =
   | {
       action: "reset";
     };
+/**
+ * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+ */
+export type UpdateReleaseNotesCoverage =
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -1731,6 +1745,39 @@ export interface UpdateCheck {
   release: ResolvedRelease;
   required_runtime: RuntimeIdentity | null;
   update_available: boolean;
+  /**
+   * Repository maintenance facts from the provider's most recent observation of
+   * this port. Absent means unknown, never active. It may be older than
+   * `checked_at` when this check did not read the repository itself.
+   */
+  upstream_activity?: UpstreamActivity | null;
+  [k: string]: unknown;
+}
+/**
+ * What the release provider reported about the upstream repository while Portcove
+ * was already reading it to select a release. A maintenance observation only: it
+ * grants or revokes no release, update, install or catalog authority, and it is
+ * not the catalog's reviewed `upstream_status` declaration.
+ */
+export interface UpstreamActivity {
+  /**
+   * The repository owner archived the repository (read-only upstream).
+   */
+  archived: boolean;
+  /**
+   * Unix seconds of the latest push the provider reported, when it reported one.
+   */
+  last_change_at?: number | null;
+  /**
+   * Unix seconds when the provider reported these facts.
+   */
+  observed_at: number;
+  /**
+   * The GitHub `owner/name` repository these facts describe. A port whose
+   * catalog provider or repository differs no longer owns this observation.
+   * Empty (an observation without a recorded repository) describes no port.
+   */
+  repository: string;
   [k: string]: unknown;
 }
 export interface PortActionAssessment {
@@ -1907,6 +1954,12 @@ export interface OutputArtworkState {
   attribution: ArtworkAttribution[];
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
+  /**
+   * When Portcove removed the selected image's stored copy because every
+   * provider that supplied it confirmed a withdrawal. The choice and the
+   * credit stay; choosing the image again restores the copy.
+   */
+  evicted_at: number | null;
   generated_fallback: GeneratedArtworkFallback;
   /**
    * Recorded listing evidence for the credited images; empty until an image
@@ -1951,8 +2004,9 @@ export interface GeneratedArtworkFallback {
   style_version: number;
 }
 /**
- * Recorded evidence of whether a provider still lists a credited image. It is
- * an observation, not an action: nothing is removed because of it.
+ * Recorded evidence of whether a provider still lists a credited image. A
+ * confirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see
+ * [`ArtworkState::evicted_at`].
  */
 export interface ArtworkProviderListing {
   asset_id: number;
@@ -1967,6 +2021,12 @@ export interface ArtworkProviderListing {
    */
   not_listed_since: number | null;
   provider: ArtworkProvider;
+  withdrawal_signal: ArtworkWithdrawalSignal | null;
+  /**
+   * When a later check confirmed the withdrawal; cleared when the image is
+   * seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
 }
 /**
  * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
@@ -2274,6 +2334,11 @@ export interface PortDefinition {
   runtime_disc_image?: DiscImageProfile | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
+  /**
+   * Required by, and only valid with, the `rom-patch` materialization: the
+   * patch format and the exact original and patch members it combines.
+   */
+  runtime_rom_patch?: RomPatchProfile | null;
   runtime_source_filename: string | null;
   runtime_source_hashes: {
     [k: string]: string;
@@ -2686,6 +2751,30 @@ export interface DiscImageProfile {
   product_codes: string[];
   [k: string]: unknown;
 }
+/**
+ * Port declaration for producing a patched runtime file from two members of the
+ * port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+ * output is pinned by the port's single `runtime_source_hashes` entry.
+ */
+export interface RomPatchProfile {
+  format: RomPatchFormat;
+  /**
+   * Accepted filenames of the file-set member holding the unmodified original.
+   */
+  original_filenames: string[];
+  /**
+   * The one original this patch applies to; also an accepted SHA-256 of its member.
+   */
+  original_sha256: string;
+  /**
+   * Accepted filenames of the file-set member holding the patch file.
+   */
+  patch_filenames: string[];
+  /**
+   * The one reviewed patch file; also an accepted SHA-256 of its member.
+   */
+  patch_sha256: string;
+}
 export interface RuntimeSourceTarget {
   destination: string;
   materialization: RuntimeSourceMaterialization;
@@ -2991,6 +3080,13 @@ export interface PortListing {
    * no execution, management or permission over an existing copy.
    */
   download_block_reason?: string | null;
+  /**
+   * Reviewed pages where the upstream developers accept funding, normally taken
+   * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+   * HTTPS links that grant nothing. Requires listing format 10; when present it
+   * is never empty, so an earlier strict reader never meets an inert empty key.
+   */
+  funding_urls?: string[] | null;
   id: string;
   issue_number?: number | null;
   /**
@@ -3968,6 +4064,12 @@ export interface OutputGameUpdatePlan {
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * Informational upstream notes for this review. Read from cached provider
+   * metadata only, excluded from `plan_sha256`, never authority. Absent when
+   * the provider has no hosted release page.
+   */
+  release_notes?: UpdateReleaseNotes | null;
   [k: string]: unknown;
 }
 /**
@@ -3988,6 +4090,40 @@ export interface ArchiveDataTransitionReview {
   producing_archive_sha256: string;
   retained_installations: number;
   temporary_space: InstallSpaceRequirement;
+  [k: string]: unknown;
+}
+/**
+ * Upstream releases between the installed version (exclusive) and the offered
+ * version (inclusive), newest first. Notes are untrusted plain text.
+ */
+export interface UpdateReleaseNotes {
+  coverage: UpdateReleaseNotesCoverage;
+  /**
+   * Empty when the notes are unknown: not cached, or the offered release is not listed.
+   */
+  entries: UpdateReleaseNotesEntry[];
+  /**
+   * The project's release list page. Present only when Desktop may open it: it is
+   * built by Portcove and passes the same reviewed-link check as other handoffs.
+   */
+  releases_url?: string | null;
+  [k: string]: unknown;
+}
+export interface UpdateReleaseNotesEntry {
+  /**
+   * Normalized plain text; may contain unrendered Markdown or HTML source.
+   */
+  notes: string;
+  notes_truncated: boolean;
+  /**
+   * Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+   */
+  published_at?: string | null;
+  title?: string | null;
+  /**
+   * The release tag, normalized for display.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {
@@ -4252,6 +4388,11 @@ export interface ArtworkMetadata {
   assets: LocalArtworkAsset[];
   choices: ArtworkChoice[];
   /**
+   * Provider-only assets whose originals Portcove removed after every record
+   * was withdrawn. Their files are not carried; schema 10.
+   */
+  evicted_assets?: ArtworkEvictedAsset[];
+  /**
    * Assets that exist only because a provider image was chosen; no local import
    * of the same bytes was made. Present only under library metadata schema 8.
    */
@@ -4260,10 +4401,25 @@ export interface ArtworkMetadata {
    * Provider provenance; present only under library metadata schema 8.
    */
   providers?: ArtworkProviderRecord[];
+  /**
+   * Confirmed withdrawals of provider records; library metadata schema 10.
+   */
+  withdrawals?: ArtworkWithdrawalRecord[];
+}
+export interface ArtworkEvictedAsset {
+  asset_sha256: string;
+  evicted_at: number;
 }
 export interface ArtworkProviderRecord {
   asset_sha256: string;
   attribution: ArtworkAttribution;
+}
+export interface ArtworkWithdrawalRecord {
+  asset_id: number;
+  asset_sha256: string;
+  provider: ArtworkProvider;
+  signal: ArtworkWithdrawalSignal;
+  withdrawn_at: number;
 }
 export interface LibraryContentRoot {
   kind: LibraryContentKind;
@@ -5871,6 +6027,26 @@ export interface OutputSteamgriddbListingReport {
    * one whose recording failed, still reports what it saw.
    */
   recorded: boolean;
+  /**
+   * Removals left for the next check, export or move because one check
+   * removes a bounded number while it holds the library.
+   */
+  removal_deferred: number;
+  /**
+   * Removals that failed, usually because another program holds the file.
+   * Portcove no longer shows or hands out these copies.
+   */
+  removal_failed: number;
+  /**
+   * Copies of withdrawn images removed from the library during this check,
+   * including removals left over from earlier checks.
+   */
+  removed: number;
+  /**
+   * Attempted results that could not be written and stay unrecorded; they are
+   * checked again first next time.
+   */
+  skipped: number;
   stopped: SteamGridDbCheckStop | null;
 }
 export interface SteamGridDbImageCheck {
@@ -5881,6 +6057,15 @@ export interface SteamGridDbImageCheck {
    */
   attempted: boolean;
   attribution: ArtworkAttribution;
+  /**
+   * What recording this result changed; `none` when the check was not recorded.
+   */
+  effect: "none" | "withdrawn" | "removed" | "listed_again";
+  /**
+   * When Portcove removed the stored copy behind this record, as recorded
+   * after this check; choosing the image again restores it.
+   */
+  evicted_at: number | null;
   listing: SteamGridDbListingResult;
   /**
    * The `total` SteamGridDB reported for the image's listing, when one was read.
@@ -5892,6 +6077,11 @@ export interface SteamGridDbImageCheck {
    */
   not_listed_since: number | null;
   source: SteamGridDbSourceStatus;
+  /**
+   * When a check confirmed this record withdrawn, as recorded after this
+   * check; cleared when it is seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
 }
 export interface OutputStoreGameInstalls {
   /**

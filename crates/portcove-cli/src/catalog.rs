@@ -74,7 +74,7 @@ pub(crate) enum CatalogCommand {
     },
     /// Export every descriptive listing, including projects without a managed integration.
     Listings {
-        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date.
+        /// Listing format: 5 keeps legacy flat references; 8 supports GitLab observations; 9 adds the first-listed date; 10 adds funding links.
         #[arg(long)]
         format_version: Option<u32>,
     },
@@ -124,6 +124,23 @@ pub(crate) enum CatalogCommand {
         /// Exclude verified shared libraries from the macOS program inventory.
         #[arg(long)]
         ignore_verified_macos_libraries: bool,
+    },
+    /// Derive a verified local archive's package shape and its shadow drift verdict.
+    InspectPackageShape {
+        /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
+        archive: PathBuf,
+        /// Embedded catalog port ID whose managed route the archive belongs to.
+        #[arg(long)]
+        port: String,
+        /// Managed route platform (windows-x86-64, linux-x86-64, macos-x86-64, or macos-aarch64).
+        #[arg(long)]
+        platform: String,
+        /// Expected archive size in bytes from the publisher's release metadata.
+        #[arg(long)]
+        size: u64,
+        /// Expected 64-digit archive SHA-256 from the publisher's release metadata.
+        #[arg(long)]
+        sha256: String,
     },
     /// Probe inert settings samples through Core's document editor without library writes.
     InspectSettingsQualification {
@@ -260,6 +277,7 @@ impl CatalogCommand {
             Self::InspectTargets { .. } => "catalog.inspect-targets",
             Self::InspectDefinitionDelivery => "catalog.inspect-definition-delivery",
             Self::InspectPackageLayout { .. } => "catalog.inspect-package-layout",
+            Self::InspectPackageShape { .. } => "catalog.inspect-package-shape",
             Self::InspectSettingsQualification { .. } => "catalog.inspect-settings-qualification",
             Self::InspectListings { .. } => "catalog.inspect-listings",
             Self::InspectDefinitionPublication { .. } => "catalog.inspect-definition-publication",
@@ -467,6 +485,9 @@ pub(crate) async fn execute(
         }
         CatalogCommand::InspectPackageLayout { .. } => {
             unreachable!("package layout inspection executes before opening a library")
+        }
+        CatalogCommand::InspectPackageShape { .. } => {
+            unreachable!("package shape inspection executes before opening a library")
         }
         CatalogCommand::InspectSettingsQualification { .. } => {
             unreachable!("settings qualification executes before opening a library")

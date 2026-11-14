@@ -630,6 +630,38 @@ fn evaluate_windows_nsis_update(
     })
 }
 
+/// Whether this process is the executable of Portcove's single registered
+/// current-version NSIS installation, using the same evaluation as update
+/// admission. Development, fixture and portable runs answer `false`.
+#[cfg(windows)]
+pub(crate) fn running_registered_installation() -> bool {
+    // Only the failing stage is logged: errors can name private paths.
+    let not_installed = |stage: &'static str| {
+        tracing::debug!(
+            component = "recent_play_shortcuts",
+            stage,
+            message = "using the per-executable taskbar identity"
+        );
+        false
+    };
+    let Ok(current_executable) = std::env::current_exe() else {
+        return not_installed("current_executable");
+    };
+    let Ok(registrations) = inventory_portcove_registrations() else {
+        return not_installed("registration_inventory");
+    };
+    if evaluate_windows_nsis_installation(
+        env!("CARGO_PKG_VERSION"),
+        &current_executable,
+        &registrations,
+    )
+    .is_err()
+    {
+        return not_installed("registered_installation");
+    }
+    true
+}
+
 fn evaluate_windows_nsis_installation(
     current_version: &str,
     current_executable: &Path,

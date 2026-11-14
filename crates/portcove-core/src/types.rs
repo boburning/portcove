@@ -322,6 +322,9 @@ pub enum RuntimeSourceMaterialization {
     XdvdfsDirectory,
     /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
     Iso9660Directory,
+    /// Apply an exactly identified patch to an exactly identified original from a
+    /// file-set source and write the verified patched file; older engines reject this value.
+    RomPatch,
 }
 
 impl RuntimeSourceMaterialization {
@@ -369,6 +372,32 @@ pub struct StfsPackageProfile {
     pub title_ids: Vec<String>,
     /// Explicit bound on the selected package in bytes; at most 16 GiB.
     pub max_package_bytes: u64,
+}
+
+/// Patch file format applied by the `rom-patch` materialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RomPatchFormat {
+    Ips,
+    Bps,
+    Ups,
+}
+
+/// Port declaration for producing a patched runtime file from two members of the
+/// port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+/// output is pinned by the port's single `runtime_source_hashes` entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RomPatchProfile {
+    pub format: RomPatchFormat,
+    /// Accepted filenames of the file-set member holding the unmodified original.
+    pub original_filenames: Vec<String>,
+    /// The one original this patch applies to; also an accepted SHA-256 of its member.
+    pub original_sha256: String,
+    /// Accepted filenames of the file-set member holding the patch file.
+    pub patch_filenames: Vec<String>,
+    /// The one reviewed patch file; also an accepted SHA-256 of its member.
+    pub patch_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -901,6 +930,10 @@ pub struct PortDefinition {
     /// and content types and a size bound, checked before extraction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_stfs_package: Option<StfsPackageProfile>,
+    /// Required by, and only valid with, the `rom-patch` materialization: the
+    /// patch format and the exact original and patch members it combines.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_rom_patch: Option<RomPatchProfile>,
     /// A disc-image source that is offered but not required: with none registered the
     /// game is not blocked and the runtime and its persistent files are left as they are;
     /// when one is registered it is unpacked as for a required source. Only valid with a
@@ -1007,6 +1040,17 @@ pub struct CatalogDocument {
     pub ports: Vec<PortDefinition>,
 }
 
+/// A present `funding_urls` key must hold a list: an explicit `null` is refused
+/// rather than read as absent, because earlier strict readers refuse the key itself.
+fn present_funding_urls<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Vec::<String>::deserialize(deserializer).map(Some)
+}
+
 /// Descriptive project information. A listing never grants managed installation,
 /// executable selection, source access or ownership of an external directory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1041,6 +1085,16 @@ pub struct PortListing {
     /// Requires listing format 9.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listed_at: Option<String>,
+    /// Reviewed pages where the upstream developers accept funding, normally taken
+    /// from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+    /// HTTPS links that grant nothing. Requires listing format 10; when present it
+    /// is never empty, so an earlier strict reader never meets an inert empty key.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_funding_urls"
+    )]
+    pub funding_urls: Option<Vec<String>>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -2054,6 +2108,56 @@ pub struct GameUpdatePlan {
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+    /// Informational upstream notes for this review. Read from cached provider
+    /// metadata only, excluded from `plan_sha256`, never authority. Absent when
+    /// the provider has no hosted release page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<UpdateReleaseNotes>,
+}
+
+/// Upstream releases between the installed version (exclusive) and the offered
+/// version (inclusive), newest first. Notes are untrusted plain text.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotes {
+    /// The project's release list page. Present only when Desktop may open it: it is
+    /// built by Portcove and passes the same reviewed-link check as other handoffs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub releases_url: Option<String>,
+    /// Empty when the notes are unknown: not cached, or the offered release is not listed.
+    pub entries: Vec<UpdateReleaseNotesEntry>,
+    pub coverage: UpdateReleaseNotesCoverage,
+}
+
+/// How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateReleaseNotesCoverage {
+    /// Every eligible release since the installed version is listed.
+    Complete,
+    /// Only the newest releases are listed; older ones since the installed version exist.
+    Shortened,
+    /// The installed version was not found in the usable cached release list.
+    InstalledNotListed,
+    /// The installed version is newer than the offered one; only the offered release is listed.
+    InstalledNewer,
+    /// A rolling release is republished in place; only its current notes are listed.
+    RollingRelease,
+    /// No notes are known for the offered release.
+    Unavailable,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotesEntry {
+    /// The release tag, normalized for display.
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    /// Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<String>,
+    /// Normalized plain text; may contain unrendered Markdown or HTML source.
+    pub notes: String,
+    pub notes_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2267,6 +2371,44 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    /// Repository maintenance facts from the provider's most recent observation of
+    /// this port. Absent means unknown, never active. It may be older than
+    /// `checked_at` when this check did not read the repository itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_activity: Option<UpstreamActivity>,
+}
+
+/// What the release provider reported about the upstream repository while Portcove
+/// was already reading it to select a release. A maintenance observation only: it
+/// grants or revokes no release, update, install or catalog authority, and it is
+/// not the catalog's reviewed `upstream_status` declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpstreamActivity {
+    /// The GitHub `owner/name` repository these facts describe. A port whose
+    /// catalog provider or repository differs no longer owns this observation.
+    /// Empty (an observation without a recorded repository) describes no port.
+    #[serde(default)]
+    pub repository: String,
+    /// Unix seconds when the provider reported these facts.
+    pub observed_at: i64,
+    /// The repository owner archived the repository (read-only upstream).
+    pub archived: bool,
+    /// Unix seconds of the latest push the provider reported, when it reported one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_change_at: Option<i64>,
+}
+
+impl UpstreamActivity {
+    /// Whether the port's current catalog definition still names this repository.
+    /// GitHub owner and repository names are case-insensitive.
+    pub fn describes(&self, port: &PortDefinition) -> bool {
+        port.release.provider == ReleaseSource::Github
+            && !self.repository.is_empty()
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case(&self.repository)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2402,7 +2544,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9],
+            listing_formats: vec![5, 6, 7, 8, 9, 10],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

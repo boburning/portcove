@@ -154,6 +154,7 @@ export function baselineIntegrityCommands(plan: ValidationPlan, options: Classif
     ["scripts/check-release-metadata.test.mts", ["scripts/check-release-metadata.mts"]],
     ["scripts/generate-catalog.test.mts", ["scripts/generate-catalog.mts", "--check"]],
     ["scripts/generate-catalog.test.mts", ["scripts/check-retcomm-upstreams.mts", "--offline"]],
+    ["scripts/generate-catalog.test.mts", ["scripts/package-shape-baselines.mts", "--check"]],
     ["scripts/native-helper-dependencies.test.mts", ["scripts/native-helper-dependencies.mts"]],
   ];
   return checks.filter(([test]) => tests.has(test)).map(([, args]) => args);

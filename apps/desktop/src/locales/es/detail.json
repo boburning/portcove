@@ -82,6 +82,10 @@
     "heading": "Requisitos"
   },
   "resources": {
+    "funding": {
+      "heading": "Ayuda a financiar este proyecto",
+      "note": "Los desarrolladores del proyecto indican estas páginas para quien quiera financiar su trabajo. Cada enlace se abre en el navegador; Portcove no interviene en ningún pago."
+    },
     "heading": "Proyecto y soporte",
     "support": "Crear un informe de soporte",
     "supportNote": "Guarda y revisa localmente un informe con datos ocultos antes de decidir compartirlo.",

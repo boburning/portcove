@@ -54,6 +54,11 @@ export function ArtworkProvider({
   return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
 }
 
+/** The current library's artwork cache, when one is provided. */
+export function useArtworkCache() {
+  return useContext(ArtworkContext);
+}
+
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
   const cache = useContext(ArtworkContext);
   const subscribe = useCallback(

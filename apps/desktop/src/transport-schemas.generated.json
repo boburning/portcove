@@ -3169,6 +3169,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -3204,6 +3215,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },
@@ -3456,7 +3500,7 @@
       },
       "ArtworkProviderListing": {
         "additionalProperties": false,
-        "description": "Recorded evidence of whether a provider still lists a credited image. It is\nan observation, not an action: nothing is removed because of it.",
+        "description": "Recorded evidence of whether a provider still lists a credited image. A\nconfirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see\n[`ArtworkState::evicted_at`].",
         "properties": {
           "asset_id": {
             "format": "uint64",
@@ -3481,6 +3525,24 @@
           },
           "provider": {
             "$ref": "#/$defs/ArtworkProvider"
+          },
+          "withdrawal_signal": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkWithdrawalSignal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withdrawn_at": {
+            "description": "When a later check confirmed the withdrawal; cleared when the image is\nseen listed again or chosen again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -3488,7 +3550,9 @@
           "asset_id",
           "last_checked_at",
           "last_result",
-          "not_listed_since"
+          "not_listed_since",
+          "withdrawn_at",
+          "withdrawal_signal"
         ],
         "type": "object"
       },
@@ -3557,6 +3621,21 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -3797,6 +3876,14 @@
       "choice": {
         "$ref": "#/$defs/ArtworkChoice"
       },
+      "evicted_at": {
+        "description": "When Portcove removed the selected image's stored copy because every\nprovider that supplied it confirmed a withdrawal. The choice and the\ncredit stay; choosing the image again restores the copy.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
       "generated_fallback": {
         "$ref": "#/$defs/GeneratedArtworkFallback"
       },
@@ -3835,7 +3922,8 @@
       "resolved_source",
       "generated_fallback",
       "attribution",
-      "provider_listing"
+      "provider_listing",
+      "evicted_at"
     ],
     "title": "ArtworkState",
     "type": "object"
@@ -6370,6 +6458,17 @@
             },
             "type": "array"
           },
+          "runtime_rom_patch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RomPatchProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the `rom-patch` materialization: the\npatch format and the exact original and patch members it combines."
+          },
           "runtime_source_filename": {
             "default": null,
             "type": [
@@ -7082,6 +7181,54 @@
         ],
         "type": "object"
       },
+      "RomPatchFormat": {
+        "description": "Patch file format applied by the `rom-patch` materialization.",
+        "enum": [
+          "ips",
+          "bps",
+          "ups"
+        ],
+        "type": "string"
+      },
+      "RomPatchProfile": {
+        "additionalProperties": false,
+        "description": "Port declaration for producing a patched runtime file from two members of the\nport's file-set source. Both inputs are pinned to one exact SHA-256 each; the\noutput is pinned by the port's single `runtime_source_hashes` entry.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/RomPatchFormat"
+          },
+          "original_filenames": {
+            "description": "Accepted filenames of the file-set member holding the unmodified original.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_sha256": {
+            "description": "The one original this patch applies to; also an accepted SHA-256 of its member.",
+            "type": "string"
+          },
+          "patch_filenames": {
+            "description": "Accepted filenames of the file-set member holding the patch file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "patch_sha256": {
+            "description": "The one reviewed patch file; also an accepted SHA-256 of its member.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "original_filenames",
+          "original_sha256",
+          "patch_filenames",
+          "patch_sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -7117,6 +7264,11 @@
           {
             "const": "iso9660-directory",
             "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "rom-patch",
+            "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
           }
         ]
@@ -9634,6 +9786,16 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -10528,6 +10690,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -10539,6 +10712,39 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       }
@@ -18234,6 +18440,102 @@
           "volume_available_bytes"
         ],
         "type": "object"
+      },
+      "UpdateReleaseNotes": {
+        "description": "Upstream releases between the installed version (exclusive) and the offered\nversion (inclusive), newest first. Notes are untrusted plain text.",
+        "properties": {
+          "coverage": {
+            "$ref": "#/$defs/UpdateReleaseNotesCoverage"
+          },
+          "entries": {
+            "description": "Empty when the notes are unknown: not cached, or the offered release is not listed.",
+            "items": {
+              "$ref": "#/$defs/UpdateReleaseNotesEntry"
+            },
+            "type": "array"
+          },
+          "releases_url": {
+            "description": "The project's release list page. Present only when Desktop may open it: it is\nbuilt by Portcove and passes the same reviewed-link check as other handoffs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries",
+          "coverage"
+        ],
+        "type": "object"
+      },
+      "UpdateReleaseNotesCoverage": {
+        "description": "How far `UpdateReleaseNotes::entries` reaches toward the installed version.",
+        "oneOf": [
+          {
+            "const": "complete",
+            "description": "Every eligible release since the installed version is listed.",
+            "type": "string"
+          },
+          {
+            "const": "shortened",
+            "description": "Only the newest releases are listed; older ones since the installed version exist.",
+            "type": "string"
+          },
+          {
+            "const": "installed_not_listed",
+            "description": "The installed version was not found in the usable cached release list.",
+            "type": "string"
+          },
+          {
+            "const": "installed_newer",
+            "description": "The installed version is newer than the offered one; only the offered release is listed.",
+            "type": "string"
+          },
+          {
+            "const": "rolling_release",
+            "description": "A rolling release is republished in place; only its current notes are listed.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "No notes are known for the offered release.",
+            "type": "string"
+          }
+        ]
+      },
+      "UpdateReleaseNotesEntry": {
+        "properties": {
+          "notes": {
+            "description": "Normalized plain text; may contain unrendered Markdown or HTML source.",
+            "type": "string"
+          },
+          "notes_truncated": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "description": "Provider timestamp in RFC 3339 shape; absent when missing or malformed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "The release tag, normalized for display.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "notes",
+          "notes_truncated"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18272,6 +18574,17 @@
       },
       "plan_sha256": {
         "type": "string"
+      },
+      "release_notes": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateReleaseNotes"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Informational upstream notes for this review. Read from cached provider\nmetadata only, excluded from `plan_sha256`, never authority. Absent when\nthe provider has no hosted release page."
       }
     },
     "required": [
@@ -20622,6 +20935,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -20644,6 +20974,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -20655,6 +20992,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -20700,6 +21044,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -22248,6 +22638,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -22270,6 +22677,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -22281,6 +22695,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -22326,6 +22747,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -23851,6 +24318,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -23873,6 +24357,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -23884,6 +24375,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -23929,6 +24427,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -28209,6 +28753,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -28244,6 +28799,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },
@@ -32476,6 +33064,16 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -33995,6 +34593,54 @@
         ],
         "type": "object"
       },
+      "RomPatchFormat": {
+        "description": "Patch file format applied by the `rom-patch` materialization.",
+        "enum": [
+          "ips",
+          "bps",
+          "ups"
+        ],
+        "type": "string"
+      },
+      "RomPatchProfile": {
+        "additionalProperties": false,
+        "description": "Port declaration for producing a patched runtime file from two members of the\nport's file-set source. Both inputs are pinned to one exact SHA-256 each; the\noutput is pinned by the port's single `runtime_source_hashes` entry.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/RomPatchFormat"
+          },
+          "original_filenames": {
+            "description": "Accepted filenames of the file-set member holding the unmodified original.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_sha256": {
+            "description": "The one original this patch applies to; also an accepted SHA-256 of its member.",
+            "type": "string"
+          },
+          "patch_filenames": {
+            "description": "Accepted filenames of the file-set member holding the patch file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "patch_sha256": {
+            "description": "The one reviewed patch file; also an accepted SHA-256 of its member.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "original_filenames",
+          "original_sha256",
+          "patch_filenames",
+          "patch_sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -34030,6 +34676,11 @@
           {
             "const": "iso9660-directory",
             "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "rom-patch",
+            "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
           }
         ]
@@ -34605,6 +35256,17 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "runtime_rom_patch": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/RomPatchProfile"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Required by, and only valid with, the `rom-patch` materialization: the\npatch format and the exact original and patch members it combines."
       },
       "runtime_source_filename": {
         "default": null,
@@ -43909,6 +44571,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -43930,6 +44603,39 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -44218,6 +44924,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -44239,6 +44956,39 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -48625,6 +49375,17 @@
             },
             "type": "array"
           },
+          "runtime_rom_patch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RomPatchProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the `rom-patch` materialization: the\npatch format and the exact original and patch members it combines."
+          },
           "runtime_source_filename": {
             "default": null,
             "type": [
@@ -49337,6 +50098,54 @@
         ],
         "type": "object"
       },
+      "RomPatchFormat": {
+        "description": "Patch file format applied by the `rom-patch` materialization.",
+        "enum": [
+          "ips",
+          "bps",
+          "ups"
+        ],
+        "type": "string"
+      },
+      "RomPatchProfile": {
+        "additionalProperties": false,
+        "description": "Port declaration for producing a patched runtime file from two members of the\nport's file-set source. Both inputs are pinned to one exact SHA-256 each; the\noutput is pinned by the port's single `runtime_source_hashes` entry.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/RomPatchFormat"
+          },
+          "original_filenames": {
+            "description": "Accepted filenames of the file-set member holding the unmodified original.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_sha256": {
+            "description": "The one original this patch applies to; also an accepted SHA-256 of its member.",
+            "type": "string"
+          },
+          "patch_filenames": {
+            "description": "Accepted filenames of the file-set member holding the patch file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "patch_sha256": {
+            "description": "The one reviewed patch file; also an accepted SHA-256 of its member.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "original_filenames",
+          "original_sha256",
+          "patch_filenames",
+          "patch_sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -49372,6 +50181,11 @@
           {
             "const": "iso9660-directory",
             "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "rom-patch",
+            "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
           }
         ]
@@ -66304,6 +67118,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -66339,6 +67164,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },
@@ -66693,6 +67551,31 @@
         ],
         "type": "string"
       },
+      "SteamGridDbCheckEffect": {
+        "description": "What recording one image's result changed in the library.",
+        "oneOf": [
+          {
+            "const": "none",
+            "description": "Nothing beyond the recorded evidence.",
+            "type": "string"
+          },
+          {
+            "const": "withdrawn",
+            "description": "This check confirmed the image withdrawn: a verified absence with a\nsecond signal (a `gone` answer in the same check, or an absence at least\n24 hours old). The stored copy is kept, because another credit or the\nplayer's own import still stands behind it.",
+            "type": "string"
+          },
+          {
+            "const": "removed",
+            "description": "The image is confirmed withdrawn and Portcove removed its copy. The\nchoice and the credit are kept.",
+            "type": "string"
+          },
+          {
+            "const": "listed_again",
+            "description": "The image was confirmed withdrawn before and is now listed again; a\nremoved copy comes back only when the player chooses it again.",
+            "type": "string"
+          }
+        ]
+      },
       "SteamGridDbCheckStop": {
         "description": "Why a check ended before every group was read.",
         "oneOf": [
@@ -66790,6 +67673,18 @@
           "attribution": {
             "$ref": "#/$defs/ArtworkAttribution"
           },
+          "effect": {
+            "$ref": "#/$defs/SteamGridDbCheckEffect",
+            "description": "What recording this result changed; `none` when the check was not recorded."
+          },
+          "evicted_at": {
+            "description": "When Portcove removed the stored copy behind this record, as recorded\nafter this check; choosing the image again restores it.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "listing": {
             "$ref": "#/$defs/SteamGridDbListingResult"
           },
@@ -66812,6 +67707,14 @@
           },
           "source": {
             "$ref": "#/$defs/SteamGridDbSourceStatus"
+          },
+          "withdrawn_at": {
+            "description": "When a check confirmed this record withdrawn, as recorded after this\ncheck; cleared when it is seen listed again or chosen again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -66821,7 +67724,10 @@
           "attempted",
           "listing_total",
           "source",
-          "not_listed_since"
+          "not_listed_since",
+          "effect",
+          "withdrawn_at",
+          "evicted_at"
         ],
         "type": "object"
       },
@@ -66963,6 +67869,30 @@
         "description": "Whether these results were recorded in the library. A cancelled check, or\none whose recording failed, still reports what it saw.",
         "type": "boolean"
       },
+      "removal_deferred": {
+        "description": "Removals left for the next check, export or move because one check\nremoves a bounded number while it holds the library.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "removal_failed": {
+        "description": "Removals that failed, usually because another program holds the file.\nPortcove no longer shows or hands out these copies.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "removed": {
+        "description": "Copies of withdrawn images removed from the library during this check,\nincluding removals left over from earlier checks.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "skipped": {
+        "description": "Attempted results that could not be written and stay unrecorded; they are\nchecked again first next time.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "stopped": {
         "anyOf": [
           {
@@ -66978,7 +67908,11 @@
       "checked_at",
       "images",
       "stopped",
-      "recorded"
+      "recorded",
+      "skipped",
+      "removed",
+      "removal_deferred",
+      "removal_failed"
     ],
     "title": "SteamGridDbListingReport",
     "type": "object"
@@ -67520,6 +68454,39 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -67574,6 +68541,17 @@
       },
       "update_available": {
         "type": "boolean"
+      },
+      "upstream_activity": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpstreamActivity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
       }
     },
     "required": [
@@ -67785,6 +68763,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -67796,6 +68785,39 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       }

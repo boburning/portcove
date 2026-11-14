@@ -9332,6 +9332,16 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -10624,6 +10634,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -10645,6 +10666,39 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -17247,6 +17301,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -17258,6 +17323,39 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       }
@@ -21275,6 +21373,17 @@
             },
             "type": "array"
           },
+          "runtime_rom_patch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RomPatchProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the `rom-patch` materialization: the\npatch format and the exact original and patch members it combines."
+          },
           "runtime_source_filename": {
             "default": null,
             "type": [
@@ -21554,6 +21663,16 @@
             "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
               "null"
             ]
           },
@@ -22665,6 +22784,54 @@
         ],
         "type": "object"
       },
+      "RomPatchFormat": {
+        "description": "Patch file format applied by the `rom-patch` materialization.",
+        "enum": [
+          "ips",
+          "bps",
+          "ups"
+        ],
+        "type": "string"
+      },
+      "RomPatchProfile": {
+        "additionalProperties": false,
+        "description": "Port declaration for producing a patched runtime file from two members of the\nport's file-set source. Both inputs are pinned to one exact SHA-256 each; the\noutput is pinned by the port's single `runtime_source_hashes` entry.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/RomPatchFormat"
+          },
+          "original_filenames": {
+            "description": "Accepted filenames of the file-set member holding the unmodified original.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_sha256": {
+            "description": "The one original this patch applies to; also an accepted SHA-256 of its member.",
+            "type": "string"
+          },
+          "patch_filenames": {
+            "description": "Accepted filenames of the file-set member holding the patch file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "patch_sha256": {
+            "description": "The one reviewed patch file; also an accepted SHA-256 of its member.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "original_filenames",
+          "original_sha256",
+          "patch_filenames",
+          "patch_sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -22734,6 +22901,11 @@
           {
             "const": "iso9660-directory",
             "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "rom-patch",
+            "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
           }
         ]
@@ -24270,6 +24442,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -24305,6 +24488,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },

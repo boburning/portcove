@@ -20,8 +20,8 @@ shared paths. Every existing path, the contract ID and progress paths are
 unchanged, so existing installations keep their namespace. On their next update
 each file the active runtime already wrote is copied into the new version when
 saved data lacks it; differing copies hold for the player. Indexed delivery of
-this definition requires staged-source capability 33. The v1.2.0 applicability row is appended after the existing rows with
-one new `upstream_support` record.
+this definition requires staged-source capability 34. The v1.2.0 applicability
+row is appended after the existing rows with one new `upstream_support` record.
 
 ## Artifact and tag evidence
 

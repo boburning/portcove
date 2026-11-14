@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { desktopApi } from "../api";
+import { useArtworkCache } from "../artwork";
 import type { SteamGridDbKeyStatus, SteamGridDbListingReport } from "../types";
 import { steamGridDbErrorText as errorText } from "./SteamGridDbPicker";
 import { Button } from "./ui/button";
@@ -14,7 +15,32 @@ import { ExternalLink } from "./ExternalLink";
  */
 const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
-/** Player-facing summary of one listing check. Nothing in it is removed. */
+/**
+ * One check per library generation, kept outside the component so a remount
+ * cannot start a second check, and a summary never outlives its library.
+ */
+interface ListingCheckState {
+  generation: number;
+  checking: boolean;
+  summary?: string[];
+  error?: string;
+}
+let listingCheck: ListingCheckState = { generation: -1, checking: false };
+const listingCheckListeners = new Set<() => void>();
+function setListingCheck(next: ListingCheckState) {
+  listingCheck = next;
+  listingCheckListeners.forEach((listener) => listener());
+}
+function subscribeListingCheck(listener: () => void) {
+  listingCheckListeners.add(listener);
+  return () => listingCheckListeners.delete(listener);
+}
+/** Test isolation only: forgets the last check. */
+export function resetSteamGridDbCheckForTests() {
+  setListingCheck({ generation: -1, checking: false });
+}
+
+/** Player-facing summary of one listing check; removals count only finished ones. */
 export function listingSummary(report: SteamGridDbListingReport): string[] {
   if (report.images.length === 0)
     return ["Your library has no SteamGridDB images to check. Nothing was changed."];
@@ -51,13 +77,45 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
   else if (stop?.reason === "cancelled")
     lines.push("The check stopped because the library changed. Check again when you are ready.");
   const reached = report.images.some((image) => image.attempted);
-  lines.push(
-    !reached
-      ? "Nothing was checked this time. Nothing was removed."
-      : report.recorded
-        ? "Portcove recorded what it found. Nothing was removed."
-        : "These results were not recorded. Nothing was removed; check again to record them.",
-  );
+  const kept = report.images.filter((image) => image.effect === "withdrawn").length;
+  const listedAgain = report.images.filter((image) => image.effect === "listed_again").length;
+  if (kept > 0)
+    lines.push(
+      `${plural(kept, "image is", "images are")} confirmed removed from SteamGridDB. Portcove kept ${kept === 1 ? "its copy" : "their copies"}, because you imported ${kept === 1 ? "it" : "them"} yourself or another credit still lists ${kept === 1 ? "it" : "them"}.`,
+    );
+  if (listedAgain > 0)
+    lines.push(
+      `${plural(listedAgain, "image is", "images are")} listed again. If Portcove removed ${listedAgain === 1 ? "its copy" : "their copies"}, choose ${listedAgain === 1 ? "it" : "them"} again to restore ${listedAgain === 1 ? "it" : "them"}.`,
+    );
+  const removing =
+    report.removal_deferred + report.removal_failed > 0 ||
+    report.images.some((image) => image.effect === "removed");
+  const removedLine = `Removed ${plural(report.removed, "copy", "copies")} of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.`;
+  if (report.removed > 0 && !reached) lines.push("Nothing new was checked this time.", removedLine);
+  else
+    lines.push(
+      !reached
+        ? "Nothing was checked this time. Nothing was removed."
+        : !report.recorded
+          ? "These results were not recorded. Nothing was removed; check again to record them."
+          : report.removed > 0
+            ? `Portcove recorded what it found. ${removedLine}`
+            : removing
+              ? "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
+              : "Portcove recorded what it found. Nothing was removed.",
+    );
+  if (report.removal_deferred > 0)
+    lines.push(
+      `${plural(report.removal_deferred, "more copy", "more copies")} will be removed by the next check, export or move.`,
+    );
+  if (report.removal_failed > 0)
+    lines.push(
+      `Portcove couldn't remove ${plural(report.removal_failed, "copy", "copies")}. ${report.removal_failed === 1 ? "It is" : "They are"} no longer shown or used. Close any program that may be using Portcove's artwork folder, then check again.`,
+    );
+  if (report.skipped > 0)
+    lines.push(
+      `${plural(report.skipped, "result", "results")} could not be recorded and will be checked first next time.`,
+    );
   return lines;
 }
 
@@ -67,8 +125,15 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
-  const [checking, setChecking] = useState(false);
-  const [summary, setSummary] = useState<string[]>();
+  const stored = useSyncExternalStore(
+    subscribeListingCheck,
+    () => listingCheck,
+    () => listingCheck,
+  );
+  const current = stored.generation === generation ? stored : undefined;
+  const checking = current?.checking ?? false;
+  const summary = current?.summary;
+  const artwork = useArtworkCache();
   const mounted = useRef(true);
   // Saving or removing replaces the focused control; focus follows the change.
   const keyInput = useRef<HTMLInputElement>(null);
@@ -107,16 +172,26 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
     }
   };
   const check = async () => {
-    setChecking(true);
-    setSummary(undefined);
+    if (listingCheck.generation === generation && listingCheck.checking) return;
+    setListingCheck({ generation, checking: true });
     setError(undefined);
+    let next: ListingCheckState = { generation, checking: false };
     try {
       const report = await desktopApi.checkSteamGridDbListings(generation);
-      if (mounted.current) setSummary(listingSummary(report));
+      next = { generation, checking: false, summary: listingSummary(report) };
+      // Shown artwork follows what the check changed, without a restart.
+      const changed = new Set(
+        report.images
+          .filter((image) => report.recorded && image.effect !== "none")
+          .map((image) => image.asset_sha256),
+      );
+      if (changed.size > 0 && artwork?.generation === generation)
+        artwork.refreshAfterListingCheck(changed);
     } catch (value) {
-      if (mounted.current) setError(errorText(value));
+      next = { generation, checking: false, error: errorText(value) };
     } finally {
-      if (mounted.current) setChecking(false);
+      // A newer library's check is never overwritten by an older one.
+      if (listingCheck.generation === generation) setListingCheck(next);
     }
   };
   return (
@@ -205,8 +280,11 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           </Button>
           <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
             Checks whether SteamGridDB still lists the images you chose from it and records what it
-            finds. Nothing is removed. A check takes up to three minutes and starts with the images
-            checked longest ago.
+            finds. When SteamGridDB no longer lists an image and its image server reports the file
+            gone, or a check at least a day later still finds it missing, Portcove removes its copy
+            unless you imported the image yourself; your choice and the credit are kept, and nothing
+            changes in Steam. A check takes up to three minutes and starts with the images checked
+            longest ago.
           </p>
           {summary && (
             <div role="status">
@@ -226,7 +304,7 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
         Your files, game paths and library stay on this device.
       </p>
       {message && <p role="status">{message}</p>}
-      {error && <p role="alert">{error}</p>}
+      {(error ?? current?.error) && <p role="alert">{error ?? current?.error}</p>}
     </SettingsRow>
   );
 }

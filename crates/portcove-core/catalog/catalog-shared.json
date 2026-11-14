@@ -152,6 +152,16 @@
         "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
       },
       {
+        "id": "snap64-recomp-1-1-7-source-contract",
+        "role": "upstream_support",
+        "authority": "JackandBeans/Snap64Recomp",
+        "authority_ref": "0525610a89fd3c960b5a3555fad63e20f0d97f64",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.1.7 Windows x64 (18834158 bytes, SHA-256 fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95), Linux x86-64 (9821880 bytes, SHA-256 d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d) and macOS universal (12752773 bytes, SHA-256 ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50) packages match their published .sha256 files; the provider release digest was not read. The README still names the US cartridge SHA-1 edc7c49cc568c045fe48be0d18011c30f393cbaf, Snap64Recomp stays the only program at the same place, and src/paths.cpp still uses an absolute SNAP_DATA_DIR first on every platform, so the data folder is the Portcove user folder. Under the owner decision of November 14, 2026 the route sets SNAP_NO_STEAM_ART=1: src/steam_art.cpp with the switch read by read_launch, do_the_art returns before Steam discovery, any write into Steam's config/grid folder and any steam_art_done.txt read or append. The remaining new data-folder writers, snap64.running, snap64.gpu_failed and the Linux Mesa shader-cache fallback in cache, live in the user folder that backups capture whole; the fallback may instead use XDG_CACHE_HOME outside Portcove. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0525610a89fd3c960b5a3555fad63e20f0d97f64/src/steam_art.cpp",
+        "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/src/steam_art.cpp"
+      },
+      {
         "id": "ape-escape-recompiled-0-3-0-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ApeEscapeRecomp",
@@ -222,6 +232,16 @@
         "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
       },
       {
+        "id": "cvlod-recomp-0-2-29-source-contract",
+        "role": "upstream_support",
+        "authority": "fliperama86/cvlod_recomp",
+        "authority_ref": "2be8acde176c21aecf05a35f1748a587be2e8381",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.2.29 Windows x64 (29763505 bytes, SHA-256 68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23), Linux x64 (55162656 bytes, SHA-256 0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad) and macOS arm64 (21232725 bytes, SHA-256 fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8) packages match their published .sha256 files; the provider release digest was not read. At this tag castlevania2.yaml and include/lod/target_rom.hpp are byte-identical to v0.2.26 and keep the North American SHA-1 879ead98f197fd05edda867655da5b1ce25aa5b8. Against the bound v0.2.26 packages the Windows and Linux wrapper folder is named LodRecomp-ab942ba9-<platform> instead of LodRecomp-v0.2.26-<platform> and the file lists are otherwise identical, the macOS LodRecomp.app list is identical, and LodRecomp stays the only program. The tagged src/main/main.cpp keeps the portable.txt lookup and the rom.z64 default and writes only the declared graphics.json, audio.json, controls.json, rom_path.txt, cheats.cfg and LodRecomp.log. The known v0.2.26 Windows normal-close failure, native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/fliperama86/cvlod_recomp/blob/2be8acde176c21aecf05a35f1748a587be2e8381/castlevania2.yaml",
+        "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
+      },
+      {
         "id": "golden-balloon-1-7-0-source-contract",
         "role": "upstream_support",
         "authority": "akratch/goldenballoon",
@@ -229,6 +249,16 @@
         "reviewed_at": "2026-09-15",
         "claim": "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
         "immutable_url": "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c",
+        "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
+      },
+      {
+        "id": "golden-balloon-1-8-0-source-contract",
+        "role": "upstream_support",
+        "authority": "akratch/goldenballoon",
+        "authority_ref": "2b69e748ec04f87a4dc6f032c598726de1b0e813",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.8.0 Windows x64 package (31898069 bytes, SHA-256 98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1) matches its published .sha256 file and the reviewed game-settings artifact; the provider release digest was not read. At this tag platform/rom_validation.c is byte-identical to v1.7.0, so the US Rev 1 and European Rev 1 checks are unchanged. Against the bound v1.7.0 package the 38-entry GoldenBalloon folder lists the same paths, GoldenBalloon.exe and the three tools programs keep their paths, and only GoldenBalloon.exe, tools/mdkr-character-lod.exe, README.md and NativePhoneParty-NOTICES.txt changed by content. platform/user_paths.c adds only an opt-in MDKR_MODS_DIR override that Portcove does not set; platform/config_ini.c, platform/app/app_config.cpp and platform/app/arg_triage.h are byte-identical. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/rom_validation.c",
         "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
       },
       {
@@ -409,6 +439,16 @@
         "claim": "The pinned v1.4.3 source hashes the entire canonical 32 MiB Road Rash 64 USA ROM and requires its exact SHA-256.",
         "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/native/src/rr64_experimental_course.cpp",
         "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/native/src/rr64_experimental_course.cpp"
+      },
+      {
+        "id": "road-rash-64-v1-4-9-source-contract",
+        "role": "upstream_support",
+        "authority": "linkssy2/RoadRash64Recompiled",
+        "authority_ref": "37e33d4f832857a60a34f1369b83b32afe00d25d",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.4.9 Win64 package (47342604 bytes, SHA-256 74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594) matches the published SHA256SUMS.txt; the provider release digest was not read. Its docs/BUILD_INFO.json names source commit 37e33d4f832857a60a34f1369b83b32afe00d25d, the tag commit. At this tag docs/PROJECT_DETAILS.md declares the USA v1.0 normalized 32 MiB SHA-1 87727a298f583ec8325f5655088ff21e37b335b2, and native/src/rr64_experimental_course.cpp is byte-identical to v1.4.3 and requires SHA-256 74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73. The package keeps the 312 paths of the reviewed v1.4.8 executable-parent route and adds only six docs files to v1.4.3; RoadRash64Recompiled.exe, RoadRash64DirectStart.exe and the three importer programs keep their paths. Against v1.4.8 the published source adds no data filename, environment variable or network call; against v1.4.3 the player adds only the data file cpu-weapon-options.cfg, which the current definition declares, and two opt-in trace variables Portcove does not set. The historical v1.4.3 wrapper-prefixed contract and its held transition are unchanged. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/37e33d4f832857a60a34f1369b83b32afe00d25d/docs/PROJECT_DETAILS.md",
+        "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/docs/PROJECT_DETAILS.md"
       },
       {
         "id": "dkc3-recomp-0-0-6-source-contract",
@@ -17945,7 +17985,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "snap64-recomp-1-0-5-source-contract"
+          "snap64-recomp-1-0-5-source-contract",
+          "snap64-recomp-1-1-7-source-contract"
         ],
         "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
         "reviewed_at": "2026-09-13",
@@ -17956,6 +17997,18 @@
           {
             "upstream_ref": "v1.0.5",
             "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50"
           }
         ],
         "aliases": [],
@@ -17972,7 +18025,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "cvlod-recomp-0-2-26-source-contract"
+          "cvlod-recomp-0-2-26-source-contract",
+          "cvlod-recomp-0-2-29-source-contract"
         ],
         "authority_ref": "89566dd74781d39e19944c8ba29a116ee31b963e",
         "reviewed_at": "2026-09-14",
@@ -17991,6 +18045,18 @@
           {
             "upstream_ref": "v0.2.26",
             "artifact_sha256": "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8"
           }
         ],
         "aliases": [],
@@ -18008,7 +18074,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "golden-balloon-1-7-0-source-contract"
+          "golden-balloon-1-7-0-source-contract",
+          "golden-balloon-1-8-0-source-contract"
         ],
         "authority_ref": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
         "reviewed_at": "2026-09-15",
@@ -18019,6 +18086,10 @@
           {
             "upstream_ref": "v1.7.0",
             "artifact_sha256": "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+          },
+          {
+            "upstream_ref": "v1.8.0",
+            "artifact_sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1"
           }
         ],
         "aliases": [],
@@ -18226,7 +18297,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "road-rash-64-v1-4-3-source-sha1",
-          "road-rash-64-v1-4-3-source-sha256"
+          "road-rash-64-v1-4-3-source-sha256",
+          "road-rash-64-v1-4-9-source-contract"
         ],
         "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
         "reviewed_at": "2026-10-04",
@@ -18237,6 +18309,10 @@
           {
             "upstream_ref": "v1.4.3",
             "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+          },
+          {
+            "upstream_ref": "v1.4.9",
+            "artifact_sha256": "74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594"
           }
         ],
         "aliases": [],

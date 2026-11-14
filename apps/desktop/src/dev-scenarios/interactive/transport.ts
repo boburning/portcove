@@ -197,6 +197,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("assess_port_intents", args, { generation });
       return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
     },
+    // Fixtures never start from a taskbar jump-list entry.
+    take_startup_play_request: (args) => {
+      requireArgs("take_startup_play_request", args, {});
+      return null;
+    },
     get_ready_notices_enabled: (args) => {
       requireArgs("get_ready_notices_enabled", args, { generation });
       return readyNotices;

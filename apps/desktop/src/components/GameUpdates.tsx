@@ -20,6 +20,7 @@ import { FailureDetails } from "./FailureDetails";
 import { gameUpdateAcquisitionLabel } from "../features/port-updates/acquisition-presentation";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { OperationCancellation } from "./OperationCancellation";
+import { UpdateReleaseNotes } from "./UpdateReleaseNotes";
 import { installPlanActionLabel } from "../install-plan-presentation";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -1135,6 +1136,9 @@ function GameUpdateReview({
             : gameUpdateHoldReason(plan)}
         </p>
       ) : null}
+      {plan.release_notes && (
+        <UpdateReleaseNotes notes={plan.release_notes} currentVersion={currentVersion} />
+      )}
       {plan.plan.preservation_notices?.map((notice) => (
         <p key={notice} className="col-span-full text-[length:var(--text-sm)]">
           {notice}

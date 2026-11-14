@@ -104,14 +104,16 @@ It adds no approval stage and does not replace required CI, explicit acceptance,
 guarded merge, readback or targeted reconciliation.
 
 **Reviewer.** Use a fresh reviewer that did not help design or implement the
-candidate and does not write to it. Choose its capability by consequence:
-substantive behavior uses an independent reviewer; update/catalog trust,
-credentials, signing, destructive or data-loss paths and validation/merge
-authority use a critical reviewer from the start, without waiting for a cheaper review to miss
-something. [Agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection)
-lists current models and distinguishes an instructed non-writing reviewer from a
-technically restricted one; the owner confirms the reviewed head and worktree are
-unchanged afterward.
+candidate and does not write to it. Choose its capability by consequence. An
+independent reviewer covers substantive behavior. A critical reviewer is used
+from the start only for signing keys or authority, update/catalog trust, credentials,
+irreversible user-data loss, and changes to required checks or merge authority.
+It is not used for every PR that merely touches such a subsystem.
+[Agent model selection](DEVELOPMENT-TOOLS.md#agent-model-selection) lists the
+default models and efforts and distinguishes an instructed non-writing reviewer
+from a technically restricted one. A delegated reviewer returns its findings and
+ends; it does not wait for CI or repairs. The owner confirms the reviewed head
+and worktree are unchanged afterward.
 
 **Packet.** Give the reviewer the owning issue and acceptance criteria, the exact
 candidate head (and target when composed), the change context and known

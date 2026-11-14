@@ -43,6 +43,35 @@ and inserts a single line. The date is excluded from the observer's listing
 declaration hash, so adding or backfilling it does not invalidate retained upstream
 observations. A listing without a date is valid and simply has no recency.
 
+A listing may carry `funding_urls`: 1 to 12 distinct public HTTPS pages where the
+upstream developers accept funding. Omit the field when there are none; an empty
+list is refused. Desktop shows them under "Help fund this project" in the port's
+Resources as ordinary external links and opens only those exact URLs. They are
+descriptive and grant no support, availability, trust or operation; Portcove does
+not fetch them at runtime. A directory carrying any link requires listing format 10,
+exports to formats 5 through 9 and retained user-selected listings omit them, and the
+observer's listing declaration hash ignores them. Delivering a format-10 directory
+stops listing updates for format-9 readers; see
+[descriptive directory delivery](DEFINITION-DELIVERY.md#descriptive-directory-delivery).
+
+`node scripts/listing-funding.mts` reads each GitHub-hosted project's `FUNDING.yml`
+in GitHub's lookup order (the repository's `.github/`, root and `docs/`, then the same
+places in the owner's `.github` repository); the first file found decides. It keeps
+`github`, `patreon`, `open_collective`, `ko_fi`, `liberapay`, `buy_me_a_coffee` and
+HTTPS `custom` entries in that order (several entries for one platform keep their
+order in the file), reports every entry it skips, and when there are
+more than 12 keeps the first 12 and reports the rest. Only a readable project with no
+`FUNDING.yml` in any location means "no links". A missing, renamed or unreadable
+repository, or a file that is oversized, malformed (including YAML aliases) or has no
+usable entry, leaves the listing unchanged; a renamed repository is reported with its
+new name so `project_url` can be corrected. The script prints its plan; `--write`
+adds links to listings without any, and only `--write --replace` replaces or removes
+existing links, which may be hand-authored. `--replace` never clears links when the
+upstream file exists but yields no usable link; remove them by hand if they are
+obsolete. `--only <id>` limits it to named
+listings. Review the diff like any other listing change and regenerate the catalog.
+Other hosts may carry reviewed hand-authored links.
+
 Legacy format-5/6 exports omit only inert compatibility advice and retain
 acquisition restrictions. GitLab-bearing directories refuse exports below format
 8; format 7 retains advice without accepting GitLab observation identities.
@@ -1187,6 +1216,59 @@ An indexed definition that declares `optional_game_source` must require
 delivery](DEFINITION-DELIVERY.md)); the flag is part of the installed compatibility
 identity only when set.
 
+## ROM patching
+
+`rom-patch` produces the runtime file named by `runtime_source_filename` by applying an
+exactly identified patch to an exactly identified original, for example a fan translation
+that an upstream port requires. It is valid only on a `staged-source-portable` port whose
+destination is declared in `persistent_paths` (as for `copy`), with a `source_profile` of
+kind `file-set` that holds the original and the patch as two members. The player supplies
+both files in one folder or ZIP; Portcove never downloads a patch through this route.
+
+A port also declares `runtime_rom_patch`:
+
+| Field                | Meaning                                                                                   |
+| -------------------- | ----------------------------------------------------------------------------------------- |
+| `format`             | `ips`, `bps` or `ups`.                                                                    |
+| `original_filenames` | The accepted filenames of the file-set member that holds the unmodified original.         |
+| `original_sha256`    | The one original the patch applies to; it must be one of that member's `accepted_sha256`. |
+| `patch_filenames`    | The accepted filenames of the member that holds the patch; no file is in both members.    |
+| `patch_sha256`       | The one reviewed patch file; it must be one of that member's `accepted_sha256`.           |
+
+`runtime_source_hashes` must be exactly `{runtime_source_filename: <patched SHA-256>}`: the
+output's identity is pinned like any other single-file runtime source. All three identities
+come from owner-provided or upstream-published evidence; never infer them. A port that
+declares `runtime_rom_patch` without `rom-patch`, or `rom-patch` without a complete
+declaration, is invalid.
+
+Before every launch Core reads both members (each at most 64 MiB), checks each against its
+pinned SHA-256 and refuses a mismatch as a source problem. File-set registration accepts
+members up to 512 MiB, so a larger member can register but cannot be patched; pin only
+inputs within the 64 MiB limit. An existing output whose marker
+records the same inputs and whose bytes still match the pinned output is used as it is.
+Otherwise Core applies the patch in memory and checks the result against the pinned output
+before writing; only a match is written, to a private file beside the destination that then
+atomically replaces it, and the marker is written last. A failure at any step leaves the
+previous file, the original and the patch untouched. The appliers are strict: a truncated
+record, an offset or copy range outside its buffer, an overlong number, bytes after the end
+of the patch, or a declared size above 64 MiB refuses the patch. BPS and UPS checks also
+compare the original, output and patch with the CRC32 values the patch records. UPS is
+applied in the forward direction only; a patch that shrinks the file carries changes past
+the new end, which are read and discarded as the reference decoder does, while a change
+past both declared sizes refuses the patch. IPS output may grow past the original and
+honours the optional truncation record; as in the format itself, offset `0x454F46` reads
+as the end marker.
+
+Identity is exact, so an original that carries a 512-byte copier header is a different file
+and is refused at registration. Accepting header variants of a pinned original needs
+header-aware source registration and is not part of this contract.
+
+An indexed definition that declares `runtime_rom_patch` must require
+`staged-source-portable` capability version 33 ([definition
+delivery](DEFINITION-DELIVERY.md)); the declaration joins the installed compatibility
+identity only when set. No shipped definition declares it yet; the first candidate
+consumer is tracked on its port issue.
+
 ## Default covers
 
 Ordinary single-record preparation uses [the authoring entry point](#adding-or-changing-a-port).
@@ -1932,6 +2014,98 @@ qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.
 
+### Generated reviewed package shapes (shadow)
+
+Issue #5359 generalizes the fingerprint into a Core-derived package shape for
+every managed portable route, without per-route authoring. Phase 1 only
+records a verdict; it refuses nothing, and the explicit fingerprint above stays
+the only package-layout refusal. The shape has six parts, each a sorted, bounded
+set of lowercase package-relative paths computed after wrapper look-through and
+declared-executable grants, before any adapter adds content:
+
+- `programs`: the fingerprint's program and script classifier, unchanged;
+- `top_directories`;
+- `persistent_parent_children`: child folders under the parent of each
+  declared persistent path, and under each persistent path the package ships as
+  a folder (catches a `mods/packages` to `mods/preloaded` move or a new
+  `saves/netplay` folder);
+- `persistent_overlap`: shipped files at or under a declared persistent path,
+  or matching a declared persistent file pattern (catches a shipped `input.ini`);
+- `config_files`: shipped `.ini`, `.cfg`, `.toml`, `.json` and `.xml` files at
+  any depth, so additions and removals both count;
+- `missing_persistent_parents`: parents of declared persistent paths the
+  package does not ship.
+
+Managed extraction never creates links: ZIP links are refused and an allowed
+TAR.XZ file link is written as a copy of its in-archive target, so every
+shipped file is a regular file the shape sees and links are not a blind spot.
+
+Comparison is exact set equality per part. A part one side does not know is
+reported as unknown, never as a pass: an explicit fingerprint knows only
+programs and top-level directories, and an unresolved declared executable, or a
+declared persistent path or pattern that cannot be located relative to the
+package root, leaves the persistent parts unknown.
+
+The baseline is, in order: the generated table entry for the exact artifact,
+else the route's newest generated entry; the explicit fingerprint; the shape
+recorded by the active local installation (see the install manifest in
+[ARCHITECTURE](ARCHITECTURE.md#install-transaction)). The generated table,
+`crates/portcove-core/catalog/package-shapes.generated.json`, is embedded in
+Core and never hand-written. `node scripts/package-shape-baselines.mts` derives
+each entry from an artifact the catalog already marks as reviewed, a
+source-contract `applicability` row with an `artifact_sha256` or a hold's
+`reviewed_artifacts`, through `portcove catalog inspect-package-shape`, which
+uses Core extraction and executes nothing. Authors change only the review facts
+they already own; `--record` re-derives the entry. `--candidates` lists reviewed
+artifacts that have no entry yet, and downloading them is a separate, explicit
+refresh step. Each entry also records `derivation_inputs_sha256`, a digest of
+the catalog facts the derivation reads for that route and platform: the
+adapter, the platform's executable hints and runtime subdirectory, persistent
+paths and file patterns, install-root persistence (`launch_from_install_root`,
+`n64_runtime_at_executable_parent`), the external profile policy, managed
+shared preferences, declared-executable grants, Mac TAR.XZ platforms and the
+explicit fingerprint's macOS library filter. Core computes that digest, and
+`inspect-package-shape` reports the one for the embedded catalog it derived
+with; `--record` refuses a shape whose digest differs from `catalog.json`, so a
+CLI built before a catalog edit cannot record a stale shape under current
+inputs (rebuild the CLI, then record again). CI runs the offline `--check`:
+canonical bytes, the entries digest, Core's `SHAPE_VERSION`, and that every
+entry still names a managed portable route, one of its platforms, a reviewed
+catalog artifact with the same version and unchanged derivation inputs. Core's
+table-currency test checks the same digests and versions.
+
+When a catalog edit makes the table stale, run
+`node scripts/package-shape-baselines.mts --prune`; the failing `--check`
+names it. It is offline and needs no review: it drops entries whose route,
+platform or reviewed digest is gone or whose derivation inputs changed, adopts
+the catalog's version label and review source for a still-reviewed digest, and
+rewrites the canonical table and its digest. It never re-derives or edits a
+shape, so a dropped route only loses its baseline (`unknown`) until
+`--candidates` lists it for an explicit `--record` refresh. Nobody edits the
+table by hand.
+
+Entry order follows catalog review order, so the last entry per route and
+platform is the newest reviewed shape. Changing the derivation rules (the
+program classifier, the configuration extensions, a part or its anchoring)
+bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
+over a fixture fails on any such change until the version and the golden are
+updated together. The golden fixture is a Windows route, so the Unix
+executable-bit and verified macOS library branches of the shared classifier
+are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
+of the older version, and `--prune` empties the table until entries are
+re-derived.
+
+Known limits of the shadow phase: the table is checked against the embedded
+catalog, so a later signed definition delivery that changes a route's
+derivation inputs is not detected at run time and can show drift that is only
+a definition change; runtime behavior, such as files a release writes at first
+launch, is not part of a package shape; an exact-name classifier counts a
+renamed program as one removed and one added; and only the bootstrapped routes
+have a generated baseline, so the rest fall back to the explicit fingerprint,
+the local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
+for the six known-drift routes are in
+[release-drift-shadow-2026-11-14](qualification/release-drift-shadow-2026-11-14.md).
+
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
 Fresh dynamic acquisition requires an opaque in-process resolver binding to the
@@ -2473,7 +2647,7 @@ the verified original, and must not equal, contain or sit inside an existing
 persistent, shared or progress path. Removed, renamed, reordered, inserted or
 re-scoped paths, directories, an appended path that is not shared, and any other
 policy change remain refused migrations. Indexed definitions that append to a
-policy require staged-source capability 33, so an older reader refuses the
+policy require staged-source capability 34, so an older reader refuses the
 entry instead of holding existing installations.
 
 Archive data stays under the namespace its first policy established, so a
@@ -3522,6 +3696,16 @@ account for a 404 only at the port's declared project scope. They retain degrade
 output and cannot suppress a missing artifact, new access/integrity failure,
 repository-name reuse or an unclassified shared location. An archived flag or
 bare 404 creates no such declaration.
+
+Players see these reviewed declarations, never this maintainer report. Separately,
+Core keeps the repository archive flag and latest push time that GitHub reported
+in the metadata it already reads to select a release (#5407). The update check
+records them as `upstream_activity`, and Desktop shows them in the port details:
+archived, no changes for two years before that observation, or the latest change
+month, each dated to GitHub's report. An observation belongs only to the GitHub
+repository the port still names. This player fact is a dated provider observation with no catalog,
+admission, hold or update authority. Ports that were never checked, other
+providers and missing push times remain unknown.
 
 The format-2 `.github/upstream-health-accounting.json` preserves the reviewed
 monitoring dispositions and existing numeric release-pin identities. Versioned

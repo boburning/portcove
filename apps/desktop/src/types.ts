@@ -203,6 +203,7 @@ export type OutputRelocationStatus = Generated.TransportOutputs["output_relocati
 export type InstallPlan = Generated.TransportOutputs["install_plan"];
 
 export type { UpdateSnapshot } from "./transport-types.generated";
+export type { UpstreamActivity } from "./transport-types.generated";
 
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 

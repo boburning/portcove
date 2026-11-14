@@ -60,6 +60,7 @@ mod output_location;
 mod portable_saves_commands;
 mod preparation;
 mod ready_notices;
+mod recent_play_shortcuts;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
@@ -112,20 +113,26 @@ type LaunchObserver =
 const LAUNCH_ACCEPTANCE_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
 /// A launch being followed: its library, request id, the last relayed progress sequence and the
-/// stamp (modification time, length) of the progress file when it was last read.
+/// stamp (modification time, length) of the progress file when it was last read, and whether
+/// recovery of its session was already started.
 type ObservedLaunch = (
     Library,
     String,
     std::cell::Cell<Option<u64>>,
     std::cell::Cell<Option<(std::time::SystemTime, u64)>>,
+    std::cell::Cell<bool>,
 );
 
 fn new_launch_observation(library: Library, request_id: String) -> ObservedLaunch {
+    // A supervisor already gone when observation begins (Desktop restarted mid-launch) is what
+    // startup recovery handles; only one that ends later is recovered by the observer.
+    let already_lost = library.launch_supervisor_lost(&request_id).unwrap_or(false);
     (
         library,
         request_id,
         std::cell::Cell::new(None),
         std::cell::Cell::new(None),
+        std::cell::Cell::new(already_lost),
     )
 }
 
@@ -1960,7 +1967,7 @@ fn observe_launch_completion(
                 }
                 let completed = retain_launch_observations(
                     &mut pending,
-                    |(library, request_id, last_sequence, last_stamp)| {
+                    |(library, request_id, last_sequence, last_stamp, recovery_started)| {
                         let progress = launch_progress_path(library.root(), request_id);
                         // Preparation progress (for example unpacking a disc image) is
                         // reported by the supervisor process; relay each newer step to
@@ -1979,6 +1986,15 @@ fn observe_launch_completion(
                         }
                         match library.launch_request(request_id) {
                             Ok(Some(request)) if request.outcome.is_none() => {
+                                // A supervisor that ended while Desktop was running never records
+                                // an outcome. Start the same recovery Desktop starts at launch,
+                                // once, and keep following until the outcome it records appears.
+                                if !recovery_started.get()
+                                    && library.launch_supervisor_lost(request_id).unwrap_or(false)
+                                {
+                                    recovery_started.set(true);
+                                    let _ = start_launch_recovery(library.root(), request_id);
+                                }
                                 LaunchObservationState::Active
                             }
                             Ok(_) => {
@@ -1991,6 +2007,7 @@ fn observe_launch_completion(
                 );
                 if completed {
                     let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
+                    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
                 }
             }
         });
@@ -2568,28 +2585,30 @@ fn run_recovery_helper(library_root: &Path, session_id: &str) -> i32 {
 
 fn start_stale_launch_recovery(library: &Library) -> portcove_core::Result<()> {
     let sessions = PortcoveService::new(library.clone())?.stale_launch_sessions()?;
-    if sessions.is_empty() {
-        return Ok(());
-    }
-    let executable = std::env::current_exe()?;
     for session in sessions {
-        let mut command =
-            ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
-        command
-            .arg("--portcove-recover")
-            .arg(library.root())
-            .arg(&session.id)
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null());
-        configure_independent_process(&mut command);
-        command.spawn().map_err(|error| {
-            PortcoveError::state(format!(
-                "could not start recovery for launch session {}: {error}",
-                session.id
-            ))
-        })?;
+        start_launch_recovery(library.root(), &session.id)?;
     }
+    Ok(())
+}
+
+/// Starts the detached helper that recovers one launch session whose supervisor ended.
+fn start_launch_recovery(library_root: &Path, session_id: &str) -> portcove_core::Result<()> {
+    let executable = std::env::current_exe()?;
+    let mut command =
+        ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    command
+        .arg("--portcove-recover")
+        .arg(library_root)
+        .arg(session_id)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null());
+    configure_independent_process(&mut command);
+    command.spawn().map_err(|error| {
+        PortcoveError::state(format!(
+            "could not start recovery for launch session {session_id}: {error}"
+        ))
+    })?;
     Ok(())
 }
 
@@ -3203,6 +3222,8 @@ pub fn run() -> std::process::ExitCode {
         diagnostics::shutdown(&mut diagnostic_guard);
         return std::process::ExitCode::FAILURE;
     }
+    // Before any window exists, so every window uses the same taskbar identity.
+    recent_play_shortcuts::adopt_installed_identity();
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
@@ -3219,6 +3240,9 @@ pub fn run() -> std::process::ExitCode {
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     let application = builder
         .manage(host_diagnostics)
+        .manage(recent_play_shortcuts::StartupPlayRequest::from_arguments(
+            std::env::args_os(),
+        ))
         .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
@@ -3433,6 +3457,7 @@ pub fn run() -> std::process::ExitCode {
             automatic_snapshots::set_automatic_snapshots,
             ready_notices::get_ready_notices_enabled,
             ready_notices::set_ready_notices_enabled,
+            recent_play_shortcuts::take_startup_play_request,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
             bug_report::submit_report,
@@ -3628,6 +3653,7 @@ fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
         app.exit(0);
         return Ok(());
     }
+    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
     application_update_commands::start_automatic_checks(
         app.state::<application_update_commands::ApplicationUpdateCommandState>()
             .inner()

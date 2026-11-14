@@ -19,6 +19,7 @@
     },
     "issue_number": 2815,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/HayatoG", "https://buymeacoffee.com/hayatog"],
     "manual_setup": {
       "help_url": "https://github.com/HayatoG/tlg_pc/blob/4825a991c2ac8fd8865b3c340a18b2f54628c0f0/README.md",
       "steps": [

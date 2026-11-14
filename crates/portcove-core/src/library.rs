@@ -72,6 +72,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // selection must preserve. Keeping it would put a field that earlier strict readers
         // do not know inside an envelope version they still accept.
         listing.listed_at = None;
+        // Funding links are directory descriptions for the same reason; the current
+        // directory supplies them again while it lists the project.
+        listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.compatibility.is_some() {
@@ -1735,6 +1738,33 @@ impl Library {
         Ok(())
     }
 
+    /// Successful-launch history, newest first, for ports that still have an
+    /// active Portcove-managed installation or a registered external runtime.
+    /// Ties order by port ID so the read is deterministic.
+    pub(crate) fn recently_played_installed_ports(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(String, i64)>> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT history.port_id, history.last_launched_at FROM launch_history AS history
+             WHERE EXISTS (
+                     SELECT 1 FROM port_settings AS settings
+                     WHERE settings.port_id = history.port_id
+                       AND settings.active_install_id IS NOT NULL
+                   )
+                OR EXISTS (
+                     SELECT 1 FROM external_runtime_registrations AS external
+                     WHERE external.port_id = history.port_id
+                   )
+             ORDER BY history.last_launched_at DESC, history.port_id
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map([limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
         let mut connection = self.connection()?;
@@ -1899,6 +1929,23 @@ impl Library {
             )
             .optional()?;
         row.map(parse_launch_session).transpose()
+    }
+
+    /// Whether the request is an active launch session whose recorded supervisor no longer
+    /// exists. Read-only: recovery stays an explicit action, and a session with no recorded
+    /// supervisor identity counts as lost, as it does for `stale_launch_sessions`. A request
+    /// that is unknown or already finished is not lost.
+    pub fn launch_supervisor_lost(&self, id: &str) -> Result<bool> {
+        let Some(session) = self.launch_request(id)? else {
+            return Ok(false);
+        };
+        if session.outcome.is_some() {
+            return Ok(false);
+        }
+        Ok(match session.supervisor_identity.as_deref() {
+            Some(identity) => !crate::launch::process_matches(session.supervisor_pid, identity)?,
+            None => true,
+        })
     }
 
     /// The most recently finished launch session for a port, if any. Callers
@@ -3485,6 +3532,28 @@ mod tests {
     }
 
     #[test]
+    fn a_retained_selection_does_not_carry_directory_funding_links() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"funded-project", "name":"Funded project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "funding_urls":["https://github.com/sponsors/example"]
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "funded-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("funding_urls"), "{content}");
+        let retained = decode_external_catalog(&content, "funded-project").unwrap();
+        assert!(
+            retained
+                .listing("funded-project")
+                .unwrap()
+                .funding_urls
+                .is_none()
+        );
+    }
+
+    #[test]
     fn referenced_listing_retains_notes_with_an_explicit_reader_fence() {
         let listing = Catalog::embedded()
             .unwrap()
@@ -4542,6 +4611,7 @@ mod tests {
                         sha256: "a".repeat(64),
                     },
                 },
+                upstream_activity: None,
             })
             .unwrap();
 

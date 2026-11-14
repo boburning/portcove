@@ -107,6 +107,41 @@ describe("disposable artwork display cache", () => {
     leave();
     expect(cache.readMedia("sample", visible).media).toBeUndefined();
   });
+  it("re-reads shown slots whose image a listing check removed and drops hidden ones", async () => {
+    const selected = artworkState("sample", "cover", 1, true);
+    const removed: ArtworkState = {
+      ...selected,
+      availability: "unavailable",
+      reason: "SteamGridDB no longer lists this image, so Portcove removed its copy.",
+      resolved_source: { kind: "generated_fallback" },
+      evicted_at: 5,
+    };
+    const read = vi.spyOn(desktopApi, "artwork").mockResolvedValue(selected);
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue({
+      asset_sha256: "a".repeat(64),
+      choice_revision: 1,
+      png_base64: "iVBORw==",
+    });
+    const cache = new ArtworkCache(7);
+    const unsubscribe = cache.subscribe("sample", "cover", () => undefined);
+    await cache.load("sample", "cover");
+    await cache.load("hidden", "cover");
+    read.mockResolvedValueOnce(artworkState("other", "detail"));
+    await cache.load("other", "detail");
+    expect(cache.read("sample", "cover").image).toBeDefined();
+    read.mockClear();
+    read.mockResolvedValue(removed);
+    cache.refreshAfterListingCheck(new Set(["a".repeat(64)]));
+    await vi.waitFor(() => expect(cache.read("sample", "cover").state).toBe(removed));
+    // The shown slot keeps its key and shows the fallback with the reason.
+    expect(cache.read("sample", "cover").image).toBeUndefined();
+    expect(read).toHaveBeenCalledTimes(1);
+    // A hidden slot with the same image is dropped; an unrelated one stays.
+    expect(cache.read("hidden", "cover").state).toBeUndefined();
+    expect(cache.read("other", "detail").state).toBeDefined();
+    unsubscribe();
+  });
+
   it("retains a slot's usable display after metadata refresh fails, then accepts current replacement", async () => {
     const selected = artworkState("sample", "cover", 1, true);
     const read = vi.spyOn(desktopApi, "artwork").mockResolvedValue(selected);

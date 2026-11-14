@@ -3019,12 +3019,18 @@ fn prepared_report(
                 listing,
                 attempted,
                 listing_total: Some(2),
-                source: crate::SteamGridDbSourceStatus::Gone,
+                // Served, so an absence here never confirms a withdrawal on its
+                // own; withdrawal tests set their own probe answers.
+                source: crate::SteamGridDbSourceStatus::Served,
                 not_listed_since: None,
+                effect: crate::SteamGridDbCheckEffect::None,
+                withdrawn_at: None,
+                evicted_at: None,
             })
             .collect(),
         stopped: None,
         recorded: false,
+        ..crate::SteamGridDbListingReport::default()
     }
 }
 
@@ -3052,7 +3058,7 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
             )
             .unwrap()
     };
-    let chosen = choose(0);
+    choose(0);
     let stored = |service: &PortcoveService| {
         crate::artwork_store::listing_checks(
             &service.library().connection().unwrap(),
@@ -3115,7 +3121,10 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
     service
         .run_listing_check(&|| false, |subjects, now| {
             let error = service
-                .run_listing_check(&|| false, |_, _| unreachable!())
+                .run_listing_check(
+                    &|| false,
+                    |_, _| -> crate::Result<crate::SteamGridDbListingReport> { unreachable!() },
+                )
                 .unwrap_err();
             assert_eq!(error.code, crate::ErrorCode::Conflict);
             Ok(prepared_report(&subjects, Listing::NotListed, false, now))
@@ -3232,10 +3241,12 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
                 unknown_reason: reason,
                 total: Some(3),
                 source,
+                server_dates: None,
             },
             now,
         )
         .unwrap()
+            != crate::artwork_store::Applied::Skipped
     };
     assert_eq!(chosen_row.revision, 1);
     let first_checked = Some(1);
@@ -3279,8 +3290,8 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
         ("listed", None)
     );
     // A record that no longer exists is never written.
-    assert!(
-        !apply_listing_check(
+    assert_eq!(
+        apply_listing_check(
             &connection,
             Steamgriddb,
             &sha,
@@ -3290,11 +3301,13 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
                 result: "not_listed",
                 unknown_reason: None,
                 total: None,
-                source: None
+                source: None,
+                server_dates: None,
             },
             6_000,
         )
-        .unwrap()
+        .unwrap(),
+        crate::artwork_store::Applied::Skipped
     );
     // Removing the unused asset removes its evidence, leaving no orphan.
     let current = service
@@ -3782,3 +3795,6 @@ fn landscape_choices_require_metadata_schema_nine_and_round_trip() {
     assert_eq!(state.choice.revision, 3);
     assert_eq!(state.availability, ArtworkAvailability::Available);
 }
+
+#[path = "artwork_withdrawal_tests.rs"]
+mod withdrawal;

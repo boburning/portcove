@@ -543,6 +543,12 @@ export default interface Resources {
       "discover": "Search Discover",
       "library": "Search your library",
       "placeholder": "Game or port name"
+    },
+    "upstreamActivity": {
+      "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
+      "label": "Upstream activity on GitHub",
+      "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
     }
   },
   "catalogUpdates": {
@@ -925,6 +931,10 @@ export default interface Resources {
       "heading": "Requirements"
     },
     "resources": {
+      "funding": {
+        "heading": "Help fund this project",
+        "note": "The project’s developers list these pages for people who want to fund their work. Each link opens in your browser; Portcove takes no part in any payment."
+      },
       "heading": "Project & support",
       "support": "Create support report",
       "supportNote": "Save and review a sanitized report locally before choosing to share it.",

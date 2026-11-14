@@ -103,7 +103,9 @@ pub use capabilities::{
 mod portable_save_folder;
 mod portable_saves;
 mod psx_mod_data;
+mod recent_play;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
+pub use recent_play::{RECENTLY_PLAYED_LIMIT, RecentlyPlayedGame};
 mod removal;
 mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
@@ -2946,7 +2948,12 @@ impl PortcoveService {
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
-            self.record_update_check(port_id, &status, &release.release)
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )
         }
         .await;
         self.finish_activity(activity, result)
@@ -3019,6 +3026,7 @@ impl PortcoveService {
         port_id: &str,
         status: &PortStatus,
         release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
         let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
         let installed_runtime = status
@@ -3039,6 +3047,7 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
+        let port = self.catalog.port(port_id)?;
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3048,6 +3057,21 @@ impl PortcoveService {
             required_runtime: runtime,
             update_available,
             release: release.clone(),
+            upstream_activity: match observed_activity {
+                Some(activity) => Some(activity.clone()),
+                // A check that did not read the repository keeps the earlier
+                // observation with its own time instead of erasing or re-dating it,
+                // but only while the port still names that GitHub repository.
+                None => self
+                    .library
+                    .update_snapshot(port_id)
+                    .unwrap_or_else(|error| {
+                        tracing::warn!(%error, port_id, "could not read the previous update check");
+                        None
+                    })
+                    .and_then(|snapshot| snapshot.check.upstream_activity)
+                    .filter(|activity| activity.describes(port)),
+            },
         };
         self.library.store_update_snapshot(&check)?;
         Ok(check)
@@ -3240,7 +3264,12 @@ impl PortcoveService {
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(port_id, &status, &release.release)?;
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -3639,7 +3668,12 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(port_id, &status, &release.release)?;
+                let check = self.record_update_check(
+                    port_id,
+                    &status,
+                    &release.release,
+                    release.upstream_activity.as_ref(),
+                )?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -7963,6 +7997,149 @@ mod tests {
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
+        );
+    }
+
+    /// Reports repository activity on its first resolution only, like a provider
+    /// that read the repository once and then took a route that did not.
+    struct ObservedOnceReleaseProvider {
+        inner: StaticReleaseProvider,
+        reported: AtomicBool,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for ObservedOnceReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.inner.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            _scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            let mut resolved = crate::ScopedResolvedRelease::legacy(
+                self.inner.resolve(port, channel, platform).await?,
+            )
+            .for_selection(port, platform, channel)?;
+            if !self.reported.swap(true, Ordering::SeqCst) {
+                resolved.upstream_activity = Some(crate::UpstreamActivity {
+                    repository: port.release.repository.clone(),
+                    observed_at: 1_000,
+                    archived: true,
+                    last_change_at: Some(900),
+                });
+            }
+            Ok(resolved)
+        }
+    }
+
+    #[tokio::test]
+    async fn update_checks_keep_the_last_upstream_activity_with_its_own_time() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::with_provider(
+            library,
+            Arc::new(ObservedOnceReleaseProvider {
+                inner: StaticReleaseProvider {
+                    version: "v1".into(),
+                },
+                reported: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        let observed = crate::UpstreamActivity {
+            repository: service
+                .catalog()
+                .port("zelda64-recomp")
+                .unwrap()
+                .release
+                .repository
+                .clone(),
+            observed_at: 1_000,
+            archived: true,
+            last_change_at: Some(900),
+        };
+        let first = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(first.upstream_activity.as_ref(), Some(&observed));
+        let second = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(second.upstream_activity.as_ref(), Some(&observed));
+        let snapshot = service
+            .status("zelda64-recomp")
+            .unwrap()
+            .last_update_check
+            .unwrap();
+        assert!(snapshot.checked_at > observed.observed_at);
+        assert_eq!(snapshot.check.upstream_activity, Some(observed));
+    }
+
+    #[test]
+    fn upstream_activity_belongs_only_to_the_same_github_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        let activity = crate::UpstreamActivity {
+            repository: port.release.repository.clone(),
+            observed_at: 1_000,
+            archived: false,
+            last_change_at: None,
+        };
+        assert!(activity.describes(port));
+        let differently_cased = crate::UpstreamActivity {
+            repository: port.release.repository.to_ascii_uppercase(),
+            ..activity.clone()
+        };
+        assert!(differently_cased.describes(port));
+        // An observation stored without a repository loads, but describes no port.
+        let unbound: crate::UpstreamActivity = serde_json::from_value(serde_json::json!({
+            "observed_at": 1_000,
+            "archived": true
+        }))
+        .unwrap();
+        assert_eq!(unbound.repository, "");
+        assert!(!unbound.describes(port));
+        let mut moved = port.clone();
+        moved.release.repository = "Successor/zelda64-recomp".into();
+        assert!(!activity.describes(&moved));
+        for provider in [
+            crate::ReleaseSource::Gitlab,
+            crate::ReleaseSource::DirectManifest,
+            crate::ReleaseSource::UserPrepared,
+        ] {
+            let mut other = port.clone();
+            other.release.provider = provider;
+            assert!(!activity.describes(&other), "{provider:?}");
+        }
+    }
+
+    #[test]
+    fn update_checks_without_upstream_activity_keep_their_stored_shape() {
+        let check: UpdateCheck = serde_json::from_value(serde_json::json!({
+            "port_id": "zelda64-recomp",
+            "channel": "stable",
+            "installed_version": null,
+            "update_available": true,
+            "release": {
+                "version": "v1",
+                "channel": "stable",
+                "published_at": null,
+                "asset": {"name": "a.zip", "url": "https://invalid.example/a.zip", "size": 1, "sha256": "a".repeat(64)}
+            }
+        }))
+        .unwrap();
+        assert_eq!(check.upstream_activity, None);
+        assert!(
+            serde_json::to_value(&check)
+                .unwrap()
+                .get("upstream_activity")
+                .is_none()
         );
     }
 
@@ -19511,6 +19688,60 @@ fn main() {
         assert_eq!(
             fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
             b"recovered"
+        );
+    }
+
+    #[test]
+    fn a_launch_whose_supervisor_ended_is_reported_lost_only_while_it_is_unfinished() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let service = launch_service_with_faults(
+            library.clone(),
+            Arc::new(FailLaunchAt(LifecycleFaultPoint::LaunchChildStarted)),
+        );
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "50".into(),
+            "recovered".into(),
+            "0".into(),
+        ];
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+        service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                    disc: None,
+                },
+                |_| {},
+                |_| {},
+            )
+            .unwrap_err();
+        // The recorded supervisor is this very process, which is alive.
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE launch_sessions SET supervisor_pid=?2 WHERE id=?1",
+                rusqlite::params![request_id, u32::MAX],
+            )
+            .unwrap();
+        assert!(library.launch_supervisor_lost(&request_id).unwrap());
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&request_id)
+            .unwrap();
+        assert!(
+            !library.launch_supervisor_lost(&request_id).unwrap(),
+            "a recovered, finished launch is not lost"
         );
     }
 

@@ -449,7 +449,9 @@ fn every_current_port_retains_exact_bytes_and_complete_validated_source_graph() 
     println!("full catalog projection setup begin: {:?}", clock.elapsed());
     let document = projection();
     println!("full catalog projection loaded: {:?}", clock.elapsed());
-    let contract = serde_json::to_vec_pretty(&document).unwrap();
+    // The whole embedded catalog in one content outgrew the 4 MiB content
+    // bound when pretty-printed; compact bytes keep this graph check within it.
+    let contract = serde_json::to_vec(&document).unwrap();
     let reference = target(&contract);
     let entries: Vec<_> = (0..document["catalog"]["ports"].as_array().unwrap().len())
         .map(|port_index| {

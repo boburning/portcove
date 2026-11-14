@@ -19,6 +19,7 @@
     },
     "issue_number": 2579,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/moesuito"],
     "manual_setup": {
       "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
       "steps": [

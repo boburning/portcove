@@ -132,7 +132,7 @@ fn digest(value: &str) -> bool {
 /// Staged-source reader capability that understands additive data-policy
 /// successors. Indexed definitions that append to a policy require it, so an
 /// older reader refuses the entry instead of holding existing installations.
-pub(crate) const ADDITIVE_DATA_POLICY_CAPABILITY: u32 = 33;
+pub(crate) const ADDITIVE_DATA_POLICY_CAPABILITY: u32 = 34;
 
 /// Shared paths are bounded at 64 and one must remain, so at most 63 files can
 /// be appended across a whole lineage.
