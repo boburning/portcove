@@ -3867,6 +3867,12 @@ export interface OutputGameUpdatePlan {
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * Informational upstream notes for this review. Read from cached provider
+   * metadata only, excluded from `plan_sha256`, never authority. Absent when
+   * the provider has no hosted release page.
+   */
+  release_notes?: UpdateReleaseNotes | null;
   [k: string]: unknown;
 }
 /**
@@ -3887,6 +3893,39 @@ export interface ArchiveDataTransitionReview {
   producing_archive_sha256: string;
   retained_installations: number;
   temporary_space: InstallSpaceRequirement;
+  [k: string]: unknown;
+}
+/**
+ * Upstream releases between the installed version (exclusive) and the offered
+ * version (inclusive), newest first. Notes are untrusted plain text; every URL
+ * is built by Portcove from the provider origin, repository and tag.
+ */
+export interface UpdateReleaseNotes {
+  /**
+   * Every eligible release since the installed version is listed. False when the
+   * installed version was not found or the list was shortened.
+   */
+  complete: boolean;
+  /**
+   * Empty when the notes are unknown: not cached, or the offered release is not listed.
+   */
+  entries: UpdateReleaseNotesEntry[];
+  /**
+   * The provider page that lists every release of this project.
+   */
+  releases_url: string;
+  [k: string]: unknown;
+}
+export interface UpdateReleaseNotesEntry {
+  /**
+   * Normalized plain text; may contain unrendered Markdown or HTML source.
+   */
+  notes: string;
+  notes_truncated: boolean;
+  published_at?: string | null;
+  title?: string | null;
+  url: string;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {

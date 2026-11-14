@@ -2026,6 +2026,38 @@ pub struct GameUpdatePlan {
     pub assessment: crate::PortActionAssessment,
     pub activate: bool,
     pub plan_sha256: String,
+    /// Informational upstream notes for this review. Read from cached provider
+    /// metadata only, excluded from `plan_sha256`, never authority. Absent when
+    /// the provider has no hosted release page.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub release_notes: Option<UpdateReleaseNotes>,
+}
+
+/// Upstream releases between the installed version (exclusive) and the offered
+/// version (inclusive), newest first. Notes are untrusted plain text; every URL
+/// is built by Portcove from the provider origin, repository and tag.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotes {
+    /// The provider page that lists every release of this project.
+    pub releases_url: String,
+    /// Empty when the notes are unknown: not cached, or the offered release is not listed.
+    pub entries: Vec<UpdateReleaseNotesEntry>,
+    /// Every eligible release since the installed version is listed. False when the
+    /// installed version was not found or the list was shortened.
+    pub complete: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateReleaseNotesEntry {
+    pub version: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub title: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<String>,
+    pub url: String,
+    /// Normalized plain text; may contain unrendered Markdown or HTML source.
+    pub notes: String,
+    pub notes_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

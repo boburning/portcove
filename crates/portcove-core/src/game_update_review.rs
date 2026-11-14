@@ -59,6 +59,14 @@ impl PortcoveService {
             ))?);
         }
         let acquisition = self.acquisition_for_review(&status, &plan)?;
+        // Informational and outside the digest: edited upstream notes never
+        // invalidate a reviewed update. Read from cached metadata only.
+        let release_notes = self.releases.cached_release_notes(
+            self.catalog.port(port_id)?,
+            plan.channel,
+            status.active.as_ref().map(|active| active.version.as_str()),
+            &plan.release.version,
+        );
         if let Some(review) = &transition {
             plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
                 "Portcove reviewed archive data transition v1",
@@ -74,6 +82,7 @@ impl PortcoveService {
             plan,
             activate,
             plan_sha256,
+            release_notes,
         })
     }
 
@@ -420,6 +429,69 @@ mod tests {
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
         (temporary, service_with_release(library, "v2"))
+    }
+
+    struct NotesProvider {
+        inner: std::sync::Arc<dyn crate::ReleaseProvider>,
+        requests: std::sync::Mutex<Vec<(Option<String>, String)>>,
+    }
+
+    #[async_trait::async_trait]
+    impl crate::ReleaseProvider for NotesProvider {
+        async fn resolve(
+            &self,
+            port: &crate::PortDefinition,
+            channel: crate::ReleaseChannel,
+            platform: crate::Platform,
+        ) -> crate::Result<crate::ResolvedRelease> {
+            self.inner.resolve(port, channel, platform).await
+        }
+
+        fn cached_release_notes(
+            &self,
+            _port: &crate::PortDefinition,
+            _channel: crate::ReleaseChannel,
+            installed: Option<&str>,
+            offered: &str,
+        ) -> Option<crate::UpdateReleaseNotes> {
+            self.requests
+                .lock()
+                .unwrap()
+                .push((installed.map(str::to_owned), offered.to_owned()));
+            Some(crate::UpdateReleaseNotes {
+                releases_url: "https://example.test/releases".into(),
+                entries: Vec::new(),
+                complete: false,
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn release_notes_are_informational_and_outside_the_review_digest() {
+        let (_temporary, service) = fixture();
+        let without = service.plan_game_update(PORT, true).await.unwrap();
+        assert_eq!(without.release_notes, None);
+        let provider = std::sync::Arc::new(NotesProvider {
+            inner: service.releases.clone(),
+            requests: Default::default(),
+        });
+        let noted =
+            PortcoveService::with_provider(service.library.clone(), provider.clone()).unwrap();
+        let with = noted.plan_game_update(PORT, true).await.unwrap();
+        assert_eq!(
+            with.release_notes.as_ref().unwrap().releases_url,
+            "https://example.test/releases"
+        );
+        assert_eq!(with.plan_sha256, without.plan_sha256);
+        assert_eq!(
+            *provider.requests.lock().unwrap(),
+            [(Some("v1".to_owned()), "v2".to_owned())]
+        );
+        // A review carrying notes still authorizes against the same digest.
+        noted
+            .authorize_game_update(PORT, true, &without.plan_sha256)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

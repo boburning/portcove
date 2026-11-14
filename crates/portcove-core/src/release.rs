@@ -73,6 +73,19 @@ pub trait ReleaseProvider: Send + Sync {
     ) -> Result<crate::RequestCostForecast> {
         Ok(crate::RequestCostForecast::default())
     }
+
+    /// Informational release notes between the installed and offered versions, read
+    /// only from metadata this provider already persisted. Never makes a request.
+    /// `None` means the provider has no hosted release page for this port.
+    fn cached_release_notes(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _installed: Option<&str>,
+        _offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        None
+    }
 }
 
 /// The request cost of one GitHub check from what is already cached. An ordinary request
@@ -1331,6 +1344,69 @@ impl ReleaseProvider for GithubReleaseProvider {
             self.has_conditional_cache(&releases_url),
         ))
     }
+
+    fn cached_release_notes(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        installed: Option<&str>,
+        offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        if port.release.provider != crate::ReleaseSource::Github {
+            return None;
+        }
+        let repository = crate::release_notes::repository_segments(&port.release.repository)?;
+        let releases_url = crate::release_notes::web_url(
+            &self.web_root,
+            &[repository.as_slice(), &["releases"][..]].concat(),
+        )?;
+        let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
+        let mut releases = Vec::<GithubRelease>::new();
+        for page in 1..=GITHUB_MAX_RELEASE_PAGES {
+            let Some(cached) = paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE)
+                .ok()
+                .and_then(|url| self.cached_http_response(&url))
+                .filter(|cached| cached.body.len() <= PROVIDER_JSON_MAX_BYTES)
+            else {
+                break;
+            };
+            let Ok(mut current) = serde_json::from_str::<Vec<GithubRelease>>(&cached.body) else {
+                break;
+            };
+            let has_more = current.len() == PROVIDER_PAGE_SIZE;
+            releases.append(&mut current);
+            if !has_more {
+                break;
+            }
+        }
+        let listed = releases
+            .iter()
+            .map(|release| crate::release_notes::ListedRelease {
+                tag: &release.tag_name,
+                title: release.name.as_deref(),
+                published_at: release.published_at.as_deref(),
+                notes: release.body.as_deref().unwrap_or_default(),
+                published: !release.draft,
+                beta: is_beta_release(release),
+            })
+            .collect::<Vec<_>>();
+        Some(crate::release_notes::between(
+            &listed,
+            &crate::release_notes::NotesRequest {
+                channel,
+                rolling_tag: port.release.rolling_tag.as_deref(),
+                installed,
+                offered,
+            },
+            releases_url,
+            |tag| {
+                crate::release_notes::web_url(
+                    &self.web_root,
+                    &[repository.as_slice(), &["releases", "tag", tag][..]].concat(),
+                )
+            },
+        ))
+    }
 }
 
 impl GithubReleaseProvider {
@@ -1907,6 +1983,11 @@ struct GithubRelease {
     #[serde(default)]
     id: Option<u64>,
     tag_name: String,
+    /// Informational only: shown as untrusted plain text in update reviews.
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    body: Option<String>,
     draft: bool,
     prerelease: bool,
     published_at: Option<String>,
@@ -4400,6 +4481,92 @@ mod tests {
         assert_eq!(
             headers[header::IF_MODIFIED_SINCE],
             "Mon, 01 Sep 2026 12:00:00 GMT"
+        );
+    }
+
+    #[tokio::test]
+    async fn update_release_notes_come_from_the_cached_release_list_without_requests() {
+        let release = |tag: &str, draft: bool, prerelease: bool, body: &str| {
+            serde_json::json!({"id":1,"tag_name":tag,"name":format!("Release {tag}"),
+                "draft":draft,"prerelease":prerelease,"published_at":"2026-11-01T00:00:00Z",
+                "body":body,"html_url":"javascript:alert(1)","assets":[]})
+        };
+        let page = serde_json::json!([
+            release(
+                "v4",
+                false,
+                false,
+                "Four <!-- hidden -->\r\n<img src=x onerror=alert(1)>"
+            ),
+            release("v3-rc1", false, true, "candidate"),
+            release("v3.5", true, false, "draft"),
+            release("v3", false, false, "Three"),
+            release("v2", false, false, "installed"),
+        ])
+        .to_string();
+        let (api_root, requests, server) =
+            serve_http(vec![ok_json(&page, "ETag: \"releases\"\r\n")]);
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root.clone(), library.clone())
+                .unwrap();
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.release.provider = crate::ReleaseSource::Github;
+        port.release.repository = "owner/repo".into();
+        port.release.rolling_tag = None;
+
+        // Nothing cached: only the release page link is known.
+        let unknown = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+            .unwrap();
+        assert!(unknown.entries.is_empty());
+        assert!(!unknown.complete);
+        assert_eq!(
+            unknown.releases_url,
+            format!("{api_root}/owner/repo/releases")
+        );
+
+        // Release resolution persists the list; notes then read it offline.
+        provider
+            .releases(&format!("{api_root}/repos/owner/repo"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 1);
+        let notes = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+            .unwrap();
+        assert!(notes.complete);
+        let versions = notes
+            .entries
+            .iter()
+            .map(|entry| entry.version.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(versions, ["v4", "v3"]);
+        assert_eq!(notes.entries[0].notes, "Four\n<img src=x onerror=alert(1)>");
+        assert_eq!(notes.entries[0].title.as_deref(), Some("Release v4"));
+        assert_eq!(
+            notes.entries[0].url,
+            format!("{api_root}/owner/repo/releases/tag/v4")
+        );
+        let beta = provider
+            .cached_release_notes(&port, ReleaseChannel::Beta, Some("v2"), "v4")
+            .unwrap();
+        assert_eq!(beta.entries.len(), 3);
+        let missing = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v5")
+            .unwrap();
+        assert!(missing.entries.is_empty());
+        port.release.provider = crate::ReleaseSource::Gitlab;
+        assert!(
+            provider
+                .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+                .is_none()
         );
     }
 

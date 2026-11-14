@@ -584,6 +584,70 @@ impl ReleaseProvider for GitlabReleaseProvider {
         self.store_release(key, resolved.clone()).await;
         Ok(resolved)
     }
+
+    fn cached_release_notes(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        installed: Option<&str>,
+        offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        if port.release.provider != ReleaseSource::Gitlab {
+            return None;
+        }
+        let web_root = self.api_root.strip_suffix("/api/v4")?;
+        let repository = crate::release_notes::repository_segments(&port.release.repository)?;
+        let releases_url = crate::release_notes::web_url(
+            web_root,
+            &[repository.as_slice(), &["-", "releases"][..]].concat(),
+        )?;
+        let project_url = self.project_url(&port.release.repository).ok()?;
+        let mut releases = Vec::<GitlabRelease>::new();
+        for page in 1..=GITLAB_MAX_RELEASE_PAGES {
+            let Some(cached) = paginated_url(&project_url, "releases", page, PROVIDER_PAGE_SIZE)
+                .ok()
+                .and_then(|url| self.cached_http_response(&url))
+                .filter(|cached| cached.body.len() <= PROVIDER_JSON_MAX_BYTES)
+            else {
+                break;
+            };
+            let Ok(mut current) = serde_json::from_str::<Vec<GitlabRelease>>(&cached.body) else {
+                break;
+            };
+            let has_more = current.len() == PROVIDER_PAGE_SIZE;
+            releases.append(&mut current);
+            if !has_more {
+                break;
+            }
+        }
+        let listed = releases
+            .iter()
+            .map(|release| crate::release_notes::ListedRelease {
+                tag: &release.tag_name,
+                title: release.name.as_deref(),
+                published_at: release.released_at.as_deref(),
+                notes: &release.description,
+                published: !release.upcoming_release,
+                beta: is_beta_tag(&release.tag_name),
+            })
+            .collect::<Vec<_>>();
+        Some(crate::release_notes::between(
+            &listed,
+            &crate::release_notes::NotesRequest {
+                channel,
+                rolling_tag: port.release.rolling_tag.as_deref(),
+                installed,
+                offered,
+            },
+            releases_url,
+            |tag| {
+                crate::release_notes::web_url(
+                    web_root,
+                    &[repository.as_slice(), &["-", "releases", tag][..]].concat(),
+                )
+            },
+        ))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -598,6 +662,9 @@ struct GitlabProject {
 #[derive(Debug, Deserialize)]
 struct GitlabRelease {
     tag_name: String,
+    /// Informational only: shown as untrusted plain text in update reviews.
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     description: String,
     #[serde(default)]
@@ -1440,6 +1507,67 @@ mod tests {
             }),
         )
         .unwrap()
+    }
+
+    #[test]
+    fn update_release_notes_read_only_the_cached_gitlab_release_list() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider = GitlabReleaseProvider::with_api_root_and_library(
+            "https://gitlab.example.test/api/v4",
+            library.clone(),
+        )
+        .unwrap();
+        let mut port = generic_test_port();
+        port.release.provider = ReleaseSource::Gitlab;
+        port.release.rolling_tag = None;
+        let release = |tag: &str, upcoming: bool, description: &str| {
+            serde_json::json!({"tag_name":tag,"name":tag,"description":description,
+                "released_at":"2026-11-01T00:00:00Z","upcoming_release":upcoming,
+                "assets":{"links":[]}})
+        };
+        let unknown = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v1.0"), "v1.2")
+            .unwrap();
+        assert!(unknown.entries.is_empty());
+        assert_eq!(
+            unknown.releases_url,
+            "https://gitlab.example.test/group/project/-/releases"
+        );
+        let url = paginated_url(
+            &provider.project_url("group/project").unwrap(),
+            "releases",
+            1,
+            PROVIDER_PAGE_SIZE,
+        )
+        .unwrap();
+        let page = serde_json::json!([
+            release("v1.3", true, "upcoming"),
+            release("v1.2", false, "Fixes\u{202E} audio"),
+            release("v1.2-beta", false, "beta"),
+            release("v1.1", false, "Adds widescreen"),
+            release("v1.0", false, "installed"),
+        ]);
+        library
+            .store_http_cache(&url, Some("\"releases\""), None, &page.to_string())
+            .unwrap();
+        let notes = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v1.0"), "v1.2")
+            .unwrap();
+        assert!(notes.complete);
+        assert_eq!(
+            notes
+                .entries
+                .iter()
+                .map(|entry| (entry.version.as_str(), entry.notes.as_str()))
+                .collect::<Vec<_>>(),
+            [("v1.2", "Fixes audio"), ("v1.1", "Adds widescreen")]
+        );
+        assert_eq!(notes.entries[0].title, None);
+        assert_eq!(
+            notes.entries[0].url,
+            "https://gitlab.example.test/group/project/-/releases/v1.2"
+        );
     }
 
     fn generic_test_port() -> PortDefinition {

@@ -17951,6 +17951,68 @@
           "volume_available_bytes"
         ],
         "type": "object"
+      },
+      "UpdateReleaseNotes": {
+        "description": "Upstream releases between the installed version (exclusive) and the offered\nversion (inclusive), newest first. Notes are untrusted plain text; every URL\nis built by Portcove from the provider origin, repository and tag.",
+        "properties": {
+          "complete": {
+            "description": "Every eligible release since the installed version is listed. False when the\ninstalled version was not found or the list was shortened.",
+            "type": "boolean"
+          },
+          "entries": {
+            "description": "Empty when the notes are unknown: not cached, or the offered release is not listed.",
+            "items": {
+              "$ref": "#/$defs/UpdateReleaseNotesEntry"
+            },
+            "type": "array"
+          },
+          "releases_url": {
+            "description": "The provider page that lists every release of this project.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "releases_url",
+          "entries",
+          "complete"
+        ],
+        "type": "object"
+      },
+      "UpdateReleaseNotesEntry": {
+        "properties": {
+          "notes": {
+            "description": "Normalized plain text; may contain unrendered Markdown or HTML source.",
+            "type": "string"
+          },
+          "notes_truncated": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "url": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "url",
+          "notes",
+          "notes_truncated"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -17989,6 +18051,17 @@
       },
       "plan_sha256": {
         "type": "string"
+      },
+      "release_notes": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateReleaseNotes"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Informational upstream notes for this review. Read from cached provider\nmetadata only, excluded from `plan_sha256`, never authority. Absent when\nthe provider has no hosted release page."
       }
     },
     "required": [

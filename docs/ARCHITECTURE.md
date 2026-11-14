@@ -3456,6 +3456,27 @@ managed runtime, or changing a source registration/channel through another
 client, never deletes these private archives; later Apply must freshly validate
 those changed facts and cannot resurrect a removed installation.
 
+### Update review release notes
+
+`GameUpdatePlan.release_notes` is informational. For GitHub and GitLab ports
+the provider reads the release-list pages it already persisted in the
+conditional HTTP cache while resolving the offered release; building the notes
+sends no request and spends no API budget, so a review works offline with
+whatever is cached. Entries run from the offered release (inclusive) to the
+installed version (exclusive), newest first, under the release-selection channel
+rules: drafts, upcoming releases and unrelated rolling tags are skipped and a
+stable channel skips prereleases. A rolling channel lists only the offered tag.
+At most 20 releases and 4,000 characters per release are kept; `complete` is
+false when the list was shortened or the installed version was not listed.
+
+Notes are untrusted upstream text. Core removes HTML comments, control and
+bidirectional formatting characters and returns plain text; Desktop renders it
+escaped, with no Markdown, HTML or embedded links. Every URL is built by Core
+from the provider web origin, repository and percent-encoded tag. An uncached
+or unlisted offered release yields no entries and the release page link; direct
+manifest and user-prepared ports carry no value. The notes are excluded from
+`plan_sha256`, so edited upstream text never invalidates a reviewed update.
+
 ## Cooperative operation cancellation
 
 Restart recovery retains a structured Core failure for an unrequested interrupted
