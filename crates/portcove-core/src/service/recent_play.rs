@@ -148,4 +148,55 @@ mod tests {
         assert_eq!(recent.len(), RECENTLY_PLAYED_LIMIT.min(ids.len()));
         assert_eq!(recent[0].port_id, *ids.last().unwrap());
     }
+
+    #[test]
+    fn recent_play_includes_registered_external_runtimes() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service = PortcoveService::new(Library::open(temporary.path()).unwrap()).unwrap();
+        let port_id = service.catalog.ports()[0].id.clone();
+        // Only the registration's presence matters to this read.
+        service
+            .library
+            .connection()
+            .unwrap()
+            .execute(
+                "INSERT INTO external_runtime_registrations
+                   (port_id, record_json, retained_catalog_json, registered_at)
+                 VALUES (?1, '{}', '{}', 1)",
+                [&port_id],
+            )
+            .unwrap();
+        played(&service, &port_id, 7);
+
+        let recent = service.recently_played(1).unwrap();
+        assert_eq!(recent.len(), 1);
+        assert_eq!(
+            (recent[0].port_id.as_str(), recent[0].last_launched_at),
+            (port_id.as_str(), 7)
+        );
+    }
+
+    #[test]
+    fn uncataloged_history_does_not_shorten_the_list() {
+        let temporary = tempfile::tempdir().unwrap();
+        let service = PortcoveService::new(Library::open(temporary.path()).unwrap()).unwrap();
+        let cataloged = service.catalog.ports()[0].id.clone();
+        activate(&service, &cataloged);
+        played(&service, &cataloged, 1);
+        // Newer history for installed ports that the catalog no longer lists.
+        for index in 0..3 {
+            let retired = format!("retired-{index}");
+            activate(&service, &retired);
+            played(&service, &retired, 10 + index);
+        }
+
+        let recent = service.recently_played(1).unwrap();
+        assert_eq!(
+            recent
+                .iter()
+                .map(|game| game.port_id.as_str())
+                .collect::<Vec<_>>(),
+            [cataloged.as_str()]
+        );
+    }
 }

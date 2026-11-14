@@ -20,6 +20,29 @@ pub(crate) const PLAY_ARGUMENT: &str = "--portcove-play";
 const MAX_PORT_ID_LENGTH: usize = 128;
 #[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
 const JUMP_LIST_ENTRIES: usize = 5;
+/// The installed application's identity. The NSIS installer stamps it on its
+/// Start menu and desktop shortcuts and its uninstaller deletes the jump list
+/// under it. It is the configured bundle identifier (checked in tests).
+#[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
+const APPLICATION_ID: &str = crate::application_update::APPLICATION_PRODUCT_ID;
+
+/// Whether this process uses [`APPLICATION_ID`]: decided once at startup.
+#[cfg(all(windows, not(test)))]
+static INSTALLED_IDENTITY: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
+/// Gives the installed application the identity its installer shortcuts
+/// carry, before any window exists, so its windows, pinned button and jump
+/// list share one taskbar identity. Development, fixture and portable runs keep
+/// the default per-executable identity and therefore never write into the
+/// installed application's jump list.
+pub(crate) fn adopt_installed_identity() {
+    #[cfg(all(windows, not(test)))]
+    {
+        let installed = crate::application_update_windows::running_registered_installation()
+            && jump_list::set_process_identity().is_ok();
+        let _ = INSTALLED_IDENTITY.set(installed);
+    }
+}
 
 /// A one-shot play request from the process arguments. The frontend takes it
 /// once; a reload or a later window never repeats it.
@@ -106,6 +129,8 @@ pub(crate) fn refresh(state: DesktopState) {
             .spawn(move || {
                 static REFRESH: Mutex<()> = Mutex::new(());
                 let _serialized = REFRESH.lock().unwrap_or_else(|poison| poison.into_inner());
+                // A failed read (for example a library that did not open after a
+                // switch) clears the category rather than keep another library's games.
                 let entries = match crate::service(&state)
                     .and_then(|service| Ok(service.recently_played(JUMP_LIST_ENTRIES)?))
                 {
@@ -118,12 +143,17 @@ pub(crate) fn refresh(state: DesktopState) {
                         tracing::warn!(
                             component = "recent_play_shortcuts",
                             success = false,
-                            message = "recently played games could not be read"
+                            message = "recently played games could not be read; clearing them"
                         );
-                        return;
+                        Vec::new()
                     }
                 };
-                if let Err(error) = jump_list::replace(&entries) {
+                let identity = INSTALLED_IDENTITY
+                    .get()
+                    .copied()
+                    .unwrap_or(false)
+                    .then_some(APPLICATION_ID);
+                if let Err(error) = jump_list::replace(&entries, identity) {
                     tracing::warn!(
                         component = "recent_play_shortcuts",
                         success = false,
@@ -150,38 +180,48 @@ mod jump_list {
     use windows::Win32::System::Com::StructuredStorage::{PROPVARIANT, PropVariantClear};
     use windows::Win32::System::Com::{
         CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED, CoCreateInstance, CoInitializeEx,
-        CoTaskMemFree, CoUninitialize,
+        CoUninitialize,
     };
     use windows::Win32::System::Variant::VT_LPWSTR;
     use windows::Win32::UI::Shell::Common::{IObjectArray, IObjectCollection};
     use windows::Win32::UI::Shell::PropertiesSystem::IPropertyStore;
     use windows::Win32::UI::Shell::{
-        DestinationList, EnumerableObjectCollection, GetCurrentProcessExplicitAppUserModelID,
-        ICustomDestinationList, IShellLinkW, SHStrDupW, ShellLink,
+        DestinationList, EnumerableObjectCollection, ICustomDestinationList, IShellLinkW,
+        SHStrDupW, SetCurrentProcessExplicitAppUserModelID, ShellLink,
     };
     use windows::core::{HSTRING, Interface, Result};
 
-    use super::PLAY_ARGUMENT;
+    use super::{APPLICATION_ID, PLAY_ARGUMENT};
 
     const CATEGORY: &str = "Recently played";
 
+    /// Sets the installed identity for this process; called before any window.
+    pub(super) fn set_process_identity() -> Result<()> {
+        // SAFETY: the argument is a valid NUL-terminated string for the call.
+        unsafe { SetCurrentProcessExplicitAppUserModelID(&HSTRING::from(APPLICATION_ID)) }
+    }
+
     /// Replaces Portcove's custom category; an empty list removes it. Entries
-    /// the player removed from the jump list are not added back.
-    pub(super) fn replace(entries: &[(String, String)]) -> Result<()> {
+    /// the player removed from the jump list are not added back. `identity` is
+    /// the installed application ID, or `None` for the process's default.
+    pub(super) fn replace(entries: &[(String, String)], identity: Option<&str>) -> Result<()> {
         // SAFETY: COM is initialized for this worker thread only and released
         // before it ends; every interface is dropped inside that scope.
         unsafe {
             CoInitializeEx(None, COINIT_APARTMENTTHREADED).ok()?;
-            let result = build(entries);
+            let result = build(entries, identity);
             CoUninitialize();
             result
         }
     }
 
-    unsafe fn build(entries: &[(String, String)]) -> Result<()> {
+    unsafe fn build(entries: &[(String, String)], identity: Option<&str>) -> Result<()> {
         unsafe {
             let list: ICustomDestinationList =
                 CoCreateInstance(&DestinationList, None, CLSCTX_INPROC_SERVER)?;
+            if let Some(identity) = identity {
+                list.SetAppID(&HSTRING::from(identity))?;
+            }
             let mut slots = 0u32;
             let removed: IObjectArray = list.BeginList(&mut slots)?;
             let result = (|| {
@@ -190,7 +230,6 @@ mod jump_list {
                     windows::core::Error::from_hresult(windows::Win32::Foundation::E_FAIL)
                 })?;
                 let executable = HSTRING::from(executable.as_os_str());
-                let application_id = explicit_application_id();
                 let collection: IObjectCollection =
                     CoCreateInstance(&EnumerableObjectCollection, None, CLSCTX_INPROC_SERVER)?;
                 let mut added = 0usize;
@@ -210,8 +249,10 @@ mod jump_list {
                     link.SetDescription(&HSTRING::from(label.as_str()))?;
                     let properties: IPropertyStore = link.cast()?;
                     set_string(&properties, &PKEY_Title, label)?;
-                    if let Some(application_id) = &application_id {
-                        set_string(&properties, &PKEY_AppUserModel_ID, application_id)?;
+                    // A window started from the entry then groups with the
+                    // installed shortcuts instead of under a per-executable ID.
+                    if let Some(identity) = identity {
+                        set_string(&properties, &PKEY_AppUserModel_ID, identity)?;
                     }
                     properties.Commit()?;
                     collection.AddObject(&link)?;
@@ -246,20 +287,14 @@ mod jump_list {
                         .position(|&unit| unit == 0)
                         .unwrap_or(buffer.len());
                     arguments.push(String::from_utf16_lossy(&buffer[..length]));
+                } else {
+                    tracing::debug!(
+                        component = "recent_play_shortcuts",
+                        message = "a removed jump-list entry had unreadable arguments"
+                    );
                 }
             }
             Ok(arguments)
-        }
-    }
-
-    /// The identity this process groups under, when one was set explicitly,
-    /// so a window started from a shortcut joins the same taskbar button.
-    unsafe fn explicit_application_id() -> Option<String> {
-        unsafe {
-            let value = GetCurrentProcessExplicitAppUserModelID().ok()?;
-            let text = value.to_string().ok();
-            CoTaskMemFree(Some(value.0.cast_const().cast()));
-            text.filter(|text| !text.is_empty())
         }
     }
 
@@ -318,6 +353,13 @@ mod tests {
             play_request(arguments(&["portcove", PLAY_ARGUMENT, &long])),
             None
         );
+    }
+
+    #[test]
+    fn the_jump_list_identity_is_the_configured_bundle_identifier() {
+        let config: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        assert_eq!(config["identifier"], APPLICATION_ID);
     }
 
     #[test]

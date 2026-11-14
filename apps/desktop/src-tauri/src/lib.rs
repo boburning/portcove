@@ -3137,6 +3137,8 @@ pub fn run() -> std::process::ExitCode {
         diagnostics::shutdown(&mut diagnostic_guard);
         return std::process::ExitCode::FAILURE;
     }
+    // Before any window exists, so every window uses the same taskbar identity.
+    recent_play_shortcuts::adopt_installed_identity();
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
