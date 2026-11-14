@@ -6,15 +6,16 @@
     {
       "port_id": "ape-escape-recompiled",
       "platform": "windows-x86-64",
-      "version": "v0.3.0",
-      "sha256": "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9",
-      "derivation_inputs_sha256": "34a6988d1213bcd98b970a5efe0d0af086cf4416c22106d287827fc9b88bbac6",
-      "size": 37806136,
-      "asset_name": "ApeEscapeRecomp-v0.3.0-windows-x64.zip",
+      "version": "v0.5.7",
+      "sha256": "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f",
+      "derivation_inputs_sha256": "d1752152bd2a2f5b95f2bb5dde53c85d2be94df4f47818d0e9dcffe55115f4ad",
+      "size": 46713030,
+      "asset_name": "ApeEscapeRecomp-v0.5.7-windows-x64.zip",
       "reviewed_by": "applicability:ape-escape-recompiled-game-source",
       "shape": {
         "programs": [
           "apeescaperecomp.exe",
+          "overlay_toolchain/psxrecomp-bios.exe",
           "overlay_toolchain/psxrecomp-game.exe",
           "overlay_toolchain/python/python.exe",
           "overlay_toolchain/python/pythonw.exe",
@@ -25,7 +26,7 @@
           "assets",
           "bios",
           "cache",
-          "docs",
+          "licenses",
           "mods",
           "overlay_toolchain"
         ],
@@ -33,32 +34,45 @@
           "mods/bundled"
         ],
         "persistent_overlap": [
-          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/manifest.toml",
-          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/readme.txt",
-          "mods/bundled/ape.enhancement.quick-gadget-select/1.0.0/manifest.toml",
-          "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/manifest.toml",
-          "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/readme.txt",
-          "mods/bundled/ape.enhancement.widescreen/1.0.0/manifest.toml",
-          "mods/bundled/ape.enhancement.widescreen/1.0.0/readme.txt",
-          "mods/bundled/psx.enhancement.cd-speed/1.0.0/manifest.toml",
-          "mods/bundled/psx.enhancement.fast-loading/1.0.0/manifest.toml",
-          "mods/bundled/psx.enhancement.pgxp/1.0.0/manifest.toml",
-          "mods/bundled/psx.presentation.bezel/1.0.0/manifest.toml",
-          "mods/readme.md"
+          "input.ini"
         ],
         "config_files": [
           "aot_cache_audit.json",
+          "apeescaperecomp.execution.json",
           "game.toml",
-          "mods/bundled/ape.enhancement.frame-smoothing/1.0.0/manifest.toml",
+          "input.ini",
+          "mods/bundled/ape.enhancement.geometry-interpolation/1.0.0/manifest.toml",
           "mods/bundled/ape.enhancement.quick-gadget-select/1.0.0/manifest.toml",
           "mods/bundled/ape.enhancement.skip-fmvs/1.0.0/manifest.toml",
           "mods/bundled/ape.enhancement.widescreen/1.0.0/manifest.toml",
-          "mods/bundled/psx.enhancement.cd-speed/1.0.0/manifest.toml",
-          "mods/bundled/psx.enhancement.fast-loading/1.0.0/manifest.toml",
+          "mods/bundled/ape.fix.prop-visibility/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.8mb-ram/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.crt-filter/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.enhanced-audio/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.hd-textures/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.image-filtering/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.internal-resolution/1.0.0/manifest.toml",
           "mods/bundled/psx.enhancement.pgxp/1.0.0/manifest.toml",
+          "mods/bundled/psx.enhancement.post-processing/1.0.0/manifest.toml",
+          "mods/bundled/psx.feature.rewind/1.0.0/manifest.toml",
+          "mods/bundled/psx.integration.debug-server/1.0.0/manifest.toml",
           "mods/bundled/psx.presentation.bezel/1.0.0/manifest.toml",
           "overlay_toolchain/bios/openbios.toml",
-          "overlay_toolchain/bios/scph1001.toml"
+          "overlay_toolchain/bios/scph1001.toml",
+          "overlay_toolchain/bios/scph101.toml",
+          "overlay_toolchain/bios/scph5500.toml",
+          "overlay_toolchain/bios/scph5501.toml",
+          "overlay_toolchain/bios/scph5552.toml",
+          "overlay_toolchain/recompiler/seeds/dispatch_miss_seeds.json",
+          "overlay_toolchain/recompiler/seeds/openbios_dispatch_miss.json",
+          "overlay_toolchain/recompiler/seeds/openbios_elf_seeds.json",
+          "overlay_toolchain/recompiler/seeds/phase1c_seeds.json",
+          "overlay_toolchain/recompiler/seeds/phase2_ghidra_seeds.json",
+          "overlay_toolchain/recompiler/seeds/phase2_ghidra_seeds_scph101.json",
+          "overlay_toolchain/recompiler/seeds/phase2_ghidra_seeds_scph5500.json",
+          "overlay_toolchain/recompiler/seeds/phase2_ghidra_seeds_scph5501.json",
+          "overlay_toolchain/recompiler/seeds/phase2_ghidra_seeds_scph5552.json",
+          "release_manifest.json"
         ],
         "missing_persistent_parents": []
       }
@@ -298,5 +312,5 @@
       }
     }
   ],
-  "entries_sha256": "2d3cc9feb87beac8f7b0343703d776192518acdc04e1f78d06e950cf7c15721b"
+  "entries_sha256": "f15e90e317de8fbd90fd5b7f1504f7023699b888998ddec81dfa903b3f147bb5"
 }
