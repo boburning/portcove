@@ -970,26 +970,30 @@ refused, each with its own reason. Core checks the package's SHA-1 hash tree:
 - each level-1 (and level-2) table against its parent;
 - each level-0 table, and each data block it reads, against its recorded SHA-1.
 
-Whether a mismatch refuses the package depends on what proves its integrity:
-
-- **Hash tree enforced.** A content identity, or any port that declares
-  `runtime_stfs_package`, relies on the tree, so any mismatch refuses the package.
-- **Advisory only.** A package admitted by an exact whole-package digest is already
-  proven by that digest. A mismatch is then reported, not refused: inspection lists
-  it in `integrity_advisories`, and extraction logs it as a warning. This keeps a
-  known package such as NocturneRecomp's working if Portcove's reading of the hash
-  format ever disagrees with a real package.
-
-Header parsing and every structural bound below are enforced for every package.
-
 The licence entries and the signature lie outside the header hash, so two owners'
 copies of one game can differ there while their verified content is identical. The
 RSA signature is not checked. A file entry with the contiguous flag reads sequential
-blocks; a recorded next pointer must then name the following block or be empty. The
-existing bounds remain: block numbers inside the allocated range, cycle detection for
-block and parent chains, at most 16,384 entries and depth 64, ASCII names, the shared
-traversal, reserved-name and case-collision checks, expanded bytes at most the package
-size and 16 GiB, and free space before writing.
+blocks; a recorded next pointer must then name the following block or be empty.
+
+Which checks refuse a package depends on what proves its integrity:
+
+| Check                                                                                                                                                                                                                                                                                | Enforced | Advisory                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- | ------------------------------- |
+| Container kind and layout (`CON`, two-table, SVOD), table and block counts, data base inside the file, block numbers in range, block and parent cycles, traversal, reserved and case-colliding names, at most 16,384 entries and depth 64, expanded bytes, free space before writing | Refuses  | Refuses                         |
+| Header SHA-1, top hash, level-2/1/0 tables, data blocks, truncated hash tables                                                                                                                                                                                                       | Refuses  | Advisory                        |
+| A contiguous file whose recorded chain disagrees                                                                                                                                                                                                                                     | Refuses  | Advisory; the chain is followed |
+| 16 GiB package cap, descriptor length `0x24`, header at least `0x3AD` bytes, at most three hash levels, block count fitting in the file                                                                                                                                              | Refuses  | Advisory                        |
+
+- **Enforced.** A content identity relies on the hash tree, and so does any port
+  that declares `runtime_stfs_package`; inspection is enforced for every profile such
+  a port binds, so the refusal happens at registration rather than at preparation.
+- **Advisory.** Everywhere else, an `stfs-directory` port's source profile must carry
+  an exact whole-package SHA-256 (`accepted_sha256`), which registration verified. The
+  reader then accepts every package the earlier reader accepted: inspection lists
+  findings in `integrity_advisories` and extraction logs them as a warning. This keeps
+  a known package such as NocturneRecomp's working if Portcove's reading of the format
+  ever disagrees with a real package. Extraction selects the policy from the binding
+  alone, relying on that catalog rule.
 
 A port may declare `runtime_stfs_package`, which requires staged-source capability
 **32**:
@@ -1007,7 +1011,8 @@ game, a title update or downloadable content is refused first with
 ### Package identity
 
 The `source_profile` of an `stfs-directory` port identifies the package in one of
-two ways, which may coexist as separate variants:
+two ways, which may coexist as separate variants. When one package matches both, the
+exact whole-package identity is the one admitted:
 
 - **Whole package.** A `compound` representation with format `stfs-live` and an
   exact whole-file digest. NocturneRecomp uses this form, and it keeps working

@@ -1261,9 +1261,12 @@ fn materialize_stfs_directory(
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
-    // Without a binding the port admits only an exact whole-package digest, which
-    // already proves the bytes, so a hash-tree mismatch is an advisory there. A binding
-    // (and so every content identity) always enforces the tree inside the reader.
+    // The policy is selected by the binding alone. With `runtime_stfs_package` the reader
+    // enforces every integrity check, and catalog validation requires that binding for
+    // any content identity. Without one, catalog validation requires the port's source
+    // profile to carry an exact whole-package SHA-256 (`accepted_sha256`), which
+    // registration verified, so integrity findings are advisories and the reader keeps
+    // only the bounds that prevent unsafe reads and writes.
     if let Err(error) = crate::stfs::extract_with_checkpoint(
         source,
         &temporary,

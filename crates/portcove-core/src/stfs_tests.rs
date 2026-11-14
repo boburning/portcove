@@ -95,11 +95,20 @@ fn extracts_chained_and_contiguous_live_and_pirs_packages() {
         Allocation::ContiguousWithoutPointers,
     ] {
         for magic in [*b"LIVE", *b"PIRS"] {
-            let mut builder = live(tree());
-            builder.magic = magic;
-            builder.allocation = allocation;
-            let extracted = extract(&builder.bytes()).unwrap();
-            assert_tree(&extracted.path().join("assets"));
+            // The LIVE/PIRS header (data base 0xA000) and the larger CON-sized one
+            // (data base 0xB000) both run through extraction and validation.
+            for header_size in [fixtures::HEADER_SIZE, LARGE_HEADER_SIZE] {
+                let mut builder = live(tree());
+                builder.magic = magic;
+                builder.allocation = allocation;
+                builder.header_size = header_size;
+                let bytes = builder.bytes();
+                let extracted = extract(&bytes).unwrap();
+                assert_tree(&extracted.path().join("assets"));
+                let source = write(extracted.path(), &bytes);
+                let summary = validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap();
+                assert!(summary.hash_advisories.is_empty());
+            }
         }
     }
 }
@@ -151,7 +160,7 @@ fn validates_level_one_trees_with_real_hashes() {
         // is then caught against the level-0 table it describes.
         let mut level1 = bytes.clone();
         level1[level1_offset(0) as usize + 0x18] ^= 1;
-        assert!(assert_refused(&level1).message.contains("hash check"));
+        assert!(assert_refused(&level1).message.contains("integrity check"));
         let mut resealed = level1.clone();
         let table = level1_offset(0) as usize;
         let top = sha1::Sha1::digest(&resealed[table..table + BLOCK]);
@@ -253,7 +262,10 @@ fn refuses_a_changed_byte_at_every_hash_level() {
         let mut changed = bytes.clone();
         changed[offset] ^= 0x01;
         let error = assert_refused(&changed);
-        assert!(error.message.contains("hash check"), "{label}: {error:?}");
+        assert!(
+            error.message.contains("integrity check"),
+            "{label}: {error:?}"
+        );
     }
     // A consistent edit everywhere except the header hash itself.
     let mut changed = bytes.clone();
@@ -593,7 +605,7 @@ fn an_advisory_read_reports_hash_mismatches_without_refusing() {
         validate(&source, HashPolicy::Enforce, &|| Ok(()))
             .unwrap_err()
             .message
-            .contains("hash check")
+            .contains("integrity check")
     );
     let bound = temporary.path().join("bound");
     let profile = binding(&["58410A6B"], &["000D0000"], bytes.len() as u64);
@@ -605,7 +617,7 @@ fn an_advisory_read_reports_hash_mismatches_without_refusing() {
         &|| Ok(()),
     )
     .unwrap_err();
-    assert!(error.message.contains("hash check"), "{error:?}");
+    assert!(error.message.contains("integrity check"), "{error:?}");
 }
 
 #[test]
@@ -645,4 +657,58 @@ fn an_advisory_read_still_enforces_every_structural_bound() {
             .is_err()
         );
     }
+}
+
+#[test]
+fn advisory_reads_accept_what_the_earlier_reader_accepted_and_enforced_reads_refuse_it() {
+    for (label, bytes) in relaxed_cases() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = write(temporary.path(), &bytes);
+        let summary = validate(&source, HashPolicy::Advisory, &|| Ok(()))
+            .unwrap_or_else(|error| panic!("{label}: {error:?}"));
+        assert!(!summary.hash_advisories.is_empty(), "{label}");
+        assert_eq!(
+            summary.file_sha256("default.xex").unwrap(),
+            hex::encode(Sha256::digest([0x58; 2 * BLOCK + 9])),
+            "{label}"
+        );
+        let destination = temporary.path().join("assets");
+        let advisories = extract_with_checkpoint(
+            &source,
+            &destination,
+            None,
+            HashPolicy::Advisory,
+            &|| Ok(()),
+        )
+        .unwrap_or_else(|error| panic!("{label}: {error:?}"));
+        assert!(!advisories.is_empty(), "{label}");
+        assert!(
+            validate(&source, HashPolicy::Enforce, &|| Ok(())).is_err(),
+            "{label}"
+        );
+    }
+}
+
+#[test]
+fn the_16_gib_cap_is_strict_only_for_enforced_reads() {
+    let temporary = tempfile::tempdir().unwrap();
+    let source = write(temporary.path(), &live(tree()).bytes());
+    // Sparse: no data is written past the package itself.
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&source)
+        .unwrap()
+        .set_len(MAX_PACKAGE_BYTES + 1)
+        .unwrap();
+    let summary = validate(&source, HashPolicy::Advisory, &|| Ok(())).unwrap();
+    assert!(
+        summary
+            .hash_advisories
+            .iter()
+            .any(|advisory| advisory.contains("16 GiB")),
+        "{:?}",
+        summary.hash_advisories
+    );
+    let error = validate(&source, HashPolicy::Enforce, &|| Ok(())).unwrap_err();
+    assert!(error.message.contains("16 GiB"), "{error:?}");
 }

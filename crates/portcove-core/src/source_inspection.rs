@@ -383,12 +383,11 @@ pub(crate) fn inspect_file(
     }
     let mut evidence = CompoundEvidence::default();
     if compound_format == Some(CompoundSourceFormat::StfsLive) || content {
-        // One complete structural and hash-tree pass serves both identity kinds. An exact
-        // whole-package digest already proves the bytes, so a hash-tree mismatch is only
-        // an advisory then; a content identity alone needs the tree to verify.
+        // One structural pass serves both identity kinds. It reports hash-tree findings as
+        // advisories; a strict profile then refuses any advisory (see `stfs_strict`).
         evidence.stfs = Some(crate::stfs::validate(
             path,
-            stfs_hash_policy(compound_format),
+            crate::stfs::HashPolicy::Advisory,
             &|| {
                 budget.checkpoint()?;
                 Ok(())
@@ -399,14 +398,18 @@ pub(crate) fn inspect_file(
     inspect_file_identity_with_compound(catalog, profile_id, path, &identity, &evidence)
 }
 
-/// The hash-tree policy for one structural pass: advisory only when an exact compound
-/// whole-file digest has matched, enforced otherwise.
-fn stfs_hash_policy(exact: Option<CompoundSourceFormat>) -> crate::stfs::HashPolicy {
-    if exact.is_some() {
-        crate::stfs::HashPolicy::Advisory
-    } else {
-        crate::stfs::HashPolicy::Enforce
-    }
+/// Whether a profile's STFS packages must pass every integrity check. That holds for a
+/// content identity, whose only proof is the hash tree, and for any profile a catalog
+/// port binds with `runtime_stfs_package`, whose extraction enforces the tree; refusing
+/// at inspection keeps that refusal at registration instead of at preparation. Other
+/// STFS profiles are proven by their exact whole-package digest, so integrity findings
+/// are advisories there.
+pub(crate) fn stfs_strict(catalog: &Catalog, profile_id: &str) -> bool {
+    stfs_content_declared(catalog, profile_id)
+        || catalog.ports().iter().any(|port| {
+            port.runtime_stfs_package.is_some()
+                && port.source_profile.as_deref() == Some(profile_id)
+        })
 }
 
 /// Whether a schema-2 profile declares a content-based STFS identity. Such a profile is
@@ -540,7 +543,7 @@ pub(crate) fn observe_compound_file(
         match crate::stfs::validate_reader(
             &mut input,
             initial.len(),
-            stfs_hash_policy(format),
+            crate::stfs::HashPolicy::Advisory,
             &checkpoint,
         ) {
             Ok(summary) => (
@@ -1882,6 +1885,16 @@ pub(crate) fn inspect_file_identity_with_compound(
             "STFS content identity requires successful structural validation",
         ));
     }
+    if let Some(advisory) = evidence
+        .stfs
+        .as_ref()
+        .and_then(|summary| summary.hash_advisories.first())
+        && stfs_strict(catalog, profile_id)
+    {
+        return Err(PortcoveError::verification(format!(
+            "STFS package failed its integrity check: {advisory}"
+        )));
+    }
     let record = identity.record_without_admission(profile_id, path);
 
     let Some(source_catalog) = catalog.source_catalog() else {
@@ -1917,7 +1930,7 @@ pub(crate) fn inspect_file_identity_with_compound(
             PortcoveError::state(format!("schema-2 source profile {profile_id} is missing"))
         })?;
 
-    let mut candidates = Vec::new();
+    let mut matches = Vec::new();
     for variant in profile
         .variants
         .iter()
@@ -1930,12 +1943,26 @@ pub(crate) fn inspect_file_identity_with_compound(
                     variant_id: variant.id.clone(),
                     representation_id: representation.id.clone(),
                 };
-                if !candidates.contains(&candidate) {
-                    candidates.push(candidate);
+                let content = matches!(
+                    representation.kind,
+                    SourceRepresentationKind::StfsContent { .. }
+                );
+                if !matches.iter().any(|(known, _)| *known == candidate) {
+                    matches.push((candidate, content));
                 }
             }
         }
     }
+    // One clean STFS package can match both its exact whole-package identity and a
+    // content identity of the same profile. They name one game, so the exact identity
+    // wins instead of the two being reported as ambiguous.
+    if matches.iter().any(|(_, content)| !content) {
+        matches.retain(|(_, content)| !content);
+    }
+    let candidates = matches
+        .into_iter()
+        .map(|(candidate, _)| candidate)
+        .collect::<Vec<_>>();
 
     let (classification, admission, admitted_record, message) = match candidates.as_slice() {
         [candidate] => (
@@ -4167,6 +4194,120 @@ mod tests {
             max_zip_entries: 4096,
         };
         let error = inspect_file(&catalog, "sotn-xbla", &path, u64::MAX, &mut budget).unwrap_err();
-        assert!(error.message.contains("hash check"), "{error:?}");
+        assert!(error.message.contains("integrity check"), "{error:?}");
+    }
+
+    /// The embedded catalog with SotN's exact identity set to `digest`, optionally with a
+    /// matching content identity and optionally binding NocturneRecomp.
+    fn exact_catalog(digest: &str, content: Option<&[u8]>, bound: bool) -> Catalog {
+        let mut document = if let Some(default_xex) = content {
+            content_identity_catalog(vec![crate::StfsPackageType::Live], "58410A6B", default_xex)
+                .authoritative_document()
+        } else {
+            Catalog::embedded().unwrap().authoritative_document()
+        };
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "sotn-xbla")
+            .unwrap();
+        let SourceRepresentationKind::Compound { identities, .. } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("SotN keeps its exact compound identity")
+        };
+        identities[0].sha256 = Some(digest.into());
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap();
+        port.runtime_stfs_package = bound.then(|| crate::StfsPackageProfile {
+            content_types: vec!["000D0000".into()],
+            title_ids: vec!["58410A6B".into()],
+            max_package_bytes: 1 << 30,
+        });
+        Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn a_package_matching_exact_and_content_identities_admits_one_identity() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        let package = content_package(|_| {});
+        fs::write(&path, &package).unwrap();
+        let catalog = exact_catalog(
+            &hex::encode(Sha256::digest(&package)),
+            Some(b"XEX2 synthetic"),
+            true,
+        );
+        // The content identity alone matches another owner's copy of this package.
+        let other = temporary.path().join("other");
+        fs::write(&other, content_package(|package| package.licence = [9; 16])).unwrap();
+        assert_content_admitted(&catalog, &other);
+
+        let admitted = inspect(&catalog, "sotn-xbla", &path);
+
+        assert!(
+            matches!(
+                &admitted.assessment.classification,
+                SourceClassification::Recognized { identity }
+                    if identity.variant_id == "legacy-accepted"
+            ),
+            "{admitted:?}"
+        );
+        assert!(matches!(
+            admitted.assessment.admission,
+            SourceAdmission::Admitted {
+                mode: SourceAdmissionMode::ExactIdentity
+            }
+        ));
+        assert!(admitted.record.is_some());
+    }
+
+    #[test]
+    fn an_exact_digest_admits_every_relaxed_package_with_an_advisory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("package");
+        for (label, bytes) in crate::stfs::fixtures::relaxed_cases() {
+            fs::write(&path, &bytes).unwrap();
+            let digest = hex::encode(Sha256::digest(&bytes));
+            let admitted = inspect(&exact_catalog(&digest, None, false), "sotn-xbla", &path);
+            assert!(
+                matches!(
+                    admitted.assessment.admission,
+                    SourceAdmission::Admitted {
+                        mode: SourceAdmissionMode::ExactIdentity
+                    }
+                ),
+                "{label}: {admitted:?}"
+            );
+            assert!(!admitted.integrity_advisories.is_empty(), "{label}");
+
+            // A port binding makes the profile strict, so the refusal comes at
+            // registration rather than when the game is prepared.
+            let mut budget = HashBudget {
+                checkpoint: None,
+                operation: None,
+                limit: u64::MAX,
+                hashed: 0,
+                max_zip_entries: 4096,
+            };
+            let error = inspect_file(
+                &exact_catalog(&digest, None, true),
+                "sotn-xbla",
+                &path,
+                u64::MAX,
+                &mut budget,
+            )
+            .unwrap_err();
+            assert!(
+                error.message.contains("integrity check"),
+                "{label}: {error:?}"
+            );
+        }
     }
 }

@@ -58,6 +58,8 @@ const DESCRIPTOR_LENGTH: u8 = 0x24;
 const VOLUME_TYPE: u64 = 0x3a9;
 /// The last header field read; a smaller header cannot hold them.
 const MINIMUM_HEADER_SIZE: u64 = VOLUME_TYPE + 4;
+/// The earlier reader's lower bound on the first hash table, kept for every policy.
+const MINIMUM_DATA_BASE: u64 = 0x400;
 
 /// Facts read from the package header. The header hash binds them once the package has
 /// been opened with [`open`]; [`read_header`] alone is an unverified preflight.
@@ -99,16 +101,23 @@ pub(crate) struct PackageSummary {
     pub(crate) hash_advisories: Vec<String>,
 }
 
-/// What a hash-tree mismatch does. Structural parsing and every safety bound are
-/// enforced either way; only the SHA-1 header, table and block comparisons differ.
+/// What an integrity finding does. Both policies always enforce the bounds that keep
+/// reads and writes safe: the container kind and layout, table and block counts, the
+/// data base inside the file, block numbers inside the allocated range, block and parent
+/// cycles, traversal, reserved and duplicate names, entry and depth limits, and
+/// expanded-size and free-space limits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum HashPolicy {
-    /// Refuse the package. Used where the hash tree provides integrity: a content
-    /// identity, and any port that declares an STFS package binding.
+    /// Refuse the package on any finding. Used where the hash tree provides integrity:
+    /// a content identity, and any port that declares an STFS package binding.
     Enforce,
-    /// Report the mismatch as an advisory. Used only where an exact whole-package
-    /// digest has already proven the bytes, so a disagreement with Portcove's reading of
-    /// the format must not refuse a known package.
+    /// Report findings as advisories and read on wherever the earlier reader did. Used
+    /// only where an exact whole-package digest has already proven the bytes. Findings
+    /// are the SHA-1 header, table and block comparisons, a truncated hash table, a
+    /// contiguous file whose recorded chain disagrees (the recorded chain is followed),
+    /// and the strict descriptor checks: the 16 GiB package cap, the descriptor length,
+    /// the minimum header size, at most three hash levels and the block count fitting in
+    /// the file. Without a bounded block count the hash tree is not checked at all.
     Advisory,
 }
 
@@ -161,7 +170,8 @@ struct Package<'a> {
     input: &'a mut File,
     size: u64,
     info: Info,
-    level0: Vec<[u8; 20]>,
+    /// Expected level-0 table digests; `None` when an advisory read had no bounded tree.
+    level0: Option<Vec<[u8; 20]>>,
     cached: Option<(u64, Box<[u8; BLOCK_SIZE as usize]>)>,
     policy: HashPolicy,
     advisories: Vec<String>,
@@ -172,7 +182,9 @@ fn unsupported(message: &str) -> PortcoveError {
 }
 
 fn hash_failure(message: &str) -> PortcoveError {
-    PortcoveError::verification(format!("STFS package failed its hash check: {message}"))
+    PortcoveError::verification(format!(
+        "STFS package failed its integrity check: {message}"
+    ))
 }
 
 /// Check the catalog binding against the header before anything is extracted.
@@ -220,7 +232,7 @@ pub(crate) fn check_binding(
 pub(crate) fn read_header_from_path(source: &Path) -> Result<Header> {
     let size = std::fs::metadata(source)?.len();
     let mut input = File::open(source)?;
-    Ok(parse_info(&mut input, size)?.header)
+    Ok(parse_info(&mut input, size, HashPolicy::Enforce)?.0.header)
 }
 
 /// Extract a package. A declared binding always enforces the hash tree; otherwise the
@@ -241,7 +253,7 @@ pub(crate) fn extract_with_checkpoint(
     let source_size = std::fs::metadata(source)?.len();
     let mut input = File::open(source)?;
     if let Some(profile) = binding {
-        let info = parse_info(&mut input, source_size)?;
+        let (info, _) = parse_info(&mut input, source_size, HashPolicy::Enforce)?;
         check_binding(&info.header, source_size, profile)?;
     }
     let policy = if binding.is_some() {
@@ -351,10 +363,16 @@ fn validate_expanded_size(entries: &[Entry], source_size: u64) -> Result<u64> {
     Ok(expanded)
 }
 
-fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
-    if source_size > MAX_PACKAGE_BYTES {
-        return Err(unsupported("STFS package exceeds the 16 GiB safety limit"));
-    }
+/// Parse the header and volume descriptor. The bounds every reader needs (container
+/// kind, layout, table and block counts, the data base inside the file) always refuse.
+/// The newer strict checks refuse under [`HashPolicy::Enforce`] and are returned as
+/// advisories under [`HashPolicy::Advisory`], so an exact-digest package is accepted
+/// wherever the earlier reader accepted it.
+fn parse_info(
+    input: &mut File,
+    source_size: u64,
+    policy: HashPolicy,
+) -> Result<(Info, Vec<String>)> {
     let magic = read_at::<4>(input, source_size, 0)?;
     let package_type = match &magic {
         b"LIVE" => StfsPackageType::Live,
@@ -396,20 +414,38 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
         .checked_add(BLOCK_SIZE - 1)
         .map(|value| value / BLOCK_SIZE * BLOCK_SIZE)
         .ok_or_else(|| PortcoveError::source("STFS header size overflowed"))?;
-    if descriptor[0] != DESCRIPTOR_LENGTH
-        || header_size < MINIMUM_HEADER_SIZE
-        || table_blocks == 0
+    if table_blocks == 0
         || usize::from(table_blocks) > MAX_ENTRIES / 64
         || total_blocks == 0
-        || u64::from(total_blocks) > HASH_LEVEL_2
         || first_table_block >= total_blocks
+        || data_base < MINIMUM_DATA_BASE
         || data_base >= source_size
-        // Every allocated block needs its own four KiB in the package.
-        || u64::from(total_blocks) > (source_size - data_base) / BLOCK_SIZE
     {
         return Err(unsupported(
             "STFS package has an unsupported or invalid volume descriptor",
         ));
+    }
+    let mut strict = Vec::new();
+    if source_size > MAX_PACKAGE_BYTES {
+        strict.push("the package exceeds the 16 GiB safety limit");
+    }
+    if descriptor[0] != DESCRIPTOR_LENGTH {
+        strict.push("the volume descriptor has an unexpected length");
+    }
+    if header_size < MINIMUM_HEADER_SIZE {
+        strict.push("the header is smaller than its own fields");
+    }
+    if u64::from(total_blocks) > HASH_LEVEL_2 {
+        strict.push("the block count needs more than three hash levels");
+    }
+    // Every allocated block needs its own four KiB in the package.
+    if u64::from(total_blocks) > (source_size - data_base) / BLOCK_SIZE {
+        strict.push("the block count does not fit in the package");
+    }
+    if let (HashPolicy::Enforce, Some(first)) = (policy, strict.first()) {
+        return Err(unsupported(&format!(
+            "STFS package has an unsupported or invalid volume descriptor: {first}"
+        )));
     }
     let mut word = |offset: u64| -> Result<u32> {
         Ok(u32::from_be_bytes(read_at(input, source_size, offset)?))
@@ -422,15 +458,18 @@ fn parse_info(input: &mut File, source_size: u64) -> Result<Info> {
         version: word(VERSION)?,
         base_version: word(BASE_VERSION)?,
     };
-    Ok(Info {
-        header,
-        layout,
-        table_blocks,
-        first_table_block,
-        total_blocks,
-        data_base,
-        top_hash,
-    })
+    Ok((
+        Info {
+            header,
+            layout,
+            table_blocks,
+            first_table_block,
+            total_blocks,
+            data_base,
+            top_hash,
+        },
+        strict.into_iter().map(str::to_owned).collect(),
+    ))
 }
 
 /// Parse and verify the header hash and every hash table above level 0.
@@ -440,7 +479,7 @@ fn open<'a>(
     policy: HashPolicy,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<Package<'a>> {
-    let info = parse_info(input, source_size)?;
+    let (info, strict) = parse_info(input, source_size, policy)?;
     checkpoint()?;
     let recorded = read_at::<20>(input, source_size, HEADER_HASH)?;
     let mut header_digest = Sha1::new();
@@ -460,36 +499,51 @@ fn open<'a>(
         input,
         size: source_size,
         info,
-        level0: Vec::new(),
+        level0: None,
         cached: None,
         policy,
         advisories: Vec::new(),
     };
+    for advisory in &strict {
+        package.mismatch(advisory)?;
+    }
     if !header_matches {
         package.mismatch("the header does not match its recorded hash")?;
     }
+    let tree_bounded =
+        total <= HASH_LEVEL_2 && total <= (package.size - package.info.data_base) / BLOCK_SIZE;
+    if !tree_bounded {
+        // An out-of-range block count gives no bounded hash tree to check. Only an
+        // advisory read reaches this; it reads level-0 next pointers unverified, as the
+        // earlier reader did.
+        package.mismatch("the hash tree was not checked")?;
+        return Ok(package);
+    }
     let top_hash = package.info.top_hash;
+    let mut level0 = Vec::new();
     if total <= ENTRIES_PER_TABLE {
-        package.level0.push(top_hash);
+        level0.push(top_hash);
     } else if total <= HASH_LEVEL_1 {
-        let level1 = package.verified_table(package.level1_offset(0)?, &top_hash, "level 1")?;
+        let level1 =
+            package.checked_table(package.level1_offset(0)?, Some(&top_hash), "level 1")?;
         for table in 0..level0_tables {
-            package.level0.push(entry_hash(&level1, table));
+            level0.push(entry_hash(&level1, table));
         }
     } else {
-        let level2 = package.verified_table(package.level2_offset()?, &top_hash, "level 2")?;
+        let level2 = package.checked_table(package.level2_offset()?, Some(&top_hash), "level 2")?;
         let level1_tables = total.div_ceil(HASH_LEVEL_1);
         for group in 0..level1_tables {
             checkpoint()?;
             let expected = entry_hash(&level2, group);
             let level1 =
-                package.verified_table(package.level1_offset(group)?, &expected, "level 1")?;
+                package.checked_table(package.level1_offset(group)?, Some(&expected), "level 1")?;
             let first = group * ENTRIES_PER_TABLE;
             for table in first..level0_tables.min(first + ENTRIES_PER_TABLE) {
-                package.level0.push(entry_hash(&level1, table));
+                level0.push(entry_hash(&level1, table));
             }
         }
     }
+    package.level0 = Some(level0);
     Ok(package)
 }
 
@@ -514,15 +568,26 @@ impl Package<'_> {
         }
     }
 
-    fn verified_table(
+    /// Read one hash table and compare it with its parent's digest, when there is one.
+    /// A table the file ends inside is zero-filled after the truncation is reported.
+    fn checked_table(
         &mut self,
         offset: u64,
-        expected: &[u8; 20],
+        expected: Option<&[u8; 20]>,
         level: &str,
     ) -> Result<Box<[u8; BLOCK_SIZE as usize]>> {
         let mut table = Box::new([0_u8; BLOCK_SIZE as usize]);
-        read_exact_at(self.input, self.size, offset, table.as_mut_slice())?;
-        if Sha1::digest(table.as_slice()).as_slice() != expected {
+        if offset >= self.size {
+            return Err(PortcoveError::source("STFS package is truncated"));
+        }
+        let available = (self.size - offset).min(BLOCK_SIZE) as usize;
+        if available < BLOCK_SIZE as usize {
+            self.mismatch(&format!("a {level} hash table is truncated"))?;
+        }
+        read_exact_at(self.input, self.size, offset, &mut table[..available])?;
+        if let Some(expected) = expected
+            && Sha1::digest(table.as_slice()).as_slice() != expected
+        {
             self.mismatch(&format!("a {level} hash table does not match its parent"))?;
         }
         Ok(table)
@@ -542,12 +607,14 @@ impl Package<'_> {
             .as_ref()
             .is_none_or(|(cached, _)| *cached != table)
         {
-            let expected = *self
-                .level0
-                .get(table as usize)
-                .ok_or_else(|| PortcoveError::source("STFS block has no level-0 hash table"))?;
+            let expected = match &self.level0 {
+                Some(level0) => Some(*level0.get(table as usize).ok_or_else(|| {
+                    PortcoveError::source("STFS block has no level-0 hash table")
+                })?),
+                None => None,
+            };
             let offset = self.level0_offset(block)?;
-            let bytes = self.verified_table(offset, &expected, "level 0")?;
+            let bytes = self.checked_table(offset, expected.as_ref(), "level 0")?;
             self.cached = Some((table, bytes));
         }
         let (_, bytes) = self.cached.as_ref().expect("cached level-0 table");
@@ -663,13 +730,16 @@ impl Package<'_> {
             if remaining > 0 {
                 let recorded = self.next_recorded(block)?;
                 block = if entry.contiguous {
+                    // Every read block is below the block count, so this cannot overflow.
                     let following = block + 1;
-                    if recorded != following && recorded != 0 {
-                        return Err(PortcoveError::source(
-                            "STFS contiguous file disagrees with its recorded block chain",
-                        ));
+                    if recorded == following || recorded == 0 {
+                        following
+                    } else {
+                        // An advisory read follows the recorded chain, as the earlier
+                        // reader did; the range and cycle checks above still apply.
+                        self.mismatch("a contiguous file disagrees with its recorded block chain")?;
+                        recorded
                     }
-                    following
                 } else {
                     recorded
                 };
@@ -777,8 +847,6 @@ fn plan_entries(
             if required_blocks > u64::from(entry.blocks)
                 || required_blocks > u64::from(u32::MAX)
                 || entry.size > source_size
-                || (entry.contiguous
-                    && u64::from(entry.first_block) + required_blocks > u64::from(END_OF_CHAIN))
             {
                 return Err(PortcoveError::source(
                     "STFS file entry has an invalid size or block count",

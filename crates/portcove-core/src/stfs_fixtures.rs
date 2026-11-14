@@ -11,8 +11,12 @@ pub(crate) const BLOCK: usize = 0x1000;
 const PER_TABLE: u64 = 170;
 const LEVEL_1: u64 = PER_TABLE * PER_TABLE;
 const END: u32 = 0x00ff_ffff;
-/// The common LIVE/PIRS header size; the data region starts at 0xB000.
-pub(crate) const HEADER_SIZE: u32 = 0xad0e;
+/// The LIVE/PIRS header size (Free60); the data region starts at 0xA000. Builders use it
+/// by default.
+pub(crate) const HEADER_SIZE: u32 = 0x971a;
+/// The CON header size (Free60); the data region starts at 0xB000. The historical
+/// single-file fixture keeps this layout so its fixed offsets stay valid.
+pub(crate) const LARGE_HEADER_SIZE: u32 = 0xad0e;
 pub(crate) const ARCADE_TITLE: u32 = 0x000d_0000;
 pub(crate) const TITLE_ID: u32 = 0x5841_0a6b;
 
@@ -42,6 +46,8 @@ pub(crate) enum Allocation {
 
 pub(crate) struct Builder {
     pub(crate) magic: [u8; 4],
+    /// Header size; the data region starts at the next 4 KiB boundary.
+    pub(crate) header_size: u32,
     pub(crate) content_type: u32,
     pub(crate) title_id: u32,
     pub(crate) media_id: u32,
@@ -61,6 +67,7 @@ pub(crate) struct Builder {
 pub(crate) fn live(items: Vec<Item>) -> Builder {
     Builder {
         magic: *b"LIVE",
+        header_size: HEADER_SIZE,
         content_type: ARCADE_TITLE,
         title_id: TITLE_ID,
         media_id: 0x1234_5678,
@@ -123,12 +130,37 @@ impl Built {
     }
 }
 
+fn base_for(header_size: u32) -> u64 {
+    (u64::from(header_size) + 0xfff) & !0xfff
+}
+
+/// The data base recorded in a built package's header.
+fn base_of(bytes: &[u8]) -> u64 {
+    base_for(u32::from_be_bytes(bytes[0x340..0x344].try_into().unwrap()))
+}
+
+/// The data base of a package built with the default header size.
 pub(crate) fn data_base() -> u64 {
-    (u64::from(HEADER_SIZE) + 0xfff) & !0xfff
+    base_for(HEADER_SIZE)
+}
+
+/// Byte offset of a data block in a default-header package.
+pub(crate) fn data_offset(block: u32) -> u64 {
+    data_offset_at(data_base(), block)
+}
+
+/// Byte offset of the level-0 table for a data block in a default-header package.
+pub(crate) fn level0_offset(block: u32) -> u64 {
+    level0_offset_at(data_base(), block)
+}
+
+/// Byte offset of a level-1 table in a default-header package.
+pub(crate) fn level1_offset(group: u64) -> u64 {
+    level1_offset_at(data_base(), group)
 }
 
 /// Byte offset of a data block (darkuni `backing_block`, single-table layout).
-pub(crate) fn data_offset(block: u32) -> u64 {
+fn data_offset_at(base: u64, block: u32) -> u64 {
     let n = u64::from(block);
     let r = (n + 0xaa) / 0xaa + n;
     let physical = if n < 0xaa {
@@ -138,11 +170,11 @@ pub(crate) fn data_offset(block: u32) -> u64 {
     } else {
         1 + r + (n + 0x70e4) / 0x70e4
     };
-    data_base() + physical * BLOCK as u64
+    base + physical * BLOCK as u64
 }
 
 /// Byte offset of the level-0 table covering a data block (darkuni `l0_hash_block`).
-pub(crate) fn level0_offset(block: u32) -> u64 {
+fn level0_offset_at(base: u64, block: u32) -> u64 {
     let n = u64::from(block);
     let physical = if n < 0xaa {
         0
@@ -150,17 +182,17 @@ pub(crate) fn level0_offset(block: u32) -> u64 {
         let value = (n / 0xaa) * 0xab + (n / 0x70e4 + 1);
         if n / 0x70e4 == 0 { value } else { value + 1 }
     };
-    data_base() + physical * BLOCK as u64
+    base + physical * BLOCK as u64
 }
 
 /// Byte offset of a level-1 table (Xenia `BlockToHashBlockNumberSTFS`, level 1).
-pub(crate) fn level1_offset(group: u64) -> u64 {
+fn level1_offset_at(base: u64, group: u64) -> u64 {
     let physical = if group == 0 { 0xab } else { group * 0x718f + 1 };
-    data_base() + physical * BLOCK as u64
+    base + physical * BLOCK as u64
 }
 
-pub(crate) fn level2_offset() -> u64 {
-    data_base() + 0x718f * BLOCK as u64
+fn level2_offset_at(base: u64) -> u64 {
+    base + 0x718f * BLOCK as u64
 }
 
 struct Flat {
@@ -203,6 +235,7 @@ fn path_of(entries: &[Flat], index: usize) -> String {
 
 impl Builder {
     pub(crate) fn build(&self) -> Built {
+        let base = base_for(self.header_size);
         let mut entries = Vec::new();
         flatten(&self.items, u16::MAX, &mut entries);
         let table_blocks = entries.len().div_ceil(64).max(1) as u32;
@@ -257,7 +290,7 @@ impl Builder {
             files.push(BuiltFile {
                 path: path_of(&entries, index),
                 blocks,
-                entry_offset: data_offset(0) as usize + index * 64,
+                entry_offset: data_offset_at(base, 0) as usize + index * 64,
             });
         }
         for block in 0..table_blocks {
@@ -267,9 +300,9 @@ impl Builder {
         let total = self.total_blocks.max(free).max(1);
         let zero_hash = Sha1::digest([0_u8; BLOCK]);
         let mut segments = BTreeMap::new();
-        let mut len = data_offset(total - 1) + BLOCK as u64;
+        let mut len = data_offset_at(base, total - 1) + BLOCK as u64;
         for (block, bytes) in &contents {
-            segments.insert(data_offset(*block), bytes.clone());
+            segments.insert(data_offset_at(base, *block), bytes.clone());
         }
         let level0_count = u64::from(total).div_ceil(PER_TABLE);
         let mut level0_hashes = Vec::new();
@@ -288,7 +321,7 @@ impl Builder {
                 entry[20..24].copy_from_slice(&info.to_be_bytes());
             }
             level0_hashes.push(Sha1::digest(&table));
-            let offset = level0_offset((table_index * PER_TABLE) as u32);
+            let offset = level0_offset_at(base, (table_index * PER_TABLE) as u32);
             len = len.max(offset + BLOCK as u64);
             segments.insert(offset, table);
         }
@@ -308,7 +341,7 @@ impl Builder {
                     table[slot * 0x18..slot * 0x18 + 20].copy_from_slice(hash);
                 }
                 level1_hashes.push(Sha1::digest(&table));
-                let offset = level1_offset(group);
+                let offset = level1_offset_at(base, group);
                 len = len.max(offset + BLOCK as u64);
                 segments.insert(offset, table);
             }
@@ -320,16 +353,16 @@ impl Builder {
                     table[slot * 0x18..slot * 0x18 + 20].copy_from_slice(hash);
                 }
                 let hash = Sha1::digest(&table);
-                len = len.max(level2_offset() + BLOCK as u64);
-                segments.insert(level2_offset(), table);
+                len = len.max(level2_offset_at(base) + BLOCK as u64);
+                segments.insert(level2_offset_at(base), table);
                 hash
             }
         };
 
-        let mut header = vec![0_u8; data_base() as usize];
+        let mut header = vec![0_u8; base as usize];
         header[..4].copy_from_slice(&self.magic);
         header[0x22c..0x23c].copy_from_slice(&self.licence);
-        header[0x340..0x344].copy_from_slice(&HEADER_SIZE.to_be_bytes());
+        header[0x340..0x344].copy_from_slice(&self.header_size.to_be_bytes());
         header[0x344..0x348].copy_from_slice(&self.content_type.to_be_bytes());
         header[0x354..0x358].copy_from_slice(&self.media_id.to_be_bytes());
         header[0x358..0x35c].copy_from_slice(&self.version.to_be_bytes());
@@ -360,7 +393,7 @@ impl Builder {
 /// Recompute the header hash after a deliberate header edit, so a test reaches the
 /// check it targets instead of the header hash.
 pub(crate) fn reseal_header(bytes: &mut [u8]) {
-    let end = data_base() as usize;
+    let end = base_of(bytes) as usize;
     let hash = Sha1::digest(&bytes[0x344..end]);
     bytes[0x32c..0x340].copy_from_slice(&hash);
 }
@@ -369,16 +402,17 @@ pub(crate) fn reseal_header(bytes: &mut [u8]) {
 /// level-0 entry, the level-0 table's parent entry (or the top hash) and the header.
 /// Only packages with at most one level-1 table are supported.
 pub(crate) fn reseal_block(bytes: &mut [u8], block: u32, total_blocks: u32) {
-    let data = data_offset(block) as usize;
+    let base = base_of(bytes);
+    let data = data_offset_at(base, block) as usize;
     let hash = Sha1::digest(&bytes[data..data + BLOCK]);
-    let table = level0_offset(block) as usize;
+    let table = level0_offset_at(base, block) as usize;
     let slot = (u64::from(block) % PER_TABLE) as usize * 0x18;
     bytes[table + slot..table + slot + 20].copy_from_slice(&hash);
     let table_hash = Sha1::digest(&bytes[table..table + BLOCK]);
     if u64::from(total_blocks) <= PER_TABLE {
         bytes[0x379 + 8..0x379 + 28].copy_from_slice(&table_hash);
     } else {
-        let level1 = level1_offset(0) as usize;
+        let level1 = level1_offset_at(base, 0) as usize;
         let slot = (u64::from(block) / PER_TABLE) as usize * 0x18;
         bytes[level1 + slot..level1 + slot + 20].copy_from_slice(&table_hash);
         let top = Sha1::digest(&bytes[level1..level1 + BLOCK]);
@@ -389,7 +423,8 @@ pub(crate) fn reseal_block(bytes: &mut [u8], block: u32, total_blocks: u32) {
 
 /// Replace a level-0 next pointer and reseal its table, keeping the hash tree valid.
 pub(crate) fn set_next(bytes: &mut [u8], block: u32, next: u32, total_blocks: u32) {
-    let table = level0_offset(block) as usize;
+    let base = base_of(bytes);
+    let table = level0_offset_at(base, block) as usize;
     let slot = (u64::from(block) % PER_TABLE) as usize * 0x18;
     bytes[table + slot + 20..table + slot + 24]
         .copy_from_slice(&(0x8000_0000 | next).to_be_bytes());
@@ -397,7 +432,7 @@ pub(crate) fn set_next(bytes: &mut [u8], block: u32, next: u32, total_blocks: u3
     if u64::from(total_blocks) <= PER_TABLE {
         bytes[0x379 + 8..0x379 + 28].copy_from_slice(&table_hash);
     } else {
-        let level1 = level1_offset(0) as usize;
+        let level1 = level1_offset_at(base, 0) as usize;
         let slot = (u64::from(block) / PER_TABLE) as usize * 0x18;
         bytes[level1 + slot..level1 + slot + 20].copy_from_slice(&table_hash);
         let top = Sha1::digest(&bytes[level1..level1 + BLOCK]);
@@ -406,10 +441,59 @@ pub(crate) fn set_next(bytes: &mut [u8], block: u32, next: u32, total_blocks: u3
     reseal_header(bytes);
 }
 
-/// A single-file LIVE package with the historical fixture layout: table at 0xC000 and
-/// `default.xex` from 0xD000.
+/// A single-file LIVE package with the historical fixture layout (the 0xAD0E header):
+/// level-0 table at 0xB000, file table at 0xC000 and `default.xex` from 0xD000.
 pub(crate) fn single_file(payload: &[u8]) -> Vec<u8> {
     let mut builder = live(vec![file("default.xex", payload)]);
+    builder.header_size = LARGE_HEADER_SIZE;
     builder.allocation = Allocation::Contiguous;
     builder.bytes()
+}
+
+/// Exact-digest packages that each break one check the earlier reader did not make.
+/// An advisory read accepts every one with an advisory; an enforced read refuses it.
+/// The 16 GiB cap needs a sparse file and is covered separately.
+pub(crate) fn relaxed_cases() -> Vec<(&'static str, Vec<u8>)> {
+    let tree = || {
+        vec![
+            file("default.xex", &[0x58; 2 * BLOCK + 9]),
+            dir("Media", vec![file("a.bin", &[5_u8; 3000])]),
+        ]
+    };
+    let mut cases = Vec::new();
+
+    let mut descriptor = live(tree()).bytes();
+    descriptor[0x379] = 0x23;
+    reseal_header(&mut descriptor);
+    cases.push(("volume descriptor length", descriptor));
+
+    let mut small_header = live(tree());
+    small_header.header_size = 0x380;
+    cases.push(("header smaller than its fields", small_header.bytes()));
+
+    let built = live(tree()).build();
+    let mut levels = built.to_vec();
+    levels[0x379 + 28..0x379 + 32].copy_from_slice(&(170_u32.pow(3) + 1).to_be_bytes());
+    reseal_header(&mut levels);
+    cases.push(("block count beyond three hash levels", levels));
+
+    let mut oversized = built.to_vec();
+    oversized[0x379 + 28..0x379 + 32].copy_from_slice(&(built.total_blocks + 64).to_be_bytes());
+    reseal_header(&mut oversized);
+    cases.push(("block count larger than the package", oversized));
+
+    // A level-1 table exists once more than 170 blocks are allocated; the files use only
+    // the first ones, so the earlier reader never read the truncated table.
+    let mut level1 = live(tree());
+    level1.total_blocks = 171;
+    let mut truncated = level1.bytes();
+    truncated.truncate(level1_offset(0) as usize + 100);
+    cases.push(("truncated level-1 table", truncated));
+
+    let mut contiguous = built.to_vec();
+    let entry = built.file("default.xex").entry_offset;
+    contiguous[entry + 0x28] |= 0x40;
+    reseal_block(&mut contiguous, 0, built.total_blocks);
+    cases.push(("contiguous flag on a chained file", contiguous));
+    cases
 }
