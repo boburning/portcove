@@ -407,12 +407,17 @@ export function pruneTable(text: string, catalog: unknown, shapeVersion: number)
   return { text: serializeTable(kept, shapeVersion, reviewed), removed };
 }
 
-/** Insert or replace one derived entry and return the new canonical table. */
+/**
+ * Insert or replace one derived entry and return the new canonical table.
+ * `derivation_inputs_sha256` is the digest Core reported for the catalog it
+ * derived with; it must equal the digest of the catalog being recorded
+ * against, so a CLI built before a catalog edit cannot stamp a stale shape.
+ */
 export function recordEntry(
   text: string,
   catalog: unknown,
   shapeVersion: number,
-  entry: Omit<ShapeEntry, "version" | "reviewed_by" | "derivation_inputs_sha256">,
+  entry: Omit<ShapeEntry, "version" | "reviewed_by">,
 ) {
   const table = JSON.parse(text) as ShapeTable;
   const reviewed = reviewedArtifacts(catalog);
@@ -423,6 +428,11 @@ export function recordEntry(
   if (!artifact)
     throw new Error(
       `${entry.port_id} ${entry.sha256} is not a reviewed catalog artifact (applicability row or hold)`,
+    );
+  const expected = derivationInputsDigest(catalogPorts(catalog).get(entry.port_id), entry.platform);
+  if (entry.derivation_inputs_sha256 !== expected)
+    throw new Error(
+      `the inspecting CLI derived ${entry.port_id} ${entry.platform} from different catalog facts (${String(entry.derivation_inputs_sha256)}) than catalog.json (${expected}); rebuild the CLI from this checkout (cargo build -p portcove-cli) or pass --cli, then record again`,
     );
   const problems = shapeProblems(entry.shape);
   if (problems.length) throw new Error(`derived shape is invalid: ${problems.join("; ")}`);
@@ -438,10 +448,6 @@ export function recordEntry(
     ...entry,
     version: artifact.version,
     reviewed_by: artifact.reviewed_by,
-    derivation_inputs_sha256: derivationInputsDigest(
-      catalogPorts(catalog).get(entry.port_id),
-      entry.platform,
-    ),
   });
   return serializeTable(kept, shapeVersion, reviewed);
 }
@@ -534,6 +540,10 @@ export function main(argv: readonly string[] = process.argv.slice(2)) {
       sha256,
       size: Number(required(argv, "--size")),
       asset_name: option(argv, "--asset-name") ?? basename(required(argv, "--archive")),
+      derivation_inputs_sha256:
+        typeof data.derivation_inputs_sha256 === "string"
+          ? data.derivation_inputs_sha256
+          : "absent",
       shape: data.shape as Shape,
     });
     writeFileSync(tablePath, output);

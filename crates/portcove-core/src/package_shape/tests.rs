@@ -501,6 +501,12 @@ fn the_embedded_generated_table_is_current_and_bound_to_reviewed_catalog_artifac
             .find(|port| port["id"] == port_id)
             .unwrap()
     };
+    // Core's embedded lookup is the same digest the inspection command reports.
+    let first = entries.first().unwrap();
+    assert_eq!(
+        embedded_derivation_inputs_sha256(&first.port_id, first.platform).as_deref(),
+        Some(first.derivation_inputs_sha256.as_str())
+    );
     let mut seen = BTreeSet::new();
     for entry in &entries {
         let port = catalog.port(&entry.port_id).unwrap();
@@ -519,40 +525,12 @@ fn the_embedded_generated_table_is_current_and_bound_to_reviewed_catalog_artifac
         let platform = serde_json::to_value(entry.platform).unwrap();
         assert_eq!(
             entry.derivation_inputs_sha256,
-            derivation_inputs_sha256(raw_port(&entry.port_id), platform.as_str().unwrap()),
+            derivation_inputs_sha256(raw_port(&entry.port_id), platform.as_str().unwrap()).unwrap(),
             "{} catalog facts the shape derivation reads changed; run node scripts/package-shape-baselines.mts --prune",
             entry.port_id
         );
         assert!(seen.insert((&entry.port_id, entry.platform, &entry.sha256)));
     }
-}
-
-/// Mirrors `derivationInputs` in `scripts/package-shape-baselines.mts`: the
-/// catalog facts `roots`, `derive` and `anchors` read for one route platform.
-fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str) -> String {
-    let runtime_subdirectory = match &port["runtime_subdirectory_by_platform"][platform] {
-        serde_json::Value::Null => port["runtime_subdirectory"].clone(),
-        value => value.clone(),
-    };
-    let mut inputs = serde_json::json!({
-        "adapter": port["adapter"],
-        "executable_hints": port["executable_hints"][platform],
-        "external_profile_policy": port["external_profile_policy"],
-        "grant_declared_executable": port["release"]["grant_declared_executable"],
-        "ignore_verified_macos_libraries":
-            port["reviewed_package_layouts"][platform]["ignore_verified_macos_libraries"],
-        "launch_from_install_root": port["launch_from_install_root"],
-        "managed_shared_preferences": port["managed_shared_preferences"],
-        "n64_runtime_at_executable_parent": port["n64_runtime_at_executable_parent"],
-        "persistent_file_patterns": port["persistent_file_patterns"],
-        "persistent_paths": port["persistent_paths"],
-        "runtime_subdirectory": runtime_subdirectory,
-        "tar_xz_platforms": port["release"]["tar_xz_platforms"],
-    });
-    inputs.sort_all_objects();
-    hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
-        serde_json::to_string(&inputs).unwrap().as_bytes(),
-    ))
 }
 
 /// The derivation version these golden shapes belong to. Any change to the
@@ -714,6 +692,8 @@ fn archive_inspection_derives_the_installer_shape() {
     let digest = crate::service::sha256_file(&path).unwrap();
     let inspection = inspect_package_shape_archive(&path, &port, PLATFORM, size, &digest).unwrap();
     assert_eq!(inspection.shape, shape_of(&port, REVIEWED));
+    // The fixture route is not in the embedded catalog.
+    assert_eq!(inspection.derivation_inputs_sha256, None);
     assert!(matches!(
         inspection.verdict,
         ShapeVerdict::Unknown {

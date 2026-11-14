@@ -233,6 +233,12 @@ pub struct PackageShapeInspection {
     pub shape: PackageShape,
     pub provenance: ShapeProvenance,
     pub verdict: ShapeVerdict,
+    /// Digest of the embedded catalog facts this derivation read for the
+    /// route platform; absent when the embedded catalog lacks the route. The
+    /// table generator refuses to record a shape whose digest differs from
+    /// the catalog it records against.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub derivation_inputs_sha256: Option<String>,
 }
 
 /// Whether an installation's manifest holds a package shape this build reads.
@@ -358,6 +364,52 @@ fn maximum_entries(package: &Path) -> usize {
     }
     let _ = package;
     MAXIMUM_ENTRIES
+}
+
+/// Digest of the raw catalog facts `roots`, `derive` and `anchors` read for
+/// one route platform. `derivationInputs` in
+/// `scripts/package-shape-baselines.mts` mirrors it; generated entries record
+/// it so a catalog edit to those facts makes the entry stale.
+pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str) -> Result<String> {
+    let runtime_subdirectory = match &port["runtime_subdirectory_by_platform"][platform] {
+        serde_json::Value::Null => port["runtime_subdirectory"].clone(),
+        value => value.clone(),
+    };
+    let mut inputs = serde_json::json!({
+        "adapter": port["adapter"],
+        "executable_hints": port["executable_hints"][platform],
+        "external_profile_policy": port["external_profile_policy"],
+        "grant_declared_executable": port["release"]["grant_declared_executable"],
+        "ignore_verified_macos_libraries":
+            port["reviewed_package_layouts"][platform]["ignore_verified_macos_libraries"],
+        "launch_from_install_root": port["launch_from_install_root"],
+        "managed_shared_preferences": port["managed_shared_preferences"],
+        "n64_runtime_at_executable_parent": port["n64_runtime_at_executable_parent"],
+        "persistent_file_patterns": port["persistent_file_patterns"],
+        "persistent_paths": port["persistent_paths"],
+        "runtime_subdirectory": runtime_subdirectory,
+        "tar_xz_platforms": port["release"]["tar_xz_platforms"],
+    });
+    inputs.sort_all_objects();
+    Ok(hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
+        serde_json::to_string(&inputs)?.as_bytes(),
+    )))
+}
+
+/// The derivation-input digest of a route platform in the catalog compiled
+/// into this build, or `None` when the embedded catalog has no such route.
+pub(crate) fn embedded_derivation_inputs_sha256(
+    port_id: &str,
+    platform: Platform,
+) -> Option<String> {
+    let document: serde_json::Value =
+        serde_json::from_str(crate::catalog::EMBEDDED_CATALOG).ok()?;
+    let port = document["ports"]
+        .as_array()?
+        .iter()
+        .find(|port| port["id"] == port_id)?;
+    let platform = serde_json::to_value(platform).ok()?;
+    derivation_inputs_sha256(port, platform.as_str()?).ok()
 }
 
 /// Inputs that locate declared persistent paths in an extracted package.
@@ -832,6 +884,7 @@ pub fn inspect_package_shape_archive(
         shape,
         provenance,
         verdict,
+        derivation_inputs_sha256: embedded_derivation_inputs_sha256(&port.id, platform),
     })
 }
 

@@ -331,12 +331,7 @@ void test("package shape check refuses a removed route, hand edits and a new der
 void test("recording a package shape requires a reviewed artifact and keeps canonical order", () => {
   const catalog = shapeCatalog();
   const table = JSON.parse(shapeTableText()) as ShapeTable;
-  const {
-    version: _version,
-    reviewed_by: _reviewed,
-    derivation_inputs_sha256: _inputs,
-    ...derived
-  } = firstShapeEntry(table);
+  const { version: _version, reviewed_by: _reviewed, ...derived } = firstShapeEntry(table);
   assert.equal(
     recordEntry(shapeTableText(), catalog, coreShapeVersion(), derived),
     shapeTableText(),
@@ -348,6 +343,24 @@ void test("recording a package shape requires a reviewed artifact and keeps cano
         sha256: "f".repeat(64),
       }),
     /not a reviewed catalog artifact/u,
+  );
+  // A CLI built before a catalog edit reports the old derivation inputs.
+  const port = (catalog.ports as Record<string, unknown>[]).find(
+    (candidate) => candidate.id === derived.port_id,
+  );
+  assert.ok(port);
+  port.persistent_paths = [...(port.persistent_paths as string[]), "new-state.ini"];
+  assert.throws(
+    () => recordEntry(shapeTableText(), catalog, coreShapeVersion(), derived),
+    /rebuild the CLI/u,
+  );
+  assert.throws(
+    () =>
+      recordEntry(shapeTableText(), shapeCatalog(), coreShapeVersion(), {
+        ...derived,
+        derivation_inputs_sha256: "absent",
+      }),
+    /rebuild the CLI/u,
   );
   const reviewed = reviewedArtifacts(catalog);
   assert.ok(reviewed.every((artifact) => /^[0-9a-f]{64}$/u.test(artifact.sha256)));

@@ -1954,6 +1954,10 @@ declared-executable grants, before any adapter adds content:
 - `missing_persistent_parents`: parents of declared persistent paths the
   package does not ship.
 
+Managed extraction never creates links: ZIP links are refused and an allowed
+TAR.XZ file link is written as a copy of its in-archive target, so every
+shipped file is a regular file the shape sees and links are not a blind spot.
+
 Comparison is exact set equality per part. A part one side does not know is
 reported as unknown, never as a pass: an explicit fingerprint knows only
 programs and top-level directories, and an unresolved declared executable, or a
@@ -1978,7 +1982,11 @@ adapter, the platform's executable hints and runtime subdirectory, persistent
 paths and file patterns, install-root persistence (`launch_from_install_root`,
 `n64_runtime_at_executable_parent`), the external profile policy, managed
 shared preferences, declared-executable grants, Mac TAR.XZ platforms and the
-explicit fingerprint's macOS library filter. CI runs the offline `--check`:
+explicit fingerprint's macOS library filter. Core computes that digest, and
+`inspect-package-shape` reports the one for the embedded catalog it derived
+with; `--record` refuses a shape whose digest differs from `catalog.json`, so a
+CLI built before a catalog edit cannot record a stale shape under current
+inputs (rebuild the CLI, then record again). CI runs the offline `--check`:
 canonical bytes, the entries digest, Core's `SHAPE_VERSION`, and that every
 entry still names a managed portable route, one of its platforms, a reviewed
 catalog artifact with the same version and unchanged derivation inputs. Core's
@@ -1999,7 +2007,9 @@ platform is the newest reviewed shape. Changing the derivation rules (the
 program classifier, the configuration extensions, a part or its anchoring)
 bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
 over a fixture fails on any such change until the version and the golden are
-updated together. After a bump Core ignores the table and recorded local shapes
+updated together. The golden fixture is a Windows route, so the Unix
+executable-bit and verified macOS library branches of the shared classifier
+are not pinned by it; a change there still requires the version bump. After a bump Core ignores the table and recorded local shapes
 of the older version, and `--prune` empties the table until entries are
 re-derived.
 

@@ -602,7 +602,9 @@ with the publisher's independently obtained size and digest. It verifies and
 extracts the bytes like `inspect-package-layout`, prepares them as the managed
 installer does for the embedded catalog's route, and returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
-`shape_version`, the derived `shape`, its `provenance` and a shadow `verdict`
+`shape_version`, the derived `shape`, its `provenance`, the
+`derivation_inputs_sha256` of the embedded catalog facts it derived with
+(absent for a route outside the embedded catalog) and a shadow `verdict`
 against the embedded generated table or explicit fingerprint
 ([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict
 `status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
