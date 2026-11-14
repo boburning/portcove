@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–32. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–33. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -596,6 +596,15 @@ older reader, which would extract without the header binding, refuses it. A cont
 identity is valid only for a port that declares the binding, so the same requirement
 covers it. The version adds no source, installation or publisher authority and does not
 change versions 2–31; NocturneRecomp declares no binding and keeps its requirement.
+
+Staged-source version 33 admits the `rom-patch` source materialization with its
+`runtime_rom_patch` declaration (see [ROM patching](CATALOG.md#rom-patching)): an exactly
+identified IPS, BPS or UPS patch is applied to an exactly identified original, both
+supplied by the player in one file-set source, and the result is used only when it
+matches its pinned identity. An indexed entry that declares `runtime_rom_patch` must
+require staged-source minimum version 33, so an older reader, which cannot apply a patch,
+refuses it instead of copying an unpatched file. The version adds no source, download,
+installation or publisher authority and does not change versions 2–32.
 
 ## Decision and threat model
 

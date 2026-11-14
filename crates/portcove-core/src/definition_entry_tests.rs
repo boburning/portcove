@@ -1111,8 +1111,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(33);
-        entry["required_capabilities"][0]["maximum_version"] = json!(33);
+        entry["required_capabilities"][0]["minimum_version"] = json!(34);
+        entry["required_capabilities"][0]["maximum_version"] = json!(34);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1552,6 +1552,39 @@ fn an_optional_game_source_requires_staged_source_version_31() {
 }
 
 #[test]
+fn rom_patch_entries_require_staged_source_version_33() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["runtime_rom_patch"] = json!({
+        "format": "bps",
+        "original_filenames": ["original.sfc"],
+        "original_sha256": "1".repeat(64),
+        "patch_filenames": ["translation.bps"],
+        "patch_sha256": "2".repeat(64),
+    });
+    for version in [15, 32] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 33"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(33);
+    entry["required_capabilities"][0]["maximum_version"] = json!(33);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    // The materialization alone also needs the capability.
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("runtime_rom_patch");
+    entry["port"]["runtime_source_materialization"] = json!("rom-patch");
+    entry["required_capabilities"][0]["minimum_version"] = json!(32);
+    entry["required_capabilities"][0]["maximum_version"] = json!(32);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 33"));
+}
+
+#[test]
 fn managed_shared_preferences_require_a_window_excluding_older_readers() {
     let catalog = crate::test_fixture::historical_managed_policy_catalog();
     let mut entry = entry_for_port(catalog.port("resident-evil-gaiden-recomp").unwrap());
@@ -1616,7 +1649,10 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.optional_game_source {
+        let version = if port.runtime_rom_patch.is_some() {
+            // ROM patching needs staged-source capability version 33; keep it first.
+            33
+        } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.

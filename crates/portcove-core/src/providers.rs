@@ -205,6 +205,7 @@ mod tests {
             runtime_source_hashes: BTreeMap::new(),
             runtime_disc_image: None,
             runtime_stfs_package: None,
+            runtime_rom_patch: None,
             optional_game_source: false,
             runtime_source_set: Vec::new(),
             launch_from_install_root: false,

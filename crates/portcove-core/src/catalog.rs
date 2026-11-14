@@ -1525,6 +1525,12 @@ impl Catalog {
                                 })
                             })
                     }
+                    // Inputs, output identity and the file-set members are checked below.
+                    RuntimeSourceMaterialization::RomPatch => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && port.runtime_rom_patch.is_some()
+                    }
                     RuntimeSourceMaterialization::StfsDirectory => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && Path::new(filename).extension().is_none()
@@ -1620,6 +1626,15 @@ impl Catalog {
                     port.id
                 )));
             }
+            if port.runtime_rom_patch.is_some()
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::RomPatch)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares a ROM patch without the rom-patch materialization",
+                    port.id
+                )));
+            }
             // An optional source is only meaningful where an unregistered source leaves a
             // usable runtime: a staged disc-image port whose unpacking is the only use of it.
             if port.optional_game_source
@@ -1662,6 +1677,14 @@ impl Catalog {
                     if !anchors_valid {
                         return Err(PortcoveError::usage(format!(
                             "{} has an incomplete disc-image runtime identity",
+                            port.id
+                        )));
+                    }
+                }
+                Some(RuntimeSourceMaterialization::RomPatch) => {
+                    if !rom_patch_declaration_is_valid(&self.document.source_profiles, port) {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid ROM patch declaration",
                             port.id
                         )));
                     }
@@ -1979,6 +2002,125 @@ fn is_safe_basename(value: &str) -> bool {
         && Path::new(value)
             .components()
             .all(|component| matches!(component, Component::Normal(_)))
+}
+
+/// A ROM patch combines exactly one original and one patch, both members of the
+/// port's file-set source pinned to one accepted SHA-256, into one runtime file
+/// whose only runtime identity is the exact patched SHA-256.
+fn rom_patch_declaration_is_valid(
+    source_profiles: &[crate::SourceProfile],
+    port: &PortDefinition,
+) -> bool {
+    let (Some(patch), Some(filename)) = (&port.runtime_rom_patch, &port.runtime_source_filename)
+    else {
+        return false;
+    };
+    let names = |filenames: &[String]| {
+        filenames
+            .iter()
+            .map(|value| value.to_ascii_lowercase())
+            .collect::<HashSet<_>>()
+    };
+    let Some(profile) = port.source_profile.as_ref().and_then(|profile_id| {
+        source_profiles
+            .iter()
+            .find(|profile| profile.id == *profile_id)
+    }) else {
+        return false;
+    };
+    let member_is_pinned = |filenames: &[String], sha256: &str| {
+        !filenames.is_empty()
+            && filenames.iter().all(|value| is_safe_basename(value))
+            && is_sha256(sha256)
+            && profile.members.iter().any(|member| {
+                names(&member.accepted_filenames) == names(filenames)
+                    && member
+                        .accepted_sha256
+                        .iter()
+                        .any(|accepted| accepted.eq_ignore_ascii_case(sha256))
+            })
+    };
+    profile.kind == SourceKind::FileSet
+        && member_is_pinned(&patch.original_filenames, &patch.original_sha256)
+        && member_is_pinned(&patch.patch_filenames, &patch.patch_sha256)
+        && names(&patch.original_filenames).is_disjoint(&names(&patch.patch_filenames))
+        && port.runtime_source_hashes.len() == 1
+        && port
+            .runtime_source_hashes
+            .get(filename)
+            .is_some_and(|digest| is_sha256(digest))
+}
+
+/// Port whose file-set source the ROM patch fixtures rebind.
+#[cfg(test)]
+pub(crate) const ROM_PATCH_FIXTURE_PORT: &str = "g-diffuser";
+
+/// Schema-3 catalog document in which one staged-source port declares a complete
+/// ROM patch: its file-set identity holds exactly the original and the patch.
+#[cfg(test)]
+pub(crate) fn rom_patch_fixture_document(
+    original_sha256: &str,
+    patch_sha256: &str,
+    output_sha256: &str,
+) -> CatalogDocument {
+    let mut document = Catalog::embedded().unwrap().authoritative_document();
+    let port = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == ROM_PATCH_FIXTURE_PORT)
+        .unwrap();
+    let profile_id = port.source_profile.clone().unwrap();
+    port.runtime_source_set.clear();
+    port.runtime_source_filename = Some("game.sfc".into());
+    port.runtime_source_materialization = Some(RuntimeSourceMaterialization::RomPatch);
+    port.runtime_source_hashes =
+        std::collections::BTreeMap::from([("game.sfc".into(), output_sha256.into())]);
+    port.persistent_paths.push("game.sfc".into());
+    port.runtime_rom_patch = Some(crate::RomPatchProfile {
+        format: crate::RomPatchFormat::Bps,
+        original_filenames: vec!["original.sfc".into()],
+        original_sha256: original_sha256.into(),
+        patch_filenames: vec!["translation.bps".into()],
+        patch_sha256: patch_sha256.into(),
+    });
+    let member = |id: &str, filename: &str, sha256: &str| crate::SourceMemberIdentity {
+        id: id.into(),
+        label: format!("Fixture {id}"),
+        filenames: vec![filename.into()],
+        identities: vec![crate::DigestIdentity {
+            scope: crate::DigestScope::FileSetMember,
+            sha1: None,
+            sha256: Some(sha256.into()),
+            crc32: None,
+        }],
+    };
+    let identity = document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .identities
+        .iter_mut()
+        .find(|identity| identity.id == profile_id)
+        .unwrap();
+    // The fixture rewrites exactly one representation; a catalog change that adds
+    // another must fail here rather than leave a member set the test did not mean.
+    assert_eq!(identity.variants.len(), 1, "{profile_id} variants");
+    assert_eq!(
+        identity.variants[0].representations.len(),
+        1,
+        "{profile_id} representations"
+    );
+    for variant in &mut identity.variants {
+        for representation in &mut variant.representations {
+            representation.kind = crate::SourceRepresentationKind::FileSet {
+                members: vec![
+                    member("original", "original.sfc", original_sha256),
+                    member("patch", "translation.bps", patch_sha256),
+                ],
+            };
+        }
+    }
+    document
 }
 
 /// A named portable marker is one plain file name that the port also declares persistent,
@@ -5532,6 +5674,124 @@ mod tests {
                 !crate::source_inspection::stfs_content_declared(&catalog, profile)
             })
         }));
+    }
+
+    fn rom_patch_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
+        let mut document =
+            rom_patch_fixture_document(&"1".repeat(64), &"2".repeat(64), &"3".repeat(64));
+        mutate(
+            document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == ROM_PATCH_FIXTURE_PORT)
+                .unwrap(),
+        );
+        Catalog::from_document(document)
+    }
+
+    #[test]
+    fn a_complete_rom_patch_declaration_is_accepted_through_source_authority() {
+        let catalog = rom_patch_catalog(|_| {}).expect("a complete declaration is valid");
+        let port = catalog.port(ROM_PATCH_FIXTURE_PORT).unwrap();
+        assert!(port.runtime_source_set.is_empty());
+        assert_eq!(port.runtime_source_filename.as_deref(), Some("game.sfc"));
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap();
+        assert_eq!(profile.kind, SourceKind::FileSet);
+        assert_eq!(profile.members.len(), 2);
+    }
+
+    #[test]
+    fn rom_patch_inputs_must_come_from_a_basename_file_set() {
+        let document =
+            rom_patch_fixture_document(&"1".repeat(64), &"2".repeat(64), &"3".repeat(64));
+        let catalog = Catalog::from_document(document).unwrap();
+        let port = catalog.port(ROM_PATCH_FIXTURE_PORT).unwrap();
+        let profile = catalog
+            .source_profile(port.source_profile.as_deref().unwrap())
+            .unwrap()
+            .clone();
+        assert!(rom_patch_declaration_is_valid(
+            std::slice::from_ref(&profile),
+            port
+        ));
+        for kind in [SourceKind::File, SourceKind::RelativeFileSet] {
+            let mut other = profile.clone();
+            other.kind = kind;
+            assert!(
+                !rom_patch_declaration_is_valid(std::slice::from_ref(&other), port),
+                "{kind:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn rom_patch_materialization_requires_a_complete_exact_declaration() {
+        rom_patch_catalog(|_| {}).expect("a complete synthetic declaration is valid");
+        type Mutation = fn(&mut PortDefinition);
+        let rejected: [(&str, Mutation); 11] = [
+            ("missing declaration", |port| port.runtime_rom_patch = None),
+            ("declaration without rom-patch", |port| {
+                port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
+            }),
+            ("original not an accepted member hash", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().original_sha256 = "4".repeat(64);
+            }),
+            ("patch not an accepted member hash", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().patch_sha256 = "1".repeat(64);
+            }),
+            ("original filenames match no member", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().original_filenames =
+                    vec!["other.sfc".into()];
+            }),
+            ("same member for both inputs", |port| {
+                let patch = port.runtime_rom_patch.as_mut().unwrap();
+                patch.patch_filenames = patch.original_filenames.clone();
+                patch.patch_sha256 = patch.original_sha256.clone();
+            }),
+            ("no output identity", |port| {
+                port.runtime_source_hashes.clear()
+            }),
+            ("output identity for another file", |port| {
+                port.runtime_source_hashes =
+                    std::collections::BTreeMap::from([("other.sfc".into(), "3".repeat(64))]);
+            }),
+            ("several output identities", |port| {
+                port.runtime_source_hashes
+                    .insert("extra.sfc".into(), "5".repeat(64));
+            }),
+            ("destination not persistent", |port| {
+                port.persistent_paths.retain(|path| path != "game.sfc");
+            }),
+            ("patch filenames match no member", |port| {
+                port.runtime_rom_patch.as_mut().unwrap().patch_filenames = vec!["other.bps".into()];
+            }),
+        ];
+        for (label, mutate) in rejected {
+            let error = rom_patch_catalog(mutate)
+                .err()
+                .unwrap_or_else(|| panic!("{label} must be rejected"));
+            assert_eq!(
+                error.code,
+                crate::ErrorCode::Usage,
+                "{label}: {}",
+                error.message
+            );
+        }
+    }
+
+    #[test]
+    fn no_shipped_definition_declares_a_rom_patch() {
+        for port in Catalog::embedded().unwrap().ports() {
+            assert!(port.runtime_rom_patch.is_none(), "{}", port.id);
+            assert_ne!(
+                port.runtime_source_materialization,
+                Some(RuntimeSourceMaterialization::RomPatch),
+                "{}",
+                port.id
+            );
+        }
     }
 
     fn disc_image_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {

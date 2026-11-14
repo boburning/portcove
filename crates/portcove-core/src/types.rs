@@ -322,6 +322,9 @@ pub enum RuntimeSourceMaterialization {
     XdvdfsDirectory,
     /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
     Iso9660Directory,
+    /// Apply an exactly identified patch to an exactly identified original from a
+    /// file-set source and write the verified patched file; older engines reject this value.
+    RomPatch,
 }
 
 impl RuntimeSourceMaterialization {
@@ -369,6 +372,32 @@ pub struct StfsPackageProfile {
     pub title_ids: Vec<String>,
     /// Explicit bound on the selected package in bytes; at most 16 GiB.
     pub max_package_bytes: u64,
+}
+
+/// Patch file format applied by the `rom-patch` materialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RomPatchFormat {
+    Ips,
+    Bps,
+    Ups,
+}
+
+/// Port declaration for producing a patched runtime file from two members of the
+/// port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+/// output is pinned by the port's single `runtime_source_hashes` entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RomPatchProfile {
+    pub format: RomPatchFormat,
+    /// Accepted filenames of the file-set member holding the unmodified original.
+    pub original_filenames: Vec<String>,
+    /// The one original this patch applies to; also an accepted SHA-256 of its member.
+    pub original_sha256: String,
+    /// Accepted filenames of the file-set member holding the patch file.
+    pub patch_filenames: Vec<String>,
+    /// The one reviewed patch file; also an accepted SHA-256 of its member.
+    pub patch_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -901,6 +930,10 @@ pub struct PortDefinition {
     /// and content types and a size bound, checked before extraction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_stfs_package: Option<StfsPackageProfile>,
+    /// Required by, and only valid with, the `rom-patch` materialization: the
+    /// patch format and the exact original and patch members it combines.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_rom_patch: Option<RomPatchProfile>,
     /// A disc-image source that is offered but not required: with none registered the
     /// game is not blocked and the runtime and its persistent files are left as they are;
     /// when one is registered it is unpacked as for a required source. Only valid with a

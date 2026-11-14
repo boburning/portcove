@@ -451,11 +451,16 @@ export type RuntimeDataPolicy = "racewave46-v1.0.0-windows" | "version-local-ret
  * Disc file-system an image is read as.
  */
 export type DiscImageFormat = "xdvdfs" | "iso9660";
+/**
+ * Patch file format applied by the `rom-patch` materialization.
+ */
+export type RomPatchFormat = "ips" | "bps" | "ups";
 export type RuntimeSourceMaterialization =
   | ("n64-big-endian" | "copy" | "gamecube-iso" | "psx-bin-cue" | "psx-raw-set" | "ps2-iso" | "stfs-directory")
   | "regaiden-gbc"
   | "xdvdfs-directory"
-  | "iso9660-directory";
+  | "iso9660-directory"
+  | "rom-patch";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -2324,6 +2329,11 @@ export interface PortDefinition {
   runtime_disc_image?: DiscImageProfile | null;
   runtime_mutable_file_patterns?: PersistentFilePattern[];
   runtime_mutable_paths: string[];
+  /**
+   * Required by, and only valid with, the `rom-patch` materialization: the
+   * patch format and the exact original and patch members it combines.
+   */
+  runtime_rom_patch?: RomPatchProfile | null;
   runtime_source_filename: string | null;
   runtime_source_hashes: {
     [k: string]: string;
@@ -2735,6 +2745,30 @@ export interface DiscImageProfile {
    */
   product_codes: string[];
   [k: string]: unknown;
+}
+/**
+ * Port declaration for producing a patched runtime file from two members of the
+ * port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+ * output is pinned by the port's single `runtime_source_hashes` entry.
+ */
+export interface RomPatchProfile {
+  format: RomPatchFormat;
+  /**
+   * Accepted filenames of the file-set member holding the unmodified original.
+   */
+  original_filenames: string[];
+  /**
+   * The one original this patch applies to; also an accepted SHA-256 of its member.
+   */
+  original_sha256: string;
+  /**
+   * Accepted filenames of the file-set member holding the patch file.
+   */
+  patch_filenames: string[];
+  /**
+   * The one reviewed patch file; also an accepted SHA-256 of its member.
+   */
+  patch_sha256: string;
 }
 export interface RuntimeSourceTarget {
   destination: string;
