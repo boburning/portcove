@@ -160,7 +160,6 @@ export PORTCOVE_PACKAGE_NAME="$package_name"
 export PORTCOVE_INSTALLED_SHA256="$hash_after"
 export PORTCOVE_INSTALLED_MODE="$installed_mode"
 export PORTCOVE_INSTALLED_EXECUTABLE="$installed_executable"
-export PORTCOVE_GUIDANCE_FILE="$guidance_file"
 node --input-type=module <<'NODE'
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -185,12 +184,10 @@ const evidence = {
     installed_executable: process.env.PORTCOVE_INSTALLED_EXECUTABLE,
     installed_sha256: process.env.PORTCOVE_INSTALLED_SHA256,
     installed_mode: process.env.PORTCOVE_INSTALLED_MODE,
-    guidance: readFileSync(process.env.PORTCOVE_GUIDANCE_FILE, "utf8").trim(),
   },
-  display_unset: true,
   package_managed_files_unchanged: true,
 };
 writeFileSync(join(root, "package-ownership-evidence.json"), `${JSON.stringify(evidence, null, 2)}\n`);
 NODE
 
-echo "$expected_manager package ownership guidance passed."
+echo "$expected_manager package ownership passed."
