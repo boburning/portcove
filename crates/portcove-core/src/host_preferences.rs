@@ -17,6 +17,7 @@ const MAX_BYTES: u64 = 64 * 1024;
 const INVALID_DOCUMENT_DETAIL: &str = "invalid_host_preference_document";
 const FAVORITES_KEY: &str = "favorites_by_library";
 
+mod dat_references;
 mod organization;
 pub(crate) mod recommendations;
 pub use organization::{

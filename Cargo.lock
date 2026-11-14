@@ -3640,6 +3640,7 @@ dependencies = [
  "libc",
  "lzma-turbo",
  "proptest",
+ "quick-xml",
  "reqwest",
  "rusqlite",
  "rustix",
