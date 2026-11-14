@@ -1178,8 +1178,10 @@ export async function selectedSetupCompletionScenario({
         until.elementLocated(By.css('[aria-labelledby="install-review-title"]')),
         15_000,
       );
+      // The open review covers the detail page, so WebDriver reports its title as
+      // not displayed; textContent still identifies which game the review is for.
       assert.equal(
-        await browser.findElement(By.id("port-detail-title")).getText(),
+        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
         reviewPort.name,
       );
       await click(button("Cancel review"));

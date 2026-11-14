@@ -266,7 +266,8 @@ successful launch, and the backup review's wait to close after a deletion, are c
 from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
-includes the preparation journey gets a 20-minute harness watchdog instead of 10. Its
+includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
+selected-setup completion journey gets 10 minutes instead of 3. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

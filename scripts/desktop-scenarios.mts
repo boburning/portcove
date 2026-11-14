@@ -969,6 +969,10 @@ export function desktopHarnessDeadlineMs(
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
+  // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
+  // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
+  // 180 s watchdog left no room for failure capture and cleanup. Harness only.
+  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))

@@ -3084,7 +3084,7 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
     required(desktopScenarioById.get(id)).source,
     "desktop-selected-setup-completion-test.mts",
   );
-  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selected), 600_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   assert.throws(
     () =>
