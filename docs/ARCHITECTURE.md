@@ -1436,6 +1436,15 @@ which its uninstaller deletes the jump list. The list is then written under that
 ID and each entry carries it, so windows started from an entry group with the
 installed shortcuts. Development, fixture and portable runs keep the default
 per-executable identity and never write the installed application's list.
+Because the check is update admission's fail-closed test, an installed run that
+finds an ambiguous or stale second registration, a version mismatch, a reparse
+point or an unreadable or oversized Uninstall inventory also keeps the
+per-executable identity; that run's list then does not appear on the pinned
+button, and a debug log names the failing stage. Shipped releases are
+current-user NSIS installs. An existing pin created from a window that had no
+explicit identity (the installer's post-install launch, an updater relaunch or
+starting the executable directly) may show as a separate taskbar button after
+this change.
 
 Each entry starts the Desktop executable with exactly `--portcove-play
 <port-id>`. Desktop registers no URL scheme, protocol handler or listener for
