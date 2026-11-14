@@ -470,7 +470,7 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
     let fixture = authority_provisioning::separated_fixture();
     let key = Key::new(fixture._directory.path());
     let (_temp, library) = library();
-    let embedded = Catalog::embedded();
+    let embedded = Catalog::embedded().unwrap();
     assert!(
         embedded
             .listing("severed-chains")
