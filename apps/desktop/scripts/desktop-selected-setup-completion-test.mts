@@ -1362,7 +1362,7 @@ export async function selectedSetupCompletionScenario({
       await click(button(`Review ${fixture.refreshPort.name} setup`));
       await browser.wait(until.elementLocated(installDialog), 15_000);
       assert.equal(
-        await browser.findElement(By.id("port-detail-title")).getText(),
+        (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
         fixture.refreshPort.name,
       );
       const biosPlan = await read("plan_port", {
