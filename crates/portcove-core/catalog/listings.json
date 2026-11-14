@@ -18697,7 +18697,7 @@
       "issue_number": 1821,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md",
+      "setup_url": "https://github.com/craigshaw/FZeroRecomp#readme",
       "artwork": {
         "game_id": 3490,
         "cover_id": 319391,
@@ -18706,21 +18706,26 @@
         "game_slug": "f-zero",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/craigshaw/FZeroRecomp/releases/tag/v0.6.0",
+      "release_url": "https://github.com/craigshaw/FZeroRecomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Start with your original game",
             "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+          },
+          {
+            "title": "Set up the Apple Silicon app",
+            "instruction": "On Apple Silicon with macOS 13 or later, download the upstream arm64 ZIP and extract the complete app outside your Portcove library. Follow upstream’s first-launch instructions. Choose your own supported F-Zero USA ROM. Keep the actual FZeroRecomp profile under Library/Application Support and any custom save folder."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+        "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
       },
       "original_game_title": "F-Zero",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -21321,6 +21326,10 @@
           {
             "title": "Choose your original disc on Play",
             "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+          },
+          {
+            "title": "Set up the universal Mac app",
+            "instruction": "On Intel or Apple Silicon with macOS 11 or later, extract the upstream macOS ZIP with the system archive tool and keep the complete app. If downloading through Portcove, clear “Extract the archive after downloading”. Follow upstream’s first-launch instructions. Use your own supported USA disc. Preserve the actual AlienResurrection profile under Library/Application Support or your custom save directory."
           }
         ],
         "warnings": [
@@ -21337,7 +21346,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
