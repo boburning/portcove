@@ -9,7 +9,7 @@ Project fields keep their authority. Nothing was installed, executed or played.
 
 | Route / issue                        | Reviewed → newest       | Outcome                                                                 |
 | ------------------------------------ | ----------------------- | ----------------------------------------------------------------------- |
-| `sonic-the-hedgehog-2-recomp` / #153 | v0.8.3 → v0.9.23        | `logs` declared; v0.9.23 applicability row and evidence appended        |
+| `sonic-the-hedgehog-2-recomp` / #153 | v0.8.3 → v0.9.23        | `logs` declared disposable; v0.9.23 row and evidence appended           |
 | `ape-escape-recompiled` / #142       | v0.3.0 → v0.5.7         | Split mod paths and new writers declared; v0.5.7 row and evidence added |
 | `sonic-the-hedgehog-recomp` / #152   | v0.7.3, v0.8.3 → v1.2.0 | Unchanged: owner decision needed (see below)                            |
 
@@ -72,22 +72,34 @@ binds commits, not tag names.
   `.config.ini`, `.mods.txt` and `.mods.toml` sidecars and two rotated
   previous captures. The v0.8.3 engine and game never create `logs`. The
   pinned recomp-ui (`7e884a22` → `761f76e7`) has the same data filename set.
+  v0.9.23 no longer ships `build-info.json`, so nothing in the package names
+  the commit it was built from; this source review binds the tag commit, not
+  the package build.
 - **Inputs.** The new Megamix v3 donor and the existing Amy and Sonic 3 &
   Knuckles donors are read from player-selected paths stored in
   `sonic2-party.ini`. A fallback reads `assets/characters/{amy-1.7.1,megamix-v3}.bin`
   beside the executable, which only a player places there; Portcove neither
   creates nor carries those files.
 
-**Decision.** `logs` is declared persistent, as on the Sonic 1 route, and the
-player explanation names the recorder, its private contents, its bounds and
-its opt-out. The v0.9.23 package is appended to the source contract.
+**Decision.** `logs` is declared as disposable runtime output
+(`runtime_mutable_paths`), like other diagnostics that stay with each version.
+The player explanation names the recorder, its private contents and bounds,
+that recordings stay with each installed version and are not backed up, and
+the in-game switch that turns it off.
 
-**Existing installations.** Only a path is added; every other execution field
-is unchanged. A v0.8.3 copy may recognize the new path (`installed_mutability`
-additive grant), and the ready-archive update to a strictly larger scope
-proceeds only while `logs` is absent from the active runtime, canonical data
-and destination. v0.8.3 never writes it. A copy where something already
-created `logs` stays on its current version with every file preserved.
+**Why not persistent.** Sonic 2 is a ready staged archive, so its installations
+are governed by a restore receipt. A v0.8.3 copy would borrow a new persistent
+path additively (`installed_mutability`), and the persistence-contract check
+then refuses collection, launch restore, backup, restore and the update for a
+receipt-governed copy whose interpreted paths differ from its retained scope.
+A first commit declared `logs` persistent; independent review found that this
+would hold every existing installation, and it was changed before merge.
+
+**Existing installations.** The persistent scope is unchanged, so v0.8.3 copies
+keep their exact retained contract. A new lifecycle test registers a copy under
+the pre-change definition and checks collection, launch restore, backup and the
+update to the new release, then confirms recordings are neither collected nor
+backed up.
 
 ## Ape Escape v0.5.7 (#142)
 
@@ -116,7 +128,11 @@ created `logs` stays on its current version with every file preserved.
   `mods/texture-packs/<game>/` for the bundled HD-texture package, keeps a
   derived-disc cache in `mods/cache`, and on start moves a flat
   `mods/packages/<id>/<version>` into `mods/installed`, deleting it only when
-  `mods/bundled` or `mods/installed` already has that ID and version. This
+  `mods/bundled` or `mods/installed` already has that ID and version. The
+  v0.3.0 framework `52dd4dff` already used the same `bundled`/`installed`
+  roots, migration and `state.toml` format (versions 1 and 2), and in both an
+  installed package with a built-in package's ID and version replaces the
+  built-in one. This
   matches the split layout the reviewed `7192402` kits use
   ([whole-to-split record](psxrecomp-7192402-whole-to-split-2026-11-13.md)),
   although `1b84d4fd` is a separate lineage (merge base August 28, 2026); the
@@ -128,15 +144,33 @@ created `logs` stays on its current version with every file preserved.
   `settings.toml.bad`. `saves/netplay/net_diag.jsonl` stays under `saves`.
   `moderation.ini` is written only by the launcher, which `--no-launcher`
   skips. No mod package is downloaded from the network.
+- **Built-in mods.** v0.5.7 adds `ape.enhancement.geometry-interpolation`,
+  `ape.fix.prop-visibility`, `psx.enhancement.8mb-ram`,
+  `psx.enhancement.crt-filter`, `psx.enhancement.enhanced-audio`,
+  `psx.enhancement.hd-textures`, `psx.enhancement.image-filtering`,
+  `psx.enhancement.internal-resolution`, `psx.enhancement.post-processing`,
+  `psx.feature.rewind` and `psx.integration.debug-server`. It removes
+  `ape.enhancement.frame-smoothing`, `psx.enhancement.cd-speed` and
+  `psx.enhancement.fast-loading`. The framework's `psx.integration.debug-server`
+  manifest declares `default_enabled = false`; when enabled it listens on
+  127.0.0.1 port 4370 so local tools can read and write game memory.
+- **Regional launch search.** At start the runtime looks for
+  `regional-launch.toml` in the executable's folder and up to three parent
+  folders. If found, that folder becomes a regional package root: a file that
+  does not declare this executable stops startup, and a matching profile can
+  write `europe-selection.toml` there and start another declared program. The
+  package does not ship this file and Portcove never creates one; a stray file
+  above the installation would act on it.
 - **Outside the installation.** Mod preparation caches disc digests under
   `%LOCALAPPDATA%\psxrecomp\imports\disc-digests-v2`, keyed by the disc path.
-  It is a validated, disposable cache. Portcove does not manage, back up or
-  remove it, and the player explanation says so.
+  Each receipt records the absolute disc and mount paths, and receipts
+  accumulate without cleanup. It is a validated, disposable cache. Portcove
+  does not manage, back up or remove it, and the player explanation says so.
 - **Shipped default on a persistent path.** `input.ini` is now in the package.
   As a declared persistent path it is outside the immutable manifest. On a
   version's first launch Core restores the player's canonical `input.ini` over
-  it; when the player has none, the shipped default stays and is collected as
-  player data afterwards.
+  it, so the player's mapping wins; when the player has none, the shipped
+  default stays and is collected as player data afterwards.
 
 **Decision.** `mods` is replaced by the six split paths, `config.ini` and
 `settings.toml.bad` are added as persistent data, and `mods/cache` is added as
@@ -149,11 +183,16 @@ definition and scope (`installed_mutability`), as in the 7192402 move. An
 update collects the old copy's whole `mods`, restores only the split paths into
 the new copy, and the runtime then migrates a flat `mods/packages`. The old
 `mods/bundled` stays in canonical data and backups but is never restored into a
-new copy. Rolling back restores the whole tree to the old copy. A player
-package that v0.5.7 moved into `mods/installed` is not read by the v0.3.0
-runtime. Ape Escape's BIN/CUE route is not a ready staged archive, so no
-empty-expansion proof applies and no definition-format fence is needed: older
-readers already understand every declared field.
+new copy. Rolling back restores the whole retained `mods` tree to the old
+copy, including split-path changes made by v0.5.7; the v0.3.0 runtime reads
+the same `installed` root and `state.toml` format. Ape Escape's BIN/CUE route is not a ready staged archive, so no
+empty-expansion proof applies, it has no restore-receipt contract, and no
+definition-format fence is needed: older readers already understand every
+declared field. A new lifecycle test registers a whole-`mods` copy, updates to
+a split-path copy and checks that saves, added mods, `mods/state.toml` and
+texture packs carry over, that the new package's `mods/bundled` is untouched,
+that the old built-in mods stay only in canonical data and backups, and that
+rollback restores the whole tree.
 
 ## Sonic the Hedgehog v1.2.0 (#152): owner decision needed
 
@@ -162,7 +201,8 @@ engine's atomic store: `sonic1-sound.ini` (Clone Driver choice),
 `sonic1-bug-fixes.ini` (debug-transporter escape) and `sonic1-easy-access.ini`
 (level select and debug shortcuts). All three default off. Package-level
 changes are notices, release notes, `tools/replay_diagnostic.py` and removed
-`licenses/`; the replay writer already lives under the declared `logs`.
+`licenses/`; the replay writer already lives under the declared persistent
+`logs`.
 Packaged `build-info.json` names game commit `0e6805c3…`, engine `7c067f95…`
 and UI `ff71584e…`; the tag points at `e82c95ba…`.
 
@@ -197,5 +237,7 @@ its new writers.
   netplay, gameplay or save compatibility.
 - Provider release digests, asset IDs and draft or prerelease flags.
 - Intermediate releases between the bound and newest tags.
+- Ape Escape's regional launch search with a real `regional-launch.toml`, and
+  the disc-digest cache on Windows.
 - An update, rollback or backup of a real installation under the new
   definitions.

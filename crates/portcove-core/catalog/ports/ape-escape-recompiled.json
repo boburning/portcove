@@ -94,7 +94,7 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Ape Escape (USA) disc. Portcove downloads the official Windows package and starts it with the bundled OpenBIOS. Memory cards, settings, controller mappings, mod selections and mods you add are kept as managed saves and settings. Each version keeps its own built-in mods, so an update brings that version's defaults and carries your mod selections and added mods to it. When it starts, the game moves older added-mod folders to its current layout; an older added mod with the same ID and version as a built-in one is replaced by the built-in copy. Upstream also keeps a small disc-check cache in your Windows local app data folder (psxrecomp\\imports); Portcove does not manage, back up or remove it. Gameplay and in-game save/load remain unqualified."
+      "manual_preparation": "Select your own Ape Escape (USA) disc. Portcove downloads the official Windows package and starts it with the bundled OpenBIOS. Memory cards, settings, controller mappings, mod selections and mods you add are kept as managed saves and settings. Each version keeps its own built-in mods, so an update brings that version's defaults. Mods you added keep working; an added mod with the same ID and version as a built-in one takes its place. Upstream also keeps a small disc-check cache in your Windows local app data folder (psxrecomp\\imports); Portcove does not manage, back up or remove it. Gameplay and in-game save/load remain unqualified."
     }
   }
 }

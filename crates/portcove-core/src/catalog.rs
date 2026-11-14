@@ -3067,11 +3067,18 @@ mod tests {
             "sonic2-campaign.srm.bak",
             "sonic2-campaign.sav",
             "sonic2-campaign.sav.bak",
-            // v0.9.23's default-on replayable feedback writer.
-            "logs",
         ] {
             assert!(sonic2.persistent_paths.iter().any(|path| path == campaign));
         }
+        // v0.9.23's default-on replay recorder is disposable diagnostics:
+        // adding a persistent path would hold receipt-governed installations.
+        assert!(
+            sonic2
+                .runtime_mutable_paths
+                .iter()
+                .any(|path| path == "logs")
+        );
+        assert!(!sonic2.persistent_paths.iter().any(|path| path == "logs"));
         // The reviewed v0.8.3 package stays first; v0.9.23 is appended.
         let sonic2_contract = catalog
             .source_catalog()

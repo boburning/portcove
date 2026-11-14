@@ -885,7 +885,7 @@
         "authority": "mstan/SonicTheHedgehog2Recomp",
         "authority_ref": "4cb77b3732547b467070ec8bda65135dc7cc9b3f",
         "reviewed_at": "2026-11-14",
-        "claim": "Exact v0.9.23 Windows x64 package (8126526 bytes, SHA-256 d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc) matches its published .sha256 file; the provider release digest was not read. At this tag game/sonic2_spec.c keeps the 1 MiB raw ROM with CRC 7B905383, and the independently enforced exact-stock SHA-256 is unchanged. SonicTheHedgehog2Recomp.exe keeps its path; the package drops build-info.json and licenses/ and adds PERMISSIONS.md, docs/PLAYER_FEEDBACK.md, tools/replay_diagnostic.py and assets/megamix/CREDITS.txt. Against v0.8.3 the game writes the same settings, party, campaign, native-save and diagnostic files. Its pinned engine a7433ace9311fd5ed44ad64a8816ff4ededbc7d5 adds only the default-on replayable feedback writer under logs beside the executable, which the definition now declares, and the pinned recomp-ui keeps the same data filenames. New Megamix v3 donor input is read from a player-selected path remembered in sonic2-party.ini. Native execution, gameplay, saves and replay recording remain unobserved for this release.",
+        "claim": "Exact v0.9.23 Windows x64 package (8126526 bytes, SHA-256 d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc) matches its published .sha256 file; the provider release digest was not read. At this tag game/sonic2_spec.c keeps the 1 MiB raw ROM with CRC 7B905383, and the independently enforced exact-stock SHA-256 is unchanged. SonicTheHedgehog2Recomp.exe keeps its path; the package drops build-info.json and licenses/ and adds PERMISSIONS.md, docs/PLAYER_FEEDBACK.md, tools/replay_diagnostic.py and assets/megamix/CREDITS.txt. Against v0.8.3 the game writes the same settings, party, campaign, native-save and diagnostic files. Its pinned engine a7433ace9311fd5ed44ad64a8816ff4ededbc7d5 adds only the default-on replayable feedback writer under logs beside the executable, which the definition now declares as disposable runtime output, and the pinned recomp-ui keeps the same data filenames. The package no longer carries build-info.json, so this source review binds the tag commit, not the package build. New Megamix v3 donor input is read from a player-selected path remembered in sonic2-party.ini. Native execution, gameplay, saves and replay recording remain unobserved for this release.",
         "immutable_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/4cb77b3732547b467070ec8bda65135dc7cc9b3f/game/sonic2_spec.c",
         "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/sonic2_spec.c"
       },
@@ -35099,7 +35099,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Ape Escape (USA) disc. Portcove downloads the official Windows package and starts it with the bundled OpenBIOS. Memory cards, settings, controller mappings, mod selections and mods you add are kept as managed saves and settings. Each version keeps its own built-in mods, so an update brings that version's defaults and carries your mod selections and added mods to it. When it starts, the game moves older added-mod folders to its current layout; an older added mod with the same ID and version as a built-in one is replaced by the built-in copy. Upstream also keeps a small disc-check cache in your Windows local app data folder (psxrecomp\\imports); Portcove does not manage, back up or remove it. Gameplay and in-game save/load remain unqualified.",
+        "manual_preparation": "Select your own Ape Escape (USA) disc. Portcove downloads the official Windows package and starts it with the bundled OpenBIOS. Memory cards, settings, controller mappings, mod selections and mods you add are kept as managed saves and settings. Each version keeps its own built-in mods, so an update brings that version's defaults. Mods you added keep working; an added mod with the same ID and version as a built-in one takes its place. Upstream also keeps a small disc-check cache in your Windows local app data folder (psxrecomp\\imports); Portcove does not manage, back up or remove it. Gameplay and in-game save/load remain unqualified.",
         "original_game_title": "Ape Escape",
         "artwork": {
           "game_id": 3762,
@@ -38675,7 +38675,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups. Optional character and save-menu donor originals stay where you keep them; the managed settings remember only their selected paths, and Portcove does not copy, check or back up those files. Replayable feedback recording is on by default. The managed logs folder holds input history, game snapshots, original and build identities, settings and mod sidecars; these can contain private game memory and local paths. Nothing uploads automatically. Share these files only deliberately, and keep each replay with its sidecars. Upstream keeps the current capture and two previous captures, each limited to 64 MiB of input history and 32 MiB of state attachments, and stops recording at those limits or on a storage failure. Turn recording off in Mods > Diagnostics > Replayable feedback; GENESIS_REPLAY_RECORD=0 also disables it for one launch. Backups include these recordings.",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups. Optional character and save-menu donor originals stay where you keep them; the managed settings remember only their selected paths, and Portcove does not copy, check or back up those files. Replayable feedback recording is on by default and writes to the logs folder in the game's installation folder. A recording holds your inputs, game snapshots, the original and build identities, settings and mod choices, and can include private game memory and local paths. Nothing uploads automatically; share a recording only deliberately, together with the files that have the same name. The game keeps the current recording and two earlier ones, each limited to 64 MiB of inputs and 32 MiB of snapshots, and stops recording at those limits or if saving fails. Each installed version keeps its own recordings: Portcove does not carry them to another version or include them in backups. To stop recording, turn off Mods > Diagnostics > Replayable feedback.",
         "original_game_title": "Sonic the Hedgehog 2",
         "artwork": {
           "game_id": 4438,
@@ -38733,8 +38733,7 @@
         "sonic2-campaign.srm",
         "sonic2-campaign.srm.bak",
         "sonic2-campaign.sav",
-        "sonic2-campaign.sav.bak",
-        "logs"
+        "sonic2-campaign.sav.bak"
       ],
       "runtime_mutable_paths": [
         "dispatch_misses.toml",
@@ -38750,7 +38749,8 @@
         "floor_unsafe.toml.tmp",
         "floor_unsafe.prev.toml",
         "ramdump_native.bin",
-        "last_error.log"
+        "last_error.log",
+        "logs"
       ]
     },
     {
