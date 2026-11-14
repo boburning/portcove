@@ -47,6 +47,10 @@
       "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
       "references": [
         {
+          "title": "Build and run upstream on Linux",
+          "instruction": "For Linux x86-64 or ARM64, follow the 64-bit Linux/SDL2 section of the v0.9.9 build guide at https://github.com/shinyquagsire23/OpenJKDF2/blob/v0.9.9/BUILDING.md. Use its Clang setup and launch the built player from the checkout as documented so it can find its libraries. Keep the Resource and Episode folders from your own matching Jedi Knight installation together in a working copy. Linux filenames can be case-sensitive. Keep the working copy and actual profile when rebuilding. You build, launch and update this Linux copy through upstream."
+        },
+        {
           "title": "Keep updates and data with the working copy",
           "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready."
         },
