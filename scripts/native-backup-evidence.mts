@@ -7,9 +7,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { gzipSync, gunzipSync } from "node:zlib";
 
+const logEvidenceFileLimit = 256;
 const byteLimit = 12 * 1024 * 1024;
 const payloadLimit = 20 * 1024 * 1024;
-const compressedLimit = 8 * 1024 * 1024;
+// PNGs are already compressed. Allow the admitted raw bytes plus bounded
+// encoding overhead without changing the raw-byte or inflation limits.
+const compressedLimit = 13 * 1024 * 1024;
+const chunkSize = 4096;
+const chunkLimit = Math.ceil((Math.ceil(compressedLimit / 3) * 4) / chunkSize);
 const prefix = "PORTCOVE_BACKUP_EVIDENCE_V1";
 const digest = (bytes: Uint8Array) => createHash("sha256").update(bytes).digest("hex");
 const ownedName = /^(?:[a-zA-Z0-9_.-]+\/){0,3}[a-zA-Z0-9_.-]+\.(?:png|json|jsonl|log)$/u;
@@ -47,7 +52,10 @@ export async function encodeBackupEvidence(root: string) {
 }
 
 async function encodeFiles(root: string, files: string[]) {
-  assert.ok(files.length > 0 && files.length <= 128, "Missing or excessive native evidence");
+  assert.ok(
+    files.length > 0 && files.length <= logEvidenceFileLimit,
+    "Missing or excessive native evidence",
+  );
   let total = 0;
   const records = [];
   for (const file of files.sort((left, right) => (left < right ? -1 : left > right ? 1 : 0))) {
@@ -75,14 +83,17 @@ async function encodeFiles(root: string, files: string[]) {
   const payload = Buffer.from(JSON.stringify({ format_version: 1, files: records }));
   assert.ok(payload.length <= payloadLimit);
   const compressed = gzipSync(payload);
-  assert.ok(compressed.length <= compressedLimit);
+  assert.ok(
+    compressed.length <= compressedLimit,
+    `Compressed native evidence is ${compressed.length} bytes (limit ${compressedLimit})`,
+  );
   const hash = digest(compressed);
   const encoded = compressed.toString("base64");
-  const count = Math.ceil(encoded.length / 4096);
+  const count = Math.ceil(encoded.length / chunkSize);
   return Array.from(
     { length: count },
     (_, index) =>
-      `${prefix} ${index + 1}/${count} ${hash} ${encoded.slice(index * 4096, (index + 1) * 4096)}`,
+      `${prefix} ${index + 1}/${count} ${hash} ${encoded.slice(index * chunkSize, (index + 1) * chunkSize)}`,
   ).join("\n");
 }
 
@@ -183,7 +194,10 @@ export async function recoverBackupEvidence(log: string, destination: string) {
       /PORTCOVE_BACKUP_EVIDENCE_V1 (\d+)\/(\d+) ([a-f0-9]{64}) ([A-Za-z0-9+/=]+)$/gmu,
     ),
   ];
-  assert.ok(matches.length > 0 && matches.length <= 3000, "Missing or excessive evidence records");
+  assert.ok(
+    matches.length > 0 && matches.length <= chunkLimit,
+    "Missing or excessive evidence records",
+  );
   const first = matches[0];
   assert.ok(first);
   const count = Number(first[2]);
@@ -193,10 +207,13 @@ export async function recoverBackupEvidence(log: string, destination: string) {
     assert.equal(Number(match[1]), index + 1, "Reordered or duplicate evidence records");
     assert.equal(Number(match[2]), count);
     assert.equal(match[3], hash);
-    assert.ok(match[4] && match[4].length <= 4096);
+    assert.ok(match[4] && match[4].length <= chunkSize);
   }
   const compressed = Buffer.from(matches.map((match) => match[4]).join(""), "base64");
-  assert.ok(compressed.length <= compressedLimit);
+  assert.ok(
+    compressed.length <= compressedLimit,
+    `Compressed native evidence is ${compressed.length} bytes (limit ${compressedLimit})`,
+  );
   assert.equal(digest(compressed), hash, "Evidence payload hash mismatch");
   const payload: unknown = JSON.parse(
     gunzipSync(compressed, { maxOutputLength: payloadLimit }).toString(),
@@ -204,7 +221,9 @@ export async function recoverBackupEvidence(log: string, destination: string) {
   assert.ok(isRecord(payload), "Invalid evidence payload");
   assert.equal(payload.format_version, 1);
   assert.ok(
-    Array.isArray(payload.files) && payload.files.length > 0 && payload.files.length <= 128,
+    Array.isArray(payload.files) &&
+      payload.files.length > 0 &&
+      payload.files.length <= logEvidenceFileLimit,
   );
   let total = 0;
   const names = new Set<string>();

@@ -1009,6 +1009,11 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Hosted presentation 43633220056 stopped at 180 s before native cleanup.
+    // Allow the two-theme Settings captures and owned exit joins to finish.
+    DESKTOP_PROFILES.presentation.every((id) => selection.selected_scenarios.includes(id))
+      ? 360_000
+      : 0,
     // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
     // the copy and move journeys and was still in the CLI handoff when the 300 s
     // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
