@@ -1114,7 +1114,7 @@ where
         after_sha256: reviewed.proposed_sha256.clone(),
         backup_path: backup_path.clone(),
     };
-    crate::application_update_storage::write_bytes_atomically(
+    crate::atomic_files::write_bytes_atomically(
         &config,
         JOURNAL_TEMPORARY_FILE,
         JOURNAL_FILE,
@@ -1126,7 +1126,7 @@ where
 
     if let Some(expected_before) = reviewed.snapshot_sha256.as_deref() {
         create_swap_placeholder(&swap_path)?;
-        if let Err(source) = crate::application_update_storage::replace_file_atomically(
+        if let Err(source) = crate::atomic_files::replace_file_atomically(
             &config,
             SHORTCUTS_FILE,
             ORIGINAL_SWAP_FILE,

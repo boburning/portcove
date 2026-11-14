@@ -100,6 +100,29 @@ pub fn inspect_package_archive_with_program_filter(
             "the shared library filter requires macOS",
         ));
     }
+    let (_workspace, payload) =
+        extract_verified_archive(source, platform, expected_size, expected_sha256)?;
+    let layout = observe_root(
+        look_through_wrapper(&payload)?,
+        platform,
+        ignore_verified_macos_libraries,
+    )?;
+    if !valid_layout(&layout) {
+        return Err(PortcoveError::verification(
+            "package layout cannot be represented by a bounded reviewed declaration",
+        ));
+    }
+    Ok(layout)
+}
+
+/// Capture verified archive bytes in temporary storage and extract them with
+/// the managed readers. The returned directory owns the extracted payload.
+pub(crate) fn extract_verified_archive(
+    source: &Path,
+    platform: Platform,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> Result<(tempfile::TempDir, PathBuf)> {
     let name = source
         .file_name()
         .and_then(|name| name.to_str())
@@ -161,17 +184,7 @@ pub fn inspect_package_archive_with_program_filter(
             &|| Ok(()),
         )?;
     }
-    let layout = observe_root(
-        look_through_wrapper(&payload)?,
-        platform,
-        ignore_verified_macos_libraries,
-    )?;
-    if !valid_layout(&layout) {
-        return Err(PortcoveError::verification(
-            "package layout cannot be represented by a bounded reviewed declaration",
-        ));
-    }
-    Ok(layout)
+    Ok((workspace, payload))
 }
 
 fn valid_layout(layout: &ReviewedPackageLayout) -> bool {
@@ -313,9 +326,19 @@ fn observe_root(
     })
 }
 
+/// Whether a regular file entry is a program or script by the reviewed
+/// layout classifier; shared with derived package shapes.
+pub(crate) fn is_program_entry(
+    entry: &fs::DirEntry,
+    platform: Platform,
+    ignore_verified_macos_libraries: bool,
+) -> Result<bool> {
+    is_executable(entry, platform, ignore_verified_macos_libraries)
+}
+
 /// One wrapper directory with nothing beside it is the package root's container,
 /// whatever its (often versioned) name.
-fn look_through_wrapper(root: &Path) -> Result<PathBuf> {
+pub(crate) fn look_through_wrapper(root: &Path) -> Result<PathBuf> {
     let mut entries = fs::read_dir(root)?;
     let (Some(first), None) = (entries.next(), entries.next()) else {
         return Ok(root.to_path_buf());

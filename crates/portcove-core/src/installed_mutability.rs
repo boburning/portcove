@@ -263,6 +263,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_hashes,
         runtime_disc_image,
         runtime_stfs_package,
+        runtime_rom_patch,
         optional_game_source,
         runtime_source_set,
         launch_disc_choice,
@@ -333,6 +334,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     // An STFS package binding joins only when declared, so Nocturne keeps its identity.
     if let Some(package) = runtime_stfs_package {
         compatibility["runtime_stfs_package"] = serde_json::json!(package);
+    }
+    // Likewise, a declared patch format and its exact inputs join only when declared.
+    if let Some(patch) = runtime_rom_patch {
+        compatibility["runtime_rom_patch"] = serde_json::json!(patch);
     }
     // A launch disc choice changes what launch writes, so it joins when declared.
     if let Some(choice) = launch_disc_choice {

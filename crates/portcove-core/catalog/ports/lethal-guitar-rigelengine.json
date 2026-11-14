@@ -7,6 +7,7 @@
     "project_url": "https://github.com/lethal-guitar/RigelEngine",
     "issue_number": 1877,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://www.paypal.com/donate?hosted_button_id=B3JBDMWJE6F4C"],
     "platforms": ["macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",

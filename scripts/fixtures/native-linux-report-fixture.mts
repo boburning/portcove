@@ -46,11 +46,6 @@ export const historicalApi82Library43SourceFixture: NativeSource = {
       sha256: "11befa61d06967031b71deaf1a31a285c18ce01d310373b0cc5864dd01a1ff6d",
       bytes: 1510902,
     },
-    {
-      path: "apps/desktop/src-tauri/src/application_update_windows.rs",
-      sha256: "2bacc7db57d813303974db989725c75aa2dac949140d9dde406fb470ba177a45",
-      bytes: 57726,
-    },
   ],
   authority: "none",
   scope: "maintained source declarations only; runtime and acceptance independently required",

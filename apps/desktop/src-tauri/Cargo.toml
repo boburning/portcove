@@ -12,7 +12,6 @@ name = "portcove-desktop"
 path = "src/main.rs"
 
 [features]
-application-update-qualification = []
 native-compatibility-qualification = ["dep:tauri-plugin-wdio-webdriver"]
 qualification-fixtures = ["portcove-core/qualification-fixtures"]
 
@@ -28,7 +27,6 @@ fs4.workspace = true
 futures-util.workspace = true
 hex.workspace = true
 jiff = "0.2.39"
-minisign-verify = "0.3.0"
 portcove-core = { path = "../../../crates/portcove-core" }
 portcove-diagnostics = { path = "../../../crates/portcove-diagnostics" }
 reqwest.workspace = true
@@ -39,11 +37,11 @@ schemars.workspace = true
 sha2.workspace = true
 tauri = { version = "=2.12.5", features = [] }
 tauri-plugin-dialog = "=2.8.4"
+tauri-plugin-updater = { version = "=2.14.1", default-features = false }
 tauri-plugin-wdio-webdriver = { version = "=1.5.1", optional = true }
 thiserror.workspace = true
 tokio.workspace = true
 tokio-util.workspace = true
-tough.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 url.workspace = true
@@ -60,7 +58,13 @@ tempfile.workspace = true
 webview2-com = "=0.39.1"
 windows = { version = "0.62.2", features = [
   "Win32_Networking_NetworkListManager",
+  "Win32_Storage_EnhancedStorage",
   "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_Shell_PropertiesSystem",
 ] }
 windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
 windows-version.workspace = true

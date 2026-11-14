@@ -394,18 +394,31 @@ function ArtworkSlotControl({
   );
 }
 
-/** Recorded evidence as an observation with its dates; nothing was removed because of it. */
-export function listingEvidenceText(evidence: ArtworkState["provider_listing"][number]): string {
-  const checked = new Date(evidence.last_checked_at * 1000).toLocaleString();
-  const since =
-    evidence.not_listed_since === null
-      ? undefined
-      : new Date(evidence.not_listed_since * 1000).toLocaleString();
-  if (evidence.last_result.status === "listed") return `Listed when last checked (${checked}).`;
+/**
+ * Recorded evidence with its dates. `evicted` says whether Portcove removed its
+ * copy of the selected image.
+ */
+export function listingEvidenceText(
+  evidence: ArtworkState["provider_listing"][number],
+  evicted: boolean,
+): string {
+  const at = (seconds: number) => new Date(seconds * 1000).toLocaleString();
+  const checked = at(evidence.last_checked_at);
+  const since = evidence.not_listed_since === null ? undefined : at(evidence.not_listed_since);
+  if (evidence.withdrawn_at !== null && evidence.withdrawn_at !== undefined)
+    return evicted
+      ? `Removed from SteamGridDB (confirmed ${at(evidence.withdrawn_at)}). Portcove removed its copy; the credit is kept.`
+      : `Removed from SteamGridDB (confirmed ${at(evidence.withdrawn_at)}). Portcove kept its copy, because you imported this image yourself or another credit still lists it.`;
+  if (evidence.last_result.status === "listed")
+    return evicted
+      ? `Listed again when last checked (${checked}). Choose it again to restore Portcove's copy.`
+      : `Listed when last checked (${checked}).`;
+  const next =
+    "If SteamGridDB's image server reports it gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
   if (evidence.last_result.status === "not_listed")
-    return `Not in SteamGridDB's list when last checked (${checked}). First noticed ${since ?? checked}. Nothing was removed.`;
+    return `Not in SteamGridDB's list when last checked (${checked}). First noticed ${since ?? checked}. ${next}`;
   return since
-    ? `Not confirmed when last checked (${checked}). First noticed missing ${since}. Nothing was removed.`
+    ? `Not confirmed when last checked (${checked}). First noticed missing ${since}. ${next}`
     : `Not confirmed when last checked (${checked}).`;
 }
 
@@ -472,7 +485,7 @@ export function ArtworkSource({
             <dd>
               {state.provider_listing.map((evidence) => (
                 <span key={`${evidence.provider}:${evidence.asset_id}`} className="block">
-                  {listingEvidenceText(evidence)}
+                  {listingEvidenceText(evidence, state.evicted_at !== null)}
                 </span>
               ))}
             </dd>
@@ -481,7 +494,8 @@ export function ArtworkSource({
         <dt>Image</dt>
         <dd>
           {asset.width} × {asset.height} · {asset.format.toUpperCase()} ·{" "}
-          {formatBytes(asset.byte_size)} · local copy
+          {formatBytes(asset.byte_size)} ·{" "}
+          {state.evicted_at === null ? "local copy" : "copy removed"}
         </dd>
         <dt>Chosen</dt>
         <dd>{new Date((credits[0]?.fetched_at ?? asset.imported_at) * 1000).toLocaleString()}</dd>

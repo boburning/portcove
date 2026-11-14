@@ -152,6 +152,16 @@
         "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
       },
       {
+        "id": "snap64-recomp-1-1-7-source-contract",
+        "role": "upstream_support",
+        "authority": "JackandBeans/Snap64Recomp",
+        "authority_ref": "0525610a89fd3c960b5a3555fad63e20f0d97f64",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.1.7 Windows x64 (18834158 bytes, SHA-256 fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95), Linux x86-64 (9821880 bytes, SHA-256 d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d) and macOS universal (12752773 bytes, SHA-256 ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50) packages match their published .sha256 files; the provider release digest was not read. The README still names the US cartridge SHA-1 edc7c49cc568c045fe48be0d18011c30f393cbaf, Snap64Recomp stays the only program at the same place, and src/paths.cpp still uses an absolute SNAP_DATA_DIR first on every platform, so the data folder is the Portcove user folder. Under the owner decision of November 14, 2026 the route sets SNAP_NO_STEAM_ART=1: src/steam_art.cpp with the switch read by read_launch, do_the_art returns before Steam discovery, any write into Steam's config/grid folder and any steam_art_done.txt read or append. The remaining new data-folder writers, snap64.running, snap64.gpu_failed and the Linux Mesa shader-cache fallback in cache, live in the user folder that backups capture whole; the fallback may instead use XDG_CACHE_HOME outside Portcove. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0525610a89fd3c960b5a3555fad63e20f0d97f64/src/steam_art.cpp",
+        "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/src/steam_art.cpp"
+      },
+      {
         "id": "ape-escape-recompiled-0-3-0-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ApeEscapeRecomp",
@@ -159,6 +169,16 @@
         "reviewed_at": "2026-09-16",
         "claim": "Limits Ape Escape Recompiled 0.3.0 to the exact US SCUS-94423 single-track MODE2/2352 source",
         "immutable_url": "https://github.com/mstan/ApeEscapeRecomp/blob/831a478c355433de1021fb28cf7f7a03c895ab77/DISC.md",
+        "live_url": "https://github.com/mstan/ApeEscapeRecomp/blob/master/DISC.md"
+      },
+      {
+        "id": "ape-escape-recompiled-0-5-7-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/ApeEscapeRecomp",
+        "authority_ref": "2f98ccab5fe510cedd924beebd773e5e2458d16d",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.5.7 Windows x64 package (46713030 bytes, SHA-256 d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f); no publisher checksum file was found and the provider release digest was not read, so the digest is computed only. At this tag DISC.md is byte-identical to v0.3.0 and keeps SCUS-94423, 432238800 bytes and SHA-256 1ae17e78ebb8c782c7c1785b0a0bd7b0ee28235b8a0c83c8df887129899a852a. Its RELEASE_MANIFEST.json names source commit 2f98ccab5fe510cedd924beebd773e5e2458d16d and PSXRecomp framework 1b84d4fd3a1c65f64c2d97b49320f769ba2e01fc. ApeEscapeRecomp.exe, game.toml and bios/openbios.bin keep their paths, and the framework still parses --no-launcher, --memcard-dir, --game, --bios and --disc. The package stages its built-in mods in mods/bundled and ships a default input.ini; the framework keeps added mods in mods/installed, migrates a flat mods/packages tree on start, and writes mods/state.toml through mods/state.toml.tmp, mods/.staging, mods/texture-packs and the derived-disc mods/cache. The in-game menu writes config.ini, an unparsable settings.toml is preserved as settings.toml.bad, and a retail BIOS module is built into cache/bios only when a retail BIOS is selected. The definition now declares these paths and leaves mods/bundled with the package. A disc-digest cache under the Windows local app data folder stays outside Portcove. Native execution, gameplay, saves and mod migration remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/ApeEscapeRecomp/blob/2f98ccab5fe510cedd924beebd773e5e2458d16d/DISC.md",
         "live_url": "https://github.com/mstan/ApeEscapeRecomp/blob/master/DISC.md"
       },
       {
@@ -222,6 +242,16 @@
         "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
       },
       {
+        "id": "cvlod-recomp-0-2-29-source-contract",
+        "role": "upstream_support",
+        "authority": "fliperama86/cvlod_recomp",
+        "authority_ref": "2be8acde176c21aecf05a35f1748a587be2e8381",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.2.29 Windows x64 (29763505 bytes, SHA-256 68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23), Linux x64 (55162656 bytes, SHA-256 0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad) and macOS arm64 (21232725 bytes, SHA-256 fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8) packages match their published .sha256 files; the provider release digest was not read. At this tag castlevania2.yaml and include/lod/target_rom.hpp are byte-identical to v0.2.26 and keep the North American SHA-1 879ead98f197fd05edda867655da5b1ce25aa5b8. Against the bound v0.2.26 packages the Windows and Linux wrapper folder is named LodRecomp-ab942ba9-<platform> instead of LodRecomp-v0.2.26-<platform> and the file lists are otherwise identical, the macOS LodRecomp.app list is identical, and LodRecomp stays the only program. The tagged src/main/main.cpp keeps the portable.txt lookup and the rom.z64 default and writes only the declared graphics.json, audio.json, controls.json, rom_path.txt, cheats.cfg and LodRecomp.log. The known v0.2.26 Windows normal-close failure, native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/fliperama86/cvlod_recomp/blob/2be8acde176c21aecf05a35f1748a587be2e8381/castlevania2.yaml",
+        "live_url": "https://github.com/fliperama86/cvlod_recomp/blob/main/castlevania2.yaml"
+      },
+      {
         "id": "golden-balloon-1-7-0-source-contract",
         "role": "upstream_support",
         "authority": "akratch/goldenballoon",
@@ -229,6 +259,16 @@
         "reviewed_at": "2026-09-15",
         "claim": "Limits Golden Balloon 1.7.0 to verified US Rev 1 and European Rev 1 Diddy Kong Racing sources",
         "immutable_url": "https://github.com/akratch/goldenballoon/blob/106bad37244a2f8829bab21c655d25ff4b4dcdbf/platform/rom_validation.c",
+        "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
+      },
+      {
+        "id": "golden-balloon-1-8-0-source-contract",
+        "role": "upstream_support",
+        "authority": "akratch/goldenballoon",
+        "authority_ref": "2b69e748ec04f87a4dc6f032c598726de1b0e813",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.8.0 Windows x64 package (31898069 bytes, SHA-256 98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1) matches its published .sha256 file and the reviewed game-settings artifact; the provider release digest was not read. At this tag platform/rom_validation.c is byte-identical to v1.7.0, so the US Rev 1 and European Rev 1 checks are unchanged. Against the bound v1.7.0 package the 38-entry GoldenBalloon folder lists the same paths, GoldenBalloon.exe and the three tools programs keep their paths, and only GoldenBalloon.exe, tools/mdkr-character-lod.exe, README.md and NativePhoneParty-NOTICES.txt changed by content. platform/user_paths.c adds only an opt-in MDKR_MODS_DIR override that Portcove does not set; platform/config_ini.c, platform/app/app_config.cpp and platform/app/arg_triage.h are byte-identical. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/platform/rom_validation.c",
         "live_url": "https://github.com/akratch/goldenballoon/blob/main/platform/rom_validation.c"
       },
       {
@@ -409,6 +449,16 @@
         "claim": "The pinned v1.4.3 source hashes the entire canonical 32 MiB Road Rash 64 USA ROM and requires its exact SHA-256.",
         "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/42bf10065362daf91a77089a9f5c8147dae60de0/native/src/rr64_experimental_course.cpp",
         "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/native/src/rr64_experimental_course.cpp"
+      },
+      {
+        "id": "road-rash-64-v1-4-9-source-contract",
+        "role": "upstream_support",
+        "authority": "linkssy2/RoadRash64Recompiled",
+        "authority_ref": "37e33d4f832857a60a34f1369b83b32afe00d25d",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.4.9 Win64 package (47342604 bytes, SHA-256 74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594) matches the published SHA256SUMS.txt; the provider release digest was not read. Its docs/BUILD_INFO.json names source commit 37e33d4f832857a60a34f1369b83b32afe00d25d, the tag commit. At this tag docs/PROJECT_DETAILS.md declares the USA v1.0 normalized 32 MiB SHA-1 87727a298f583ec8325f5655088ff21e37b335b2, and native/src/rr64_experimental_course.cpp is byte-identical to v1.4.3 and requires SHA-256 74e49e863484b5d17dcbe3891b99f2cafe3cf7511aa1dc5427022f699301db73. The package keeps the 312 paths of the reviewed v1.4.8 executable-parent route and adds only six docs files to v1.4.3; RoadRash64Recompiled.exe, RoadRash64DirectStart.exe and the three importer programs keep their paths. Against v1.4.8 the published source adds no data filename, environment variable or network call; against v1.4.3 the player adds only the data file cpu-weapon-options.cfg, which the current definition declares, and two opt-in trace variables Portcove does not set. The historical v1.4.3 wrapper-prefixed contract and its held transition are unchanged. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/37e33d4f832857a60a34f1369b83b32afe00d25d/docs/PROJECT_DETAILS.md",
+        "live_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/main/docs/PROJECT_DETAILS.md"
       },
       {
         "id": "dkc3-recomp-0-0-6-source-contract",
@@ -830,6 +880,16 @@
         "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/game.toml"
       },
       {
+        "id": "sonic-the-hedgehog-2-recomp-0-9-23-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SonicTheHedgehog2Recomp",
+        "authority_ref": "4cb77b3732547b467070ec8bda65135dc7cc9b3f",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.9.23 Windows x64 package (8126526 bytes, SHA-256 d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc) matches its published .sha256 file; the provider release digest was not read. At this tag game/sonic2_spec.c keeps the 1 MiB raw ROM with CRC 7B905383, and the independently enforced exact-stock SHA-256 is unchanged. SonicTheHedgehog2Recomp.exe keeps its path; the package drops build-info.json and licenses/ and adds PERMISSIONS.md, docs/PLAYER_FEEDBACK.md, tools/replay_diagnostic.py and assets/megamix/CREDITS.txt. Against v0.8.3 the game writes the same settings, party, campaign, native-save and diagnostic files. Its pinned engine a7433ace9311fd5ed44ad64a8816ff4ededbc7d5 adds only the default-on replayable feedback writer under logs beside the executable, which the definition now declares as disposable runtime output, and the pinned recomp-ui keeps the same data filenames. The package no longer carries build-info.json, so this source review binds the tag commit, not the package build. New Megamix v3 donor input is read from a player-selected path remembered in sonic2-party.ini. Native execution, gameplay, saves and replay recording remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/4cb77b3732547b467070ec8bda65135dc7cc9b3f/game/sonic2_spec.c",
+        "live_url": "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/main/game/sonic2_spec.c"
+      },
+      {
         "id": "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity",
         "role": "byte_identity",
         "authority": "libretro/libretro-database No-Intro",
@@ -1160,6 +1220,16 @@
         "reviewed_at": "2026-11-04",
         "claim": "Tagged v0.4.2 retains the exact original required by this existing source contract. Publisher Windows SHA25672b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531. Package/source observation does not establish gameplay, native execution or retained-state compatibility.",
         "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/a1457dc339cae7ab8f9f1795177c464b499f6ab7/rom_identity.txt",
+        "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
+      },
+      {
+        "id": "super-metroid-recomp-0-4-5-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMetroidRecomp",
+        "authority_ref": "113951fc32f9783c1be0a947ea17c9aabfba9066",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v0.4.5 Windows x64 package (15522852 bytes, SHA-256 337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314) matches the published SHA256SUMS; the provider release digest was not read. At this tag rom_identity.txt is byte-identical to v0.4.2 and framework_pins.txt names the same snesrecomp, recomp-ui, recomp-net and rbengine commits. Against the bound v0.4.2 package the wrapper-prefixed file list adds only two mods/preloaded/packages manifests (run-by-default and single-missile-doors) and PERMISSIONS.md; SuperMetroidSNESRecomp.exe keeps its path. The release build now sets SNESRECOMP_ENABLE_NET, adding IPHLPAPI and BCRYPT imports; the pinned host offers netplay, account sign-in and peer mod transfer only from the pre-boot launcher or the SNES_NETPLAY environment, this title declares no in-game launcher, and --rom with SNESRECOMP_NO_LAUNCHER skips the pre-boot launcher, so the declared persistence and data-compatibility contract are unchanged. Linux and macOS packages, native execution, gameplay, saves, settings migration and the absence of runtime network use remain unobserved for this release.",
+        "immutable_url": "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/rom_identity.txt",
         "live_url": "https://github.com/mstan/SuperMetroidRecomp/blob/main/rom_identity.txt"
       },
       {
@@ -17935,7 +18005,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "snap64-recomp-1-0-5-source-contract"
+          "snap64-recomp-1-0-5-source-contract",
+          "snap64-recomp-1-1-7-source-contract"
         ],
         "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
         "reviewed_at": "2026-09-13",
@@ -17946,6 +18017,18 @@
           {
             "upstream_ref": "v1.0.5",
             "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50"
           }
         ],
         "aliases": [],
@@ -17962,7 +18045,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "cvlod-recomp-0-2-26-source-contract"
+          "cvlod-recomp-0-2-26-source-contract",
+          "cvlod-recomp-0-2-29-source-contract"
         ],
         "authority_ref": "89566dd74781d39e19944c8ba29a116ee31b963e",
         "reviewed_at": "2026-09-14",
@@ -17981,6 +18065,18 @@
           {
             "upstream_ref": "v0.2.26",
             "artifact_sha256": "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad"
+          },
+          {
+            "upstream_ref": "v0.2.29",
+            "artifact_sha256": "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8"
           }
         ],
         "aliases": [],
@@ -17998,7 +18094,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "golden-balloon-1-7-0-source-contract"
+          "golden-balloon-1-7-0-source-contract",
+          "golden-balloon-1-8-0-source-contract"
         ],
         "authority_ref": "106bad37244a2f8829bab21c655d25ff4b4dcdbf",
         "reviewed_at": "2026-09-15",
@@ -18009,6 +18106,10 @@
           {
             "upstream_ref": "v1.7.0",
             "artifact_sha256": "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+          },
+          {
+            "upstream_ref": "v1.8.0",
+            "artifact_sha256": "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1"
           }
         ],
         "aliases": [],
@@ -18083,7 +18184,8 @@
         "evidence_ids": [
           "ape-escape-recompiled-0-3-0-source-contract",
           "ape-escape-recompiled-windows-2026-09-16",
-          "ape-escape-recompiled-windows-lifecycle-2026-09-16"
+          "ape-escape-recompiled-windows-lifecycle-2026-09-16",
+          "ape-escape-recompiled-0-5-7-source-contract"
         ],
         "authority_ref": "5219c00ab7f14fccd93200ea79eb4f7d48f02f23",
         "reviewed_at": "2026-09-16",
@@ -18094,6 +18196,10 @@
           {
             "upstream_ref": "v0.3.0",
             "artifact_sha256": "91e2cde5f16408ff51b4b822ebba8b811c4e591263170cb49f33a486606c58e9"
+          },
+          {
+            "upstream_ref": "v0.5.7",
+            "artifact_sha256": "d8b14cdc5c654556cf7235359f8450092d2c0946e93fd827c5d5c684a2f7621f"
           }
         ],
         "aliases": [],
@@ -18216,7 +18322,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "road-rash-64-v1-4-3-source-sha1",
-          "road-rash-64-v1-4-3-source-sha256"
+          "road-rash-64-v1-4-3-source-sha256",
+          "road-rash-64-v1-4-9-source-contract"
         ],
         "authority_ref": "42bf10065362daf91a77089a9f5c8147dae60de0",
         "reviewed_at": "2026-10-04",
@@ -18227,6 +18334,10 @@
           {
             "upstream_ref": "v1.4.3",
             "artifact_sha256": "4d2a8cf9f126050eab563c19278df9cb799425cebddde9674ef39fd0dc2c102f"
+          },
+          {
+            "upstream_ref": "v1.4.9",
+            "artifact_sha256": "74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594"
           }
         ],
         "aliases": [],
@@ -19570,7 +19681,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "sonic-the-hedgehog-2-recomp-0-8-3-source-contract",
-          "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity"
+          "sonic-the-hedgehog-2-genesis-world-reva-no-intro-byte-identity",
+          "sonic-the-hedgehog-2-recomp-0-9-23-source-contract"
         ],
         "authority_ref": "e1451eee49cf2238164e282d0c1a8f79ce8a76aa",
         "reviewed_at": "2026-10-18",
@@ -19581,6 +19693,10 @@
           {
             "upstream_ref": "v0.8.3",
             "artifact_sha256": "c526ad6fbdbcc83619e0daf8711a7c09699d63541003be4cc4bbdef11877901f"
+          },
+          {
+            "upstream_ref": "v0.9.23",
+            "artifact_sha256": "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc"
           }
         ],
         "aliases": [],
@@ -19688,7 +19804,8 @@
         "evidence_ids": [
           "super-metroid-recomp-0-3-12-source-contract",
           "super-metroid-snes-japan-usa-no-intro-byte-identity",
-          "super-metroid-recomp-0-4-2-source-contract"
+          "super-metroid-recomp-0-4-2-source-contract",
+          "super-metroid-recomp-0-4-5-source-contract"
         ],
         "authority_ref": "494df8541eb4dbd4bacf7eba08c53b52d9fba5ac",
         "reviewed_at": "2026-10-19",
@@ -19703,6 +19820,10 @@
           {
             "upstream_ref": "v0.4.2",
             "artifact_sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+          },
+          {
+            "upstream_ref": "v0.4.5",
+            "artifact_sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
           }
         ],
         "aliases": [],
@@ -34430,6 +34551,9 @@
       ],
       "portable_marker": true,
       "user_data_environment": "SNAP_DATA_DIR",
+      "launch_environment": {
+        "SNAP_NO_STEAM_ART": "1"
+      },
       "runtime_source_filename": "pokemonsnap.z64",
       "runtime_source_materialization": "n64-big-endian",
       "presentation": {
@@ -34934,14 +35058,22 @@
       "persistent_paths": [
         "saves",
         "settings.toml",
+        "settings.toml.bad",
         "input.ini",
         "keybinds.ini",
+        "config.ini",
         "disc.cfg",
         "bios.cfg",
-        "mods"
+        "mods/installed",
+        "mods/packages",
+        "mods/.staging",
+        "mods/state.toml",
+        "mods/state.toml.tmp",
+        "mods/texture-packs"
       ],
       "runtime_mutable_paths": [
         "cache",
+        "mods/cache",
         "disc",
         "overlay_captures.json",
         "overlay_captures.json.d",
@@ -34982,6 +35114,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Select your own Ape Escape (USA) disc. Portcove downloads the official Windows package and starts it with the bundled OpenBIOS. Memory cards, settings, controller mappings, mod selections and mods you add are kept as managed saves and settings. Each version keeps its own built-in mods, so an update brings that version's defaults. Mods you added keep working; an added mod with the same ID and version as a built-in one takes its place. Upstream also keeps a small disc-check cache in your Windows local app data folder (psxrecomp\\imports); Portcove does not manage, back up or remove it. Gameplay and in-game save/load remain unqualified.",
         "original_game_title": "Ape Escape",
         "artwork": {
           "game_id": 3762,
@@ -37317,6 +37450,30 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Dino Crisis",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose setup for your platform",
+              "instruction": "On Windows or Linux, use Portcove’s managed setup and select your matching CHD and retail SCPH-1001 BIOS. On a Mac, install a C/C++ compiler, CMake, Ninja and Python 3, then unpack the official ZIP for your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files on Mac",
+              "instruction": "Use your own Dino Crisis (USA) (Rev 1) disc (SLUS-00922) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+            },
+            {
+              "title": "Build and add the prepared Mac player",
+              "instruction": "Run Dino_Crisis_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "For the upstream Mac route, keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3027,
           "cover_id": 237188,
@@ -37431,6 +37588,30 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Dino Crisis 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose setup for your platform",
+              "instruction": "On Windows or Linux, use Portcove’s managed setup and select your matching CHD and retail SCPH-1001 BIOS. On a Mac, install a C/C++ compiler, CMake, Ninja and Python 3, then unpack the official ZIP for your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files on Mac",
+              "instruction": "Use your own Dino Crisis 2 (USA) disc (SLUS-01279) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+            },
+            {
+              "title": "Build and add the prepared Mac player",
+              "instruction": "Run Dino_Crisis_2_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_2_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "For the upstream Mac route, keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4132,
           "cover_id": 407370,
@@ -38557,7 +38738,7 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups.",
+        "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups. Optional character and save-menu donor originals stay where you keep them; the managed settings remember only their selected paths, and Portcove does not copy, check or back up those files. Replayable feedback recording is on by default and writes to the logs folder in the game's installation folder. A recording holds your inputs, game snapshots, the original and build identities, settings and mod choices, and can include private game memory and local paths. Nothing uploads automatically; share a recording only deliberately, together with the files that have the same name. The game keeps the current recording and two earlier ones, each limited to 64 MiB of inputs and 32 MiB of snapshots, and stops recording at those limits or if saving fails. Each installed version keeps its own recordings, and they are removed with that version: Portcove does not carry them to another version or include them in backups, so copy out any recording you want to keep or share. To stop recording, turn off Mods > Diagnostics > Replayable feedback.",
         "original_game_title": "Sonic the Hedgehog 2",
         "artwork": {
           "game_id": 4438,
@@ -38631,7 +38812,8 @@
         "floor_unsafe.toml.tmp",
         "floor_unsafe.prev.toml",
         "ramdump_native.bin",
-        "last_error.log"
+        "last_error.log",
+        "logs"
       ]
     },
     {
@@ -38956,6 +39138,44 @@
         "macos-aarch64"
       ],
       "adapter": "staged-source-portable",
+      "managed_acquisition_hold": {
+        "reason": "Super Metroid Recompiled installs and updates are paused because version 0.4.6 can restart the game in a new window that Portcove can't follow. If you're playing 0.4.6, leave the game with Exit, not Quit to launcher, or roll back to an earlier version if you have one. Your saves and settings stay as they are.",
+        "activation_reason": "This prepared Super Metroid Recompiled version hasn't been checked for restarting the game in a new window. Keep playing your current version.",
+        "reviewed_artifacts": [
+          {
+            "version": "v0.4.2",
+            "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+          },
+          {
+            "version": "v0.4.2",
+            "sha256": "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a"
+          },
+          {
+            "version": "v0.4.2",
+            "sha256": "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2"
+          },
+          {
+            "version": "v0.4.2",
+            "sha256": "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946"
+          }
+        ]
+      },
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "release": {

@@ -280,8 +280,11 @@ async function checkReviewedExternal(
     .digest("hex");
   const catalog = object(JSON.parse(await readFile(catalogPath, "utf8")));
   const ports = objects(catalog.ports);
+  // Borrow an existing N64 recomp definition only for its adapter shape. Its
+  // live release route can change (#5380 moved Wave Race 64 to a GitHub
+  // release), so the fixture declares its own user-prepared route below.
   const definition = structuredClone(ports.find((value) => value.id === "wave-race-64-recomp"));
-  assert.ok(definition, "existing user-prepared adapter must be available to the fixture");
+  assert.ok(definition, "existing N64 recomp adapter must be available to the fixture");
   Object.assign(definition, {
     id: port,
     name: "Owned external consent fixture",
@@ -289,6 +292,26 @@ async function checkReviewedExternal(
     presentation: null,
   });
   definition.executable_hints = { "windows-x86-64": ["game.exe"] };
+  // Drop the borrowed port's managed-install fields so later changes to its
+  // managed route cannot reach this user-prepared registration fixture.
+  for (const field of [
+    "portable_marker",
+    "persistent_paths",
+    "runtime_mutable_paths",
+    "runtime_source_filename",
+    "runtime_source_materialization",
+    "runtime_source_hashes",
+  ]) {
+    delete definition[field];
+  }
+  for (const field of Object.keys(definition)) {
+    if (field.startsWith("n64_")) delete definition[field];
+  }
+  definition.release = {
+    provider: "user-prepared",
+    repository: object(definition.release).repository,
+    user_prepared: {},
+  };
   const prepared = object(object(definition.release).user_prepared);
   const preparedRelease = {
     version: "fixture-v1",

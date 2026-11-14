@@ -323,6 +323,11 @@ impl PortcoveService {
 
 fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
     listing.project_url == url
+        || listing
+            .funding_urls
+            .iter()
+            .flatten()
+            .any(|reviewed| reviewed == url)
         || [
             Some(listing.project_url.as_str()),
             listing.release_url.as_deref(),
@@ -419,6 +424,40 @@ fn repository_updates_url(value: &str) -> Option<String> {
 mod resource_url_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn reviewed_funding_links_open_only_exactly() {
+        let temporary = tempfile::tempdir().unwrap();
+        let mut service =
+            PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+        let listing = serde_json::from_value(json!({
+            "id":"funded-project","name":"Funded project","summary":"Navigation fixture.",
+            "project_url":"https://example.org/project",
+            "funding_urls":["https://github.com/sponsors/owner","https://ko-fi.com/owner"]
+        }))
+        .unwrap();
+        service.catalog = Catalog::from_json(r#"{"schema_version":1,"ports":[]}"#)
+            .unwrap()
+            .with_listing_document(crate::CatalogListingDocument {
+                format_version: 10,
+                listings: vec![listing],
+            })
+            .unwrap();
+        for url in [
+            "https://github.com/sponsors/owner",
+            "https://ko-fi.com/owner",
+        ] {
+            assert!(service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+        for url in [
+            "https://github.com/sponsors/other",
+            "https://ko-fi.com/owner/",
+            "https://ko-fi.com/owner?from=elsewhere",
+            "http://ko-fi.com/owner",
+        ] {
+            assert!(!service.is_reviewed_resource_url(url).unwrap(), "{url}");
+        }
+    }
 
     #[test]
     fn repository_update_handoff_is_one_canonical_reviewed_destination() {

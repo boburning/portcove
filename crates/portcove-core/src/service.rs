@@ -103,7 +103,9 @@ pub use capabilities::{
 mod portable_save_folder;
 mod portable_saves;
 mod psx_mod_data;
+mod recent_play;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
+pub use recent_play::{RECENTLY_PLAYED_LIMIT, RecentlyPlayedGame};
 mod removal;
 mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
@@ -2946,7 +2948,12 @@ impl PortcoveService {
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
-            self.record_update_check(port_id, &status, &release.release)
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )
         }
         .await;
         self.finish_activity(activity, result)
@@ -3019,6 +3026,7 @@ impl PortcoveService {
         port_id: &str,
         status: &PortStatus,
         release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
         let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
         let installed_runtime = status
@@ -3039,6 +3047,7 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
+        let port = self.catalog.port(port_id)?;
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3048,6 +3057,21 @@ impl PortcoveService {
             required_runtime: runtime,
             update_available,
             release: release.clone(),
+            upstream_activity: match observed_activity {
+                Some(activity) => Some(activity.clone()),
+                // A check that did not read the repository keeps the earlier
+                // observation with its own time instead of erasing or re-dating it,
+                // but only while the port still names that GitHub repository.
+                None => self
+                    .library
+                    .update_snapshot(port_id)
+                    .unwrap_or_else(|error| {
+                        tracing::warn!(%error, port_id, "could not read the previous update check");
+                        None
+                    })
+                    .and_then(|snapshot| snapshot.check.upstream_activity)
+                    .filter(|activity| activity.describes(port)),
+            },
         };
         self.library.store_update_snapshot(&check)?;
         Ok(check)
@@ -3240,7 +3264,12 @@ impl PortcoveService {
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(port_id, &status, &release.release)?;
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -3639,7 +3668,12 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(port_id, &status, &release.release)?;
+                let check = self.record_update_check(
+                    port_id,
+                    &status,
+                    &release.release,
+                    release.upstream_activity.as_ref(),
+                )?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -7957,6 +7991,149 @@ mod tests {
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
+        );
+    }
+
+    /// Reports repository activity on its first resolution only, like a provider
+    /// that read the repository once and then took a route that did not.
+    struct ObservedOnceReleaseProvider {
+        inner: StaticReleaseProvider,
+        reported: AtomicBool,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for ObservedOnceReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.inner.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            _scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            let mut resolved = crate::ScopedResolvedRelease::legacy(
+                self.inner.resolve(port, channel, platform).await?,
+            )
+            .for_selection(port, platform, channel)?;
+            if !self.reported.swap(true, Ordering::SeqCst) {
+                resolved.upstream_activity = Some(crate::UpstreamActivity {
+                    repository: port.release.repository.clone(),
+                    observed_at: 1_000,
+                    archived: true,
+                    last_change_at: Some(900),
+                });
+            }
+            Ok(resolved)
+        }
+    }
+
+    #[tokio::test]
+    async fn update_checks_keep_the_last_upstream_activity_with_its_own_time() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::with_provider(
+            library,
+            Arc::new(ObservedOnceReleaseProvider {
+                inner: StaticReleaseProvider {
+                    version: "v1".into(),
+                },
+                reported: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        let observed = crate::UpstreamActivity {
+            repository: service
+                .catalog()
+                .port("zelda64-recomp")
+                .unwrap()
+                .release
+                .repository
+                .clone(),
+            observed_at: 1_000,
+            archived: true,
+            last_change_at: Some(900),
+        };
+        let first = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(first.upstream_activity.as_ref(), Some(&observed));
+        let second = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(second.upstream_activity.as_ref(), Some(&observed));
+        let snapshot = service
+            .status("zelda64-recomp")
+            .unwrap()
+            .last_update_check
+            .unwrap();
+        assert!(snapshot.checked_at > observed.observed_at);
+        assert_eq!(snapshot.check.upstream_activity, Some(observed));
+    }
+
+    #[test]
+    fn upstream_activity_belongs_only_to_the_same_github_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        let activity = crate::UpstreamActivity {
+            repository: port.release.repository.clone(),
+            observed_at: 1_000,
+            archived: false,
+            last_change_at: None,
+        };
+        assert!(activity.describes(port));
+        let differently_cased = crate::UpstreamActivity {
+            repository: port.release.repository.to_ascii_uppercase(),
+            ..activity.clone()
+        };
+        assert!(differently_cased.describes(port));
+        // An observation stored without a repository loads, but describes no port.
+        let unbound: crate::UpstreamActivity = serde_json::from_value(serde_json::json!({
+            "observed_at": 1_000,
+            "archived": true
+        }))
+        .unwrap();
+        assert_eq!(unbound.repository, "");
+        assert!(!unbound.describes(port));
+        let mut moved = port.clone();
+        moved.release.repository = "Successor/zelda64-recomp".into();
+        assert!(!activity.describes(&moved));
+        for provider in [
+            crate::ReleaseSource::Gitlab,
+            crate::ReleaseSource::DirectManifest,
+            crate::ReleaseSource::UserPrepared,
+        ] {
+            let mut other = port.clone();
+            other.release.provider = provider;
+            assert!(!activity.describes(&other), "{provider:?}");
+        }
+    }
+
+    #[test]
+    fn update_checks_without_upstream_activity_keep_their_stored_shape() {
+        let check: UpdateCheck = serde_json::from_value(serde_json::json!({
+            "port_id": "zelda64-recomp",
+            "channel": "stable",
+            "installed_version": null,
+            "update_available": true,
+            "release": {
+                "version": "v1",
+                "channel": "stable",
+                "published_at": null,
+                "asset": {"name": "a.zip", "url": "https://invalid.example/a.zip", "size": 1, "sha256": "a".repeat(64)}
+            }
+        }))
+        .unwrap();
+        assert_eq!(check.upstream_activity, None);
+        assert!(
+            serde_json::to_value(&check)
+                .unwrap()
+                .get("upstream_activity")
+                .is_none()
         );
     }
 
@@ -19021,6 +19198,252 @@ fn main() {
                 .join("new-settings.ini")
                 .exists()
         );
+    }
+
+    /// Register `port`'s retained contract at a fresh artifact-addressed root
+    /// with the host program and the given files.
+    fn register_forward_install(
+        library: &Library,
+        port: &PortDefinition,
+        version: &str,
+        active: bool,
+        files: &[(&str, &[u8])],
+    ) -> InstallRecord {
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{}-{version}.zip", port.id),
+            sha256: hex::encode(Sha256::digest(format!("{}:{version}", port.id))),
+            size: 4,
+        };
+        let root = library.versions_dir().join(&port.id).join(&artifact.sha256);
+        fs::create_dir_all(&root).unwrap();
+        let executable = root.join(&port.executable_hints[&Platform::current().unwrap()][0]);
+        fs::write(&executable, b"test").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+        for (relative, bytes) in files {
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
+    }
+
+    #[tokio::test]
+    async fn sonic2_installations_before_the_disposable_replay_logs_keep_their_data_lifecycle() {
+        const ID: &str = "sonic-the-hedgehog-2-recomp";
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        if !cfg!(windows) {
+            // The Windows-only coordinate envelope cannot describe a host
+            // fixture; persistence ownership is independent of it.
+            port.windows_runtime_path_policy = None;
+        }
+        crate::test_fixture::declare_host_platform(port);
+        let current = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let new_port = current.port(ID).unwrap().clone();
+        assert!(crate::persistence::requires_restore_receipt(&new_port));
+        let mut old_port = new_port.clone();
+        old_port.runtime_mutable_paths.retain(|path| path != "logs");
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = register_forward_install(
+            &library,
+            &old_port,
+            "v0.8.3",
+            true,
+            &[
+                ("settings.ini", b"player settings"),
+                ("native_save_1.bin", b"player progress"),
+                (LAUNCH_MARKER, b"1"),
+            ],
+        );
+        register_forward_install(&library, &new_port, "v0.9.23", false, &[]);
+        let mut service = service_with_release(library.clone(), "v0.9.23");
+        // Declaring `logs` persistent instead would make this receipt-governed
+        // copy borrow a wider scope and hold its data lifecycle.
+        let mut persistent_logs = document.clone();
+        let port = persistent_logs
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        port.runtime_mutable_paths.retain(|path| path != "logs");
+        port.persistent_paths.push("logs".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&persistent_logs).unwrap()).unwrap(),
+        );
+        let held = service
+            .persistence_contract_for_install(&old)
+            .err()
+            .unwrap();
+        assert_eq!(held.code, crate::ErrorCode::Conflict);
+        service.replace_catalog_for_test(current);
+
+        // The new runtime-only path keeps the retained persistence contract.
+        let contract = service.persistence_contract_for_install(&old).unwrap();
+        assert_eq!(contract.port.persistent_paths, old_port.persistent_paths);
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        let user = library.user_dir(ID);
+        assert_eq!(
+            fs::read(user.join("settings.ini")).unwrap(),
+            b"player settings"
+        );
+        service.restore_retained_user_data_to(&old).unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/native_save_1.bin")).unwrap(),
+            b"player progress"
+        );
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.version, "v0.9.23");
+        assert_eq!(
+            fs::read(updated.path.join("native_save_1.bin")).unwrap(),
+            b"player progress"
+        );
+        // Recordings are disposable runtime output: never collected or backed up.
+        fs::create_dir_all(updated.path.join("logs")).unwrap();
+        fs::write(
+            updated.path.join("logs/sonic2-feedback.replay"),
+            b"recording",
+        )
+        .unwrap();
+        fs::write(updated.path.join(LAUNCH_MARKER), b"1").unwrap();
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        assert!(!user.join("logs").exists());
+        let backup = service.create_backup(ID).unwrap();
+        assert!(!backup.path.join("data/logs").exists());
+    }
+
+    #[tokio::test]
+    async fn ape_escape_whole_mods_installation_moves_to_the_split_mod_paths() {
+        const ID: &str = "ape-escape-recompiled";
+        let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let new_port = current.port(ID).unwrap().clone();
+        assert!(!crate::persistence::requires_restore_receipt(&new_port));
+        let mut old_port = new_port.clone();
+        old_port.persistent_paths = [
+            "saves",
+            "settings.toml",
+            "input.ini",
+            "keybinds.ini",
+            "disc.cfg",
+            "bios.cfg",
+            "mods",
+        ]
+        .map(String::from)
+        .to_vec();
+        old_port
+            .runtime_mutable_paths
+            .retain(|path| path != "mods/cache");
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = register_forward_install(
+            &library,
+            &old_port,
+            "v0.3.0",
+            true,
+            &[
+                ("saves/card1.mcd", b"memory card"),
+                (
+                    "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                    b"old default",
+                ),
+                (
+                    "mods/installed/player.mod/1.0.0/manifest.toml",
+                    b"added mod",
+                ),
+                ("mods/state.toml", b"format_version = 2\n"),
+                ("mods/texture-packs/SCUS-94423/replacements/a.png", b"pack"),
+                (LAUNCH_MARKER, b"1"),
+            ],
+        );
+        let new = register_forward_install(
+            &library,
+            &new_port,
+            "v0.5.7",
+            false,
+            &[(
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"new default",
+            )],
+        );
+        let mut service = service_with_release(library.clone(), "v0.5.7");
+        service.replace_catalog_for_test(current);
+        // The whole-mods copy keeps its retained definition and scope.
+        let contract = service.persistence_contract_for_install(&old).unwrap();
+        assert_eq!(contract.port.persistent_paths, old_port.persistent_paths);
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.id, new.id);
+        for (relative, bytes) in [
+            ("saves/card1.mcd", b"memory card".as_slice()),
+            (
+                "mods/installed/player.mod/1.0.0/manifest.toml",
+                b"added mod",
+            ),
+            ("mods/state.toml", b"format_version = 2\n"),
+            ("mods/texture-packs/SCUS-94423/replacements/a.png", b"pack"),
+            // The new package's built-in mods are never replaced by old defaults.
+            (
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"new default",
+            ),
+        ] {
+            assert_eq!(
+                fs::read(new.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+        // The old built-in mods stay in canonical data and backups only.
+        let user = library.user_dir(ID);
+        assert_eq!(
+            fs::read(user.join("mods/bundled/ape.fixture/1.0.0/manifest.toml")).unwrap(),
+            b"old default"
+        );
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(
+                backup
+                    .path
+                    .join("data/mods/bundled/ape.fixture/1.0.0/manifest.toml")
+            )
+            .unwrap(),
+            b"old default"
+        );
+
+        // Rollback restores the whole retained tree to the old copy.
+        fs::write(
+            new.path.join("mods/state.toml"),
+            b"format_version = 2\n# new\n",
+        )
+        .unwrap();
+        fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+        let rolled_back = service.rollback(ID).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        for (relative, bytes) in [
+            ("mods/state.toml", b"format_version = 2\n# new\n".as_slice()),
+            (
+                "mods/installed/player.mod/1.0.0/manifest.toml",
+                b"added mod",
+            ),
+            (
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"old default",
+            ),
+            ("saves/card1.mcd", b"memory card"),
+        ] {
+            assert_eq!(
+                fs::read(old.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
     }
 
     #[test]

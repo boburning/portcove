@@ -25,30 +25,26 @@ const unsupportedByReason: Record<string, string[]> = {
     add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
-    cancel_application_update_check
     change_to_managed_runtime clear_host_tool_path
-    complete_application_update_production_transition copy_mod_setup create_backup
+    copy_mod_setup create_backup
     create_default_mod_setup
     create_support_bundle delete_backup discard_game_update_acquisition
-    dismiss_application_update_notice download_application_update
     download_catalog_package export_library_metadata forget_pending_setup
-    import_artwork import_library import_source install_port logout_github
+    import_artwork import_library import_source install_application_update install_port logout_github
     move_library open_bug_report open_external_url open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
     poll_github_device_login recheck_host_tool
-    recover_application_update_preferences recover_application_update_state
     recover_ghostship_legacy_data recover_library_import refresh_game_file_query
     refresh_official_definition register_external_runtime
     register_user_selected_runtime relink_external_runtime relink_game_file_root
     relink_source relink_user_selected_runtime relocate_output
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
-    reset_application_update_preferences reset_artwork reset_output_location
-    restart_to_apply_application_update restore_backup revoke_catalog_key
+    reset_artwork reset_output_location restore_backup revoke_catalog_key
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
     set_port_intent acknowledge_port_readiness run_standing_setup
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
-    set_application_update_preferences set_channel
+    set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
     set_mod_package_enabled
     set_output_location set_policy trust_catalog_key use_cached_catalog

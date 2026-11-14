@@ -24,8 +24,7 @@ void test("actual maintained source recipe supplies declarations without runtime
   const apiDeclaration = `pub const API_SCHEMA_VERSION: u32 = ${result.cli_protocol.min};`;
   const lib = nativeCompatibilitySourcePaths[0],
     db = nativeCompatibilitySourcePaths[1],
-    catalog = nativeCompatibilitySourcePaths[2],
-    windows = nativeCompatibilitySourcePaths[3];
+    catalog = nativeCompatibilitySourcePaths[2];
   const schemaDeclaration = `pub(crate) const CURRENT_SCHEMA_VERSION: i64 = ${result.library.write_schema};`;
   const minimumDeclaration = `pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = ${result.library.read.min};`;
   // This is a source-derived protocol, not a second pin to update on every API
@@ -130,7 +129,7 @@ void test("actual maintained source recipe supplies declarations without runtime
     });
   }
   assert.equal(result.authority, "none");
-  assert.equal(result.files.length, 4);
+  assert.equal(result.files.length, 3);
   for (const changed of [
     { ...files, [lib]: Buffer.from("invalid source") },
     { ...files, [lib]: Buffer.concat([files[lib]!, Buffer.from(`\n${apiDeclaration}\n`)]) },
@@ -179,15 +178,6 @@ void test("actual maintained source recipe supplies declarations without runtime
     },
     { ...files, [catalog]: Buffer.from('{"schema_version":4}') },
     { ...files, [lib]: Buffer.from([255]) },
-    {
-      ...files,
-      [windows]: Buffer.from(
-        files[windows]!.toString().replace(
-          "cli_protocol: portcove_core::API_SCHEMA_VERSION,",
-          "cli_protocol: 999,",
-        ),
-      ),
-    },
     { ...files, unreviewed: Buffer.from("extra") },
   ])
     assert.throws(() => inspectNativeCompatibilitySources(changed));

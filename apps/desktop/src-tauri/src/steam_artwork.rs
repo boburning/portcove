@@ -78,7 +78,7 @@ pub struct SteamArtworkPlanRequest {
     pub library_id: String,
     pub port_id: String,
     pub operation: SteamArtworkOperation,
-    /// One entry per role for Update; ignored by RemoveOwned.
+    /// One entry per role for Update; ignored by the removal operations.
     pub roles: Vec<(DestinationArtworkRole, SteamArtworkRoleContent)>,
     /// For Update reviewed together with a shortcut Add: the AppID that the
     /// reviewed shortcut plan gives this game's owned entry. The shortcut file
@@ -116,6 +116,11 @@ pub struct SteamArtworkPlan {
     /// reported state is a preserved ambiguity; equality binds them all.
     #[serde(skip)]
     observed_variants: Vec<ObservedVariant>,
+    /// For each planned role whose Portcove-owned file is still exactly the
+    /// recorded bytes: the Core image it was written from. Derived only from
+    /// the bound records and observed digests, so it never changes the plan.
+    #[serde(skip)]
+    owned_sources: Vec<(DestinationArtworkRole, String)>,
 }
 
 impl SteamArtworkPlan {
@@ -132,6 +137,11 @@ impl SteamArtworkPlan {
 
     fn ownership_changes(&self) -> bool {
         self.roles.iter().any(|role| role.forget_ownership)
+    }
+
+    /// The source image of each planned, still-unchanged Portcove-owned file.
+    pub fn owned_sources(&self) -> &[(DestinationArtworkRole, String)] {
+        &self.owned_sources
     }
 }
 
@@ -256,7 +266,35 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
                 .map(|record| record.app_id);
             (None, app_id)
         }
+        SteamArtworkOperation::RemoveOwnedRole { role } => {
+            roles.push(plan_remove_role(
+                &grid_path,
+                role,
+                &marker,
+                &mut ownership_after,
+            )?);
+            let app_id = ownership_before
+                .iter()
+                .find(|record| record.marker == marker && record.role == role)
+                .map(|record| record.app_id);
+            (None, app_id)
+        }
     };
+    let owned_sources = roles
+        .iter()
+        .filter_map(|change| {
+            let record = ownership_before
+                .iter()
+                .find(|record| record.marker == marker && record.role == change.role)?;
+            let path = grid_path.join(&record.file_name);
+            (change.existing_sha256.as_deref() == Some(record.sha256.as_str())
+                && change
+                    .existing_paths
+                    .iter()
+                    .any(|existing| *existing == path))
+            .then(|| (change.role, record.source_asset_sha256.clone()))
+        })
+        .collect::<Vec<_>>();
     let mut ownership_scope = ownership_before
         .iter()
         .filter(|record| record.marker == marker)
@@ -293,6 +331,7 @@ pub fn plan_steam_artwork(request: &SteamArtworkPlanRequest) -> Result<SteamArtw
         ownership_after,
         ownership_scope,
         observed_variants,
+        owned_sources,
     };
     // The reviewed hash also binds the internal ownership result and every
     // observed destination variant, not only the reported role changes.
@@ -773,7 +812,7 @@ fn write_ownership(config: &Path, records: &[OwnershipRecord]) -> Result<()> {
         schema_version: OWNERSHIP_SCHEMA_VERSION,
         records: records.to_vec(),
     };
-    crate::application_update_storage::write_bytes_atomically(
+    crate::atomic_files::write_bytes_atomically(
         config,
         OWNERSHIP_TEMPORARY_FILE,
         OWNERSHIP_FILE,
@@ -918,7 +957,7 @@ fn prepare_publication(
         ownership_before,
         ownership_after,
     };
-    crate::application_update_storage::write_bytes_atomically(
+    crate::atomic_files::write_bytes_atomically(
         config,
         JOURNAL_TEMPORARY_FILE,
         JOURNAL_FILE,

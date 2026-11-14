@@ -30,7 +30,6 @@ const ALLOWED_DIRECT_COMMAND_FILES = new Set([
   "crates/portcove-release-tools/tests/tuf_repository/isolated/renewal.rs",
   "crates/portcove-release-tools/tests/tuf_repository/isolated.rs",
   "crates/portcove-release-tools/tests/tuf_repository/offline.rs",
-  "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs",
 ]);
 
 function rustFiles(directory: string): string[] {

@@ -90,6 +90,9 @@
     ],
     "portable_marker": true,
     "user_data_environment": "SNAP_DATA_DIR",
+    "launch_environment": {
+      "SNAP_NO_STEAM_ART": "1"
+    },
     "runtime_source_filename": "pokemonsnap.z64",
     "runtime_source_materialization": "n64-big-endian",
     "presentation": {

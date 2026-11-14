@@ -40,20 +40,29 @@ async function mount(journey: string) {
     "text/html",
   ).body.innerHTML;
   await act(async () => startInteractiveScenarios());
+  // The fixture workspace loads asynchronously; wait for the Library before tests read it.
+  if (journey === "library")
+    await vi.waitFor(() => {
+      if (!document.querySelector(".collection-entry")) throw new Error("Library is loading");
+    });
 }
 // The hero, the Game files review opener and the review confirmation all read
 // "Finish setup", so those callers scope to the owning region.
+// Wait for the control, since journeys load their fixture workspace asynchronously.
 async function click(label: string, within = "body") {
-  const button = [
-    ...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? []),
-  ].find(
-    (item) =>
-      !item.hidden &&
-      (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
-  );
-  expect(button, label).toBeDefined();
-  expect(button?.disabled, label).toBe(false);
-  await act(async () => button!.click());
+  const find = () =>
+    [...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+      (item) =>
+        !item.hidden &&
+        (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
+    );
+  const button = await vi.waitFor(() => {
+    const found = find();
+    expect(found, label).toBeDefined();
+    return found!;
+  });
+  expect(button.disabled, label).toBe(false);
+  await act(async () => button.click());
 }
 
 it("gives every disposable detail route five real tabs and binds external Play to its exact ID", async () => {
@@ -121,7 +130,7 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("Back to Library");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).toBeNull();
   await click("Reset journey");
-  expect(document.querySelector("#port-search")).not.toBeNull();
+  await vi.waitFor(() => expect(document.querySelector("#port-search")).not.toBeNull());
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
 });
 
@@ -215,7 +224,7 @@ it("uses a viewport-bound demo workspace across resizing and preserves embedded 
   expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
   await click("Reset journey");
   expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
-  expect(document.querySelectorAll(".collection-entry")).toHaveLength(60);
+  await vi.waitFor(() => expect(document.querySelectorAll(".collection-entry")).toHaveLength(60));
 });
 
 it("returns to the exact older recovery activity after opening its game", async () => {
@@ -278,13 +287,13 @@ it("opens current Settings read surfaces without fixture refusals", async () => 
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 
-it("keeps unsaved update choices while switching Settings categories", async () => {
+it("keeps the chosen update channel while switching Settings categories", async () => {
   await mount("library");
   await navigateTo("Settings");
   const navigation = page.getByRole("navigation", { name: "Settings categories" });
   await navigation.getByRole("button", { name: "Updates", exact: true }).click();
   const preview = page
-    .getByRole("group", { name: "Application update channel" })
+    .getByRole("group", { name: "Update channel", exact: true })
     .getByRole("button", { name: "Preview", exact: true });
   await expect.element(preview).toBeEnabled();
   await preview.click();
@@ -323,17 +332,19 @@ it("opens About through Settings and keeps custom catalog trust under Advanced",
 });
 
 it("opens the Updates category before focusing an application-update notice", async () => {
-  vi.spyOn(desktopApi, "applicationUpdatePreferences").mockResolvedValue({
-    schema_version: 1,
-    revision: 1,
-    choice: null,
+  vi.spyOn(desktopApi, "applicationUpdateStatus").mockResolvedValue({
+    current_version: "0.1.0",
+    checking: false,
+    installing: false,
+    available: { version: "0.2.0", channel: "beta", notes: "Fixes.", date: null },
+    last_checked_unix_seconds: 1,
   });
   await mount("library");
   await navigateTo("Settings");
   await expect
     .element(page.getByRole("heading", { name: "Color theme", exact: true }))
     .toBeVisible();
-  await page.getByRole("button", { name: "Review options", exact: true }).click();
+  await page.getByRole("button", { name: "Review update", exact: true }).click();
   await expect
     .element(
       page
@@ -342,7 +353,7 @@ it("opens the Updates category before focusing an application-update notice", as
     )
     .toHaveAttribute("aria-current", "page");
   await vi.waitFor(() =>
-    expect(document.activeElement?.closest(".application-update-settings")).not.toBeNull(),
+    expect(document.activeElement?.id).toBe("application-update-available-title"),
   );
   expect(document.activeElement?.closest("[hidden]")).toBeNull();
 });
@@ -366,7 +377,7 @@ it("opens application updates from Activity without entering custom catalog sett
   expect(advanced && getComputedStyle(advanced).display).toBe("none");
 });
 
-it("checks a one-time update channel in actual Settings without saving consent", async () => {
+it("saves the update channel and checks for updates in actual Settings", async () => {
   const save = vi.spyOn(desktopApi, "setApplicationUpdatePreferences");
   await mount("library");
   await navigateTo("Settings");
@@ -375,22 +386,21 @@ it("checks a one-time update channel in actual Settings without saving consent",
     .getByRole("button", { name: "Updates", exact: true })
     .click();
   await page
-    .getByRole("group", { name: "One-time update channel", exact: true })
-    .getByRole("button", { name: "Stable", exact: true })
+    .getByRole("group", { name: "Update channel", exact: true })
+    .getByRole("button", { name: "Preview", exact: true })
     .click();
-  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
-  await expect.element(page.getByText("One-time check · Stable", { exact: true })).toBeVisible();
+  await vi.waitFor(() =>
+    expect(save).toHaveBeenCalledExactlyOnceWith({ channel: "preview", automatic_checks: false }),
+  );
   await expect
     .element(
-      page.getByText("Renderer fixture only: no update service or native trust checks were run.", {
-        exact: true,
-      }),
+      page
+        .getByRole("group", { name: "Update channel", exact: true })
+        .getByRole("button", { name: "Preview", exact: true }),
     )
-    .toBeVisible();
-  await expect
-    .element(page.getByRole("button", { name: "Save application update settings", exact: true }))
-    .toBeDisabled();
-  expect(save).not.toHaveBeenCalled();
+    .toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Check for updates", exact: true }).click();
+  await expect.element(page.getByText(/Portcove is up to date/u)).toBeVisible();
   expect(document.querySelector(".scenario-fixture-actions [role=alert]")?.textContent).toBe("");
 });
 

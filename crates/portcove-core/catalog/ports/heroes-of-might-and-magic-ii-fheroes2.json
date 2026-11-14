@@ -19,6 +19,7 @@
     },
     "issue_number": 2582,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://www.patreon.com/fheroes2", "https://boosty.to/fheroes2"],
     "manual_setup": {
       "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
       "steps": [

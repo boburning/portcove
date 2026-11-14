@@ -250,22 +250,6 @@ export async function artworkScenario({
           until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
           15_000,
         );
-        const preferences = transportValue(
-          "desktop_application_update_preferences",
-          success(await invoke("get_application_update_preferences")),
-        );
-        if (preferences.choice === null) {
-          const choice = By.xpath(
-            '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
-          );
-          await browser.wait(until.elementLocated(choice), 15_000);
-          await click(
-            By.xpath(
-              '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
-            ),
-          );
-          await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
-        }
         // Keep the reload above paired with observations.begin(); a second
         // reload here would discard its request observers.
         await click(By.xpath('//nav//button[contains(., "Discover")]'));

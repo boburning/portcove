@@ -128,6 +128,15 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // ROM patching needs staged-source capability 33 whatever chain matched.
+    let default_version = if port.runtime_rom_patch.is_some()
+        || port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::RomPatch)
+    {
+        default_version.max(33)
+    } else {
+        default_version
+    };
     // Track counts live in the embedded source profile, not on the port.
     let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
         && crate::Catalog::embedded()
@@ -334,7 +343,11 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.optional_game_source {
+        let capability_version = if port.runtime_rom_patch.is_some() {
+            // ROM patching needs staged-source capability version 33; it is the newest
+            // staged-source requirement, so it stays first.
+            33
+        } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently
             // skip the requirement.

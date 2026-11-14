@@ -11,7 +11,7 @@ import {
   workspace,
   type Journey,
 } from "./scenarios";
-import type { ArtworkSlot, OperationEvent, ApplicationUpdateCheckPhase } from "../../types";
+import type { ArtworkSlot, OperationEvent } from "../../types";
 import type { desktopApi } from "../../api";
 import { collectionArtwork } from "./collection-artwork";
 import { retainedSetup } from "./activity-fixtures";
@@ -123,6 +123,16 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   // The library's snapshot setting, on by default like Core's.
   let automaticSnapshots = true;
   let readyNotices = true;
+  let applicationUpdatePreferences: Awaited<
+    ReturnType<typeof desktopApi.applicationUpdatePreferences>
+  > = { channel: "beta", automatic_checks: false };
+  let applicationUpdateStatus: Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>> = {
+    current_version: "0.1.0",
+    checking: false,
+    installing: false,
+    available: null,
+    last_checked_unix_seconds: null,
+  };
   const unsupported = (command: string): never => {
     const message = `Unsupported fixture action: ${command}. No native action was performed.`;
     refuse(message);
@@ -207,6 +217,11 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     assess_port_intents: (args) => {
       requireArgs("assess_port_intents", args, { generation });
       return { assessments: [], not_assessed: 0, ready_notices_enabled: readyNotices };
+    },
+    // Fixtures never start from a taskbar jump-list entry.
+    take_startup_play_request: (args) => {
+      requireArgs("take_startup_play_request", args, {});
+      return null;
     },
     get_ready_notices_enabled: (args) => {
       requireArgs("get_ready_notices_enabled", args, { generation });
@@ -371,13 +386,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_application_update_status: (args) => {
       requireArgs("get_application_update_status", args, {});
-      return {
-        schedule: null,
-        staged: null,
-        apply: null,
-        install_eligibility: "not-configured",
-        recovery_required: [],
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateStatus>>;
+      return applicationUpdateStatus;
     },
     get_listing_delivery_status: (args) => {
       requireArgs("get_listing_delivery_status", args, {});
@@ -681,58 +690,32 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
     },
     get_application_update_preferences: (args) => {
       requireArgs("get_application_update_preferences", args, {});
-      return {
-        schema_version: 1,
-        revision: 1,
-        choice: { channel: "stable", mode: "notify-only", paused: true },
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdatePreferences>>;
+      return applicationUpdatePreferences;
     },
-    get_application_update_production_transition: (args) => {
-      requireArgs("get_application_update_production_transition", args, {});
-      return {
-        schema_version: 1,
-        preference_revision: 1,
-        offer_required: false,
-      } satisfies Awaited<ReturnType<typeof desktopApi.applicationUpdateProductionTransition>>;
-    },
-    get_application_update_notice: (args) => {
-      requireArgs("get_application_update_notice", args, {});
-      return { notice: null, revision: 0 } satisfies Awaited<
-        ReturnType<typeof desktopApi.applicationUpdateNotice>
-      >;
+    set_application_update_preferences: (args) => {
+      const preferences = args?.preferences;
+      if (!preferences || typeof preferences !== "object" || Array.isArray(preferences))
+        return unsupported("set_application_update_preferences (invalid preferences)");
+      const { channel, automatic_checks: automaticChecks } = preferences as Record<string, unknown>;
+      requireArgs(
+        "set_application_update_preferences preferences",
+        preferences as Record<string, unknown>,
+        {
+          channel,
+          automatic_checks: automaticChecks,
+        },
+      );
+      if ((channel !== "beta" && channel !== "preview") || typeof automaticChecks !== "boolean")
+        return unsupported("set_application_update_preferences (invalid preferences)");
+      requireArgs("set_application_update_preferences", args, { preferences });
+      applicationUpdatePreferences = { channel, automatic_checks: automaticChecks };
+      return applicationUpdatePreferences;
     },
     check_application_update: (args) => {
-      const request = args?.request;
-      if (request != null && (typeof request !== "object" || Array.isArray(request)))
-        return unsupported("check_application_update (invalid request)");
-      const fields = (request ?? {}) as Record<string, unknown>;
-      requireArgs(
-        "check_application_update request",
-        fields,
-        fields.channel === undefined ? {} : { channel: fields.channel },
-      );
-      const selected = fields.channel ?? "preview";
-      if (selected !== "stable" && selected !== "preview")
-        return unsupported("check_application_update (invalid channel)");
-      if (!(args?.onEvent instanceof Channel))
-        return unsupported("check_application_update (missing event channel)");
-      requireArgs(
-        "check_application_update",
-        args,
-        args && "request" in args ? { request, onEvent: args.onEvent } : { onEvent: args?.onEvent },
-      );
-      const events = args.onEvent as Channel<ApplicationUpdateCheckPhase>;
-      events.onmessage("checking");
-      events.onmessage("complete");
-      return {
-        checked_channel: selected,
-        result: {
-          kind: "no-candidate",
-          candidate: null,
-          reasons: ["Renderer fixture only: no update service or native trust checks were run."],
-          staged: false,
-        },
-      } satisfies Awaited<ReturnType<typeof desktopApi.checkApplicationUpdate>>;
+      requireArgs("check_application_update", args, {});
+      // Renderer fixture only: no update feed or signature check is run.
+      applicationUpdateStatus = { ...applicationUpdateStatus, last_checked_unix_seconds: 1 };
+      return applicationUpdateStatus;
     },
     get_cli_command_context: (args) => {
       requireArgs("get_cli_command_context", args, { generation });

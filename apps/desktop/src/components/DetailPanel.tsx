@@ -6,6 +6,7 @@ import { Chip } from "./ui/chip";
 import { IdentityIcon } from "../features/identity/IdentityIcon";
 import { identityStyle } from "../features/identity/identity-style";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
+import { UpstreamActivityFacts } from "../features/browsing/UpstreamActivityFacts";
 import { gameFilesPresentation } from "../features/port-actions/browse-presentation";
 import { CurrentStateSummary, ManagementRow } from "./ui/patterns";
 import { DetailLayout } from "./DetailLayout";
@@ -3825,6 +3826,7 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
         <dl className="detail-facts">
+          <UpstreamActivityFacts port={model.port} status={model.status} />
           <ListingMaintenanceFacts listing={model.displayPort?.listing} />
         </dl>
       </details>

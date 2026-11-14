@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+mod transfer;
+
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -508,6 +510,14 @@ struct InstallManifest {
     #[serde(default)]
     mutable_file_patterns: Vec<ManifestFilePattern>,
     files: Vec<ManifestFile>,
+    /// Derived package shape and shadow drift verdict (#5359). Optional and
+    /// additive; it never admits or refuses anything. It is kept as untyped
+    /// JSON so a record written by another Portcove version never makes this
+    /// manifest unreadable, and rewrites carry it verbatim.
+    /// `package_shape::stored_record` reads it; anything it does not
+    /// understand is no record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    package_shape: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1316,6 +1326,7 @@ impl Installer {
             )?;
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
+        let mut package_shape = None;
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
@@ -1357,6 +1368,14 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
+            // Shadow drift comparison (#5359 phase 1): derived after every
+            // grant and before any adapter adds content. It refuses nothing.
+            package_shape = Some(self.package_shape_record(
+                port,
+                &request.qualification,
+                &payload_root,
+                &artifact.sha256,
+            ));
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -1556,13 +1575,14 @@ impl Installer {
             })
             .await?;
         }
-        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+        let (manifest_sha256, selected_executable, runtime) = write_manifest_with_shape(
             &operation_id,
             &request.port_id,
             &request.release.version,
             &artifact,
             &request.qualification,
             &payload_root,
+            package_shape,
         )?;
         let install = InstallRecord {
             id: operation_id,
@@ -1990,6 +2010,10 @@ impl Installer {
 
     /// Shared bounded byte transfer; callers supply a provider-constrained
     /// client and still own checksum verification and publication policy.
+    ///
+    /// Contract: a non-empty `asset.sha256` promises that the caller verifies
+    /// the complete file against it before use. Only then may a dropped body
+    /// continue with `Range`; an empty digest makes every retry start over.
     pub(crate) async fn download_with_client<F>(
         client: &reqwest::Client,
         asset: &ReleaseAsset,
@@ -2000,86 +2024,15 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        validate_download_progress(0, asset.size)?;
-        let response = operation
-            .interruptible(async {
-                let response = client.get(&asset.url).send().await.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let status = response.status();
-                response.error_for_status().map_err(|error| {
-                    PortcoveError::network(error.to_string()).with_upstream(Some(
-                        crate::failure::UpstreamObservation::Status(status.as_u16()),
-                    ))
-                })
-            })
-            .await?;
-        let total = response
-            .content_length()
-            .or(Some(asset.size))
-            .filter(|value| *value > 0);
-        let mut stream = response.bytes_stream();
-        // Network chunks are small; batch them so each write is not its own
-        // blocking-pool dispatch. `flush` below drains the buffer and the file.
-        let mut file = tokio::io::BufWriter::with_capacity(
-            1024 * 1024,
-            tokio::fs::File::create(destination).await?,
-        );
-        let mut completed = 0_u64;
-        let transfer_result: Result<()> = async {
-            let mut reported = 0_u64;
-            while let Some(chunk) = operation
-                .interruptible(async { Ok(stream.next().await) })
-                .await?
-            {
-                let chunk = chunk.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let next = completed
-                    .checked_add(chunk.len() as u64)
-                    .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
-                validate_download_progress(next, asset.size)?;
-                file.write_all(&chunk).await?;
-                completed = next;
-                if total.is_some_and(|total| completed == total)
-                    || completed.saturating_sub(reported) >= 1024 * 1024
-                {
-                    emit(operation.progress_with_unit(
-                        "download",
-                        crate::ProgressUnit::Bytes,
-                        completed,
-                        total,
-                    ));
-                    reported = completed;
-                }
-            }
-            if completed != reported {
-                emit(operation.progress_with_unit(
-                    "download",
-                    crate::ProgressUnit::Bytes,
-                    completed,
-                    total,
-                ));
-            }
-            Ok(())
-        }
-        .await;
-        // Tokio write_all can return with a blocking file write still queued.
-        // Drain even on cancellation/network/size/write errors before callers
-        // may clean private staging or publish the terminal transfer result.
-        // This await is deliberately outside cooperative interruption.
-        let drain_result = file.flush().await;
-        if let Err(error) = transfer_result {
-            return Err(match drain_result {
-                Ok(()) => error,
-                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
-            });
-        }
-        drain_result?;
-        validate_download_size(completed, asset.size)?;
-        Ok(())
+        transfer::download(
+            client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+        )
+        .await
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
@@ -3356,6 +3309,7 @@ mod legacy_dkr_tests {
                 executable: schema >= 5
                     && crate::permissions::platform_requires_executable(artifact.platform),
             }],
+            package_shape: None,
         };
         let bytes = serde_json::to_vec(&manifest).unwrap();
         fs::write(root.join(".portcove-manifest.json"), &bytes).unwrap();
@@ -3608,6 +3562,96 @@ pub(crate) fn portability_catalog_for_install(
     Ok(retained)
 }
 
+impl Installer {
+    /// Derive the shape of a new install's extracted package and its shadow
+    /// verdict. Baseline and observation failures become `unknown`; this
+    /// never refuses the installation.
+    fn package_shape_record(
+        &self,
+        port: &PortDefinition,
+        qualification: &InstallQualification,
+        payload_root: &Path,
+        sha256: &str,
+    ) -> crate::package_shape::PackageShapeRecord {
+        let local = self
+            .local_shape_baseline(&port.id, qualification.platform)
+            .ok()
+            .flatten();
+        crate::package_shape::record_for_install(
+            port,
+            qualification,
+            qualification.platform,
+            payload_root,
+            sha256,
+            local.as_ref(),
+        )
+    }
+
+    /// The active installation's recorded shape on the same platform.
+    fn local_shape_baseline(
+        &self,
+        port_id: &str,
+        platform: Platform,
+    ) -> Result<Option<crate::package_shape::LocalBaseline>> {
+        let connection = self.library.connection()?;
+        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let Some(install) = Library::install_by_id(&connection, active.as_deref())? else {
+            return Ok(None);
+        };
+        let manifest = verified_manifest(&install)?;
+        if manifest.platform != Some(platform) {
+            return Ok(None);
+        }
+        Ok(manifest
+            .package_shape
+            .as_ref()
+            .and_then(crate::package_shape::stored_record)
+            .map(|record| crate::package_shape::LocalBaseline {
+                install_id: install.id.clone(),
+                version: install.version.clone(),
+                sha256: install.artifact.sha256.clone(),
+                record,
+            }))
+    }
+
+    /// Recorded package shapes and shadow verdicts of a port's installations,
+    /// for read-only diagnostics.
+    pub fn installed_package_shapes(
+        &self,
+        port_id: &str,
+    ) -> Result<Vec<crate::package_shape::InstalledPackageShape>> {
+        let connection = self.library.connection()?;
+        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let mut installs = Library::installs_from(&connection)?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .map(|install| {
+                use crate::package_shape::InstalledShapeStatus as Status;
+                let (status, record, detail) = match verified_manifest(&install) {
+                    Err(error) => (Status::ManifestUnverifiable, None, Some(error.message)),
+                    Ok(manifest) => match manifest.package_shape {
+                        None => (Status::NotRecorded, None, None),
+                        Some(value) => match crate::package_shape::stored_record(&value) {
+                            Some(record) => (Status::Recorded, Some(record), None),
+                            None => (Status::Unrecognized, None, None),
+                        },
+                    },
+                };
+                crate::package_shape::InstalledPackageShape {
+                    active: active.as_deref() == Some(install.id.as_str()),
+                    status,
+                    record,
+                    detail,
+                    install_id: install.id,
+                    version: install.version,
+                }
+            })
+            .collect::<Vec<_>>();
+        installs.sort_by(|left, right| left.install_id.cmp(&right.install_id));
+        Ok(installs)
+    }
+}
+
 fn write_manifest(
     install_id: &str,
     port_id: &str,
@@ -3615,6 +3659,27 @@ fn write_manifest(
     artifact: &ArtifactIdentity,
     qualification: &InstallQualification,
     root: &Path,
+) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+    write_manifest_with_shape(
+        install_id,
+        port_id,
+        version,
+        artifact,
+        qualification,
+        root,
+        None,
+    )
+}
+
+/// Write the manifest, recording the derived package shape of a new install.
+fn write_manifest_with_shape(
+    install_id: &str,
+    port_id: &str,
+    version: &str,
+    artifact: &ArtifactIdentity,
+    qualification: &InstallQualification,
+    root: &Path,
+    package_shape: Option<crate::package_shape::PackageShapeRecord>,
 ) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
     let retained_contract = qualification.retained_contract.as_ref().ok_or_else(|| {
         PortcoveError::verification("manifest publication requires the exact catalog contract")
@@ -3726,6 +3791,9 @@ fn write_manifest(
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
         files,
+        package_shape: package_shape
+            .as_ref()
+            .and_then(crate::package_shape::stored_value),
     };
     let bytes = serde_json::to_vec_pretty(&manifest)?;
     let manifest_sha256 = hex::encode(Sha256::digest(&bytes));
@@ -4427,7 +4495,10 @@ fn resolve_executable_hints_with_wrapper(
 
 /// Grant execution to the declared program of a package whose archive carries no executable
 /// bit, only when the file verifies as a binary for the platform.
-fn grant_declared_executable(root: &Path, qualification: &InstallQualification) -> Result<()> {
+pub(crate) fn grant_declared_executable(
+    root: &Path,
+    qualification: &InstallQualification,
+) -> Result<()> {
     let search_root = qualification
         .runtime_subdirectory
         .as_deref()
@@ -5102,6 +5173,8 @@ mod tests {
     mod dynamic_policy;
     mod native_paths;
     mod network_download;
+    mod package_shape;
+    mod resumable_download;
     use std::{
         fs::File,
         sync::{

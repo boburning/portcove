@@ -915,8 +915,10 @@ mod tests {
         input_only: bool,
     }
 
-    /// API 92 adds recorded listing evidence to exactly two outputs. The handoff,
-    /// metadata, attribution and every other contract must not change with it.
+    /// API 92 adds recorded listing evidence to exactly two outputs, and API 93
+    /// adds withdrawal and removal results to the same two. The handoff,
+    /// attribution and every other contract must not change with them; library
+    /// metadata carries withdrawals separately, without this evidence.
     #[test]
     fn listing_evidence_appears_only_in_the_artwork_state_and_the_listing_report() {
         let markers = [
@@ -925,6 +927,9 @@ mod tests {
             "listing_total",
             "SteamGridDbListingResult",
             "ArtworkProviderListing",
+            "withdrawal_signal",
+            "removal_deferred",
+            "SteamGridDbCheckEffect",
         ];
         for contract in [SchemaContract::Output, SchemaContract::Input] {
             let schemas = document(contract);

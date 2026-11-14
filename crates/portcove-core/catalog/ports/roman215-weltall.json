@@ -19,6 +19,7 @@
     },
     "issue_number": 2786,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/Roman215", "https://ko-fi.com/roman215"],
     "manual_setup": {
       "help_url": "https://github.com/Roman215/Weltall/blob/1cb16a61505ca87088105325549f218b7d8cb8dd/README.md",
       "steps": [

@@ -218,14 +218,6 @@
   },
   "ignored_routes": [
     {
-      "source": "apps/desktop/src-tauri/tests/updater_trust_support/offline_online_qualification.rs",
-      "test": "qualification_host_consumes_offline_bootstrap_online_generations",
-      "reason": "explicit retained disposable offline/online producer packet",
-      "package": "portcove-desktop",
-      "platforms": ["linux", "darwin", "win32"],
-      "category": "explicit-acceptance"
-    },
-    {
       "source": "crates/portcove-cli/tests/desktop_host_diagnostics.rs",
       "test": "desktop_host_fixture_child",
       "reason": "invoked only as an owned child by the Desktop host qualification tests",

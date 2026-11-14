@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 92 and event schema 3.
+and `listing_formats` independently from API schema 93 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -405,10 +405,16 @@ export without an explicit format is the current format 9 and carries the dates,
 an explicit export to formats 5 through 8 omits them. A reader that predates format 9
 must request a format it understands.
 
+Listing format 10 adds optional inert `funding_urls`: 1 to 12 distinct public HTTPS
+pages where the upstream developers accept funding (an empty list is refused). `capabilities.listing_formats`
+advertises 5 through 10; an export without an explicit format is the current format 10
+and carries the links, while an explicit export to formats 5 through 9 omits them.
+Retained user-selected listings never carry them. Desktop opens only those exact links.
+
 The catalog listing document has its own format version. Readers accept formats
-1–9 with independent field gates: format 7 adds advice, format 8 adds GitLab
-descriptive observations using provider-qualified project/tag identities, and format 9
-adds the first-listed date. `catalog listings --format-version 8` preserves advice and
+1–10 with independent field gates: format 7 adds advice, format 8 adds GitLab
+descriptive observations using provider-qualified project/tag identities, format 9
+adds the first-listed date and format 10 adds funding links. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted
@@ -594,6 +600,33 @@ Unix host to preserve executable modes. The Unix ZIP and TAR.GZ path uses the
 managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
+
+### Package shape inspection
+
+Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`
+with the publisher's independently obtained size and digest. It verifies and
+extracts the bytes like `inspect-package-layout`, prepares them as the managed
+installer does for the embedded catalog's route, and returns
+`catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
+`shape_version`, the derived `shape`, its `provenance`, the
+`derivation_inputs_sha256` of the embedded catalog facts it derived with
+(absent for a route outside the embedded catalog) and a shadow `verdict`
+against the embedded generated table or explicit fingerprint
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict
+`status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
+`reason`). It runs before opening a library, executes nothing and establishes
+no review; `scripts/package-shape-baselines.mts --record` uses it.
+
+`portcove --library PATH --json installation package-shape PORT_ID` lists each
+registered installation of the port with `install_id`, `version`, `active`,
+`status` and, when `status` is `recorded`, the `record`: shape, derivation
+version, provenance and the shadow verdict computed at install. `status` is
+`recorded`, `not_recorded` (installations from before #5359), `unrecognized`
+(a record from another derivation version or a newer Portcove) or
+`manifest_unverifiable`, with the verification error in `detail`. It is
+read-only and takes no port lock. Human output of both commands says
+`compatible (unreviewed baseline)` when the matching baseline was never
+reviewed.
 
 ### Standalone package and focused build
 
@@ -1434,14 +1467,16 @@ and the destination handoff. An image no longer on the game's first listing page
 not-found, and a changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
-that contain chosen SteamGridDB images use metadata schema 8.
+that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
+check has confirmed a withdrawal.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
 `check-listings` checks, with your key, whether SteamGridDB still lists each
 SteamGridDB image in your library, records what it finds beside each image's credit,
-and returns `steamgriddb_listing_report`. Nothing is removed: every image, credit and
-choice is kept, nothing changes in Steam, and no artwork lock is held while it waits
-on the network. Each stored image is checked against its game's listing for the same
+and returns `steamgriddb_listing_report`. A check can remove Portcove's copy of an
+image SteamGridDB no longer lists, but only after a second signal confirms the first
+absence (see below); every choice and credit is kept, nothing changes in Steam, and
+no artwork lock is held while it waits on the network. Each stored image is checked against its game's listing for the same
 role collection, stored size (when it is a size Portcove offers for the role) and
 format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
 later Portcove filter change never reads as missing. An image seen on any listing page
@@ -1475,6 +1510,31 @@ in which case the results are shown but not kept. `artwork_state.provider_listin
 shows the recorded evidence for the selected image. Library moves keep this evidence;
 library exports and imports do not carry it. A library with no SteamGridDB images
 makes no request and needs no key.
+
+A `not_listed` result is confirmed as a withdrawal when the image server answers
+`gone` in the same check, or when a later check at least 24 hours after the first
+absence still finds it `not_listed`, by both Portcove's clock and SteamGridDB's own
+`Date`. An `unknown` result, a `gone` answer from an earlier check, or a missing date
+never confirms one, and an image seen listed again clears it. When every SteamGridDB
+credit behind an image is confirmed and you never imported the same image yourself,
+Portcove removes its copy: the original and thumbnail are deleted, the slot shows the
+generated fallback with a reason, and the choice, its revision and the credit stay.
+`artwork_state.evicted_at` says when, and each `provider_listing` entry shows
+`withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
+restores the copy. A copy you imported yourself is kept and only marked withdrawn.
+
+Each image's `effect` is what this check changed: `none`, `withdrawn` (confirmed,
+copy kept), `removed` (confirmed and the copy is removed) or `listed_again`. Its
+`withdrawn_at` and `evicted_at` show the library's state after the check, so an image
+confirmed or removed earlier reads as such. A check never confirms a withdrawal while
+the computer's clock reads before 2020 or after 2199. `skipped` counts results that
+could not be written and stay unrecorded. One check deletes at most 32 copies:
+`removed` counts deletions that finished, `removal_deferred` those left for the next
+check, export or move, and `removal_failed` those another program kept open. A
+removed copy is never shown or handed to Steam, even while its file waits for
+deletion. Library export and move finish any pending removals first, and stop with
+a next step if a removed copy still cannot be deleted. Exports record withdrawals
+and removed copies under metadata schema 10 and do not carry removed originals.
 
 ## Export and restore a library
 
@@ -1630,7 +1690,9 @@ reviews the exact game release and stage/activate action before execution, and
 allows exact staged activation without contacting upstream. A stale release,
 source registration, destination, definition, retained state or chosen action
 requires a new review. The exported `game_update_plan` schema describes this
-core-owned review contract. The desktop's Install action activates the requested
+core-owned review contract. Its optional `release_notes` field is informational
+upstream text read from cached release lists, outside the review digest; see
+[update review release notes](ARCHITECTURE.md#update-review-release-notes). The desktop's Install action activates the requested
 installation; a saved Stage preference cannot silently turn that action into
 staging. These are game-update operations, separate from the signed Portcove
 application updater.
@@ -1734,6 +1796,8 @@ supported; game signals and post-exit save collection stay with the supervisor.
 Status objects include additive `readiness`, `last_launched_at`, `successful_launches`, and `last_update_check` fields. Readiness separates one-time upstream setup from the current game-source and BIOS states: `unregistered`, `current`, `missing`, `unreadable`, `changed`, or `not_checked`. Installed requirements are hashed against their registered storage baseline; uninstalled registrations use `not_checked` so catalog browsing does not imply a current-byte check. `current` means unchanged since registration, not that an informational or extension-only profile gained exact-revision evidence. Missing, unreadable, and changed requirements block launch and route Continue to setup. Install and launch still repeat the full catalog validation at their final use boundary. Launch history advances only after a child process exits successfully; a failed start, crash, or non-zero exit never becomes a Continue candidate. Both the CLI and desktop write the same SQLite record, so external frontends can use these fields without scraping GUI state.
 
 `last_update_check` contains the timestamped successful `UpdateCheck` most recently produced by `check`, `update`, or `reconcile`. It survives process and desktop restarts. Consumers should display it as current only when its channel equals the status channel and its `installed_version` equals the active version; Portcove's GUI applies both guards so activating a release or changing channels cannot leave a stale update badge. A failed network or release check does not overwrite the last successful snapshot, and its error remains available through the command result and applicable activity record.
+
+An additive optional `last_update_check.check.upstream_activity` carries the repository facts the GitHub provider reported while selecting that release: `repository` (the `owner/name` observed), `archived`, optional `last_change_at` (latest push, Unix seconds) and `observed_at`. Facts read before a later failure, such as an accepted release that is no longer published, stay with the preserved-location fallback. It is a maintenance observation, not a catalog declaration, and grants or revokes no update, install or catalog authority. A check that did not read the repository, such as applying a reviewed game update, keeps the previous observation and its original `observed_at` only while the port's catalog definition still names that GitHub repository; another repository or provider drops it, and Desktop applies the same rule. Absence means unknown, never active. Unlike the update badge, it describes the repository rather than the installed version, so it remains meaningful after the channel or active version changes. This additive output field keeps API schema 91.
 
 #### Read current and retained outcomes
 

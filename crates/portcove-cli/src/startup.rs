@@ -118,6 +118,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             | CatalogCommand::InspectTargets { .. }
             | CatalogCommand::InspectDefinitionDelivery
             | CatalogCommand::InspectPackageLayout { .. }
+            | CatalogCommand::InspectPackageShape { .. }
             | CatalogCommand::InspectSettingsQualification { .. } => ReadOnly,
             CatalogCommand::InspectDefinitionPublication { .. } => ReadOnly,
             CatalogCommand::DefinitionAuthority { apply, .. }
@@ -192,6 +193,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             InstallationCommand::Plan { .. }
             | InstallationCommand::Runtimes { .. }
             | InstallationCommand::Retained { .. }
+            | InstallationCommand::PackageShape { .. }
             | InstallationCommand::Reference { .. }
             | InstallationCommand::ReferencePlan { .. }
             | InstallationCommand::ReferenceRemovalPlan { .. }
@@ -337,6 +339,7 @@ mod tests {
         for arguments in [
             "installation retained port",
             "installation runtimes port",
+            "installation package-shape port",
             "installation reference port setup",
             "installation reference-plan port setup install",
             "installation reference-removal-plan port setup",
@@ -413,6 +416,7 @@ mod tests {
             "catalog status",
             "catalog inspect-proposal file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
