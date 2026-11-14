@@ -99,7 +99,8 @@ issue.
 
 ## Release controller ref protection
 
-The repository settings tool owns seven release policies. GitHub's
+The repository settings tool owns seven release policies, in addition to the
+separate Protect main and Protect release tags policies. GitHub's
 [ref matching rules](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/creating-rulesets-for-a-repository#using-fnmatch-syntax)
 match the three flat tag prefixes `portcove-production-controller-*`,
 `portcove-upstream-rehearsal-*`, and `portcove-controller-canary-*`.
