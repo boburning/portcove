@@ -97,6 +97,8 @@ export type { HostToolStatus } from "./transport-types.generated";
 
 export type HostToolProbeResult = Generated.TransportOutputs["host_tool_probe_result"];
 
+export type DatReferenceStatus = Generated.TransportOutputs["dat_reference_status"];
+
 export type DoctorReport = Generated.TransportOutputs["doctor"];
 
 /** The snapshot as it crosses IPC; the catalog may be omitted when unchanged. */

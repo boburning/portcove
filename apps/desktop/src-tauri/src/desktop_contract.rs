@@ -565,6 +565,8 @@ pub fn export_transport_schemas() -> Value {
             "reconcile_outcome": output::<BatchOutcome<ReconcileResult>>(),
             "source_verification_outcome": output::<SourceBatchOutcome>(),
             "launch_result": output::<LaunchResult>(),
+            "dat_reference_status": output::<portcove_core::DatReferenceStatus>(),
+            "dat_reference_statuses": output::<Vec<portcove_core::DatReferenceStatus>>(),
             "automatic_snapshots_enabled": output::<bool>(),
             "ready_notices_enabled": output::<bool>(),
             "bug_report_draft": output::<portcove_core::BugReportDraft>(),

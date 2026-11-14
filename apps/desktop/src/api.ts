@@ -118,6 +118,7 @@ import type {
   StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
+  DatReferenceStatus,
   HostToolProbeResult,
   HostToolStatus,
   InstallPlan,
@@ -1054,6 +1055,9 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  datReferences: () => invoke<DatReferenceStatus[]>("get_dat_references"),
+  addDatReference: (path: string) => invoke<DatReferenceStatus>("add_dat_reference", { path }),
+  removeDatReference: (datId: string) => invoke<void>("remove_dat_reference", { datId }),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),

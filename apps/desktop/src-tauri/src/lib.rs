@@ -39,6 +39,7 @@ mod bug_report;
 mod catalog;
 mod catalog_download;
 mod cli_context;
+mod dat_commands;
 #[doc(hidden)]
 pub mod desktop_contract;
 mod diagnostics;
@@ -801,8 +802,13 @@ async fn inspect_source(
     profile_id: String,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_with_service(&service, &profile_id)
+        let mut report = inspect_source_with_service(&service, &profile_id)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_report(preferences, &mut report);
+        }
+        Ok(report)
     })
     .await
 }
@@ -827,8 +833,13 @@ async fn inspect_source_intake(
     paths: Vec<PathBuf>,
 ) -> DesktopResult<SourceIntakeInspection> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_intake_with_service(&service, &profile_id, &paths)
+        let mut intake = inspect_source_intake_with_service(&service, &profile_id, &paths)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_intake(preferences, &mut intake);
+        }
+        Ok(intake)
     })
     .await
 }
@@ -3249,6 +3260,9 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::apply_provider_install,
             mod_setup_commands::discard_provider_install,
             mod_setup_commands::review_mod_package_code,
+            dat_commands::get_dat_references,
+            dat_commands::add_dat_reference,
+            dat_commands::remove_dat_reference,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,

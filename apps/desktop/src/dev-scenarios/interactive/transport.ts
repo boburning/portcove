@@ -208,6 +208,8 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       readyNotices = args.enabled;
       return readyNotices;
     },
+    get_dat_references: () =>
+      [] satisfies Awaited<ReturnType<typeof desktopApi.datReferences>>,
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;
