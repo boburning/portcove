@@ -27685,7 +27685,8 @@
       "manual_setup": {
         "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "warnings": [
-          "The upstream importer has 99 backup names and can overwrite its last slot when full."
+          "The upstream importer has 99 backup names and can overwrite its last slot when full.",
+          "On Linux v0.5.0, the in-game settings restart starts a new process that Portcove cannot track. Quit the game and choose Play again to keep the whole session visible in Portcove. If you already used the restart, close the new game window before changing the runtime or copying its data."
         ],
         "steps": [
           {
