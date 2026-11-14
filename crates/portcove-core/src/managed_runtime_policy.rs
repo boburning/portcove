@@ -86,6 +86,15 @@ pub(crate) fn require_acquisition_available(catalog: &crate::Catalog, port_id: &
     }
 }
 
+pub(crate) fn require_adoption_available(catalog: &crate::Catalog, port_id: &str) -> Result<()> {
+    if acquisition_hold(catalog, port_id).is_some_and(|hold| !hold.excluded_artifacts.is_empty()) {
+        return Err(PortcoveError::unsupported(
+            "Install through Portcove to verify the release archive. An extracted folder cannot prove which release package it came from.",
+        ));
+    }
+    Ok(())
+}
+
 impl crate::ManagedAcquisitionHold {
     pub(crate) fn excludes(&self, version: &str, sha256: &str) -> bool {
         self.excluded_artifacts

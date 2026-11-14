@@ -274,6 +274,12 @@ fn require_install_publication_authority(
     ) {
         return Ok(());
     }
+    if operation.kind == LifecycleOperationKind::Adopt {
+        crate::managed_runtime_policy::require_adoption_available(
+            service.catalog(),
+            &install.port_id,
+        )?;
+    }
     let installer = Installer::new(service.library.clone())?;
     let destination = operation
         .install

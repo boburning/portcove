@@ -2824,11 +2824,7 @@ impl PortcoveService {
         port: &PortDefinition,
     ) -> Result<()> {
         Self::refuse_shipwright_adoption(port)?;
-        if crate::managed_runtime_policy::has_exact_exclusions(port) {
-            return Err(PortcoveError::unsupported(
-                "Install through Portcove to verify the release archive. An extracted folder cannot prove which release package it came from.",
-            ));
-        }
+        crate::managed_runtime_policy::require_adoption_available(catalog, &port.id)?;
         if port.archive_data_compatibility_v1.is_some() {
             return Err(PortcoveError::unsupported(
                 "partitioned managed data requires the official provider-selected installation; registering an external copy grants no replacement or migration rights",
