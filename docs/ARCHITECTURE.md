@@ -1432,6 +1432,61 @@ and argument-array fields separately. This creates no independent lifecycle
 state or command authority: the standalone CLI validates and executes through core.
 Desktop continues to call core directly.
 
+## Recently played shortcuts
+
+Core's `PortcoveService::recently_played` projects successful-launch history,
+newest first and capped at ten, onto ports in the current catalog that still have
+an active installation or registered external runtime. It is a read of the same
+`launch_history` that drives Continue; it assesses no readiness and adds no
+history authority.
+
+On Windows the Tauri host mirrors up to five of those games into a "Recently
+played" category of Portcove's taskbar jump list. It rebuilds the category on a
+worker after startup publishes the library, after an observed launch finishes and
+after a library selection or transfer, so CLI launches appear at the next of
+those points. An empty read removes the category, and a failed read (for example
+a library that did not open) clears it rather than keep another library's games.
+Entries the player removed from the jump list are not added back. Failures are
+logged and never affect startup, play or a library change. Other platforms
+compile the refresh as a no-op.
+
+The jump list belongs to a taskbar identity. When the running executable is the
+registered current-version NSIS installation (the same evaluation update
+admission uses), Desktop sets its process AppUserModelID to the bundle
+identifier `io.github.portcove.portcove` before any window exists. That is the
+identity the installer stamps on its Start menu and desktop shortcuts and under
+which its uninstaller deletes the jump list. The list is then written under that
+ID and each entry carries it, so windows started from an entry group with the
+installed shortcuts. Development, fixture and portable runs keep the default
+per-executable identity and never write the installed application's list.
+Because the check is update admission's fail-closed test, an installed run that
+finds an ambiguous or stale second registration, a version mismatch, a reparse
+point or an unreadable or oversized Uninstall inventory also keeps the
+per-executable identity; that run's list then does not appear on the pinned
+button, and a debug log names the failing stage. Shipped releases are
+current-user NSIS installs. An existing pin created from a window that had no
+explicit identity (the installer's post-install launch, an updater relaunch or
+starting the executable directly) may show as a separate taskbar button after
+this change.
+
+Each entry starts the Desktop executable with exactly `--portcove-play
+<port-id>`. Desktop registers no URL scheme, protocol handler or listener for
+it, so web content cannot produce the argument; a local program that can start
+Desktop with arguments gains nothing beyond the ordinary launch command. The host
+accepts only that exact form with a bounded identifier and keeps it as a one-shot
+request that the frontend takes once, after the workspace has its catalog and
+statuses. A game that can play directly uses the existing Continue launch path;
+one that needs attention opens its details; an unknown or removed game opens
+nothing. Core's launch path still owns readiness, per-port locking and
+executable trust. Desktop has no single-instance forwarding, so an entry used
+while Portcove is open starts a second window that handles the request. That
+window holds its own shared application-runtime lease, so an application update
+waits for it like any other open window. It opens the saved library selection:
+if the first window was started with a `PORTCOVE_LIBRARY` override, the entry
+resolves the port in the saved library instead. Two windows refreshing at once
+each commit a complete list, and the last commit wins. The jump list has not been
+observed on a native Windows taskbar.
+
 ## Desktop library handoff state
 
 GitHub authentication status extracts an owned HTTP observation before awaiting

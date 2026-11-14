@@ -60,6 +60,7 @@ mod output_location;
 mod portable_saves_commands;
 mod preparation;
 mod ready_notices;
+mod recent_play_shortcuts;
 mod removal;
 #[cfg(any(windows, target_os = "linux"))]
 mod runtime_support;
@@ -2006,6 +2007,7 @@ fn observe_launch_completion(
                 );
                 if completed {
                     let _ = emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
+                    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
                 }
             }
         });
@@ -3220,6 +3222,8 @@ pub fn run() -> std::process::ExitCode {
         diagnostics::shutdown(&mut diagnostic_guard);
         return std::process::ExitCode::FAILURE;
     }
+    // Before any window exists, so every window uses the same taskbar identity.
+    recent_play_shortcuts::adopt_installed_identity();
     let configured_root = std::env::var_os("PORTCOVE_LIBRARY")
         .filter(|path| !path.is_empty())
         .map(PathBuf::from);
@@ -3236,6 +3240,9 @@ pub fn run() -> std::process::ExitCode {
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
     let application = builder
         .manage(host_diagnostics)
+        .manage(recent_play_shortcuts::StartupPlayRequest::from_arguments(
+            std::env::args_os(),
+        ))
         .manage(frontend_diagnostics::FrontendReports::default())
         .manage(application_update_commands::configured_state())
         .manage(application_update_preferences::configured_state())
@@ -3450,6 +3457,7 @@ pub fn run() -> std::process::ExitCode {
             automatic_snapshots::set_automatic_snapshots,
             ready_notices::get_ready_notices_enabled,
             ready_notices::set_ready_notices_enabled,
+            recent_play_shortcuts::take_startup_play_request,
             bug_report::preview_bug_report,
             bug_report::open_bug_report,
             bug_report::submit_report,
@@ -3645,6 +3653,7 @@ fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
         app.exit(0);
         return Ok(());
     }
+    recent_play_shortcuts::refresh(app.state::<DesktopState>().inner().clone());
     application_update_commands::start_automatic_checks(
         app.state::<application_update_commands::ApplicationUpdateCommandState>()
             .inner()
