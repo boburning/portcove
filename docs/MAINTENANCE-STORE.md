@@ -561,7 +561,7 @@ A digest-verified report from scheduled run 43066038874 (2026-11-11) covered
   that names each deferred platform and code, and makes the run `partial`. The
   gap also carries the findings this report already has for the port. Runs
   stay `partial` until the scan's checkpoint covers every target, which takes
-  many runs at its 40-asset budget.
+  several runs at its 160-asset budget (about 780 targets on 2026-11-14).
 - **Failures:** an unavailable, unbound or unsupported report makes the run
   `failed` with one `unavailable` gap; the last known facts stay current.
 - **Report:** "Needs attention" and the "Release content findings" section list

@@ -56,6 +56,8 @@ jobs:
             --checkpoint-out work/release-content-scan/checkpoint.next.json \
             --output work/release-content-scan/report.json \
             --accounting .github/release-content-accounting.json \
+            --max-assets 160 \
+            --max-total-bytes 40000000000 \
             --minutes 75
           mv work/release-content-scan/checkpoint.next.json work/release-content-scan/checkpoint.json
           node scripts/release-content-scan.mts summary \
