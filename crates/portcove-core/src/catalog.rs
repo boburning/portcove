@@ -4748,12 +4748,19 @@ mod tests {
             contract.authority_ref,
             "42bf10065362daf91a77089a9f5c8147dae60de0"
         );
-        assert_eq!(contract.applicability.len(), 1);
+        // The historical v1.4.3 binding stays first; the exact v1.4.9 package
+        // of the current executable-parent route is appended after it.
+        assert_eq!(contract.applicability.len(), 2);
         assert_eq!(
             contract.applicability[0].artifact_sha256.as_deref(),
             Some(release.sha256.as_str())
         );
         assert_eq!(contract.applicability[0].upstream_ref, "v1.4.3");
+        assert_eq!(contract.applicability[1].upstream_ref, "v1.4.9");
+        assert_eq!(
+            contract.applicability[1].artifact_sha256.as_deref(),
+            Some("74948ebc0dbfd37c95ce5468b9b49dc277098c5141f66d44449ccb33d4b71594")
+        );
         assert!(
             !sources
                 .qualification
@@ -7463,6 +7470,56 @@ mod tests {
                 "Snap64 persistence contract is missing {path}"
             );
         }
+        // v1.1.x writes Steam library art into Steam's own folder unless this
+        // switch is set; the remaining writers stay in the SNAP_DATA_DIR user
+        // folder, so no install-tree path is exempted from verification.
+        assert_eq!(
+            port.launch_environment
+                .get("SNAP_NO_STEAM_ART")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert!(port.runtime_mutable_paths.is_empty());
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "snap64-recomp-game-source")
+            .unwrap();
+        // The qualified v1.0.5 package stays first; later reviewed packages
+        // are appended after it in review order.
+        let bindings = contract
+            .applicability
+            .iter()
+            .map(|binding| {
+                (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref(),
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            bindings,
+            [
+                (
+                    "v1.0.5",
+                    Some("e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7")
+                ),
+                (
+                    "v1.1.7",
+                    Some("fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95")
+                ),
+                (
+                    "v1.1.7",
+                    Some("d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d")
+                ),
+                (
+                    "v1.1.7",
+                    Some("ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50")
+                ),
+            ]
+        );
     }
 
     #[test]
@@ -8151,22 +8208,42 @@ mod tests {
             .find(|contract| contract.id == "cvlod-recomp-game-source")
             .unwrap();
         assert_eq!(contract.supported_variant_ids, ["north-america"]);
-        assert!(
-            contract
-                .applicability
-                .iter()
-                .all(|binding| binding.upstream_ref == "v0.2.26")
-        );
+        // The reviewed v0.2.26 packages stay first; the v0.2.29 Windows,
+        // Linux and macOS packages are appended after a static comparison.
         assert_eq!(
             contract
                 .applicability
                 .iter()
-                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
                 .collect::<Vec<_>>(),
             [
-                "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a",
-                "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f",
-                "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408",
+                (
+                    "v0.2.26",
+                    "be60fefdbc4a98d1cf2ab6932e69825f39268e5ad1daab950ea7b8a19e53b40a"
+                ),
+                (
+                    "v0.2.26",
+                    "c88af33bb3d4d676ca6cd5b3676b9fe99d1a3c39904592e30ddfc06a383cea2f"
+                ),
+                (
+                    "v0.2.26",
+                    "0086f1aae522d1934af20cba6d9037e27ed96cf81de93a4be352fcc11cdf1408"
+                ),
+                (
+                    "v0.2.29",
+                    "68a2ae45bff297583a2e12d0beb41bf1212c98ff57105d6b4d1a31954d142b23"
+                ),
+                (
+                    "v0.2.29",
+                    "0d9e54387efa82fa74ceaa588314596ac7ba77681e30b905dd89feb5f8943aad"
+                ),
+                (
+                    "v0.2.29",
+                    "fdedea70286fff585ec671600ec3e863b8297b27281df44a1ff4b07c8798e1f8"
+                ),
             ]
         );
     }
@@ -8257,19 +8334,27 @@ mod tests {
             .find(|contract| contract.id == "diddy-kong-racing-golden-balloon-game-source")
             .unwrap();
         assert_eq!(contract.supported_variant_ids, ["usa-rev1", "europe-rev1"]);
-        assert!(
-            contract
-                .applicability
-                .iter()
-                .all(|binding| binding.upstream_ref == "v1.7.0")
-        );
+        // The reviewed v1.7.0 package stays first; the v1.8.0 Windows package
+        // is appended after a static comparison.
         assert_eq!(
             contract
                 .applicability
                 .iter()
-                .map(|binding| binding.artifact_sha256.as_deref().unwrap())
+                .map(|binding| (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref().unwrap()
+                ))
                 .collect::<Vec<_>>(),
-            ["23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1",]
+            [
+                (
+                    "v1.7.0",
+                    "23369d7b0b4c2a7794917c8d6205125d32cca53227695f42f0f091517732bba1"
+                ),
+                (
+                    "v1.8.0",
+                    "98ab31dd7108e478cc1469b3cbcce05e321b97b16a06035c2ea99c2122f2b0e1"
+                ),
+            ]
         );
     }
 
