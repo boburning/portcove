@@ -53762,6 +53762,29 @@
           "game_slug": "brave-fencer-musashi",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "launch.cmd",
+            "musashi_native_boot.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses"
+          ],
+          "executables": [
+            "launch.sh",
+            "lib/libmusashi_x11_nograb.so",
+            "musashi_native_boot",
+            "musashi_native_boot.x86-64-v3"
+          ]
+        }
       }
     },
     {
@@ -54739,6 +54762,26 @@
           "image_sha256": "a8d755f08d07c9f8409b7e3703a78faaad6454da05ba2903367cbb16282271a3",
           "game_slug": "doraemon-nobita-to-3-tsu-no-seireiseki",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "dora64.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "dora64"
+          ]
         }
       }
     },
@@ -62256,6 +62299,24 @@
           "game_slug": "zombies-ate-my-neighbors",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "zamn.exe",
+            "zamn_launcher.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "lakesnes-license.txt",
+            "libsdl2-2.0.so.0",
+            "zamn",
+            "zamn_launcher"
+          ]
+        }
       }
     },
     {
@@ -63385,6 +63446,29 @@
           "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
           "game_slug": "pilotwings-64",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "toolchain"
+          ],
+          "executables": [
+            "birdman64.exe",
+            "toolchain/zig/zig.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "licenses",
+            "toolchain"
+          ],
+          "executables": [
+            "apprun",
+            "birdman64",
+            "toolchain/zig/zig"
+          ]
         }
       }
     },

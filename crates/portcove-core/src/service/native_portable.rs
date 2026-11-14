@@ -6985,6 +6985,7 @@ mod tests {
                 ("shaders/fixture.txt", b"fixture"),
             ],
             "elraro-atomic-bomberman" => &[("atomic_server.exe", b"MZ")],
+            "moshferatu-zombies-ate-my-neighbors-pc-port" => &[("zamn.exe", b"MZ")],
             "street-fighter-iii-3rd-strike-3sx" => &[
                 ("assets/fixture.txt", b"fixture"),
                 ("licenses/fixture.txt", b"fixture"),

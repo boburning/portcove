@@ -72,6 +72,21 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "First Play uses the reviewed upstream launcher to select your own USA disc. Portcove preserves in-folder disc data, the optional platform saves/screenshots/mods/dump folders and two VRAM captures during compatible runtime replacement. Ordinary game cards, account preferences, boot cache, journal and Pictures screenshots stay in the external upstream profile, outside Portcove backup/restore. Quit other copies and preserve that profile before changing runtimes. Preserved mods are not authenticated or guaranteed compatible; custom native plugins may need disabling or rebuilding before an update or rollback. Runtime rollback does not rewind the card."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["launch.cmd", "musashi_native_boot.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["lib", "licenses"],
+        "executables": [
+          "launch.sh",
+          "lib/libmusashi_x11_nograb.so",
+          "musashi_native_boot",
+          "musashi_native_boot.x86-64-v3"
+        ]
+      }
     }
   }
 }
