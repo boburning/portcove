@@ -1226,7 +1226,12 @@ removes only that quarantine, then records metadata commit and retires the journ
 The existing restore/deletion fault points and recovery rules still distinguish
 those phases; activity finalization remains separate from payload publication.
 Backup inventory probes the per-port lock to distinguish live staging from idle
-owned preparation without changing the lock owner payload. The detailed backup
+owned preparation without changing the lock owner payload. Read-only game-settings
+views hold a shared port lock: they admit each other, block writers only for the
+read, and never replace the owner record. A writer refused only by shared readers
+retries for at most two seconds before reporting the port busy; a writer refused
+by another writer reports it at once, naming the last writer's operation from the
+published owner record. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
 ## Steam shortcut compatibility boundary

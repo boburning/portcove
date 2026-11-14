@@ -279,6 +279,15 @@ pub struct Library {
     _lease: std::sync::Arc<crate::library_access::LibraryLease>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum LockMode {
+    Exclusive,
+    Shared,
+}
+
+/// Longest a writer waits for read-only views that hold a port lock.
+const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
+
 #[derive(Debug)]
 pub struct PortOperationGuard {
     file: File,
@@ -851,6 +860,19 @@ impl Library {
         self.lock_port(port_id, operation, None, None)
     }
 
+    /// Hold a shared port lock while a read-only view reads durable state. It
+    /// blocks writers for the read, admits other readers, and never replaces
+    /// the owner record, so a writer arriving meanwhile waits briefly instead
+    /// of refusing a player action.
+    pub fn try_read_lock_port(&self, port_id: &str, operation: &str) -> Result<PortOperationGuard> {
+        let key = hex::encode(Sha256::digest(port_id.as_bytes()));
+        let file = self
+            .acquire_lock_mode(&key, port_id, operation, LockMode::Shared)
+            .map_err(|error| error.detail("port_id", port_id))?;
+        self.require_port_unowned_by_recovery_or_launch(port_id, operation, None, None)?;
+        Ok(PortOperationGuard { file })
+    }
+
     /// Hold the port lock while an inventory classifies private paths. The
     /// lock file may be created so a new writer cannot race this scan, but its
     /// owner payload is never replaced. `None` means another operation owns it.
@@ -1047,20 +1069,12 @@ impl Library {
         let mut file = self
             .acquire_lock(&key, port_id, operation)
             .map_err(|error| error.detail("port_id", port_id))?;
-        self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
-        self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
-        self.require_archive_data_transition_owner(port_id, allowed_operation_id)?;
-        if let Some(session) = self.launch_session_for_port(port_id)?
-            && Some(session.id.as_str()) != allowed_session_id
-        {
-            return Err(PortcoveError::conflict(format!(
-                "{port_id} has an unfinished launch session"
-            ))
-            .detail("port_id", port_id)
-            .detail("operation", operation)
-            .detail("launch_session_id", session.id)
-            .detail("launch_phase", session.phase.to_string()));
-        }
+        self.require_port_unowned_by_recovery_or_launch(
+            port_id,
+            operation,
+            allowed_session_id,
+            allowed_operation_id,
+        )?;
         let owner = serde_json::json!({
             "operation": operation,
             "pid": std::process::id(),
@@ -1075,6 +1089,30 @@ impl Library {
         // writer could not name the owner. Publish the same record beside it.
         self.publish_lock_owner(&key, &owner);
         Ok(PortOperationGuard { file })
+    }
+
+    fn require_port_unowned_by_recovery_or_launch(
+        &self,
+        port_id: &str,
+        operation: &str,
+        allowed_session_id: Option<&str>,
+        allowed_operation_id: Option<&str>,
+    ) -> Result<()> {
+        self.require_ghostship_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_settings_recovery_owner(port_id, allowed_operation_id)?;
+        self.require_archive_data_transition_owner(port_id, allowed_operation_id)?;
+        if let Some(session) = self.launch_session_for_port(port_id)?
+            && Some(session.id.as_str()) != allowed_session_id
+        {
+            return Err(PortcoveError::conflict(format!(
+                "{port_id} has an unfinished launch session"
+            ))
+            .detail("port_id", port_id)
+            .detail("operation", operation)
+            .detail("launch_session_id", session.id)
+            .detail("launch_phase", session.phase.to_string()));
+        }
+        Ok(())
     }
 
     /// Best effort: the owner record only explains a later busy refusal.
@@ -1110,13 +1148,52 @@ impl Library {
     }
 
     fn acquire_lock(&self, key: &str, target: &str, operation: &str) -> Result<File> {
-        let file = OpenOptions::new()
+        self.acquire_lock_mode(key, target, operation, LockMode::Exclusive)
+    }
+
+    fn open_lock_file(&self, key: &str) -> Result<File> {
+        Ok(OpenOptions::new()
             .create(true)
             .truncate(false)
             .read(true)
             .write(true)
-            .open(self.locks_dir().join(format!("{key}.lock")))?;
-        if let Err(error) = file.try_lock() {
+            .open(self.locks_dir().join(format!("{key}.lock")))?)
+    }
+
+    /// Whether every current holder is a shared reader. A second handle's
+    /// shared lock is admitted only beside other shared locks.
+    fn lock_held_only_by_readers(&self, key: &str) -> bool {
+        self.open_lock_file(key)
+            .is_ok_and(|probe| probe.try_lock_shared().is_ok())
+    }
+
+    fn acquire_lock_mode(
+        &self,
+        key: &str,
+        target: &str,
+        operation: &str,
+        mode: LockMode,
+    ) -> Result<File> {
+        let file = self.open_lock_file(key)?;
+        let deadline = std::time::Instant::now() + READER_YIELD_BUDGET;
+        let attempt = loop {
+            let attempt = match mode {
+                LockMode::Exclusive => file.try_lock(),
+                LockMode::Shared => file.try_lock_shared(),
+            };
+            // Read-only views hold the lock for milliseconds; wait them out
+            // rather than refuse. Another writer still refuses at once.
+            if matches!(attempt, Err(std::fs::TryLockError::WouldBlock))
+                && mode == LockMode::Exclusive
+                && std::time::Instant::now() < deadline
+                && self.lock_held_only_by_readers(key)
+            {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+                continue;
+            }
+            break attempt;
+        };
+        if let Err(error) = attempt {
             if matches!(error, std::fs::TryLockError::WouldBlock) {
                 let mut refusal = PortcoveError::conflict(format!(
                     "{target} is busy in another Portcove process"
@@ -4780,5 +4857,52 @@ mod tests {
         let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
         assert!(!refused.details.contains_key("last_owner_operation"));
         drop(held);
+    }
+
+    #[test]
+    fn writers_wait_out_read_only_views_but_refuse_other_writers() {
+        let temporary = tempdir().unwrap();
+        let first = Library::open(temporary.path()).unwrap();
+        let second = Library::open(temporary.path()).unwrap();
+
+        // Readers admit each other and never publish an owner record.
+        let reader = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        let other_reader = second
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        drop(other_reader);
+
+        // A writer arriving during a read waits for it instead of refusing.
+        let started = std::time::Instant::now();
+        let release = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(200));
+            drop(reader);
+        });
+        let writer = second.try_lock_port("lighthouse", "adopt").unwrap();
+        release.join().unwrap();
+        assert!(started.elapsed() >= std::time::Duration::from_millis(150));
+
+        // While a writer holds the lock, readers and writers refuse at once.
+        let started = std::time::Instant::now();
+        let refused = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        let refused = first.try_lock_port("lighthouse", "update").unwrap_err();
+        assert_eq!(refused.details["last_owner_operation"], "adopt");
+        assert!(started.elapsed() < READER_YIELD_BUDGET);
+        drop(writer);
+
+        // A read that outlasts the budget still ends in an actionable refusal.
+        let reader = first
+            .try_read_lock_port("lighthouse", "read-game-settings")
+            .unwrap();
+        let started = std::time::Instant::now();
+        let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
+        assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        assert!(started.elapsed() >= READER_YIELD_BUDGET);
+        drop(reader);
     }
 }
