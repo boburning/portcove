@@ -2485,6 +2485,7 @@ impl CapabilityDocument {
                 "reconcile".into(),
                 "install".into(),
                 "installation.review".into(),
+                "installation.runtimes".into(),
                 "installation.retained".into(),
                 "installation.reference".into(),
                 "installation.reference-plan".into(),
