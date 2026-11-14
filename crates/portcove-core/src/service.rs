@@ -3404,6 +3404,13 @@ impl PortcoveService {
             &release.version,
             &release.asset.sha256,
         )?;
+        if let Some(reason) = &resolution.fallback_reason {
+            (reporter.emit)(
+                reporter
+                    .operation
+                    .message("info", format!("Selected {}. {reason}", release.version)),
+            );
+        }
         crate::installed_mutability::require_shipwright_release(
             port,
             Platform::current()?,

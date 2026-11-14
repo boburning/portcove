@@ -449,8 +449,16 @@ fn project_channel(
                         ) && choose_asset(port, platform, &release.provider.assets)
                             .ok()
                             .is_some_and(|asset| {
-                                super::reviewed_fallback_digest(hold, &release.provider, asset)
-                                    .is_some()
+                                hold.reviewed_artifacts
+                                    .iter()
+                                    .any(|artifact| artifact.version == release.provider.tag_name)
+                                    && (asset.digest.as_deref().and_then(parse_digest).is_none()
+                                        || super::reviewed_fallback_digest(
+                                            hold,
+                                            &release.provider,
+                                            asset,
+                                        )
+                                        .is_some())
                             })))
             },
             |release| is_beta_release(&release.provider),
@@ -468,8 +476,12 @@ fn project_channel(
         }
         let asset = choose_asset(port, platform, &fallback.provider.assets)
             .expect("reviewed fallback has a selected asset");
-        let digest = super::reviewed_fallback_digest(hold, &fallback.provider, asset)
-            .expect("reviewed fallback has a publisher digest");
+        let Some(digest) = super::reviewed_fallback_digest(hold, &fallback.provider, asset) else {
+            output
+                .hold_reasons
+                .push("reviewed-fallback-checksum-requires-further-resolution".into());
+            return output;
+        };
         (fallback, asset, digest)
     } else {
         (candidate, asset, sha256)

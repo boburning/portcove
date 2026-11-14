@@ -1625,25 +1625,53 @@ impl GithubReleaseProvider {
         })?;
         let mut observed_digest = None;
         let mut fallback_reason = None;
+        let require_continuing_uploader = |release: &GithubRelease, asset: &GithubAsset| {
+            uploader_continuity::require(
+                port,
+                repository.owner.as_ref(),
+                &releases,
+                &release.tag_name,
+                asset,
+            )
+        };
         let release = if let Some(hold) = port.managed_acquisition_hold.as_ref()
             && curated.is_none()
             && !hold.excluded_artifacts.is_empty()
         {
             let latest_asset = choose_asset(port, platform, &latest.assets)?;
+            require_continuing_uploader(latest, latest_asset)?;
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
             if hold.excludes(&latest.tag_name, &digest) {
                 fallback_reason = Some(hold.reason.clone());
-                select(&|release| {
-                    applies(release)
-                        && choose_asset(port, platform, &release.assets)
-                            .ok()
-                            .is_some_and(|asset| {
-                                reviewed_fallback_digest(hold, release, asset).is_some()
-                            })
-                })
-                .ok_or_else(|| PortcoveError::unsupported(hold.reason.clone()))?
+                let mut checked = Vec::<&GithubRelease>::new();
+                loop {
+                    let fallback = select(&|release| {
+                        applies(release)
+                            && !checked
+                                .iter()
+                                .any(|previous| std::ptr::eq(*previous, release))
+                            && hold
+                                .reviewed_artifacts
+                                .iter()
+                                .any(|artifact| artifact.version == release.tag_name)
+                            && choose_asset(port, platform, &release.assets).is_ok()
+                    })
+                    .ok_or_else(|| PortcoveError::unsupported(hold.reason.clone()))?;
+                    let asset = choose_asset(port, platform, &fallback.assets)?;
+                    require_continuing_uploader(fallback, asset)?;
+                    let digest = self
+                        .observed_asset_digest(port, fallback, asset, scope)
+                        .await?;
+                    if !hold.excludes(&fallback.tag_name, &digest)
+                        && hold.reviewed(&fallback.tag_name, &digest)
+                    {
+                        observed_digest = Some(digest);
+                        break fallback;
+                    }
+                    checked.push(fallback);
+                }
             } else {
                 observed_digest = Some(digest);
                 latest
@@ -1659,14 +1687,8 @@ impl GithubReleaseProvider {
         // An exact curated record already binds reviewed release and asset IDs;
         // every other selection follows upstream and must continue its uploaders.
         // Refuse before any checksum request or caching.
-        if curated.is_none() {
-            uploader_continuity::require(
-                port,
-                repository.owner.as_ref(),
-                &releases,
-                &release.tag_name,
-                asset,
-            )?;
+        if curated.is_none() && observed_digest.is_none() {
+            require_continuing_uploader(release, asset)?;
         }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
@@ -2586,7 +2608,7 @@ mod tests {
             repository(),
             response(serde_json::json!([
                 excluded.clone(),
-                reviewed,
+                reviewed.clone(),
                 unreviewed.clone()
             ])),
         ]);
@@ -2605,6 +2627,40 @@ mod tests {
         );
         assert_eq!(fallback.github_identity.unwrap().asset_id, 145);
         server.join().unwrap();
+
+        let checksum = format!("{}  supermetroid-0.4.5-windows-x64.zip\n", "a".repeat(64));
+        let (checksum_origin, checksum_requests, checksum_server) = serve_http(vec![format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{checksum}",
+            checksum.len()
+        )]);
+        let mut sidecar_release = reviewed;
+        let assets = sidecar_release["assets"].as_array_mut().unwrap();
+        assets[0]["digest"] = serde_json::Value::Null;
+        assets.push(serde_json::json!({
+            "id": 245,
+            "name": "SHA256SUMS",
+            "size": checksum.len(),
+            "browser_download_url": format!("{checksum_origin}/SHA256SUMS"),
+        }));
+        let (origin, _, server) = serve_http(vec![
+            repository(),
+            response(serde_json::json!([excluded.clone(), sidecar_release])),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let fallback = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap();
+        assert_eq!(fallback.release.version, "v0.4.5");
+        assert_eq!(fallback.release.asset.sha256, "a".repeat(64));
+        assert!(
+            checksum_requests
+                .try_recv()
+                .unwrap()
+                .starts_with("GET /SHA256SUMS ")
+        );
+        server.join().unwrap();
+        checksum_server.join().unwrap();
 
         let (origin, _, server) = serve_http(vec![
             repository(),
