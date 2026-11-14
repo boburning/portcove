@@ -27,6 +27,7 @@ mod catalog_download;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod observation;
+mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
@@ -163,6 +164,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     platform: Platform,
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
+    accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
 }
 
@@ -212,6 +214,17 @@ impl ReleaseSelectionCacheKey {
                 .get(&platform)
                 .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
                 .unwrap_or_default(),
+            accepted_uploaders: {
+                let mut ids = port
+                    .release
+                    .accepted_uploaders
+                    .iter()
+                    .map(|accepted| accepted.id)
+                    .collect::<Vec<_>>();
+                ids.sort_unstable();
+                ids.dedup();
+                ids
+            },
         }
     }
 }
@@ -1573,6 +1586,18 @@ impl GithubReleaseProvider {
             scope.require_current()?;
             scope.require_asset_url(&asset.browser_download_url)?;
         }
+        // An exact curated record already binds reviewed release and asset IDs;
+        // every other selection follows upstream and must continue its uploaders.
+        // Refuse before any checksum request or caching.
+        if curated.is_none() {
+            uploader_continuity::require(
+                port,
+                repository.owner.as_ref(),
+                &releases,
+                &release.tag_name,
+                asset,
+            )?;
+        }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
             if release.id != Some(record.release_id)
@@ -1965,6 +1990,8 @@ struct GithubRepository {
     #[serde(default)]
     id: Option<u64>,
     archived: bool,
+    #[serde(default)]
+    owner: Option<uploader_continuity::GithubAccount>,
     /// Kept untyped so an unexpected value is an unknown fact, not a failed check.
     #[serde(default)]
     pushed_at: Option<serde_json::Value>,
@@ -2036,6 +2063,11 @@ struct GithubAsset {
     browser_download_url: String,
     size: u64,
     digest: Option<String>,
+    /// Who uploaded the asset and when; retained for uploader continuity.
+    #[serde(default)]
+    uploader: uploader_continuity::AssetUploader,
+    #[serde(default)]
+    created_at: Option<String>,
 }
 
 pub(crate) enum NativeAppImage<'a> {
@@ -2416,6 +2448,7 @@ mod tests {
     };
 
     mod unchanged_definition;
+    mod uploader_progression;
 
     #[tokio::test]
     async fn github_selection_retains_exact_ids_through_cache_and_refuses_repository_rebinding() {
@@ -3077,6 +3110,7 @@ mod tests {
             platform: Platform::WindowsX86_64,
             rolling_tag: None,
             asset_hints: Vec::new(),
+            accepted_uploaders: Vec::new(),
         };
         provider
             .store_release(oldest_key.clone(), release.clone())
@@ -3105,6 +3139,7 @@ mod tests {
                         platform: Platform::WindowsX86_64,
                         rolling_tag: None,
                         asset_hints: Vec::new(),
+                        accepted_uploaders: Vec::new(),
                     },
                     release.clone(),
                 )
@@ -3597,6 +3632,8 @@ mod tests {
             browser_download_url: format!("https://downloads.example.invalid/{name}"),
             size: 1,
             digest: Some(format!("sha256:{}", digest.to_string().repeat(64))),
+            uploader: Default::default(),
+            created_at: None,
         });
 
         assert_eq!(
@@ -3735,6 +3772,8 @@ mod tests {
                 browser_download_url: "https://downloads.example.invalid/one.zip".into(),
                 size: 1,
                 digest: Some(format!("sha256:{}", "a".repeat(64))),
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -3742,6 +3781,8 @@ mod tests {
                 browser_download_url: "https://downloads.example.invalid/two.zip".into(),
                 size: 1,
                 digest: Some(format!("sha256:{}", "b".repeat(64))),
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
         let error = choose_asset(port, Platform::WindowsX86_64, &ambiguous).unwrap_err();
@@ -3786,6 +3827,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/symbols.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -3793,6 +3836,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/runtime.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
 
@@ -3917,6 +3962,8 @@ mod tests {
                     browser_download_url: "https://example.invalid/package.zip".into(),
                     size: 1,
                     digest: Some(format!("sha256:{}", "a".repeat(64))),
+                    uploader: Default::default(),
+                    created_at: None,
                 })
                 .collect::<Vec<_>>();
             let selected = choose_asset(port, Platform::LinuxX86_64, &assets).unwrap();
@@ -4928,6 +4975,8 @@ mod tests {
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let sidecar = GithubAsset {
             id: None,
@@ -4935,6 +4984,8 @@ mod tests {
             browser_download_url: format!("{download_root}/game.sha256"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let error = provider
             .checksum_from_sidecar(&[target.clone(), sidecar], &target)
@@ -5019,6 +5070,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/one.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -5026,6 +5079,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/two.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
@@ -5048,6 +5103,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let excluded = [
             asset("reflectionhle-macos-universal2-next.zip"),
@@ -5079,6 +5136,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for (platform, selected, other) in [
             (
@@ -5116,6 +5175,8 @@ mod tests {
             browser_download_url: "https://example.invalid/package.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for name in [
             "game-win32.zip",
@@ -5172,6 +5233,8 @@ mod tests {
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let aggregate = GithubAsset {
             id: None,
@@ -5179,6 +5242,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert!(
             provider
@@ -5193,6 +5258,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate-named"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -5207,6 +5274,8 @@ mod tests {
             browser_download_url: format!("{download_root}/exact"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -5432,6 +5501,8 @@ mod tests {
             browser_download_url: "https://example.invalid/game-windows.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let assets = names
             .iter()
@@ -5442,6 +5513,8 @@ mod tests {
                 browser_download_url: format!("{root}/{index}"),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             })
             .collect::<Vec<_>>();
         let result = provider.checksum_from_sidecar(&assets, &target).await;
