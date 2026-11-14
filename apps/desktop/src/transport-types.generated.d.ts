@@ -1015,6 +1015,7 @@ export type SteamGridDbCheckStop =
   | {
       reason: "cancelled";
     };
+export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
 export type ApplicationChannel = "preview" | "stable";
@@ -1312,6 +1313,7 @@ export interface TransportOutputs {
   steamgriddb_key_status: OutputSteamgriddbKeyStatus;
   steamgriddb_listing_report: OutputSteamgriddbListingReport;
   storage: StorageSummary;
+  store_game_installs: OutputStoreGameInstalls;
   update_batch_outcome: OutputUpdateBatchOutcome;
   update_check: UpdateCheck;
   update_check_forecast: OutputUpdateCheckForecast;
@@ -1374,6 +1376,7 @@ export interface TransportOutputs {
   desktop_steam_entry_apply_result: OutputDesktopSteamEntryApplyResult;
   desktop_steam_entry_review: OutputDesktopSteamEntryReview;
   desktop_steam_profiles: OutputDesktopSteamProfiles;
+  desktop_store_game_installs: OutputStoreGameInstalls;
   desktop_submitted_report: OutputDesktopSubmittedReport;
   desktop_support_bundle_export: OutputDesktopSupportBundleExport;
   desktop_update_check_outcome: OutputCheckBatchOutcome;
@@ -2012,6 +2015,12 @@ export interface BackupRecord {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -4913,6 +4922,16 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  /**
+   * Unknown player-side files in the versions being removed (#5359).
+   * Removal copies them to a new backup's separate area before it deletes
+   * the version folders; restore does not put them back. Omitted when zero.
+   */
+  unknown_file_count?: number;
+  /**
+   * The first unknown file paths, each relative to its version folder.
+   */
+  unknown_files?: string[];
   [k: string]: unknown;
 }
 export interface OutputPortableSaveExportPreview {
@@ -5034,6 +5053,12 @@ export interface BackupRecord1 {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -5938,6 +5963,43 @@ export interface SteamGridDbImageCheck {
    * check; cleared when it is seen listed again or chosen again.
    */
   withdrawn_at: number | null;
+}
+export interface OutputStoreGameInstalls {
+  /**
+   * The stores this host's metadata was read for. A store missing here was
+   * not checked, which is different from having no games installed.
+   */
+  checked_stores: GameStore[];
+  installs: StoreGameInstall[];
+  /**
+   * Whether a detection bound stopped the list early.
+   */
+  limited: boolean;
+  /**
+   * Store entries left out because their metadata was unreadable, malformed,
+   * unsafe or named a folder that does not exist.
+   */
+  skipped_entries: number;
+  [k: string]: unknown;
+}
+/**
+ * One game folder a store installed, as the store's own metadata records it.
+ */
+export interface StoreGameInstall {
+  /**
+   * Canonical existing folder.
+   */
+  path: string;
+  /**
+   * The saved game-file folder at exactly this path, when there is one.
+   */
+  saved_root_id: string | null;
+  store: GameStore;
+  /**
+   * The store's title for the game; a label, never an identity.
+   */
+  title: string;
+  [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

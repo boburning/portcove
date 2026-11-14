@@ -1263,7 +1263,13 @@ removes only that quarantine, then records metadata commit and retires the journ
 The existing restore/deletion fault points and recovery rules still distinguish
 those phases; activity finalization remains separate from payload publication.
 Backup inventory probes the per-port lock to distinguish live staging from idle
-owned preparation without changing the lock owner payload. The detailed backup
+owned preparation without changing the lock owner payload. Read-only game-settings
+views hold a shared port lock: they admit each other, block writers only for the
+read, and never replace the owner record. A port writer refused only by shared
+readers retries for at most two seconds, then reports the port busy with
+`held_by: read_only_views`; a writer refused by another exclusive holder reports
+it at once with the last published writer's operation, which is advisory because
+inventory probes publish no record. Probes never wait. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
 ## Steam shortcut compatibility boundary
@@ -2766,6 +2772,78 @@ For a live desktop switch, the adapter makes its current state unavailable and d
 
 Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. A validated deletion that has already moved its backup out of view (quarantined or later, original absent, and neither a runtime-safety binding nor an unauthorized runtime-safety companion) is the exception: the next backup, restore, deletion or version change attempts to finish it under the port lock before its own unchanged guard, so inventory and the restore and create assessments do not hold those actions for it. If that attempt or a startup recovery attempt fails, the journal records it and inventory holds again until a later startup recovery finishes the deletion. Doctor lists the deletion until it completes. Restore review stays read-only: it refuses only for a pending deletion that the restore could not finish. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
+#### Unknown player-side files
+
+Managed portable runtimes (native-portable, generated-cache, N64
+executable-parent and ready staged-source archive routes) use complete
+immutable verification. Since [#5359](https://github.com/boburning/portcove/issues/5359)
+Tier 1, `service::native_portable::portable_runtime_unknown_files` is the one
+place that splits its result. Hazards hold update, rollback target, removal
+review, collection, the persistence contract and backups exactly as before:
+changed, missing or permission-changed manifest files and undeclared hazards.
+An undeclared file is a hazard when it is a link, reparse point or other non-regular entry; when its name is a program or script (`exe`, `appimage`, `bat`, `cmd`, `ps1`, `sh`, `msi`, `jar`, `vbs`, `lnk`) or code (`dll`, `so`, `so.N`, `dylib`, `asi`, `node`, `ocx`, `cpl`, `sys`, `drv`, `com`, `scr`, `js`, `mjs`, `cjs`, `py`, `pyc`, `pyo`, `pyd`, `pth`, `lua`, `luac`, `psm1`, `wsf`, `hta`, `jse`, `vbe`, `gd`, `gdc`, `pck`, `wasm`, `class`); when it has an executable mode bit; when its first four bytes are an executable signature (PE `MZ`, ELF, Mach-O, universal binary or Java class, or a `#!` interpreter line); or when it is anywhere under the `resources` folder beside the executable of an Electron-shaped package (one that ships `resources/app.asar`, `default_app.asar` or `electron.asar`). Changed, missing or permission-changed package files are hazards too. The extension list and signature sniff live in
+`package_layout::is_unknown_file_hazard`; the Electron rule is
+`install::electron_resources`, because Electron loads `resources/app`,
+`resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
+
+Every other undeclared regular file is an unknown player-side file, such as a
+settings file a game writes beside itself. `VerificationReport` keeps it out of
+`failures` and reports `unknown_file_count` with up to 64 sorted paths; `valid`
+still means an exact match. Unknown files do not hold those operations or
+launch. An update leaves them in the old version folder; nothing carries them
+forward.
+
+Launch-time `verify_critical` applies the same split to the full inventory.
+Beside the selected executable it still rejects new programs, libraries and
+links, and new names on the reviewed loader-read list in
+`install::is_loader_sensitive_name`: `<proxy>.ini` and `<proxy>.cfg` for common
+proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
+`xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
+NES/SNES-recomp developer-listener switch `debug.ini`, and
+`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. The
+list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
+`*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
+`d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the
+catalog's `<engine>_portable.ini` names), which would silently move saves into
+the version folder where they are never collected. That
+list keeps audit finding PCV-REAUD-003 from
+[#237](https://github.com/boburning/portcove/pull/237) (#17, #20) and
+[SECURITY](../SECURITY.md); the owner narrowed it on November 14, 2026 from
+every new `ini`, `cfg` or `toml`. Ordinary settings such as `settings.ini`
+beside the executable, and loader names elsewhere, launch. The game-update
+acquisition precondition, update reuse and the rollback target check use
+`verify_critical_for_replacement`, which starts no process and treats even the
+loader-read names as unknown data.
+
+Every backup copies the unknown files of the versions it already checks (the
+collectible active version and every generated-cache version) into
+`unknown-files/<install-id>/<install-relative path>`, beside `data/`. Removal
+first takes an ordinary backup holding the unknown files of every version,
+because removal deletes the version folders, and its review lists them
+(`PortRemovalPreview.unknown_file_count` and up to 64 paths) and binds them
+into the review fingerprint. The manifest records the area as `unknown_files_v1`
+(count, size, digest) outside the restorable content digest, and
+`BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
+so it never writes an unknown file into a declared path, and an older reader
+ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+empty, holding only unknown files, cannot be restored (restore and its review
+refuse it, and the restore assessment ignores it) and is never the latest
+protection in `BackupInventory.protection`.
+
+Output relocation, library transfer copies and managed preparation output
+checks still require an exact match and refuse any unknown file. That is
+intentionally strict for now: those paths copy or re-derive the whole runtime,
+and Tier 1 does not decide how unknown files travel with it.
+
+The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
+total. Past a cap, an explicit backup and removal (review and execution) hold
+instead of truncating. An automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot copy none of the
+unknown files and record `unknown_files_left_in_place_v1`, because those
+operations delete nothing. Update, rollback, collection and launch are never
+held by a cap. Declared
+persistence, retained-scope receipts and canonical collection are unchanged.
+
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
 
 Backup inventory exposes separate Core creation and Restore assessments. Restore
@@ -2927,6 +3005,30 @@ completed scan batch rather than carrying an old observation into an active scan
 The existing 512-port selection bound and independent implementations apply;
 each selected port opens its fresh Core plan without automatic registration or
 installation.
+
+Core also lists game folders that Steam, GOG and Epic recorded on this host, so
+a player can choose the PC original a remake or source port needs. A
+`StoreInstallHost` seam supplies Steam client roots, GOG registry installs and
+Epic manifest folders; the production host reads default locations and the
+Windows registry, and tests use fixture folders. Core reads Steam
+`libraryfolders.vdf` and `appmanifest_*.acf` files and Epic `*.item` files with
+bounded regular-file reads, skips unsafe or missing locations, canonicalizes and
+deduplicates folders (keeping a linked `steamapps` as its resolved folder), drops
+filesystem roots, the home folder and ancestors of the library, and reports the
+matching saved game-file root identity plus the stores this host could check,
+so an unchecked store stays distinct from an empty one. Core unit-test services
+default to a host that reads no store.
+The result is a read-only suggestion: it adds no saved root, registration, setup
+intent or second scanner, and store titles never identify a source. Search and
+admission stay with the existing discovery and inspector. Source import refuses
+Move for an original inside a detected store game folder or a Steam library's
+`steamapps` folder, for a folder that contains one, and for any path through a
+folder named `steamapps`, so Portcove does not remove a recognized store's
+files; Copy and Use current location are unchanged. Recognition depends on
+readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+`get_store_game_installs` command expose the same Core result, and Desktop **Find
+required files** loads it only when the player asks and uses a chosen folder as
+the ordinary search folder.
 
 ## Install transaction
 
@@ -3095,7 +3197,7 @@ Backup restore publishes its verified canonical snapshot, then synchronizes the 
 
 Restore consumes its one-use, action/target-bound authorization under the port lock before expensive save collection and fingerprint recomputation. Expiry is an admission deadline; an admitted operation can finish hashing a large tree. The current backup/data fingerprint must still match the reviewed state before any restore publication. Expired or mismatched tokens never begin that work, and changed state consumes the grant and requires a new review.
 
-When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, loader configuration, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions.
+When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
 The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 

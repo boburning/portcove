@@ -24,7 +24,8 @@
     "selectedBackup": "Copia de seguridad seleccionada",
     "summary_one": "{{count}} archivo · {{size}}",
     "summary_many": "{{count}} archivos · {{size}}",
-    "summary_other": "{{count}} archivos · {{size}}"
+    "summary_other": "{{count}} archivos · {{size}}",
+    "unknownFiles": "También guarda {{total, number}} archivos que Portcove no instaló. Restaurar esta copia de seguridad no los devuelve."
   },
   "ghostship": {
     "activates": "Esto activa un nuevo derivado de la instalación heredada conservada y reemplaza los datos guardados canónicos por la instantánea seleccionada.",

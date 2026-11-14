@@ -3986,6 +3986,12 @@
         "format": "uint64",
         "minimum": 0,
         "type": "integer"
+      },
+      "unknown_file_count": {
+        "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
       }
     },
     "required": [
@@ -4068,6 +4074,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -4242,6 +4254,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -18463,6 +18481,12 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -19003,6 +19027,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -25881,6 +25911,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -35133,6 +35169,12 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -37209,6 +37251,19 @@
       },
       "preview_sha256": {
         "type": "string"
+      },
+      "unknown_file_count": {
+        "description": "Unknown player-side files in the versions being removed (#5359).\nRemoval copies them to a new backup's separate area before it deletes\nthe version folders; restore does not put them back. Omitted when zero.",
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "unknown_files": {
+        "description": "The first unknown file paths, each relative to its version folder.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
       }
     },
     "required": [
@@ -37963,6 +38018,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -44550,6 +44611,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
@@ -67290,6 +67357,82 @@
       "volume_available_bytes"
     ],
     "title": "StorageSummary",
+    "type": "object"
+  },
+  "store_game_installs": {
+    "$defs": {
+      "GameStore": {
+        "enum": [
+          "steam",
+          "gog",
+          "epic"
+        ],
+        "type": "string"
+      },
+      "StoreGameInstall": {
+        "description": "One game folder a store installed, as the store's own metadata records it.",
+        "properties": {
+          "path": {
+            "description": "Canonical existing folder.",
+            "type": "string"
+          },
+          "saved_root_id": {
+            "description": "The saved game-file folder at exactly this path, when there is one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "store": {
+            "$ref": "#/$defs/GameStore"
+          },
+          "title": {
+            "description": "The store's title for the game; a label, never an identity.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store",
+          "title",
+          "path",
+          "saved_root_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "checked_stores": {
+        "description": "The stores this host's metadata was read for. A store missing here was\nnot checked, which is different from having no games installed.",
+        "items": {
+          "$ref": "#/$defs/GameStore"
+        },
+        "type": "array"
+      },
+      "installs": {
+        "items": {
+          "$ref": "#/$defs/StoreGameInstall"
+        },
+        "type": "array"
+      },
+      "limited": {
+        "description": "Whether a detection bound stopped the list early.",
+        "type": "boolean"
+      },
+      "skipped_entries": {
+        "description": "Store entries left out because their metadata was unreadable, malformed,\nunsafe or named a folder that does not exist.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "checked_stores",
+      "installs",
+      "skipped_entries",
+      "limited"
+    ],
+    "title": "StoreGameInstalls",
     "type": "object"
   },
   "update_batch_outcome": {

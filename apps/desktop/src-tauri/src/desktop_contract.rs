@@ -596,6 +596,7 @@ pub fn export_transport_schemas() -> Value {
             "source_reuse_review": output::<portcove_core::SourceReuseReview>(),
             "game_file_scan_snapshot": output::<Option<portcove_core::GameFileScanSnapshot>>(),
             "game_file_scan_match_page": output::<portcove_core::GameFileScanMatchPage>(),
+            "store_game_installs": output::<portcove_core::StoreGameInstalls>(),
             "game_file_query_snapshot": output::<portcove_core::GameFileQuerySnapshot>(),
             "preparation_cleanup_preview": output::<portcove_core::PreparationCleanupPreview>(),
             "external_runtime_preview": output::<portcove_core::ExternalRuntimePreview>(),

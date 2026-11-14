@@ -1873,6 +1873,15 @@ pub struct BackupRecord {
     pub file_count: u64,
     pub size: u64,
     pub sha256: String,
+    /// Unknown player-side files kept in the backup's separate area (#5359).
+    /// They are not counted in `file_count`, and restore does not put them
+    /// back. Omitted when zero.
+    #[serde(default, skip_serializing_if = "is_zero_count")]
+    pub unknown_file_count: u64,
+}
+
+pub(crate) fn is_zero_count(value: &u64) -> bool {
+    *value == 0
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -2457,6 +2466,7 @@ impl CapabilityDocument {
                 "source.roots.scan".into(),
                 "source.roots.matches".into(),
                 "source.roots.profiles".into(),
+                "source.roots.stores".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),

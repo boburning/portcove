@@ -134,6 +134,7 @@ mod source_report;
 mod source_reuse;
 mod source_zip;
 mod stfs;
+mod store_install;
 mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
@@ -418,6 +419,10 @@ pub use source_report::{
 pub use source_reuse::{
     SourceRegistrationReference, SourceReuseApplication, SourceReuseCompatibility,
     SourceReuseReview,
+};
+pub use store_install::{
+    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
+    SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{

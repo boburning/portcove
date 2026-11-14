@@ -66,10 +66,10 @@ pub(crate) fn verification_report(
         port_name(catalog, port_id),
         clean(&report.install_id),
         report.checked_files,
-        if report.valid {
-            "Recorded file checks passed"
-        } else {
+        if report.has_hazards() {
             "Installed files do not match the expected record"
+        } else {
+            "Recorded file checks passed"
         },
     );
     for failure in &report.failures {
@@ -78,8 +78,30 @@ pub(crate) fn verification_report(
             clean(&portcove_core::redact_diagnostic_text(failure))
         ));
     }
+    if report.unknown_file_count > 0 {
+        text.push_str(&format!(
+            "\nUnrecognized files: {}. Portcove didn't install these files; the game may have created them, for example as settings. They stay in this version's folder and don't stop updates or removal. Backups keep a separate copy that restoring doesn't put back.",
+            report.unknown_file_count
+        ));
+        for path in &report.unknown_files {
+            text.push_str(&format!(
+                "\nUnrecognized file: {}",
+                clean(&portcove_core::redact_diagnostic_text(path))
+            ));
+        }
+        let unlisted = report
+            .unknown_file_count
+            .saturating_sub(report.unknown_files.len() as u64);
+        match unlisted {
+            0 => {}
+            1 => text.push_str("\n1 more unrecognized file is not listed."),
+            _ => text.push_str(&format!(
+                "\n{unlisted} more unrecognized files are not listed."
+            )),
+        }
+    }
     text.push_str(&format!("\nNext step: Using the same library, run portcove status {} to inspect current readiness.{}", clean(port_id),
-        if report.valid { " This checks recorded installation files; it does not prove gameplay or saved-data compatibility." }
+        if !report.has_hazards() { " This checks recorded installation files; it does not prove gameplay or saved-data compatibility." }
         else { " Preserve local files before reviewing a replacement or another recovery action." },
     ));
     text
@@ -721,8 +743,28 @@ pub(crate) fn external_runtime(runtime: &ExternalRuntimeRecord, catalog: &Catalo
 }
 
 pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -> String {
+    let mut unknown = String::new();
+    if preview.unknown_file_count > 0 {
+        unknown.push_str(&format!(
+            "\nUnrecognized files: {}. Portcove didn't install these files. Removal copies them to a new backup first; restoring a backup doesn't put them back.",
+            preview.unknown_file_count
+        ));
+        for path in &preview.unknown_files {
+            unknown.push_str(&format!("\n  {}", clean(path)));
+        }
+        match preview
+            .unknown_file_count
+            .saturating_sub(preview.unknown_files.len() as u64)
+        {
+            0 => {}
+            1 => unknown.push_str("\n  1 more unrecognized file is not listed."),
+            more => unknown.push_str(&format!(
+                "\n  {more} more unrecognized files are not listed."
+            )),
+        }
+    }
     format!(
-        "Managed installation removal review\nPort: {}\nManaged locations to remove: {}\n{}\nSaves and settings: {}\nSaves and settings preserved: {}\nReview SHA-256: {}\nReview only; no installed versions were removed.\nNext step: Use remove with this port and --expected-preview {} to confirm this exact inventory.",
+        "Managed installation removal review\nPort: {}\nManaged locations to remove: {}\n{}\nSaves and settings: {}\nSaves and settings preserved: {}{}\nReview SHA-256: {}\nReview only; no installed versions were removed.\nNext step: Use remove with this port and --expected-preview {} to confirm this exact inventory.",
         port_name(catalog, &preview.port_id),
         preview.managed_paths.len(),
         preview
@@ -737,6 +779,7 @@ pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -
         } else {
             "No"
         },
+        unknown,
         clean(&preview.preview_sha256),
         clean(&preview.preview_sha256),
     )

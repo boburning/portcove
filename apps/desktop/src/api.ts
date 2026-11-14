@@ -115,6 +115,7 @@ import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanMatchPage,
+  StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
   HostToolProbeResult,
@@ -944,6 +945,8 @@ export const desktopApi = {
     invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
   gameFileRootMatchProfiles: (rootId: string, generation: number) =>
     invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
+  storeGameInstalls: (generation: number) =>
+    invoke<StoreGameInstalls>("get_store_game_installs", { generation }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

@@ -15,6 +15,7 @@ import type {
 import { errorText, formatBytes, isCancellation } from "../view-model";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
+import { StoreInstallChoices } from "./StoreInstallChoices";
 import { sourceAdmissionPresentation } from "./SourceIdentity";
 import { ChoiceSelect } from "./ChoiceSelect";
 import { NavigationHints } from "./ui";
@@ -642,6 +643,11 @@ function SourceDiscoveryDialog({
             </Button>
           </div>
         </Field>
+        <StoreInstallChoices
+          generation={generation}
+          disabled={Boolean(busy)}
+          onChoose={workflow.updateRoot}
+        />
         {busy && <p role="status">{busy}</p>}
         {notice && <p role="status">{notice}</p>}
         {operationId && (

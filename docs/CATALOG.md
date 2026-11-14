@@ -506,7 +506,7 @@ XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
 copies. Keep those locations outside the library. The managed runtime
-inventory holds updates, switches and removal if unrecognized files appear.
+inventory holds updates, switches and removal if unrecognized programs appear.
 Windows creating contracts retain their previous rules.
 
 Native portable capability 17 covers the generic JGR Patch Pack Linux
@@ -767,10 +767,22 @@ marker can change storage behavior and needs its own upstream evidence. Keep
 distinct games sharing a repository separate. A reference catalog's release,
 checksum, scanner or verification label is not Portcove admission or qualification.
 
-Native portable runtimes use complete immutable-file verification. Changed package
-files or undeclared additions block update, version switching and managed removal
-with the current files preserved. The player can back up and relocate additions
-or retain an external installation. Updates extract into a new version, collect
+Native portable runtimes use complete immutable-file verification. Changed or
+missing package files, links, and undeclared code (programs, scripts, libraries,
+plugins, files with an executable signature, and any addition under an Electron
+package's `resources` folder) block
+launch, update, version switching, managed removal and backup with the current
+files preserved. The player can back up and relocate them or retain an external
+installation. Other undeclared regular files, such as settings a game writes
+beside itself, are unknown player-side files ([#5359](https://github.com/boburning/portcove/issues/5359)).
+They do not block those operations, and only a reviewed loader-read name
+beside the executable, such as `dinput8.ini`, `ReShade.ini`, `dxvk.conf` or
+`Game.exe.config`, blocks launch. Verification and the removal review list them,
+backups keep a separate copy that restore does not put back, and removal backs
+them up first. They are not declared player data and are not collected or
+carried forward. Past the unknown-file caps only a backup or removal is held;
+see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
+Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
 the staged version, revalidate, then activate through the existing journal.
 Obsolete package files stay in retained versions, rather than surviving in the
@@ -2284,7 +2296,7 @@ This opt-in uses the existing staged lifecycle and conservative data-restore
 receipt. Declared data is collected before first Play, backup, replacement,
 rollback and removal. Without a matching restore receipt, conflicting runtime and
 canonical copies are preserved for explicit resolution. Full immutable verification
-holds modified runtime files and undeclared additions; current data crosses only
+holds modified runtime files and undeclared programs; current data crosses only
 compatible retained coordinates. Runtime rollback does not rewind saves.
 N64 engine capability 4 and retained-contract format 8 fence these semantics from
 older readers; omitted/false retains historical N64 coordinates and behavior.

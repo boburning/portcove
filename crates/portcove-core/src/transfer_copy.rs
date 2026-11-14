@@ -259,7 +259,7 @@ pub(crate) fn verify_destination(
                 "copied application failed immutable manifest verification",
             )
             .detail("install_id", install.id)
-            .detail("failures", report.failures.join(", ")));
+            .detail("failures", report.findings().join(", ")));
         }
     }
     Ok(())

@@ -29,6 +29,14 @@ use crate::{
 };
 
 mod guarded_archive;
+mod unknown_files;
+
+#[cfg(test)]
+pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
+pub(super) use unknown_files::{
+    UnknownFileScope, UnknownRuntimeFile, measure as measure_unknown_files,
+    require_within_caps as require_unknown_files_within_caps,
+};
 
 /// The newest this many automatic snapshots per game are kept.
 pub(super) const AUTOMATIC_SNAPSHOT_RETENTION: usize = 5;
@@ -478,6 +486,15 @@ struct BackupManifest {
     /// snapshot as a manual one, which is only ever the safe direction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     automatic_v1: Option<crate::AutomaticSnapshotLabel>,
+    /// Unknown player-side files copied to `unknown-files/` (#5359). Restore
+    /// never reads that area, so it stays outside the content digest and an
+    /// older reader that ignores it still restores exactly `data/`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unknown_files_v1: Option<unknown_files::UnknownFilesArea>,
+    /// How many unknown files an automatic snapshot left in the game folder
+    /// because they exceeded the caps. Advisory, like `automatic_v1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unknown_files_left_in_place_v1: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -643,7 +660,16 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
-        self.create_backup_locked_labeled(port_id, None)
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Explicit)
+    }
+
+    /// The safety backup before a restore replaces canonical data. Restore
+    /// deletes no unknown file, so past a cap this copies none of them.
+    pub(super) fn create_restore_safety_backup_locked(
+        &self,
+        port_id: &str,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Automatic)
     }
 
     /// Publish an ordinary snapshot of current canonical data with a reviewed
@@ -655,15 +681,33 @@ impl PortcoveService {
         port_id: &str,
         overlay: &SnapshotOverlay<'_>,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, None, Some(overlay))
+        self.create_backup_snapshot(port_id, None, Some(overlay), UnknownFileScope::Automatic)
     }
 
     fn create_backup_locked_labeled(
         &self,
         port_id: &str,
-        label: Option<crate::AutomaticSnapshotLabel>,
+        label: crate::AutomaticSnapshotLabel,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, label, None)
+        self.create_backup_snapshot(port_id, Some(label), None, UnknownFileScope::Automatic)
+    }
+
+    /// Before removal, keep the unknown player-side files of every version,
+    /// which removal would otherwise delete with the version folders. Returns
+    /// `None` when there are none; declared data is preserved by removal itself.
+    pub(super) fn create_removal_safety_backup_locked(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<BackupRecord>> {
+        if self
+            .backup_unknown_files(port_id, UnknownFileScope::Removal)?
+            .files
+            .is_empty()
+        {
+            return Ok(None);
+        }
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Removal)
+            .map(Some)
     }
 
     fn create_backup_snapshot(
@@ -671,10 +715,16 @@ impl PortcoveService {
         port_id: &str,
         label: Option<crate::AutomaticSnapshotLabel>,
         overlay: Option<&SnapshotOverlay<'_>>,
+        unknown_scope: UnknownFileScope,
     ) -> Result<BackupRecord> {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
-        if !source.is_dir() {
+        let source_exists = source.is_dir();
+        let selection = self.backup_unknown_files(port_id, unknown_scope)?;
+        let unknown = selection.files;
+        let unknown_files_left_in_place_v1 =
+            (selection.left_in_place > 0).then_some(selection.left_in_place);
+        if !source_exists && unknown.is_empty() {
             return Err(no_persistent_data(port_id));
         }
         // Both callers have successfully collected the active runtime under the
@@ -718,7 +768,10 @@ impl PortcoveService {
             self.faults
                 .check(LifecycleFaultPoint::BackupStagingCreated)?;
             let mut stats = BackupStats::default();
-            if let Some(overlay) = overlay {
+            if !source_exists {
+                // Only unknown files remain to protect; restore sees no saves.
+                fs::create_dir(staging_path.join("data"))?;
+            } else if let Some(overlay) = overlay {
                 let merged = staging_path.join("overlay");
                 copy_backup_tree(&source, &merged, &source, &mut BackupStats::default())?;
                 overlay(&merged)?;
@@ -727,6 +780,7 @@ impl PortcoveService {
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
+            let unknown_files_v1 = unknown_files::copy_area(&staging_path, &unknown)?;
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
             if self.guarded_backup_producer(port_id)? != producer
                 || crate::archive_data::snapshot_policy(&source)? != partitioned_policy
@@ -735,7 +789,7 @@ impl PortcoveService {
                     "backup producing installation changed while copying",
                 ));
             }
-            if stats.file_count == 0 {
+            if stats.file_count == 0 && unknown_files_v1.is_none() {
                 return Err(no_persistent_data(port_id));
             }
             // Publish only data that the existing restore review can interpret.
@@ -770,6 +824,8 @@ impl PortcoveService {
                 partitioned_data_v1: partitioned_policy.clone(),
                 automatic_v1: label,
                 guarded_archive_v1: producer.map(|p| p.archive_sha256),
+                unknown_files_v1,
+                unknown_files_left_in_place_v1,
             };
             let final_path = parent.join(&manifest.id);
             let manifest_path = staging_path.join("backup.json");
@@ -1116,7 +1172,9 @@ impl PortcoveService {
         }) {
             return decision(Availability::Held, Reason::UnsafeData);
         }
-        if history.backups.is_empty() {
+        // A backup holding only unknown player-side files has no saves to
+        // restore (#5359); it is not a usable restore source.
+        if history.backups.iter().all(|backup| backup.file_count == 0) {
             // A failed root/entry read cannot establish that no usable backup
             // exists. Damaged identified snapshots remain separate evidence.
             if history.problems.iter().any(|problem| {
@@ -1280,6 +1338,9 @@ impl PortcoveService {
             }
         }
         let backup = self.load_backup(port_id, backup_id)?;
+        if action == BackupAction::Restore {
+            require_restorable(&backup)?;
+        }
         let backup_data = backup.path.join("data");
         let backup_plan = adoption_copy_plan(&backup_data)?;
         if action == BackupAction::Restore {
@@ -1445,6 +1506,7 @@ impl PortcoveService {
             let reviewed_runtime = self.collectible_data_review(port_id)?;
             let reviewed_canonical = self.canonical_data_review(port_id)?;
             let reviewed_backup = self.load_backup(port_id, backup_id)?;
+            require_restorable(&reviewed_backup)?;
             self.faults
                 .check(LifecycleFaultPoint::RestoreManifestRecordLoaded)?;
             let manifest_path = reviewed_backup.path.join("backup.json");
@@ -1532,7 +1594,7 @@ impl PortcoveService {
             let collected_canonical = self.canonical_data_review(port_id)?;
 
             let safety_backup = if user_root.exists() {
-                match self.create_backup_locked(port_id) {
+                match self.create_restore_safety_backup_locked(port_id) {
                     Ok(backup) => Some(backup),
                     Err(error) if error.code == crate::ErrorCode::NotFound => None,
                     Err(error) => return Err(error),
@@ -1805,7 +1867,7 @@ impl PortcoveService {
                 from_version: from_version.map(str::to_owned),
                 to_version: to_version.to_owned(),
             };
-            match self.create_backup_locked_labeled(port_id, Some(label)) {
+            match self.create_backup_locked_labeled(port_id, label) {
                 Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
                     Ok(SnapshotOutcome::Created { pruned })
@@ -1976,6 +2038,19 @@ impl PortcoveService {
     }
 }
 
+/// Restoring a backup with no saves would empty current saves (#5359). Such a
+/// backup holds only unknown player-side files, which restore never publishes.
+fn require_restorable(backup: &BackupRecord) -> Result<()> {
+    if backup.file_count == 0 {
+        return Err(PortcoveError::conflict(
+            "This backup has no saves or settings to restore. It only keeps files Portcove didn't install, in its unknown-files folder. Choose another backup.",
+        )
+        .detail("backup_id", &backup.id)
+        .detail("unknown_file_count", backup.unknown_file_count.to_string()));
+    }
+    Ok(())
+}
+
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
     BackupRecord {
         automatic: manifest.automatic_v1,
@@ -1986,6 +2061,10 @@ fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
         file_count: manifest.file_count,
         size: manifest.size,
         sha256: manifest.sha256,
+        unknown_file_count: manifest
+            .unknown_files_v1
+            .as_ref()
+            .map_or(0, |area| area.file_count),
     }
 }
 

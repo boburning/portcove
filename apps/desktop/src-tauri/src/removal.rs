@@ -103,6 +103,8 @@ mod tests {
             ],
             persistent_data_path: PathBuf::from("user/sample-port"),
             persistent_data_will_be_preserved: true,
+            unknown_file_count: 0,
+            unknown_files: Vec::new(),
             preview_sha256: "a".repeat(64),
         };
         let consent = removal_consent(&preview, "Sample Port");

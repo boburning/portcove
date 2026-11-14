@@ -1108,6 +1108,54 @@ saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
 replaced it, so pages never mix two scans. Older inline reports are paged from
 the report itself with a null `scan_id`.
 
+#### Games installed by Steam, GOG or Epic
+
+Engine remakes and source ports often need files from a PC original you
+installed through a game store. `source roots stores` lists the game folders
+those stores recorded on this computer so you can search one:
+
+```text
+portcove --library <path> --json source roots stores
+portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
+portcove --library <path> --json source roots add "<store game folder>"
+```
+
+Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
+the canonical existing folder `path` and `saved_root_id` when that exact folder
+is already a saved game-file folder. `checked_stores` names the stores whose
+metadata this system can read; a store missing from it was not checked, which
+is different from having no games installed. Steam libraries come from the Steam
+client's `steamapps/libraryfolders.vdf` and each library's
+`appmanifest_*.acf` (`name`, `installdir`) on Windows (registry and Program
+Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
+Flatpak client) and macOS. A linked `steamapps` folder is read as the folder it
+resolves to. GOG installs come from the Windows `GOG.com\Games` registry
+entries and Epic installs from the Epic Games Launcher's `Manifests\*.item`
+files on Windows, so on Linux and macOS only Steam is checked. Heroic, Lutris
+and other launchers are not read.
+
+The list is a suggestion only: it never saves a folder, registers files,
+records setup intent or changes anything in a store's folder, and the store's
+title is a label, not an identity. Exact source checks decide whether any file
+matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
+libraries and 4,096 games are listed, and these are skipped and counted in
+`skipped_entries`: an `installdir` that is not a single folder name, a library
+listed by Steam or a game location that is relative or missing, unreadable
+metadata, and a folder that is a filesystem root, your home folder or contains
+this Portcove library. `limited` reports a reached bound. A store that cannot be
+read leaves the list shorter rather than failing.
+
+Files inside a game a store installed can be copied into Portcove or used where
+they are, but not moved. A Move import is refused with a `conflict` error naming
+the store when its original is inside a listed game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder Move
+removes the whole folder at the end), or when any folder on its path is named
+`steamapps`, because the store's game would lose the files. Protection otherwise
+depends on the stores' metadata: a GOG or Epic game whose registry entry or
+manifest can't be read, a Steam library beyond the 64-library bound outside a
+`steamapps` folder, or an unlisted folder that merely holds such a game, is not
+recognized, so choose Copy for files from a store's folder.
+
 ### Disc formats and optional tools
 
 `tool list` identifies each fixed tool's purpose, effective resolution and
@@ -1620,6 +1668,13 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
+**Unrecognized files** are files the installation didn't ship that are not
+programs, scripts, libraries or links. The report lists them apart from its
+findings; JSON reports them as `unknown_file_count` and up to 64
+`unknown_files` paths, and `valid` stays false while any remain
+([#5359](https://github.com/boburning/portcove/issues/5359)). The removal review lists them the
+same way before consent, and backup lists add them to the file count as
+`unrecognized`; JSON reports `unknown_file_count` on both.
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,
