@@ -3020,6 +3020,7 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
+        let port = self.catalog.port(port_id)?;
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3032,7 +3033,8 @@ impl PortcoveService {
             upstream_activity: match observed_activity {
                 Some(activity) => Some(activity.clone()),
                 // A check that did not read the repository keeps the earlier
-                // observation with its own time instead of erasing or re-dating it.
+                // observation with its own time instead of erasing or re-dating it,
+                // but only while the port still names that GitHub repository.
                 None => self
                     .library
                     .update_snapshot(port_id)
@@ -3040,7 +3042,8 @@ impl PortcoveService {
                         tracing::warn!(%error, port_id, "could not read the previous update check");
                         None
                     })
-                    .and_then(|snapshot| snapshot.check.upstream_activity),
+                    .and_then(|snapshot| snapshot.check.upstream_activity)
+                    .filter(|activity| activity.describes(port)),
             },
         };
         self.library.store_update_snapshot(&check)?;
@@ -7971,6 +7974,7 @@ mod tests {
             .for_selection(port, platform, channel)?;
             if !self.reported.swap(true, Ordering::SeqCst) {
                 resolved.upstream_activity = Some(crate::UpstreamActivity {
+                    repository: port.release.repository.clone(),
                     observed_at: 1_000,
                     archived: true,
                     last_change_at: Some(900),
@@ -7995,6 +7999,13 @@ mod tests {
         )
         .unwrap();
         let observed = crate::UpstreamActivity {
+            repository: service
+                .catalog()
+                .port("zelda64-recomp")
+                .unwrap()
+                .release
+                .repository
+                .clone(),
             observed_at: 1_000,
             archived: true,
             last_change_at: Some(900),
@@ -8010,6 +8021,32 @@ mod tests {
             .unwrap();
         assert!(snapshot.checked_at > observed.observed_at);
         assert_eq!(snapshot.check.upstream_activity, Some(observed));
+    }
+
+    #[test]
+    fn upstream_activity_belongs_only_to_the_same_github_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        let activity = crate::UpstreamActivity {
+            repository: port.release.repository.clone(),
+            observed_at: 1_000,
+            archived: false,
+            last_change_at: None,
+        };
+        assert!(activity.describes(port));
+        let mut moved = port.clone();
+        moved.release.repository = "Successor/zelda64-recomp".into();
+        assert!(!activity.describes(&moved));
+        for provider in [
+            crate::ReleaseSource::Gitlab,
+            crate::ReleaseSource::DirectManifest,
+            crate::ReleaseSource::UserPrepared,
+        ] {
+            let mut other = port.clone();
+            other.release.provider = provider;
+            assert!(!activity.describes(&other), "{provider:?}");
+        }
     }
 
     #[test]

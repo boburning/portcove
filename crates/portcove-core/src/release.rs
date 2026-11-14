@@ -1375,7 +1375,13 @@ impl GithubReleaseProvider {
                 crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
             )?;
         }
-        match self.resolve_observed(port, channel, platform, scope).await {
+        // Repository facts read before a later failure stay fresh for a fallback;
+        // they remain unknown only when the repository document itself was unread.
+        let mut observed_activity = None;
+        match self
+            .resolve_observed(port, channel, platform, scope, &mut observed_activity)
+            .await
+        {
             Ok(resolved) => Ok(resolved),
             Err(error) => match (port.release.curated.get(&platform), scope) {
                 (Some(record), Some(scope))
@@ -1383,7 +1389,10 @@ impl GithubReleaseProvider {
                         && error.upstream_failure()
                             == crate::failure::UpstreamFailure::Unavailable =>
                 {
-                    preserved_resolution(port, channel, record, scope)
+                    preserved_resolution(port, channel, record, scope).map(|mut resolved| {
+                        resolved.activity = observed_activity;
+                        resolved
+                    })
                 }
                 _ => Err(error),
             },
@@ -1397,6 +1406,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
+        observed_activity: &mut Option<crate::UpstreamActivity>,
     ) -> Result<ResolvedGithub> {
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = match scope {
@@ -1413,7 +1423,8 @@ impl GithubReleaseProvider {
         // Keep metadata validation before cached selection. Archive state and the
         // latest push are maintenance facts reported to the player; they neither
         // revoke exact release authority nor replace the integrity checks below.
-        let activity = Some(repository.activity());
+        let activity = Some(repository.activity(&port.release.repository));
+        observed_activity.clone_from(&activity);
         let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
         cache_key.scope_binding = scope.map(|scope| {
             format!(
@@ -1892,8 +1903,9 @@ struct GithubRepository {
 }
 
 impl GithubRepository {
-    fn activity(&self) -> crate::UpstreamActivity {
+    fn activity(&self, repository: &str) -> crate::UpstreamActivity {
         crate::UpstreamActivity {
+            repository: repository.to_owned(),
             observed_at: Library::now(),
             archived: self.archived,
             last_change_at: self
@@ -2423,6 +2435,7 @@ mod tests {
             .upstream_activity
             .unwrap();
         assert!(archived.archived);
+        assert_eq!(archived.repository, port.release.repository);
         assert_eq!(archived.last_change_at, Some(1_680_674_828));
         assert!(archived.observed_at >= before);
         // A malformed push time is an unknown fact, never a failed selection.

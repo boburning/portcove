@@ -3179,7 +3179,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -3219,7 +3219,7 @@
         "type": "object"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -3237,9 +3237,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -10307,7 +10312,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -10323,7 +10328,7 @@
         "type": "object"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -10341,9 +10346,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -27994,7 +28004,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -28034,7 +28044,7 @@
         "type": "object"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -28052,9 +28062,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -43590,7 +43605,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -43614,7 +43629,7 @@
         "type": "string"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -43632,9 +43647,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -43937,7 +43957,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -43961,7 +43981,7 @@
         "type": "string"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -43979,9 +43999,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -65494,7 +65519,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -65534,7 +65559,7 @@
         "type": "object"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -65552,9 +65577,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -66583,7 +66613,7 @@
         "type": "string"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -66601,9 +66631,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],
@@ -66672,7 +66707,7 @@
             "type": "null"
           }
         ],
-        "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+        "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
       }
     },
     "required": [
@@ -66894,7 +66929,7 @@
                 "type": "null"
               }
             ],
-            "description": "Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself."
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -66910,7 +66945,7 @@
         "type": "object"
       },
       "UpstreamActivity": {
-        "description": "What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.",
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
         "properties": {
           "archived": {
             "description": "The repository owner archived the repository (read-only upstream).",
@@ -66928,9 +66963,14 @@
             "description": "Unix seconds when the provider reported these facts.",
             "format": "int64",
             "type": "integer"
+          },
+          "repository": {
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.",
+            "type": "string"
           }
         },
         "required": [
+          "repository",
           "observed_at",
           "archived"
         ],

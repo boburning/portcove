@@ -161,10 +161,9 @@
     "placeholder": "Nombre del juego o de la adaptación"
   },
   "upstreamActivity": {
-    "archived": "Sus autores archivaron el proyecto y ya no aceptan cambios, por lo que es poco probable que haya versiones nuevas.",
-    "checked": "Informado por el alojamiento del proyecto durante la comprobación de actualizaciones del {{date}}.",
-    "label": "Actividad en el origen",
-    "quiet": "Sin cambios en el origen desde {{date}}. Es poco probable que haya versiones nuevas salvo que se reanude el trabajo.",
-    "recent": "Último cambio en el origen: {{date}}."
+    "archived": "GitHub informó el {{checked}} que los autores archivaron el proyecto y ya no aceptan cambios. Es poco probable que haya versiones nuevas.",
+    "label": "Actividad del origen en GitHub",
+    "quiet": "GitHub informó el {{checked}} que el proyecto no había cambiado desde {{date}}. Es poco probable que haya versiones nuevas salvo que se reanude el trabajo.",
+    "recent": "GitHub informó el {{checked}} que el último cambio del proyecto fue en {{date}}."
   }
 }

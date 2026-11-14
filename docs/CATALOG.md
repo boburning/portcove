@@ -3373,7 +3373,8 @@ Core keeps the repository archive flag and latest push time that GitHub reported
 in the metadata it already reads to select a release (#5407). The update check
 records them as `upstream_activity`, and Desktop shows them in the port details:
 archived, no changes for two years before that observation, or the latest change
-month. This player fact is a dated provider observation with no catalog,
+month, each dated to GitHub's report. An observation belongs only to the GitHub
+repository the port still names. This player fact is a dated provider observation with no catalog,
 admission, hold or update authority. Ports that were never checked, other
 providers and missing push times remain unknown.
 

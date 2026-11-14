@@ -2252,6 +2252,9 @@ pub struct UpdateCheck {
 /// not the catalog's reviewed `upstream_status` declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct UpstreamActivity {
+    /// The GitHub `owner/name` repository these facts describe. A port whose
+    /// catalog provider or repository differs no longer owns this observation.
+    pub repository: String,
     /// Unix seconds when the provider reported these facts.
     pub observed_at: i64,
     /// The repository owner archived the repository (read-only upstream).
@@ -2259,6 +2262,13 @@ pub struct UpstreamActivity {
     /// Unix seconds of the latest push the provider reported, when it reported one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_change_at: Option<i64>,
+}
+
+impl UpstreamActivity {
+    /// Whether the port's current catalog definition still names this repository.
+    pub fn describes(&self, port: &PortDefinition) -> bool {
+        port.release.provider == ReleaseSource::Github && port.release.repository == self.repository
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

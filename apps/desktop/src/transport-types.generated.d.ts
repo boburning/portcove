@@ -1700,13 +1700,18 @@ export interface UpdateCheck {
   required_runtime: RuntimeIdentity | null;
   update_available: boolean;
   /**
-   * Repository maintenance facts from the provider's most recent observation of this port. Absent means unknown, never active. It may be older than `checked_at` when this check did not read the repository itself.
+   * Repository maintenance facts from the provider's most recent observation of
+   * this port. Absent means unknown, never active. It may be older than
+   * `checked_at` when this check did not read the repository itself.
    */
   upstream_activity?: UpstreamActivity | null;
   [k: string]: unknown;
 }
 /**
- * What the release provider reported about the upstream repository while Portcove was already reading it to select a release. A maintenance observation only: it grants or revokes no release, update, install or catalog authority, and it is not the catalog's reviewed `upstream_status` declaration.
+ * What the release provider reported about the upstream repository while Portcove
+ * was already reading it to select a release. A maintenance observation only: it
+ * grants or revokes no release, update, install or catalog authority, and it is
+ * not the catalog's reviewed `upstream_status` declaration.
  */
 export interface UpstreamActivity {
   /**
@@ -1721,6 +1726,11 @@ export interface UpstreamActivity {
    * Unix seconds when the provider reported these facts.
    */
   observed_at: number;
+  /**
+   * The GitHub `owner/name` repository these facts describe. A port whose
+   * catalog provider or repository differs no longer owns this observation.
+   */
+  repository: string;
   [k: string]: unknown;
 }
 export interface PortActionAssessment {

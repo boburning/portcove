@@ -3739,6 +3739,7 @@ enum PreservedCase {
     StalePolicyBeforeResolution,
     StalePolicyBeforeBytes,
     RetaggedReleaseNeverFallsBack,
+    AssetGoneKeepsRepositoryActivity,
     SecondLocationAfterFirstUnavailable,
     MismatchStopsBeforeSecondLocation,
 }
@@ -3933,6 +3934,26 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
             );
             return;
         }
+        PreservedCase::AssetGoneKeepsRepositoryActivity => {
+            // The repository document was read before the accepted release was
+            // found gone, so the fallback keeps that fresh maintenance fact.
+            server.json(serde_json::json!({
+                "id":scope.repository_id,"archived":true,"pushed_at":"2024-01-02T03:04:05Z"
+            }));
+            server.json(serde_json::json!([]));
+            let resolved = resolve().await.unwrap();
+            assert_eq!(resolved.release.asset.sha256, record.sha256);
+            let activity = resolved.upstream_activity.unwrap();
+            assert!(activity.archived);
+            assert_eq!(activity.repository, record.repository);
+            assert_eq!(activity.last_change_at, Some(1_704_164_645));
+            assert!(
+                requested(&server)
+                    .iter()
+                    .all(|line| !line.contains(&preserved_path))
+            );
+            return;
+        }
         PreservedCase::DisagreementNeverFallsBack => {
             let mut release = server.release(false);
             release[0]["id"] = record.release_id.into();
@@ -3978,6 +3999,8 @@ async fn curated_preserved_failover_fixture(case: PreservedCase) {
     let resolved = resolve().await.unwrap();
     assert_eq!(resolved.release.asset.sha256, record.sha256);
     assert_eq!(resolved.release.asset.name, record.filename);
+    // The repository document itself was unread, so its facts stay unknown.
+    assert_eq!(resolved.upstream_activity, None);
     assert_eq!(
         requested(&server).len(),
         1,
@@ -4125,6 +4148,11 @@ async fn curated_stale_policy_refuses_preserved_resolution() {
 #[tokio::test]
 async fn curated_stale_policy_refuses_preserved_bytes_after_resolution() {
     curated_preserved_failover_fixture(PreservedCase::StalePolicyBeforeBytes).await;
+}
+
+#[tokio::test]
+async fn curated_asset_gone_fallback_keeps_repository_activity() {
+    curated_preserved_failover_fixture(PreservedCase::AssetGoneKeepsRepositoryActivity).await;
 }
 
 #[tokio::test]

@@ -543,11 +543,10 @@ export default interface Resources {
       "placeholder": "Game or port name"
     },
     "upstreamActivity": {
-      "archived": "The project's authors archived it and no longer accept changes, so new versions are unlikely.",
-      "checked": "Reported by the project's host during the update check on {{date}}.",
-      "label": "Upstream activity",
-      "quiet": "No upstream changes since {{date}}. New versions are unlikely unless work resumes.",
-      "recent": "Last upstream change: {{date}}."
+      "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
+      "label": "Upstream activity on GitHub",
+      "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
     }
   },
   "catalogUpdates": {

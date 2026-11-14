@@ -3818,7 +3818,7 @@ function DetailOverviewEvidence({ model }: { model: Parameters<typeof DetailBody
         <summary data-focusable>Project status and release information</summary>
         <ProjectReleaseSummary port={model.port} />
         <dl className="detail-facts">
-          <UpstreamActivityFacts status={model.status} />
+          <UpstreamActivityFacts port={model.port} status={model.status} />
           <ListingMaintenanceFacts listing={model.displayPort?.listing} />
         </dl>
       </details>
