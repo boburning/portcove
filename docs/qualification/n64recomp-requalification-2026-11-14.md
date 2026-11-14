@@ -53,7 +53,7 @@ was downloaded again, and its SHA-256 matched the existing applicability.
 
 Each requalified contract keeps its existing applicability first and appends
 the exact newest artifact digests. Each requalified route has one new
-`upstream_support` evidence record. Source profiles, contracts, admission,
+`upstream_support` evidence record. Source profiles, other source-contract fields, admission,
 definitions, platforms, support tiers and qualification records are unchanged.
 
 ### Castlevania: Legacy of Darkness Recompiled
@@ -99,8 +99,8 @@ reviewed.
 - **Data:** `platform/config_ini.c`, `platform/app/app_config.cpp` and
   `platform/app/arg_triage.h` are byte-identical. `platform/user_paths.c` adds
   only an `MDKR_MODS_DIR` override, which Portcove does not set. The player's
-  strings add no data filename except `pack.ini` and `desktop.ini`. The
-  v1.7.0 README already describes `pack.ini`, a file inside a player's texture
+  strings add no data filename except `desktop.ini`; `pack.ini` already
+  appears in the v1.7.0 player's strings, and the v1.7.0 README describes `pack.ini`, a file inside a player's texture
   or music pack. The added variables are opt-in overrides and test,
   trace and online-test switches, none of which Portcove sets. No URL was
   added.
@@ -122,8 +122,10 @@ package's `docs/BUILD_INFO.json` names the same source commit.
   keep their paths.
 - **Data:** the published v1.4.8 and v1.4.9 source ZIPs were compared. Their
   sources contain the same data filename, environment variable and network
-  literals. Against v1.4.3, the player's strings add only
-  `cpu-weapon-options.cfg`, which the current definition already declares.
+  literals. Against v1.4.3, the player's strings add only the data
+  file `cpu-weapon-options.cfg`, which the current definition already declares,
+  and the opt-in `RR64_POPULATION_TRACE` and `RR64_PREPARATION_TRACE` trace
+  variables, which Portcove does not set.
 
 The difference from the bound v1.4.3 artifact is the data coordinates:
 wrapper-prefixed then, beside the executable now. The current definition
@@ -169,8 +171,11 @@ its handoff gap stays tracked on #281 and #2510.
 No generic Core rule lets this through. A rule that treats the whole
 `user_data_environment` folder as player data would cover the marker and cache
 folder. Nothing in Core can own writes into Steam's folder. Resuming needs a
-reviewed definition decision: declare the marker, or set
-`SNAP_NO_STEAM_ART=1` through `launch_environment`. That is a player-visible
+reviewed definition decision: set `SNAP_NO_STEAM_ART=1` through
+`launch_environment` (declaring the marker alone would leave the Steam-folder
+write) plus a decision on the Linux `cache` folder that
+`snap_mesa_shader_cache_dir()` creates, or an explicit acceptance of the
+external Steam write. That is a player-visible
 change for #281. The managed routes keep resolving v1.1.x as before. Only the
 source contract's applicability stays at v1.0.5.
 
