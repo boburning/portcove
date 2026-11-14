@@ -188,15 +188,14 @@ pub(super) fn require(
     {
         return Ok(Continuity::Accepted);
     }
-    Err(held(
-        port,
-        tag,
-        asset,
-        "it was uploaded by a GitHub account that hasn't published this project's earlier versions",
-        not_continuous,
-    )
-    .detail("uploader", account.login.clone())
-    .detail("uploader_id", account.id.to_string()))
+    let cause = if account.id == GHOST_ACCOUNT_ID {
+        "GitHub shows it as uploaded by a deleted account"
+    } else {
+        "it was uploaded by a GitHub account that hasn't published this project's earlier versions"
+    };
+    Err(held(port, tag, asset, cause, not_continuous)
+        .detail("uploader", account.login.clone())
+        .detail("uploader_id", account.id.to_string()))
 }
 
 #[cfg(test)]
@@ -352,6 +351,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(refused.details["uploader_id"], GHOST_ACCOUNT_ID.to_string());
+        assert!(refused.message.contains("uploaded by a deleted account"));
         // Its existing pre-baseline releases keep their behavior.
         assert_eq!(
             require(

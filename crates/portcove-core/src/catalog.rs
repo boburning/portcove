@@ -2124,8 +2124,6 @@ pub(crate) fn rom_patch_fixture_document(
     document
 }
 
-/// A named portable marker is one plain file name that the port also declares persistent,
-/// because the engine keeps its own configuration in it.
 impl Catalog {
     /// The STFS binding's own limits, and its agreement with a content identity: such an
     /// identity is admitted only for a port that binds the same titles and content types.

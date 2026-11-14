@@ -2007,7 +2007,8 @@ publishing identities when any of these holds:
 Accounts are matched by numeric ID, so a renamed login still matches and a
 freed login taken by another account does not. GitHub's shared placeholder for
 deleted accounts (`ghost`, ID 10137) never establishes, owns or is accepted for
-a project; an upload it is credited with after the baseline is held. The
+a project; an upload it is credited with after the baseline is held with a
+reason saying GitHub shows a deleted account as the uploader. The
 baseline instant is fixed: an upload after it never makes its uploader
 established, so a later release from the same new account stays held too.
 Established status comes from assets still present in the observed listing,
@@ -2035,7 +2036,8 @@ behavior rather than treating missing optional evidence as a known mismatch.
 GitHub's API always returns the field, so this applies to non-GitHub-shaped
 responses. When other assets in the same listing carry the field but the
 selected asset does not, the observation is inconsistent and the release is
-held (`provider_uploader_not_observed`).
+held (`provider_uploader_not_observed`), even if that asset predates the
+baseline; GitHub's real API does not produce this shape.
 
 The guard's limits are deliberate and narrow. An Actions-app upload passes, and
 anyone with write access can add, change or trigger the project's release
