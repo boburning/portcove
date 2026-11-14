@@ -7,6 +7,7 @@
     "summary": "macOS boot through movies/menus and online play are reported; widescreen is unchecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/phobos665/Rainbow-six-three-recomp",
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/phobos665"],
     "platforms": ["macos-aarch64"],
     "availability": "unknown",
     "setup_url": "https://github.com/phobos665/Rainbow-six-three-recomp",

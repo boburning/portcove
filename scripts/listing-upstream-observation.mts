@@ -22,6 +22,8 @@ export function listingDeclarationHash(listing: Record<string, unknown>) {
   // A first-listed date does not change what the listing declares, so adding it
   // to every listing must not invalidate retained observations bound to this hash.
   delete declaration.listed_at;
+  // Funding links are upstream descriptions refreshed independently of releases.
+  delete declaration.funding_urls;
   return observationHash(declaration);
 }
 const packageLimit = 32;

@@ -9786,6 +9786,16 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -18430,6 +18440,102 @@
           "volume_available_bytes"
         ],
         "type": "object"
+      },
+      "UpdateReleaseNotes": {
+        "description": "Upstream releases between the installed version (exclusive) and the offered\nversion (inclusive), newest first. Notes are untrusted plain text.",
+        "properties": {
+          "coverage": {
+            "$ref": "#/$defs/UpdateReleaseNotesCoverage"
+          },
+          "entries": {
+            "description": "Empty when the notes are unknown: not cached, or the offered release is not listed.",
+            "items": {
+              "$ref": "#/$defs/UpdateReleaseNotesEntry"
+            },
+            "type": "array"
+          },
+          "releases_url": {
+            "description": "The project's release list page. Present only when Desktop may open it: it is\nbuilt by Portcove and passes the same reviewed-link check as other handoffs.",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "entries",
+          "coverage"
+        ],
+        "type": "object"
+      },
+      "UpdateReleaseNotesCoverage": {
+        "description": "How far `UpdateReleaseNotes::entries` reaches toward the installed version.",
+        "oneOf": [
+          {
+            "const": "complete",
+            "description": "Every eligible release since the installed version is listed.",
+            "type": "string"
+          },
+          {
+            "const": "shortened",
+            "description": "Only the newest releases are listed; older ones since the installed version exist.",
+            "type": "string"
+          },
+          {
+            "const": "installed_not_listed",
+            "description": "The installed version was not found in the usable cached release list.",
+            "type": "string"
+          },
+          {
+            "const": "installed_newer",
+            "description": "The installed version is newer than the offered one; only the offered release is listed.",
+            "type": "string"
+          },
+          {
+            "const": "rolling_release",
+            "description": "A rolling release is republished in place; only its current notes are listed.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "No notes are known for the offered release.",
+            "type": "string"
+          }
+        ]
+      },
+      "UpdateReleaseNotesEntry": {
+        "properties": {
+          "notes": {
+            "description": "Normalized plain text; may contain unrendered Markdown or HTML source.",
+            "type": "string"
+          },
+          "notes_truncated": {
+            "type": "boolean"
+          },
+          "published_at": {
+            "description": "Provider timestamp in RFC 3339 shape; absent when missing or malformed.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "description": "The release tag, normalized for display.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "notes",
+          "notes_truncated"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18468,6 +18574,17 @@
       },
       "plan_sha256": {
         "type": "string"
+      },
+      "release_notes": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/UpdateReleaseNotes"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Informational upstream notes for this review. Read from cached provider\nmetadata only, excluded from `plan_sha256`, never authority. Absent when\nthe provider has no hosted release page."
       }
     },
     "required": [
@@ -32944,6 +33061,16 @@
             "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
               "null"
             ]
           },

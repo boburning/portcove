@@ -6,7 +6,7 @@ import { BackupHistory } from "../components/BackupHistory";
 import { HostToolRow, StatusLayer } from "../components/Chrome";
 import { WorkspaceRefreshNotice } from "../features/workspace/WorkspaceRefreshNotice";
 import { ApplicationUpdateSettings } from "../features/application-update/ApplicationUpdates";
-import type { ApplicationUpdatePreferencesState } from "../features/application-update/use-application-update-preferences";
+import type { ApplicationUpdateModel } from "../features/application-update/use-application-update";
 import { failureReport, portDefinition, portStatus, sourceProfile } from "../test-fixtures";
 import type {
   DesktopError,
@@ -14,7 +14,6 @@ import type {
   InstallRecord,
   PortDefinition,
   PortStatus,
-  ApplicationUpdateChoice,
 } from "../types";
 
 export const scenarios = [
@@ -154,20 +153,19 @@ export const scenarios = [
       "The unverified local copy is supplied; no file verification, replacement or installation runs.",
   },
   {
-    id: "application-update-choice-narrow",
-    label: "Application update choice · narrow",
+    id: "application-update-available-narrow",
+    label: "Application update available · narrow",
     theme: "dark",
     viewport: "narrow",
     limitation:
-      "Preferences are supplied; status loading, saved choice, update checks and host recovery do not run.",
+      "The update status is supplied; no feed check, download, signature check or install runs.",
   },
   {
-    id: "application-update-saved",
-    label: "Application update preferences · saved",
+    id: "application-update-current",
+    label: "Application update · up to date",
     theme: "light",
     viewport: "wide",
-    limitation:
-      "The saved choice is supplied; no update check, download, host persistence or recovery runs.",
+    limitation: "Preferences and status are supplied; no feed check or host persistence runs.",
   },
 ] as const;
 
@@ -406,25 +404,34 @@ function ReferenceWorkspace({
 }
 
 function referenceScenario(id: ScenarioId) {
-  if (id === "application-update-choice-narrow" || id === "application-update-saved") {
-    const choice: ApplicationUpdateChoice | null =
-      id === "application-update-saved"
-        ? { channel: "stable", mode: "manual", paused: true }
-        : null;
-    const preferencesState = {
-      preferences: { schema_version: 1, revision: choice ? 4 : 0, choice },
+  if (id === "application-update-available-narrow" || id === "application-update-current") {
+    const available = id === "application-update-available-narrow";
+    const update = {
+      status: {
+        current_version: "0.1.0",
+        checking: false,
+        installing: false,
+        available: available
+          ? {
+              version: "0.2.0",
+              channel: "preview",
+              notes: "Faster library loading.\nFixes a crash when a backup folder was removed.",
+              date: "2026-11-01T12:00:00Z",
+            }
+          : null,
+        last_checked_unix_seconds: 1_793_000_000,
+      },
+      preferences: { channel: available ? "preview" : "beta", automatic_checks: true },
+      busy: undefined,
+      progress: undefined,
       failure: undefined,
-      loading: false,
-      accept: blockedScenarioAction,
-      acceptRecovered: blockedScenarioAction,
-      refresh: blockedScenarioAction,
-    } satisfies ApplicationUpdatePreferencesState;
-    return (
-      <ApplicationUpdateSettings
-        currentVersion="0.1.0-alpha.2"
-        preferencesState={preferencesState}
-      />
-    );
+      noticeVersion: undefined,
+      check: blockedScenarioAction,
+      savePreferences: blockedScenarioAction,
+      install: blockedScenarioAction,
+      dismissNotice: blockedScenarioAction,
+    } satisfies ApplicationUpdateModel;
+    return <ApplicationUpdateSettings update={update} currentVersion="0.1.0" generation={1} />;
   }
   if (id === "library-reference-long-title") return <ReferenceWorkspace mode="library" />;
   if (id === "library-reference-attention-narrow")

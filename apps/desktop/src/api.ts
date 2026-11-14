@@ -67,18 +67,8 @@ import type {
   AdoptionBatchResult,
   LauncherKind,
   LauncherLibraryInventory,
-  ApplicationUpdateChoice,
-  ApplicationUpdateCheckPhase,
-  ApplicationUpdateCheckResult,
-  ApplicationUpdateManualCheckRequest,
-  ApplicationUpdateManualCheckResult,
-  ApplicationUpdateDownloadRequest,
-  ApplicationUpdateNoticeSnapshot,
   ApplicationUpdatePreferences,
-  ApplicationUpdateProductionDecision,
-  ApplicationUpdateProductionTransition,
-  ApplicationUpdateProductionTransitionResult,
-  ApplicationUpdateRecoveryArea,
+  ApplicationUpdateProgress,
   ApplicationUpdateStatus,
   GhostshipRecoveryPlan,
   GhostshipRecoveryResult,
@@ -211,61 +201,21 @@ export const desktopApi = {
   localePreference: () => invoke<LocalePreferenceSnapshot>("get_locale_preference"),
   setLocalePreference: (locale: string | null) =>
     invoke<LocalePreferenceSnapshot>("set_locale_preference", { locale }),
-  applicationUpdateNotice: () =>
-    invoke<ApplicationUpdateNoticeSnapshot>("get_application_update_notice"),
-  dismissApplicationUpdateNotice: (expectedRevision: number) =>
-    invoke<ApplicationUpdateNoticeSnapshot>("dismiss_application_update_notice", {
-      expectedRevision,
-    }),
+  applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
+  checkApplicationUpdate: () => invoke<ApplicationUpdateStatus>("check_application_update"),
+  installApplicationUpdate: (
+    version: string,
+    generation: number,
+    onEvent: (event: ApplicationUpdateProgress) => void,
+  ) => {
+    const channel = new Channel<ApplicationUpdateProgress>();
+    channel.onmessage = onEvent;
+    return invoke<void>("install_application_update", { generation, version, onEvent: channel });
+  },
   applicationUpdatePreferences: () =>
     invoke<ApplicationUpdatePreferences>("get_application_update_preferences"),
-  applicationUpdateProductionTransition: () =>
-    invoke<ApplicationUpdateProductionTransition>("get_application_update_production_transition"),
-  completeApplicationUpdateProductionTransition: (
-    expectedRevision: number,
-    decision: ApplicationUpdateProductionDecision,
-  ) =>
-    invoke<ApplicationUpdateProductionTransitionResult>(
-      "complete_application_update_production_transition",
-      { expectedRevision, decision },
-    ),
-  setApplicationUpdatePreferences: (expectedRevision: number, choice: ApplicationUpdateChoice) =>
-    invoke<ApplicationUpdatePreferences>("set_application_update_preferences", {
-      expectedRevision,
-      choice,
-    }),
-  resetApplicationUpdatePreferences: () =>
-    invoke<ApplicationUpdatePreferences>("reset_application_update_preferences"),
-  recoverApplicationUpdatePreferences: () =>
-    invoke<ApplicationUpdatePreferences>("recover_application_update_preferences"),
-  applicationUpdateStatus: () => invoke<ApplicationUpdateStatus>("get_application_update_status"),
-  recoverApplicationUpdateState: (area: ApplicationUpdateRecoveryArea) =>
-    invoke<ApplicationUpdateStatus>("recover_application_update_state", { area }),
-  checkApplicationUpdate: (
-    onEvent: (event: ApplicationUpdateCheckPhase) => void,
-    request: ApplicationUpdateManualCheckRequest = {},
-  ) => {
-    const channel = new Channel<ApplicationUpdateCheckPhase>();
-    channel.onmessage = onEvent;
-    return invoke<ApplicationUpdateManualCheckResult>("check_application_update", {
-      request,
-      onEvent: channel,
-    });
-  },
-  downloadApplicationUpdate: (
-    request: ApplicationUpdateDownloadRequest,
-    onEvent: (event: ApplicationUpdateCheckPhase) => void,
-  ) => {
-    const channel = new Channel<ApplicationUpdateCheckPhase>();
-    channel.onmessage = onEvent;
-    return invoke<ApplicationUpdateCheckResult>("download_application_update", {
-      request,
-      onEvent: channel,
-    });
-  },
-  cancelApplicationUpdateCheck: () => invoke<boolean>("cancel_application_update_check"),
-  restartToApplyApplicationUpdate: (generation: number) =>
-    invoke<void>("restart_to_apply_application_update", { generation }),
+  setApplicationUpdatePreferences: (preferences: ApplicationUpdatePreferences) =>
+    invoke<ApplicationUpdatePreferences>("set_application_update_preferences", { preferences }),
   artwork: (portId: string, slot: ArtworkSlot, generation: number) =>
     invoke<ArtworkState>("get_artwork", { portId, slot, generation }),
   artworkThumbnail: (

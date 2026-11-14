@@ -52,6 +52,8 @@ export interface AuthoredListing extends NamedRecord {
   issue_number?: number;
   /** First-listed UTC date, YYYY-MM-DD. Descriptive only; requires listing format 9. */
   listed_at?: string;
+  /** Reviewed upstream support pages. Descriptive only; requires listing format 10. */
+  funding_urls?: string[];
   release_url?: string;
   setup_url?: string;
   manual_setup?: unknown;
@@ -105,10 +107,13 @@ const listingFields = new Set([
   "recommended_download_channel",
   "issue_number",
   "listed_at",
+  "funding_urls",
   "release_url",
   "setup_url",
 ]);
 const stableId = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
+/** Matches Core's listing bound. */
+export const maximumFundingUrls = 12;
 
 /** A real calendar date in exactly YYYY-MM-DD form, with no time or offset. */
 export function isCalendarDate(value: unknown): value is string {
@@ -342,6 +347,20 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
     throw new Error("Listing issue_number must be a positive integer.");
   if (listing.listed_at !== undefined && !isCalendarDate(listing.listed_at))
     throw new Error("Listing listed_at must be a real calendar date written YYYY-MM-DD.");
+  if (listing.funding_urls !== undefined) {
+    const urls: unknown = listing.funding_urls;
+    // Core treats an empty list as absent; authored files omit the field instead.
+    if (
+      !Array.isArray(urls) ||
+      urls.length < 1 ||
+      urls.length > maximumFundingUrls ||
+      new Set(urls).size !== urls.length
+    )
+      throw new Error(
+        `Listing funding_urls requires 1 to ${maximumFundingUrls} distinct public HTTPS URLs.`,
+      );
+    for (const url of urls) publicUrl(url, "funding_urls");
+  }
   if (listing.original_game !== undefined) {
     const game = listing.original_game;
     const identity = (value: unknown) =>
@@ -565,32 +584,35 @@ export function assembleCatalogRecords(shared: unknown, inputs: readonly unknown
       isRecord(listing.upstream_observation) && listing.upstream_observation.provider === "gitlab",
   );
   const listedDates = listings.some((listing) => listing.listed_at !== undefined);
-  const format_version = listedDates
-    ? 9
-    : gitlabObservations
-      ? 8
-      : listings.some((listing) => listing.compatibility !== undefined)
-        ? 7
-        : guideReferences
-          ? 6
-          : extendedMedia
-            ? 5
-            : listings.some(
-                  (listing) =>
-                    listing.upstream_observation !== undefined ||
-                    listing.availability_override_reason !== undefined ||
-                    "release_maintenance" in listing,
-                )
-              ? 4
+  const fundingLinks = listings.some((listing) => listing.funding_urls !== undefined);
+  const format_version = fundingLinks
+    ? 10
+    : listedDates
+      ? 9
+      : gitlabObservations
+        ? 8
+        : listings.some((listing) => listing.compatibility !== undefined)
+          ? 7
+          : guideReferences
+            ? 6
+            : extendedMedia
+              ? 5
               : listings.some(
                     (listing) =>
-                      listing.original_game !== undefined ||
-                      (Array.isArray(listing.media) && listing.media.length > 0),
+                      listing.upstream_observation !== undefined ||
+                      listing.availability_override_reason !== undefined ||
+                      "release_maintenance" in listing,
                   )
-                ? 3
-                : listings.some((listing) => listing.download_block_reason !== undefined)
-                  ? 2
-                  : 1;
+                ? 4
+                : listings.some(
+                      (listing) =>
+                        listing.original_game !== undefined ||
+                        (Array.isArray(listing.media) && listing.media.length > 0),
+                    )
+                  ? 3
+                  : listings.some((listing) => listing.download_block_reason !== undefined)
+                    ? 2
+                    : 1;
   return { records, catalog, directory: { format_version, listings } };
 }
 

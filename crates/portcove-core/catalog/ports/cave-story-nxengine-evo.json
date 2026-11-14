@@ -11,6 +11,7 @@
     "setup_url": "https://github.com/nxengine/nxengine-evo",
     "issue_number": 2647,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://paypal.me/sarcasticat"],
     "manual_setup": {
       "help_url": "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
       "steps": [

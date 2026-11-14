@@ -1,22 +1,11 @@
 // Generated from Rust event schemas. Do not edit.
 // Regenerate: node apps/desktop/scripts/generate-transport-types.mts --write
 
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateCheckResultKind =
-  | "consent-required"
-  | "paused"
-  | "manual-mode"
-  | "offline"
-  | "metered"
-  | "metered-state-unknown"
-  | "startup-delay"
-  | "cadence"
-  | "superseded"
-  | "current"
-  | "update-available"
-  | "held"
-  | "incompatible"
-  | "no-candidate";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
 export type EventPortcoveLibraryChanged = null;
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
@@ -81,26 +70,25 @@ export interface DesktopEventPayloads {
   "portcove://operation": EventPortcoveOperation;
 }
 export interface EventPortcoveApplicationUpdateNotice {
-  notice: ApplicationUpdateNotice | null;
-  revision: number;
+  available: ApplicationUpdateAvailable | null;
+  checking: boolean;
+  current_version: string;
+  installing: boolean;
+  last_checked_unix_seconds: number | null;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateNotice {
-  preference_revision: number;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCheckResult {
-  candidate: ApplicationUpdateCandidateSummary | null;
-  kind: ApplicationUpdateCheckResultKind;
-  reasons: string[];
-  staged: boolean;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
+/**
+ * A newer signed release announced by the channel feed.
+ */
+export interface ApplicationUpdateAvailable {
+  channel: ApplicationUpdateChannel;
+  /**
+   * Publication date as written in the feed (RFC 3339).
+   */
+  date: string | null;
+  notes: string | null;
   version: string;
+  [k: string]: unknown;
 }
 export interface OperationTarget {
   id: string;

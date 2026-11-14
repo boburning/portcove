@@ -18,6 +18,7 @@
     },
     "issue_number": 2591,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://www.patreon.com/treellama"],
     "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
     "manual_setup": {
       "steps": [

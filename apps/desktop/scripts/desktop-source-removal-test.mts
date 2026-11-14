@@ -79,21 +79,6 @@ export async function sourceRemovalScenario({
     const { install, port, sources, source, backup, preserved, others, otherSources } =
       await retainSourceRemovalPreimages();
     await browser.navigate().refresh();
-    const updatePreference = await invoke("get_application_update_preferences");
-    assert(isRecord(updatePreference));
-    assert.equal(updatePreference.ok, true);
-    const preferences = transportValue(
-      "desktop_application_update_preferences",
-      updatePreference.value,
-    );
-    if (preferences.choice === null) {
-      const defer = await browser.wait(
-        until.elementLocated(By.xpath('//button[normalize-space(.)="Not now"]')),
-        15_000,
-      );
-      await defer.click();
-      await browser.wait(until.stalenessOf(defer), 15_000);
-    }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     await click(
