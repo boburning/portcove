@@ -231,6 +231,10 @@ impl EngineTemplateCapability {
             contract_version: 31,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: 32,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -1076,7 +1080,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 32, 32)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 33, 33)).unwrap();
         assert!(!future.compatible);
     }
 

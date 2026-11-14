@@ -1111,8 +1111,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(32);
-        entry["required_capabilities"][0]["maximum_version"] = json!(32);
+        entry["required_capabilities"][0]["minimum_version"] = json!(33);
+        entry["required_capabilities"][0]["maximum_version"] = json!(33);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1504,6 +1504,33 @@ fn disc_image_unpacking_entries_require_staged_source_version_30() {
     entry["required_capabilities"][0]["minimum_version"] = json!(30);
     entry["required_capabilities"][0]["maximum_version"] = json!(30);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
+}
+
+#[test]
+fn stfs_package_bindings_require_staged_source_version_32() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut entry = entry_for_port(catalog.port("nocturne-recomp").unwrap());
+    entry["port"]["runtime_stfs_package"] = json!({
+        "content_types": ["000D0000"],
+        "title_ids": ["58410A6B"],
+        "max_package_bytes": 268_435_456_u64,
+    });
+    for version in [15, 31] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(version);
+        entry["required_capabilities"][0]["maximum_version"] = json!(version);
+        assert!(
+            inspect(&entry).unwrap_err().message.contains("version 32"),
+            "v{version}"
+        );
+    }
+    entry["required_capabilities"][0]["minimum_version"] = json!(32);
+    entry["required_capabilities"][0]["maximum_version"] = json!(32);
+    let inspected = inspect(&entry).unwrap();
+    assert!(inspected.capabilities().compatible);
+    assert_eq!(
+        serde_json::to_value(inspected.port()).unwrap()["runtime_stfs_package"],
+        entry["port"]["runtime_stfs_package"]
+    );
 }
 
 #[test]

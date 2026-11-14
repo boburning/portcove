@@ -617,6 +617,7 @@ mod tests {
             catalog,
             None,
             SourceInspection {
+                integrity_advisories: Vec::new(),
                 profile_id: profile_id.into(),
                 path: PathBuf::from("selected.source"),
                 observed_digests: vec![ObservedSourceDigest {

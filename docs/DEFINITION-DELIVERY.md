@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–31. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–32. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -586,6 +586,16 @@ updating or launching, and nothing is unpacked or removed until one is registere
 `optional_game_source` must require staged-source minimum version 31, so an older reader,
 which would treat the source as required and hold Play, refuses it instead. The version
 adds no source, installation or publisher authority and does not change versions 2–30.
+
+Staged-source version 32 admits `runtime_stfs_package` on an `stfs-directory` port,
+together with the `PIRS` container, the verified STFS hash tree and `stfs-content`
+source identities that such a port may use (see
+[STFS package extraction](CATALOG.md#stfs-package-extraction)). An indexed entry that
+declares `runtime_stfs_package` must require staged-source minimum version 32, so an
+older reader, which would extract without the header binding, refuses it. A content
+identity is valid only for a port that declares the binding, so the same requirement
+covers it. The version adds no source, installation or publisher authority and does not
+change versions 2–31; NocturneRecomp declares no binding and keeps its requirement.
 
 ## Decision and threat model
 
