@@ -3293,7 +3293,7 @@ export async function preparationScenarios({
       const action = await settleDirectPreparationRecovery(browser);
       const inventory = await activities();
       const readOnlyReview = By.xpath(
-        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',
+        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Refresh library"]',
       );
       await browser.findElement(readOnlyReview).click();
       assert.deepEqual(

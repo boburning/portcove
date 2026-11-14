@@ -1076,7 +1076,10 @@ export async function selectedSetupCompletionScenario({
             priorPreparationIds,
             observation: preparationWait,
           }),
-        15_000,
+        // Calibrated from 15 s: hosted Windows (job 132387900098) still had the new
+        // preparation activity running after 15 s and 72 activity reads; the wait
+        // returns as soon as the activity, readiness and closed review settle.
+        120_000,
         "The new Core preparation must reach terminal success, readiness and a closed review",
       );
       assert.ok(completion);

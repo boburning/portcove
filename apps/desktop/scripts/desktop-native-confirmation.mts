@@ -174,7 +174,11 @@ function ownedRuntimePicker(
           ? ["-PreparedRuntimeDirectory", directoryPath]
           : []),
       ],
-      { encoding: "utf8", windowsHide: true, timeout: 15_000 },
+      // Calibrated from 15 s: the helper itself polls up to 30 s for the picker,
+      // 10 s for its buttons and 3 s for it to close, after a cold pwsh start.
+      // The 15 s outer budget killed it (spawnSync pwsh ETIMEDOUT, hosted job
+      // 132369155635) before it could report which phase it was in.
+      { encoding: "utf8", windowsHide: true, timeout: 60_000 },
     );
     return retainPickerResult({ output, artifacts }, name, before, result);
   };
