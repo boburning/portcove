@@ -13,7 +13,7 @@ export async function boundedDiscoveryRequest(input: unknown, fetcher: typeof fe
     typeof input.cap !== "number" ||
     !Number.isSafeInteger(input.cap) ||
     input.cap < 1 ||
-    input.cap > 2 * 1024 * 1024 ||
+    input.cap > 8 * 1024 * 1024 ||
     typeof input.timeout !== "number" ||
     input.timeout <= 0 ||
     input.timeout > 20000 ||
