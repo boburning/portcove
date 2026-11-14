@@ -86,7 +86,20 @@ export async function captureNativeEnlargement(
           if (!(element instanceof globalThis.Element)) continue;
           const rect = element.getBoundingClientRect();
           const style = globalThis.getComputedStyle(element);
+          // Content of a horizontally scrolling or clipping ancestor (such as the
+          // Settings category strip) cannot widen the document; report only
+          // elements that can (hosted job 132524656212 listed the strip instead).
+          let clipped = false;
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (globalThis.getComputedStyle(parent).overflowX !== "visible") {
+              clipped =
+                parent !== globalThis.document.documentElement &&
+                parent !== globalThis.document.body;
+              break;
+            }
+          }
           if (
+            !clipped &&
             rect.width > 0 &&
             rect.height > 0 &&
             style.visibility !== "hidden" &&
