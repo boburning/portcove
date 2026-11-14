@@ -3514,10 +3514,20 @@ mod tests {
             .prepare_launch_for_install(&retained, &previous, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
-        // Unknown runtime additions remain review holds, never a wildcard data scope.
+        // An unknown runtime addition is never a wildcard data scope. It does
+        // not hold removal (#5359): the removal review lists it before consent.
         let unknown = spec.working_directory.join("unknown-player-addition");
         fs::write(&unknown, b"keep for review").unwrap();
-        assert!(restarted.preview_removal(id).is_err(), "{id}");
+        let listed = restarted.preview_removal(id).unwrap();
+        assert_eq!(listed.unknown_file_count, 1, "{id}");
+        assert!(
+            listed
+                .unknown_files
+                .iter()
+                .any(|path| path.ends_with("unknown-player-addition")),
+            "{id}: {:?}",
+            listed.unknown_files
+        );
         assert_eq!(fs::read(&unknown).unwrap(), b"keep for review");
         fs::rename(
             &unknown,
