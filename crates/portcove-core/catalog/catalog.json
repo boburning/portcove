@@ -45653,6 +45653,21 @@
           "game_slug": "medievil-ii--1",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "bios",
+            "docs",
+            "licenses",
+            "mods",
+            "tools"
+          ],
+          "executables": [
+            "medieviliirecomp.exe"
+          ]
+        }
       }
     },
     {
