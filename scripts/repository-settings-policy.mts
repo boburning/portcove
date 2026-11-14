@@ -481,8 +481,6 @@ export async function reconcileRepositorySettings(
   return { kind: "checked" as const, repository: repo };
 }
 
-const previewTagPattern = "refs/tags/v*-preview.*";
-
 const releaseBranches = [
   "refs/heads/portcove-production-coordinator-state",
   "refs/heads/portcove-release-inputs",
@@ -538,17 +536,16 @@ const releaseRulesets = {
     ["creation"],
     [releaseOwner],
   ),
-  // Owner decision on #534 (2026-11-13): only the owner (and agents acting as the
-  // owner) may create Beta/Stable version tags. Preview tags are excluded so the
-  // nightly workflow can create them: GitHub refuses the Actions app as a bypass
-  // actor on a user-owned repository. Update and deletion stay forbidden for all.
+  // Owner decisions on #534 (2026-11-13, 2026-11-14): only the owner (and agents
+  // acting as the owner) may create any `v*` tag, previews included, because a
+  // `v*` tag run can reach the updater key. Nightly previews are signed from
+  // `main` and use `nightly-*` tags. Update and deletion stay forbidden for all.
   versionCreator: releaseRuleset(
     "Portcove release tag creation",
     "tag",
     ["refs/tags/v*"],
     ["creation"],
     [releaseOwner],
-    [previewTagPattern],
   ),
 };
 
@@ -627,13 +624,23 @@ export function planReleaseRulesets(
     return matches[0];
   };
   const { writer, retention, pause, immutable, creator, versionCreator } = releaseRulesets;
+  // The 2026-11-13 policy excluded preview tags; it is widened in place to every v* tag.
+  const versionRows = rows.filter((row) => row.name === versionCreator.name);
+  const narrowVersionCreator =
+    versionRows.length === 1 &&
+    sameReleaseRuleset(versionRows[0]!, {
+      ...versionCreator,
+      conditions: { ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] } },
+    })
+      ? versionRows[0]
+      : undefined;
   const stable = {
     writer: find(writer),
     retention: find(retention),
     pause: find(pause),
     immutable: find(immutable),
     creator: find(creator),
-    versionCreator: find(versionCreator),
+    versionCreator: narrowVersionCreator ? undefined : find(versionCreator),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -651,6 +658,7 @@ export function planReleaseRulesets(
     main[0]!.id,
     versionTags.id,
     ...Object.values(stable).map((row) => row?.id),
+    narrowVersionCreator?.id,
   ]);
   const oldWriters: { id: number; refs: string[] }[] = [];
   const oldRetention: { id: number; refs: string[] }[] = [];
@@ -750,7 +758,9 @@ export function planReleaseRulesets(
       replacements: [stable.immutable.id, stable.creator.id],
     };
   }
-  if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
+  if (narrowVersionCreator)
+    next ??= { action: "update", id: narrowVersionCreator.id, payload: versionCreator };
+  else if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {

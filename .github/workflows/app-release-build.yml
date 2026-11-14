@@ -1,0 +1,230 @@
+# Shared build, sign and publish jobs for app-release.yml (owner `v*` tags) and
+# nightly-preview.yml (`main`). The `release` and `release-stable` environments
+# admit the caller's ref: `v*` tags (owner-only) and, for `release`, `main`.
+# A `nightly-*` tag only names a nightly release and grants no key access.
+name: App release build
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without a prefix, for example 0.1.0-preview.1
+        required: true
+        type: string
+      tag:
+        description: Existing release tag, `v<version>` or `nightly-<version>`
+        required: true
+        type: string
+      prerelease:
+        required: true
+        type: string
+      feeds:
+        description: Space-separated channel feeds to update
+        required: true
+        type: string
+      environment:
+        description: Signing environment, `release` or `release-stable`
+        required: true
+        type: string
+      commit:
+        description: Full SHA of the commit to build; the tag must point at it
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    environment: ${{ inputs.environment }}
+    timeout-minutes: 120
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - label: windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
+            bundles: nsis
+          - label: linux-x86_64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
+            bundles: appimage
+          - label: macos-universal
+            os: macos-15
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            bundles: app,dmg
+    runs-on: ${{ matrix.os }}
+    env:
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+      PRERELEASE: ${{ inputs.prerelease }}
+      FEEDS: ${{ inputs.feeds }}
+      SIGNING_ENVIRONMENT: ${{ inputs.environment }}
+      COMMIT: ${{ inputs.commit }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - name: Refuse inputs that disagree with the version's channel
+        shell: bash
+        run: >-
+          node scripts/app-release.mts verify-inputs --tag "$TAG" --version "$VERSION"
+          --prerelease "$PRERELEASE" --feeds "$FEEDS" --environment "$SIGNING_ENVIRONMENT"
+          --commit "$COMMIT"
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: ${{ matrix.rust_targets }}
+      - name: Install Linux desktop prerequisites
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        run: ./scripts/install-linux-desktop-prerequisites.sh
+      # The desktop build needs the build scripts pnpm-workspace.yaml allows.
+      - run: pnpm install --frozen-lockfile
+      - name: Stamp the release version
+        run: node scripts/app-release.mts stamp --version "${{ env.VERSION }}"
+      - name: Build, package and smoke-test the Windows CLI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo build --release -p portcove-cli --target ${{ matrix.target }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}" -TargetRoot "target/${{ matrix.target }}"
+          $archive = (& node scripts/release-package-policy.mts --platform "${{ matrix.label }}" --interface cli --version $env:VERSION | Out-String).Trim()
+          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $env:VERSION
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item "release-assets/$archive" dist/
+      - name: Build and sign desktop bundles
+        working-directory: apps/desktop
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: >-
+          pnpm tauri build --bundles "${{ matrix.bundles }}" --target "${{ matrix.target }}"
+          --config '{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
+      - name: Collect release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle="target/${{ matrix.target }}/release/bundle"
+          mkdir -p dist
+          case "${{ matrix.label }}" in
+            windows-x86_64)
+              cp "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe" "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe.sig" dist/ ;;
+            linux-x86_64)
+              cp "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage" "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage.sig" dist/ ;;
+            macos-universal)
+              cp "$bundle/macos/Portcove.app.tar.gz" "dist/Portcove_${VERSION}_universal.app.tar.gz"
+              cp "$bundle/macos/Portcove.app.tar.gz.sig" "dist/Portcove_${VERSION}_universal.app.tar.gz.sig"
+              cp "$bundle/dmg/Portcove_${VERSION}_universal.dmg" dist/ ;;
+          esac
+          ls -l dist
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-${{ matrix.label }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      TAG: ${{ inputs.tag }}
+      PRERELEASE: ${{ inputs.prerelease }}
+      FEEDS: ${{ inputs.feeds }}
+      COMMIT: ${{ inputs.commit }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      # Credentials stay for the gh-pages feed push.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Write checksums and release notes
+        run: |
+          set -euo pipefail
+          (cd dist && sha256sum -- * > SHA256SUMS)
+          git fetch --quiet --force origin "refs/tags/$TAG:refs/tags/$TAG"
+          # A nightly-* tag can be moved by any writer until its release is published.
+          tagged=$(git rev-parse "refs/tags/$TAG^{commit}")
+          if [ "$tagged" != "$COMMIT" ]; then echo "::error::$TAG points at $tagged, not the built $COMMIT"; exit 1; fi
+          # Subject and body exclude any tag signature block.
+          notes=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:subject)%0a%0a%(contents:body)')
+          [ -n "$(echo "$notes" | tr -d '[:space:]')" ] || notes="Portcove $VERSION"
+          printf '%s\n' "$notes" > notes.md
+      - name: Publish the GitHub Release with all assets
+        # Creates a draft with every asset, or completes an existing draft, and
+        # continues an already published release only with an identical asset set.
+        run: >-
+          node scripts/app-release.mts publish --tag "$TAG" --version "$VERSION"
+          --prerelease "$PRERELEASE" --notes-file notes.md --dist dist --commit "$COMMIT"
+      - name: Write the updater feed from the published signatures
+        # The feed must match the immutable published bytes, even when this run rebuilt them.
+        run: |
+          node scripts/app-release.mts download-signatures --tag "$TAG" --dir published
+          node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md \
+            --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published \
+            --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG" > latest.json
+      - name: Publish the feed to the Pages branch
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3 4; do
+            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
+            rm -rf site && git worktree add --quiet --force site refs/remotes/origin/gh-pages
+            # withdraw-release.yml lists withdrawn versions; a re-run must not resurrect one.
+            withdrawn=$(node scripts/app-release.mts withdrawn --version "$VERSION" --file site/updates/withdrawn.json)
+            if [ "$withdrawn" = true ]; then echo "::warning::$VERSION is withdrawn; no feed is written."; exit 0; fi
+            changed=false
+            for channel in $FEEDS; do
+              target="site/updates/$channel/latest.json"
+              current=$( [ -f "$target" ] && node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).version)' "$target" || true)
+              if node scripts/app-release.mts compare --candidate "$VERSION" ${current:+--current "$current"}; then
+                mkdir -p "$(dirname "$target")" && cp latest.json "$target" && changed=true
+              fi
+            done
+            if [ "$changed" = false ]; then echo "No feed is older than $VERSION."; exit 0; fi
+            git -C site add updates
+            git -C site commit --quiet -m "Publish Portcove $VERSION to: $FEEDS"
+            if git -C site push --quiet origin HEAD:refs/heads/gh-pages; then exit 0; fi
+            git worktree remove --force site
+            sleep $((attempt * 5))
+          done
+          echo "::error::Could not publish the feed to gh-pages"; exit 1

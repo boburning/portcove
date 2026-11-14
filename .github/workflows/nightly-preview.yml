@@ -1,7 +1,8 @@
-# Nightly Preview (#534): tags at most one `vX.Y.Z-preview.N` per day from a
-# CI-green main commit that carries no `v*` tag yet, then dispatches
-# app-release.yml on that tag, because tags pushed with GITHUB_TOKEN start no
-# workflow. Previews publish only to the opt-in Preview feed.
+# Nightly Preview (#534, owner decision 2026-11-14). Builds, signs and publishes
+# at most one preview a day from the CI-green `main` commit, never from a tag.
+# The `release` environment admits this run because its ref is `main`. The
+# `nightly-X.Y.Z-preview.N` tag only names the release and the feed version stays
+# `X.Y.Z-preview.N`. Previews publish only to the opt-in Preview feed.
 name: Nightly preview
 run-name: Nightly preview
 
@@ -18,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  tag:
+  prepare:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -27,7 +28,12 @@ jobs:
       actions: read
     outputs:
       tag: ${{ steps.preview.outputs.tag }}
+      version: ${{ steps.preview.outputs.version }}
+      commit: ${{ steps.preview.outputs.commit }}
+      prerelease: ${{ steps.preview.outputs.prerelease }}
+      feeds: ${{ steps.preview.outputs.feeds }}
     steps:
+      # Credentials stay for pushing the nightly-* tag.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
@@ -42,6 +48,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Require the Pages feed branch before anything is published
+        run: git ls-remote --exit-code --heads origin gh-pages
       - name: Tag the next preview of a CI-green, untagged main
         id: preview
         env:
@@ -52,30 +60,16 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           node scripts/app-release.mts nightly-preview >> "$GITHUB_OUTPUT"
 
-  dispatch:
-    needs: tag
-    if: needs.tag.outputs.tag != ''
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+  release:
+    needs: prepare
+    if: needs.prepare.outputs.tag != ''
     permissions:
-      contents: read
-      actions: write
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile --ignore-scripts
-      - name: Start the release workflow on the preview tag
-        env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ needs.tag.outputs.tag }}
-        run: node scripts/app-release.mts dispatch --tag "$TAG"
+      contents: write
+    uses: ./.github/workflows/app-release-build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+      tag: ${{ needs.prepare.outputs.tag }}
+      prerelease: ${{ needs.prepare.outputs.prerelease }}
+      feeds: ${{ needs.prepare.outputs.feeds }}
+      environment: release
+      commit: ${{ needs.prepare.outputs.commit }}

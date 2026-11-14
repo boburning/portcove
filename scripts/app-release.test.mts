@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { parse } from "yaml";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -15,10 +16,13 @@ import {
   nightlyPreview,
   parseWithdrawnList,
   publishedReleases,
+  quietMentions,
   readWorkspaceVersion,
-  selectReplacement,
+  replacementCandidates,
   stampVersion,
   tagRelease,
+  tagVersion,
+  verifyReleaseInputs,
   withdrawRelease,
   type Channel,
   type Runner,
@@ -143,6 +147,70 @@ void test("a release must be newer than every existing release tag, ignoring non
     /greater than existing v0\.1\.0-alpha\.1/u,
   );
   assert.throws(() => assertNewerThanTags("0.1.5", [...tags, "v0.2.0"]), /v0\.2\.0/u);
+  // Nightly previews also name versions: an owner release must pass them too.
+  const nightly = [...tags, "nightly-0.1.0-preview.3"];
+  assertNewerThanTags("0.1.0", nightly);
+  assert.throws(
+    () => assertNewerThanTags("0.1.0-preview.3", nightly),
+    /greater than existing nightly-0\.1\.0-preview\.3/u,
+  );
+  assert.throws(() => assertNewerThanTags("0.1.0-preview.2", nightly), /nightly-0\.1\.0/u);
+  assertNewerThanTags("0.1.0-preview.4", [...nightly, "nightly-not-semver", "nightly-"]);
+  assert.equal(tagVersion("nightly-0.1.0-preview.3"), "0.1.0-preview.3");
+  assert.equal(tagVersion("v0.1.0"), "0.1.0");
+  assert.equal(tagVersion("portcove-production-controller-r1"), null);
+});
+
+void test("shared build inputs must match the version's channel, tag and signing environment", () => {
+  const commit = "d".repeat(40);
+  const valid = {
+    tag: "nightly-0.1.0-preview.1",
+    version: "0.1.0-preview.1",
+    prerelease: "true",
+    feeds: "preview",
+    environment: "release",
+    commit,
+  };
+  assert.equal(verifyReleaseInputs(valid).channel, "preview");
+  assert.equal(verifyReleaseInputs({ ...valid, tag: "v0.1.0-preview.1" }).channel, "preview");
+  assert.equal(
+    verifyReleaseInputs({
+      tag: "v1.0.0",
+      version: "1.0.0",
+      prerelease: "false",
+      feeds: "stable beta preview",
+      environment: "release-stable",
+      commit,
+    }).environment,
+    "release-stable",
+  );
+  const refusals: [Partial<typeof valid>, RegExp][] = [
+    [
+      { tag: "nightly-0.1.0", version: "0.1.0", prerelease: "false", feeds: "beta preview" },
+      /does not name/u,
+    ],
+    [{ tag: "v0.1.0-preview.2" }, /does not name/u],
+    [{ tag: "refs/tags/v0.1.0-preview.1" }, /does not name/u],
+    [{ environment: "release-stable" }, /environment/u],
+    [{ feeds: "beta preview" }, /feeds/u],
+    [{ prerelease: "false" }, /prerelease/u],
+    [{ commit: "main" }, /full SHA/u],
+  ];
+  for (const [change, message] of refusals)
+    assert.throws(() => verifyReleaseInputs({ ...valid, ...change }), message);
+  // A Stable version can never be signed in the Preview/Beta environment.
+  assert.throws(
+    () =>
+      verifyReleaseInputs({
+        tag: "v1.0.0",
+        version: "1.0.0",
+        prerelease: "false",
+        feeds: "stable beta preview",
+        environment: "release",
+        commit,
+      }),
+    /environment/u,
+  );
 });
 
 function fakeRunner(state: {
@@ -191,6 +259,7 @@ void test("the release command tags and pushes only an exact, clean, CI-green ma
     [{ dirty: " M Cargo.toml" }, /uncommitted changes/u],
     [{ tags: ["v0.1.0"] }, /greater than existing v0\.1\.0/u],
     [{ tags: ["v0.1.0-preview.1"] }, /already exists/u],
+    [{ tags: ["nightly-0.1.0-preview.1"] }, /greater than existing nightly-0\.1\.0-preview\.1/u],
     [{ ci: "" }, /CI has not succeeded/u],
     [{ ci: "failure" }, /CI has not succeeded/u],
   ];
@@ -263,6 +332,22 @@ void test("the next nightly preview follows the newest release, the workspace an
   // A workspace bump above the next patch wins and starts N again at 1.
   assert.equal(nextPreviewVersion([...released, "v0.1.1-preview.1"], "0.2.0"), "0.2.0-preview.1");
   assert.equal(nextPreviewVersion(released, "0.1.1"), "0.1.1-preview.1");
+  // Nightly tags count as previews; they never count as releases.
+  assert.equal(
+    nextPreviewVersion(
+      [...existingTags, "nightly-0.1.0-preview.1", "nightly-0.1.0-preview.2"],
+      "0.1.0",
+    ),
+    "0.1.0-preview.3",
+  );
+  assert.equal(
+    nextPreviewVersion([...existingTags, "v0.1.0-preview.4", "nightly-0.1.0-preview.5"], "0.1.0"),
+    "0.1.0-preview.6",
+  );
+  assert.equal(
+    nextPreviewVersion([...released, "nightly-0.1.1-preview.7"], "0.1.0"),
+    "0.1.1-preview.8",
+  );
   // Pre-release workspace versions and versions below an existing tag are refused.
   assert.throws(() => nextPreviewVersion([], "0.1.0-dev.1"), /must be X\.Y\.Z/u);
   assert.throws(
@@ -293,7 +378,8 @@ function nightlyRunner(state: { pointsAt?: string; describe?: string | null }) {
       if (state.describe === null) throw new Error("fatal: No names found");
       return state.describe ?? "v0.1.0-alpha.2";
     }
-    if (args[0] === "log") return "- Fix saves (abc1234)\n- Add a port (def5678)";
+    if (args[0] === "log")
+      return "- Fix saves (abc1234)\n- Bump @types/node for @boburning (def5678)";
     return "";
   };
   return { run, calls, head };
@@ -303,22 +389,45 @@ void test("the nightly preview tags a CI-green untagged main once and lists its 
   const ok = nightlyRunner({});
   const result = nightlyPreview("0.1.0", (sha) => (sha === ok.head ? "success" : ""), ok.run);
   assert.deepEqual(result, {
-    tag: "v0.1.0-preview.1",
+    tag: "nightly-0.1.0-preview.1",
     version: "0.1.0-preview.1",
     commit: ok.head,
   });
+  assert.deepEqual(
+    ok.calls.find((call) => call[1] === "tag" && call[2] === "--points-at")!.slice(1),
+    ["tag", "--points-at", ok.head, "--list", "v*", "nightly-*"],
+  );
+  assert.deepEqual(ok.calls.find((call) => call[1] === "tag" && call[2] === "--list")!.slice(1), [
+    "tag",
+    "--list",
+    "v*",
+    "nightly-*",
+  ]);
+  assert.deepEqual(ok.calls.find((call) => call[1] === "describe")!.slice(1), [
+    "describe",
+    "--tags",
+    "--abbrev=0",
+    "--match",
+    "v*",
+    "--match",
+    "nightly-*",
+    ok.head,
+  ]);
   assert.equal(ok.calls.find((call) => call[1] === "log")!.at(-1), `v0.1.0-alpha.2..${ok.head}`);
   const tag = ok.calls.find((call) => call[1] === "tag" && call[2] === "-a")!;
   assert.deepEqual(tag.slice(1), [
     "tag",
     "-a",
     "--cleanup=verbatim",
-    "v0.1.0-preview.1",
+    "nightly-0.1.0-preview.1",
     "-m",
-    "Portcove 0.1.0-preview.1 (nightly)\n\nChanges since v0.1.0-alpha.2:\n\n- Fix saves (abc1234)\n- Add a port (def5678)\n",
+    // A full-width at sign keeps commit subjects from mentioning anyone.
+    "Portcove 0.1.0-preview.1 (nightly)\n\nChanges since v0.1.0-alpha.2:\n\n- Fix saves (abc1234)\n- Bump ＠types/node for ＠boburning (def5678)\n",
     ok.head,
   ]);
-  assert.deepEqual(ok.calls.at(-1), ["git", "push", "origin", "refs/tags/v0.1.0-preview.1"]);
+  assert.ok(!tag.join(" ").includes("@"));
+  assert.equal(quietMentions("a@b"), "a＠b");
+  assert.deepEqual(ok.calls.at(-1), ["git", "push", "origin", "refs/tags/nightly-0.1.0-preview.1"]);
 
   const first = nightlyRunner({ describe: null });
   nightlyPreview("0.1.0", () => "success", first.run);
@@ -329,6 +438,11 @@ void test("the nightly preview tags a CI-green untagged main once and lists its 
       nightlyRunner({ pointsAt: "v0.1.0-preview.1" }),
       "success",
       /already tagged v0\.1\.0-preview\.1/u,
+    ],
+    [
+      nightlyRunner({ pointsAt: "nightly-0.1.0-preview.1" }),
+      "success",
+      /already tagged nightly-0\.1\.0-preview\.1/u,
     ],
     [nightlyRunner({}), "", /has not succeeded \(got 'none'\)/u],
     [nightlyRunner({}), "failure", /has not succeeded \(got 'failure'\)/u],
@@ -391,9 +505,9 @@ type FakeRelease = {
   published_at: string;
 };
 
-const release = (id: number, version: string, draft = false): FakeRelease => ({
+const release = (id: number, version: string, draft = false, prefix = "v"): FakeRelease => ({
   id,
-  tag_name: `v${version}`,
+  tag_name: `${prefix}${version}`,
   draft,
   prerelease: version.includes("-"),
   body: `Notes for ${version}`,
@@ -403,20 +517,33 @@ const release = (id: number, version: string, draft = false): FakeRelease => ({
 void test("withdraw replacements are the newest published, non-withdrawn release per channel", () => {
   const releases = publishedReleases([
     release(1, "0.1.0-alpha.2"),
-    release(2, "0.1.0-preview.1"),
+    release(2, "0.1.0-preview.1", false, "nightly-"),
     release(3, "0.1.0"),
     release(4, "0.1.1-preview.1"),
     release(5, "0.1.1"),
     release(6, "0.1.2", true),
     release(7, "1.0.0"),
     release(8, "1.0.1-preview.1"),
+    // A nightly-* tag never names a Beta or Stable release.
+    release(9, "1.0.2", false, "nightly-"),
   ]);
   assert.deepEqual(
-    releases.map((entry) => entry.version),
-    ["0.1.0-preview.1", "0.1.0", "0.1.1-preview.1", "0.1.1", "1.0.0", "1.0.1-preview.1"],
+    releases.map((entry) => entry.tag),
+    [
+      "nightly-0.1.0-preview.1",
+      "v0.1.0",
+      "v0.1.1-preview.1",
+      "v0.1.1",
+      "v1.0.0",
+      "v1.0.1-preview.1",
+    ],
   );
   const pick = (channel: Channel, withdrawn: string[]) =>
-    selectReplacement(channel, releases, withdrawn)?.version ?? null;
+    replacementCandidates(channel, releases, withdrawn)[0]?.version ?? null;
+  assert.deepEqual(
+    replacementCandidates("beta", releases, []).map((entry) => entry.version),
+    ["1.0.0", "0.1.1", "0.1.0"],
+  );
   assert.equal(pick("preview", ["1.0.1-preview.1"]), "1.0.0");
   assert.equal(pick("beta", ["1.0.0"]), "0.1.1");
   assert.equal(pick("stable", ["1.0.0"]), null);
@@ -464,7 +591,7 @@ async function pagesRepository(t: { after: (fn: () => Promise<void>) => void }) 
   return { root, clone, run, show, git, origin };
 }
 
-function fakeWithdrawApi(releases: FakeRelease[], latest: string | null) {
+function fakeWithdrawApi(releases: FakeRelease[], latest: string | null, unsigned: string[] = []) {
   const edits: [number, { body?: string; make_latest?: string }][] = [];
   const signed: string[] = [];
   let current = latest;
@@ -473,8 +600,12 @@ function fakeWithdrawApi(releases: FakeRelease[], latest: string | null) {
     latestTag: () => Promise.resolve(current),
     signatures: async (tag, dir) => {
       signed.push(tag);
-      const version = tag.slice(1);
-      for (const suffix of ["_x64-setup.exe", "_amd64.AppImage", "_universal.app.tar.gz"])
+      const version = tagVersion(tag)!;
+      // An unsigned release lacks its AppImage signature.
+      const suffixes = unsigned.includes(tag)
+        ? ["_x64-setup.exe", "_universal.app.tar.gz"]
+        : ["_x64-setup.exe", "_amd64.AppImage", "_universal.app.tar.gz"];
+      for (const suffix of suffixes)
         await writeFile(
           path.join(dir, `Portcove_${version}${suffix}.sig`),
           `sig ${version}${suffix}\n`,
@@ -565,6 +696,72 @@ void test("withdraw repoints every feed serving the version, records it and mark
   assert.equal(last.latest, null);
 });
 
+void test("withdraw accepts nightly releases and skips replacements without every signature", async (t) => {
+  const repo = await pagesRepository(t);
+  const releases = [
+    release(1, "0.1.0"),
+    release(2, "0.1.1-preview.1", false, "nightly-"),
+    release(3, "0.1.1-preview.2", false, "nightly-"),
+    release(4, "0.1.1-preview.3", false, "nightly-"),
+  ];
+  // The preview feed serves the nightly being withdrawn; the newest older nightly is unsigned.
+  const writer = path.join(repo.root, "writer");
+  execFileSync("git", ["clone", "--quiet", "-b", "gh-pages", repo.origin, writer]);
+  await writeFile(
+    path.join(writer, "updates/preview/latest.json"),
+    `${JSON.stringify({ version: "0.1.1-preview.3", platforms: {} })}\n`,
+  );
+  await writeFile(
+    path.join(writer, "updates/beta/latest.json"),
+    `${JSON.stringify({ version: "0.1.0", platforms: {} })}\n`,
+  );
+  repo.git(writer, "commit", "--quiet", "--all", "-m", "nightly feed");
+  repo.git(writer, "push", "--quiet", "origin", "gh-pages");
+  const fake = fakeWithdrawApi(releases, "v0.1.0", ["nightly-0.1.1-preview.2"]);
+  const logs: string[] = [];
+  const options = {
+    version: "0.1.1-preview.3",
+    note: "",
+    repoDir: repo.clone,
+    workDir: path.join(repo.root, "work"),
+    api: fake.api,
+    run: repo.run,
+    log: (message: string) => logs.push(message),
+  };
+  const result = await withdrawRelease(options);
+  assert.equal(result.tag, "nightly-0.1.1-preview.3");
+  assert.deepEqual(result.feeds, { preview: "0.1.1-preview.1" });
+  assert.deepEqual(fake.signed, ["nightly-0.1.1-preview.2", "nightly-0.1.1-preview.1"]);
+  assert.match(
+    logs.join("\n"),
+    /nightly-0\.1\.1-preview\.2 cannot replace a feed: missing signed/u,
+  );
+  const preview = JSON.parse(repo.show("updates/preview/latest.json")!) as {
+    version: string;
+    platforms: Record<string, { url: string }>;
+  };
+  assert.equal(
+    preview.platforms["linux-x86_64"]!.url,
+    "https://github.com/boburning/portcove/releases/download/nightly-0.1.1-preview.1/Portcove_0.1.1-preview.1_amd64.AppImage",
+  );
+  // Beta does not serve the nightly and stays; a pre-release never loses or gains Latest.
+  assert.equal(
+    (JSON.parse(repo.show("updates/beta/latest.json")!) as { version: string }).version,
+    "0.1.0",
+  );
+  assert.deepEqual(
+    fake.edits.map(([id, fields]) => [id, Object.keys(fields)]),
+    [[4, ["body"]]],
+  );
+  assert.equal(result.latestAfter, "v0.1.0");
+
+  // When no candidate has every signature, the feed is removed rather than blocking.
+  const none = fakeWithdrawApi(releases, "v0.1.0", ["nightly-0.1.1-preview.2", "v0.1.0"]);
+  const removed = await withdrawRelease({ ...options, version: "0.1.1-preview.1", api: none.api });
+  assert.deepEqual(removed.feeds, { preview: "removed" });
+  assert.equal(repo.show("updates/preview/latest.json"), null);
+});
+
 void test("withdraw refuses a version without a published release and changes nothing", async (t) => {
   const repo = await pagesRepository(t);
   const fake = fakeWithdrawApi([release(1, "0.1.0"), release(2, "0.1.1", true)], null);
@@ -577,8 +774,8 @@ void test("withdraw refuses a version without a published release and changes no
       api: fake.api,
       run: repo.run,
     });
-  await assert.rejects(attempt("0.1.1"), /v0\.1\.1 is not a published release/u);
-  await assert.rejects(attempt("0.1.2"), /v0\.1\.2 is not a published release/u);
+  await assert.rejects(attempt("0.1.1"), /^Error: 0\.1\.1 is not a published release/u);
+  await assert.rejects(attempt("0.1.2"), /^Error: 0\.1\.2 is not a published release/u);
   await assert.rejects(attempt("0.1.0-alpha.1"), /only -preview\.N/u);
   await assert.rejects(attempt("v0.1.0"), /not a SemVer version/u);
   assert.equal(repo.show("updates/withdrawn.json"), null);
@@ -618,4 +815,114 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
   assert.equal(result.pushed, true);
   assert.equal(repo.git(repo.origin, "log", "-1", "--format=%s", "gh-pages~1"), "other");
   assert.deepEqual(result.feeds, { preview: "0.1.0", beta: "0.1.0" });
+});
+
+type WorkflowStep = { uses?: string; run?: string; with?: Record<string, unknown> };
+type WorkflowJob = {
+  if?: string;
+  uses?: string;
+  with?: Record<string, unknown>;
+  environment?: string;
+  permissions?: Record<string, string>;
+  steps?: WorkflowStep[];
+};
+type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob> };
+
+const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
+const readWorkflow = async (name: string) =>
+  parse(await readFile(path.join(workflowsDirectory, name), "utf8")) as Workflow;
+
+void test("release workflows keep the signing key behind owner tags and main", async () => {
+  const release = await readWorkflow("app-release.yml");
+  const build = await readWorkflow("app-release-build.yml");
+  const nightly = await readWorkflow("nightly-preview.yml");
+  const withdraw = await readWorkflow("withdraw-release.yml");
+  // Owner v* tags are the only trigger of the tag path; nothing dispatches it.
+  assert.deepEqual(Object.keys(release.on), ["push"]);
+  assert.deepEqual(release.on.push, { tags: ["v*"] });
+  assert.equal(release.jobs.plan!.if, "startsWith(github.ref, 'refs/tags/v')");
+  assert.deepEqual(release.jobs.release!.with, {
+    version: "${{ needs.plan.outputs.version }}",
+    tag: "${{ github.ref_name }}",
+    prerelease: "${{ needs.plan.outputs.prerelease }}",
+    feeds: "${{ needs.plan.outputs.feeds }}",
+    environment: "${{ needs.plan.outputs.environment }}",
+    commit: "${{ github.sha }}",
+  });
+  // The plan's environment is release-stable for Stable and release otherwise.
+  for (const [version, environment] of [
+    ["0.1.0-preview.1", "release"],
+    ["0.1.0", "release"],
+    ["1.0.0", "release-stable"],
+  ] as const)
+    assert.equal(classifyRelease(version).environment, environment);
+
+  // The nightly signs only from main, always in release, and only for previews.
+  assert.deepEqual(Object.keys(nightly.on).sort(), ["schedule", "workflow_dispatch"]);
+  assert.equal(nightly.jobs.prepare!.if, "github.ref == 'refs/heads/main'");
+  assert.equal(nightly.jobs.release!.uses, "./.github/workflows/app-release-build.yml");
+  assert.equal(nightly.jobs.release!.with!.environment, "release");
+  assert.deepEqual(nightly.jobs.release!.permissions, { contents: "write" });
+
+  // The shared jobs check their inputs before the signing step runs.
+  assert.deepEqual(Object.keys(build.on), ["workflow_call"]);
+  const buildSteps = build.jobs.build!.steps!;
+  assert.equal(build.jobs.build!.environment, "${{ inputs.environment }}");
+  const verify = buildSteps.findIndex((step) =>
+    step.run?.includes("app-release.mts verify-inputs"),
+  );
+  const sign = buildSteps.findIndex((step) => step.run?.includes("pnpm tauri build"));
+  assert.ok(verify >= 0 && verify < sign);
+  assert.equal(build.jobs.build!.permissions!.contents, "read");
+
+  // Withdrawal is an owner process guard.
+  assert.equal(
+    withdraw.jobs.withdraw!.if,
+    "github.actor_id == '43177418' && github.triggering_actor == 'boburning' && github.ref == 'refs/heads/main'",
+  );
+
+  // Installs skip lifecycle scripts, except the desktop build that needs allowed ones,
+  // and checkouts keep no credentials unless the job pushes.
+  const pushing = new Set([
+    "app-release-build.yml:publish",
+    "nightly-preview.yml:prepare",
+    "withdraw-release.yml:withdraw",
+  ]);
+  for (const [name, workflow] of [
+    ["app-release.yml", release],
+    ["app-release-build.yml", build],
+    ["nightly-preview.yml", nightly],
+    ["withdraw-release.yml", withdraw],
+  ] as const)
+    for (const [id, job] of Object.entries(workflow.jobs)) {
+      for (const step of job.steps ?? []) {
+        if (step.run?.includes("pnpm install") && `${name}:${id}` !== "app-release-build.yml:build")
+          assert.match(step.run, /--frozen-lockfile --ignore-scripts/u, `${name}:${id}`);
+        if (step.uses?.startsWith("actions/checkout@"))
+          assert.equal(
+            step.with?.["persist-credentials"],
+            pushing.has(`${name}:${id}`) ? undefined : false,
+            `${name}:${id}`,
+          );
+      }
+    }
+
+  // Only the shared jobs select an updater-key environment, and only the two
+  // release workflows call them.
+  const names = (await readdir(workflowsDirectory)).filter((name) => name.endsWith(".yml"));
+  for (const name of names) {
+    const workflow = await readWorkflow(name);
+    for (const [id, job] of Object.entries(workflow.jobs ?? {})) {
+      const environment = String(job.environment ?? "");
+      if (name !== "app-release-build.yml")
+        assert.ok(
+          !/^(?:release|release-stable)$/u.test(environment) &&
+            !/'release(?:-stable)?'/u.test(environment) &&
+            !/^\$\{\{\s*(?:inputs|needs|vars|github)\.[\w.-]+\s*\}\}$/u.test(environment),
+          `${name}:${id} must not select a release signing environment`,
+        );
+      if (job.uses?.includes("app-release-build.yml"))
+        assert.ok(["app-release.yml", "nightly-preview.yml"].includes(name), `${name}:${id}`);
+    }
+  }
 });

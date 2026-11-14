@@ -28,8 +28,13 @@ concurrency:
 
 jobs:
   withdraw:
-    # The owner's account id; agents acting as the owner use that account.
-    if: github.actor_id == '43177418' && github.ref == 'refs/heads/main'
+    # A process guard, not a security boundary: the owner's account (which agents
+    # acting as the owner use) starts and re-runs withdrawals. Repository writers
+    # can already edit releases and push gh-pages, and could run a changed copy of
+    # this file from a branch.
+    if: >-
+      github.actor_id == '43177418' && github.triggering_actor == 'boburning' &&
+      github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
