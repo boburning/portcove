@@ -340,7 +340,11 @@ function ComparisonPortFacts({
       )}
       {(!single || filesListed) && (
         <div>
-          <h4>{t("discover.compare.files")}</h4>
+          <h4>
+            {port.optional_game_source && !port.bios_source_profile
+              ? t("discover.compare.filesOptional")
+              : t("discover.compare.files")}
+          </h4>
           {port.presentation?.source_requirements?.length ? (
             <ul>
               {port.presentation.source_requirements.map((requirement) => (

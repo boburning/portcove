@@ -190,6 +190,19 @@ export function gameFilesPresentation(
       description:
         "The current installation still needs its recorded setup step. Review the inputs and changes before continuing.",
     };
+  // Play does not wait for a registered optional source, so a changed or unreadable one is a
+  // notice about the saved image, not a reason to review the inputs before continuing.
+  if (
+    port.optional_game_source &&
+    !sourceBlocked &&
+    !biosRequired &&
+    (readiness?.source === "changed" || readiness?.source === "unreadable")
+  )
+    return {
+      title: "Saved disc image changed",
+      description:
+        "The saved disc image changed or cannot be read. Play still uses the files already unpacked. Choose the image again to unpack it afresh.",
+    };
   if (
     sourceBlocked ||
     biosBlocked ||

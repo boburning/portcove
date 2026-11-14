@@ -112,17 +112,22 @@ match the three flat tag prefixes `portcove-production-controller-*`,
 | Portcove release state writer           | Allow updates to `portcove-release-inputs` and `portcove-production-coordinator-state` only to App `5632044`.             |
 | Portcove release branch retention       | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass. |
 | Portcove publication pause owner update | Allow updates to `portcove-release-pause` only to the existing repository owner.                                          |
-| Portcove release tag creation           | Allow creation of `v*` tags, except `v*-preview.*`, only to the repository owner (Beta and Stable releases).              |
+| Portcove release tag creation           | Allow creation of every `v*` tag, previews included, only to the repository owner.                                        |
+| Portcove nightly tag immutability       | Deny updates and deletion of `nightly-*` tags to everyone except the repository owner. Creation stays open.               |
 
 Protect main and Protect release tags continue as separate repository policies.
 Protect release tags still denies updating or deleting any `v*` tag, with no
 bypass, so a published version never changes. The release tag creation policy
-comes from the owner decision on #534 (2026-11-13). Agents acting through the
-owner's account share the owner's bypass. Creating `v*-preview.*` tags is
-deliberately unrestricted, so the nightly preview workflow can create them:
+comes from the owner decisions on #534 (2026-11-13 and 2026-11-14). Agents
+acting through the owner's account share the owner's bypass. A `v*` tag run can
+reach the updater key in the `release` environment, so no other writer may create
+one. Nightly previews are signed from `main` and use `nightly-*` tags, which any
+writer can create but which grant no key access: the `release` environment admits
+only `v*` tags and `main`. Creation of `nightly-*` tags stays open because
 GitHub refuses the GitHub Actions app as a bypass actor on a user-owned
-repository. A preview still has to pass the release workflow's checks, and it is
-published only to the opt-in Preview feed.
+repository, but only the owner can move or delete one, and publishing the
+immutable release locks it. `--apply-release-rulesets` widens the earlier
+policy, which excluded `v*-preview.*`, in place.
 Release observers still bind complete inventory and branch observations.
 Protected environments and controller admission still require exact appointments
 and the original source and workflow identities.

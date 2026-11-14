@@ -111,6 +111,24 @@ type LaunchObserver =
     std::sync::Arc<std::sync::Mutex<Option<std::sync::mpsc::Sender<LaunchObservation>>>>;
 const LAUNCH_ACCEPTANCE_POLL_INTERVAL: Duration = Duration::from_millis(25);
 
+/// A launch being followed: its library, request id, the last relayed progress sequence and the
+/// stamp (modification time, length) of the progress file when it was last read.
+type ObservedLaunch = (
+    Library,
+    String,
+    std::cell::Cell<Option<u64>>,
+    std::cell::Cell<Option<(std::time::SystemTime, u64)>>,
+);
+
+fn new_launch_observation(library: Library, request_id: String) -> ObservedLaunch {
+    (
+        library,
+        request_id,
+        std::cell::Cell::new(None),
+        std::cell::Cell::new(None),
+    )
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum LaunchObservationState {
     Active,
@@ -1899,18 +1917,14 @@ fn observe_launch_completion(
         let (sender, receiver) = std::sync::mpsc::channel::<LaunchObservation>();
         let app = app.clone();
         thread::spawn(move || {
-            let mut pending = Vec::<(Library, String, std::cell::Cell<Option<u64>>)>::new();
+            let mut pending = Vec::<ObservedLaunch>::new();
             let mut last_observation = std::time::Instant::now();
             loop {
                 if pending.is_empty() {
                     // Nothing to observe: wait for the next launch instead of polling.
                     match receiver.recv() {
                         Ok(observation) => {
-                            pending.push((
-                                observation.0,
-                                observation.1,
-                                std::cell::Cell::new(None),
-                            ));
+                            pending.push(new_launch_observation(observation.0, observation.1));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvError) => break,
@@ -1919,11 +1933,7 @@ fn observe_launch_completion(
                     let interval = launch_observation_interval(last_observation.elapsed());
                     match receiver.recv_timeout(interval) {
                         Ok(observation) => {
-                            pending.push((
-                                observation.0,
-                                observation.1,
-                                std::cell::Cell::new(None),
-                            ));
+                            pending.push(new_launch_observation(observation.0, observation.1));
                             last_observation = std::time::Instant::now();
                         }
                         Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
@@ -1933,18 +1943,26 @@ fn observe_launch_completion(
                     }
                 }
                 while let Ok(observation) = receiver.try_recv() {
-                    pending.push((observation.0, observation.1, std::cell::Cell::new(None)));
+                    pending.push(new_launch_observation(observation.0, observation.1));
                 }
                 let completed = retain_launch_observations(
                     &mut pending,
-                    |(library, request_id, last_sequence)| {
+                    |(library, request_id, last_sequence, last_stamp)| {
                         let progress = launch_progress_path(library.root(), request_id);
                         // Preparation progress (for example unpacking a disc image) is
                         // reported by the supervisor process; relay each newer step to
                         // the same operation event the UI already follows.
-                        if let Some(event) = read_launch_progress(&progress, last_sequence.get()) {
-                            last_sequence.set(Some(event.sequence));
-                            emit_operation(&app, event);
+                        // An unchanged file (same modification time and length) is not read
+                        // again on every tick; it only matters when it was rewritten.
+                        let stamp = launch_progress_stamp(&progress);
+                        if stamp.is_some() && stamp != last_stamp.get() {
+                            last_stamp.set(stamp);
+                            if let Some(event) =
+                                read_launch_progress(&progress, last_sequence.get())
+                            {
+                                last_sequence.set(Some(event.sequence));
+                                emit_operation(&app, event);
+                            }
                         }
                         match library.launch_request(request_id) {
                             Ok(Some(request)) if request.outcome.is_none() => {
@@ -2001,6 +2019,7 @@ fn request_supervised_launch(
         .to_owned();
     let directory = library.root().join("launch-requests");
     fs::create_dir_all(&directory).map_err(PortcoveError::from)?;
+    sweep_stale_launch_progress(&directory, std::time::SystemTime::now());
     let request_path = directory.join(format!("{request_id}.json"));
     let response_path = directory.join(format!("{request_id}.response.json"));
     publish_json(
@@ -2100,6 +2119,42 @@ fn launch_progress_path(library_root: &Path, request_id: &str) -> PathBuf {
             .join("launch-requests")
             .join(format!("{request_id}.json")),
     )
+}
+
+fn launch_progress_stamp(path: &Path) -> Option<(std::time::SystemTime, u64)> {
+    let metadata = fs::metadata(path).ok()?;
+    Some((metadata.modified().ok()?, metadata.len()))
+}
+
+/// Progress files are ephemeral reporting. One left behind (Desktop closed, or the supervisor
+/// ended, before its launch finished) is removed once it is older than a launch can plausibly
+/// take; a file still being updated is never that old.
+const STALE_LAUNCH_PROGRESS: Duration = Duration::from_secs(24 * 60 * 60);
+
+fn sweep_stale_launch_progress(directory: &Path, now: std::time::SystemTime) {
+    let Ok(entries) = fs::read_dir(directory) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_progress = path
+            .file_name()
+            .and_then(|name| name.to_str())
+            .is_some_and(|name| name.ends_with(".progress.json"));
+        if !is_progress {
+            continue;
+        }
+        let stale = entry
+            .metadata()
+            .ok()
+            .filter(|metadata| metadata.is_file())
+            .and_then(|metadata| metadata.modified().ok())
+            .and_then(|modified| now.duration_since(modified).ok())
+            .is_some_and(|age| age > STALE_LAUNCH_PROGRESS);
+        if stale {
+            let _ = fs::remove_file(&path);
+        }
+    }
 }
 
 /// The latest relayed event when it is newer than the last one already shown.
@@ -4077,6 +4132,43 @@ mod tests {
 
         assert_eq!(result.session_id, "durable-request");
         assert!(elapsed.get() > Duration::from_secs(300));
+    }
+
+    #[test]
+    fn stale_launch_progress_is_swept_but_nothing_else_or_anything_recent() {
+        let temporary = tempfile::tempdir().unwrap();
+        let directory = temporary.path();
+        let old = directory.join("old.progress.json");
+        let fresh = directory.join("fresh.progress.json");
+        let request = directory.join("old.json");
+        for path in [&old, &fresh, &request] {
+            fs::write(path, b"{}").unwrap();
+        }
+        let later = std::time::SystemTime::now() + STALE_LAUNCH_PROGRESS + Duration::from_secs(60);
+        // Only the file's age matters: "now" is moved forward, the files stay as written.
+        sweep_stale_launch_progress(directory, later);
+        assert!(!old.exists() && !fresh.exists());
+        assert!(
+            request.exists(),
+            "a request or response file is never a progress file"
+        );
+
+        fs::write(&fresh, b"{}").unwrap();
+        sweep_stale_launch_progress(directory, std::time::SystemTime::now());
+        assert!(fresh.exists(), "a file still being written is kept");
+        sweep_stale_launch_progress(&directory.join("missing"), std::time::SystemTime::now());
+    }
+
+    #[test]
+    fn an_unchanged_launch_progress_file_has_the_same_stamp() {
+        let temporary = tempfile::tempdir().unwrap();
+        let path = temporary.path().join("a.progress.json");
+        assert!(launch_progress_stamp(&path).is_none());
+        fs::write(&path, b"{}").unwrap();
+        let first = launch_progress_stamp(&path).unwrap();
+        assert_eq!(launch_progress_stamp(&path), Some(first));
+        fs::write(&path, b"{ }").unwrap();
+        assert_ne!(launch_progress_stamp(&path), Some(first));
     }
 
     #[test]

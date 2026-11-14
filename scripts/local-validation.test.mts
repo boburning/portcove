@@ -1700,6 +1700,7 @@ void test("the embedded catalog and historical fixtures select their generator c
     "scripts/catalog-proposal-comparison.test.mts",
     "scripts/catalog-proposal-costs.test.mts",
     "scripts/catalog-source-authoring.test.mts",
+    "scripts/check-catalog-repositories.test.mts",
     "scripts/generate-catalog.test.mts",
     "scripts/release-native-source-contract.test.mts",
     "scripts/repository-skills.test.mts",

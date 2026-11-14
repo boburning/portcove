@@ -572,7 +572,7 @@ void test("release ruleset migration expands live coverage before retiring equiv
   assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
   assert.equal(original.count, 75);
   const actions: string[] = [];
-  for (let stage = 0; stage < 8; stage++) {
+  for (let stage = 0; stage < 9; stage++) {
     const { next } = planReleaseRulesets(inventory, refs, ruleset);
     assert.ok(next);
     actions.push(next.action);
@@ -597,24 +597,74 @@ void test("release ruleset migration expands live coverage before retiring equiv
     "create",
     "delete",
     "create",
+    "create",
   ]);
   const final = planReleaseRulesets(inventory, refs, ruleset);
-  assert.equal(final.count, 8);
+  assert.equal(final.count, 9);
   assert.equal(final.next, null);
   assert.notEqual(final.observation, original.observation);
   assert.deepEqual(final.identities, original.identities);
   assert.deepEqual(final.stable.immutable?.bypass_actors, []);
   assert.deepEqual(final.stable.creator?.bypass_actors, [owner]);
   assert.deepEqual(final.stable.creator?.rules, [{ type: "creation" }]);
-  // Beta/Stable tags: owner only. Preview tags are deliberately unrestricted for creation.
+  // Every v* tag, previews included, is owner-only to create.
   assert.deepEqual(final.stable.versionCreator?.bypass_actors, [owner]);
   assert.deepEqual(final.stable.versionCreator?.conditions, {
-    ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] },
+    ref_name: { include: ["refs/tags/v*"], exclude: [] },
   });
-  const widened = structuredClone(inventory);
-  const versions = widened.find((row) => row.name === "Portcove release tag creation")!;
-  versions.conditions = { ref_name: { include: ["refs/tags/v*"], exclude: [] } };
-  assert.throws(() => planReleaseRulesets(widened, refs, ruleset), /Unexpected drift/u);
+  // Nightly tags: creation stays open for GitHub Actions; only the owner moves or deletes one.
+  assert.deepEqual(final.stable.nightlyImmutable?.bypass_actors, [owner]);
+  assert.deepEqual(final.stable.nightlyImmutable?.conditions, {
+    ref_name: { include: ["refs/tags/nightly-*"], exclude: [] },
+  });
+  assert.deepEqual(final.stable.nightlyImmutable?.rules, [
+    { type: "update" },
+    { type: "deletion" },
+  ]);
+  const missingNightly = inventory.filter(
+    (row) => row.name !== "Portcove nightly tag immutability",
+  );
+  const nightlyStage = planReleaseRulesets(missingNightly, refs, ruleset).next;
+  assert.equal(nightlyStage?.action, "create");
+  assert.equal(
+    nightlyStage.action === "create" && nightlyStage.payload.name,
+    "Portcove nightly tag immutability",
+  );
+  for (const change of [
+    { bypass_actors: [] },
+    { rules: [{ type: "update" }, { type: "deletion" }, { type: "creation" }] },
+    { conditions: { ref_name: { include: ["refs/tags/*"], exclude: [] } } },
+  ]) {
+    const drifted = structuredClone(inventory);
+    Object.assign(
+      drifted.find((row) => row.name === "Portcove nightly tag immutability")!,
+      change,
+    );
+    assert.throws(() => planReleaseRulesets(drifted, refs, ruleset), /Unexpected drift/u);
+  }
+  // The live 2026-11-13 policy excluded preview tags; it is widened in place.
+  const narrow = structuredClone(inventory);
+  const versions = narrow.find((row) => row.name === "Portcove release tag creation")!;
+  versions.conditions = {
+    ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] },
+  };
+  const widening = planReleaseRulesets(narrow, refs, ruleset);
+  assert.equal(widening.next?.action, "update");
+  assert.equal(widening.next.action === "update" && widening.next.id, versions.id);
+  assert.deepEqual(widening.next.action === "update" && widening.next.payload.conditions, {
+    ref_name: { include: ["refs/tags/v*"], exclude: [] },
+  });
+  for (const drift of [["refs/tags/v*-beta.*"], ["refs/tags/other"]]) {
+    versions.conditions = { ref_name: { include: ["refs/tags/v*"], exclude: drift } };
+    assert.throws(() => planReleaseRulesets(narrow, refs, ruleset), /Unexpected drift/u);
+  }
+  const ownerless = structuredClone(inventory);
+  const opened = ownerless.find((row) => row.name === "Portcove release tag creation")!;
+  opened.conditions = {
+    ref_name: { include: ["refs/tags/v*"], exclude: ["refs/tags/v*-preview.*"] },
+  };
+  opened.bypass_actors = [];
+  assert.throws(() => planReleaseRulesets(ownerless, refs, ruleset), /Unexpected drift/u);
   for (const suffix of ["next-r1", "next-r2"]) {
     refs[`refs/tags/portcove-production-controller-${suffix}`] = "b".repeat(40);
     const successor = planReleaseRulesets(inventory, refs, ruleset);

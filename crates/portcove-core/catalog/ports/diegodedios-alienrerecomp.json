@@ -20,6 +20,10 @@
         {
           "title": "Choose your original disc on Play",
           "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+        },
+        {
+          "title": "Set up the universal Mac app",
+          "instruction": "On Intel or Apple Silicon with macOS 11 or later, extract the upstream macOS ZIP with the system archive tool and keep the complete app. If downloading through Portcove, clear “Extract the archive after downloading”. Follow upstream’s first-launch instructions. Use your own supported USA disc. Preserve the actual AlienResurrection profile under Library/Application Support or your custom save directory."
         }
       ],
       "warnings": [
@@ -33,7 +37,8 @@
           "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
         }
       ]
-    }
+    },
+    "platforms": ["macos-x86-64", "macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",
@@ -68,6 +73,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "On first Play, choose your own USA PlayStation Alien Resurrection disc image (SLUS-00633). This separate managed copy uses its saves folder for settings, memory cards, quick save and logs. Portcove also preserves runtime-folder shot_*.png screenshots and vram_*.png captures. Original disc files, external-copy profiles, custom save paths and custom debug destinations stay external. Make a memory-card save in game BEFORE updating, switching runtime versions or rolling back. Quick saves are version-specific and have one slot; retain the old runtime if your latest progress exists only in its quick save. Runtime rollback carries current declared data, not earlier saves or guaranteed older-version compatibility. Linux needs glibc 2.35+ and a working Vulkan environment; other platforms need separate review."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses", "textures"],
+        "executables": ["alienresurrection.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["lib", "licenses", "textures"],
+        "executables": ["alienresurrection"]
+      }
     }
   }
 }

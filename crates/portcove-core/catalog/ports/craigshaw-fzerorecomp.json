@@ -8,7 +8,7 @@
     "issue_number": 1821,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md",
+    "setup_url": "https://github.com/craigshaw/FZeroRecomp#readme",
     "artwork": {
       "game_id": 3490,
       "cover_id": 319391,
@@ -17,18 +17,23 @@
       "game_slug": "f-zero",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/craigshaw/FZeroRecomp/releases/tag/v0.6.0",
+    "release_url": "https://github.com/craigshaw/FZeroRecomp/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Start with your original game",
           "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+        },
+        {
+          "title": "Set up the Apple Silicon app",
+          "instruction": "On Apple Silicon with macOS 13 or later, download the upstream arm64 ZIP and extract the complete app outside your Portcove library. Follow upstream’s first-launch instructions. Choose your own supported F-Zero USA ROM. Keep the actual FZeroRecomp profile under Library/Application Support and any custom save folder."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+      "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
     },
-    "original_game_title": "F-Zero"
+    "original_game_title": "F-Zero",
+    "platforms": ["macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",
@@ -61,6 +66,16 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux uses the same executable-adjacent declared configurations and saves as Windows. Keep lib/libSDL3.so.0 with the player; the ELF runpath resolves that packaged companion. System OpenGL and C++ runtime libraries are required. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets", "licenses"],
+        "executables": ["fzero_recomp.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["assets", "lib", "licenses"],
+        "executables": ["fzero_recomp"]
+      }
     }
   }
 }

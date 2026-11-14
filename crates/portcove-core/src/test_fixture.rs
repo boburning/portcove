@@ -122,6 +122,12 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // An STFS package binding needs staged-source capability 32 whatever chain matched.
+    let default_version = if port.runtime_stfs_package.is_some() {
+        default_version.max(crate::stfs::PACKAGE_BINDING_CAPABILITY)
+    } else {
+        default_version
+    };
     // Track counts live in the embedded source profile, not on the port.
     let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
         && crate::Catalog::embedded()

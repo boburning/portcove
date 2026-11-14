@@ -612,7 +612,10 @@ it("names each disc-unpacking step for the player and shows unpacking bytes", ()
   expect(unpacking.detail).toBe("1.0 KiB of 2.0 KiB");
   expect(unpacking.range?.percent).toBe(50);
   // The closing event keeps the existing launch wording rather than the last disc step.
-  expect(progressPresentation(step("launch", "indeterminate"), "").label).toBe("Starting game");
+  const starting = progressPresentation(step("launch", "indeterminate"), "");
+  expect(starting.label).toBe("Starting game");
+  // The closing step says what is happening instead of the generic "total not yet known".
+  expect(starting.detail).toBe("Opening the game now.");
 });
 
 it("formats progress from producer units independently of display wording", () => {

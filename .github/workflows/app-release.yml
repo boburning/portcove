@@ -1,6 +1,8 @@
-# Tag-driven application release (owner decision on #534, 2026-11-13).
-# Push `vX.Y.Z` (Beta), `vX.Y.Z-preview.N` (Preview) or `v1.x.y` (Stable, needs owner
-# approval on the release-stable environment). Use `just release X.Y.Z`.
+# Tag-driven application release (owner decisions on #534, 2026-11-13 and 2026-11-14).
+# The owner pushes `vX.Y.Z` (Beta), `vX.Y.Z-preview.N` (Preview) or `v1.x.y` (Stable,
+# needs owner approval on the release-stable environment) with `just release X.Y.Z`.
+# Only the owner can create `v*` tags. Nightly previews are built from `main` by
+# nightly-preview.yml. Both call the jobs in app-release-build.yml.
 name: App release
 run-name: Release ${{ github.ref_name }}
 
@@ -17,6 +19,7 @@ concurrency:
 
 jobs:
   plan:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -33,9 +36,16 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Classify the release tag
         id: plan
         run: node scripts/app-release.mts plan --tag "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
@@ -50,167 +60,15 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: node scripts/app-release.mts ci-status --sha "$GITHUB_SHA"
 
-  build:
-    name: Build ${{ matrix.label }}
+  release:
     needs: plan
-    environment: ${{ needs.plan.outputs.environment }}
-    timeout-minutes: 120
-    permissions:
-      contents: read
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - label: windows-x86_64
-            os: windows-latest
-            target: x86_64-pc-windows-msvc
-            rust_targets: x86_64-pc-windows-msvc
-            bundles: nsis
-          - label: linux-x86_64
-            os: ubuntu-22.04
-            target: x86_64-unknown-linux-gnu
-            rust_targets: x86_64-unknown-linux-gnu
-            bundles: appimage
-          - label: macos-universal
-            os: macos-15
-            target: universal-apple-darwin
-            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
-            bundles: app,dmg
-    runs-on: ${{ matrix.os }}
-    env:
-      VERSION: ${{ needs.plan.outputs.version }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
-      - uses: ./.github/actions/setup-rust
-        with:
-          targets: ${{ matrix.rust_targets }}
-      - name: Install Linux desktop prerequisites
-        if: runner.os == 'Linux'
-        timeout-minutes: 15
-        run: ./scripts/install-linux-desktop-prerequisites.sh
-      - run: pnpm install --frozen-lockfile
-      - name: Stamp the release version
-        run: node scripts/app-release.mts stamp --version "${{ env.VERSION }}"
-      - name: Build, package and smoke-test the Windows CLI
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          cargo build --release -p portcove-cli --target ${{ matrix.target }}
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          ./scripts/package-cli.ps1 -PlatformLabel "${{ matrix.label }}" -TargetRoot "target/${{ matrix.target }}"
-          $archive = (& node scripts/release-package-policy.mts --platform "${{ matrix.label }}" --interface cli --version $env:VERSION | Out-String).Trim()
-          ./scripts/smoke-test-cli-archive.ps1 -ArchivePath "release-assets/$archive" -PlatformLabel "${{ matrix.label }}" -Version $env:VERSION
-          New-Item -ItemType Directory -Force dist | Out-Null
-          Copy-Item "release-assets/$archive" dist/
-      - name: Build and sign desktop bundles
-        working-directory: apps/desktop
-        shell: bash
-        env:
-          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: >-
-          pnpm tauri build --bundles "${{ matrix.bundles }}" --target "${{ matrix.target }}"
-          --config '{"bundle":{"createUpdaterArtifacts":true,"macOS":{"signingIdentity":"-"}}}'
-      - name: Collect release assets
-        shell: bash
-        run: |
-          set -euo pipefail
-          bundle="target/${{ matrix.target }}/release/bundle"
-          mkdir -p dist
-          case "${{ matrix.label }}" in
-            windows-x86_64)
-              cp "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe" "$bundle/nsis/Portcove_${VERSION}_x64-setup.exe.sig" dist/ ;;
-            linux-x86_64)
-              cp "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage" "$bundle/appimage/Portcove_${VERSION}_amd64.AppImage.sig" dist/ ;;
-            macos-universal)
-              cp "$bundle/macos/Portcove.app.tar.gz" "dist/Portcove_${VERSION}_universal.app.tar.gz"
-              cp "$bundle/macos/Portcove.app.tar.gz.sig" "dist/Portcove_${VERSION}_universal.app.tar.gz.sig"
-              cp "$bundle/dmg/Portcove_${VERSION}_universal.dmg" dist/ ;;
-          esac
-          ls -l dist
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-${{ matrix.label }}
-          path: dist/*
-          if-no-files-found: error
-          retention-days: 7
-
-  publish:
-    needs: [plan, build]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
     permissions:
       contents: write
-    env:
-      VERSION: ${{ needs.plan.outputs.version }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .node-version
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: release-*
-          path: dist
-          merge-multiple: true
-      - name: Write checksums and release notes
-        run: |
-          set -euo pipefail
-          (cd dist && sha256sum -- * > SHA256SUMS)
-          git fetch --quiet --force origin "refs/tags/$GITHUB_REF_NAME:refs/tags/$GITHUB_REF_NAME"
-          # Subject and body exclude any tag signature block.
-          notes=$(git for-each-ref "refs/tags/$GITHUB_REF_NAME" --format='%(contents:subject)%0a%0a%(contents:body)')
-          [ -n "$(echo "$notes" | tr -d '[:space:]')" ] || notes="Portcove $VERSION"
-          printf '%s\n' "$notes" > notes.md
-      - name: Publish the GitHub Release with all assets
-        # Creates a draft with every asset, or completes an existing draft, and
-        # continues an already published release only with an identical asset set.
-        run: >-
-          node scripts/app-release.mts publish --tag "$GITHUB_REF_NAME" --version "$VERSION"
-          --prerelease "${{ needs.plan.outputs.prerelease }}" --notes-file notes.md --dist dist
-      - name: Write the updater feed from the published signatures
-        # The feed must match the immutable published bytes, even when this run rebuilt them.
-        run: |
-          node scripts/app-release.mts download-signatures --tag "$GITHUB_REF_NAME" --dir published
-          node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md \
-            --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published \
-            --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" > latest.json
-      - name: Publish the feed to the Pages branch
-        env:
-          FEEDS: ${{ needs.plan.outputs.feeds }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          for attempt in 1 2 3 4; do
-            git fetch --quiet origin gh-pages
-            rm -rf site && git worktree add --quiet --force site origin/gh-pages
-            changed=false
-            for channel in $FEEDS; do
-              target="site/updates/$channel/latest.json"
-              current=$( [ -f "$target" ] && node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).version)' "$target" || true)
-              if node scripts/app-release.mts compare --candidate "$VERSION" ${current:+--current "$current"}; then
-                mkdir -p "$(dirname "$target")" && cp latest.json "$target" && changed=true
-              fi
-            done
-            if [ "$changed" = false ]; then echo "No feed is older than $VERSION."; exit 0; fi
-            git -C site add updates
-            git -C site commit --quiet -m "Publish Portcove $VERSION to: $FEEDS"
-            if git -C site push --quiet origin HEAD:gh-pages; then exit 0; fi
-            git worktree remove --force site
-            sleep $((attempt * 5))
-          done
-          echo "::error::Could not publish the feed to gh-pages"; exit 1
+    uses: ./.github/workflows/app-release-build.yml
+    with:
+      version: ${{ needs.plan.outputs.version }}
+      tag: ${{ github.ref_name }}
+      prerelease: ${{ needs.plan.outputs.prerelease }}
+      feeds: ${{ needs.plan.outputs.feeds }}
+      environment: ${{ needs.plan.outputs.environment }}
+      commit: ${{ github.sha }}

@@ -418,6 +418,7 @@ export default interface Resources {
       },
       "compare": {
         "files": "Required files",
+        "filesOptional": "Optional files",
         "filesUnlisted": "Requirements are not listed here. Check the project’s setup instructions.",
         "instructions": "Project instructions",
         "noChannel": "No update channel is listed.",

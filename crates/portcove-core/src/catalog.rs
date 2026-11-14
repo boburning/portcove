@@ -1537,7 +1537,13 @@ impl Catalog {
                                 self.document.source_profiles.iter().any(|profile| {
                                     profile.id == *profile_id
                                         && profile.kind == SourceKind::File
-                                        && !profile.accepted_sha256.is_empty()
+                                        // An exact whole-package digest, or an explicitly
+                                        // declared content identity bound by the port.
+                                        && (!profile.accepted_sha256.is_empty()
+                                            || (port.runtime_stfs_package.is_some()
+                                                && crate::source_inspection::stfs_content_declared(
+                                                    self, profile_id,
+                                                )))
                                 })
                             })
                     }
@@ -1592,6 +1598,18 @@ impl Catalog {
                         port.id
                     )));
                 }
+            }
+            if (port.runtime_stfs_package.is_some()
+                || port.source_profile.as_ref().is_some_and(|profile_id| {
+                    crate::source_inspection::stfs_content_declared(self, profile_id)
+                }))
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::StfsDirectory)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} declares an STFS package without STFS extraction",
+                    port.id
+                )));
             }
             if port.runtime_disc_image.is_some()
                 && port
@@ -1656,6 +1674,7 @@ impl Catalog {
                             port.id
                         )));
                     }
+                    self.validate_stfs_package(port)?;
                 }
                 Some(materialization) if !port.runtime_source_hashes.is_empty() => {
                     let exact_single_file_identity = matches!(
@@ -1963,8 +1982,77 @@ fn is_safe_basename(value: &str) -> bool {
             .all(|component| matches!(component, Component::Normal(_)))
 }
 
-/// A named portable marker is one plain file name that the port also declares persistent,
-/// because the engine keeps its own configuration in it.
+impl Catalog {
+    /// The STFS binding's own limits, and its agreement with a content identity: such an
+    /// identity is admitted only for a port that binds the same titles and content types.
+    fn validate_stfs_package(&self, port: &PortDefinition) -> Result<()> {
+        let invalid = || {
+            PortcoveError::usage(format!(
+                "{} has an invalid STFS package declaration",
+                port.id
+            ))
+        };
+        if let Some(package) = &port.runtime_stfs_package {
+            let unique =
+                |values: &[String]| values.iter().collect::<HashSet<_>>().len() == values.len();
+            if package.title_ids.is_empty()
+                || package.title_ids.len() > 16
+                || !unique(&package.title_ids)
+                || !package
+                    .title_ids
+                    .iter()
+                    .all(|title| crate::source_catalog::is_stfs_header_value(title))
+                || package.content_types.is_empty()
+                || !unique(&package.content_types)
+                || !package.content_types.iter().all(|kind| {
+                    crate::source_catalog::STFS_ACCEPTED_CONTENT_TYPES.contains(&kind.as_str())
+                })
+                || package.max_package_bytes == 0
+                || package.max_package_bytes > crate::stfs::MAX_PACKAGE_BYTES
+            {
+                return Err(invalid());
+            }
+        }
+        let Some(profile_id) = &port.source_profile else {
+            return Ok(());
+        };
+        let content = self
+            .source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.identities)
+            .filter(|profile| profile.id == *profile_id)
+            .flat_map(|profile| &profile.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .filter_map(|representation| match &representation.kind {
+                crate::SourceRepresentationKind::StfsContent {
+                    title_ids,
+                    content_types,
+                    ..
+                } => Some((title_ids, content_types)),
+                _ => None,
+            });
+        for (title_ids, content_types) in content {
+            let Some(package) = &port.runtime_stfs_package else {
+                return Err(PortcoveError::usage(format!(
+                    "{} uses an STFS content identity without an STFS package declaration",
+                    port.id
+                )));
+            };
+            if !title_ids
+                .iter()
+                .all(|title| package.title_ids.contains(title))
+                || !content_types
+                    .iter()
+                    .all(|kind| package.content_types.contains(kind))
+            {
+                return Err(invalid());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Reviewed release uploaders are GitHub account identities: unique, positive
 /// safe-integer IDs with the reviewed login, on a GitHub-provider route.
 fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
@@ -1995,6 +2083,8 @@ fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
     }
 }
 
+/// A named portable marker is one plain file name that the port also declares persistent,
+/// because the engine keeps its own configuration in it.
 fn validate_portable_marker_file(port: &PortDefinition) -> Result<()> {
     let Some(name) = &port.portable_marker_file else {
         return Ok(());
@@ -5285,6 +5375,187 @@ mod tests {
             port.automated_tested_platforms,
             [crate::Platform::WindowsX86_64]
         );
+    }
+
+    fn stfs_binding_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {
+        let mut document = Catalog::embedded().unwrap().document().clone();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "nocturne-recomp")
+            .unwrap();
+        port.runtime_stfs_package = Some(crate::StfsPackageProfile {
+            content_types: vec!["000D0000".into()],
+            title_ids: vec!["58410A6B".into()],
+            max_package_bytes: 256 * 1024 * 1024,
+        });
+        mutate(port);
+        Catalog::from_document(document)
+    }
+
+    #[test]
+    fn stfs_package_bindings_are_bounded_and_only_valid_with_stfs_extraction() {
+        stfs_binding_catalog(|_| {}).unwrap();
+        type Edit = fn(&mut PortDefinition);
+        let cases: [(&str, Edit); 9] = [
+            ("no titles", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .title_ids
+                    .clear()
+            }),
+            ("lowercase title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids = vec!["58410a6b".into()]
+            }),
+            ("short title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids = vec!["58410A6".into()]
+            }),
+            ("duplicate title", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().title_ids =
+                    vec!["58410A6B".into(), "58410A6B".into()]
+            }),
+            ("title update", |port| {
+                port.runtime_stfs_package.as_mut().unwrap().content_types = vec!["000B0000".into()]
+            }),
+            ("no content type", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .content_types
+                    .clear()
+            }),
+            ("zero bound", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .max_package_bytes = 0
+            }),
+            ("oversized bound", |port| {
+                port.runtime_stfs_package
+                    .as_mut()
+                    .unwrap()
+                    .max_package_bytes = 17 * 1024 * 1024 * 1024
+            }),
+            ("without stfs extraction", |port| {
+                port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy)
+            }),
+        ];
+        for (label, edit) in cases {
+            assert!(stfs_binding_catalog(edit).is_err(), "{label}");
+        }
+    }
+
+    #[test]
+    fn a_content_identity_requires_a_matching_port_binding() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "sotn-xbla")
+            .unwrap();
+        let mut variant = profile.variants[0].clone();
+        variant.id = "content-identity".into();
+        variant.representations[0].id = "stfs-content".into();
+        variant.representations[0].kind = crate::SourceRepresentationKind::StfsContent {
+            package_types: vec![crate::StfsPackageType::Live, crate::StfsPackageType::Pirs],
+            title_ids: vec!["58410A6B".into()],
+            content_types: vec!["000D0000".into()],
+            members: vec![crate::StfsContentMember {
+                path: "default.xex".into(),
+                sha256: "26a58b074c5dd6185b77a8111a0012866d11cba674b4b0810d79dbf07ad68aa6".into(),
+            }],
+        };
+        profile.variants.push(variant);
+        let with_binding = |title: Option<&str>| {
+            let mut document = document.clone();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "nocturne-recomp")
+                .unwrap();
+            port.runtime_stfs_package = title.map(|title| crate::StfsPackageProfile {
+                content_types: vec!["000D0000".into()],
+                title_ids: vec![title.into()],
+                max_package_bytes: 256 * 1024 * 1024,
+            });
+            Catalog::from_json(&serde_json::to_string(&document).unwrap())
+        };
+        assert!(with_binding(None).is_err());
+        assert!(with_binding(Some("58410A6C")).is_err());
+        let catalog = with_binding(Some("58410A6B")).unwrap();
+        // The content identity projects no digest into the compatibility profile, so the
+        // exact NocturneRecomp package identity is unchanged.
+        assert_eq!(
+            catalog.source_profile("sotn-xbla").unwrap().accepted_sha256,
+            ["efb36098df070c0ddd9e1058ee0c0e1570748b62d0ef93fc691b4c52798bd17c"]
+        );
+
+        for (label, edit) in [
+            (
+                "no members",
+                (|members: &mut Vec<crate::StfsContentMember>| members.clear())
+                    as fn(&mut Vec<crate::StfsContentMember>),
+            ),
+            ("unsafe member", |members| {
+                members[0].path = "../default.xex".into()
+            }),
+            ("bad digest", |members| members[0].sha256 = "00".into()),
+            ("colliding members", |members| {
+                let mut second = members[0].clone();
+                second.path = "DEFAULT.XEX".into();
+                members.push(second)
+            }),
+        ] {
+            let mut document = document.clone();
+            let profile = document
+                .source_catalog
+                .as_mut()
+                .unwrap()
+                .identities
+                .iter_mut()
+                .find(|profile| profile.id == "sotn-xbla")
+                .unwrap();
+            let crate::SourceRepresentationKind::StfsContent { members, .. } =
+                &mut profile.variants[1].representations[0].kind
+            else {
+                unreachable!()
+            };
+            edit(members);
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == "nocturne-recomp")
+                .unwrap();
+            port.runtime_stfs_package = Some(crate::StfsPackageProfile {
+                content_types: vec!["000D0000".into()],
+                title_ids: vec!["58410A6B".into()],
+                max_package_bytes: 256 * 1024 * 1024,
+            });
+            assert!(
+                Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err(),
+                "{label}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_shipped_port_declares_an_stfs_binding_or_content_identity_yet() {
+        let catalog = Catalog::embedded().unwrap();
+        assert!(
+            catalog
+                .ports()
+                .iter()
+                .all(|port| port.runtime_stfs_package.is_none())
+        );
+        assert!(catalog.ports().iter().all(|port| {
+            port.source_profile.as_ref().is_none_or(|profile| {
+                !crate::source_inspection::stfs_content_declared(&catalog, profile)
+            })
+        }));
     }
 
     fn disc_image_catalog(mutate: impl FnOnce(&mut PortDefinition)) -> Result<Catalog> {

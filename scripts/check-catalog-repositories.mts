@@ -313,9 +313,9 @@ export interface HealthOptions {
   reviewedAccounting?: unknown;
   lineageRecords?: unknown[];
   /**
-   * Trusted monitor continuation: each operation stops at the 352-request batch
-   * ceiling. A one-shot collection is bounded by its own forecast and refuses
-   * only beyond the observation ceiling.
+   * Trusted monitor continuation: each operation stops at the 352-request and
+   * 512-new-location batch ceilings. A one-shot collection is never refused by
+   * inventory size; it is bounded by its own forecast, quota, time and bytes.
    */
   incremental?: boolean;
   resumeObservations?: unknown[];
@@ -1276,10 +1276,11 @@ function prepareHealthCollection(
   const conditionalArchiveRequests = archiveRecords.length * 2;
   const conservativeRequests =
     networkRecords.length + conditionalPinRequests + conditionalArchiveRequests;
-  // The request ceiling sizes incremental batches only. A full collection is
-  // bounded by its own validated forecast, the provider quota reserve and the
-  // time and byte limits, so catalog growth never refuses the whole inventory.
-  // The observation ceiling still bounds one report.
+  // The request and observation ceilings size scheduled monitor operations only.
+  // "overflow" tells the monitor's batch planner that a scope needs more than one
+  // operation; a one-shot collection is never refused for it and is bounded by
+  // its own validated forecast, the provider quota reserve and the time and byte
+  // limits instead.
   const overflow = records.length > PRIOR_REPORT_ENTRIES;
   const requestPlan = Object.freeze({
     method: "validated selected inventory; no speculative reuse credit",
@@ -1375,17 +1376,13 @@ export async function collectRepositoryHealth(
     pinBindingConflict,
     declaredPins,
     archiveRules,
-    overflow,
     requestPlan,
   } = prepareHealthCollection(input, portIds, accountingInput);
   const limits = Object.freeze({
     ...resourceLimits,
-    requests:
-      overflow && !incremental
-        ? 0
-        : incremental
-          ? Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests)
-          : requestPlan.conservative_requests,
+    requests: incremental
+      ? Math.min(HARD_REQUEST_CEILING, requestPlan.conservative_requests)
+      : requestPlan.conservative_requests,
   });
   const lineage = assessedLineage(catalog, lineageRecords);
   const currentPortHashes = healthCatalogPortHashes(catalog, lineageRecords);
@@ -1853,7 +1850,7 @@ export async function collectRepositoryHealth(
         continue;
       }
       // Static no-request failures retain their reasons even when the selected
-      // inventory needs zero calls or preflight refuses the whole collection.
+      // inventory needs zero calls.
       if (record.provider === "unlocated-historical") {
         fail("release-identity-unavailable");
         continue;
@@ -1874,12 +1871,6 @@ export async function collectRepositoryHealth(
         ).size !== 1
       ) {
         fail("identity-mismatch");
-        continue;
-      }
-      if (overflow && !incremental) {
-        fail("budget");
-        result.resume_condition =
-          "The selected inventory exceeds the per-report observation ceiling; narrow the scope with --port-ids or let the scheduled monitor collect it in batches. Partial collections do not establish full health.";
         continue;
       }
       const operationRequests =
@@ -2449,10 +2440,7 @@ export async function collectRepositoryHealth(
     .map((incident) => incident.key);
   return {
     format_version: 3,
-    collection_status:
-      (incremental || !overflow) && observations.every(collected)
-        ? ("complete" as const)
-        : ("partial" as const),
+    collection_status: observations.every(collected) ? ("complete" as const) : ("partial" as const),
     authority:
       "read-only-location-observation; no lineage, artifact, hold or qualification authority",
     catalog_sha256: catalogHash,
@@ -2464,9 +2452,7 @@ export async function collectRepositoryHealth(
         .filter((port) => !selectedPorts.includes(port))
         .map((port) => port.id),
       global_health:
-        portIds === null && !overflow
-          ? "collection attempted; not an installability claim"
-          : "not assessed",
+        portIds === null ? "collection attempted; not an installability claim" : "not assessed",
     },
     port_health: portHealth,
     started_at: new Date(started).toISOString(),
@@ -2541,12 +2527,7 @@ export function renderRepositoryHealth(
     ...(report.scope?.mode === "none"
       ? ["No selected upstream health inputs; no live requests. Global health is not assessed."]
       : []),
-    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; incremental batch ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status}.`,
-    ...(report.request_plan.status === "overflow"
-      ? [
-          "Preflight overflow: the selected inventory exceeds the observation ceiling; no live requests permitted; selected scope and global health unassessed.",
-        ]
-      : []),
+    `Request plan: ${report.request_plan.conservative_requests} conservative calls; ${report.request_plan.conditional_repository_reuses} conditional repository reuses; scheduled batch ceiling ${report.request_plan.hard_ceiling}; ${report.request_plan.status === "overflow" ? "more locations than one scheduled batch" : "admitted"}.`,
     `Repository reachability: ${coverage.reachable_repositories}/${coverage.repositories} reachable; ${coverage.unknown_repositories} unknown; ${coverage.attempted_repositories} attempted.`,
     `Repository metadata reused within this collection: ${coverage.reused_repositories}; network requests: ${report.consumed.requests}/${report.limits.requests}.`,
     `Coverage: ${coverage.monitored_ports}/${coverage.ports} ports; ${coverage.direct_manifest_port_ids.length} direct-manifest ports included. Accepted bytes remain unverified.`,

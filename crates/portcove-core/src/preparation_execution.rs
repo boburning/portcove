@@ -575,6 +575,7 @@ impl PortcoveService {
                     .as_ref()
                     .map(|_| &mut conversion_quiesced as &mut dyn FnMut() -> Result<()>),
             },
+            port.runtime_stfs_package.as_ref(),
         )
         .map_err(|error| error.during("preparation.extract"))?;
         let setup_tool = plan.inputs.setup_tool.as_ref().ok_or_else(|| {
