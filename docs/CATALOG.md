@@ -144,8 +144,12 @@ upstream itself publishes and holds a package only for concrete reasons.
   port, so a port keeps its hold while one platform's route, such as an
   existing non-owning integration, still needs a separate decision. The owner
   confirmed this on November 13, 2026. Core enforces one fresh route per host:
-  it refuses the listing download (`managed-route`) where the current
-  definition offers managed Install. Descriptive listing platforms never refuse
+  it refuses the listing download (`managed-route`) only where this library's
+  own Install assessment for the host is allowed or waiting for the player's
+  game files. A held definition, an acquisition hold, pending setup or an
+  existing registration leaves Install unusable, so the download stays offered.
+  `catalog inspect-targets` reports the same refusal per target for a fresh
+  library. Descriptive listing platforms never refuse
   a host, so a newly published upstream package stays reachable before the
   listing names it; registration still requires a native program. A
   `user-prepared` integration offers no Install, so its download stays

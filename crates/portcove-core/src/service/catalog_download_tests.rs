@@ -2003,6 +2003,7 @@ async fn n64hub_super_smash_bros_n64_usa_recomp_upstream_release_download_4337()
         "v0.1.12",
         "SmashBrosRecompiled-v0.1.12-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2013,6 +2014,7 @@ async fn n64hub_rayman_2_recomp_n64_usa_upstream_release_download_4335() {
         "v0.1.15",
         "Rayman2Recompiled-v0.1.15-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2024,6 +2026,7 @@ async fn tekrantgaming_muppet_racemania_recompiled_upstream_release_download_413
         "v1.0.0",
         "MuppetRaceManiaRecompiled-v1.0.0-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2064,6 +2067,7 @@ async fn assert_embedded_resolved_frontend_download(
     tag: &str,
     asset_name: &str,
     expected_adapter: Option<crate::AdapterKind>,
+    managed_hosts: &[Platform],
 ) {
     let (_temporary, mut service, mut request) = fixture();
     service.catalog = Catalog::embedded().unwrap();
@@ -2106,15 +2110,17 @@ async fn assert_embedded_resolved_frontend_download(
         .await
         .unwrap();
     // A managed Install on this host replaces the listing download route.
-    if let Some(refusal) = service
-        .listing_download_refusal(id, Platform::current().unwrap())
-        .unwrap()
-    {
+    if managed_hosts.contains(&Platform::current().unwrap()) {
         assert!(!options.allowed, "{id}");
-        assert_eq!(options.refusal, Some(refusal), "{id}");
+        assert_eq!(
+            options.refusal,
+            Some(CatalogDownloadRefusal::ManagedRoute),
+            "{id}"
+        );
         assert_eq!(github.requests.load(Ordering::SeqCst), 0, "{id}");
         return;
     }
+    assert_eq!(options.refusal, None, "{id}");
     assert!(options.allowed);
     assert_eq!(options.selected_release_id, Some(7.into()));
     assert_eq!(options.candidates.len(), 1);
@@ -2178,6 +2184,7 @@ async fn dahsidiabdallah_conkerbfdreloaded_resolved_frontend_download_1806() {
         "v1.4.7",
         "ConkerBFDReloaded-v1.4.7-Windows.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2189,6 +2196,7 @@ async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_
         "v0.4.2-alpha",
         "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2200,6 +2208,7 @@ async fn body_harvest_recompiled_resolved_frontend_download_1448() {
         "v1.0.0",
         "BodyHarvestRecompiled-v1.0.0-Windows.zip",
         Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2216,6 +2225,7 @@ async fn snowboard_kids_upstream_release_download_1354() {
         "v0.9.0-beta.1",
         "SnowboardKidsRecompiled-0.9.0-beta.1-Windows-x86_64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2227,6 +2237,7 @@ async fn cdlewis_snowboardkids_recomp_upstream_release_download_1886() {
         "v1.0.9",
         "SnowboardKidsRecompiled-Windows.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2238,6 +2249,7 @@ async fn vidanox_banjotooierecompiled_upstream_release_download_1795() {
         "v1.0.1",
         "BanjoTooieRecompiled-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2249,6 +2261,7 @@ async fn blast_corps_blastcorps_recompiled_upstream_release_download_2558() {
         "1.1.1",
         "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2312,14 +2325,8 @@ async fn exit_shared_release_keeps_title_recommendations_distinct_362_363() {
             .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
             .await
             .unwrap();
-        if let Some(refusal) = service
-            .listing_download_refusal(id, Platform::current().unwrap())
-            .unwrap()
-        {
-            assert_eq!(options.refusal, Some(refusal), "{id}");
-            assert_eq!(github.requests.load(Ordering::SeqCst), 0, "{id}");
-            continue;
-        }
+        // A listing-only title has no managed Install, so its download stays.
+        assert_eq!(options.refusal, None, "{id}");
         assert!(options.allowed);
         assert_eq!(options.candidates.len(), 4);
         if Platform::current().unwrap() == Platform::WindowsX86_64 {
@@ -2357,6 +2364,7 @@ async fn tony_hawks_project_8_recomp_upstream_release_download_1125() {
         "v0.3.0",
         "Project8Recomp-v0.3.0-windows-x86_64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2368,6 +2376,7 @@ async fn pilotwings_64_dgv_recomp_upstream_release_download_1275() {
         "v0.1.1",
         "Pilotwings64Recomp-0.1.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2379,6 +2388,7 @@ async fn darkuni_afterburner_climax_recomp_upstream_release_download_4134() {
         "v1.1.0",
         "AfterBurnerClimax-v1.1.0-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2390,6 +2400,7 @@ async fn darkuni_lode_runner_2009_xbla_rexglue_upstream_release_download_4216() 
         "v1.0.1",
         "lode_runner-v1.0.1-win-amd64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2401,6 +2412,7 @@ async fn darkuni_outrun_arcade_recomp_upstream_release_download_4133() {
         "v1.0.1",
         "outrun_arcade-v1.0.1-win-amd64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2412,6 +2424,7 @@ async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
         "v1.0.0",
         "PokerSmash-v1.0.0-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2423,6 +2436,7 @@ async fn mgrayd_fable2pubgames_recomp_upstream_release_download_3995() {
         "v0.1.0",
         "Fable2PubGames-Recomp-v0.1.0-win-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2445,6 +2459,7 @@ async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
         "v2.1",
         "FFTARecomp-v2.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2461,6 +2476,7 @@ async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
         "v0.2.0",
         "shantae-recomp-0.2.0-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2487,6 +2503,7 @@ async fn geometry_wars_retro_evolved_2_geometry_wars_2_recompiled_upstream_relea
         "v0.6.1",
         "GeometryWarsRetroEvolved2-v0.6.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2498,6 +2515,7 @@ async fn hard_corps_uprising_hard_corps_uprising_recompiled_upstream_release_dow
         "v0.7.1",
         "HardCorpsUprising-v0.7.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2509,6 +2527,7 @@ async fn crackdown_crackdown_recompiled_upstream_release_download_2559() {
         "v0.6.2",
         "Crackdown-v0.6.2-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2530,6 +2549,7 @@ async fn kirby1237_parappatherapperrecomp_upstream_release_download_1864() {
         "v0.1.1",
         "prtr-v0.1.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2546,6 +2566,7 @@ async fn eandis_sdoj_recomp_upstream_release_download_1880() {
         "v1.51.4",
         "sdoj.recomp.1.51.4.win-amd64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2573,6 +2594,7 @@ async fn def_jam_vendetta_playstation_2_def_jam_vendetta_recompiled_upstream_rel
         "v0.6.2",
         "Def-Jam-Vendetta-Recompiled-Windows.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2596,6 +2618,7 @@ async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
         "v1.1",
         "ChocoboDungeon-v1.1-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2606,6 +2629,7 @@ async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
         "v0.2",
         "MyLifeAsADarklord-v0.2-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2616,6 +2640,7 @@ async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
         "v0.5",
         "MyLifeAsAKing-v0.5-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2626,6 +2651,7 @@ async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
         "v1.0",
         "TargetTerror-v1.0-win64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2636,6 +2662,7 @@ async fn hybrid_heaven_ogdanimal_upstream_release_download_2546() {
         "v1.0.1",
         "HybridHeaven-1.0.1-windows-x64.zip",
         None,
+        &[],
     )
     .await;
 }
@@ -2663,50 +2690,86 @@ fn embedded_service() -> (tempfile::TempDir, PortcoveService, CatalogDownloadReq
     (temporary, service, request)
 }
 
-#[test]
-fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
-    use CatalogDownloadRefusal::ManagedRoute;
-    use Platform::{LinuxX86_64, MacosAarch64, MacosX86_64, WindowsX86_64};
-    let (_temporary, service, _) = embedded_service();
-    let refusal = |id: &str, platform| service.listing_download_refusal(id, platform).unwrap();
-    // Managed Windows route; every other host keeps the upstream download, listed or not.
-    assert_eq!(
-        refusal("wave-race-64-recomp", WindowsX86_64),
-        Some(ManagedRoute)
-    );
-    assert_eq!(refusal("wave-race-64-recomp", LinuxX86_64), None);
-    assert_eq!(refusal("wave-race-64-recomp", MacosAarch64), None);
-    assert_eq!(
-        refusal("diddy-kong-racing-golden-balloon", WindowsX86_64),
-        Some(ManagedRoute)
-    );
-    assert_eq!(
-        refusal("diddy-kong-racing-golden-balloon", LinuxX86_64),
-        None
-    );
-    assert_eq!(
-        refusal("diddy-kong-racing-golden-balloon", MacosAarch64),
-        None
-    );
-    assert_eq!(
-        refusal("diddy-kong-racing-golden-balloon", MacosX86_64),
-        None
-    );
-    assert_eq!(
-        refusal("road-rash-64-recompiled", WindowsX86_64),
-        Some(ManagedRoute)
-    );
-    assert_eq!(refusal("road-rash-64-recompiled", LinuxX86_64), None);
-    // A prepared-player integration needs the upstream package, so it keeps the download.
-    assert_eq!(refusal("dkc2-recomp", WindowsX86_64), None);
-    // A held managed route offers no Install; its own hold explains the download.
-    let held = "open-nectar-pikmin";
-    assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
-    assert_ne!(refusal(held, WindowsX86_64), Some(ManagedRoute));
+fn install_assessment(
+    availability: crate::PortActionAvailability,
+    reason: crate::PortActionReason,
+) -> crate::PortActionAssessment {
+    crate::PortActionAssessment {
+        action: PortAction::Install,
+        availability,
+        reason,
+        definition: None,
+    }
 }
 
 #[test]
-fn listings_with_unknown_platforms_keep_the_download_on_every_host() {
+fn only_a_usable_install_assessment_replaces_the_listing_download() {
+    use crate::PortActionAvailability as Availability;
+    use crate::PortActionReason as Reason;
+    let managed = Some(CatalogDownloadRefusal::ManagedRoute);
+    for (assessment, expected) in [
+        (
+            install_assessment(Availability::Allowed, Reason::Available),
+            managed,
+        ),
+        (
+            install_assessment(Availability::Waiting, Reason::MissingSource),
+            managed,
+        ),
+        // A definition held for Install (revoked, stale, withdrawn) keeps the download.
+        (
+            install_assessment(Availability::Held, Reason::DefinitionIneligible),
+            None,
+        ),
+        (
+            install_assessment(Availability::Held, Reason::RouteNotOffered),
+            None,
+        ),
+        (
+            install_assessment(Availability::NotOffered, Reason::AlreadyRegistered),
+            None,
+        ),
+        (
+            install_assessment(Availability::NotOffered, Reason::UnsupportedPlatform),
+            None,
+        ),
+    ] {
+        assert_eq!(
+            managed_route_refusal(std::slice::from_ref(&assessment)),
+            expected,
+            "{assessment:?}"
+        );
+    }
+    assert_eq!(managed_route_refusal(&[]), None);
+}
+
+#[test]
+fn managed_install_hosts_refuse_the_listing_download_and_others_keep_it() {
+    let (_temporary, service, _) = embedded_service();
+    let host = Platform::current().unwrap();
+    let managed = Some(CatalogDownloadRefusal::ManagedRoute);
+    let windows = (host == Platform::WindowsX86_64)
+        .then_some(managed)
+        .flatten();
+    let refusal = |id: &str| service.listing_download_refusal(id).unwrap();
+    // Managed only on Windows; every other host keeps the upstream download.
+    assert_eq!(refusal("wave-race-64-recomp"), windows);
+    assert_eq!(refusal("diddy-kong-racing-golden-balloon"), windows);
+    assert_eq!(refusal("road-rash-64-recompiled"), windows);
+    // Managed on every desktop platform.
+    assert_eq!(refusal("sssv-recompiled"), managed);
+    // A prepared-player integration offers no Install, so it keeps the download.
+    assert_eq!(refusal("dkc2-recomp"), None);
+    // A reviewed acquisition hold withdraws Install; its own hold explains the download.
+    let held = "open-nectar-pikmin";
+    assert!(crate::managed_runtime_policy::acquisition_hold(&service.catalog, held).is_some());
+    assert_eq!(refusal(held), None);
+    // Listing-only titles have no managed route.
+    assert_eq!(refusal("exit-rexglue-exit-exit1"), None);
+}
+
+#[test]
+fn listings_with_unknown_platforms_keep_the_download() {
     let (_temporary, service, request) = fixture();
     assert!(
         service
@@ -2716,19 +2779,10 @@ fn listings_with_unknown_platforms_keep_the_download_on_every_host() {
             .platforms
             .is_empty()
     );
-    for platform in [
-        Platform::WindowsX86_64,
-        Platform::LinuxX86_64,
-        Platform::MacosX86_64,
-        Platform::MacosAarch64,
-    ] {
-        assert_eq!(
-            service
-                .listing_download_refusal(&request.port_id, platform)
-                .unwrap(),
-            None
-        );
-    }
+    assert_eq!(
+        service.listing_download_refusal(&request.port_id).unwrap(),
+        None
+    );
 }
 
 #[tokio::test]
@@ -2748,9 +2802,7 @@ async fn unlisted_host_keeps_the_upstream_download_for_a_newly_published_package
         .with_listing_document(document)
         .unwrap();
     assert_eq!(
-        service
-            .listing_download_refusal(&request.port_id, host)
-            .unwrap(),
+        service.listing_download_refusal(&request.port_id).unwrap(),
         None
     );
     let upstream = GithubFixture::new(archive(), None, None);
@@ -2811,4 +2863,87 @@ async fn managed_host_refuses_the_download_but_keeps_existing_installation_route
             .any(|action| action.action == crate::ListingAction::AttachExisting && action.allowed)
     );
     assert!(service.pending_setups().unwrap().is_empty());
+}
+
+// A user-selected copy makes Install report AlreadyRegistered, so pointing at
+// Install would be a dead end. The upstream download stays available, and the
+// managed NativePortable title runs the full download, preview and pending path.
+#[tokio::test]
+async fn user_selected_registration_on_a_managed_host_keeps_the_download() {
+    let (temporary, service, mut request) = embedded_service();
+    let id = "body-harvest-recompiled";
+    request.port_id = id.into();
+    assert_eq!(
+        service.catalog.port(id).unwrap().adapter,
+        crate::AdapterKind::NativePortable
+    );
+    let working = temporary.path().join("prepared body harvest");
+    fs::create_dir(&working).unwrap();
+    let executable = crate::test_fixture::build_probe(&working);
+    let arguments: Vec<String> = Vec::new();
+    let preview = service
+        .preview_user_selected_runtime(id, &executable, &working, &arguments)
+        .unwrap();
+    let authorization = service
+        .authorize_user_selected_runtime(
+            id,
+            &executable,
+            &working,
+            &arguments,
+            &preview.preview_sha256,
+        )
+        .unwrap();
+    let record = service
+        .register_user_selected_runtime(id, &executable, &working, &arguments, &authorization.token)
+        .unwrap();
+    assert!(record.user_selected.is_some());
+    assert_eq!(service.listing_download_refusal(id).unwrap(), None);
+
+    let listing = service.catalog.listing(id).unwrap();
+    let repository = crate::release::catalog_download_repository(
+        listing
+            .release_url
+            .as_deref()
+            .unwrap_or(&listing.project_url),
+    )
+    .unwrap();
+    let bytes = archive();
+    let expected = crate::signed_catalog::digest(&bytes);
+    let github =
+        GithubFixture::for_repository(&repository, bytes, Some(format!("sha256:{expected}")), None);
+    github.assets.lock().unwrap()[0]["name"] = json!("BodyHarvestRecompiled-v1.0.0-Windows.zip");
+    github.releases.lock().unwrap()[0]["tag_name"] = json!("v1.0.0");
+    let options = service
+        .catalog_download_options_with_provider(id, None, None, Some(&github.provider))
+        .await
+        .unwrap();
+    assert!(options.allowed, "{:?}", options.reason);
+    assert_eq!(options.refusal, None);
+    assert_eq!(options.candidates.len(), 1);
+    let preview = service
+        .catalog_download_preview_with_provider(&request, &github.provider)
+        .await
+        .unwrap();
+    assert_eq!(preview.artifact.sha256.as_deref(), Some(expected.as_str()));
+    let pending = service
+        .download_catalog_package_with_provider(
+            &request,
+            &preview.preview_sha256,
+            |_| {},
+            &github.provider,
+        )
+        .await
+        .unwrap();
+    assert_eq!(pending.port_id, id);
+    assert_eq!(pending.state, PendingSetupState::Downloaded);
+    assert_eq!(pending.archive_sha256, expected);
+    assert_eq!(
+        service.pending_setups().unwrap().as_slice(),
+        std::slice::from_ref(&pending)
+    );
+    // The registration and its external files stay exactly as the player left them.
+    let status = service.library.status(id, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.external_runtime.unwrap().id, record.id);
+    assert!(executable.exists());
+    assert!(service.library.all_installs().unwrap().is_empty());
 }

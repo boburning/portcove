@@ -127,6 +127,24 @@ impl CatalogDownloadRefusal {
     }
 }
 
+/// Refuse the listing download only when Install is a usable next step: allowed,
+/// or waiting only for the player's game files. A held, not-offered or already
+/// registered Install keeps the download, so neither route is a dead end.
+pub(crate) fn managed_route_refusal(
+    port_actions: &[crate::PortActionAssessment],
+) -> Option<CatalogDownloadRefusal> {
+    port_actions
+        .iter()
+        .any(|assessment| {
+            assessment.action == PortAction::Install
+                && matches!(
+                    assessment.availability,
+                    crate::PortActionAvailability::Allowed | crate::PortActionAvailability::Waiting
+                )
+        })
+        .then_some(CatalogDownloadRefusal::ManagedRoute)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadCandidates {
     pub port_id: String,
@@ -485,28 +503,26 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// One fresh route per host: a managed Install that the current definition
-    /// offers here replaces the upstream download. Descriptive listing platforms
-    /// never refuse a host, so a newly published upstream package stays reachable.
+    /// One fresh route per host: when this library's own Install assessment for
+    /// the host is allowed or waiting only for the player's game files, Install
+    /// replaces the upstream download. That assessment already folds in the
+    /// library's registrations and installations, acquisition holds, pending
+    /// setup and the definition's Install eligibility, and Desktop uses the same
+    /// test to prefer Install. Descriptive listing platforms never refuse a host.
     pub(crate) fn listing_download_refusal(
         &self,
         port_id: &str,
-        platform: Platform,
     ) -> Result<Option<CatalogDownloadRefusal>> {
-        if let Ok(port) = self.catalog.port(port_id)
-            && crate::managed_runtime_policy::acquisition_hold(&self.catalog, port_id).is_none()
-            && crate::definition_eligibility::route_exclusion(
-                port,
-                Default::default(),
-                platform,
-                PortAction::Install,
-            )
-            .is_none()
-        {
-            return Ok(Some(CatalogDownloadRefusal::ManagedRoute));
-        }
         self.catalog.listing(port_id)?;
-        Ok(None)
+        if self.catalog.port(port_id).is_err() {
+            return Ok(None);
+        }
+        // An unreadable status offers no Install to point at, so it keeps the
+        // download; the download path repeats its own state checks.
+        let Ok(status) = self.status(port_id) else {
+            return Ok(None);
+        };
+        Ok(managed_route_refusal(&status.port_actions))
     }
 
     fn require_download_available(&self, port_id: &str) -> Result<()> {
@@ -514,7 +530,7 @@ impl PortcoveService {
         if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
             return Err(PortcoveError::unsupported(reason.clone()));
         }
-        if let Some(refusal) = self.listing_download_refusal(port_id, Platform::current()?)? {
+        if let Some(refusal) = self.listing_download_refusal(port_id)? {
             return Err(PortcoveError::unsupported(refusal.message())
                 .detail("refusal", enum_value(refusal)?));
         }

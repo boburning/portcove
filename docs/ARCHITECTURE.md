@@ -198,8 +198,11 @@ user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
 Download availability offers one fresh route per host: Core refuses the listing
-download with a typed `CatalogDownloadRefusal` when the current definition
-offers managed Install there. Descriptive listing platforms never refuse a host.
+download with a typed `CatalogDownloadRefusal` only when the library's own
+Install assessment for the host is allowed or waiting for game files, the same
+test Desktop uses to prefer Install. Held or already-registered Install keeps the
+download. Target inspection reports the refusal per target for a fresh library.
+Descriptive listing platforms never refuse a host.
 Registering an existing copy and installed copies are unaffected; Desktop and
 the CLI show the explanation instead of download choices.
 Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz,

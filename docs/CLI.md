@@ -517,7 +517,10 @@ since can differ.
   also reports its catalog presence (`operational`, `listing_only` or
   `not_found`), declared platforms, the reviewed acquisition hold, the download
   restriction, and whether the managed route must resolve a provider release on
-  that target.
+  that target. A target where `install` is offered also reports
+  `listing_download_refusal: "managed-route"`: a fresh library offers Install
+  there instead of the upstream listing download. A library's own
+  registration, pending setup or definition hold can keep the download.
 - The report names its `producer`: the source revision the build recorded
   (`PORTCOVE_SOURCE_REVISION`, or `null` when none was recorded), the compiled
   Cargo features that can change catalog or archive behavior, the SHA-256 of the
