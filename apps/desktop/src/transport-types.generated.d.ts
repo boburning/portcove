@@ -1995,6 +1995,12 @@ export interface BackupRecord {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
@@ -4876,6 +4882,16 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  /**
+   * Unknown player-side files in the versions being removed (#5359).
+   * Removal copies them to a new backup's separate area before it deletes
+   * the version folders; restore does not put them back. Omitted when zero.
+   */
+  unknown_file_count?: number;
+  /**
+   * The first unknown file paths, each relative to its version folder.
+   */
+  unknown_files?: string[];
   [k: string]: unknown;
 }
 export interface OutputPortableSaveExportPreview {
@@ -4997,6 +5013,12 @@ export interface BackupRecord1 {
   port_id: string;
   sha256: string;
   size: number;
+  /**
+   * Unknown player-side files kept in the backup's separate area (#5359).
+   * They are not counted in `file_count`, and restore does not put them
+   * back. Omitted when zero.
+   */
+  unknown_file_count?: number;
   [k: string]: unknown;
 }
 /**
