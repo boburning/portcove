@@ -19492,6 +19492,60 @@ fn main() {
     }
 
     #[test]
+    fn a_launch_whose_supervisor_ended_is_reported_lost_only_while_it_is_unfinished() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let service = launch_service_with_faults(
+            library.clone(),
+            Arc::new(FailLaunchAt(LifecycleFaultPoint::LaunchChildStarted)),
+        );
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "50".into(),
+            "recovered".into(),
+            "0".into(),
+        ];
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+        service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                    disc: None,
+                },
+                |_| {},
+                |_| {},
+            )
+            .unwrap_err();
+        // The recorded supervisor is this very process, which is alive.
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE launch_sessions SET supervisor_pid=?2 WHERE id=?1",
+                rusqlite::params![request_id, u32::MAX],
+            )
+            .unwrap();
+        assert!(library.launch_supervisor_lost(&request_id).unwrap());
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&request_id)
+            .unwrap();
+        assert!(
+            !library.launch_supervisor_lost(&request_id).unwrap(),
+            "a recovered, finished launch is not lost"
+        );
+    }
+
+    #[test]
     fn recovers_launch_child_started() {
         assert_supervisor_crashes_after_spawn_or_during_collection_never_become_success(
             LifecycleFaultPoint::LaunchChildStarted,

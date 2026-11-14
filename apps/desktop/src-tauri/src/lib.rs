@@ -1966,7 +1966,17 @@ fn observe_launch_completion(
                         }
                         match library.launch_request(request_id) {
                             Ok(Some(request)) if request.outcome.is_none() => {
-                                LaunchObservationState::Active
+                                // A supervisor that ended without recording an outcome never
+                                // will: stop following it so its last step does not linger.
+                                // Recovery of the session stays an explicit core action.
+                                match library.launch_supervisor_lost(request_id) {
+                                    Ok(true) => {
+                                        let _ = fs::remove_file(&progress);
+                                        LaunchObservationState::Complete
+                                    }
+                                    Ok(false) => LaunchObservationState::Active,
+                                    Err(_) => LaunchObservationState::Retry,
+                                }
                             }
                             Ok(_) => {
                                 let _ = fs::remove_file(&progress);
