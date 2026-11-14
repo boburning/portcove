@@ -140,6 +140,15 @@ export async function retainNativeEnlargement(
     } catch (retentionFailure) {
       console.error(`Could not retain enlargement failure metrics: ${String(retentionFailure)}`);
     }
+    // Hosted runs keep only the log, so name the widest offenders in the failure itself.
+    if (failure instanceof Error && observed.overflowingElements?.length)
+      failure.message += `\nOverflowing: ${observed.overflowingElements
+        .slice(0, 6)
+        .map(
+          ({ tag, className, text, right }) =>
+            `${tag.toLowerCase()}.${className.split(/\s+/).slice(0, 3).join(".")} "${text.slice(0, 40)}" right=${Math.round(right)}`,
+        )
+        .join("; ")}`;
     throw failure;
   }
   const file = path.join(output, `${prefix}-400-${stage}.json`);
