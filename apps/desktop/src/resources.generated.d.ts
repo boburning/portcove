@@ -924,8 +924,8 @@ export default interface Resources {
     },
     "resources": {
       "funding": {
-        "heading": "Support the developers",
-        "note": "The project’s developers list these pages for anyone who wants to support their work. Payments happen on each site, not through Portcove."
+        "heading": "Help fund this project",
+        "note": "The project’s developers list these pages for people who want to fund their work. Each link opens in your browser; Portcove takes no part in any payment."
       },
       "heading": "Project & support",
       "support": "Create support report",

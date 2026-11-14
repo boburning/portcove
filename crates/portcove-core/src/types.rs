@@ -1024,9 +1024,10 @@ pub struct PortListing {
     pub listed_at: Option<String>,
     /// Reviewed pages where the upstream developers accept support, normally taken
     /// from the project's `FUNDING.yml` at authoring time. Descriptive only: public
-    /// HTTPS links that grant nothing. Requires listing format 10.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub funding_urls: Vec<String>,
+    /// HTTPS links that grant nothing. Requires listing format 10; when present it
+    /// is never empty, so an earlier strict reader never meets an inert empty key.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub funding_urls: Option<Vec<String>>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,

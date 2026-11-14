@@ -463,3 +463,67 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
         10
     );
 }
+
+#[tokio::test]
+async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_embedded_listings()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded();
+    assert!(
+        embedded
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    // A format-9 snapshot (no funding links) that corrects one funded embedded record.
+    let mut corrected = serde_json::to_value(embedded.listing("severed-chains").unwrap()).unwrap();
+    corrected.as_object_mut().unwrap().remove("funding_urls");
+    corrected["summary"] = json!("Corrected descriptive summary.");
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(9);
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(corrected);
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let (catalog, _) = library.load_catalog().unwrap();
+    // Snapshot replacement: the delivered record carries no links, so none are shown for it.
+    let replaced = catalog.listing("severed-chains").unwrap();
+    assert_eq!(replaced.summary, "Corrected descriptive summary.");
+    assert!(replaced.funding_urls.is_none());
+    // Bundled records the snapshot omits keep their links, so the combined directory is 10.
+    assert!(
+        catalog
+            .listing("ambermoon-ambermoon-net")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    assert_eq!(catalog.listing_document().format_version, 10);
+
+    // A delivered format-10 snapshot carries links for this reader.
+    candidate["revision"] = json!(2);
+    candidate["directory"]["format_version"] = json!(10);
+    candidate["directory"]["listings"][1]["funding_urls"] = json!(["https://ko-fi.com/example"]);
+    let next_root = publish(&fixture, &key, 2, &candidate).await;
+    assert!(
+        refresh(&library, &fixture, &next_root)
+            .await
+            .unwrap()
+            .selected
+    );
+    let (catalog, _) = library.load_catalog().unwrap();
+    assert_eq!(
+        catalog
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .as_deref(),
+        Some(&["https://ko-fi.com/example".to_owned()][..])
+    );
+}

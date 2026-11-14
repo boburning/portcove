@@ -2898,9 +2898,10 @@ export interface PortListing {
   /**
    * Reviewed pages where the upstream developers accept support, normally taken
    * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
-   * HTTPS links that grant nothing. Requires listing format 10.
+   * HTTPS links that grant nothing. Requires listing format 10; when present it
+   * is never empty, so an earlier strict reader never meets an inert empty key.
    */
-  funding_urls?: string[];
+  funding_urls?: string[] | null;
   id: string;
   issue_number?: number | null;
   /**

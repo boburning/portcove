@@ -322,10 +322,10 @@ it("lists reviewed support pages only when the listing names them", async () => 
     ]),
   );
   await expect
-    .element(page.getByRole("heading", { name: "Support the developers", exact: true }))
+    .element(page.getByRole("heading", { name: "Help fund this project", exact: true }))
     .toBeVisible();
   const links = page
-    .getByRole("region", { name: "Support the developers" })
+    .getByRole("region", { name: "Help fund this project" })
     .getByRole("link")
     .elements();
   expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([

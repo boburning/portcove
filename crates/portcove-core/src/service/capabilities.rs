@@ -578,12 +578,14 @@ mod tests {
             assert!(
                 funded.export_format(version).unwrap().listings[0]
                     .funding_urls
-                    .is_empty()
+                    .is_none()
             );
         }
         assert_eq!(
-            funded.export_format(10).unwrap().listings[0].funding_urls,
-            urls
+            funded.export_format(10).unwrap().listings[0]
+                .funding_urls
+                .as_deref(),
+            Some(&urls.map(String::from)[..])
         );
     }
 
@@ -600,6 +602,7 @@ mod tests {
             &[" https://ko-fi.com/example"],
             &["javascript:alert(1)"],
             &[""],
+            &[],
             &many,
         ] {
             let document = crate::CatalogListingDocument {

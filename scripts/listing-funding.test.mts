@@ -3,11 +3,14 @@ import test from "node:test";
 import {
   firstFunding,
   fundingCustomUrl,
-  fundingUrlsFromYaml,
   githubRepository,
   graphqlFundingReader,
+  missingRepositoryReason,
+  parseFundingYaml,
+  plannedFunding,
   resolveFunding,
   withFundingUrls,
+  type FundingResolution,
 } from "./listing-funding.mts";
 
 void test("known FUNDING.yml platforms become fixed-order HTTPS links", () => {
@@ -20,39 +23,57 @@ void test("known FUNDING.yml platforms become fixed-order HTTPS links", () => {
     "liberapay: libre",
     "buy_me_a_coffee: coffee",
     "tidelift: npm/package",
-    "community_bridge: ignored",
+    "community_bridge: ''",
   ].join("\n");
-  assert.deepEqual(fundingUrlsFromYaml(text), [
-    "https://github.com/sponsors/first",
-    "https://github.com/sponsors/second",
-    "https://www.patreon.com/patron",
-    "https://opencollective.com/collective",
-    "https://ko-fi.com/maker",
-    "https://liberapay.com/libre",
-    "https://buymeacoffee.com/coffee",
-    "https://example.com/donate",
-  ]);
+  assert.deepEqual(parseFundingYaml(text), {
+    urls: [
+      "https://github.com/sponsors/first",
+      "https://github.com/sponsors/second",
+      "https://www.patreon.com/patron",
+      "https://opencollective.com/collective",
+      "https://ko-fi.com/maker",
+      "https://liberapay.com/libre",
+      "https://buymeacoffee.com/coffee",
+      "https://example.com/donate",
+    ],
+    // Unsupported platforms and unusable values are reported, not silently ignored.
+    skipped: ["tidelift", 'custom: "http://insecure.example"', 'custom: "paypal.me/someone"'],
+    dropped: [],
+  });
 });
 
-void test("malformed FUNDING.yml content yields no links", () => {
-  for (const text of [
-    "",
-    "github:",
-    "github: ['../escape', 'a b', '']",
-    "custom: ['javascript:alert(1)', 'https://user:pw@example.com', 'https://example.com:8443/x']",
-    "- just\n- a list",
-    "github: [unclosed",
-    "a: &x 1\nb: *x",
-    `custom: '${"https://example.com/".padEnd(17_000, "a")}'`,
-  ])
-    assert.deepEqual(fundingUrlsFromYaml(text), [], text.slice(0, 80));
+void test("files that cannot be read as usable links are unknown, not empty", () => {
+  for (const [text, reason] of [
+    ["", "no-supported-links"],
+    ["github:", "no-supported-links"],
+    ["tidelift: npm/package", "no-supported-links"],
+    ["github: ['../escape', 'a b', '']", "no-supported-links"],
+    [
+      "custom: ['javascript:alert(1)', 'https://user:pw@example.com', 'https://example.com:8443/x']",
+      "no-supported-links",
+    ],
+    ["- just\n- a list", "malformed"],
+    ["github: [unclosed", "malformed"],
+    ["anchor: &x first\ngithub: *x", "malformed"],
+    [`custom: '${"https://example.com/".padEnd(17_000, "a")}'`, "oversized"],
+  ] as const) {
+    const parsed = parseFundingYaml(text);
+    assert.ok("unknown" in parsed && parsed.unknown === reason, `${text.slice(0, 60)}: ${reason}`);
+  }
 });
 
-void test("links are deduplicated and bounded", () => {
+void test("links over the Core bound keep the first in order and report the rest", () => {
   const custom = Array.from({ length: 20 }, (_, index) => `https://example.com/${index % 15}`);
-  const urls = fundingUrlsFromYaml(`github: dup\ncustom: ${JSON.stringify(custom)}`);
-  assert.equal(urls.length, 12);
-  assert.equal(new Set(urls).size, 12);
+  const parsed = parseFundingYaml(`github: dup\ncustom: ${JSON.stringify(custom)}`);
+  assert.ok("urls" in parsed);
+  assert.equal(parsed.urls.length, 12);
+  assert.equal(parsed.urls[0], "https://github.com/sponsors/dup");
+  assert.deepEqual(parsed.dropped, [
+    "https://example.com/11",
+    "https://example.com/12",
+    "https://example.com/13",
+    "https://example.com/14",
+  ]);
   assert.equal(fundingCustomUrl(' "https://example.com/a"'), undefined);
   assert.equal(fundingCustomUrl("https://example.com"), "https://example.com/");
 });
@@ -71,19 +92,44 @@ void test("only github.com project URLs are looked up", () => {
     assert.equal(githubRepository(url), undefined, url);
 });
 
-void test("the first readable file decides and unknown answers stay unknown", () => {
+void test("only a readable project with no file anywhere means no links", () => {
+  const repository = { owner: "owner", name: "game" };
   const funded = "ko_fi: maker";
-  assert.deepEqual(firstFunding([null, funded, "github: other"], "missing"), [
-    "https://ko-fi.com/maker",
-  ]);
-  assert.deepEqual(firstFunding([null, null, null], [funded, null, null]), [
-    "https://ko-fi.com/maker",
-  ]);
-  assert.deepEqual(firstFunding([null, null, null], "missing"), []);
-  assert.equal(firstFunding([null, undefined, funded], "missing"), undefined);
-  assert.equal(firstFunding([null, null, null], null), undefined);
-  assert.equal(firstFunding(null, "missing"), undefined);
-  assert.equal(firstFunding("missing", [funded, null, null]), undefined);
+  assert.deepEqual(firstFunding(repository, [null, funded, "github: other"], "missing"), {
+    kind: "links",
+    source: "owner/game:FUNDING.yml",
+    urls: ["https://ko-fi.com/maker"],
+    skipped: [],
+    dropped: [],
+  });
+  assert.deepEqual(firstFunding(repository, [null, null, null], [funded, null, null]), {
+    kind: "links",
+    source: "owner/.github:.github/FUNDING.yml",
+    urls: ["https://ko-fi.com/maker"],
+    skipped: [],
+    dropped: [],
+  });
+  assert.deepEqual(firstFunding(repository, [null, null, null], "missing"), { kind: "none" });
+  assert.deepEqual(firstFunding(repository, [null, null, null], [null, null, null]), {
+    kind: "none",
+  });
+  for (const [own, owner, reason] of [
+    [[null, undefined, funded], "missing", "unreadable"],
+    [[null, null, null], null, "unreadable"],
+    [null, "missing", "unreadable"],
+    ["missing", [funded, null, null], "project-missing"],
+    [["github: [broken", null, null], "missing", "malformed"],
+    [["tidelift: npm/x", null, null], "missing", "no-supported-links"],
+  ] as const)
+    assert.equal(
+      (firstFunding(repository, own as never, owner as never) as { reason?: string }).reason,
+      reason,
+    );
+  // The first file found decides, even when it has nothing usable: no fallback past it.
+  assert.equal(
+    firstFunding(repository, ["tidelift: npm/x", null, null], [funded, null, null]).kind,
+    "unknown",
+  );
 });
 
 void test("the GraphQL reader separates absence, unreadable files and incomplete answers", async () => {
@@ -144,11 +190,65 @@ void test("projects without their own file fall back to the owner's .github repo
     ["a/own", "b/none", "c/none", "d/unknown"],
     ["b/.github", "c/.github"],
   ]);
-  assert.deepEqual(Object.fromEntries(resolved), {
-    own: ["https://github.com/sponsors/a"],
-    fallback: ["https://liberapay.com/b"],
-    nothing: [],
+  assert.deepEqual(
+    Object.fromEntries(
+      [...resolved].map(([id, value]) => [id, "urls" in value ? value.urls : value.kind]),
+    ),
+    {
+      own: ["https://github.com/sponsors/a"],
+      fallback: ["https://liberapay.com/b"],
+      nothing: "none",
+      unknown: "unknown",
+    },
+  );
+});
+
+void test("existing links are replaced or removed only with --replace", () => {
+  const links = (urls: string[]): FundingResolution => ({
+    kind: "links",
+    urls,
+    source: "o/r:FUNDING.yml",
+    skipped: [],
+    dropped: [],
   });
+  const authored = ["https://example.org/hand-authored"];
+  assert.deepEqual(plannedFunding(undefined, links(["https://ko-fi.com/a"]), false), {
+    urls: ["https://ko-fi.com/a"],
+  });
+  assert.deepEqual(plannedFunding(authored, links(["https://ko-fi.com/a"]), false), {
+    held: "replace",
+  });
+  assert.deepEqual(plannedFunding(authored, { kind: "none" }, false), { held: "remove" });
+  assert.deepEqual(plannedFunding(authored, { kind: "none" }, true), { urls: [] });
+  assert.deepEqual(plannedFunding(authored, links(["https://ko-fi.com/a"]), true), {
+    urls: ["https://ko-fi.com/a"],
+  });
+  assert.deepEqual(plannedFunding(authored, links(authored), false), {});
+  assert.deepEqual(plannedFunding(undefined, { kind: "none" }, true), {});
+  for (const replace of [false, true])
+    assert.deepEqual(
+      plannedFunding(authored, { kind: "unknown", reason: "malformed" }, replace),
+      {},
+    );
+});
+
+void test("a repository GraphQL cannot resolve is reported as moved or gone", async () => {
+  const responses = new Map<string, { status: number | null; data: unknown }>([
+    ["/repos/old/name", { status: 301, data: { url: "https://api.github.com/repositories/42" } }],
+    ["/repositories/42", { status: 200, data: { full_name: "new-owner/new-name" } }],
+    ["/repos/gone/name", { status: 404, data: undefined }],
+    ["/repos/odd/name", { status: 500, data: undefined }],
+  ]);
+  const get = async (path: string) => responses.get(path) ?? { status: null, data: undefined };
+  assert.equal(
+    await missingRepositoryReason({ owner: "old", name: "name" }, get),
+    "moved to new-owner/new-name; update project_url",
+  );
+  assert.equal(await missingRepositoryReason({ owner: "gone", name: "name" }, get), "not found");
+  assert.equal(
+    await missingRepositoryReason({ owner: "odd", name: "name" }, get),
+    "not resolvable",
+  );
 });
 
 void test("the port file edit touches only funding_urls", () => {

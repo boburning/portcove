@@ -45,7 +45,7 @@ impl From<&PortDefinition> for PortListing {
             variant_label: presentation.and_then(|value| value.variant_label.clone()),
             issue_number: None,
             listed_at: None,
-            funding_urls: Vec::new(),
+            funding_urls: None,
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -92,7 +92,7 @@ impl CatalogListingDocument {
         if format_version < 10 {
             for listing in &mut document.listings {
                 // Funding links are inert; earlier strict readers never see them.
-                listing.funding_urls.clear();
+                listing.funding_urls = None;
             }
         }
         if format_version < 9 {
@@ -173,7 +173,7 @@ impl CatalogListingDocument {
         if self
             .listings
             .iter()
-            .any(|listing| !listing.funding_urls.is_empty())
+            .any(|listing| listing.funding_urls.is_some())
         {
             self.format_version = self.format_version.max(10);
         }
@@ -252,7 +252,7 @@ impl CatalogListingDocument {
             && self
                 .listings
                 .iter()
-                .any(|listing| !listing.funding_urls.is_empty())
+                .any(|listing| listing.funding_urls.is_some())
         {
             return Err(PortcoveError::unsupported(
                 "funding links require listing format 10",
@@ -672,16 +672,18 @@ impl PortListing {
                 ));
             }
         }
-        let mut funding = HashSet::new();
-        if self.funding_urls.len() > MAX_FUNDING_URLS
-            || self
-                .funding_urls
-                .iter()
-                .any(|url| !valid_url(url) || !funding.insert(url))
-        {
-            return Err(PortcoveError::usage(format!(
-                "funding links must be at most {MAX_FUNDING_URLS} distinct public HTTPS URLs"
-            )));
+        if let Some(urls) = &self.funding_urls {
+            let mut funding = HashSet::new();
+            if urls.is_empty()
+                || urls.len() > MAX_FUNDING_URLS
+                || urls
+                    .iter()
+                    .any(|url| !valid_url(url) || !funding.insert(url))
+            {
+                return Err(PortcoveError::usage(format!(
+                    "funding links must be 1 to {MAX_FUNDING_URLS} distinct public HTTPS URLs; omit the field when there are none"
+                )));
+            }
         }
         for hints in self.download_asset_hints.values() {
             let mut unique = HashSet::new();
@@ -1621,7 +1623,7 @@ mod observation_metadata_tests {
         // This test is about setup references, so drop the unrelated date and funding requirements.
         for listing in &mut document.listings {
             listing.listed_at = None;
-            listing.funding_urls.clear();
+            listing.funding_urls = None;
         }
         document.format_version = 6;
         let legacy = document.export_format(5).unwrap();
@@ -1663,26 +1665,38 @@ mod observation_metadata_tests {
     }
     #[test]
     fn a_directory_carrying_funding_links_is_projected_as_format_ten() {
-        let listing = |urls: &[&str]| -> PortListing {
-            serde_json::from_value(serde_json::json!({
+        let listing = |urls: Option<&[&str]>| -> PortListing {
+            let mut value = serde_json::json!({
                 "id": "fixture", "name": "Fixture", "summary": "Fixture",
-                "project_url": "https://example.com/fixture", "funding_urls": urls
-            }))
-            .unwrap()
+                "project_url": "https://example.com/fixture"
+            });
+            if let Some(urls) = urls {
+                value["funding_urls"] = serde_json::json!(urls);
+            }
+            serde_json::from_value(value).unwrap()
         };
         let mut funded = CatalogListingDocument {
             format_version: 6,
-            listings: vec![listing(&["https://ko-fi.com/example"])],
+            listings: vec![listing(Some(&["https://ko-fi.com/example"]))],
         };
         funded.promote_projected_format();
         assert_eq!(funded.format_version, 10);
         assert!(funded.validate().is_ok());
         let mut unfunded = CatalogListingDocument {
             format_version: 6,
-            listings: vec![listing(&[])],
+            listings: vec![listing(None)],
         };
         unfunded.promote_projected_format();
         assert_eq!(unfunded.format_version, 6, "no links keep the format");
+        // An explicit empty list is refused at every format rather than accepted as inert.
+        for format_version in [6, 9, 10] {
+            let mut empty = CatalogListingDocument {
+                format_version,
+                listings: vec![listing(Some(&[]))],
+            };
+            empty.promote_projected_format();
+            assert!(empty.validate().is_err(), "{format_version}");
+        }
     }
 
     #[test]

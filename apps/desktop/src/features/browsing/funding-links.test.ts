@@ -17,24 +17,62 @@ it("labels known platforms with their account and other sites by host", () => {
       "https://ko-fi.com/maker",
     ]),
   ).toEqual([
-    { url: "https://github.com/sponsors/first", label: "GitHub Sponsors", account: "first" },
-    { url: "https://www.patreon.com/patron", label: "Patreon", account: "patron" },
+    { url: "https://github.com/sponsors/first", label: "GitHub Sponsors", detail: "first" },
+    { url: "https://www.patreon.com/patron", label: "Patreon", detail: "patron" },
     {
       url: "https://opencollective.com/collective",
       label: "Open Collective",
-      account: "collective",
+      detail: "collective",
     },
-    { url: "https://ko-fi.com/maker", label: "Ko-fi", account: "maker" },
-    { url: "https://liberapay.com/libre", label: "Liberapay", account: "libre" },
-    { url: "https://buymeacoffee.com/coffee", label: "Buy Me a Coffee", account: "coffee" },
-    { url: "https://paypal.me/someone", label: "PayPal", account: "someone" },
-    {
-      url: "https://www.paypal.com/donate?hosted_button_id=X",
-      label: "PayPal",
-      account: undefined,
-    },
+    { url: "https://ko-fi.com/maker", label: "Ko-fi", detail: "maker" },
+    { url: "https://liberapay.com/libre", label: "Liberapay", detail: "libre" },
+    { url: "https://buymeacoffee.com/coffee", label: "Buy Me a Coffee", detail: "coffee" },
+    { url: "https://paypal.me/someone", label: "PayPal", detail: "someone" },
+    { url: "https://www.paypal.com/donate?hosted_button_id=X", label: "PayPal" },
     { url: "https://github.com/owner/project#donate", label: "github.com" },
     { url: "https://www.openttd.org/donate.html", label: "openttd.org" },
+  ]);
+});
+
+it("does not present a deeper path segment as an account name", () => {
+  expect(
+    fundingLinks([
+      "https://www.patreon.com/join/creator",
+      "https://ko-fi.com/s/a1b2c3",
+      "https://github.com/sponsors/someone/dashboard",
+    ]),
+  ).toEqual([
+    { url: "https://www.patreon.com/join/creator", label: "Patreon" },
+    { url: "https://ko-fi.com/s/a1b2c3", label: "Ko-fi" },
+    { url: "https://github.com/sponsors/someone/dashboard", label: "GitHub Sponsors" },
+  ]);
+});
+
+it("tells apart links that would otherwise read the same", () => {
+  expect(
+    fundingLinks([
+      "https://example.org/donate",
+      "https://example.org/sponsor?tier=gold",
+      "https://www.paypal.com/donate?hosted_button_id=A",
+      "https://www.paypal.com/donate?hosted_button_id=B",
+    ]),
+  ).toEqual([
+    { url: "https://example.org/donate", label: "example.org", detail: "donate" },
+    {
+      url: "https://example.org/sponsor?tier=gold",
+      label: "example.org",
+      detail: "sponsor?tier=gold",
+    },
+    {
+      url: "https://www.paypal.com/donate?hosted_button_id=A",
+      label: "PayPal",
+      detail: "donate?hosted_button_id=A",
+    },
+    {
+      url: "https://www.paypal.com/donate?hosted_button_id=B",
+      label: "PayPal",
+      detail: "donate?hosted_button_id=B",
+    },
   ]);
 });
 
@@ -48,4 +86,5 @@ it("drops anything that is not a credential-free HTTPS URL", () => {
     ]),
   ).toEqual([]);
   expect(fundingLinks(undefined)).toEqual([]);
+  expect(fundingLinks(null)).toEqual([]);
 });

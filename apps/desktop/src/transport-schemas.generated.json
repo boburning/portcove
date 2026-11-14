@@ -9366,11 +9366,14 @@
             ]
           },
           "funding_urls": {
-            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10.",
+            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
             "items": {
               "type": "string"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "id": {
             "type": "string"
@@ -32183,11 +32186,14 @@
             ]
           },
           "funding_urls": {
-            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10.",
+            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
             "items": {
               "type": "string"
             },
-            "type": "array"
+            "type": [
+              "array",
+              "null"
+            ]
           },
           "id": {
             "type": "string"

@@ -405,8 +405,8 @@ export without an explicit format is the current format 9 and carries the dates,
 an explicit export to formats 5 through 8 omits them. A reader that predates format 9
 must request a format it understands.
 
-Listing format 10 adds optional inert `funding_urls`: at most 12 distinct public HTTPS
-pages where the upstream developers accept support. `capabilities.listing_formats`
+Listing format 10 adds optional inert `funding_urls`: 1 to 12 distinct public HTTPS
+pages where the upstream developers accept funding (an empty list is refused). `capabilities.listing_formats`
 advertises 5 through 10; an export without an explicit format is the current format 10
 and carries the links, while an explicit export to formats 5 through 9 omits them.
 Retained user-selected listings never carry them. Desktop opens only those exact links.

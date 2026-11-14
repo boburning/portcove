@@ -74,7 +74,7 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         listing.listed_at = None;
         // Funding links are directory descriptions for the same reason; the current
         // directory supplies them again while it lists the project.
-        listing.funding_urls.clear();
+        listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.compatibility.is_some() {
@@ -3353,7 +3353,7 @@ mod tests {
                 .listing("funded-project")
                 .unwrap()
                 .funding_urls
-                .is_empty()
+                .is_none()
         );
     }
 

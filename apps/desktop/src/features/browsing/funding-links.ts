@@ -3,8 +3,8 @@ export interface FundingLink {
   url: string;
   /** Platform or site name; brand names are not translated. */
   label: string;
-  /** The account on a known platform, when the link names one. */
-  account?: string | undefined;
+  /** The account on a known platform, or the page path when links would look alike. */
+  detail?: string | undefined;
 }
 
 const platforms: readonly (readonly [host: string, label: string, prefix: string])[] = [
@@ -17,10 +17,11 @@ const platforms: readonly (readonly [host: string, label: string, prefix: string
   ["paypal.me", "PayPal", "/"],
   ["paypal.com", "PayPal", ""],
 ];
+const accountSegment = /^[A-Za-z0-9_.-]+$/u;
 
 /** One labelled link per distinct HTTPS URL, in catalog order. */
-export function fundingLinks(urls: readonly string[] | undefined): FundingLink[] {
-  const links: FundingLink[] = [];
+export function fundingLinks(urls: readonly string[] | null | undefined): FundingLink[] {
+  const links: (FundingLink & { parsed: URL })[] = [];
   for (const value of new Set(urls ?? [])) {
     let url: URL;
     try {
@@ -34,20 +35,30 @@ export function fundingLinks(urls: readonly string[] | undefined): FundingLink[]
       ([known, , prefix]) => host === known && (prefix === "" || url.pathname.startsWith(prefix)),
     );
     if (!platform) {
-      links.push({ url: value, label: host });
+      links.push({ url: value, label: host, parsed: url });
       continue;
     }
     const [, label, prefix] = platform;
-    const account = prefix ? url.pathname.slice(prefix.length).split("/")[0] : "";
-    links.push({ url: value, label, account: account ? decodeSegment(account) : undefined });
+    // Only a single plain path segment names an account; `/join/x` or `/s/x` do not.
+    const rest = prefix ? url.pathname.slice(prefix.length).replace(/\/$/u, "") : "";
+    const account = accountSegment.test(rest) ? rest : undefined;
+    links.push({ url: value, label, detail: account, parsed: url });
   }
-  return links;
+  // Links that would read the same are told apart by their page.
+  const shown = (link: FundingLink) => `${link.label}\u0000${link.detail ?? ""}`;
+  return links.map(({ parsed, ...link }) =>
+    links.filter((other) => shown(other) === shown(link)).length > 1
+      ? { ...link, detail: pagePath(parsed) }
+      : link,
+  );
 }
 
-function decodeSegment(segment: string) {
+function pagePath(url: URL) {
+  let path = `${url.pathname}${url.search}${url.hash}`.replace(/^\//u, "");
   try {
-    return decodeURIComponent(segment);
+    path = decodeURI(path);
   } catch {
-    return segment;
+    // Keep the encoded form when it does not decode.
   }
+  return path.length > 48 ? `${path.slice(0, 47)}…` : path || "/";
 }

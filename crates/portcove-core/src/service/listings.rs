@@ -322,7 +322,11 @@ impl PortcoveService {
 
 fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
     listing.project_url == url
-        || listing.funding_urls.iter().any(|reviewed| reviewed == url)
+        || listing
+            .funding_urls
+            .iter()
+            .flatten()
+            .any(|reviewed| reviewed == url)
         || [
             Some(listing.project_url.as_str()),
             listing.release_url.as_deref(),

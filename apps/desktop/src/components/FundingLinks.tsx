@@ -7,7 +7,7 @@ import { ExternalLink } from "./ExternalLink";
  * Upstream support pages reviewed into the catalog listing. Ordinary external
  * links: nothing is fetched, and Core decides whether each exact URL may open.
  */
-export function FundingLinks({ urls }: { urls: readonly string[] | undefined }) {
+export function FundingLinks({ urls }: { urls: readonly string[] | null | undefined }) {
   const { t } = useAppTranslation("detail");
   const links = fundingLinks(urls);
   if (!links.length) return null;
@@ -29,10 +29,10 @@ export function FundingLinks({ urls }: { urls: readonly string[] | undefined }) 
               <HandHeart aria-hidden="true" />
               <span className="min-w-0 [overflow-wrap:anywhere]">
                 {link.label}
-                {link.account && (
+                {link.detail && (
                   <>
                     {" "}
-                    <bdi className="font-normal text-pc-muted-foreground">{link.account}</bdi>
+                    <bdi className="font-normal text-pc-muted-foreground">{link.detail}</bdi>
                   </>
                 )}
               </span>

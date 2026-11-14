@@ -10,7 +10,8 @@ import { isRecord } from "./runtime-values.mts";
  * Authoring-time funding links for listings. Reads each GitHub-hosted project's
  * FUNDING.yml in GitHub's lookup order and turns the platforms Portcove knows
  * into reviewed `listing.funding_urls`. Portcove never fetches these at runtime;
- * the result is an ordinary reviewed catalog diff. Dry run unless --write.
+ * the result is an ordinary reviewed catalog diff. Dry run unless --write; existing
+ * links are only replaced or removed with --replace.
  */
 
 /** GitHub's lookup order: the repository first, then the owner's `.github` repository. */
@@ -25,6 +26,7 @@ const accountPlatforms = [
   ["liberapay", (name: string) => `https://liberapay.com/${name}`],
   ["buy_me_a_coffee", (name: string) => `https://buymeacoffee.com/${name}`],
 ] as const;
+const supportedKeys = new Set<string>([...accountPlatforms.map(([key]) => key), "custom"]);
 const accountName = /^[A-Za-z0-9](?:[A-Za-z0-9_.-]{0,98}[A-Za-z0-9_])?$/u;
 
 function values(value: unknown): unknown[] {
@@ -48,28 +50,52 @@ export function fundingCustomUrl(value: unknown): string | undefined {
   return url.href;
 }
 
+/** Why a file's contents leave a listing unchanged. */
+export type FundingUnknown = "oversized" | "malformed" | "no-supported-links";
+export type FundingFile =
+  | { urls: string[]; skipped: string[]; dropped: string[] }
+  | { unknown: FundingUnknown; skipped: string[] };
+
 /**
- * Known platforms in a fixed order, then custom HTTPS links in file order. Unknown
- * platforms, malformed names and non-HTTPS custom links are skipped.
+ * Known platforms in a fixed order, then custom HTTPS links in file order. Entries
+ * Portcove cannot use are reported in `skipped`. Beyond the Core bound the first
+ * links in that order are kept and the rest reported in `dropped`. A file that is
+ * too large, malformed (including YAML aliases) or yields no usable link is
+ * unknown: it never adds, replaces or removes anything.
  */
-export function fundingUrlsFromYaml(text: string): string[] {
-  if (Buffer.byteLength(text) > maximumFundingBytes) return [];
+export function parseFundingYaml(text: string): FundingFile {
+  if (Buffer.byteLength(text) > maximumFundingBytes) return { unknown: "oversized", skipped: [] };
   let document: unknown;
   try {
     document = parse(text, { maxAliasCount: 0 });
   } catch {
-    return [];
+    return { unknown: "malformed", skipped: [] };
   }
-  if (!isRecord(document)) return [];
+  if (document === null || document === undefined) document = {};
+  if (!isRecord(document)) return { unknown: "malformed", skipped: [] };
   const urls: string[] = [];
+  const skipped: string[] = [];
+  for (const [key, value] of Object.entries(document))
+    if (!supportedKeys.has(key) && values(value).some((entry) => entry !== "")) skipped.push(key);
   for (const [key, url] of accountPlatforms)
-    for (const name of values(document[key]))
+    for (const name of values(document[key])) {
+      if (name === "") continue;
       if (typeof name === "string" && accountName.test(name.trim())) urls.push(url(name.trim()));
+      else skipped.push(`${key}: ${JSON.stringify(name)}`);
+    }
   for (const custom of values(document.custom)) {
+    if (custom === "") continue;
     const url = fundingCustomUrl(custom);
     if (url) urls.push(url);
+    else skipped.push(`custom: ${JSON.stringify(custom)}`);
   }
-  return [...new Set(urls)].slice(0, maximumFundingUrls);
+  const unique = [...new Set(urls)];
+  if (!unique.length) return { unknown: "no-supported-links", skipped };
+  return {
+    urls: unique.slice(0, maximumFundingUrls),
+    skipped,
+    dropped: unique.slice(maximumFundingUrls),
+  };
 }
 
 /** `owner/name` for a github.com project URL, or undefined for other hosts. */
@@ -116,24 +142,50 @@ export function withFundingUrls(text: string, urls: readonly string[]) {
 }
 
 type Blobs = (string | null | undefined)[];
-/** Per repository: the FUNDING.yml texts in lookup order, or null when unreadable. */
+/** Per repository: the FUNDING.yml texts in lookup order, "missing", or null when unreadable. */
 export type FundingReader = (
   repositories: readonly { owner: string; name: string }[],
 ) => Promise<Map<string, Blobs | "missing" | null>>;
 
-/** First file found decides, as on GitHub; undefined means the answer is unknown. */
-export function firstFunding(own: Blobs | "missing" | null, owner: Blobs | "missing" | null) {
+/** What the lookup established for one listing. */
+export type FundingResolution =
+  | { kind: "links"; urls: string[]; source: string; skipped: string[]; dropped: string[] }
+  /** The project is readable and no lookup location holds a FUNDING.yml. */
+  | { kind: "none" }
+  | {
+      kind: "unknown";
+      reason: FundingUnknown | "project-missing" | "unreadable";
+      source?: string;
+      skipped?: string[];
+    };
+
+/** First file found decides, as on GitHub. Only a definite absence everywhere is "none". */
+export function firstFunding(
+  repository: { owner: string; name: string },
+  own: Blobs | "missing" | null,
+  owner: Blobs | "missing" | null,
+): FundingResolution {
   // The project itself must be readable before its absence of a file means anything.
-  if (own === null || own === "missing") return undefined;
-  for (const candidate of [own, owner]) {
-    if (candidate === null) return undefined;
-    if (candidate === "missing") return [];
-    for (const blob of candidate) {
-      if (blob === undefined) return undefined;
-      if (blob !== null) return fundingUrlsFromYaml(blob);
+  if (own === null) return { kind: "unknown", reason: "unreadable" };
+  if (own === "missing") return { kind: "unknown", reason: "project-missing" };
+  const places = [
+    [`${repository.owner}/${repository.name}`, own],
+    [`${repository.owner}/.github`, owner],
+  ] as const;
+  for (const [name, candidate] of places) {
+    if (candidate === null) return { kind: "unknown", reason: "unreadable" };
+    if (candidate === "missing") return { kind: "none" };
+    for (const [index, blob] of candidate.entries()) {
+      if (blob === undefined) return { kind: "unknown", reason: "unreadable" };
+      if (blob === null) continue;
+      const source = `${name}:${fundingPaths[index]}`;
+      const file = parseFundingYaml(blob);
+      if ("unknown" in file)
+        return { kind: "unknown", reason: file.unknown, source, skipped: file.skipped };
+      return { kind: "links", source, ...file };
     }
   }
-  return [];
+  return { kind: "none" };
 }
 
 const key = (repository: { owner: string; name: string }) =>
@@ -141,7 +193,8 @@ const key = (repository: { owner: string; name: string }) =>
 
 /**
  * One GraphQL query per batch. `resource(url:)` answers null, without an error,
- * for a repository that does not exist publicly; any GraphQL error fails the run.
+ * for a repository that does not exist publicly (including a renamed one); any
+ * GraphQL error fails the run.
  */
 export function graphqlFundingReader(
   request: (query: string) => Promise<{ data?: unknown }>,
@@ -195,7 +248,7 @@ export function graphqlFundingReader(
   };
 }
 
-/** Funding links per listing id; listings whose answer is unknown are absent. */
+/** The lookup result per GitHub-hosted listing id. */
 export async function resolveFunding(
   listings: readonly { id: string; project_url: string }[],
   read: FundingReader,
@@ -213,19 +266,58 @@ export async function resolveFunding(
       owners.set(repository.owner.toLowerCase(), { owner: repository.owner, name: ".github" });
   }
   const shared = await read([...owners.values()]);
-  const resolved = new Map<string, string[]>();
+  const resolved = new Map<string, FundingResolution>();
   for (const [id, repository] of projects) {
     const owner = shared.get(key({ owner: repository.owner, name: ".github" })) ?? "missing";
-    const urls = firstFunding(own.get(key(repository)) ?? null, owner);
-    if (urls) resolved.set(id, urls);
+    resolved.set(id, firstFunding(repository, own.get(key(repository)) ?? null, owner));
   }
   return resolved;
+}
+
+/**
+ * What a run does to one authored file. Unknown answers change nothing; adding
+ * links to a listing without any is always allowed; replacing or removing
+ * existing (possibly hand-authored) links needs --replace.
+ */
+export function plannedFunding(
+  current: readonly string[] | undefined,
+  resolution: FundingResolution,
+  replace: boolean,
+): { urls?: string[]; held?: "replace" | "remove" } {
+  if (resolution.kind === "unknown") return {};
+  const next = resolution.kind === "links" ? resolution.urls : [];
+  if (isDeepStrictEqual(current ?? [], next)) return {};
+  if (!current?.length || replace) return { urls: next };
+  return { held: next.length ? "replace" : "remove" };
+}
+
+/** Where a repository that GraphQL could not resolve went, from REST's own answer. */
+export async function missingRepositoryReason(
+  repository: { owner: string; name: string },
+  get: (path: string) => Promise<{ status: number | null; data: unknown }>,
+) {
+  const found = await get(`/repos/${repository.owner}/${repository.name}`);
+  if (found.status === 404) return "not found";
+  if (found.status === 301) {
+    const location = isRecord(found.data) ? found.data.url : undefined;
+    const id =
+      typeof location === "string" ? /\/repositories\/([0-9]+)$/u.exec(location)?.[1] : undefined;
+    const target = id ? await get(`/repositories/${id}`) : undefined;
+    return target?.status === 200 &&
+      isRecord(target.data) &&
+      typeof target.data.full_name === "string"
+      ? `moved to ${target.data.full_name}; update project_url`
+      : "moved; update project_url";
+  }
+  if (found.status === 200) return "readable over REST but not GraphQL";
+  return "not resolvable";
 }
 
 async function main() {
   const root = dirname(dirname(fileURLToPath(import.meta.url)));
   const portsDirectory = join(root, "crates", "portcove-core", "catalog", "ports");
   const write = process.argv.includes("--write");
+  const replace = process.argv.includes("--replace");
   const only = new Set<string>();
   process.argv.forEach((argument, index) => {
     if (argument === "--only") only.add(process.argv[index + 1] ?? "");
@@ -236,8 +328,9 @@ async function main() {
     .map((name) => {
       const file = join(portsDirectory, name);
       const text = readFileSync(file, "utf8");
-      const listing = (JSON.parse(text) as { listing: { id: string; project_url: string } })
-        .listing;
+      const { listing } = JSON.parse(text) as {
+        listing: { id: string; project_url: string; funding_urls?: string[] };
+      };
       return { file, name, text, listing };
     })
     .filter(({ listing }) => !only.size || only.has(listing.id));
@@ -248,7 +341,10 @@ async function main() {
     credential: localDeveloperCredential({ deadline }),
     deadline,
     environmentProxy: true,
-    allowRequest: (method, url) => method === "POST" && url.pathname === "/graphql",
+    observeRedirects: true,
+    allowRequest: (method, url) =>
+      (method === "POST" && url.pathname === "/graphql") ||
+      (method === "GET" && /^\/(?:repos\/[^/]+\/[^/]+|repositories\/[0-9]+)$/u.test(url.pathname)),
   });
   const read = graphqlFundingReader(async (query) => {
     const response = await sdk.request({
@@ -260,28 +356,64 @@ async function main() {
     const envelope: unknown = response.data;
     return isRecord(envelope) ? envelope : {};
   });
+  const get = async (path: string) => {
+    try {
+      const response = await sdk.request({
+        method: "GET",
+        url: `https://api.github.com${path}`,
+        request: { portcove: { replay: "safe-read", attempts: 0, readRedirectBodyFor: [301] } },
+      });
+      const data: unknown = response.data;
+      return { status: response.status, data };
+    } catch (error) {
+      const status = isRecord(error) && typeof error.status === "number" ? error.status : null;
+      return { status, data: undefined };
+    }
+  };
   const resolved = await resolveFunding(
     files.map(({ listing }) => listing),
     read,
   );
-  let changed = 0;
-  let unknown = 0;
+  const counts = { changed: 0, held: 0, unknown: 0 };
   for (const { file, name, text, listing } of files) {
-    const urls = resolved.get(listing.id);
-    if (!urls) {
-      if (githubRepository(listing.project_url)) unknown++;
+    const resolution = resolved.get(listing.id);
+    if (!resolution) continue;
+    if (resolution.kind === "unknown") {
+      counts.unknown++;
+      const reason =
+        resolution.reason === "project-missing"
+          ? await missingRepositoryReason(githubRepository(listing.project_url)!, get)
+          : resolution.reason;
+      const detail = [
+        resolution.source,
+        resolution.skipped?.length ? `skipped ${resolution.skipped.join(", ")}` : "",
+      ]
+        .filter(Boolean)
+        .join("; ");
+      console.log(`${name}: unchanged, ${reason}${detail ? ` (${detail})` : ""}`);
       continue;
     }
-    const next = withFundingUrls(text, urls);
-    if (next === text) continue;
-    changed++;
-    console.log(`${name}: ${urls.length ? urls.join(" ") : "(no links)"}`);
-    if (write) writeFileSync(file, next);
+    if (resolution.kind === "links" && resolution.skipped.length)
+      console.log(`${name}: ${resolution.source} skipped ${resolution.skipped.join(", ")}`);
+    if (resolution.kind === "links" && resolution.dropped.length)
+      console.log(
+        `${name}: over the limit of ${maximumFundingUrls}, kept the first and dropped ${resolution.dropped.join(" ")}`,
+      );
+    const plan = plannedFunding(listing.funding_urls, resolution, replace);
+    if (plan.held) {
+      counts.held++;
+      console.log(`${name}: kept existing links; --replace would ${plan.held} them`);
+      continue;
+    }
+    if (!plan.urls) continue;
+    counts.changed++;
+    console.log(`${name}: ${plan.urls.length ? plan.urls.join(" ") : "(no links)"}`);
+    if (write) writeFileSync(file, withFundingUrls(text, plan.urls));
   }
   console.log(
-    `${write ? "Updated" : "Would update"} ${changed} port files; ${unknown} GitHub projects could not be read and were left unchanged.`,
+    `${write ? "Updated" : "Would update"} ${counts.changed} port files; ${counts.held} kept existing links; ${counts.unknown} GitHub projects had no definite answer and were left unchanged.`,
   );
-  if (write && changed)
+  if (write && counts.changed)
     console.log("Format the changed files and regenerate the catalog before review.");
 }
 
