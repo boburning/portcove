@@ -41,7 +41,7 @@
     "@vitest/coverage-v8": "catalog:",
     "es-module-lexer": "3.0.4",
     "fallow": "3.41.0",
-    "playwright": "1.65.0",
+    "playwright": "1.65.1",
     "semver": "7.8.6",
     "vite-plus": "catalog:",
     "vitest": "catalog:",
