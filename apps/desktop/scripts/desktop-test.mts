@@ -973,7 +973,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     "library-storage": 4,
     "game-files": 3,
     updates: 3,
-    integrations: 2,
+    integrations: 3,
     controls: 2,
     advanced: 4,
   };

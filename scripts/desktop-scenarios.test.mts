@@ -2978,7 +2978,7 @@ void test("reload is opt-in for restart and full profiles", () => {
 void test("large lifecycle profiles receive a bounded profile-scale watchdog", () => {
   assert.equal(
     desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "presentation" })),
-    180_000,
+    360_000,
   );
   assert.equal(
     desktopHarnessDeadlineMs(
