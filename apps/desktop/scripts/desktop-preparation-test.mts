@@ -2046,7 +2046,10 @@ export async function preparationScenarios({
                 })
               );
             }),
-          10_000,
+          // Calibrated from 10 s: hosted job 132417354900 showed the second imported
+          // cover still unread (placeholder, no failure notice) at 10 s while the
+          // debug build's workspace refresh settled; earlier runs passed this step.
+          30_000,
           "Both owned local artwork images must load before the resize journey",
         );
         for (const layout of ["Covers", "Compact rows"]) {
