@@ -8,11 +8,26 @@ use portcove_core::{
     ReleaseProvider,
 };
 
+/// Orders settings reads after an in-process settings change instead of letting
+/// them meet its exclusive port lock, which refuses a shared reader at once.
+/// Order: this lock, then the desktop state lock; readers take it only after
+/// releasing the desktop state lock, so the two locks never form a cycle.
+static SETTINGS_ACCESS: std::sync::RwLock<()> = std::sync::RwLock::new(());
+
+fn settings_lock_poisoned() -> DesktopError {
+    DesktopError::from(PortcoveError::state(
+        "game settings access lock was poisoned",
+    ))
+}
+
 pub(crate) fn at_generation<T>(
     state: &DesktopState,
     generation: u64,
     operation: impl FnOnce(PortcoveService) -> portcove_core::Result<T>,
 ) -> DesktopResult<T> {
+    let _settings = SETTINGS_ACCESS
+        .write()
+        .map_err(|_| settings_lock_poisoned())?;
     // Keep the selection binding through the complete synchronous operation.
     // Library switching cannot redirect or retire it after the generation check.
     let initialization = state
@@ -35,7 +50,11 @@ pub(crate) fn read_at_generation<T>(
     generation: u64,
     operation: impl FnOnce(PortcoveService) -> portcove_core::Result<T>,
 ) -> DesktopResult<T> {
-    let value = operation(service_at_generation(state, generation)?)?;
+    let service = service_at_generation(state, generation)?;
+    let _settings = SETTINGS_ACCESS
+        .read()
+        .map_err(|_| settings_lock_poisoned())?;
+    let value = operation(service)?;
     require_library_generation(state_generation(state), generation)?;
     Ok(value)
 }
@@ -178,6 +197,42 @@ mod tests {
         assert_eq!(observed, Ok(true), "another command waited for the read");
         other.join().unwrap();
         reader.join().unwrap().unwrap();
+    }
+
+    #[test]
+    fn a_settings_read_waits_for_an_in_process_settings_change() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let temporary = tempfile::tempdir().unwrap();
+        let state = ready_state(&temporary);
+        let (entered_tx, entered) = channel();
+        let (release, release_rx) = channel::<()>();
+        let writer = {
+            let state = state.clone();
+            std::thread::spawn(move || {
+                at_generation(&state, 1, |_| {
+                    entered_tx.send(()).unwrap();
+                    let _ = release_rx.recv_timeout(Duration::from_secs(30));
+                    Ok(())
+                })
+            })
+        };
+        entered.recv_timeout(Duration::from_secs(30)).unwrap();
+        let (done_tx, done) = channel();
+        let reader = {
+            let state = state.clone();
+            std::thread::spawn(move || {
+                done_tx
+                    .send(read_at_generation(&state, 1, |_| Ok(())).is_ok())
+                    .unwrap()
+            })
+        };
+        let early = done.recv_timeout(Duration::from_millis(300));
+        release.send(()).unwrap();
+        assert!(early.is_err(), "the read overlapped the settings change");
+        assert_eq!(done.recv_timeout(Duration::from_secs(30)), Ok(true));
+        writer.join().unwrap().unwrap();
+        reader.join().unwrap();
     }
 
     #[test]

@@ -1466,7 +1466,11 @@ commands never hold that lock while Core works: game setting, setting review,
 capability and mod setup reads resolve the service at their generation, release the
 lock, and reject a result whose generation changed meanwhile, so one slow read cannot
 queue every other command behind it. Applying a game setting keeps the lock for its
-whole operation. Core still owns library leases, copy verification,
+whole operation. An in-process settings access lock, taken before the adapter lock by
+the apply and after it by those reads, keeps a read from meeting the apply's exclusive
+port lock, which would refuse it. Like other reads, one still running after the
+two-second drain makes a switch or transfer report the library as in use and restore
+the previous state. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 
