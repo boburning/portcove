@@ -101,10 +101,9 @@ impl PortcoveService {
         ) else {
             return Ok(None);
         };
-        if let Some(url) = &notes.releases_url
-            && !self.is_reviewed_resource_url(url)?
-        {
-            notes.releases_url = None;
+        if let Some(url) = &notes.releases_url {
+            let reviewed = self.is_reviewed_resource_url(url);
+            keep_reviewed_link(&mut notes, reviewed);
         }
         Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
     }
@@ -287,6 +286,19 @@ impl PortcoveService {
         let result = self.finish_activity(activity, result);
         emit(operation.finished(OperationResult::from_result(&result)));
         result
+    }
+}
+
+/// Notes are informational: a link check that cannot complete drops the link,
+/// never the review.
+fn keep_reviewed_link(notes: &mut crate::UpdateReleaseNotes, reviewed: Result<bool>) {
+    match reviewed {
+        Ok(true) => {}
+        Ok(false) => notes.releases_url = None,
+        Err(error) => {
+            tracing::warn!(%error, "could not check the release notes link; omitting it");
+            notes.releases_url = None;
+        }
     }
 }
 
@@ -559,6 +571,28 @@ mod tests {
             .authorize_game_update(PORT, true, &without.plan_sha256)
             .await
             .unwrap();
+    }
+
+    #[test]
+    fn a_failed_link_check_drops_only_the_link() {
+        let notes = || crate::UpdateReleaseNotes {
+            releases_url: Some("https://github.com/owner/game/releases".into()),
+            entries: vec![notes_entry()],
+            coverage: crate::UpdateReleaseNotesCoverage::Complete,
+        };
+        let mut failed = notes();
+        keep_reviewed_link(
+            &mut failed,
+            Err(PortcoveError::state("database unavailable")),
+        );
+        assert_eq!(failed.releases_url, None);
+        assert_eq!(failed.entries, [notes_entry()]);
+        let mut refused = notes();
+        keep_reviewed_link(&mut refused, Ok(false));
+        assert_eq!(refused.releases_url, None);
+        let mut reviewed = notes();
+        keep_reviewed_link(&mut reviewed, Ok(true));
+        assert_eq!(reviewed, notes());
     }
 
     #[tokio::test]

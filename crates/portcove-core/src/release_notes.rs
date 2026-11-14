@@ -98,18 +98,17 @@ pub(crate) fn between(
         return result(Vec::new(), Coverage::Unavailable);
     };
     let mut entries = entry(listed[offered_index]).into_iter().collect::<Vec<_>>();
-    match request.installed.and_then(position) {
-        Some(installed) if installed == offered_index => {
-            return result(entries, Coverage::Complete);
-        }
-        Some(installed) if installed < offered_index => {
-            return result(entries, Coverage::InstalledNewer);
-        }
-        _ => {}
+    let installed_index = request.installed.and_then(position);
+    if installed_index == Some(offered_index) {
+        return result(entries, Coverage::Complete);
     }
-    // A rolling tag is republished in place; earlier tags are a different stream.
+    // A rolling tag is republished in place; other tags are a different stream,
+    // whatever their position, so only the offered release's notes apply.
     if request.channel == ReleaseChannel::Rolling {
-        return result(entries, Coverage::InstalledNotListed);
+        return result(entries, Coverage::RollingRelease);
+    }
+    if installed_index.is_some_and(|installed| installed < offered_index) {
+        return result(entries, Coverage::InstalledNewer);
     }
     let is_rolling = |tag: &str| {
         request
@@ -421,7 +420,13 @@ mod tests {
         rolling.rolling_tag = Some("Nightly");
         let rolling = notes(&listed, &rolling);
         assert_eq!(versions(&rolling), ["nightly"]);
-        assert_eq!(rolling.coverage, Coverage::InstalledNotListed);
+        assert_eq!(rolling.coverage, Coverage::RollingRelease);
+        // A listed non-rolling installed tag is not reported as missing or newer.
+        let mut listed_installed = request(Some("v2"), "nightly");
+        listed_installed.channel = ReleaseChannel::Rolling;
+        let listed_installed = notes(&listed, &listed_installed);
+        assert_eq!(versions(&listed_installed), ["nightly"]);
+        assert_eq!(listed_installed.coverage, Coverage::RollingRelease);
         let mut stable = request(Some("v1"), "v2");
         stable.rolling_tag = Some("nightly");
         let listed = [release("v2", ""), release("NIGHTLY", ""), release("v1", "")];

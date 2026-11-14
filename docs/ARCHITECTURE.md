@@ -3471,8 +3471,9 @@ unrelated rolling tags are skipped, a stable channel skips prereleases, and
 repeated tags keep their first listing. A rolling channel lists only the offered
 tag. At most 20 releases and 4,000 characters per release are kept. `coverage`
 says whether the list is complete, shortened, missing the installed version,
-or limited to the offered release because the installed version is newer. An
-already active release carries no notes.
+limited to the offered release because the installed version is newer, or
+limited to a rolling release's current notes. An already active release carries
+no notes.
 
 Notes, titles and versions are untrusted upstream text. Core removes complete
 HTML comments, control characters and bidirectional or invisible formatting
@@ -3481,7 +3482,8 @@ bounds every value and drops malformed timestamps; Desktop renders the text
 escaped, with no Markdown, HTML or embedded links. The only link is the
 project's release list page, built by Core from the provider origin and
 repository and kept only when it passes the reviewed-link check that Desktop
-applies before opening any URL. Per-release links would need a reviewed
+applies before opening any URL; if that check cannot complete, the link is
+dropped and the review continues. Per-release links would need a reviewed
 allowlist change. An uncached or unlisted offered release yields no entries;
 with no entries and no openable link the review carries no value, as do direct
 manifest and user-prepared ports. The notes are excluded from `plan_sha256`,

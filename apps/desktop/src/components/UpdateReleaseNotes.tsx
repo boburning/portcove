@@ -48,7 +48,7 @@ export function UpdateReleaseNotes({
         {releasesLink}
       </section>
     );
-  const coverage = coverageText(notes.coverage, notes.entries.length);
+  const coverage = coverageText(notes.coverage, notes.entries.length, Boolean(notes.releases_url));
   return (
     <section data-update-release-notes className="col-span-full" aria-labelledby={headingId}>
       <h3 id={headingId} className="mb-1 text-[length:var(--text-sm)] font-semibold">
@@ -59,6 +59,11 @@ export function UpdateReleaseNotes({
       </p>
       <div
         data-update-release-notes-list
+        role="group"
+        aria-labelledby={headingId}
+        // Focusable so keyboard and controller navigation can scroll long notes.
+        tabIndex={scrollableTabIndex}
+        data-focusable
         className="max-h-[16rem] overflow-y-auto overscroll-contain rounded-pc-md border border-pc-border p-3 [overflow-wrap:anywhere]"
       >
         <ol className="m-0 grid list-none gap-4 p-0">
@@ -107,14 +112,20 @@ export function UpdateReleaseNotes({
   );
 }
 
-function coverageText(coverage: ReleaseNotes["coverage"], count: number) {
+const scrollableTabIndex = 0;
+
+function coverageText(coverage: ReleaseNotes["coverage"], count: number, hasReleasePage: boolean) {
   switch (coverage) {
     case "shortened":
-      return `Only the newest ${count} releases are shown. Earlier changes since your version are on the project’s release page.`;
+      return hasReleasePage
+        ? `Only the newest ${count} releases are shown. Earlier changes since your version are on the project’s release page.`
+        : `Only the newest ${count} releases are shown. Earlier changes since your version aren’t listed here.`;
     case "installed_not_listed":
       return "Portcove couldn’t find your version in the project’s release list, so this list may not include every change since your version.";
     case "installed_newer":
       return "The version you’re using is newer than this update, so only this release’s notes are shown.";
+    case "rolling_release":
+      return "This release is updated in place, so only its current notes are shown.";
     default:
       return undefined;
   }

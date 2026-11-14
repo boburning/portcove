@@ -3,6 +3,7 @@ import { render as renderComponent, cleanup, type RenderResult } from "vitest-br
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
+import { focusableControls } from "../focus";
 import type { GameUpdatePlan } from "../types";
 import { UpdateReleaseNotes } from "./UpdateReleaseNotes";
 import "../styles/index.css";
@@ -68,6 +69,10 @@ it("shows every listed release as inert plain text with only the release list li
   expect(section?.textContent).not.toContain("may not include");
   // One labelled landmark; the scrolling list is not a second one.
   expect(section?.querySelectorAll('[role="region"]')).toHaveLength(0);
+  // Keyboard and controller navigation can reach the scrolling notes.
+  const list = section?.querySelector<HTMLElement>("[data-update-release-notes-list]");
+  expect(list?.getAttribute("aria-labelledby")).toBe(section?.querySelector("h3")?.id);
+  expect(focusableControls(document)).toContain(list);
   expect(links()).toEqual([["All release notes", "https://github.com/owner/repo/releases"]]);
   await act(async () => container.querySelector("a")?.click());
   expect(open).toHaveBeenCalledWith("https://github.com/owner/repo/releases");
@@ -76,6 +81,7 @@ it("shows every listed release as inert plain text with only the release list li
 it.each([
   ["shortened", "Only the newest 2 releases are shown."],
   ["installed_not_listed", "Portcove couldn’t find your version in the project’s release list"],
+  ["rolling_release", "This release is updated in place, so only its current notes are shown."],
 ] as const)("explains %s coverage", async (coverage, text) => {
   await root.rerender(<UpdateReleaseNotes notes={{ ...notes, coverage }} />);
   expect(container.querySelector("h3")?.textContent).toBe("What’s new");
@@ -101,6 +107,11 @@ it("offers no link when Portcove may not open the release list", async () => {
   expect(links()).toEqual([]);
   expect(container.textContent).toContain("These notes are shortened.");
   expect(container.textContent).not.toContain("The full notes are on");
+  await root.rerender(
+    <UpdateReleaseNotes notes={{ ...withoutLink, coverage: "shortened" }} currentVersion="v1" />,
+  );
+  expect(container.textContent).toContain("Earlier changes since your version aren’t listed here.");
+  expect(container.textContent).not.toContain("release page");
 });
 
 it("falls back to the release page when Portcove has no notes", async () => {

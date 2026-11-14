@@ -2058,6 +2058,8 @@ pub enum UpdateReleaseNotesCoverage {
     InstalledNotListed,
     /// The installed version is newer than the offered one; only the offered release is listed.
     InstalledNewer,
+    /// A rolling release is republished in place; only its current notes are listed.
+    RollingRelease,
     /// No notes are known for the offered release.
     Unavailable,
 }

@@ -702,7 +702,7 @@ export type GameSettingChange =
  * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
  */
 export type UpdateReleaseNotesCoverage =
-  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "unavailable";
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =

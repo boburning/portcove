@@ -18003,6 +18003,11 @@
             "type": "string"
           },
           {
+            "const": "rolling_release",
+            "description": "A rolling release is republished in place; only its current notes are listed.",
+            "type": "string"
+          },
+          {
             "const": "unavailable",
             "description": "No notes are known for the offered release.",
             "type": "string"
