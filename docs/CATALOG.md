@@ -2666,7 +2666,8 @@ predecessor runtime already wrote and canonical data lacks is copied into the
 successor copy only. Canonical data gains it through that copy's later
 collection, so an activation that fails afterwards leaves no canonical change,
 and a retry keeps an identical earlier copy (different bytes hold). A non-file
-object at an appended path holds. A successor package that itself ships a file
+object at an appended path, or a file larger than 16 MiB there, holds with the
+`appended_settings_path_blocked` failure, which names the location. A successor package that itself ships a file
 at an appended path holds the same way when the predecessor runtime also has
 that file with different bytes. Rollback to a retained predecessor copy is
 accepted: the predecessor maps only its own paths, and the successor's files

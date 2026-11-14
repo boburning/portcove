@@ -389,10 +389,14 @@ fn appended_file(root: &Path, relative: &str) -> Result<Option<String>> {
         Err(e) => return Err(e.into()),
     };
     if !metadata.is_file() || metadata.len() > MAX_ADOPTED_FILE_BYTES {
-        return Err(held(
+        return Err(PortcoveError::conflict(
             "a newly declared settings file is not an ordinary bounded file; preserve it and review the installation",
         )
-        .detail("path", relative));
+        .detail("path", relative)
+        .detail("location", path.display().to_string())
+        .with_known_cause(
+            crate::failure::KnownFailureCause::AppendedSettingsPathBlocked { path },
+        ));
     }
     Ok(Some(
         crate::external_runtime::hash_stable_regular(&path, MAX_ADOPTED_FILE_BYTES, &|| Ok(()))?.0,
@@ -1195,7 +1199,17 @@ mod tests {
         let next = successor(&base, &["sound.ini"]);
         let target = directory.path().join("target");
         fs::create_dir_all(runtime.join("sound.ini"))?;
-        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target, None).is_err());
+        let held = adopt_added_paths(&base, &next, &runtime, &user, &target, None).unwrap_err();
+        assert_eq!(
+            held.report().presentation.presentation_key,
+            "appended_settings_path_blocked"
+        );
+        assert!(
+            held.report()
+                .presentation
+                .summary
+                .contains(&runtime.join("sound.ini").display().to_string())
+        );
         assert!(!user.join("sound.ini").exists());
         assert!(!target.exists());
         // Unrelated policies adopt nothing.

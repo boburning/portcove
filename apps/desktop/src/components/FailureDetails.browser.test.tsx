@@ -196,7 +196,11 @@ describe("diagnostic clipboard outcomes", () => {
     ],
     [
       "appended_settings_diverged",
-      "The settings file sonic1-sound.ini is different in the installed version and in your saved settings, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nInstalled version's copy: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini\nSaved copy: C:\\Portcove\\user\\sonic1-sound.ini",
+      "The settings file sonic1-sound.ini is different in the version you're using now and in your saved settings, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nCopy in the version you're using now: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini\nSaved copy: C:\\Portcove\\user\\sonic1-sound.ini",
+    ],
+    [
+      "appended_settings_path_blocked",
+      "Portcove can't carry over this game's settings because the item at this settings file location is not an ordinary settings file, or is larger than 16 MB. Nothing there was changed. Move that item out of the folder, then try again.\nLocation: C:\\Games\\Sonic\\v0.8.3\\sonic1-sound.ini",
     ],
   ])("shows %s recovery instructions before technical details", async (key, summary) => {
     const error = failureReport();

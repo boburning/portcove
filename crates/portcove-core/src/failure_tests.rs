@@ -106,13 +106,30 @@ fn diverged_appended_settings_name_the_file_and_both_copies_before_details() {
         assert!(summary.contains("sonic1-sound.ini"));
         assert!(summary.contains("Delete the copy you don't want, then try again."));
         assert!(summary.contains(&format!(
-            "Installed version's copy: {}",
+            "Copy in the version you're using now: {}",
             installed.display()
         )));
         assert!(summary.contains(&format!("{label}: {}", other.display())));
         assert!(!summary.contains("where player data is stored"));
         assert!(!summary.contains("No files were changed"));
     }
+}
+
+#[test]
+fn a_blocked_appended_settings_path_names_the_location_and_the_next_step() {
+    let path = std::path::PathBuf::from("C:/Games/Sonic/v0.8.3/sonic1-sound.ini");
+    let report = PortcoveError::conflict("original diagnostic")
+        .with_known_cause(KnownFailureCause::AppendedSettingsPathBlocked { path: path.clone() })
+        .report();
+    let summary = &report.presentation.summary;
+    assert_eq!(
+        report.presentation.presentation_key,
+        "appended_settings_path_blocked"
+    );
+    assert_eq!(report.message, "original diagnostic");
+    assert!(summary.contains(&format!("Location: {}", path.display())));
+    assert!(summary.contains("Move that item out of the folder, then try again."));
+    assert!(!summary.contains("where player data is stored"));
 }
 
 #[test]

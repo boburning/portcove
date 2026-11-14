@@ -182,6 +182,11 @@ pub(crate) enum KnownFailureCause {
         other: std::path::PathBuf,
         other_is_saved: bool,
     },
+    /// Something other than an ordinary settings file of at most 16 MiB is at
+    /// a newly declared settings file path.
+    AppendedSettingsPathBlocked {
+        path: std::path::PathBuf,
+    },
     ManagedRouteCommitted {
         version: String,
         previous_path: std::path::PathBuf,
@@ -346,9 +351,18 @@ impl KnownFailureCause {
                 return (
                     "appended_settings_diverged",
                     format!(
-                        "The settings file {file} is different in the installed version and in {where_other}, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nInstalled version's copy: {}\n{other_label}: {}",
+                        "The settings file {file} is different in the version you're using now and in {where_other}, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nCopy in the version you're using now: {}\n{other_label}: {}",
                         installed.display(),
                         other.display()
+                    ),
+                );
+            }
+            Self::AppendedSettingsPathBlocked { path } => {
+                return (
+                    "appended_settings_path_blocked",
+                    format!(
+                        "Portcove can't carry over this game's settings because the item at this settings file location is not an ordinary settings file, or is larger than 16 MB. Nothing there was changed. Move that item out of the folder, then try again.\nLocation: {}",
+                        path.display()
                     ),
                 );
             }
