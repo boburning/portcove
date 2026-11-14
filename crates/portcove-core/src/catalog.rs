@@ -2054,7 +2054,8 @@ impl Catalog {
 }
 
 /// Reviewed release uploaders are GitHub account identities: unique, positive
-/// safe-integer IDs with the reviewed login, on a GitHub-provider route.
+/// safe-integer IDs with the reviewed login, on a GitHub-provider route. GitHub's
+/// shared deleted-account placeholder (ID 10137) identifies no one.
 fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
     let accepted = &port.release.accepted_uploaders;
     if accepted.is_empty() {
@@ -2064,6 +2065,7 @@ fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
     let valid = port.release.provider == ReleaseSource::Github
         && accepted.iter().all(|uploader| {
             uploader.id > 0
+                && uploader.id != 10_137
                 && uploader.id <= 9_007_199_254_740_991
                 && ids.insert(uploader.id)
                 && !uploader.login.is_empty()
@@ -2176,6 +2178,57 @@ mod tests {
             port.portable_marker_file = Some(long.clone());
             port.persistent_paths.push(long);
         }));
+    }
+
+    #[test]
+    fn accepted_release_uploaders_are_unique_github_account_identities() {
+        let mut base = Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        assert_eq!(base.release.provider, ReleaseSource::Github);
+        let uploader = |id: u64, login: &str| crate::AcceptedUploader {
+            id,
+            login: login.into(),
+        };
+        base.release.accepted_uploaders = vec![
+            uploader(7, "reviewed-maintainer"),
+            uploader(8, "release-app[bot]"),
+        ];
+        assert!(validate_accepted_uploaders(&base).is_ok());
+        let refused = |change: &dyn Fn(&mut PortDefinition)| {
+            let mut port = base.clone();
+            change(&mut port);
+            let error = validate_accepted_uploaders(&port).unwrap_err();
+            assert!(error.message.contains("invalid accepted release uploaders"));
+        };
+        refused(&|port| port.release.provider = ReleaseSource::Gitlab);
+        refused(&|port| port.release.provider = ReleaseSource::DirectManifest);
+        refused(&|port| port.release.accepted_uploaders[0].id = 0);
+        refused(&|port| port.release.accepted_uploaders[0].id = 9_007_199_254_740_992);
+        refused(&|port| port.release.accepted_uploaders[0].id = 10_137);
+        refused(&|port| port.release.accepted_uploaders[1].id = 7);
+        refused(&|port| port.release.accepted_uploaders[0].login.clear());
+        refused(&|port| port.release.accepted_uploaders[0].login = "x".repeat(65));
+        for login in ["name with space", "caf\u{e9}", "a/b", "a.b"] {
+            refused(&|port| port.release.accepted_uploaders[0].login = login.into());
+        }
+        // Without the field, any provider remains valid.
+        let mut direct = base.clone();
+        direct.release.accepted_uploaders.clear();
+        direct.release.provider = ReleaseSource::DirectManifest;
+        assert!(validate_accepted_uploaders(&direct).is_ok());
+        // The catalog's own validation applies the rule.
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "shipwright")
+            .unwrap()
+            .release
+            .accepted_uploaders = vec![uploader(0, "zero")];
+        assert!(Catalog::from_document(document).is_err());
     }
 
     use super::*;

@@ -5,6 +5,11 @@
 //! selected asset's uploader must continue the project's existing publishing
 //! identities. The check uses only the provider observation already fetched for
 //! selection and makes no extra request.
+//!
+//! Limitation: an upload by the project's Actions app passes. Anyone with write
+//! access can change or trigger the project's release workflow, so this guard
+//! stops direct manual or token uploads by a new account, not a release built by
+//! a compromised or altered workflow. Workflow provenance is tracked in #5841.
 use serde::{Deserialize, Deserializer};
 use time::{OffsetDateTime, format_description::well_known::Rfc3339};
 
@@ -19,9 +24,13 @@ const BASELINE_UNIX_SECONDS: i64 = 1_794_614_400;
 
 /// GitHub's Actions app account. A workflow's repository token can only upload to
 /// the repository whose workflow ran, so this uploader is the project's own
-/// automation acting with the project's write access.
+/// automation acting with the project's write access (see the module limitation).
 const ACTIONS_LOGIN: &str = "github-actions[bot]";
 const ACTIONS_ACCOUNT_ID: u64 = 41_898_282;
+
+/// GitHub's placeholder for deleted accounts. Many unrelated deleted uploaders
+/// share it, so it never establishes or accepts continuity.
+const GHOST_ACCOUNT_ID: u64 = 10_137;
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub(super) struct GithubAccount {
@@ -62,7 +71,8 @@ pub(super) enum Continuity {
     Established,
     /// A maintainer reviewed and accepted this uploader for the integration.
     Accepted,
-    /// The response carries no uploader facts; no continuity is claimed.
+    /// No asset in the observed listing carries uploader facts, so the response
+    /// does not cover uploaders; no continuity is claimed.
     NotObserved,
 }
 
@@ -83,35 +93,78 @@ fn is_project_automation(account: &GithubAccount) -> bool {
         && account.kind.as_deref() == Some("Bot")
 }
 
-fn held(port: &PortDefinition, asset: &GithubAsset, message: &str) -> PortcoveError {
-    PortcoveError::unsupported(message)
-        .detail("reason", "provider_uploader_not_continuous")
-        .detail("port_id", port.id.clone())
-        .detail("asset", asset.name.clone())
+/// A deleted account's placeholder identifies no continuing publisher.
+fn identifies(account: &GithubAccount, id: u64) -> bool {
+    account.id == id && account.id != GHOST_ACCOUNT_ID
 }
 
-/// Refuses automatic progression to `asset` unless its uploader continues the
-/// project's publishing identities. `releases` is the complete observed listing
-/// used for selection.
+const HOLD_SUFFIX: &str =
+    "Nothing was downloaded or changed. Check again after Portcove's next update.";
+
+fn held(
+    port: &PortDefinition,
+    tag: &str,
+    asset: &GithubAsset,
+    cause: &str,
+    reason: &str,
+) -> PortcoveError {
+    PortcoveError::unsupported(format!(
+        "Portcove is holding back this version because {cause}. {HOLD_SUFFIX}"
+    ))
+    .detail("reason", reason)
+    .detail("port_id", port.id.clone())
+    .detail("release_tag", tag)
+    .detail("asset", asset.name.clone())
+}
+
+/// Refuses automatic progression to `asset` of release `tag` unless its uploader
+/// continues the project's publishing identities. `releases` is the complete
+/// observed listing used for selection.
 pub(super) fn require(
     port: &PortDefinition,
     owner: Option<&GithubAccount>,
     releases: &[GithubRelease],
+    tag: &str,
     asset: &GithubAsset,
 ) -> Result<Continuity> {
+    let not_continuous = "provider_uploader_not_continuous";
     let account = match &asset.uploader {
-        AssetUploader::NotObserved => return Ok(Continuity::NotObserved),
+        AssetUploader::NotObserved => {
+            let observed_elsewhere = releases
+                .iter()
+                .flat_map(|release| &release.assets)
+                .any(|other| other.uploader != AssetUploader::NotObserved);
+            if observed_elsewhere {
+                // The same response attributes other assets, so a missing field on
+                // the selected one is an inconsistent observation, not absent coverage.
+                return Err(held(
+                    port,
+                    tag,
+                    asset,
+                    "GitHub's answer doesn't show who uploaded it",
+                    "provider_uploader_not_observed",
+                ));
+            }
+            tracing::warn!(
+                port_id = %port.id,
+                tag,
+                "release listing carries no uploader facts; uploader continuity is UNKNOWN"
+            );
+            return Ok(Continuity::NotObserved);
+        }
         _ if predates_baseline(asset) => return Ok(Continuity::PredatesBaseline),
         AssetUploader::Unattributed => {
             return Err(held(
                 port,
+                tag,
                 asset,
-                "Portcove did not install this version because GitHub does not show who uploaded it. Nothing on your computer was changed. Check again after Portcove's next update.",
+                "GitHub doesn't show who uploaded it",
+                not_continuous,
             ));
         }
         AssetUploader::Account(account) => account,
     };
-    if owner.is_some_and(|owner| owner.id == account.id) {
+    if owner.is_some_and(|owner| identifies(account, owner.id)) {
         return Ok(Continuity::RepositoryOwner);
     }
     if is_project_automation(account) {
@@ -122,7 +175,7 @@ pub(super) fn require(
         .flat_map(|release| &release.assets)
         .any(|earlier| {
             predates_baseline(earlier)
-                && matches!(&earlier.uploader, AssetUploader::Account(earlier) if earlier.id == account.id)
+                && matches!(&earlier.uploader, AssetUploader::Account(earlier) if identifies(account, earlier.id))
         })
     {
         return Ok(Continuity::Established);
@@ -131,14 +184,16 @@ pub(super) fn require(
         .release
         .accepted_uploaders
         .iter()
-        .any(|accepted| accepted.id == account.id)
+        .any(|accepted| identifies(account, accepted.id))
     {
         return Ok(Continuity::Accepted);
     }
     Err(held(
         port,
+        tag,
         asset,
-        "Portcove did not install this version because it was uploaded by a GitHub account that hasn't published this project's earlier versions. Nothing on your computer was changed. Check again after Portcove's next update.",
+        "it was uploaded by a GitHub account that hasn't published this project's earlier versions",
+        not_continuous,
     )
     .detail("uploader", account.login.clone())
     .detail("uploader_id", account.id.to_string()))
@@ -187,11 +242,19 @@ mod tests {
         let owner: GithubAccount = serde_json::from_value(account(1, "owner")).unwrap();
         let history = [release(vec![asset(Some(account(2, "regular")), before)])];
         let check = |port: &PortDefinition, selected: &GithubAsset| {
-            require(port, Some(&owner), &history, selected)
+            require(port, Some(&owner), &history, "v2", selected)
         };
+        // A listing with no uploader facts at all is UNKNOWN coverage.
+        let unobserved = [release(vec![asset(None, before)])];
         assert_eq!(
-            check(&port, &asset(None, after)).unwrap(),
+            require(&port, Some(&owner), &unobserved, "v2", &asset(None, after)).unwrap(),
             Continuity::NotObserved
+        );
+        // A missing field beside attributed assets is an inconsistent observation.
+        let inconsistent = check(&port, &asset(None, after)).unwrap_err();
+        assert_eq!(
+            inconsistent.details["reason"],
+            "provider_uploader_not_observed"
         );
         assert_eq!(
             check(&port, &asset(Some(account(9, "foreign")), before)).unwrap(),
@@ -229,20 +292,30 @@ mod tests {
         assert!(
             refused
                 .message
+                .starts_with("Portcove is holding back this version")
+        );
+        assert!(
+            refused
+                .message
                 .contains("hasn't published this project's earlier versions")
         );
+        assert_eq!(
+            refused.details["reason"],
+            "provider_uploader_not_continuous"
+        );
+        assert_eq!(refused.details["release_tag"], "v2");
         assert_eq!(refused.details["uploader"], "foreign");
         assert_eq!(refused.details["uploader_id"], "9");
         let unattributed = check(&port, &asset(Some(serde_json::Value::Null), after)).unwrap_err();
         assert!(
             unattributed
                 .message
-                .contains("does not show who uploaded it")
+                .contains("doesn't show who uploaded it")
         );
         // A missing or malformed upload time cannot place an asset before the baseline.
         assert!(check(&port, &asset(Some(account(9, "foreign")), "")).is_err());
         let late_history = [release(vec![asset(Some(account(9, "foreign")), after)])];
-        assert!(require(&port, Some(&owner), &late_history, &foreign).is_err());
+        assert!(require(&port, Some(&owner), &late_history, "v2", &foreign).is_err());
         // Acceptance is by stable numeric ID; a reused login does not match.
         port.release.accepted_uploaders = vec![crate::AcceptedUploader {
             id: 10,
@@ -251,5 +324,45 @@ mod tests {
         assert!(check(&port, &foreign).is_err());
         port.release.accepted_uploaders[0].id = 9;
         assert_eq!(check(&port, &foreign).unwrap(), Continuity::Accepted);
+    }
+
+    #[test]
+    fn the_deleted_account_placeholder_never_continues_a_project() {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        let ghost = || account(GHOST_ACCOUNT_ID, "ghost");
+        let after = "2026-12-01T00:00:00Z";
+        // Established by an earlier deleted uploader, owned by the placeholder and
+        // accepted by ID: none of these lets a new placeholder upload continue.
+        let history = [release(vec![asset(Some(ghost()), "2026-11-01T00:00:00Z")])];
+        let owner: GithubAccount = serde_json::from_value(ghost()).unwrap();
+        port.release.accepted_uploaders = vec![crate::AcceptedUploader {
+            id: GHOST_ACCOUNT_ID,
+            login: "ghost".into(),
+        }];
+        let refused = require(
+            &port,
+            Some(&owner),
+            &history,
+            "v2",
+            &asset(Some(ghost()), after),
+        )
+        .unwrap_err();
+        assert_eq!(refused.details["uploader_id"], GHOST_ACCOUNT_ID.to_string());
+        // Its existing pre-baseline releases keep their behavior.
+        assert_eq!(
+            require(
+                &port,
+                Some(&owner),
+                &history,
+                "v1",
+                &asset(Some(ghost()), "2026-11-01T00:00:00Z")
+            )
+            .unwrap(),
+            Continuity::PredatesBaseline
+        );
     }
 }

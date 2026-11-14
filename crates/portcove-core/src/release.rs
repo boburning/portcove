@@ -1507,7 +1507,13 @@ impl GithubReleaseProvider {
         // every other selection follows upstream and must continue its uploaders.
         // Refuse before any checksum request or caching.
         if curated.is_none() {
-            uploader_continuity::require(port, repository.owner.as_ref(), &releases, asset)?;
+            uploader_continuity::require(
+                port,
+                repository.owner.as_ref(),
+                &releases,
+                &release.tag_name,
+                asset,
+            )?;
         }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;

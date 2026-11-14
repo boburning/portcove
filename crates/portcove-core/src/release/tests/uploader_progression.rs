@@ -106,13 +106,10 @@ async fn github_progression_requires_a_continuous_uploader() {
     assert!(
         error
             .message
-            .starts_with("Portcove did not install this version")
+            .starts_with("Portcove is holding back this version")
     );
-    assert!(
-        error
-            .message
-            .contains("Nothing on your computer was changed")
-    );
+    assert!(error.message.contains("Nothing was downloaded or changed"));
+    assert_eq!(error.details["release_tag"], "v1.1.0");
     let laundered = release(3, "v1.2.0", Some(account(FOREIGN)), AFTER);
     let error = resolve(&port, &[laundered, foreign.clone(), n.clone()])
         .await
@@ -126,17 +123,25 @@ async fn github_progression_requires_a_continuous_uploader() {
         assert_eq!(resolved.release.version, "v1.1.0");
     }
 
-    // A response without uploader facts is UNKNOWN and keeps today's behavior;
-    // GitHub reporting no account after the baseline is a known refusal.
+    // A response without any uploader facts is UNKNOWN and keeps today's
+    // behavior; a selected asset missing the field beside attributed assets is an
+    // inconsistent observation and is held. GitHub reporting no account after the
+    // baseline is a known refusal.
     let unknown = release(2, "v1.1.0", None, AFTER);
-    let resolved = resolve(&port, &[unknown, n.clone()]).await.unwrap();
+    let unobserved_n = release(1, "v1.0.0", None, BEFORE);
+    let resolved = resolve(&port, &[unknown.clone(), unobserved_n])
+        .await
+        .unwrap();
     assert_eq!(resolved.release.version, "v1.1.0");
+    let error = resolve(&port, &[unknown, n.clone()]).await.unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(error.details["reason"], "provider_uploader_not_observed");
     let unattributed = release(2, "v1.1.0", Some(serde_json::Value::Null), AFTER);
     let error = resolve(&port, &[unattributed, n.clone()])
         .await
         .unwrap_err();
     assert_held(&error, None);
-    assert!(error.message.contains("does not show who uploaded it"));
+    assert!(error.message.contains("doesn't show who uploaded it"));
 
     // Existing releases keep their behavior whoever uploaded them.
     let existing = release(2, "v1.1.0", Some(account(FOREIGN)), BEFORE);
@@ -200,18 +205,13 @@ async fn a_held_github_release_is_not_cached_and_requests_no_checksum() {
 async fn a_held_update_check_leaves_the_installed_copy_active() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
-    let installed = crate::retained_build::tests::install_port(
-        &library,
-        "shipwright",
-        "installed",
-        b"accepted runtime",
-        true,
-    );
-    let platform = Platform::current().unwrap();
-    let name = if platform == Platform::WindowsX86_64 {
-        "game-windows.zip"
-    } else {
-        "game-linux.zip"
+    // Starship declares an executable for every platform this suite runs on.
+    let installed =
+        crate::retained_build::tests::install(&library, "installed", b"accepted runtime", true);
+    let name = match Platform::current().unwrap() {
+        Platform::WindowsX86_64 => "starship-windows.zip",
+        Platform::LinuxX86_64 => "starship-linux.zip",
+        Platform::MacosX86_64 | Platform::MacosAarch64 => "starship-macos.zip",
     };
     let n = release(1, "v1", Some(account(REGULAR)), BEFORE);
     let mut foreign = release(2, "v2", Some(account(FOREIGN)), AFTER);
@@ -219,10 +219,10 @@ async fn a_held_update_check_leaves_the_installed_copy_active() {
     let (origin, _, server) = serve_http(vec![repository(), listing(&[foreign, n])]);
     let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
     let service = crate::PortcoveService::with_provider(library, Arc::new(provider)).unwrap();
-    let error = service.check_update("shipwright").await.unwrap_err();
+    let error = service.check_update("starship").await.unwrap_err();
     server.join().unwrap();
     assert_held(&error, Some(FOREIGN));
-    let status = service.status("shipwright").unwrap();
+    let status = service.status("starship").unwrap();
     assert_eq!(status.active.unwrap().id, installed.id);
     assert!(status.staged.is_none());
 }

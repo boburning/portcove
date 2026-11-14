@@ -1157,6 +1157,12 @@ atomic commit and rechecks current authority, so a concurrent revocation defeats
 an older eligibility proof. Ordinary selection also validates the transition
 against the current format-1/embedded catalog in that same immediate transaction,
 including exact retries; a definition cannot remove or change unrelated entries.
+For its own port, that transition may keep or narrow a managed acquisition hold
+but not remove it or add a reviewed artifact, may replace but not remove a
+reviewed package layout, and may keep or remove `release.accepted_uploaders`
+but not add an uploader the embedded catalog has not accepted
+([uploader continuity](CATALOG.md#release-selection-and-maintenance)). An entry
+for a port absent from the embedded catalog therefore cannot accept uploaders.
 Existing service instances keep their constructor
 catalog; a new service (the next CLI invocation) consumes the durable selection.
 This explicit command adds no startup polling, Tauri binding, game lifecycle
