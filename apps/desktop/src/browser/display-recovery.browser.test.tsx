@@ -79,8 +79,17 @@ it.each([
     const endOfDetails = /Mac/u.test(navigator.platform)
       ? "{Meta>}{ArrowDown}{/Meta}"
       : "{Control>}{End}{/Control}";
-    await userEvent.keyboard(endOfDetails);
-    await expect.poll(() => diagnostics.scrollTop).toBeGreaterThan(long ? 0 : -1);
+    // Chromium 158 (Playwright 1.65) can drop the first end-of-text key after focus moves
+    // into the textarea; the key is idempotent, so resend it until the scroll lands.
+    await expect
+      .poll(
+        async () => {
+          await userEvent.keyboard(endOfDetails);
+          return diagnostics.scrollTop;
+        },
+        { interval: 100 },
+      )
+      .toBeGreaterThan(long ? 0 : -1);
     await expect
       .poll(() => diagnostics.scrollTop + diagnostics.clientHeight)
       .toBeGreaterThanOrEqual(diagnostics.scrollHeight - 1);
