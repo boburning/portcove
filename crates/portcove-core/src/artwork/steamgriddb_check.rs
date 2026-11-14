@@ -378,9 +378,12 @@ pub(crate) fn check_listings(
         let corroboration = empty_narrowed
             .then(|| corroborations.get(&query.unfiltered()))
             .flatten();
+        // A corroboration the budget cut off concluded nothing for this run.
+        let corroboration_cut_off =
+            corroboration.is_some_and(|other| other.outcome == Err(Reason::RequestLimit));
         for &index in members.iter() {
             let asset_id = subjects[index].attribution.asset_id;
-            attempted[index] = listing.attempted();
+            attempted[index] = listing.attempted() && !corroboration_cut_off;
             totals[index] = listing.total;
             let observed = listing.observed.contains(&asset_id)
                 || corroboration.is_some_and(|other| other.observed.contains(&asset_id));
@@ -391,12 +394,10 @@ pub(crate) fn check_listings(
                     Ok(ids) if !ids.is_empty() => Result_::NotListed,
                     Ok(_) => match corroboration.map(|other| &other.outcome) {
                         Some(Ok(ids)) if !ids.is_empty() => Result_::NotListed,
-                        Some(Err(reason)) if *reason != Reason::RequestLimit => {
-                            Result_::Unknown { reason: *reason }
-                        }
-                        _ => Result_::Unknown {
+                        Some(Ok(_)) | None => Result_::Unknown {
                             reason: Reason::EmptyListing,
                         },
+                        Some(Err(reason)) => Result_::Unknown { reason: *reason },
                     },
                     Err(reason) => Result_::Unknown { reason: *reason },
                 }
@@ -564,7 +565,11 @@ fn parse_page(body: &[u8], page: u64) -> Option<ListedPage> {
     {
         return None;
     }
-    let total = value.get("total")?.as_u64()?;
+    // Totals beyond what the library can store are not a listing anyone serves.
+    let total = value
+        .get("total")?
+        .as_u64()
+        .filter(|total| i64::try_from(*total).is_ok())?;
     let data = value.get("data")?.as_array()?;
     if data.len() as u64 > CHECK_PAGE_LIMIT {
         return None;

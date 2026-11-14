@@ -29,7 +29,7 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
     else unreached += 1;
   }
   const lines = [
-    `Checked ${plural(report.images.length, "SteamGridDB image", "SteamGridDB images")}: ${listed} still listed, ${missing} not in SteamGridDB's list when checked, ${unconfirmed} not confirmed.`,
+    `${plural(report.images.length, "SteamGridDB image", "SteamGridDB images")}: ${listed} still listed, ${missing} not in SteamGridDB's list when checked, ${unconfirmed} not confirmed.`,
   ];
   if (unreached > 0)
     lines.push(
@@ -50,10 +50,13 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
     lines.push("The check reached its three-minute limit. Check again to continue.");
   else if (stop?.reason === "cancelled")
     lines.push("The check stopped because the library changed. Check again when you are ready.");
+  const reached = report.images.some((image) => image.attempted);
   lines.push(
-    report.recorded
-      ? "Portcove recorded what it found. Nothing was removed."
-      : "These results were not recorded. Nothing was removed; check again to record them.",
+    !reached
+      ? "Nothing was checked this time. Nothing was removed."
+      : report.recorded
+        ? "Portcove recorded what it found. Nothing was removed."
+        : "These results were not recorded. Nothing was removed; check again to record them.",
   );
   return lines;
 }
@@ -189,10 +192,12 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
         </Button>
       )}
       {status?.configured && (
-        <div>
+        <div aria-busy={checking}>
           <Button
             type="button"
             variant="secondary"
+            size="sm"
+            data-focusable
             disabled={busy || checking}
             onClick={() => void check()}
           >

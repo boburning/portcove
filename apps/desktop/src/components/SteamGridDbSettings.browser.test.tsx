@@ -134,7 +134,7 @@ it("checks the chosen images with the library generation and states that nothing
   );
   const status = await vi.waitFor(() => {
     const element = [...container.querySelectorAll('[role="status"]')].find((item) =>
-      item.textContent?.includes("Checked 4 SteamGridDB images"),
+      item.textContent?.includes("4 SteamGridDB images:"),
     );
     expect(element).toBeDefined();
     return element!;
@@ -168,13 +168,23 @@ it("summarizes empty, unrecorded and stopped checks for the player", () => {
     recorded: false,
   });
   expect(unrecorded[0]).toBe(
-    "Checked 1 SteamGridDB image: 1 still listed, 0 not in SteamGridDB's list when checked, 0 not confirmed.",
+    "1 SteamGridDB image: 1 still listed, 0 not in SteamGridDB's list when checked, 0 not confirmed.",
   );
   expect(unrecorded).toContain(
     "SteamGridDB asked Portcove to slow down. Check again in 2 minutes.",
   );
   expect(unrecorded.at(-1)).toBe(
     "These results were not recorded. Nothing was removed; check again to record them.",
+  );
+  const unreached = listingSummary({
+    checked_at: 1,
+    images: [checked({ status: "unknown", reason: "check_stopped" }, false)],
+    stopped: { reason: "cancelled" },
+    recorded: false,
+  });
+  expect(unreached.at(-1)).toBe("Nothing was checked this time. Nothing was removed.");
+  expect(unreached).toContain(
+    "The check stopped because the library changed. Check again when you are ready.",
   );
   const rejected = listingSummary({
     checked_at: 1,

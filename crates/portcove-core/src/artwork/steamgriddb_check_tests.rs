@@ -711,6 +711,40 @@ fn cancellation_and_the_deadline_stop_before_the_next_request() {
     assert!(transport.images.borrow().is_empty());
 }
 
+#[test]
+fn a_corroboration_cut_off_by_the_budget_is_not_an_empty_listing() {
+    let groups = MAX_CHECK_API_REQUESTS as u64 - 1;
+    let mut responses: Vec<_> = (0..groups).map(|_| page(0, 1, &[1])).collect();
+    // The last narrowed listing is empty and its corroboration has no budget left.
+    responses.push(page(0, 0, &[]));
+    let transport = Scripted::new(responses, 404);
+    let mut subjects: Vec<_> = (0..groups).map(|game| portrait(1, game + 1)).collect();
+    subjects.push(portrait(9, 10_000));
+    let report = run(&transport, subjects);
+    let last = groups as usize;
+    assert_eq!(
+        outcome(&report, last),
+        (L::Unknown, Some(R::RequestLimit), S::NotChecked)
+    );
+    assert!(!report.images[last].attempted);
+}
+
+#[test]
+fn a_total_beyond_what_the_library_stores_is_an_invalid_response() {
+    let huge = (
+        200,
+        serde_json::json!({"success": true, "page": 0, "total": u64::MAX, "limit": 50, "data": []})
+            .to_string(),
+    );
+    let transport = Scripted::new(vec![huge], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::InvalidResponse), S::NotChecked)
+    );
+    assert_eq!(report.images[0].listing_total, None);
+}
+
 /// Owner-authorized live exercise of the report-only check (#527, 2026-11-13):
 /// real picker candidates are treated as stored images, plus one ID that is not
 /// in the listing, and the hardened listing must classify both. Nothing is written.

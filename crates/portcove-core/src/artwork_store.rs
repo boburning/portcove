@@ -134,12 +134,31 @@ pub(crate) const LISTING_CHECKS_TABLE: &str = "CREATE TABLE artwork_provider_lis
             PRIMARY KEY(asset_sha256,provider,asset_id),
             FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE,
             CHECK((last_result='unknown')=(unknown_reason IS NOT NULL)),
-            CHECK(last_result!='listed' OR not_listed_since IS NULL)
+            CHECK(last_result!='listed' OR not_listed_since IS NULL),
+            CHECK(last_result!='not_listed' OR not_listed_since IS NOT NULL)
+        )";
+
+/// One sequence for every listing-check write, so a revision is never reused,
+/// even when a row is removed and created again.
+const LISTING_CHECK_REVISIONS_TABLE: &str = "CREATE TABLE artwork_listing_check_revisions (
+            id INTEGER PRIMARY KEY CHECK(id=1),
+            next INTEGER NOT NULL CHECK(next>=1)
         )";
 
 pub(crate) fn migrate_listing_checks(transaction: &Transaction<'_>) -> Result<()> {
     transaction.execute_batch(LISTING_CHECKS_TABLE)?;
+    transaction.execute_batch(LISTING_CHECK_REVISIONS_TABLE)?;
     Ok(())
+}
+
+fn next_listing_revision(connection: &Connection) -> Result<u64> {
+    Ok(connection.query_row(
+        // The sequence row is created by its first use.
+        "INSERT INTO artwork_listing_check_revisions(id,next) VALUES (1,2)
+         ON CONFLICT(id) DO UPDATE SET next=next+1 RETURNING next-1",
+        [],
+        |row| row.get(0),
+    )?)
 }
 
 /// Checked on migration and every later open: the stored definition keeps the
@@ -158,8 +177,16 @@ pub(crate) fn verify_listing_checks(connection: &Connection) -> Result<()> {
         "FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE",
         "CHECK((last_result='unknown')=(unknown_reason IS NOT NULL))",
         "CHECK(last_result!='listed' OR not_listed_since IS NULL)",
+        "CHECK(last_result!='not_listed' OR not_listed_since IS NOT NULL)",
     ];
-    if !definition.is_some_and(|sql| required.iter().all(|clause| sql.contains(clause))) {
+    let sequence_table: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name='artwork_listing_check_revisions')",
+        [],
+        |row| row.get(0),
+    )?;
+    if !definition.is_some_and(|sql| required.iter().all(|clause| sql.contains(clause)))
+        || !sequence_table
+    {
         return Err(PortcoveError::state(
             "artwork listing checks are missing or incomplete",
         ));
@@ -321,16 +348,19 @@ pub(crate) fn mark_listed_on_choose(
     asset_id: u64,
     now: i64,
 ) -> Result<()> {
+    let revision = next_listing_revision(connection)?;
+    // The file was just downloaded, so an earlier source answer no longer applies.
     connection.execute(
         "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result)
-         VALUES (?1,?2,?3,1,?4,'listed')
+         VALUES (?1,?2,?3,?5,?4,'listed')
          ON CONFLICT(asset_sha256,provider,asset_id) DO UPDATE SET
-            revision=revision+1,
+            revision=excluded.revision,
             last_checked_at=excluded.last_checked_at,
             last_result='listed',
             unknown_reason=NULL,
-            not_listed_since=NULL",
-        params![asset_sha256, provider.key(), asset_id, now.max(1)],
+            not_listed_since=NULL,
+            last_source_status=NULL",
+        params![asset_sha256, provider.key(), asset_id, now.max(1), revision],
     )?;
     Ok(())
 }
@@ -381,6 +411,8 @@ pub(crate) fn apply_listing_check(
         }
     };
     let source = match observation.source {
+        // An observed listing supersedes any earlier source answer.
+        _ if observation.result == "listed" => None,
         Some(status @ ("served" | "gone")) => Some(status.to_owned()),
         // An unanswered probe never erases an earlier answer.
         Some("unknown") | None => current
@@ -393,12 +425,14 @@ pub(crate) fn apply_listing_check(
     };
     let total = observation
         .total
+        .filter(|total| i64::try_from(*total).is_ok())
         .or_else(|| current.as_ref().and_then(|row| row.last_listing_total));
+    let revision = next_listing_revision(connection)?;
     connection.execute(
         "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status)
-         VALUES (?1,?2,?3,1,?4,?5,?6,?7,?8,?9)
+         VALUES (?1,?2,?3,?10,?4,?5,?6,?7,?8,?9)
          ON CONFLICT(asset_sha256,provider,asset_id) DO UPDATE SET
-            revision=revision+1,
+            revision=excluded.revision,
             last_checked_at=excluded.last_checked_at,
             last_result=excluded.last_result,
             unknown_reason=excluded.unknown_reason,
@@ -415,6 +449,7 @@ pub(crate) fn apply_listing_check(
             not_listed_since,
             total,
             source,
+            revision,
         ],
     )?;
     Ok(true)

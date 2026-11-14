@@ -3122,15 +3122,56 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
         })
         .unwrap();
 
-    // A re-choose during the check wins: the stale result is not applied.
+    // Removing and choosing the same image again during a check also wins: the
+    // new row's revision is never one an earlier snapshot saw.
     let report = service
         .run_listing_check(&|| false, |subjects, now| {
-            choose(chosen.choice.revision);
+            let current = service
+                .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                .unwrap();
+            let sha = current.selection.clone().unwrap().sha256;
+            let reset = service
+                .reset_artwork(
+                    "zelda64-recomp",
+                    ArtworkSlot::Cover,
+                    current.choice.revision,
+                )
+                .unwrap();
+            service.remove_unused_local_artwork(&sha).unwrap();
+            choose(reset.choice.revision);
             Ok(prepared_report(&subjects, Listing::NotListed, true, now))
         })
         .unwrap();
     assert!(report.recorded);
     assert_eq!(report.images[0].not_listed_since, None);
+    assert_eq!(stored(&service).last_result, "listed");
+
+    // A re-choose during the check wins: the stale result is not applied.
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            choose(
+                service
+                    .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                    .unwrap()
+                    .choice
+                    .revision,
+            );
+            Ok(prepared_report(&subjects, Listing::NotListed, true, now))
+        })
+        .unwrap();
+    assert!(report.recorded);
+    assert_eq!(report.images[0].not_listed_since, None);
+    assert_eq!(stored(&service).last_result, "listed");
+
+    // A host whose library changed before recording reports what it saw.
+    let unrecorded = service
+        .prepare_steamgriddb_listing_check()
+        .unwrap()
+        .check_with(|subjects, now| Ok(prepared_report(&subjects, Listing::NotListed, true, now)))
+        .unwrap()
+        .unrecorded();
+    assert!(!unrecorded.recorded);
+    assert_eq!(unrecorded.images.len(), 1);
     assert_eq!(stored(&service).last_result, "listed");
 
     // A held artwork lock does not lose the report; it is shown unrecorded.
@@ -3225,9 +3266,10 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
         (row.not_listed_since, row.unknown_reason.as_deref()),
         (Some(1_000), Some("unavailable"))
     );
-    // Only an observed listing clears it.
+    // Only an observed listing clears it, and with it any earlier source answer.
     assert!(observe("listed", None, None, Some(4), 4_000));
-    assert_eq!(rows(&connection).remove(0).not_listed_since, None);
+    let row = rows(&connection).remove(0);
+    assert_eq!((row.not_listed_since, row.last_source_status), (None, None));
     assert!(observe("not_listed", None, None, Some(5), 5_000));
     // Choosing the image again resets it to listed.
     choose(chosen.choice.revision);

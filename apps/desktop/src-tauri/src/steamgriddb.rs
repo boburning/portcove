@@ -67,8 +67,10 @@ pub(crate) async fn get_steamgriddb_preview(
 }
 
 /// Checks whether SteamGridDB still lists the library's SteamGridDB images and
-/// records the evidence. It stops before the next request, and records nothing,
-/// once the library generation changes.
+/// records the evidence. The service is held only to prepare and to record: the
+/// network phase keeps no library lease, so switching, moving or importing a
+/// library proceeds at once. The check then stops before its next request and
+/// records nothing, returning what it saw.
 #[tauri::command]
 pub(crate) async fn check_steamgriddb_listings(
     state: tauri::State<'_, DesktopState>,
@@ -76,11 +78,14 @@ pub(crate) async fn check_steamgriddb_listings(
 ) -> DesktopResult<SteamGridDbListingReport> {
     let state = state.inner().clone();
     blocking_worker(move || {
-        let service = service_at_generation(&state, generation)?;
         let cancelled = || crate::state_generation(&state) != generation;
-        service
-            .check_steamgriddb_listings_until(&cancelled)
-            .map_err(Into::into)
+        let prepared =
+            service_at_generation(&state, generation)?.prepare_steamgriddb_listing_check()?;
+        let checked = prepared.check(&cancelled)?;
+        Ok(match service_at_generation(&state, generation) {
+            Ok(service) => service.record_steamgriddb_listings(checked, &cancelled),
+            Err(_) => checked.unrecorded(),
+        })
     })
     .await
 }

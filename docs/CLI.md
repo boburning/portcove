@@ -1406,8 +1406,7 @@ with a `reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
 `game_not_found` (only a first-page 404; never read as a withdrawal), `empty_listing`,
 `request_limit`, `check_stopped`, `unavailable` or `invalid_response`. For
 `not_listed`, `game_not_found` and `empty_listing` images, `source` reports what the
-image server answers for the stored URL without your key: `served`, `gone` (404 or
-410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
+image server answers for the stored URL without your key: `served`, `gone` (404 or 410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
 reached a conclusion for the image's listing, and `listing_total` is the `total`
 SteamGridDB reported.
 
