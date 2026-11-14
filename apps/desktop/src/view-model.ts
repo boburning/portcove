@@ -178,7 +178,7 @@ function operationPresentation(value: string): OperationPresentation {
     install: { label: "Installing game" },
     update: { label: "Updating game" },
     prepare: { label: "Preparing game" },
-    launch: { label: "Starting game" },
+    launch: { label: "Starting game", explanation: "Opening the game now." },
     verify: { label: "Checking files" },
     verify_install: { label: "Checking installed files" },
     verify_source: { label: "Checking game files" },
