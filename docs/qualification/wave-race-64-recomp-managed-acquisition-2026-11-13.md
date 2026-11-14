@@ -65,8 +65,10 @@ From `src/main.cpp` and `tools/package_release.py` at the tag commit:
   `n64-recomp-portable` route before launch and exempts it from the immutable
   inventory (`crates/portcove-core/src/adapter.rs`, the `N64RecompPortable`
   branches of launch preparation and runtime mutable paths). No Core change was needed.
-- Settings, `.bak` files, `hud.json`, `water.json`, saves, mods, `mod_config`,
-  `texture_packs` and the stored original are persistent; `wr64.log` is a
+- Settings and their `.bak` files (including `hud.json.bak` and
+  `water.json.bak`, which upstream's config tabs can create), `hud.json`,
+  `water.json`, saves, mods, `mod_config`, `texture_packs` and the stored
+  original are persistent; `wr64.log` is a
   disposable runtime file.
 - The listing's `download_block_reason` is removed and a Linux selector added.
   The listing still declares only Linux.
@@ -79,7 +81,10 @@ external catalog retention and `external_runtime_with_port`). Status, readiness,
 relinking and launch read that retained contract, so a v1.0.2 folder registered
 before this change keeps launching in place. The external-to-managed route
 change is limited to `native-portable`, so a registered player removes the
-registration (external files stay untouched) before choosing Install.
+registration (external files stay untouched) before choosing Install. Portcove
+does not copy saves or settings from that folder; the listing guide tells the
+player to copy the `saves` folder and `.json` settings files into the managed
+game's saved data with the game closed.
 
 ## Known limits
 

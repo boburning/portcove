@@ -2514,16 +2514,16 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Set up the Linux package",
+            "title": "Windows: use a copy you already prepared",
+            "instruction": "On Windows, choose Install for the copy Portcove manages. To keep playing a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
+          },
+          {
+            "title": "Linux: download and extract the package",
             "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
           },
           {
-            "title": "Choose your original game",
+            "title": "Linux: choose your original game",
             "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
-          },
-          {
-            "title": "Use a Windows copy you already prepared",
-            "instruction": "On Windows, Install is the normal route. To keep using a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
           }
         ],
         "warnings": [
@@ -2533,11 +2533,11 @@
         "references": [
           {
             "title": "Find your saves and settings",
-            "instruction": "On Linux, saves and settings are in $XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. An empty portable.txt beside the program keeps them in its own folder instead. On Windows, a copy without portable.txt uses %LOCALAPPDATA%\\WaveRace64Recomp. Back these folders up before replacing a copy you maintain."
+            "instruction": "A copy with an empty portable.txt beside the program keeps saves and settings in its own folder: the saves folder and the .json settings files. Without it, Windows uses %LOCALAPPDATA%\\WaveRace64Recomp and Linux uses $XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. Back these up before replacing a copy you maintain."
           },
           {
-            "title": "Keep an existing Windows registration",
-            "instruction": "A Windows v1.0.2 folder already added to Portcove keeps working where it is. To switch to the managed copy, back up its saves, remove the registration (your files stay in place), then choose Install."
+            "title": "Move from a Windows copy you added earlier",
+            "instruction": "A v1.0.2 folder you added to Portcove keeps working where it is. Portcove doesn't copy its saves or settings into a managed copy. To switch, close the game and back up that folder's saves folder and .json settings files. Remove the registration (your files stay in place) and choose Install. Then, with the game closed, open the managed game's saved data folder from its details and copy the saves folder and .json files into it."
           }
         ]
       },
