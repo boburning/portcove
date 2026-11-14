@@ -223,7 +223,8 @@ export default interface Resources {
       "safetyBackup": "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data.",
       "selectedBackup": "Selected backup",
       "summary_one": "{{count}} file · {{size}}",
-      "summary_other": "{{count}} files · {{size}}"
+      "summary_other": "{{count}} files · {{size}}",
+      "unknownFiles": "Also keeps {{total, number}} files Portcove didn't install. Restoring this backup doesn't put them back."
     },
     "ghostship": {
       "activates": "This activates a fresh derivative of the retained legacy installation and replaces canonical saved data with the selected snapshot.",

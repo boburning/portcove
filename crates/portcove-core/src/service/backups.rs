@@ -720,15 +720,7 @@ impl PortcoveService {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         let source_exists = source.is_dir();
-        let selection = match self.backup_unknown_files(port_id, unknown_scope) {
-            Ok(selection) => selection,
-            // Without declared data, an ordinary backup keeps its historical
-            // "nothing to back up" outcome rather than a new refusal.
-            Err(_) if !source_exists && unknown_scope != UnknownFileScope::Removal => {
-                return Err(no_persistent_data(port_id));
-            }
-            Err(error) => return Err(error),
-        };
+        let selection = self.backup_unknown_files(port_id, unknown_scope)?;
         let unknown = selection.files;
         let unknown_files_left_in_place_v1 =
             (selection.left_in_place > 0).then_some(selection.left_in_place);
@@ -1180,7 +1172,9 @@ impl PortcoveService {
         }) {
             return decision(Availability::Held, Reason::UnsafeData);
         }
-        if history.backups.is_empty() {
+        // A backup holding only unknown player-side files has no saves to
+        // restore (#5359); it is not a usable restore source.
+        if history.backups.iter().all(|backup| backup.file_count == 0) {
             // A failed root/entry read cannot establish that no usable backup
             // exists. Damaged identified snapshots remain separate evidence.
             if history.problems.iter().any(|problem| {
@@ -1344,6 +1338,9 @@ impl PortcoveService {
             }
         }
         let backup = self.load_backup(port_id, backup_id)?;
+        if action == BackupAction::Restore {
+            require_restorable(&backup)?;
+        }
         let backup_data = backup.path.join("data");
         let backup_plan = adoption_copy_plan(&backup_data)?;
         if action == BackupAction::Restore {
@@ -1509,6 +1506,7 @@ impl PortcoveService {
             let reviewed_runtime = self.collectible_data_review(port_id)?;
             let reviewed_canonical = self.canonical_data_review(port_id)?;
             let reviewed_backup = self.load_backup(port_id, backup_id)?;
+            require_restorable(&reviewed_backup)?;
             self.faults
                 .check(LifecycleFaultPoint::RestoreManifestRecordLoaded)?;
             let manifest_path = reviewed_backup.path.join("backup.json");
@@ -2038,6 +2036,19 @@ impl PortcoveService {
     ) -> Result<()> {
         read_backup_manifest(path, port_id, backup_id).map(|_| ())
     }
+}
+
+/// Restoring a backup with no saves would empty current saves (#5359). Such a
+/// backup holds only unknown player-side files, which restore never publishes.
+fn require_restorable(backup: &BackupRecord) -> Result<()> {
+    if backup.file_count == 0 {
+        return Err(PortcoveError::conflict(
+            "This backup has no saves or settings to restore. It only keeps files Portcove didn't install, in its unknown-files folder. Choose another backup.",
+        )
+        .detail("backup_id", &backup.id)
+        .detail("unknown_file_count", backup.unknown_file_count.to_string()));
+    }
+    Ok(())
 }
 
 fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {

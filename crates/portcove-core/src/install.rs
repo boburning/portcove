@@ -2319,6 +2319,7 @@ impl Installer {
             Some(files) => files,
             None => walk_files(&install.path)?,
         };
+        let electron = electron_resources(&manifest);
         for candidate in candidates {
             let relative = manifest_relative(&install.path, &candidate)?;
             if relative == ".portcove-manifest.json"
@@ -2355,7 +2356,11 @@ impl Installer {
             if !expected.contains(relative.as_str()) {
                 // Both inventories list only regular files: the strict walk
                 // refuses links and other objects, the legacy walk skips them.
-                if crate::package_layout::is_unknown_file_hazard(&candidate)? {
+                if electron
+                    .as_deref()
+                    .is_some_and(|resources| relative_is_within(&relative, resources))
+                    || crate::package_layout::is_unknown_file_hazard(&candidate)?
+                {
                     failures.push(format!("unexpected: {relative}"));
                 } else {
                     unknown.push(relative);
@@ -2579,7 +2584,8 @@ impl Installer {
                 // reviewed loader-read names (PCV-REAUD-003, narrowed #5359).
                 CriticalCheck::Launch => {
                     (file_type.is_file()
-                        && is_executable_companion(&candidate, &executable, platform)?)
+                        && (is_executable_companion(&candidate, &executable, platform)?
+                            || crate::package_layout::is_unknown_file_hazard(&candidate)?))
                         || ((file_type.is_file() || file_type.is_dir())
                             && is_loader_sensitive_name(&entry.file_name()))
                 }
@@ -4786,7 +4792,9 @@ fn is_executable_member(path: &Path, platform: Platform) -> Result<bool> {
 /// (wiki.special-k.info, "Configuration files"); ENBSeries and other wrappers
 /// use the same convention.
 const LOADER_PROXY_STEMS: &[&str] = &[
+    "bink2w64",
     "binkw32",
+    "binkw64",
     "d3d8",
     "d3d9",
     "d3d10",
@@ -4806,12 +4814,26 @@ const LOADER_PROXY_STEMS: &[&str] = &[
     "winhttp",
     "wininet",
     "winmm",
+    "x3daudio1_7",
     "xinput1_1",
     "xinput1_2",
     "xinput1_3",
     "xinput1_4",
     "xinput9_1_0",
+    "xinputuap",
 ];
+
+/// Proxy families with a numbered suffix, matched as `<prefix><1-3 digits>`:
+/// `xaudio2_7`, `xaudio2_9`, `d3dcompiler_43`, `d3dcompiler_47` and so on.
+const LOADER_PROXY_NUMBERED_PREFIXES: &[&str] = &["xaudio2_", "d3dcompiler_"];
+
+/// Undeclared portable markers that redirect an engine's saves and settings
+/// into its own folder, where Portcove never collects them: `portable.txt`
+/// (N64 recomp, Ship of Harkinian-family and other portable-marker engines)
+/// and every catalog `portable_marker_file` (ZDoom-family
+/// `<engine>_portable.ini`, matched as a bounded pattern). A declared marker
+/// is a persistent path and never reaches this check.
+const PORTABLE_MARKER_NAMES: &[&str] = &["portable.txt"];
 
 /// Exact names a loader, injector or wrapper reads from the executable's folder
 /// before or while the game starts:
@@ -4826,7 +4848,20 @@ const LOADER_PROXY_STEMS: &[&str] = &[
 ///   even with developer UI off (docs/qualification/
 ///   yoshi-nes-cycle-windows-2026-10-18.md and
 ///   prepared-reuse-1-windows-2026-10-18.md).
-const LOADER_CONFIG_NAMES: &[&str] = &["reshade.ini", "dxvk.conf", "enblocal.ini", "debug.ini"];
+/// - `override.cfg`: Godot reads it beside the executable and lets it replace
+///   project settings, including autoloaded scripts and scenes
+///   (docs.godotengine.org, "ProjectSettings", override.cfg).
+/// - `pyvenv.cfg`: CPython reads it beside the interpreter to choose its
+///   `home` and site-packages (docs.python.org, "venv" and "sys.path
+///   initialization").
+const LOADER_CONFIG_NAMES: &[&str] = &[
+    "reshade.ini",
+    "dxvk.conf",
+    "enblocal.ini",
+    "debug.ini",
+    "override.cfg",
+    "pyvenv.cfg",
+];
 
 /// Whether a newly introduced name beside the selected executable is one a
 /// loader reads (PCV-REAUD-003 from #237, narrowed by owner decision on
@@ -4842,21 +4877,82 @@ const LOADER_CONFIG_NAMES: &[&str] = &["reshade.ini", "dxvk.conf", "enblocal.ini
 ///   "Application manifests").
 /// - `*.exe.local`: DLL redirection file or folder (learn.microsoft.com,
 ///   "Dynamic-link library redirection").
+/// - `*.runtimeconfig.dev.json`: .NET additional probing paths for the host
+///   (github.com/dotnet/runtime, "host probing").
+/// - `*._pth`: the embeddable CPython path file that replaces `sys.path`
+///   (docs.python.org, "sys.path initialization").
+/// - [`PORTABLE_MARKER_NAMES`] and `<engine>_portable.ini`.
 pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
     let name = name.to_string_lossy().to_ascii_lowercase();
     if name.len() > 255 {
         return false;
     }
     if LOADER_CONFIG_NAMES.contains(&name.as_str())
-        || [".exe.config", ".exe.manifest", ".exe.local"]
-            .iter()
-            .any(|suffix| name.len() > suffix.len() && name.ends_with(suffix))
+        || PORTABLE_MARKER_NAMES.contains(&name.as_str())
+        || [
+            ".exe.config",
+            ".exe.manifest",
+            ".exe.local",
+            ".runtimeconfig.dev.json",
+            "._pth",
+        ]
+        .iter()
+        .any(|suffix| name.len() > suffix.len() && name.ends_with(suffix))
+    {
+        return true;
+    }
+    if let Some(engine) = name.strip_suffix("_portable.ini")
+        && (1..=32).contains(&engine.len())
+        && engine
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
     {
         return true;
     }
     name.rsplit_once('.').is_some_and(|(stem, extension)| {
-        matches!(extension, "ini" | "cfg") && LOADER_PROXY_STEMS.contains(&stem)
+        matches!(extension, "ini" | "cfg")
+            && (LOADER_PROXY_STEMS.contains(&stem)
+                || LOADER_PROXY_NUMBERED_PREFIXES.iter().any(|prefix| {
+                    stem.strip_prefix(prefix).is_some_and(|digits| {
+                        (1..=3).contains(&digits.len())
+                            && digits.bytes().all(|byte| byte.is_ascii_digit())
+                    })
+                }))
     })
+}
+
+/// The `resources` folder beside the selected executable when the package is
+/// Electron-shaped: its manifest ships `resources/app.asar`,
+/// `resources/default_app.asar` or `resources/electron.asar`. Electron loads
+/// the first of `resources/app`, `resources/app.asar` and
+/// `resources/default_app.asar` it finds (electronjs.org, "Application
+/// Packaging" and "Application Distribution"), so any new entry under that
+/// folder can replace the reviewed main process and is a hazard.
+fn electron_resources(manifest: &InstallManifest) -> Option<String> {
+    let parent = Path::new(&manifest.selected_executable)
+        .parent()
+        .map(|parent| parent.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_default();
+    let resources = if parent.is_empty() {
+        "resources".to_owned()
+    } else {
+        format!("{parent}/resources")
+    };
+    manifest
+        .files
+        .iter()
+        .any(|file| {
+            file.path
+                .strip_prefix(&resources)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| {
+                    matches!(
+                        rest.to_ascii_lowercase().as_str(),
+                        "app.asar" | "default_app.asar" | "electron.asar"
+                    )
+                })
+        })
+        .then_some(resources)
 }
 
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
@@ -6866,6 +6962,19 @@ mod tests {
             "Game.exe.config",
             "game.EXE.manifest",
             "game.exe.local",
+            "override.cfg",
+            "pyvenv.cfg",
+            "bink2w64.ini",
+            "binkw64.ini",
+            "x3daudio1_7.ini",
+            "xinputuap.cfg",
+            "xaudio2_9.ini",
+            "D3DCompiler_47.ini",
+            "game.runtimeconfig.dev.json",
+            "python311._pth",
+            "portable.txt",
+            "gzdoom_portable.ini",
+            "Raze_portable.ini",
         ] {
             assert!(is_loader_sensitive_name(name.as_ref()), "{name}");
         }
@@ -6880,9 +6989,158 @@ mod tests {
             ".exe.config",
             "app.config",
             "enbseries.ini",
+            "xaudio2_.ini",
+            "xaudio2_1234.ini",
+            "d3dcompiler_x.ini",
+            "_portable.ini",
+            "my portable.ini",
+            "portable.txt.bak",
+            "runtimeconfig.json",
         ] {
             assert!(!is_loader_sensitive_name(name.as_ref()), "{name}");
         }
+    }
+
+    /// Every catalog-declared portable marker is launch-sensitive when it is
+    /// undeclared for a version: it would redirect saves into the version
+    /// folder, where they are never collected.
+    #[test]
+    fn every_catalog_portable_marker_is_launch_sensitive() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut markers = 0;
+        for port in &catalog.document().ports {
+            if let Some(name) = &port.portable_marker_file {
+                markers += 1;
+                assert!(
+                    is_loader_sensitive_name(name.as_ref()),
+                    "{}: {name}",
+                    port.id
+                );
+            }
+        }
+        assert!(markers > 0);
+    }
+
+    /// Fixture with a nested library so every check takes the full-integrity
+    /// inventory path.
+    fn full_integrity_fixture(
+        files: &[&str],
+    ) -> (
+        tempfile::TempDir,
+        Installer,
+        InstallRecord,
+        InstallQualification,
+        PathBuf,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(root.join("lib")).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        fs::write(root.join("lib/engine.dll"), b"reviewed library").unwrap();
+        for file in files {
+            let path = root.join(file);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"reviewed package file").unwrap();
+        }
+        let qualification = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &qualification);
+        let manifest = verified_manifest(&install).unwrap();
+        assert!(full_immutable_integrity(&manifest, &install, false).unwrap());
+        (temporary, installer, install, qualification, root)
+    }
+
+    /// mr-finster-stunts-hd class (Electron): a new `resources/app` or
+    /// `app.asar` variant would run instead of the reviewed `app.asar`.
+    #[test]
+    fn electron_resources_additions_are_hazards() {
+        let (_temporary, installer, install, qualification, root) =
+            full_integrity_fixture(&["resources/app.asar", "resources/electron.asar"]);
+        installer.verify_critical(&install, &qualification).unwrap();
+        for added in [
+            "resources/app/package.json",
+            "resources/app/main.json",
+            "resources/default_app.asar",
+            "resources/app.asar.unpacked/settings.json",
+            "resources/notes.txt",
+        ] {
+            let path = root.join(added);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"{\"main\": \"main.js\"}").unwrap();
+            let report = installer.verify_managed(&install, &qualification).unwrap();
+            assert!(
+                report.failures.contains(&format!("unexpected: {added}")),
+                "{added}: {report:?}"
+            );
+            assert!(
+                installer.verify_critical(&install, &qualification).is_err(),
+                "{added}"
+            );
+            assert!(
+                installer
+                    .verify_critical_for_replacement(&install, &qualification)
+                    .is_err(),
+                "{added}"
+            );
+            fs::remove_file(&path).unwrap();
+        }
+        // Data outside `resources/` stays an unknown player-side file.
+        fs::write(root.join("settings.json"), b"{}").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        // A package without Electron's archives has no such rule.
+        let (_other, installer, install, qualification, root) =
+            full_integrity_fixture(&["resources/data.pak"]);
+        fs::write(root.join("resources/notes.txt"), b"notes").unwrap();
+        let report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!report.has_hazards(), "{report:?}");
+    }
+
+    /// brawmario-infinite-mario-64-ever class (Godot): a new `override.cfg`
+    /// beside the executable can autoload scripts; a script or pack anywhere
+    /// is code.
+    #[test]
+    fn godot_override_and_scripts_hold_launch() {
+        let (_temporary, installer, install, qualification, root) =
+            full_integrity_fixture(&["game.pck"]);
+        fs::write(
+            root.join("override.cfg"),
+            b"[autoload]\nInjected=\"*res://x.gd\"",
+        )
+        .unwrap();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
+        assert!(
+            error.details["failures"].contains("override.cfg"),
+            "{error:?}"
+        );
+        installer
+            .verify_critical_for_replacement(&install, &qualification)
+            .unwrap();
+        fs::remove_file(root.join("override.cfg")).unwrap();
+        fs::create_dir_all(root.join("mods")).unwrap();
+        fs::write(root.join("mods/override.cfg"), b"not beside the program").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        for added in ["mods/injected.gd", "mods/injected.pck", "renamed.dat"] {
+            let bytes: &[u8] = if added == "renamed.dat" {
+                b"MZ\x90\x00"
+            } else {
+                b"code"
+            };
+            fs::write(root.join(added), bytes).unwrap();
+            assert!(
+                installer.verify_critical(&install, &qualification).is_err(),
+                "{added}"
+            );
+            assert!(
+                installer
+                    .verify_managed(&install, &qualification)
+                    .unwrap()
+                    .has_hazards(),
+                "{added}"
+            );
+            fs::remove_file(root.join(added)).unwrap();
+        }
+        installer.verify_critical(&install, &qualification).unwrap();
     }
 
     #[test]

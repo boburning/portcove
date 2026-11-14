@@ -2737,11 +2737,11 @@ immutable verification. Since [#5359](https://github.com/boburning/portcove/issu
 Tier 1, `service::native_portable::portable_runtime_unknown_files` is the one
 place that splits its result. Hazards hold update, rollback target, removal
 review, collection, the persistence contract and backups exactly as before:
-changed, missing or permission-changed manifest files; links, reparse points
-and other non-regular entries; and undeclared programs, scripts or libraries.
-The program classifier is the reviewed-layout one in `package_layout`
-(`exe`, `appimage`, `bat`, `cmd`, `ps1`, `sh`, `msi`, `jar`, `vbs`, `lnk`)
-plus `dll`, `so`, `so.*`, `dylib` and any executable mode bit.
+changed, missing or permission-changed manifest files and undeclared hazards.
+An undeclared file is a hazard when it is a link, reparse point or other non-regular entry; when its name is a program or script (`exe`, `appimage`, `bat`, `cmd`, `ps1`, `sh`, `msi`, `jar`, `vbs`, `lnk`) or code (`dll`, `so`, `so.N`, `dylib`, `asi`, `node`, `ocx`, `cpl`, `sys`, `drv`, `com`, `scr`, `js`, `mjs`, `cjs`, `py`, `pyc`, `pyo`, `pyd`, `pth`, `lua`, `luac`, `psm1`, `wsf`, `hta`, `jse`, `vbe`, `gd`, `gdc`, `pck`, `wasm`, `class`); when it has an executable mode bit; when its first four bytes are an executable signature (PE `MZ`, ELF, Mach-O, universal binary or Java class, or a `#!` interpreter line); or when it is anywhere under the `resources` folder beside the executable of an Electron-shaped package (one that ships `resources/app.asar`, `default_app.asar` or `electron.asar`). Changed, missing or permission-changed package files are hazards too. The extension list and signature sniff live in
+`package_layout::is_unknown_file_hazard`; the Electron rule is
+`install::electron_resources`, because Electron loads `resources/app`,
+`resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
 
 Every other undeclared regular file is an unknown player-side file, such as a
 settings file a game writes beside itself. `VerificationReport` keeps it out of
@@ -2757,7 +2757,12 @@ links, and new names on the reviewed loader-read list in
 proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
 `xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
 NES/SNES-recomp developer-listener switch `debug.ini`, and
-`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. That
+`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. The
+list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
+`*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
+`d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the
+catalog's `<engine>_portable.ini` names), which would silently move saves into
+the version folder where they are never collected. That
 list keeps audit finding PCV-REAUD-003 from
 [#237](https://github.com/boburning/portcove/pull/237) (#17, #20) and
 [SECURITY](../SECURITY.md); the owner narrowed it on November 14, 2026 from
@@ -2777,7 +2782,15 @@ into the review fingerprint. The manifest records the area as `unknown_files_v1`
 (count, size, digest) outside the restorable content digest, and
 `BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
 so it never writes an unknown file into a declared path, and an older reader
-ignores the area. Restoring the area is Tier 2 work.
+ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+empty, holding only unknown files, cannot be restored (restore and its review
+refuse it, and the restore assessment ignores it) and is never the latest
+protection in `BackupInventory.protection`.
+
+Output relocation, library transfer copies and managed preparation output
+checks still require an exact match and refuse any unknown file. That is
+intentionally strict for now: those paths copy or re-derive the whole runtime,
+and Tier 1 does not decide how unknown files travel with it.
 
 The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
 total. Past a cap, an explicit backup and removal (review and execution) hold

@@ -768,7 +768,9 @@ distinct games sharing a repository separate. A reference catalog's release,
 checksum, scanner or verification label is not Portcove admission or qualification.
 
 Native portable runtimes use complete immutable-file verification. Changed or
-missing package files, links, and undeclared programs, scripts or libraries block
+missing package files, links, and undeclared code (programs, scripts, libraries,
+plugins, files with an executable signature, and any addition under an Electron
+package's `resources` folder) block
 launch, update, version switching, managed removal and backup with the current
 files preserved. The player can back up and relocate them or retain an external
 installation. Other undeclared regular files, such as settings a game writes

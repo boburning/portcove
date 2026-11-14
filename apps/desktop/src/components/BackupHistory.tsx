@@ -306,6 +306,14 @@ export function BackupHistory({
               <small className="mt-[3px] text-xs text-[var(--color-text-muted)]">
                 {t("details.summary", { count: backup.file_count, size: formatBytes(backup.size) })}
               </small>
+              {(backup.unknown_file_count ?? 0) > 0 && (
+                <small
+                  className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
+                  data-unknown-files
+                >
+                  {t("details.unknownFiles", { total: backup.unknown_file_count ?? 0 })}
+                </small>
+              )}
               {automaticLabel && (
                 <small
                   className="mt-[3px] block text-xs [overflow-wrap:anywhere] text-[var(--color-text-muted)]"
