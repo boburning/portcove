@@ -46,7 +46,10 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-async function show(load: () => Promise<LaunchSessionView | null>, status?: PortStatus) {
+async function show(
+  load: (portId: string, generation: number) => Promise<LaunchSessionView | null>,
+  status?: PortStatus,
+) {
   await act(async () => {
     await root.rerender(
       <LaunchFailureNotice
@@ -129,6 +132,32 @@ it("offers Open Activity only when the host can open it, and calls it", async ()
   );
   await act(async () => open?.click());
   expect(openActivity).toHaveBeenCalledOnce();
+});
+
+it("ignores an unfinished notice read from the previously selected game", async () => {
+  let finishFirstRead!: (value: LaunchSessionView) => void;
+  const firstRead = new Promise<LaunchSessionView>((resolve) => {
+    finishFirstRead = resolve;
+  });
+  const load = vi.fn((portId: string) => (portId === "p" ? firstRead : Promise.resolve(null)));
+  const status = { active: { id: "i1" } } as PortStatus;
+  await show(load, status);
+  expect(load).toHaveBeenCalledWith("p", 1);
+
+  await act(async () => {
+    await root.rerender(
+      <LaunchFailureNotice
+        portId="other"
+        generation={1}
+        status={status}
+        rollback={rollback}
+        load={load}
+      />,
+    );
+  });
+  expect(load).toHaveBeenCalledWith("other", 1);
+  await act(async () => finishFirstRead(failure(true)));
+  expect(document.body.querySelector("[data-launch-failure]")).toBeNull();
 });
 
 it("renders the notice chrome in the current language and keeps the exit code verbatim", async () => {

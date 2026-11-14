@@ -20,6 +20,7 @@ export function LaunchFailureNotice({
   busy,
   rollback,
   openActivity,
+  finishedLaunchActivityId,
   load = desktopApi.launchFailure,
 }: {
   portId: string;
@@ -29,6 +30,7 @@ export function LaunchFailureNotice({
   rollback: () => void | Promise<unknown>;
   /** Opens Portcove's Activity history, where the launch and its log are recorded. */
   openActivity?: (() => void) | undefined;
+  finishedLaunchActivityId?: string | undefined;
   load?: (portId: string, generation: number) => Promise<LaunchSessionView | null>;
 }) {
   // State is keyed by what was loaded, so a stale answer for another game or
@@ -54,7 +56,7 @@ export function LaunchFailureNotice({
     return () => {
       current = false;
     };
-  }, [portId, generation, requestKey, status, load]);
+  }, [portId, generation, requestKey, status, finishedLaunchActivityId, load]);
   const loadedView = loaded?.key === requestKey ? loaded.view : null;
   // A failure belongs to the installation that ran: the managed install, or the
   // external registration. After a rollback, update, reinstall or removal it
