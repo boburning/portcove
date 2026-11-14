@@ -64186,8 +64186,8 @@
           "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
           "references": [
             {
-              "title": "Keep updates and data with the working copy",
-              "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready."
+              "title": "Build and run upstream on Linux",
+              "instruction": "For Linux x86-64 or ARM64, follow the 64-bit Linux/SDL2 section of the v0.9.9 build guide at https://github.com/shinyquagsire23/OpenJKDF2/blob/v0.9.9/BUILDING.md. Check out tag v0.9.9 before initializing the submodules. Use the guide’s Clang setup and launch the built player from the checkout as documented so it can find its libraries. Copy the Resource and Episode folders from your own matching Jedi Knight installation into the working folder as lowercase resource/ and episode/. Linux filenames can be case-sensitive. Keep the working copy and actual profile when rebuilding. You build, launch and update this Linux copy through upstream."
             },
             {
               "title": "Preserve imported Jedi Knight data and profiles",
@@ -64195,7 +64195,7 @@
             },
             {
               "title": "Keep external ownership and all player data",
-              "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+              "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. Keep the current working copy until another version is ready."
             }
           ]
         },
