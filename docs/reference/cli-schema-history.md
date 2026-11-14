@@ -40,6 +40,25 @@ is not usable there; the rest of the catalog is unaffected.
 
 ## Documented API changes
 
+API93 lets `artwork steamgriddb check-listings` confirm a withdrawal and remove
+Portcove's copy. A verified absence is confirmed by a `gone` answer from the image
+server in the same check, or by a second verified absence at least 24 hours later by
+both Portcove's clock and SteamGridDB's `Date`. A provider-only asset whose every
+record is confirmed is evicted: its original and thumbnail are deleted while the
+choice, revision and credit stay. The Library database moves to writer schema 59
+(`artwork_provider_withdrawals`, `artwork_evicted_assets`,
+`artwork_provider_listing_checks.not_listed_since_server`). Library metadata schema
+10 adds `artwork.withdrawals` and `artwork.evicted_assets`; evicted originals are
+not carried, and older readers refuse it. `steamgriddb_listing_report` images gain
+`effect` (`none`, `withdrawn`, `removed` or `listed_again`), `withdrawn_at` and
+`evicted_at`, and the report gains
+`skipped`, `removed`, `removal_deferred` and `removal_failed`. `artwork_state` gains
+`evicted_at`, and each `provider_listing` entry gains `withdrawn_at` and
+`withdrawal_signal`. An evicted selection is `unavailable`, and the destination
+handoff reports `selected_original_unavailable` without reading the file; handoff
+schema 4 and `ArtworkAttribution` are unchanged. Library export and move first
+finish pending removals and stop if a removed original cannot be deleted.
+
 API92 makes `artwork steamgriddb check-listings` record listing evidence: the
 Library database moves to writer schema 58 (`artwork_provider_listing_checks`), and
 older writers refuse the upgraded library. `steamgriddb_listing_report` images replace

@@ -5,6 +5,7 @@ mod archive;
 mod archive_data;
 mod archive_data_transition;
 mod artwork;
+mod artwork_eviction;
 mod artwork_image;
 mod artwork_ingestion;
 mod artwork_store;
@@ -158,16 +159,18 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
-    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
+    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
+    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
     DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
     DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
     GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
-    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbCheckStop,
-    SteamGridDbFailure, SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus,
-    SteamGridDbListingReport, SteamGridDbListingResult, SteamGridDbSourceStatus,
-    SteamGridDbUnknownReason, clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key,
-    steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
+    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
+    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
+    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
@@ -463,7 +466,7 @@ pub use types::*;
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 92;
+pub const API_SCHEMA_VERSION: u32 = 93;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

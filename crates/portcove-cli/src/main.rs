@@ -3127,6 +3127,7 @@ fn execute_library(
                     human::library_metadata_file,
                 )?;
             } else {
+                service.finish_pending_artwork_removals()?;
                 render_read_success(
                     mode,
                     name,

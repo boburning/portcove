@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 58;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 59;
 
 struct Migration {
     version: i64,
@@ -371,7 +371,45 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_58,
         verify: verify_migration_58,
     },
+    Migration {
+        version: 59,
+        name: "artwork withdrawals",
+        apply: migration_59,
+        verify: verify_migration_59,
+    },
 ];
+
+fn migration_59(transaction: &Transaction<'_>) -> Result<()> {
+    // Withdrawal and eviction records beside the provider records. Adding them
+    // changes no asset, choice or file; only a later player-triggered check can.
+    crate::artwork_store::migrate_withdrawals(transaction)?;
+    verify_migration_59(transaction)
+}
+
+fn verify_migration_59(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_provider_withdrawals",
+        &[
+            "asset_sha256",
+            "provider",
+            "asset_id",
+            "withdrawn_at",
+            "signal",
+        ],
+    )?;
+    require_columns(
+        connection,
+        "artwork_evicted_assets",
+        &["asset_sha256", "evicted_at"],
+    )?;
+    require_columns(
+        connection,
+        "artwork_provider_listing_checks",
+        &["not_listed_since_server"],
+    )?;
+    crate::artwork_store::verify_withdrawals(connection)
+}
 
 fn migration_58(transaction: &Transaction<'_>) -> Result<()> {
     // Evidence of whether a provider still lists a stored image, beside each
@@ -3260,6 +3298,132 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_withdrawals_migration_rolls_back_to_schema_58() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 58).unwrap();
+        let connection = connect(root).unwrap();
+        // A pre-existing name makes the second create fail inside the migration,
+        // after the first table was created.
+        connection
+            .execute_batch("CREATE TABLE artwork_evicted_assets (blocker INTEGER);")
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 59).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 58);
+        let withdrawals: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='artwork_provider_withdrawals')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!withdrawals);
+        crate::artwork_store::verify_listing_checks(&connection).unwrap();
+        assert!(
+            require_columns(
+                &connection,
+                "artwork_provider_listing_checks",
+                &["not_listed_since_server"]
+            )
+            .is_err()
+        );
+    }
+
+    #[test]
+    fn withdrawals_verification_rejects_a_weakened_definition() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_withdrawals(&connection).unwrap();
+        // Without the cascade, removing a record would fail on the foreign key.
+        connection
+            .execute_batch(
+                "DROP TABLE artwork_provider_withdrawals;
+                 CREATE TABLE artwork_provider_withdrawals (
+                    asset_sha256 TEXT NOT NULL, provider TEXT NOT NULL, asset_id INTEGER NOT NULL,
+                    withdrawn_at INTEGER NOT NULL CHECK(withdrawn_at>0),
+                    signal TEXT NOT NULL CHECK(signal IN ('gone','absent_again')),
+                    PRIMARY KEY(asset_sha256,provider,asset_id),
+                    FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id)
+                 );",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_withdrawals(&connection).is_err());
+    }
+
+    #[test]
+    fn eviction_markers_require_a_provider_only_asset_and_records_cascade() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        let asset = "a".repeat(64);
+        connection
+            .execute_batch(&format!(
+                "INSERT INTO artwork_assets(sha256,payload,byte_size) VALUES ('{asset}','{{}}',1);
+                 INSERT INTO artwork_asset_providers(asset_sha256,provider,asset_id,record_json) VALUES ('{asset}','steamgriddb',7,'{{}}');
+                 INSERT INTO artwork_provider_withdrawals(asset_sha256,provider,asset_id,withdrawn_at,signal) VALUES ('{asset}','steamgriddb',7,5,'gone');"
+            ))
+            .unwrap();
+        // Not provider-only: the marker is refused.
+        assert!(
+            connection
+                .execute(
+                    "INSERT INTO artwork_evicted_assets(asset_sha256,evicted_at) VALUES (?1,5)",
+                    [&asset],
+                )
+                .is_err()
+        );
+        connection
+            .execute(
+                "INSERT INTO artwork_provider_only_assets(asset_sha256) VALUES (?1)",
+                [&asset],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO artwork_evicted_assets(asset_sha256,evicted_at) VALUES (?1,5)",
+                [&asset],
+            )
+            .unwrap();
+        // The provider-only marker cannot go while the eviction marker stands.
+        assert!(
+            connection
+                .execute(
+                    "DELETE FROM artwork_provider_only_assets WHERE asset_sha256=?1",
+                    [&asset],
+                )
+                .is_err()
+        );
+        // Removing the record by itself removes its withdrawal (cascade only).
+        connection
+            .execute(
+                "DELETE FROM artwork_asset_providers WHERE asset_sha256=?1",
+                [&asset],
+            )
+            .unwrap();
+        let withdrawals: i64 = connection
+            .query_row(
+                "SELECT count(*) FROM artwork_provider_withdrawals",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(withdrawals, 0);
+    }
+
+    #[test]
     fn listing_checks_verification_rejects_a_weakened_definition() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3569,6 +3733,7 @@ mod tests {
         schema_55: 55,
         schema_56: 56,
         schema_57: 57,
+        schema_58: 58,
     }
 
     #[test]

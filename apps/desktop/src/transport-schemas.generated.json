@@ -3456,7 +3456,7 @@
       },
       "ArtworkProviderListing": {
         "additionalProperties": false,
-        "description": "Recorded evidence of whether a provider still lists a credited image. It is\nan observation, not an action: nothing is removed because of it.",
+        "description": "Recorded evidence of whether a provider still lists a credited image. A\nconfirmed withdrawal (`withdrawn_at`) can remove a provider-only copy; see\n[`ArtworkState::evicted_at`].",
         "properties": {
           "asset_id": {
             "format": "uint64",
@@ -3481,6 +3481,24 @@
           },
           "provider": {
             "$ref": "#/$defs/ArtworkProvider"
+          },
+          "withdrawal_signal": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ArtworkWithdrawalSignal"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "withdrawn_at": {
+            "description": "When a later check confirmed the withdrawal; cleared when the image is\nseen listed again or chosen again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -3488,7 +3506,9 @@
           "asset_id",
           "last_checked_at",
           "last_result",
-          "not_listed_since"
+          "not_listed_since",
+          "withdrawn_at",
+          "withdrawal_signal"
         ],
         "type": "object"
       },
@@ -3557,6 +3577,21 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -3797,6 +3832,14 @@
       "choice": {
         "$ref": "#/$defs/ArtworkChoice"
       },
+      "evicted_at": {
+        "description": "When Portcove removed the selected image's stored copy because every\nprovider that supplied it confirmed a withdrawal. The choice and the\ncredit stay; choosing the image again restores the copy.",
+        "format": "int64",
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
       "generated_fallback": {
         "$ref": "#/$defs/GeneratedArtworkFallback"
       },
@@ -3835,7 +3878,8 @@
       "resolved_source",
       "generated_fallback",
       "attribution",
-      "provider_listing"
+      "provider_listing",
+      "evicted_at"
     ],
     "title": "ArtworkState",
     "type": "object"
@@ -20622,6 +20666,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -20644,6 +20705,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -20655,6 +20723,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -20700,6 +20775,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -22248,6 +22369,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -22270,6 +22408,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -22281,6 +22426,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -22326,6 +22478,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -23851,6 +24049,23 @@
         ],
         "type": "object"
       },
+      "ArtworkEvictedAsset": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_sha256": {
+            "type": "string"
+          },
+          "evicted_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "evicted_at"
+        ],
+        "type": "object"
+      },
       "ArtworkImageFormat": {
         "enum": [
           "png",
@@ -23873,6 +24088,13 @@
             },
             "type": "array"
           },
+          "evicted_assets": {
+            "description": "Provider-only assets whose originals Portcove removed after every record\nwas withdrawn. Their files are not carried; schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkEvictedAsset"
+            },
+            "type": "array"
+          },
           "provider_only_assets": {
             "description": "Assets that exist only because a provider image was chosen; no local import\nof the same bytes was made. Present only under library metadata schema 8.",
             "items": {
@@ -23884,6 +24106,13 @@
             "description": "Provider provenance; present only under library metadata schema 8.",
             "items": {
               "$ref": "#/$defs/ArtworkProviderRecord"
+            },
+            "type": "array"
+          },
+          "withdrawals": {
+            "description": "Confirmed withdrawals of provider records; library metadata schema 10.",
+            "items": {
+              "$ref": "#/$defs/ArtworkWithdrawalRecord"
             },
             "type": "array"
           }
@@ -23929,6 +24158,52 @@
           {
             "const": "landscape",
             "description": "A wide cover, separate from the detail image; Steam's library capsule.",
+            "type": "string"
+          }
+        ]
+      },
+      "ArtworkWithdrawalRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "asset_sha256": {
+            "type": "string"
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          },
+          "signal": {
+            "$ref": "#/$defs/ArtworkWithdrawalSignal"
+          },
+          "withdrawn_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "asset_sha256",
+          "provider",
+          "asset_id",
+          "withdrawn_at",
+          "signal"
+        ],
+        "type": "object"
+      },
+      "ArtworkWithdrawalSignal": {
+        "description": "The second signal that confirmed a withdrawal after a first absence.",
+        "oneOf": [
+          {
+            "const": "gone",
+            "description": "SteamGridDB's image server answered that the file is gone.",
+            "type": "string"
+          },
+          {
+            "const": "absent_again",
+            "description": "A check at least 24 hours after the first absence still did not find it.",
             "type": "string"
           }
         ]
@@ -66693,6 +66968,31 @@
         ],
         "type": "string"
       },
+      "SteamGridDbCheckEffect": {
+        "description": "What recording one image's result changed in the library.",
+        "oneOf": [
+          {
+            "const": "none",
+            "description": "Nothing beyond the recorded evidence.",
+            "type": "string"
+          },
+          {
+            "const": "withdrawn",
+            "description": "This check confirmed the image withdrawn: a verified absence with a\nsecond signal (a `gone` answer in the same check, or an absence at least\n24 hours old). The stored copy is kept, because another credit or the\nplayer's own import still stands behind it.",
+            "type": "string"
+          },
+          {
+            "const": "removed",
+            "description": "The image is confirmed withdrawn and Portcove removed its copy. The\nchoice and the credit are kept.",
+            "type": "string"
+          },
+          {
+            "const": "listed_again",
+            "description": "The image was confirmed withdrawn before and is now listed again; a\nremoved copy comes back only when the player chooses it again.",
+            "type": "string"
+          }
+        ]
+      },
       "SteamGridDbCheckStop": {
         "description": "Why a check ended before every group was read.",
         "oneOf": [
@@ -66790,6 +67090,18 @@
           "attribution": {
             "$ref": "#/$defs/ArtworkAttribution"
           },
+          "effect": {
+            "$ref": "#/$defs/SteamGridDbCheckEffect",
+            "description": "What recording this result changed; `none` when the check was not recorded."
+          },
+          "evicted_at": {
+            "description": "When Portcove removed the stored copy behind this record, as recorded\nafter this check; choosing the image again restores it.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "listing": {
             "$ref": "#/$defs/SteamGridDbListingResult"
           },
@@ -66812,6 +67124,14 @@
           },
           "source": {
             "$ref": "#/$defs/SteamGridDbSourceStatus"
+          },
+          "withdrawn_at": {
+            "description": "When a check confirmed this record withdrawn, as recorded after this\ncheck; cleared when it is seen listed again or chosen again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -66821,7 +67141,10 @@
           "attempted",
           "listing_total",
           "source",
-          "not_listed_since"
+          "not_listed_since",
+          "effect",
+          "withdrawn_at",
+          "evicted_at"
         ],
         "type": "object"
       },
@@ -66963,6 +67286,30 @@
         "description": "Whether these results were recorded in the library. A cancelled check, or\none whose recording failed, still reports what it saw.",
         "type": "boolean"
       },
+      "removal_deferred": {
+        "description": "Removals left for the next check, export or move because one check\nremoves a bounded number while it holds the library.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "removal_failed": {
+        "description": "Removals that failed, usually because another program holds the file.\nPortcove no longer shows or hands out these copies.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "removed": {
+        "description": "Copies of withdrawn images removed from the library during this check,\nincluding removals left over from earlier checks.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "skipped": {
+        "description": "Attempted results that could not be written and stay unrecorded; they are\nchecked again first next time.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      },
       "stopped": {
         "anyOf": [
           {
@@ -66978,7 +67325,11 @@
       "checked_at",
       "images",
       "stopped",
-      "recorded"
+      "recorded",
+      "skipped",
+      "removed",
+      "removal_deferred",
+      "removal_failed"
     ],
     "title": "SteamGridDbListingReport",
     "type": "object"

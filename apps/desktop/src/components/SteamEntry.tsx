@@ -57,7 +57,9 @@ function steamArtworkUnavailableLabel(
           ? "Not available: choose a wide landscape image for this game in Portcove first"
           : "Not available: choose an imported image for this game in Portcove first";
     case "selected_original_unavailable":
-      return "Not available: the selected image could not be read; import it again";
+      // Also covers a copy removed after SteamGridDB withdrew the image, so the
+      // remedy names both choosing again and choosing another.
+      return "Not available: Portcove no longer has the selected image; choose it again or pick another one in Portcove";
     case "selected_image_not_wide":
       return role === "landscape_cover"
         ? "Not available: the selected landscape image is not wide, so it is not used as a capsule"

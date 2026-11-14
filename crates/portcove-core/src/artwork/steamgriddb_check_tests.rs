@@ -11,6 +11,8 @@ struct Scripted {
     image_statuses: RefCell<VecDeque<u16>>,
     paths: RefCell<Vec<String>>,
     images: RefCell<Vec<(String, u64)>>,
+    /// The `Date` every provider answer carries, in order; the last one repeats.
+    api_dates: RefCell<VecDeque<&'static str>>,
 }
 
 impl Scripted {
@@ -26,6 +28,7 @@ impl Scripted {
             image_statuses: RefCell::new(VecDeque::new()),
             paths: RefCell::new(Vec::new()),
             images: RefCell::new(Vec::new()),
+            api_dates: RefCell::new(VecDeque::new()),
         }
     }
 }
@@ -42,9 +45,18 @@ impl SteamGridDbTransport for Scripted {
         if status == 0 {
             return Err(SteamGridDbFailure::Unavailable.into());
         }
+        let date = {
+            let mut dates = self.api_dates.borrow_mut();
+            if dates.len() > 1 {
+                dates.pop_front()
+            } else {
+                dates.front().copied()
+            }
+        };
         Ok(TransportResponse {
             status,
             retry_after: retry_after.map(str::to_owned),
+            date: date.map(str::to_owned),
             body: body.into_bytes(),
         })
     }
@@ -62,6 +74,7 @@ impl SteamGridDbTransport for Scripted {
         Ok(TransportResponse {
             status,
             retry_after: None,
+            date: None,
             body: Vec::new(),
         })
     }
@@ -390,14 +403,15 @@ fn roles_map_to_their_collection_and_undocumented_sizes_list_the_whole_collectio
 
 #[test]
 fn an_empty_library_needs_no_key_and_makes_no_request() {
-    let report = check_stored_listings(Vec::new(), 5, &|| false).unwrap();
+    let run = check_stored_listings(Vec::new(), 5, &|| false).unwrap();
     assert_eq!(
-        report,
+        run.report,
         SteamGridDbListingReport {
             checked_at: 5,
             images: Vec::new(),
             stopped: None,
             recorded: true,
+            ..SteamGridDbListingReport::default()
         }
     );
 }
@@ -807,4 +821,95 @@ fn steamgriddb_live_listing_check() {
     assert_eq!(outcome(&report, 0).0, L::Listed);
     assert_eq!(outcome(&report, 1).0, L::Listed);
     assert_eq!(outcome(&report, 2), (L::NotListed, None, S::Gone));
+}
+
+#[test]
+fn http_dates_are_read_strictly() {
+    assert_eq!(
+        server_date(Some("Sat, 14 Nov 2026 07:30:00 GMT")),
+        Some(1_794_641_400)
+    );
+    assert_eq!(server_date(Some("yesterday")), None);
+    assert_eq!(server_date(Some("Thu, 01 Jan 1970 00:00:00 GMT")), None);
+    assert_eq!(server_date(None), None);
+}
+
+#[test]
+fn each_image_carries_the_server_dates_of_its_own_listing() {
+    // Two pages answered at different times, then a second game's page.
+    let first: Vec<u64> = (1..=50).collect();
+    let transport = Scripted::new(
+        vec![
+            page(0, 52, &first),
+            page(1, 52, &[51, 52]),
+            page(0, 1, &[5]),
+        ],
+        200,
+    );
+    *transport.api_dates.borrow_mut() = VecDeque::from([
+        "Sat, 14 Nov 2026 07:30:00 GMT",
+        "Sat, 14 Nov 2026 07:30:02 GMT",
+        "Sat, 14 Nov 2026 07:31:00 GMT",
+    ]);
+    let run = check_listings_dated(
+        &transport,
+        KEY,
+        vec![portrait(99, 7), portrait(6, 8)],
+        control(&|| false),
+        42,
+    );
+    assert_eq!(
+        run.server_dates,
+        vec![
+            Some(ServerDates {
+                earliest: 1_794_641_400,
+                latest: 1_794_641_402
+            }),
+            Some(ServerDates {
+                earliest: 1_794_641_460,
+                latest: 1_794_641_460
+            }),
+        ]
+    );
+    // Without a readable date there is nothing to compare.
+    let transport = Scripted::new(vec![page(0, 1, &[5])], 200);
+    let run = check_listings_dated(
+        &transport,
+        KEY,
+        vec![portrait(6, 8)],
+        control(&|| false),
+        42,
+    );
+    assert_eq!(run.server_dates, vec![None]);
+}
+
+#[test]
+fn absences_are_probed_before_images_whose_listing_was_empty() {
+    // Game 7 lists nothing at all (empty, probed only to inform); game 8 lists
+    // another image, so image 6 is a verified absence and is probed first.
+    let empty = page(0, 0, &[]);
+    let transport = Scripted::new(vec![empty.clone(), empty, page(0, 1, &[5])], 404);
+    // The never-checked empty group is listed first, yet the absence that
+    // was checked before is probed first.
+    let mut stale = portrait(6, 8);
+    stale.last_checked_at = Some(1);
+    let report = run(&transport, vec![portrait(3, 7), stale]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::EmptyListing), S::Gone)
+    );
+    assert_eq!(outcome(&report, 1), (L::NotListed, None, S::Gone));
+    let probed: Vec<String> = transport
+        .images
+        .borrow()
+        .iter()
+        .map(|(url, _)| url.clone())
+        .collect();
+    assert_eq!(
+        probed,
+        [
+            "https://cdn2.steamgriddb.com/grid/6.png",
+            "https://cdn2.steamgriddb.com/grid/3.png"
+        ]
+    );
 }

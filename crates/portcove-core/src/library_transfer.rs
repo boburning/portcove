@@ -37,6 +37,7 @@ impl PortcoveService {
         let source_root = fs::canonicalize(self.library().root())?;
         let destination_root = transfer_destination(&source_root, destination)?;
         ensure_idle(self.library())?;
+        crate::artwork_eviction::prepare_transfer(self.library())?;
         let metadata = self.export_library_metadata()?;
         let catalogs =
             crate::library_import::PortabilityCatalogs::from_root(&metadata, &source_root)?;
