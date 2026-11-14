@@ -19220,6 +19220,41 @@
       }
     },
     {
+      "id": "crownpark-xbox360-native-ports-collection",
+      "project_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports",
+      "name": "CrownPark Xbox 360 Native Ports Collection",
+      "summary": "Get a title-specific Windows or Linux launcher from CrownPark and import your own Xbox 360 game files.",
+      "issue_number": 6005,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports#using-a-release-launcher",
+      "download_block_reason": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your game’s launcher",
+            "instruction": "Find the release for your game in the upstream project and read that release’s source and testing notes. Extract its Windows x86-64 ZIP or Linux x86-64 .tar.zst to a separate folder for that game. Both platforms need a Vulkan-capable driver. On Linux, follow the upstream guide for gamescope, Python 3 and archive tools."
+          },
+          {
+            "title": "Import your original files and play",
+            "instruction": "On Windows, open Launcher.bat and choose Import game files. For a disc title, use the matching disc image or extracted files. For an XBLA title, use an extracted game folder containing default.xex. On Linux, run ./run.sh, select the matching title and follow its import prompt for the disc or XBLA package. Use the edition and region in the bundle’s content/SOURCE.txt. Resolve any checksum warning before playing."
+          },
+          {
+            "title": "Keep each game’s saves and settings",
+            "instruction": "Keep the user-data folder beside each launcher. Back it up before replacing or removing that game’s extracted folder. Keep your original disc image or XBLA package outside the launcher folder."
+          }
+        ],
+        "warnings": [
+          "Upstream testing varies by title and platform. Check the notes for the package you choose."
+        ],
+        "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
+      }
+    },
+    {
       "id": "ctrnativeported-guzuold-crash-team-racing-nitro-fueled",
       "name": "Crash Team Racing: Nitro-Fueled — CTRNativePorted (guzuold)",
       "original_game_title": "Crash Team Racing: Nitro-Fueled",
