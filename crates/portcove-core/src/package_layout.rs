@@ -21,9 +21,16 @@ const REPORTED_NAMES: usize = 3;
 pub(crate) const NATIVE_CAPABILITY: u32 = 18;
 pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
 pub(crate) const MACOS_LIBRARY_FILTER_CAPABILITY: u32 = 30;
+pub(crate) const PORTABLE_DATA_LAYOUT_CAPABILITY: u32 = 32;
 
 pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
-    if port
+    if port.linux_portable_data_directory.is_some()
+        && port
+            .reviewed_package_layouts
+            .contains_key(&Platform::LinuxX86_64)
+    {
+        PORTABLE_DATA_LAYOUT_CAPABILITY
+    } else if port
         .reviewed_package_layouts
         .values()
         .any(|layout| layout.ignore_verified_macos_libraries)
@@ -181,6 +188,12 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             || (layout.ignore_verified_macos_libraries
                 && (port.adapter != crate::AdapterKind::NativePortable
                     || !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)))
+            || crate::native_portable_data::directory_name(port, *platform).is_some_and(|name| {
+                layout
+                    .directories
+                    .iter()
+                    .any(|directory| directory.eq_ignore_ascii_case(name))
+            })
             || !valid_layout(layout)
         {
             return Err(PortcoveError::verification(format!(
@@ -205,7 +218,19 @@ pub(crate) fn require_reviewed_layout(
     } else {
         look_through_wrapper(payload_root)?
     };
-    let observed = observe_root(root, platform, reviewed.ignore_verified_macos_libraries)?;
+    let mut observed = observe_root(
+        root.clone(),
+        platform,
+        reviewed.ignore_verified_macos_libraries,
+    )?;
+    if let Some(name) = crate::native_portable_data::directory_name(port, platform) {
+        let data = root.join(name);
+        if data.is_dir() && fs::read_dir(data)?.next().transpose()?.is_none() {
+            observed
+                .directories
+                .retain(|directory| !directory.eq_ignore_ascii_case(name));
+        }
+    }
     match compare(reviewed, &observed) {
         None => Ok(()),
         Some(drift) => Err(PortcoveError::unsupported(drift.player_reason())),

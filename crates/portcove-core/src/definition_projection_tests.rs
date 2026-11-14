@@ -110,9 +110,9 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
         // a later chain that matched first would silently skip the requirement.
         30
     } else if crate::package_layout::layout_capability(&typed)
-        == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        > crate::package_layout::NATIVE_CAPABILITY
     {
-        crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+        crate::package_layout::layout_capability(&typed)
     } else if typed.linux_portable_data_directory.is_some() {
         crate::native_portable_data::NATIVE_CAPABILITY
     } else if !typed.release.tar_xz_platforms.is_empty() {

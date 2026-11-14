@@ -829,8 +829,10 @@ fn native_portable_marker_files_require_version_19_in_fresh_and_retained_readers
 #[test]
 fn linux_portable_data_requires_version_25_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
-    let mut entry = entry_for_port(port);
+    let mut port = catalog.port("nicholas-ochoa-opensc2k").unwrap().clone();
+    port.reviewed_package_layouts
+        .remove(&crate::Platform::LinuxX86_64);
+    let mut entry = entry_for_port(&port);
     entry["required_capabilities"][0]["maximum_version"] = json!(25);
     for minimum in [24, 25] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
@@ -841,6 +843,33 @@ fn linux_portable_data_requires_version_25_in_fresh_and_retained_readers() {
         ] {
             if minimum == 24 {
                 assert!(result.unwrap_err().message.contains("version 25"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
+fn linux_portable_data_layout_requires_version_32_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("nicholas-ochoa-opensc2k").unwrap();
+    let mut entry = entry_for_port(port);
+    for minimum in [31, 32] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 31 {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("capability version 32")
+                );
             } else {
                 assert!(result.unwrap().capabilities().compatible);
             }
@@ -1543,9 +1572,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
             // a later chain that matched first would silently skip the requirement.
             30
         } else if crate::package_layout::layout_capability(port)
-            == crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+            > crate::package_layout::NATIVE_CAPABILITY
         {
-            crate::package_layout::MACOS_LIBRARY_FILTER_CAPABILITY
+            crate::package_layout::layout_capability(port)
         } else if port.linux_portable_data_directory.is_some() {
             crate::native_portable_data::NATIVE_CAPABILITY
         } else if !port.release.tar_xz_platforms.is_empty() {

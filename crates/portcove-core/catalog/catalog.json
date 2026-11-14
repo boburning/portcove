@@ -63254,6 +63254,14 @@
       },
       "linux_portable_data_directory": "data",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "opensc2k.x86_64"
+          ]
+        },
         "windows-x86-64": {
           "directories": [
             "data",
