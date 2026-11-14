@@ -37,6 +37,7 @@ mod definition_policy_tests;
 mod definition_projection;
 mod definition_publication;
 mod definition_repository;
+mod dump_dat;
 mod durability;
 mod error;
 mod exit_explanation;
@@ -233,6 +234,11 @@ pub use definition_repository::{
         acquire_definition_launch_assessment, acquire_definition_publisher_policy,
         inspect_official_definition_delivery,
     },
+};
+pub use dump_dat::{
+    DatReferenceState, DatReferenceStatus, DumpIdentification, DumpMatch, DumpMatchedFile,
+    add_dat_reference, dat_reference_statuses, identify_source_intake, identify_source_report,
+    remove_dat_reference,
 };
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use exit_explanation::{

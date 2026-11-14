@@ -261,6 +261,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
                 Recovering
             }
         },
+        Commands::Dat { command } => match command {
+            DatCommand::List | DatCommand::Add { .. } | DatCommand::Remove { .. } => Recovering,
+        },
         Commands::Schema { command } => match command {
             SchemaCommand::Export { .. } => Recovering,
         },
@@ -512,6 +515,9 @@ mod tests {
             "tool list",
             "tool set-path tool file",
             "tool clear-path tool",
+            "dat list",
+            "dat add file",
+            "dat remove id",
             "cancel op",
             "about",
             "schema export",

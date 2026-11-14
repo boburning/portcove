@@ -635,6 +635,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         execute_tool(&preferences, command, mode)?;
         return Ok(ExitCode::SUCCESS);
     }
+    if let Commands::Dat { command } = &cli.command {
+        execute_dat(&preferences, command, mode)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let selection = startup::observe(
         startup::DiagnosticPhase::LibrarySelection,
         preferences.resolve(cli.library.as_deref(), &platform_default),
@@ -1063,6 +1067,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         Commands::Tool { .. } => {
             unreachable!("tool commands handle host preferences before opening a service")
         }
+        Commands::Dat { .. } => {
+            unreachable!("DAT commands handle host preferences before opening a service")
+        }
         Commands::Auth { command } => {
             let github = GithubReleaseProvider::for_library(service.library())?;
             match command {
@@ -1487,12 +1494,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         Commands::Source {
             command: SourceCommand::Inspect { profile_id },
         } => {
-            render_read_success(
-                mode,
-                "source.inspect",
-                service.inspect_registered_source(&profile_id)?,
-                human::source_inspection,
-            )?;
+            let mut report = service.inspect_registered_source(&profile_id)?;
+            portcove_core::identify_source_report(&preferences, &mut report);
+            render_read_success(mode, "source.inspect", report, human::source_inspection)?;
         }
         Commands::Source {
             command: SourceCommand::Reuse { profile_id },
@@ -3006,6 +3010,36 @@ fn execute_tool(
     }
 }
 
+fn execute_dat(
+    preferences: &HostPreferenceStore,
+    command: &DatCommand,
+    mode: OutputMode,
+) -> Result<()> {
+    match command {
+        DatCommand::List => render_read_success(
+            mode,
+            "dat.list",
+            portcove_core::dat_reference_statuses(preferences)?,
+            |references| human::dat_references(references),
+        ),
+        DatCommand::Add { path } => render_read_success(
+            mode,
+            "dat.add",
+            portcove_core::add_dat_reference(preferences, path)?,
+            |reference| human::dat_references(std::slice::from_ref(reference)),
+        ),
+        DatCommand::Remove { dat_id } => {
+            portcove_core::remove_dat_reference(preferences, dat_id)?;
+            render_read_success(
+                mode,
+                "dat.remove",
+                portcove_core::dat_reference_statuses(preferences)?,
+                |references| human::dat_references(references),
+            )
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum DeviceLoginWait {
     Poll,
@@ -3863,6 +3897,11 @@ fn command_name(command: &Commands) -> &'static str {
             ToolCommand::List => "tool.list",
             ToolCommand::SetPath { .. } => "tool.set-path",
             ToolCommand::ClearPath { .. } => "tool.clear-path",
+        },
+        Commands::Dat { command } => match command {
+            DatCommand::List => "dat.list",
+            DatCommand::Add { .. } => "dat.add",
+            DatCommand::Remove { .. } => "dat.remove",
         },
         Commands::PortCapabilities { .. } => "port-capabilities",
         Commands::Status { .. } => "status",
@@ -5310,6 +5349,12 @@ mod tests {
             (
                 vec!["portcove", "tool", "clear-path", "chdman"],
                 "tool.clear-path",
+            ),
+            (vec!["portcove", "dat", "list"], "dat.list"),
+            (vec!["portcove", "dat", "add", "example.dat"], "dat.add"),
+            (
+                vec!["portcove", "dat", "remove", "0123456789abcdef"],
+                "dat.remove",
             ),
             (
                 vec!["portcove", "channel", "set", "lighthouse", "beta"],

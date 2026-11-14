@@ -223,6 +223,13 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       readyNotices = args.enabled;
       return readyNotices;
     },
+    get_dat_references: () => [] satisfies Awaited<ReturnType<typeof desktopApi.datReferences>>,
+    add_dat_reference: () => {
+      throw new Error("This scenario does not add DAT files.");
+    },
+    remove_dat_reference: () => {
+      throw new Error("This scenario has no saved DAT files.");
+    },
     get_automatic_snapshots: (args) => {
       requireArgs("get_automatic_snapshots", args, { generation });
       return automaticSnapshots;

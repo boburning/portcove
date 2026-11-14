@@ -10813,6 +10813,77 @@
     "title": "PortBatchOutcome",
     "type": "object"
   },
+  "dat_reference_status": {
+    "$defs": {
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "entry_count": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "file_count": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "id": {
+        "type": "string"
+      },
+      "message": {
+        "type": "string"
+      },
+      "name": {
+        "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      },
+      "state": {
+        "$ref": "#/$defs/DatReferenceState"
+      },
+      "version": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "id",
+      "path",
+      "name",
+      "entry_count",
+      "file_count",
+      "state",
+      "message"
+    ],
+    "title": "DatReferenceStatus",
+    "type": "object"
+  },
   "definition_authority_provisioning": {
     "$defs": {
       "DefinitionAuthorityReview": {
@@ -38819,6 +38890,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -38866,6 +39004,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "InstallRecord": {
         "properties": {
@@ -40099,6 +40354,17 @@
               "$ref": "#/$defs/SourceApplicationInspection"
             },
             "type": "array"
+          },
+          "dump_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DumpIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
           },
           "evidence": {
             "default": [],
@@ -52178,6 +52444,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -52225,6 +52558,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "ErrorCode": {
         "enum": [
@@ -53379,6 +53829,17 @@
               "$ref": "#/$defs/SourceApplicationInspection"
             },
             "type": "array"
+          },
+          "dump_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DumpIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
           },
           "evidence": {
             "default": [],
@@ -57883,6 +58344,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -57930,6 +58458,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -59560,6 +60205,17 @@
         },
         "type": "array"
       },
+      "dump_identification": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DumpIdentification"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
+      },
       "evidence": {
         "default": [],
         "items": {
@@ -59669,6 +60325,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -59716,6 +60439,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -60724,6 +61564,17 @@
               "$ref": "#/$defs/SourceApplicationInspection"
             },
             "type": "array"
+          },
+          "dump_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DumpIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
           },
           "evidence": {
             "default": [],
@@ -62030,6 +62881,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -62077,6 +62995,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -63085,6 +64120,17 @@
               "$ref": "#/$defs/SourceApplicationInspection"
             },
             "type": "array"
+          },
+          "dump_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DumpIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
           },
           "evidence": {
             "default": [],
@@ -63909,6 +64955,73 @@
         ],
         "type": "string"
       },
+      "DatReferenceState": {
+        "oneOf": [
+          {
+            "enum": [
+              "missing",
+              "unreadable"
+            ],
+            "type": "string"
+          },
+          {
+            "const": "ready",
+            "description": "The file at the saved location still has the saved fingerprint.",
+            "type": "string"
+          },
+          {
+            "const": "changed",
+            "description": "The file changed after it was added; it is not used until added again.",
+            "type": "string"
+          }
+        ]
+      },
+      "DatReferenceStatus": {
+        "properties": {
+          "entry_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file_count": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "id": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "description": "Sanitized name from the DAT header, for example `Sony - PlayStation`.",
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          },
+          "state": {
+            "$ref": "#/$defs/DatReferenceState"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "name",
+          "entry_count",
+          "file_count",
+          "state",
+          "message"
+        ],
+        "type": "object"
+      },
       "DigestIdentity": {
         "additionalProperties": false,
         "description": "Digests inside one record are conjunctive and describe one exact byte scope.\nSeparate records and representations are alternatives.",
@@ -63956,6 +65069,123 @@
           "disc-set-member"
         ],
         "type": "string"
+      },
+      "DumpIdentification": {
+        "description": "Informational naming of selected bytes against the player's DAT files.",
+        "properties": {
+          "checked_reference_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "limitation": {
+            "description": "Fixed statement of the admission boundary shown with every result.",
+            "type": "string"
+          },
+          "match_count": {
+            "description": "Total matching entries; `matches` holds at most the first sixteen.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "matches": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DumpMatch"
+            },
+            "type": "array"
+          },
+          "state_code": {
+            "description": "Open code: `identified`, `partially_identified`, `not_listed`,\n`not_checked` or `references_unavailable`.",
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "unavailable_references": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DatReferenceStatus"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "state_code",
+          "summary",
+          "limitation",
+          "checked_reference_count",
+          "match_count",
+          "matches",
+          "unavailable_references"
+        ],
+        "type": "object"
+      },
+      "DumpMatch": {
+        "properties": {
+          "complete": {
+            "description": "True when every required file of the entry matched.",
+            "type": "boolean"
+          },
+          "entry_file_count": {
+            "description": "Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi\ndescriptors. CRC32- or MD5-only files can't be compared and don't count.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "entry_name": {
+            "description": "Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.",
+            "type": "string"
+          },
+          "matched_files": {
+            "items": {
+              "$ref": "#/$defs/DumpMatchedFile"
+            },
+            "type": "array"
+          },
+          "reference_id": {
+            "type": "string"
+          },
+          "reference_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reference_id",
+          "reference_name",
+          "entry_name",
+          "complete",
+          "matched_files",
+          "entry_file_count"
+        ],
+        "type": "object"
+      },
+      "DumpMatchedFile": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "component_id": {
+            "description": "The observed component (for example `disc-1`) when the match was not the\nwhole selection.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope",
+            "description": "The observed byte scope that matched, for example `canonical-n64-big-endian`."
+          }
+        },
+        "required": [
+          "file_name",
+          "algorithm",
+          "scope"
+        ],
+        "type": "object"
       },
       "ObservedSourceComponent": {
         "properties": {
@@ -64964,6 +66194,17 @@
               "$ref": "#/$defs/SourceApplicationInspection"
             },
             "type": "array"
+          },
+          "dump_identification": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DumpIdentification"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Informational naming from the player's DAT files. It never affects\n`inspection.assessment`; present only when DAT files are saved."
           },
           "evidence": {
             "default": [],

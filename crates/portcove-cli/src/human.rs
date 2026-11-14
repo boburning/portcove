@@ -1588,6 +1588,9 @@ pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
         format!("State: {}", clean(&report.state_code)),
         clean(&report.summary),
     ];
+    if let Some(identification) = &report.dump_identification {
+        dump_identification(&mut lines, identification);
+    }
     if let Some(inspection) = &report.inspection {
         lines.push(format!(
             "Path: {}",
@@ -2277,6 +2280,72 @@ pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
         tools.len(),
         table(&["TOOL", "STATUS", "SOURCE", "PATH", "OFFICIAL SITE"], rows)
     )
+}
+
+pub(crate) fn dat_references(references: &[portcove_core::DatReferenceStatus]) -> String {
+    let rows = references
+        .iter()
+        .map(|reference| {
+            vec![
+                clean(&reference.id),
+                format!(
+                    "{}{}",
+                    clean(&reference.name),
+                    reference
+                        .version
+                        .as_deref()
+                        .map_or_else(String::new, |version| format!(" ({})", clean(version)))
+                ),
+                match reference.state {
+                    portcove_core::DatReferenceState::Ready => "ready",
+                    portcove_core::DatReferenceState::Missing => "missing",
+                    portcove_core::DatReferenceState::Changed => "changed",
+                    portcove_core::DatReferenceState::Unreadable => "unreadable",
+                }
+                .into(),
+                reference.entry_count.to_string(),
+                clean(&reference.path.display().to_string()),
+            ]
+        })
+        .collect();
+    let notes = references
+        .iter()
+        .filter(|reference| reference.state != portcove_core::DatReferenceState::Ready)
+        .map(|reference| format!("{}: {}\n", clean(&reference.id), clean(&reference.message)))
+        .collect::<String>();
+    format!(
+        "DAT files ({})\n{}\n{}DAT files only name selected original game files. They don’t change which files a game accepts.",
+        references.len(),
+        table(&["ID", "NAME", "STATUS", "ENTRIES", "PATH"], rows),
+        notes,
+    )
+}
+
+fn dump_identification(
+    lines: &mut Vec<String>,
+    identification: &portcove_core::DumpIdentification,
+) {
+    lines.push(format!("DAT files: {}", clean(&identification.summary)));
+    for found in identification.matches.iter().skip(1) {
+        lines.push(format!(
+            "- Also {}: “{}” in {}",
+            if found.complete {
+                "matches"
+            } else {
+                "partly matches"
+            },
+            clean(&found.entry_name),
+            clean(&found.reference_name)
+        ));
+    }
+    for reference in &identification.unavailable_references {
+        lines.push(format!(
+            "- {}: {}",
+            clean(&reference.name),
+            clean(&reference.message)
+        ));
+    }
+    lines.push(clean(&identification.limitation));
 }
 
 pub(crate) fn host_tool(tool: &HostToolStatus) -> String {
@@ -3074,6 +3143,42 @@ fn optional_path(path: Option<&Path>) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn source_inspection_lists_dat_matches_problems_and_the_admission_boundary() {
+        let identification: portcove_core::DumpIdentification =
+            serde_json::from_value(serde_json::json!({
+                "state_code": "identified",
+                "summary": "Matches “Example (Europe)” in Example - Console.",
+                "limitation": "DAT files only name the selected original game files.",
+                "checked_reference_count": 1,
+                "match_count": 2,
+                "matches": [
+                    {"reference_id": "0123456789abcdef", "reference_name": "Example - Console",
+                     "entry_name": "Example (Europe)", "complete": true, "entry_file_count": 1,
+                     "matched_files": [{"file_name": "a.bin", "algorithm": "sha1", "scope": "original-file"}]},
+                    {"reference_id": "0123456789abcdef", "reference_name": "Example - Console",
+                     "entry_name": "Example (Europe) (Rev 1)", "complete": false, "entry_file_count": 2,
+                     "matched_files": [{"file_name": "b.bin", "algorithm": "sha1", "scope": "original-file"}]}
+                ],
+                "unavailable_references": [
+                    {"id": "fedcba9876543210", "path": "/dats/old.dat", "name": "Old\u{1b}[31m DAT",
+                     "entry_count": 1, "file_count": 1, "state": "changed",
+                     "message": "This DAT file changed after you added it."}
+                ]
+            }))
+            .unwrap();
+        let mut lines = Vec::new();
+        super::dump_identification(&mut lines, &identification);
+        let text = lines.join("\n");
+        assert!(text.starts_with("DAT files: Matches “Example (Europe)” in Example - Console."));
+        assert!(
+            text.contains("- Also partly matches: “Example (Europe) (Rev 1)” in Example - Console")
+        );
+        assert!(text.contains("This DAT file changed after you added it."));
+        assert!(text.ends_with("DAT files only name the selected original game files."));
+        assert!(!text.contains('\u{1b}'), "terminal controls are removed");
+    }
+
     #[test]
     fn preparation_failure_guidance_is_read_only_and_keeps_the_originating_library_selection() {
         use portcove_core::{FailureRecoveryTarget, MutationState, PortcoveError, RecoveryAction};

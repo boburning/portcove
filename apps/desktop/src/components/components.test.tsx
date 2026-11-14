@@ -200,7 +200,7 @@ describe("desktop components", () => {
     const groups = [
       ["appearance", "library-storage", 2],
       ["library-storage", "game-files", 4],
-      ["game-files", "updates", 3],
+      ["game-files", "updates", 4],
       ["updates", "integrations", 3],
       ["integrations", "controls", 3],
       ["controls", "advanced", 2],

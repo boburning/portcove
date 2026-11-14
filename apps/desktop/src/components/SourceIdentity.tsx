@@ -113,6 +113,9 @@ export function SourceIdentityPanel({
       <p className="source-next m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-muted)]">
         <strong>Next:</strong> {report.next_action}
       </p>
+      {report.dump_identification && (
+        <DumpIdentificationNote identification={report.dump_identification} />
+      )}
       <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
         <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
           <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
@@ -204,6 +207,39 @@ export function SourceIdentityPanel({
           </p>
         </div>
       </details>
+    </section>
+  );
+}
+
+type DumpIdentification = NonNullable<SourceInspectionReport["dump_identification"]>;
+
+/** Informational naming from the player's DAT files; never an admission result. */
+function DumpIdentificationNote({ identification }: { identification: DumpIdentification }) {
+  const others = identification.matches.slice(1);
+  return (
+    <section
+      className="source-dump-identification grid gap-1 rounded-pc-md bg-[var(--color-bg-inset)] p-3"
+      aria-label="DAT file match"
+    >
+      <p className="m-0">
+        <strong>DAT files:</strong> {identification.summary}
+      </p>
+      {others.length > 0 && (
+        <ul className="m-0 grid list-none gap-0.5 p-0 text-[length:var(--text-xs)]">
+          {others.map((found, index) => (
+            <li key={`${found.reference_id}:${index}`}>
+              {found.complete ? "Also matches" : "Partly matches"} “{found.entry_name}” in{" "}
+              {found.reference_name}
+            </li>
+          ))}
+        </ul>
+      )}
+      {identification.unavailable_references.map((reference, index) => (
+        <p key={`${reference.id}:${index}`} className="m-0 text-[length:var(--text-xs)]">
+          {reference.name}: {reference.message}
+        </p>
+      ))}
+      <small className="text-[var(--color-text-muted)]">{identification.limitation}</small>
     </section>
   );
 }

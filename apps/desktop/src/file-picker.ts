@@ -147,6 +147,15 @@ export function pickMetadataImportPath() {
   });
 }
 
+export function pickDatPath() {
+  return open({
+    title: "Choose a DAT file",
+    multiple: false,
+    directory: false,
+    filters: [{ name: "No-Intro or Redump DAT file", extensions: ["dat", "xml"] }],
+  });
+}
+
 export function pickSignedCatalogPath() {
   return open({
     title: "Choose signed catalog",

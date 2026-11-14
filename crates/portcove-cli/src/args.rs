@@ -67,6 +67,7 @@ const ROOT_COMMAND_GROUPS: &[(&str, &[&str])] = &[
             "paths",
             "remove-preview",
             "tool",
+            "dat",
             "capabilities",
             "schema",
             "about",
@@ -228,6 +229,11 @@ pub(crate) enum Commands {
     Tool {
         #[command(subcommand)]
         command: ToolCommand,
+    },
+    /// Manage No-Intro or Redump DAT files used only to name selected game files.
+    Dat {
+        #[command(subcommand)]
+        command: DatCommand,
     },
     /// Show setup routes, feature availability, and scoped known issues.
     PortCapabilities {
@@ -1648,6 +1654,22 @@ pub(crate) enum ToolCommand {
     ClearPath {
         /// Tool ID from `portcove tool list`, which also shows its supported purpose and setup reference.
         tool_id: String,
+    },
+}
+
+#[derive(Debug, Subcommand)]
+pub(crate) enum DatCommand {
+    /// Show saved DAT files and whether each still matches its saved fingerprint.
+    List,
+    /// Check a local Logiqx XML DAT file and save a reference to it; the file is not copied.
+    Add {
+        /// Path to a No-Intro, Redump or other Logiqx XML DAT file.
+        path: PathBuf,
+    },
+    /// Forget a saved DAT file; the file itself is not changed.
+    Remove {
+        /// DAT ID from `portcove dat list`.
+        dat_id: String,
     },
 }
 
