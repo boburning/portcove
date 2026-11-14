@@ -79,8 +79,9 @@ it.each([
     const endOfDetails = /Mac/u.test(navigator.platform)
       ? "{Meta>}{ArrowDown}{/Meta}"
       : "{Control>}{End}{/Control}";
-    // Chromium 158 (Playwright 1.65) can drop the first end-of-text key after focus moves
-    // into the textarea; the key is idempotent, so resend it until the scroll lands.
+    // Under Playwright 1.65 (Chromium 158) the first end-of-text key after focus moves into the
+    // textarea can be dropped; a standalone page does not reproduce it and the cause is not
+    // established. The key is idempotent, so resend it until the scroll lands.
     await expect
       .poll(
         async () => {
