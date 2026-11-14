@@ -1295,7 +1295,9 @@ impl Installer {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
             let portable_data_name = crate::native_portable_data::directory_name(port, platform);
-            if portable_data_name.is_none() {
+            let openmohaa_unix =
+                crate::native_external_profile::openmohaa::requires_zip(port, platform);
+            if portable_data_name.is_none() && !openmohaa_unix {
                 crate::package_layout::require_reviewed_layout(
                     port,
                     platform,
@@ -1314,11 +1316,19 @@ impl Installer {
                     &working_directory,
                 )?;
             }
-            crate::native_external_profile::openmohaa::prepare_package(
-                port,
-                request.qualification.platform,
-                &payload_root,
-            )?;
+            if openmohaa_unix {
+                crate::native_external_profile::openmohaa::prepare_package(
+                    port,
+                    platform,
+                    &payload_root,
+                )?;
+                crate::package_layout::require_reviewed_layout(
+                    port,
+                    platform,
+                    &payload_root,
+                    None,
+                )?;
+            }
             if crate::native_external_profile::archive_siblings::requires_archive(
                 port,
                 request.qualification.platform,

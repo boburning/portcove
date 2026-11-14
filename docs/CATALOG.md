@@ -1806,6 +1806,12 @@ declared data directory is absent or empty before comparing the package layout.
 An empty directory at the observed package root does not count as package drift.
 This combination requires native-portable version 32.
 
+For the official OpenMoHAA Unix ZIP routes, record the reviewed layout after
+Core verifies and grants execute permission to the title launcher and engine.
+The ordinary archive inspector reports publisher modes, so it cannot supply
+this prepared layout directly. This combination requires native-portable
+version 33.
+
 macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
 archive stores patch-versioned shared libraries with execute permission. The
 classifier excludes a matching library filename only when bounded native header
