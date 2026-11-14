@@ -351,7 +351,9 @@ impl DefinitionContentIndex {
                 "an STFS package binding requires staged-source capability version 32",
             ));
         }
-        if port.runtime_rom_patch.is_some()
+        if (port.runtime_rom_patch.is_some()
+            || port.runtime_source_materialization
+                == Some(crate::RuntimeSourceMaterialization::RomPatch))
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
                     && requirement.minimum_version >= 33

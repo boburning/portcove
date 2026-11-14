@@ -60,21 +60,23 @@ pub(crate) fn bps(source: &[u8], target: &[u8], metadata: &[u8], actions: &[Acti
 }
 
 /// Encode `output` against `input` as UPS runs of differing bytes.
+/// UPS encoders diff over the longer of the two files, reading missing bytes as zero.
 pub(crate) fn ups(input: &[u8], output: &[u8]) -> Vec<u8> {
     let mut patch = b"UPS1".to_vec();
     number(&mut patch, input.len() as u64);
     number(&mut patch, output.len() as u64);
     let byte = |bytes: &[u8], index: usize| bytes.get(index).copied().unwrap_or(0);
+    let span = input.len().max(output.len());
     let mut last = 0_usize;
     let mut index = 0_usize;
-    while index < output.len() {
-        if byte(input, index) == output[index] {
+    while index < span {
+        if byte(input, index) == byte(output, index) {
             index += 1;
             continue;
         }
         number(&mut patch, (index - last) as u64);
-        while index < output.len() && byte(input, index) != output[index] {
-            patch.push(byte(input, index) ^ output[index]);
+        while index < span && byte(input, index) != byte(output, index) {
+            patch.push(byte(input, index) ^ byte(output, index));
             index += 1;
         }
         patch.push(0);
@@ -277,6 +279,39 @@ fn ups_applies_changes_and_size_changes() {
         run(RomPatchFormat::Ups, &source, &ups(&source, &shrunk)).unwrap(),
         shrunk
     );
+}
+
+#[test]
+fn ups_shrinking_patches_discard_changes_past_the_output() {
+    // Every byte of the cut-off tail is non-zero, so a conformant encoder writes
+    // XOR data past the output's end; the decoder reads and discards it.
+    let source: Vec<u8> = (0..4096_u32).map(|value| (value % 255) as u8 + 1).collect();
+    let mut shrunk = source[..1000].to_vec();
+    shrunk[999] ^= 0x0F;
+    let patch = ups(&source, &shrunk);
+    assert!(patch.len() > 3000, "the cut-off tail is encoded");
+    assert_eq!(run(RomPatchFormat::Ups, &source, &patch).unwrap(), shrunk);
+}
+
+#[test]
+fn ups_refuses_changes_past_both_sizes() {
+    let source = original();
+    let mut patch = b"UPS1".to_vec();
+    number(&mut patch, source.len() as u64);
+    number(&mut patch, source.len() as u64);
+    number(&mut patch, source.len() as u64);
+    patch.extend([1, 0]);
+    let patch = footer(patch, &source, &source);
+    assert!(run(RomPatchFormat::Ups, &source, &patch).is_err());
+}
+
+#[test]
+fn ips_cannot_address_the_end_marker_offset() {
+    // A record at offset 0x454F46 would read as the end marker, so the bytes
+    // after it are trailing data and the patch is refused.
+    let source = original();
+    let patch = ips(&[(0x45_4F46, b"X")], &[], None);
+    assert!(run(RomPatchFormat::Ips, &source, &patch).is_err());
 }
 
 #[test]

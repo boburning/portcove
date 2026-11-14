@@ -2034,6 +2034,10 @@ mod source_conversion_tests;
 mod disc_materialization_tests;
 
 #[cfg(test)]
+#[path = "rom_patch_materialization_tests.rs"]
+mod rom_patch_materialization_tests;
+
+#[cfg(test)]
 #[path = "psx_cue_set_tests.rs"]
 mod psx_cue_set_tests;
 

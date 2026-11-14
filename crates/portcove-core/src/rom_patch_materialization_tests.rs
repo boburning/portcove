@@ -212,6 +212,59 @@ fn an_unchanged_result_is_reused_and_a_changed_one_is_regenerated() {
 }
 
 #[test]
+fn a_catalog_declared_patch_is_admitted_and_applied_end_to_end() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = original();
+    let mut target = b"header".to_vec();
+    target.extend(&source[..6000]);
+    let patch = bps(
+        &source,
+        &target,
+        b"",
+        &[
+            Action::TargetRead(b"header".to_vec()),
+            Action::SourceCopy(0, 6000),
+        ],
+    );
+    let catalog = crate::Catalog::from_document(crate::catalog::rom_patch_fixture_document(
+        &sha256(&source),
+        &sha256(&patch),
+        &sha256(&target),
+    ))
+    .unwrap();
+    let port = catalog
+        .port(crate::catalog::ROM_PATCH_FIXTURE_PORT)
+        .unwrap();
+    let profile = catalog
+        .source_profile(port.source_profile.as_deref().unwrap())
+        .unwrap();
+    let folder = directory.path().join("player-files");
+    std::fs::create_dir_all(&folder).unwrap();
+    std::fs::write(folder.join("original.sfc"), &source).unwrap();
+    std::fs::write(folder.join("translation.bps"), &patch).unwrap();
+    let record = StandardAdapter(crate::AdapterKind::StagedSourcePortable)
+        .validate_source(profile, &folder)
+        .unwrap();
+    let destination = directory.path().join("install/game.sfc");
+    prepare_rom_patch_source(
+        &record.path,
+        &destination,
+        port.runtime_rom_patch.as_ref().unwrap(),
+        &port.runtime_source_hashes,
+        &|| Ok(()),
+    )
+    .unwrap();
+    assert_eq!(std::fs::read(&destination).unwrap(), target);
+
+    // Admission refuses a patch other than the reviewed one.
+    std::fs::write(folder.join("translation.bps"), b"not the reviewed patch").unwrap();
+    let error = StandardAdapter(crate::AdapterKind::StagedSourcePortable)
+        .validate_source(profile, &folder)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+}
+
+#[test]
 fn the_generic_materialization_path_refuses_rom_patch_without_its_declaration() {
     let directory = tempfile::tempdir().unwrap();
     let (patch, _) = ips_case();

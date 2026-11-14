@@ -1209,9 +1209,12 @@ atomically replaces it, and the marker is written last. A failure at any step le
 previous file, the original and the patch untouched. The appliers are strict: a truncated
 record, an offset or copy range outside its buffer, an overlong number, bytes after the end
 of the patch, or a declared size above 64 MiB refuses the patch. BPS and UPS checks also
-compare the original, output and patch with the CRC32 values the patch records; UPS is
-applied in the forward direction only. IPS output may grow past the original and honours
-the optional truncation record.
+compare the original, output and patch with the CRC32 values the patch records. UPS is
+applied in the forward direction only; a patch that shrinks the file carries changes past
+the new end, which are read and discarded as the reference decoder does, while a change
+past both declared sizes refuses the patch. IPS output may grow past the original and
+honours the optional truncation record; as in the format itself, offset `0x454F46` reads
+as the end marker.
 
 Identity is exact, so an original that carries a 512-byte copier header is a different file
 and is refused at registration. Accepting header variants of a pinned original needs

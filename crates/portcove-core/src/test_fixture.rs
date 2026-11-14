@@ -128,6 +128,15 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // ROM patching needs staged-source capability 33 whatever chain matched.
+    let default_version = if port.runtime_rom_patch.is_some()
+        || port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::RomPatch)
+    {
+        default_version.max(33)
+    } else {
+        default_version
+    };
     // Track counts live in the embedded source profile, not on the port.
     let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
         && crate::Catalog::embedded()

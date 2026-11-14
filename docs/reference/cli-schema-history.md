@@ -38,6 +38,11 @@ The disc-image unpacking work added the optional port fields
 not know them cannot offer or perform the unpacking, so a port that uses them
 is not usable there; the rest of the catalog is unaffected.
 
+ROM patching ([#5405](https://github.com/boburning/portcove/issues/5405)) added the
+optional port field `runtime_rom_patch` and the materialization `rom-patch` under
+the same rule. An indexed definition that uses them also requires staged-source
+capability 33, so an older reader refuses it rather than copying an unpatched file.
+
 ## Documented API changes
 
 API91 adds the report-only `artwork steamgriddb check-listings` command and its

@@ -314,6 +314,12 @@ fn apply_ups(
     let mut output = vec![0_u8; output_size];
     let kept = input_size.min(output_size);
     output[..kept].copy_from_slice(&original[..kept]);
+    // UPS records differences over the longer of the two files. A shrinking patch
+    // therefore carries changes past the output's end; as in the reference
+    // decoder, those are read and discarded, and the output CRC32 decides. A
+    // change past both declared sizes describes no byte of either file and is
+    // refused.
+    let span = input_size.max(output_size);
     let mut offset = 0_usize;
     let mut runs = 0_usize;
     while cursor.position < cursor.end {
@@ -324,18 +330,20 @@ fn apply_ups(
         offset = usize::try_from(cursor.number()?)
             .ok()
             .and_then(|skip| offset.checked_add(skip))
-            .filter(|offset| *offset <= output_size)
-            .ok_or_else(|| invalid("a UPS change is past the declared output size"))?;
+            .filter(|offset| *offset <= span)
+            .ok_or_else(|| invalid("a UPS change is past both declared sizes"))?;
         loop {
             let difference = cursor.byte()?;
             if difference == 0 {
                 offset += 1;
                 break;
             }
-            let slot = output
-                .get_mut(offset)
-                .ok_or_else(|| invalid("a UPS change is past the declared output size"))?;
-            *slot = original.get(offset).copied().unwrap_or(0) ^ difference;
+            if offset >= span {
+                return Err(invalid("a UPS change is past both declared sizes"));
+            }
+            if let Some(slot) = output.get_mut(offset) {
+                *slot = original.get(offset).copied().unwrap_or(0) ^ difference;
+            }
             offset += 1;
         }
     }

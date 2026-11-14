@@ -1573,6 +1573,15 @@ fn rom_patch_entries_require_staged_source_version_33() {
     entry["required_capabilities"][0]["minimum_version"] = json!(33);
     entry["required_capabilities"][0]["maximum_version"] = json!(33);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
+    // The materialization alone also needs the capability.
+    entry["port"]
+        .as_object_mut()
+        .unwrap()
+        .remove("runtime_rom_patch");
+    entry["port"]["runtime_source_materialization"] = json!("rom-patch");
+    entry["required_capabilities"][0]["minimum_version"] = json!(32);
+    entry["required_capabilities"][0]["maximum_version"] = json!(32);
+    assert!(inspect(&entry).unwrap_err().message.contains("version 33"));
 }
 
 #[test]

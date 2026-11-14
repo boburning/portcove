@@ -99,9 +99,12 @@ fn mutated_valid_patches_never_panic_and_stay_bounded() {
         prop::collection::vec((any::<usize>(), any::<u8>()), 0..12),
         any::<bool>(),
         any::<usize>(),
+        // Mostly refit, so the decoders see the mutations; sometimes not, so the
+        // patch checksum refusal stays covered.
+        prop::bool::weighted(0.85),
     );
     runner()
-        .run(&strategy, |(seed, edits, truncate, length)| {
+        .run(&strategy, |(seed, edits, truncate, length, refit)| {
             let (format, original) = &seeds[seed];
             let mut bytes = original.clone();
             for (offset, value) in edits {
@@ -110,6 +113,13 @@ fn mutated_valid_patches_never_panic_and_stay_bounded() {
             }
             if truncate {
                 bytes.truncate(length % (bytes.len() + 1));
+            }
+            // Refit the trailing patch CRC32 so BPS and UPS mutations reach the
+            // decoders instead of stopping at the patch checksum.
+            if *format != RomPatchFormat::Ips && refit && bytes.len() >= 4 {
+                let end = bytes.len() - 4;
+                let crc = crc32fast::hash(&bytes[..end]);
+                bytes[end..].copy_from_slice(&crc.to_le_bytes());
             }
             if let Ok(output) = run(*format, &bytes) {
                 prop_assert!(output.len() <= MAX_ROM_PATCH_BYTES);
