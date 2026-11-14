@@ -892,9 +892,12 @@ async function assertReviewedUpdateOutcomes({
               { cause: error },
             );
           });
+        // Calibrated from 5 s (#4879): the review closes after the settled
+        // outcome's workspace refresh, and hosted debug-build snapshots took
+        // 4-8 s with a retried read (run 43646110119). Harness only.
         await browser.wait(
           async () => (await browser.findElements(dialog)).length === 0,
-          5_000,
+          60_000,
           "Settled update outcome did not close its observation review",
         );
         assert.equal((await browser.findElements(dialog)).length, 0);
