@@ -23,7 +23,12 @@ export type ExternalLeadListId = (typeof externalLeadLists)[number]["id"];
 export const externalListIds: readonly string[] = externalLeadLists.map((list) => list.id);
 export const externalListRefreshDays = 7;
 export const externalResolutionsPerRun = 8;
-export const externalUnavailableRetryDays = 30;
+/** Retry clocks for per-hint outcomes; none of them stops later hints in the run. */
+export const externalHintRetryDays = { unavailable: 30, conflict: 30, failed: 1 } as const;
+/** A failed list read waits this long before another attempt, keeping its last good clock. */
+export const externalListFailureRetryDays = 2;
+// Retired list ids remain readable in retained state; only configured lists are collected.
+const listId = /^[a-z0-9][a-z0-9-]{0,63}$/u;
 const maxEntries = 20000;
 const maxTitle = 160;
 
@@ -45,6 +50,11 @@ export interface ExternalListClock {
   unlinked: number;
   fingerprint: string;
 }
+export interface ExternalListAttempt {
+  attempted_at: string;
+  outcome: "complete" | "partial";
+  error?: string;
+}
 export interface ExternalHint {
   url: string;
   host: ExternalListEntry["host"];
@@ -57,11 +67,14 @@ export interface ExternalHint {
     checked_at: string;
     id?: number;
     reason?: string;
+    /** Required for every status except queued. */
+    retry_at?: string;
   };
 }
 export interface ExternalLeadState {
   lists: Record<string, ExternalListClock>;
   hints: Record<string, ExternalHint>;
+  attempts?: Record<string, ExternalListAttempt>;
 }
 
 const hosts = {
@@ -70,7 +83,10 @@ const hosts = {
   "codeberg.org": "codeberg",
 } as const;
 const segment = /^[A-Za-z0-9_.-]{1,100}$/u;
-/** Normalizes one credential-free repository URL to host plus owner/name, or null. */
+/** Normalizes one credential-free repository URL to its host and project path, or null.
+ * GitHub and Codeberg use owner/name. GitLab keeps its full group path (up to four
+ * segments before a `/-/` route) so a nested project is not mistaken for another.
+ */
 export function externalRepository(value: string) {
   let url: URL;
   try {
@@ -80,11 +96,17 @@ export function externalRepository(value: string) {
   }
   const host = hosts[url.hostname.toLowerCase() as keyof typeof hosts];
   if (url.protocol !== "https:" || url.username || url.password || url.port || !host) return null;
-  const [owner, raw] = url.pathname.split("/").filter(Boolean);
-  const name = raw?.replace(/\.git$/iu, "");
-  if (!owner || !name || !segment.test(owner) || !segment.test(name) || /^\.+$/u.test(name))
-    return null;
-  const canonical = `https://${url.hostname.toLowerCase()}/${owner}/${name}`;
+  const parts = url.pathname.split("/").filter(Boolean);
+  let project = parts.slice(0, 2);
+  if (host === "gitlab") {
+    const route = parts.indexOf("-");
+    project = route === -1 ? parts : parts.slice(0, route);
+    if (project.length > 4) return null;
+  }
+  if (project.length < 2) return null;
+  project[project.length - 1] = project.at(-1)!.replace(/\.git$/iu, "");
+  if (project.some((part) => !segment.test(part) || /^\.+$/u.test(part))) return null;
+  const canonical = `https://${url.hostname.toLowerCase()}/${project.join("/")}`;
   return { key: canonical.toLowerCase(), url: canonical, host } as const;
 }
 const inert = (value: unknown) =>
@@ -132,7 +154,13 @@ function collect(rows: { url: string; title: string }[], unlinked: number): Pars
 /** Decomp Buddy's published finds feed: `{ updatedAt, games: [{ repo: "owner/name", title }] }`. */
 export function parseFindsFeed(text: string): ParsedExternalList {
   bounded(text, externalLeadLists[0].cap, "finds feed");
-  const value: unknown = JSON.parse(text);
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    // Never copy list bytes into notes through the parser's diagnostic.
+    throw new Error("Malformed finds feed JSON");
+  }
   if (!isRecord(value) || !Array.isArray(value.games))
     throw new Error("Unsupported finds feed shape");
   if (value.games.length > maxEntries) throw new Error("Oversized external list entry set");
@@ -212,9 +240,20 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
   if (value === undefined) return undefined;
   if (!isRecord(value) || !isRecord(value.lists) || !isRecord(value.hints))
     throw new Error("Invalid retained external list state");
+  if (value.attempts !== undefined && !isRecord(value.attempts))
+    throw new Error("Invalid retained external list attempts");
+  for (const [id, raw] of Object.entries(value.attempts ?? {}))
+    if (
+      !listId.test(id) ||
+      !isRecord(raw) ||
+      !clock(raw.attempted_at) ||
+      !["complete", "partial"].includes(String(raw.outcome)) ||
+      (raw.error !== undefined && typeof raw.error !== "string")
+    )
+      throw new Error("Invalid retained external list attempt");
   for (const [id, raw] of Object.entries(value.lists))
     if (
-      !externalListIds.includes(id) ||
+      !listId.test(id) ||
       !isRecord(raw) ||
       !clock(raw.completed_at) ||
       typeof raw.evidence !== "string" ||
@@ -237,7 +276,7 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
       Array.from(raw.title).length > maxTitle ||
       !Array.isArray(raw.lists) ||
       !raw.lists.length ||
-      !raw.lists.every((id) => typeof id === "string" && externalListIds.includes(id)) ||
+      !raw.lists.every((id) => typeof id === "string" && listId.test(id)) ||
       new Set(raw.lists).size !== raw.lists.length ||
       !clock(raw.first_observed_at) ||
       !clock(raw.last_observed_at)
@@ -251,16 +290,40 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
         !clock(resolution.checked_at) ||
         (resolution.status === "queued"
           ? !Number.isSafeInteger(resolution.id) || Number(resolution.id) <= 0
-          : typeof resolution.reason !== "string"))
+          : typeof resolution.reason !== "string" || !clock(resolution.retry_at)))
     )
       throw new Error("Invalid retained external hint resolution");
   }
   return structuredClone(value) as unknown as ExternalLeadState;
 }
 
+export function isExternalListId(id: unknown): id is string {
+  return typeof id === "string" && listId.test(id);
+}
 export function externalListDue(state: ExternalLeadState | undefined, id: string, now: string) {
+  const attempt = state?.attempts?.[id];
+  if (
+    attempt?.outcome === "partial" &&
+    Date.parse(now) - Date.parse(attempt.attempted_at) < externalListFailureRetryDays * 86400000
+  )
+    return false;
   const previous = state?.lists[id]?.completed_at;
   return !previous || Date.parse(now) - Date.parse(previous) >= externalListRefreshDays * 86400000;
+}
+/** Records a failed list read without touching its hints or last successful clock. */
+export function recordExternalListFailure(
+  state: ExternalLeadState | undefined,
+  id: string,
+  attemptedAt: string,
+  error: string,
+): ExternalLeadState {
+  if (!externalListIds.includes(id)) throw new Error("Unknown external lead list");
+  const next: ExternalLeadState = structuredClone(state ?? { lists: {}, hints: {} });
+  next.attempts = {
+    ...next.attempts,
+    [id]: { attempted_at: attemptedAt, outcome: "partial", error: error.slice(0, 300) },
+  };
+  return next;
 }
 
 /** Merges one complete, validated list observation. Absent entries are retained:
@@ -301,17 +364,17 @@ export function mergeExternalList(
     unlinked: parsed.unlinked,
     fingerprint: observationHash(parsed.entries.map((entry) => entry.key)),
   };
+  next.attempts = { ...next.attempts, [id]: { attempted_at: observedAt, outcome: "complete" } };
   return next;
 }
 
-/** Repository paths (`owner/name`, lowercase) already known to a lead record. */
-export function leadPaths(
-  records: Iterable<{ id: number; repository: string; aliases?: string[] }>,
-) {
+/** Current repository paths (`owner/name`, lowercase) of retained leads. Historical
+ * aliases are excluded: another repository can reuse an old path, so a hint naming
+ * one is resolved through a fresh primary read rather than assumed to be the old lead.
+ */
+export function leadPaths(records: Iterable<{ id: number; repository: string }>) {
   const paths = new Map<string, number>();
-  for (const record of records)
-    for (const path of [record.repository, ...(record.aliases ?? [])])
-      paths.set(path.toLowerCase(), record.id);
+  for (const record of records) paths.set(record.repository.toLowerCase(), record.id);
   return paths;
 }
 
@@ -332,13 +395,14 @@ export function externalHintCoverage(
   if (covered.has(key)) return "covered";
   if (hint.host !== "github") return "non-github";
   if (paths.has(key.slice(19))) return "queued";
-  if (hint.resolution?.status === "conflict") return "conflict";
+  const resolution = hint.resolution;
   if (
-    hint.resolution?.status === "unavailable" &&
-    Date.parse(now) - Date.parse(hint.resolution.checked_at) <
-      externalUnavailableRetryDays * 86400000
+    resolution &&
+    resolution.status !== "queued" &&
+    resolution.retry_at &&
+    Date.parse(now) < Date.parse(resolution.retry_at)
   )
-    return "unavailable";
+    return resolution.status;
   return "unresolved";
 }
 
@@ -380,7 +444,14 @@ export function externalHintSummary(
     counts[externalHintCoverage(hint, key, covered ?? new Set(), paths, now)]++;
   return {
     lists: Object.fromEntries(
-      externalLeadLists.map((list) => [list.id, state?.lists[list.id] ?? null]),
+      externalLeadLists.map((list) => [
+        list.id,
+        {
+          last_complete: state?.lists[list.id] ?? null,
+          last_attempt: state?.attempts?.[list.id] ?? null,
+          due: externalListDue(state, list.id, now),
+        },
+      ]),
     ),
     hints: Object.keys(state?.hints ?? {}).length,
     // Without a validated canonical inventory, covered hints are reported as unresolved.

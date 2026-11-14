@@ -2,7 +2,11 @@ import { isRecord } from "./runtime-values.mts";
 import { discoveryCheckpointBytes, investigationWindow } from "./discovery-checkpoint.mts";
 import { ecosystemSearchFamilies, parseRecompManifest } from "./discovery-ecosystems.mts";
 import type { RecompManifest } from "./discovery-ecosystems.mts";
-import { externalListIds, parseExternalLeadState } from "./discovery-external-lists.mts";
+import {
+  externalHintRetryDays,
+  isExternalListId,
+  parseExternalLeadState,
+} from "./discovery-external-lists.mts";
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 
 // Collection cache only: provider identities and research continuations, never planning fields.
@@ -143,7 +147,7 @@ export function parseLeadState(value: unknown): LeadState {
     if (
       raw.external_lists !== undefined &&
       (!Array.isArray(raw.external_lists) ||
-        !raw.external_lists.every((id) => typeof id === "string" && externalListIds.includes(id)) ||
+        !raw.external_lists.every(isExternalListId) ||
         new Set(raw.external_lists).size !== raw.external_lists.length)
     )
       throw new Error("Invalid retained external list provenance");
@@ -295,15 +299,15 @@ export function retainLeadResults(
   }
   return boundLeadState(next);
 }
-/** Links hints whose path already belongs to a retained lead, without a network read. */
+/** Links hints whose path is a retained lead's current repository, without a network read.
+ * Historical aliases are not used: another repository can reuse an old path.
+ */
 export function linkExternalHints(state: LeadState, observedAt: string): LeadState {
   if (!state.external) return state;
   const next = structuredClone(state);
   const external = next.external!;
   const paths = new Map<string, DiscoveryLead>();
-  for (const lead of Object.values(next.records))
-    for (const path of [lead.repository, ...(lead.aliases ?? [])])
-      paths.set(path.toLowerCase(), lead);
+  for (const lead of Object.values(next.records)) paths.set(lead.repository.toLowerCase(), lead);
   for (const [key, hint] of Object.entries(external.hints)) {
     if (hint.host !== "github") continue;
     const lead = paths.get(key.slice(19));
@@ -314,11 +318,19 @@ export function linkExternalHints(state: LeadState, observedAt: string): LeadSta
   }
   return boundLeadState(next);
 }
+/** One primary metadata outcome for a curated-list hint. `unavailable` covers
+ * not-found, gone, legally or access-blocked and redirected (renamed/transferred)
+ * paths, which need manual research at their new location; `failed` is a
+ * per-hint request failure retried on a short clock.
+ */
 export type ExternalResolution =
   | { status: "found"; repository: unknown }
-  | { status: "unavailable"; reason: string };
+  | { status: "unavailable" | "failed"; reason: string };
+const retryAt = (observedAt: string, days: number) =>
+  new Date(Date.parse(observedAt) + days * 86400000).toISOString();
 /** Binds one curated-list hint to its primary immutable GitHub repository ID.
- * A reused path owned by another ID refuses this hint only; the queue is unchanged.
+ * The answered repository must be the requested path. A path owned by another
+ * retained ID refuses this hint only; the queue is unchanged.
  */
 export function resolveExternalHint(
   state: LeadState,
@@ -329,34 +341,47 @@ export function resolveExternalHint(
 ): LeadState {
   const hint = state.external?.hints[key];
   if (!hint || hint.host !== "github") throw new Error("Unknown external GitHub hint");
-  if (outcome.status === "unavailable") {
+  if (!clock(observedAt)) throw new Error("Invalid external resolution clock");
+  const refuse = (status: "unavailable" | "conflict", reason: string, days: number) => {
     const next = structuredClone(state);
     next.external!.hints[key]!.resolution = {
-      status: "unavailable",
+      status,
       checked_at: observedAt,
-      reason: outcome.reason,
+      reason,
+      retry_at: retryAt(observedAt, days),
     };
     return boundLeadState(next);
-  }
+  };
+  if (outcome.status !== "found")
+    return refuse(
+      "unavailable",
+      outcome.reason,
+      outcome.status === "failed"
+        ? externalHintRetryDays.failed
+        : externalHintRetryDays.unavailable,
+    );
+  const row = outcome.repository;
+  if (
+    !isRecord(row) ||
+    typeof row.full_name !== "string" ||
+    row.full_name.toLowerCase() !== key.slice(19)
+  )
+    return refuse(
+      "conflict",
+      "Primary metadata named a different repository than the listed path",
+      externalHintRetryDays.conflict,
+    );
   let next: LeadState;
   try {
-    next = retainLeadResults(state, [outcome.repository], observedAt, evidence);
+    next = retainLeadResults(state, [row], observedAt, evidence);
   } catch (error) {
     if (!(error instanceof Error) || !/identity changed/u.test(error.message)) throw error;
-    const refused = structuredClone(state);
-    refused.external!.hints[key]!.resolution = {
-      status: "conflict",
-      checked_at: observedAt,
-      reason: "Repository path already belongs to a different retained repository ID",
-    };
-    return boundLeadState(refused);
+    return refuse(
+      "conflict",
+      "Repository path already belongs to a different retained repository ID",
+      externalHintRetryDays.conflict,
+    );
   }
-  const row = outcome.repository as { id: number; full_name: string };
-  const lead = next.records[String(row.id)]!;
-  const requested = key.slice(19);
-  // GitHub answered a renamed/transferred path with the current repository; keep the old path.
-  if (lead.repository.toLowerCase() !== requested)
-    lead.aliases = [...new Set([...(lead.aliases ?? []), hint.url.slice(19)])].slice(-64);
   return linkExternalHints(next, observedAt);
 }
 export function nextLeadPage(state: LeadState, now: string) {

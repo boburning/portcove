@@ -25,6 +25,7 @@ import {
   parsePortsdrPage,
   selectExternalResolutions,
 } from "./discovery-external-lists.mts";
+import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
@@ -953,31 +954,38 @@ void test("curated list hints merge idempotently, link known leads and select un
     () =>
       parseLeadState({
         ...JSON.parse(JSON.stringify(state)),
-        external: { ...state.external, lists: { other: state.external!.lists.portsdr } },
+        external: { ...state.external, lists: { Bad_ID: state.external!.lists.portsdr } },
       }),
     /external list clock/u,
   );
 });
-void test("hint resolution binds primary IDs, keeps renamed paths and refuses reused paths per hint", () => {
-  let state = retainLeadResults(parseLeadState(undefined), [item(7, "ports/taken")], now, "search");
+void test("hint resolution binds only the listed path's primary ID with per-hint retry clocks", () => {
+  let state = retainLeadResults(
+    parseLeadState(undefined),
+    [item(7, "ports/taken"), item(8, "ports/current")],
+    now,
+    "search",
+  );
+  state.records["8"]!.aliases = ["ports/old-name"];
   state.external = mergeExternalList(
     undefined,
     "decomp-buddy-finds",
-    parseFindsFeed(finds(["ports/renamed", "ports/gone", "ports/reused"])),
+    parseFindsFeed(
+      finds(["ports/new", "ports/gone", "ports/flaky", "ports/elsewhere", "ports/old-name"]),
+    ),
     now,
     "finds.json",
   );
   state = resolveExternalHint(
     state,
-    "https://github.com/ports/renamed",
-    { status: "found", repository: { ...item(20, "ports/current"), pushed_at: now } },
+    "https://github.com/ports/new",
+    { status: "found", repository: { ...item(20, "Ports/New"), pushed_at: now } },
     now,
     "resolution.json",
   );
   assert.equal(state.records["20"]?.status, "pending");
-  assert.deepEqual(state.records["20"]?.aliases, ["ports/renamed"]);
   assert.deepEqual(state.records["20"]?.external_lists, ["decomp-buddy-finds"]);
-  assert.equal(state.external?.hints["https://github.com/ports/renamed"]?.resolution?.id, 20);
+  assert.equal(state.external?.hints["https://github.com/ports/new"]?.resolution?.id, 20);
   state = resolveExternalHint(
     state,
     "https://github.com/ports/gone",
@@ -985,32 +993,49 @@ void test("hint resolution binds primary IDs, keeps renamed paths and refuses re
     now,
     "gone.json",
   );
+  state = resolveExternalHint(
+    state,
+    "https://github.com/ports/flaky",
+    { status: "failed", reason: "HTTP 502" },
+    now,
+    "flaky.json",
+  );
+  const before = Object.keys(state.records).length;
+  state = resolveExternalHint(
+    state,
+    "https://github.com/ports/elsewhere",
+    { status: "found", repository: item(99, "ports/taken") },
+    now,
+    "elsewhere.json",
+  );
+  const elsewhere = state.external?.hints["https://github.com/ports/elsewhere"]?.resolution;
+  assert.equal(elsewhere?.status, "conflict", "an answer for another path never joins a lead");
+  assert.equal(elsewhere?.retry_at, "2026-11-22T12:56:46.011Z");
+  assert.equal(Object.keys(state.records).length, before);
+  assert.equal(state.records["7"]?.repository, "ports/taken");
+  assert.equal(
+    state.external?.hints["https://github.com/ports/gone"]?.resolution?.retry_at,
+    "2026-11-22T12:56:46.011Z",
+  );
   const paths = leadPaths(Object.values(state.records));
   assert.deepEqual(
     selectExternalResolutions(state.external, new Set(), paths, now).map((p) => p.repository),
-    ["ports/reused"],
-    "unavailable hints wait for their retry clock",
+    ["ports/old-name"],
+    "a historical alias is not current ownership; the path gets a fresh primary read",
+  );
+  assert.deepEqual(
+    selectExternalResolutions(state.external, new Set(), paths, "2026-10-24T13:00:00.000Z").map(
+      (p) => p.repository,
+    ),
+    ["ports/flaky", "ports/old-name"],
+    "failed reads retry after one day, unavailable and conflict after thirty",
   );
   assert.deepEqual(
     selectExternalResolutions(state.external, new Set(), paths, "2026-12-01T00:00:00.000Z").map(
       (p) => p.repository,
     ),
-    ["ports/gone", "ports/reused"],
+    ["ports/elsewhere", "ports/flaky", "ports/gone", "ports/old-name"],
   );
-  const before = Object.keys(state.records).length;
-  state = resolveExternalHint(
-    state,
-    "https://github.com/ports/reused",
-    { status: "found", repository: item(99, "ports/taken") },
-    now,
-    "reused.json",
-  );
-  assert.equal(
-    state.external?.hints["https://github.com/ports/reused"]?.resolution?.status,
-    "conflict",
-  );
-  assert.equal(Object.keys(state.records).length, before, "a reused path cannot join identities");
-  assert.equal(state.records["7"]?.repository, "ports/taken");
   assert.throws(
     () =>
       resolveExternalHint(
@@ -1023,6 +1048,13 @@ void test("hint resolution binds primary IDs, keeps renamed paths and refuses re
     /Unknown external/u,
   );
   assert.deepEqual(parseLeadState(JSON.parse(JSON.stringify(state))), state);
+  const stale = JSON.parse(JSON.stringify(state)) as typeof state;
+  delete stale.external!.hints["https://github.com/ports/gone"]!.resolution!.retry_at;
+  assert.throws(() => parseLeadState(stale), /hint resolution/u);
+  const retired = JSON.parse(JSON.stringify(state)) as typeof state;
+  retired.external!.lists["retired-list"] = retired.external!.lists["decomp-buddy-finds"]!;
+  retired.external!.hints["https://github.com/ports/new"]!.lists.push("retired-list");
+  assert.ok(parseLeadState(retired).external?.lists["retired-list"], "retired ids stay readable");
 });
 void test("collect reads due lists once, resolves a bounded uncovered set and survives failures", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-lists-"));
@@ -1032,6 +1064,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
   const many = Array.from({ length: 12 }, (_, i) => `lists/game-${i}`);
   const fetched: string[] = [];
   const resolved: string[] = [];
+  let portsdrFails = true;
   Object.assign(session, {
     stateDir: root,
     runDir: root,
@@ -1062,7 +1095,15 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
         fetched.push(url);
         source.budget.charge("GET", url, 1, 100, "200");
         if (url.includes("portsdr"))
-          return { requests: 1, bytes: 1, status: 503, headers: {}, text: "" };
+          return portsdrFails
+            ? { requests: 1, bytes: 1, status: 503, headers: {}, text: "" }
+            : {
+                requests: 1,
+                bytes: 1,
+                status: 200,
+                headers: {},
+                text: portsdr(["https://github.com/lists/game-11"]),
+              };
         if (url.includes("alexbeav")) {
           assert.equal(cap, 1024 * 1024);
           return { requests: 1, bytes: 1, status: 200, headers: {}, text: "not a catalog" };
@@ -1075,50 +1116,100 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
       source.budget.charge("GET", endpoint, 1, 100, "200");
       const repository = endpoint.replace(/^repos\//u, "");
       resolved.push(repository);
-      if (repository === "lists/game-1")
-        return new Response(JSON.stringify({ message: "Not Found" }), {
-          status: 404,
+      const json = (status: number) =>
+        new Response(JSON.stringify({ message: "fixture" }), {
+          status,
           headers: { "content-type": "application/json" },
         });
+      if (repository === "lists/game-1") return json(404);
+      if (repository === "lists/game-2")
+        return new Response(null, {
+          status: 301,
+          headers: { location: "https://api.github.com/repositories/9999" },
+        });
+      if (repository === "lists/game-3") return json(451);
       return { ...item(500 + Number(repository.split("-").at(-1)), repository), pushed_at: now };
     }),
   };
   Object.defineProperty(session, "source", { configurable: true, value: source });
   const summary = await session.collectExternalLists();
   assert.equal(fetched.length, 3);
-  assert.equal(resolved.length, 8, "resolution stays within the per-run bound");
-  assert.ok(!resolved.includes("lists/game-0"), "canonical coverage needs no network read");
-  assert.equal(summary?.covered, 1);
-  assert.equal(summary?.unavailable, 1);
-  assert.equal(summary?.queued, 7);
-  assert.equal(summary?.unresolved, 3);
-  assert.deepEqual(session.leads.records["502"]?.external_lists, ["decomp-buddy-finds"]);
-  assert.equal(session.leads.external?.lists.portsdr, undefined, "failed list keeps no clock");
-  assert.equal(session.leads.external?.lists["alexbeav-psx"], undefined);
   assert.deepEqual(
-    session.journal.notes.map((n) => (n as { source?: string }).source),
-    ["portsdr", "alexbeav-psx"],
+    resolved,
+    [
+      "lists/game-1",
+      "lists/game-10",
+      "lists/game-11",
+      "lists/game-2",
+      "lists/game-3",
+      "lists/game-4",
+      "lists/game-5",
+      "lists/game-6",
+    ],
+    "redirected, blocked and missing hints never stop later hints",
   );
+  assert.equal(summary?.covered, 1);
+  assert.equal(summary?.unavailable, 3);
+  assert.equal(summary?.queued, 5);
+  assert.equal(summary?.unresolved, 3);
+  assert.match(
+    session.leads.external?.hints["https://github.com/lists/game-2"]?.resolution?.reason ?? "",
+    /redirected/u,
+  );
+  assert.match(
+    session.leads.external?.hints["https://github.com/lists/game-3"]?.resolution?.reason ?? "",
+    /451/u,
+  );
+  assert.deepEqual(session.leads.records["504"]?.external_lists, ["decomp-buddy-finds"]);
+  assert.equal(session.leads.external?.lists.portsdr, undefined, "failed list keeps no clock");
+  assert.equal(session.leads.external?.attempts?.portsdr?.outcome, "partial");
+  assert.equal(session.leads.external?.attempts?.["alexbeav-psx"]?.outcome, "partial");
+  assert.doesNotMatch(
+    JSON.stringify(session.journal.notes),
+    /not a catalog/u,
+    "list bytes are not copied into notes",
+  );
+  assert.equal(summary?.lists.portsdr?.last_attempt?.outcome, "partial");
+  assert.equal(summary?.lists["decomp-buddy-finds"]?.last_complete?.entries, 12);
   const persisted = parseLeadState(JSON.parse(readFileSync(path.join(root, "leads.json"), "utf8")));
   assert.equal(Object.keys(persisted.external?.hints ?? {}).length, 12);
   await session.collectExternalLists();
   assert.equal(fetched.length, 3, "one collection attempt per run");
 
-  // A later run within the refresh interval rereads only failed lists and respects the reserve.
-  session.externalCollectionAttempted = false;
-  session.journal.notes = [];
-  const constrained = new DiscoveryBudget("ordinary");
-  await constrained.reserveDelivery(181, 1024);
-  Object.assign(session, { budget: constrained });
-  source.budget = constrained;
-  await session.collectExternalLists();
-  assert.equal(
-    fetched.filter((u) => u.includes("tanookistudios")).length,
-    1,
-    "the finds list is not due again",
-  );
+  // Next run: failed lists wait out their retry clock and the reserve stops resolution.
+  const rerun = async (startedAt: string, reserve: number) => {
+    session.externalCollectionAttempted = false;
+    Object.assign(session, {
+      journal: { ...session.journal, started_at: startedAt, notes: [] },
+    });
+    const constrained = new DiscoveryBudget("ordinary");
+    await constrained.reserveDelivery(reserve, 1024);
+    Object.assign(session, { budget: constrained });
+    source.budget = constrained;
+    return await session.collectExternalLists();
+  };
+  await rerun("2026-10-24T12:56:46.011Z", 183);
+  assert.equal(fetched.length, 3, "failed lists are not refetched before their retry clock");
   assert.equal(resolved.length, 8, "budget refusal happens before any provider read");
   assert.ok(
     session.journal.notes.some((n) => (n as { phase?: string }).phase === "external-resolution"),
   );
+  // Later, one failed list recovers and the other fails again; prior hints and clocks survive.
+  portsdrFails = false;
+  const hints = structuredClone(session.leads.external?.hints);
+  const findsClock = structuredClone(session.leads.external?.lists["decomp-buddy-finds"]);
+  await rerun("2026-10-26T12:56:46.011Z", 150);
+  assert.deepEqual(
+    fetched.slice(3).map((u) => new URL(u).hostname),
+    ["portsdr.com", "alexbeavs-ps1-ports.github.io"],
+  );
+  assert.deepEqual(session.leads.external?.lists["decomp-buddy-finds"], findsClock);
+  const recovered: ExternalLeadState["lists"] = session.leads.external?.lists ?? {};
+  assert.equal(recovered["portsdr"]?.entries, 1);
+  assert.equal(session.leads.external?.lists["alexbeav-psx"], undefined);
+  for (const key of Object.keys(hints ?? {})) assert.ok(session.leads.external?.hints[key]);
+  assert.deepEqual(session.leads.external?.hints["https://github.com/lists/game-11"]?.lists, [
+    "decomp-buddy-finds",
+    "portsdr",
+  ]);
 });

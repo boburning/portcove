@@ -403,33 +403,43 @@ transport: the Decomp Buddy finds feed
 (`port-card` Repository links, 4 MiB cap) and the Alexbeav PS1 catalog
 (`catalog-data.js`, read as text and never executed, 1 MiB cap). Decomp Buddy's
 aggregated catalog is not read; its finds feed plus the two original lists
-cover it. Each list is read at most once per run and again only seven days after
-its last complete collection, with eighteen requests and the list cap plus 1 MiB
-still available. A malformed, oversized, count-mismatched or failed list keeps
-its prior clock and hints and is recorded as a partial note.
+cover it. Each list is read at most once per run, again seven days after its
+last complete collection, and only while twenty-two requests (the research
+reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
+malformed, oversized, count-mismatched or failed list keeps its prior complete
+clock and hints, records its failed attempt, waits two days before another read
+and is recorded as a partial note. Parser diagnostics never copy list bytes. A
+failure anywhere in this step leaves the rest of `collect` running.
 
-Only HTTPS GitHub, GitLab and Codeberg `owner/name` repository URLs and a
-truncated inert title are retained in `leads.json` as hints, with the lists that
-named them and first/last observation clocks. Name-only entries are counted,
-never mapped. A list no longer naming a repository is not deletion evidence.
-Hints are not leads: they grant no admission, support, catalog or planning
-facts, and list text is never followed as instructions.
+Only HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
+group segments) and a truncated inert title are retained in `leads.json` as
+hints, with the lists that named them and first/last observation clocks.
+Name-only entries are counted, never mapped. A list no longer naming a
+repository is not deletion evidence. Hints are not leads: they grant no
+admission, support, catalog or planning facts, and list text is never followed
+as instructions. Retired list ids stay readable in retained state.
 
 After list collection, at most eight uncovered GitHub hints per run, newest
 first, receive one primary `repos/{owner}/{name}` metadata read while eighteen
 requests remain. A hint is covered when a canonical issue upstream, reviewed
-catalog lineage URL, or a retained lead path or alias already names it; covered
-hints are never read. The immutable repository ID joins the ordinary lead queue
-through the same identity rules as search results: a rename or transfer becomes
-one lead with the requested path as an alias, a path already owned by another
-ID marks only that hint as a conflict, and HTTP 404 marks it unavailable for
-thirty days. Other provider failures stop resolution and keep the hint.
+catalog lineage URL or a retained lead's current repository path names it;
+covered hints are never read. Historical lead aliases do not cover a hint,
+because another repository can reuse an old path. Only an answer for the listed
+path joins the ordinary lead queue, through the same immutable-ID rules as
+search results. The discovery SDK refuses redirects, so a renamed or transferred
+path, HTTP 404/410 and HTTP 403/451 access blocks mark only that hint
+unavailable for thirty days for manual research at its new location. An answer
+for another path or a path owned by another retained ID marks it as a conflict
+for thirty days; any other per-hint read failure retries after one day. Budget,
+rate-limit, deadline and scope refusals stop resolution and keep remaining hints.
 Resolved leads record `external_lists` provenance and then follow the unchanged
 ranking, research, disposition and intake guards. Non-GitHub hints remain manual
-research hints. The lead summary's `external` entry reports each list's clock and
-counts, and covered, queued, unresolved, unavailable, conflict and non-GitHub
-hints; without a validated inventory, canonical overlap is unknown. List
-collection does not count toward quiet-rotation lead coverage.
+research hints. The lead summary's `external` entry reports each list's last
+complete collection, last attempt and due state, and covered, queued, unresolved,
+unavailable, conflict and non-GitHub hints; without a validated inventory,
+canonical overlap is unknown. List collection does not count toward
+quiet-rotation lead coverage. Hints live in `leads.json` and its recovery copy
+in the run journal, never in registry checkpoint sources.
 
 Collect registry entry fingerprints and exact evidence URLs/clocks cheaply
 before deep investigation. Process offered-integration safety/availability

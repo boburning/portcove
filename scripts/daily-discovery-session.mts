@@ -86,6 +86,7 @@ import {
   leadPaths,
   mergeExternalList,
   parseExternalList,
+  recordExternalListFailure,
   selectExternalResolutions,
 } from "./discovery-external-lists.mts";
 import { assessUpstreamLineage } from "./upstream-lineage.mts";
@@ -803,12 +804,23 @@ export class DiscoverySession {
     if (this.externalCollectionAttempted) return this.leadSummary().external;
     this.externalCollectionAttempted = true;
     const at = this.journal.started_at;
-    const exhausted = (error: unknown) =>
-      error instanceof GitHubApiError && ["budget_exhausted", "rate_limited"].includes(error.code);
+    // Provider-wide refusals stop this run; every other outcome belongs to one hint.
+    const providerWide = (error: unknown) =>
+      error instanceof GitHubApiError &&
+      [
+        "budget_exhausted",
+        "rate_limited",
+        "deadline_exceeded",
+        "cancelled",
+        "credential_unavailable",
+        "invalid_configuration",
+        "request_refused",
+      ].includes(error.code);
     for (const list of externalLeadLists) {
       if (!externalListDue(this.leads.external, list.id, at)) continue;
       const left = this.budget.remaining();
-      if (left.requests < 18 || left.bytes < list.cap + 1024 * 1024) {
+      // One list read may follow up to four redirects; keep the research reserve after them.
+      if (left.requests < 22 || left.bytes < list.cap + 1024 * 1024) {
         this.journal.notes.push({
           phase: "external-list",
           source: list.id,
@@ -844,6 +856,15 @@ export class DiscoverySession {
           at,
         );
       } catch (error) {
+        this.leads = {
+          ...this.leads,
+          external: recordExternalListFailure(
+            this.leads.external,
+            list.id,
+            at,
+            errorMessage(error),
+          ),
+        };
         this.journal.notes.push({
           phase: "external-list",
           source: list.id,
@@ -852,7 +873,10 @@ export class DiscoverySession {
           error: errorMessage(error),
           resume: "Retained hints and the last successful list clock are unchanged",
         });
-        if (exhausted(error)) break;
+        if (providerWide(error)) {
+          this.persist();
+          break;
+        }
       }
       this.persist();
     }
@@ -886,18 +910,35 @@ export class DiscoverySession {
         this.save(name, response.data);
         outcome = { status: "found", repository: response.data };
       } catch (error) {
-        if (error instanceof GitHubApiError && error.status === 404)
-          outcome = { status: "unavailable", reason: "Repository metadata returned HTTP 404" };
-        else {
+        if (providerWide(error)) {
           this.journal.notes.push({
             phase: "external-resolution",
             status: "partial",
             next: pick.repository,
             error: errorMessage(error),
-            resume: "Resolve this curated-list hint on a later admitted run",
+            resume: "Resolve remaining curated-list hints on a later admitted run",
           });
           break;
         }
+        const status = error instanceof GitHubApiError ? error.status : undefined;
+        outcome =
+          error instanceof GitHubApiError && error.code === "redirect_refused"
+            ? {
+                status: "unavailable",
+                reason:
+                  "GitHub redirected this path (renamed or transferred repository); research its new location manually",
+              }
+            : status === 404 || status === 410
+              ? { status: "unavailable", reason: `Repository metadata returned HTTP ${status}` }
+              : status === 451 || status === 403
+                ? {
+                    status: "unavailable",
+                    reason: `Repository access is blocked (HTTP ${status})`,
+                  }
+                : {
+                    status: "failed",
+                    reason: `Repository metadata read failed: ${errorMessage(error).slice(0, 200)}`,
+                  };
       }
       try {
         this.leads = resolveExternalHint(
@@ -908,13 +949,14 @@ export class DiscoverySession {
           path.join(this.runDir, `${name}.json`),
         );
       } catch (error) {
-        this.journal.notes.push({
-          phase: "external-resolution",
-          status: "partial",
-          next: pick.repository,
-          error: errorMessage(error),
-          resume: "Malformed provider metadata; retry this hint on a later admitted run",
-        });
+        // Malformed provider metadata: record a short retry so this hint cannot block others.
+        this.leads = resolveExternalHint(
+          this.leads,
+          pick.key,
+          { status: "failed", reason: `Malformed repository metadata: ${errorMessage(error)}` },
+          at,
+          path.join(this.runDir, `${name}.json`),
+        );
       }
       this.persist();
     }
@@ -1546,7 +1588,18 @@ export class DiscoverySession {
   async collect() {
     if (this.journal.collection_done)
       throw new Error("Source collection already completed in this run");
-    await this.collectExternalLists();
+    try {
+      await this.collectExternalLists();
+    } catch (error) {
+      // Curated hints are optional lead input; their failure never blocks collection.
+      this.journal.notes.push({
+        phase: "external-list",
+        status: "partial",
+        error: errorMessage(error),
+        resume: "Retained hints are unchanged; retry on a later run",
+      });
+      this.persist();
+    }
     await this.discover();
     const reserve = this.budget.reserve;
     const pending = pendingLeads(this.leads, this.knownLeadUrls());
