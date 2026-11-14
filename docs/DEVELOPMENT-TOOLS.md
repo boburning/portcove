@@ -1846,7 +1846,7 @@ Delegated agents are short-lived. Each assignment states its end condition: a
 report, findings, or a pushed draft candidate. It never sleeps, polls or watches
 CI, review or merge. Prompt caches expire after short idle periods (five minutes by default for
 Claude), so a waiting agent rewrites its whole context each time it resumes;
-that was the main source of the usage increase after the 2026-11-13
+that was the main source of the cache-write increase after the 2026-11-13
 recommendations. Only the main session waits, once, for all of its candidates. Resume a
 reviewer for a repair delta only when it ended recently; otherwise give a fresh
 reviewer the delta packet. Parallel delegated implementation needs an
