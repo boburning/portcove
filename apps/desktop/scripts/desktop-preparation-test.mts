@@ -1812,7 +1812,9 @@ export async function preparationScenarios({
       play: "Try launch",
       play_disabled: false,
       play_slot: "button",
-      play_variant: "outline",
+      // Library cards render their launch action as primary (PortBrowser,
+      // #5226), including Try launch for unconfirmed compatibility.
+      play_variant: "primary",
       more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
