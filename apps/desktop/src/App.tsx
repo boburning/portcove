@@ -66,6 +66,7 @@ import {
   usePendingSetupReview,
 } from "./features/game-file-discovery/setup-review-selection";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
+import { useStartupPlayRequest } from "./features/app-shell/use-startup-play-request";
 import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
 import {
   useLibrarySelectionLanding,
@@ -541,6 +542,13 @@ function useWorkspace(props: WorkspaceProps) {
     replace: switchPortDetails,
     opening: detailOpening,
   } = useDetailWorkspaceNavigation(workspace, setSelectedId, availablePortIds);
+  useStartupPlayRequest({
+    ready: Boolean(data.catalog),
+    entries: model.entries,
+    statuses: model.statusMap,
+    play: (port) => launchKnownPort(port.id, port, operations.perform, bootstrap.generation),
+    openDetails: (portId) => openPortDetails(portId),
+  });
   const [pendingToolId, setPendingToolId] = useState<string>();
   const [addGamesOpen, setAddGamesOpen] = useState(false);
   const [addGamesStarted, setAddGamesStarted] = useState(false);

@@ -1409,6 +1409,34 @@ and argument-array fields separately. This creates no independent lifecycle
 state or command authority: the standalone CLI validates and executes through core.
 Desktop continues to call core directly.
 
+## Recently played shortcuts
+
+Core's `PortcoveService::recently_played` projects successful-launch history,
+newest first and capped at ten, onto ports in the current catalog that still have
+an active installation or registered external runtime. It is a read of the same
+`launch_history` that drives Continue; it assesses no readiness and adds no
+history authority.
+
+On Windows the Tauri host mirrors up to five of those games into a "Recently
+played" category of Portcove's taskbar jump list. It rebuilds the category on a
+worker after startup publishes the library, after an observed launch finishes and
+after a library selection or transfer, so CLI launches appear at the next of
+those points. An empty read removes the category; entries the player removed
+from the jump list are not added back. Failures are logged and never affect
+startup, play or a library change. Other platforms compile the refresh as a no-op.
+
+Each entry starts the Desktop executable with exactly `--portcove-play
+<port-id>`. Desktop registers no URL scheme, protocol handler or listener for
+it, so web content cannot produce the argument; a local program that can start
+Desktop with arguments gains nothing beyond the ordinary launch command. The host
+accepts only that exact form with a bounded identifier and keeps it as a one-shot
+request that the frontend takes once, after the workspace has its catalog and
+statuses. A game that can play directly uses the existing Continue launch path;
+one that needs attention opens its details; an unknown or removed game opens
+nothing. Core's launch path still owns readiness, per-port locking and
+executable trust. Desktop has no single-instance forwarding, so an entry used
+while Portcove is open starts a second window that handles the request.
+
 ## Desktop library handoff state
 
 GitHub authentication status extracts an owned HTTP observation before awaiting

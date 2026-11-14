@@ -1261,6 +1261,8 @@ export const desktopApi = {
       arguments: [],
       disc: disc ?? null,
     }),
+  /** The jump-list play request this process started with, returned only once. */
+  takeStartupPlayRequest: () => invoke<string | null>("take_startup_play_request"),
   automaticSnapshots: (generation: number) =>
     invoke<boolean>("get_automatic_snapshots", { generation }),
   setAutomaticSnapshots: (enabled: boolean, generation: number) =>
