@@ -1065,6 +1065,8 @@ image. It is valid only on a `staged-source-portable` port that declares a
   Play launches with the files already unpacked, unpacks nothing and removes nothing, and
   the launch reports a `warning` message that the saved source changed or cannot be read.
   Registering the image again (or removing the registration) is what resumes unpacking.
+- The Game files summary states, before a player chooses an image, that unpacking replaces the
+  unpacked game folder and does not keep files added to it by hand.
   Cancellation is never treated as a source failure.
 - Choosing a valid optional source is what makes Portcove unpack at the next launch, and
   that replaces the destination folder, which is the first time Portcove can replace a

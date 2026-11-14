@@ -164,6 +164,11 @@ it("presents an installed optional game source as optional, and a mandatory one 
     "Game files are optional",
   );
   expect(gameFilesPresentation(optional, undefined).title).toBe("Game files are optional");
+  // The replacement is stated before the player chooses an image; mandatory ports never say it.
+  expect(gameFilesPresentation(optional, undefined).description).toContain(
+    "does not keep files you added to it by hand",
+  );
+  expect(gameFilesPresentation(mandatory, undefined).description).not.toContain("by hand");
   // Installed, optional, registered and changed or unreadable: still needs checking.
   expect(gameFilesPresentation(optional, installed("changed", ["changed_source"])).title).toBe(
     "Files need checking",

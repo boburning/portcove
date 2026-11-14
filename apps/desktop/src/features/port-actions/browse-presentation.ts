@@ -220,7 +220,7 @@ export function gameFilesPresentation(
     return {
       title: "Game files are optional",
       description:
-        "You can choose a disc image for Portcove to prepare, or keep using your own files. Play does not need one.",
+        "You can choose a disc image for Portcove to unpack, or keep using your own files. Play does not need one. If you choose one, Portcove replaces the unpacked game folder with the image’s files and does not keep files you added to it by hand.",
     };
   if (!sourceRequired && !biosRequired && port.presentation?.source_requirements?.length === 0)
     return {
