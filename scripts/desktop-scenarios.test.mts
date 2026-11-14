@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  harnessFrames,
   observeDesktopScenario,
   recordDesktopCheck,
   type ScenarioObservation,
@@ -3342,4 +3343,36 @@ void test("installed MM is Windows-only standalone with two-install custody budg
       () => resolveDesktopSelection({ scenarios: [id], platform }),
       /requires Windows/u,
     );
+});
+
+void test("scenario failures name their harness call sites", async () => {
+  const failure = new Error("script timeout");
+  failure.stack = [
+    "ScriptTimeoutError: script timeout",
+    "    at Object.throwDecodedError (file:///D:/a/portcove/node_modules/selenium-webdriver/lib/error.js:521:15)",
+    "    at async clickVisible (file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-review-controls.mts:203:5)",
+    "    at async file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-preparation-test.mts:1642:5",
+    "    at async observeDesktopScenario (file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-scenario-outcomes.mts:49:5)",
+    "    at async file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-preparation-test.mts:1642:5",
+  ].join("\n");
+  assert.deepEqual(harnessFrames(failure), [
+    "desktop-review-controls.mts:203",
+    "desktop-preparation-test.mts:1642",
+  ]);
+  const records: ScenarioObservation[] = [];
+  await observeDesktopScenario(
+    () => {
+      throw failure;
+    },
+    {
+      record: (observation) => records.push(observation),
+      diagnostics: async () => {},
+      screenshot: async () => {},
+    },
+    () => 0,
+  );
+  assert.equal(
+    records[0]?.message,
+    "script timeout\nHarness frames: desktop-review-controls.mts:203 < desktop-preparation-test.mts:1642",
+  );
 });
