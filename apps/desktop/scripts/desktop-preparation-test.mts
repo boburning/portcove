@@ -2422,7 +2422,9 @@ export async function preparationScenarios({
               },
               artwork,
             ),
-          15_000,
+          // Calibrated from 15 s: hosted job 132439346320 showed the cover rendered
+          // just after the 15 s wait on the debug build's first asset decode.
+          60_000,
           "The owned port cover image or identified fallback did not settle before visual capture",
         );
         for (const { width, height } of [
@@ -2788,7 +2790,13 @@ export async function preparationScenarios({
     const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
-    const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    // Calibrated from 15 s: hosted job 132439346320 had not shown the review 15 s
+    // after Update now while the debug build prepared its bound update plan.
+    const review = await browser.wait(
+      until.elementLocated(dialog),
+      60_000,
+      "Update now did not open the game update review",
+    );
     await browser.wait(
       async () => (await review.getText()).includes("Confirm the release"),
       5_000,

@@ -1020,6 +1020,15 @@ export function desktopHarnessDeadlineMs(
       selection.selected_scenarios.includes("native-reviewed-steam-entry-add-and-remove")
       ? 600_000
       : 0,
+    // Calibrated from 600 s (#4879): with the debug build's IPC, launch and reload
+    // waits calibrated, hosted owned-ready (job 132439346320) completed preparation,
+    // Try launch and two later journeys before the 600 s watchdog stopped it.
+    // Harness only; individual waits and product deadlines are unchanged.
+    executed > 8 &&
+      (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
+        selection.setup_scenarios.includes("native-preparation-review-and-play"))
+      ? 1_200_000
+      : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(
     "native-default-cover-cache-conditions",

@@ -263,8 +263,10 @@ preparation scenario calibrates its waits for
 primary navigation after a full reload from 15 s to 60 s, matching the existing Library
 reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
 successful launch, and the backup review's wait to close after a deletion, are calibrated
-from 15 s to 60 s for the same debug-build status and refresh reads, and its wait for the game
-update review after Check for updates from 15 s to 60 s. Its
+from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
+update review after Check for updates and after Update now, and for the ready detail cover
+to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
+includes the preparation journey gets a 20-minute harness watchdog instead of 10. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
