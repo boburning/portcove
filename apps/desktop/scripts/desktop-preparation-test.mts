@@ -1659,7 +1659,14 @@ export async function preparationScenarios({
     }
 
     await clickVisible(browser, trial);
-    await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
+    // Calibrated from 15 s: Core records the launch only after the fixture exits
+    // and its saves are collected, and each debug-build status read here takes
+    // most of 15 s (job 132417354795 timed out at 24.5 s on "Working: launch").
+    await browser.wait(
+      async () => (await status(port.id)).successful_launches > 0,
+      60_000,
+      "Try launch did not record a successful launch",
+    );
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
     const libraryHeader = await browser.wait(

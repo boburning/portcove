@@ -259,7 +259,9 @@ preparation that ends failed or cancelled is reported at once rather than at the
 The preparation scenario likewise calibrates its `get_statuses` script budget from 15 s
 to 60 s, because a full status read during Try launch exceeded 15 s, and its waits for
 primary navigation after a full reload from 15 s to 60 s, matching the existing Library
-reload wait, because the debug build's re-bootstrap exceeded 15 s. Its
+reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
+successful launch, and the backup review's wait to close after a deletion, are calibrated
+from 15 s to 60 s for the same debug-build status and refresh reads. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
