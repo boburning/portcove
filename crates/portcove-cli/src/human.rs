@@ -1588,6 +1588,9 @@ pub(crate) fn source_inspection(report: &SourceInspectionReport) -> String {
         format!("State: {}", clean(&report.state_code)),
         clean(&report.summary),
     ];
+    if let Some(identification) = &report.dump_identification {
+        dump_identification(&mut lines, identification);
+    }
     if let Some(inspection) = &report.inspection {
         lines.push(format!(
             "Path: {}",
@@ -2277,6 +2280,72 @@ pub(crate) fn host_tools(tools: &[HostToolStatus]) -> String {
         tools.len(),
         table(&["TOOL", "STATUS", "SOURCE", "PATH", "OFFICIAL SITE"], rows)
     )
+}
+
+pub(crate) fn dat_references(references: &[portcove_core::DatReferenceStatus]) -> String {
+    let rows = references
+        .iter()
+        .map(|reference| {
+            vec![
+                clean(&reference.id),
+                format!(
+                    "{}{}",
+                    clean(&reference.name),
+                    reference
+                        .version
+                        .as_deref()
+                        .map_or_else(String::new, |version| format!(" ({})", clean(version)))
+                ),
+                match reference.state {
+                    portcove_core::DatReferenceState::Ready => "ready",
+                    portcove_core::DatReferenceState::Missing => "missing",
+                    portcove_core::DatReferenceState::Changed => "changed",
+                    portcove_core::DatReferenceState::Unreadable => "unreadable",
+                }
+                .into(),
+                reference.entry_count.to_string(),
+                clean(&reference.path.display().to_string()),
+            ]
+        })
+        .collect();
+    let notes = references
+        .iter()
+        .filter(|reference| reference.state != portcove_core::DatReferenceState::Ready)
+        .map(|reference| format!("{}: {}\n", clean(&reference.id), clean(&reference.message)))
+        .collect::<String>();
+    format!(
+        "DAT files ({})\n{}\n{}DAT files only name selected game files. They don’t change which files a game accepts.",
+        references.len(),
+        table(&["ID", "NAME", "STATUS", "ENTRIES", "PATH"], rows),
+        notes,
+    )
+}
+
+fn dump_identification(
+    lines: &mut Vec<String>,
+    identification: &portcove_core::DumpIdentification,
+) {
+    lines.push(format!("DAT files: {}", clean(&identification.summary)));
+    for found in identification.matches.iter().skip(1) {
+        lines.push(format!(
+            "- Also {}: “{}” in {}",
+            if found.complete {
+                "matches"
+            } else {
+                "partly matches"
+            },
+            clean(&found.entry_name),
+            clean(&found.reference_name)
+        ));
+    }
+    for reference in &identification.unavailable_references {
+        lines.push(format!(
+            "- {}: {}",
+            clean(&reference.name),
+            clean(&reference.message)
+        ));
+    }
+    lines.push(clean(&identification.limitation));
 }
 
 pub(crate) fn host_tool(tool: &HostToolStatus) -> String {
