@@ -267,7 +267,12 @@ from 15 s to 60 s for the same debug-build status and refresh reads, its waits f
 update review after Check for updates and after Update now, and for the ready detail cover
 to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
 includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
-selected-setup completion journey gets 10 minutes instead of 3. Its
+selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
+diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
+20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
+runs enable debug host diagnostics and retain the latest IPC dispatch and
+blocking-worker records beside each scenario failure. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

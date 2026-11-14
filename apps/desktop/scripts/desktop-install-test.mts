@@ -1747,7 +1747,8 @@ export async function installScenarios({
               `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
             ),
           ),
-          15_000,
+          // Hosted debug get_backups reads settled after 20.6 s (job 132474930950).
+          60_000,
         );
       } catch (error) {
         // Core already returned this snapshot to the harness; record whether the
