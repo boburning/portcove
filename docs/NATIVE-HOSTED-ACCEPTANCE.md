@@ -263,9 +263,8 @@ preparation scenario calibrates its waits for
 primary navigation after a full reload from 15 s to 60 s, matching the existing Library
 reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
 successful launch, and the backup review's wait to close after a deletion, are calibrated
-from 15 s to 60 s for the same debug-build status and refresh reads, its wait for the game
-update review after Check for updates from 15 s to 60 s, and its wait for both imported
-Library covers to load from 10 s to 30 s. Its
+from 15 s to 60 s for the same debug-build status and refresh reads, and its wait for the game
+update review after Check for updates from 15 s to 60 s. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

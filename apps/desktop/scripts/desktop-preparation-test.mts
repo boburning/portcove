@@ -2018,31 +2018,73 @@ export async function preparationScenarios({
           15_000,
           "Both exact prepared Library entries must render before layout measurement",
         );
-        await browser.wait(
-          () =>
-            executeBrowserScript(browser, () => {
-              const frames = [
-                ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
-              ];
-              return (
-                document.fonts.status === "loaded" &&
-                frames.length === 2 &&
-                frames.every((frame) => {
-                  const image = frame.querySelector("img");
-                  return (
-                    frame.dataset.artworkSource === "local_import" &&
-                    image?.complete &&
-                    image.naturalWidth > 0
-                  );
-                })
-              );
-            }),
-          // Calibrated from 10 s: hosted job 132417354900 showed the second imported
-          // cover still unread (placeholder, no failure notice) at 10 s while the
-          // debug build's workspace refresh settled; earlier runs passed this step.
-          30_000,
-          "Both owned local artwork images must load before the resize journey",
-        );
+        try {
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () => {
+                const frames = [
+                  ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
+                ];
+                return (
+                  document.fonts.status === "loaded" &&
+                  frames.length === 2 &&
+                  frames.every((frame) => {
+                    const image = frame.querySelector("img");
+                    return (
+                      frame.dataset.artworkSource === "local_import" &&
+                      image?.complete &&
+                      image.naturalWidth > 0
+                    );
+                  })
+                );
+              }),
+            10_000,
+            "Both owned local artwork images must load before the resize journey",
+          );
+        } catch (error) {
+          // Record whether the page or Core lost an imported cover; best effort,
+          // never replacing the original timeout.
+          try {
+            const diagnostic = path.join(output, `library-cover-load-${theme}.json`);
+            await writeFile(
+              diagnostic,
+              JSON.stringify(
+                {
+                  page: await executeBrowserScript(browser, () =>
+                    [...document.querySelectorAll<HTMLElement>(".collection-entry")].map(
+                      (entry) => {
+                        const frame = entry.querySelector<HTMLElement>(".artwork-image");
+                        const image = frame?.querySelector("img");
+                        return {
+                          game: entry.querySelector<HTMLElement>("[data-detail-game-id]")?.dataset
+                            .detailGameId,
+                          frame: Boolean(frame),
+                          source: frame?.dataset.artworkSource ?? null,
+                          complete: image?.complete ?? null,
+                          natural_width: image?.naturalWidth ?? null,
+                        };
+                      },
+                    ),
+                  ),
+                  core: [first.port.id, second.port.id].map((id) => ({
+                    port_id: id,
+                    artwork: transportValue(
+                      "artwork_state",
+                      command(["artwork", "show", id, "--slot", "cover"]),
+                    ),
+                  })),
+                },
+                null,
+                2,
+              ),
+              { flag: "wx" },
+            );
+            artifacts.push(diagnostic);
+          } catch (diagnosticError) {
+            console.error(`Library cover diagnostic unavailable: ${String(diagnosticError)}`);
+          }
+          throw error;
+        }
         for (const layout of ["Covers", "Compact rows"]) {
           const viewControls = await browser.findElement(
             By.css('[role="group"][aria-label="Collection view"]'),
