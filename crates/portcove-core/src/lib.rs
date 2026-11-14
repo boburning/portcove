@@ -151,6 +151,7 @@ mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
+mod windows_runtime;
 mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
@@ -447,6 +448,11 @@ pub use target_inspection::{
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;
+pub use windows_runtime::{
+    DIRECTX_DOWNLOAD_PAGE, DotnetFramework, RuntimeHostCheck, RuntimeInspection,
+    RuntimePrerequisite, RuntimePrerequisiteReport, RuntimePresence, VISUAL_CPP_DOWNLOAD_PAGE,
+    WindowsArchitecture, WindowsRuntime, is_official_download_page,
+};
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
 // Public 66 adds reviewed update assessments while retaining both delivered scopes.

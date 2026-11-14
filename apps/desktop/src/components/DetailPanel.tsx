@@ -111,6 +111,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { LaunchFailureNotice } from "./LaunchFailureNotice";
+import { RuntimePrerequisiteNotice } from "./RuntimePrerequisiteNotice";
 import { ReportProblem } from "./ReportProblem";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
@@ -601,6 +602,13 @@ function DetailBody(model: {
               busy={model.busy}
               rollback={model.actions.rollback}
               openActivity={model.openActivity}
+            />
+          )}
+          {model.installed && (
+            <RuntimePrerequisiteNotice
+              portId={model.port.id}
+              generation={model.libraryGeneration}
+              status={model.status}
             />
           )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />

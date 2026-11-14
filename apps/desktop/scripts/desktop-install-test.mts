@@ -733,6 +733,7 @@ export async function installScenarios({
         "get_workspace_snapshot",
         "discover_orphaned_operations",
         "get_launch_failure",
+        "get_runtime_prerequisites",
         "get_port_capabilities",
         "get_mod_setups",
         "get_backups",
