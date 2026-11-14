@@ -898,6 +898,9 @@ fn a_held_back_asset_is_not_evicted_while_a_credit_lacks_fresh_evidence() {
             .iter()
             .all(|image| image.effect == Effect::None)
     );
+}
+
+#[test]
 fn evicted_sources_report_only_copies_portcove_removed() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));

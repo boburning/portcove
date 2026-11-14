@@ -316,48 +316,16 @@ pub(crate) async fn apply_steam_artwork(
         Ok((display_name, plan))
     })
     .await?;
-    let (title, action) = match request.operation {
-        SteamArtworkOperation::Update {
-            replace_existing: false,
-        } => (
-            "Confirm Steam artwork update",
-            "Add missing artwork".to_owned(),
+    let (title, action, message) = artwork_consent(
+        reviewed.operation,
+        &reviewed.roles,
+        &format!(
+            "{display_name} in Steam profile {}?\n\nArtwork folder: {}\n\n",
+            reviewed.steam_user_id,
+            reviewed.grid_path.display(),
         ),
-        SteamArtworkOperation::Update {
-            replace_existing: true,
-        } => (
-            "Confirm Steam artwork replacement",
-            "Replace artwork".to_owned(),
-        ),
-        SteamArtworkOperation::RemoveOwned => (
-            "Confirm Steam artwork removal",
-            "Remove Portcove artwork".to_owned(),
-        ),
-        // The wording follows the reviewed plan: a role whose file the player
-        // changed or deleted is only forgotten, and nothing is removed.
-        SteamArtworkOperation::RemoveOwnedRole { role } => {
-            let name = artwork_role_name(role);
-            if reviewed.roles.iter().any(|change| {
-                change.action == crate::desktop_contract::SteamArtworkRoleAction::Remove
-            }) {
-                (
-                    "Confirm Steam artwork removal",
-                    format!("Remove the {}", name.to_lowercase()),
-                )
-            } else {
-                (
-                    "Confirm Steam artwork tracking",
-                    format!("Stop tracking the {}", name.to_lowercase()),
-                )
-            }
-        }
-    };
-    let message = format!(
-        "{action} for {display_name} in Steam profile {}?\n\nArtwork folder: {}\n\nSteam must be closed. Portcove keeps a backup of any artwork it replaces or removes and rechecks the profile, shortcut and artwork before writing. The game and its saves are not affected.",
-        reviewed.steam_user_id,
-        reviewed.grid_path.display(),
     );
-    if !confirm_destructive(&app, title, message, &action).await {
+    if !confirm_destructive(&app, &title, message, &action).await {
         return Ok(None);
     }
     blocking_worker(move || {
@@ -589,6 +557,57 @@ fn artwork_request(
             require_written_shortcut: false,
         },
     ))
+}
+
+/// The native consent for a reviewed artwork plan: its title, action label
+/// and message. The wording follows the reviewed plan's own actions, never
+/// anything the renderer sends: a single role whose file the player changed or
+/// deleted is only forgotten, so its consent says nothing is removed.
+fn artwork_consent(
+    operation: SteamArtworkOperation,
+    roles: &[crate::desktop_contract::SteamArtworkRoleChange],
+    place: &str,
+) -> (String, String, String) {
+    let standard = "Steam must be closed. Portcove keeps a backup of any artwork it replaces or removes and rechecks the profile, shortcut and artwork before writing. The game and its saves are not affected.";
+    let (title, action) = match operation {
+        SteamArtworkOperation::Update {
+            replace_existing: false,
+        } => (
+            "Confirm Steam artwork update".to_owned(),
+            "Add missing artwork".to_owned(),
+        ),
+        SteamArtworkOperation::Update {
+            replace_existing: true,
+        } => (
+            "Confirm Steam artwork replacement".to_owned(),
+            "Replace artwork".to_owned(),
+        ),
+        SteamArtworkOperation::RemoveOwned => (
+            "Confirm Steam artwork removal".to_owned(),
+            "Remove Portcove artwork".to_owned(),
+        ),
+        SteamArtworkOperation::RemoveOwnedRole { role } => {
+            let name = artwork_role_name(role).to_lowercase();
+            if roles.iter().any(|change| {
+                change.action == crate::desktop_contract::SteamArtworkRoleAction::Remove
+            }) {
+                (
+                    format!("Remove the {name} from Steam?"),
+                    format!("Remove {name} from Steam"),
+                )
+            } else {
+                return (
+                    format!("Stop tracking the {name}?"),
+                    "Stop tracking this image".to_owned(),
+                    format!(
+                        "Stop tracking the {name} for {place}No Steam file changes: the image was changed or deleted outside Portcove, so Portcove only forgets that it added it. Steam must be closed. The game and its saves are not affected."
+                    ),
+                );
+            }
+        }
+    };
+    let message = format!("{action} for {place}{standard}");
+    (title, action, message)
 }
 
 /// The player-facing name of a Steam artwork role, as the review shows it.
@@ -1298,5 +1317,46 @@ mod withdrawn_source_tests {
             withdrawn_sources(|_| Err(PortcoveError::state("library unavailable")), &owned)
                 .is_empty()
         );
+    }
+}
+
+#[cfg(test)]
+mod consent_tests {
+    use super::*;
+    use crate::desktop_contract::{SteamArtworkRoleAction as Action, SteamArtworkRoleChange};
+    use portcove_core::DestinationArtworkRole as Role;
+
+    fn change(action: Action) -> SteamArtworkRoleChange {
+        SteamArtworkRoleChange {
+            role: Role::PortraitCover,
+            action,
+            destination_path: None,
+            existing_paths: Vec::new(),
+            existing_sha256: None,
+            proposed_sha256: None,
+            unavailable_reason: None,
+            forget_ownership: true,
+        }
+    }
+
+    #[test]
+    fn single_role_consent_names_the_image_and_follows_the_reviewed_action() {
+        let operation = SteamArtworkOperation::RemoveOwnedRole {
+            role: Role::PortraitCover,
+        };
+        let (title, action, message) =
+            artwork_consent(operation, &[change(Action::Remove)], "Game?\n\n");
+        assert_eq!(title, "Remove the portrait cover from Steam?");
+        assert_eq!(action, "Remove portrait cover from Steam");
+        assert!(message.contains("keeps a backup"));
+        for kept in [Action::PreserveModified, Action::Absent] {
+            let (title, action, message) = artwork_consent(operation, &[change(kept)], "Game?\n\n");
+            assert_eq!(title, "Stop tracking the portrait cover?");
+            assert_eq!(action, "Stop tracking this image");
+            assert!(message.contains("No Steam file changes"));
+            assert!(!message.contains("removes"));
+        }
+        let (title, _, _) = artwork_consent(SteamArtworkOperation::RemoveOwned, &[], "Game?\n\n");
+        assert_eq!(title, "Confirm Steam artwork removal");
     }
 }

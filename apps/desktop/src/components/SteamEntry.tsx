@@ -329,6 +329,7 @@ export function SteamEntryDialog({
         {artworkReview && (
           <SteamArtworkReviewDetails
             review={artworkReview}
+            pending={Boolean(pending)}
             reviewRoleRemoval={(role) =>
               void loadArtworkReview({ kind: "remove_owned_role", role })
             }
@@ -458,7 +459,8 @@ function removesArtwork(review: SteamArtworkReview) {
 
 function artworkApplyLabel(review: SteamArtworkReview) {
   const operation = review.operation;
-  if (operation.kind === "remove_owned") return "Remove Portcove artwork";
+  if (operation.kind === "remove_owned")
+    return removesArtwork(review) ? "Remove Portcove artwork" : "Stop tracking changed artwork";
   if (operation.kind === "remove_owned_role")
     return removesArtwork(review)
       ? `Remove ${steamArtworkRoleName(operation.role).toLowerCase()} from Steam`
@@ -1044,9 +1046,11 @@ function singleRoleHeading(review: SteamArtworkReview, role: SteamArtworkRole["r
 
 function SteamArtworkReviewDetails({
   review,
+  pending,
   reviewRoleRemoval,
 }: {
   review: SteamArtworkReview;
+  pending: boolean;
   reviewRoleRemoval: (role: SteamArtworkRole["role"]) => void;
 }) {
   const operation = review.operation;
@@ -1091,15 +1095,18 @@ function SteamArtworkReviewDetails({
                   <span className="block">
                     This Steam image came from SteamGridDB, which no longer lists it. Portcove
                     removed its own copy on{" "}
-                    {new Date(source.source_evicted_at * 1000).toLocaleDateString()}. Steam keeps
-                    this image until you remove it.
+                    {new Date(source.source_evicted_at * 1000).toLocaleDateString()}.{" "}
+                    {role.action === "replace"
+                      ? "This update replaces it in Steam."
+                      : "Steam keeps this image until you remove it."}
                   </span>
                   {!singleRole && (
                     <Button
                       data-focusable
                       variant="outline"
                       size="sm"
-                      aria-label={`Review removing the ${steamArtworkRoleName(role.role).toLowerCase()} from Steam`}
+                      disabled={pending}
+                      aria-label={`Review removing this image: ${steamArtworkRoleName(role.role).toLowerCase()}`}
                       onClick={() => reviewRoleRemoval(role.role)}
                     >
                       Review removing this image
@@ -1123,7 +1130,9 @@ function SteamArtworkReviewDetails({
       )}
       <p className="[overflow-wrap:anywhere]">
         {singleRole
-          ? "Only this image is removed, and only if Portcove added it and it has not changed since. The shortcut, the game, its saves and your other Steam artwork are not affected."
+          ? removesArtwork(review)
+            ? "Only this image is removed, and only if Portcove added it and it has not changed since. The shortcut, the game, its saves and your other Steam artwork are not affected."
+            : "No Steam file changes. Portcove only stops tracking this image. The shortcut, the game, its saves and your other Steam artwork are not affected."
           : removing
             ? "Only artwork Portcove added and that has not changed since is removed. The shortcut, the game, its saves and your other Steam artwork are not affected."
             : "Only this game's Portcove shortcut artwork changes. The shortcut, the game, its saves and your other Steam artwork are not affected."}
@@ -1162,7 +1171,7 @@ function SteamArtworkResult({ result }: { result: SteamArtworkApplyResult }) {
               ? "Steam artwork updated. Restart Steam to see the change."
               : result.roles.length === 1
                 ? "Nothing was removed. Portcove no longer tracks this image."
-                : "Nothing was removed. Portcove no longer tracks artwork that was changed outside Portcove."}
+                : "Nothing was removed. Portcove no longer tracks artwork that was changed or deleted outside Portcove."}
         </strong>
       </p>
       <ul>
