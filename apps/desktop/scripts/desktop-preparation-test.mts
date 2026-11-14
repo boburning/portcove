@@ -2087,6 +2087,36 @@ export async function preparationScenarios({
                       command(["artwork", "show", id, "--slot", "cover"]),
                     ),
                   })),
+                  // Observation only: whether the missing cover arrives late
+                  // (slow read) or not at all (stalled read). The scenario
+                  // still fails at its original 10 s wait (#4879).
+                  late_load: await (async () => {
+                    const started = Date.now();
+                    const loaded = await browser
+                      .wait(
+                        () =>
+                          executeBrowserScript(browser, () =>
+                            [
+                              ...document.querySelectorAll<HTMLElement>(
+                                ".collection-entry .artwork-image",
+                              ),
+                            ].every((frame) => {
+                              const image = frame.querySelector("img");
+                              return (
+                                frame.dataset.artworkSource === "local_import" &&
+                                image?.complete &&
+                                image.naturalWidth > 0
+                              );
+                            }),
+                          ),
+                        30_000,
+                      )
+                      .then(
+                        () => true,
+                        () => false,
+                      );
+                    return { loaded, waited_ms: Date.now() - started };
+                  })(),
                 },
                 null,
                 2,
