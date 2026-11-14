@@ -1820,8 +1820,7 @@
         "track_sha256": null,
         "generated_executable": "MediEvil_II__Recompiled.exe",
         "bios_profile": "psx-scph-1001-bios",
-        "split_mod_paths": true,
-        "extra_persistent_paths": ["diagnostics-location.txt"]
+        "split_mod_paths": true
       },
       "selected_assets": [
         "medievil-ii-recomp-0.2.6-windows-x64.zip",
