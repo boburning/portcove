@@ -10624,6 +10624,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -10645,6 +10656,39 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -17247,6 +17291,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -17258,6 +17313,39 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       }
@@ -24270,6 +24358,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -24305,6 +24404,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },

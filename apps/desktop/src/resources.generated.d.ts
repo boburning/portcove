@@ -543,6 +543,12 @@ export default interface Resources {
       "discover": "Search Discover",
       "library": "Search your library",
       "placeholder": "Game or port name"
+    },
+    "upstreamActivity": {
+      "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
+      "label": "Upstream activity on GitHub",
+      "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
     }
   },
   "catalogUpdates": {
