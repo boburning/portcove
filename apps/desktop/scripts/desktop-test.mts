@@ -33,7 +33,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -1322,6 +1322,29 @@ async function captureScenarioDiagnostics(name: string, setup: boolean) {
   } catch {
     /* Preserve the original failure if its window is unavailable. */
   }
+  await captureIpcTrace(`${setup ? "setup-" : ""}${name}`);
+}
+
+/** Retains the latest debug IPC dispatch and blocking-worker records from the
+ * host diagnostics log, so a stalled read shows whether the backend received,
+ * started and completed it. Best effort; never replaces the scenario failure. */
+async function captureIpcTrace(name: string) {
+  if (!ipcTraceRequested) return;
+  try {
+    const root = path.join(runtimeRoot, "diagnostics");
+    const logs = (await readdir(root, { recursive: true }))
+      .filter((entry) => path.basename(entry) === "portcove-desktop.jsonl")
+      .map((entry) => path.join(root, entry));
+    const lines: string[] = [];
+    for (const log of logs)
+      for (const line of (await readFile(log, "utf8")).split("\n"))
+        if (/IPC command dispatched|blocking worker/u.test(line)) lines.push(line);
+    const trace = path.join(output, `${name}-ipc-trace.jsonl`);
+    await writeFile(trace, `${lines.slice(-200).join("\n")}\n`, { flag: "wx" });
+    artifacts.push(trace);
+  } catch (error) {
+    console.error(`Could not retain the IPC trace for ${name}: ${String(error)}`);
+  }
 }
 
 async function captureScenarioScreenshot(name: string, required = false) {
@@ -2204,6 +2227,8 @@ async function driverReady() {
 }
 
 let publicationRestartRoot: string | undefined;
+// Windows native runs record debug IPC timing for stalled-read diagnosis (#4879).
+const ipcTraceRequested = process.platform === "win32" && !nativeAccount && !linuxBinding;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
     ...(nativeAccount || linuxBinding ? {} : process.env),
@@ -2237,6 +2262,7 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     ),
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtimeRoot, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
+    ...(ipcTraceRequested ? { PORTCOVE_DIAGNOSTICS_DEBUG: "1" } : {}),
   };
   if (externalBrowser) {
     delete environment.BROWSER;

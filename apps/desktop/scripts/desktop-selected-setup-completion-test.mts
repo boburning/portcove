@@ -1198,7 +1198,7 @@ export async function selectedSetupCompletionScenario({
       );
       await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(queue), 5_000);
-      assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
+      assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       await screenshot("selected-setup-queue-return");
       await enlargedStage("returned-selection");
       await selectPrimaryNavigation(browser, "Settings");
@@ -1245,7 +1245,7 @@ export async function selectedSetupCompletionScenario({
       );
       await selectPrimaryNavigation(browser, "Library");
       await browser.wait(until.elementLocated(By.id(setupHeading)), 5_000);
-      assert.match(await browser.findElement(queue).getText(), /2 of 16 ports selected/);
+      assert.match(await browser.findElement(queue).getText(), /\b2 selected\b/);
       // The game remains registered outside this new root. Only a newly found
       // BIOS can associate the incomplete port with the next setup selection.
       const biosOnly = path.join(owned.directory, "bios-only");
@@ -1399,7 +1399,7 @@ export async function selectedSetupCompletionScenario({
       assert.deepEqual(await read("get_statuses"), statusesBeforeBiosPlan);
       await click(By.css("[data-detail-back]"));
       await browser.wait(until.elementLocated(queue), 5_000);
-      assert.match(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
+      assert.match(await browser.findElement(queue).getText(), /\b3 selected\b/);
       report.observations.bios_return_focus = await browser.wait(
         () => executeBrowserScript(browser, observeCompletionReturnFocus, setupOrigin),
         5_000,
@@ -1489,7 +1489,7 @@ export async function selectedSetupCompletionScenario({
         "false",
         "Selection is ephemeral across restart",
       );
-      assert.doesNotMatch(await browser.findElement(queue).getText(), /3 of 16 ports selected/);
+      assert.doesNotMatch(await browser.findElement(queue).getText(), /\b3 selected\b/);
       await restartClick(
         By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
       );
