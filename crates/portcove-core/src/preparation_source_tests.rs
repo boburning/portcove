@@ -694,10 +694,13 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     let fixture = Fixture::new(false);
     let catalog = fixture.service.catalog();
     let port = catalog.port(PORT).unwrap();
-    let inputs = plan(catalog, port, &fixture.source, Platform::current().unwrap()).unwrap();
+    let host = Platform::current().unwrap();
+    let inputs = plan(catalog, port, &fixture.source, host).unwrap();
     let payload = fixture._temporary.path().join("cancelled-payload");
     fs::create_dir(&payload).unwrap();
-    fs::write(payload.join("owned-runtime"), b"preserved runtime").unwrap();
+    let executable = payload.join(&port.executable_hints[&host][0]);
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let executable_bytes = fs::read(&executable).unwrap();
     let cancelled = Cell::new(false);
     let result = materialize(
         catalog,
@@ -722,7 +725,7 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     );
     assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
     assert!(cancelled.get());
-    assert!(payload.join("owned-runtime").is_file());
+    assert_eq!(fs::read(executable).unwrap(), executable_bytes);
     assert!(!payload.join(RECEIPT).exists());
     assert_eq!(
         fs::read(fixture.source.path.join(FILES[0].0)).unwrap(),
