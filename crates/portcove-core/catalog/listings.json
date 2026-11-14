@@ -21846,7 +21846,11 @@
         "steps": [
           {
             "title": "Set up a separate upstream copy",
-            "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
+            "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library."
+          },
+          {
+            "title": "Carry your progress to a new upstream version",
+            "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
           }
         ],
         "warnings": [],
