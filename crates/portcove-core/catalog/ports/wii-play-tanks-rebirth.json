@@ -1,0 +1,39 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "wii-play-tanks-rebirth",
+    "project_url": "https://github.com/RighteousRyan1/TanksRebirth",
+    "name": "Tanks Rebirth",
+    "summary": "A standalone recreation of Wii Play’s Tanks mode with upstream packages for Windows, Linux and Intel Mac.",
+    "issue_number": 6004,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/RighteousRyan1/TanksRebirth/tree/59a29ec272275ed655b70fc85d078f0b0a8aee02",
+    "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Use the release package for your computer",
+          "instruction": "The v1.9.2 release has Windows x64, Linux x64 and Intel Mac ZIPs. On Windows choose the ZIP without DEBUG in its name. Extract the entire archive into a folder you control, keeping Content beside the player. Base setup requires no Wii disc or ROM. Install the x64 .NET 8 Runtime for your operating system before opening the player."
+        },
+        {
+          "title": "Create the Mods folder before first Play",
+          "instruction": "Under your Documents folder, create My Games/Tanks Rebirth/Mods if it is missing. On Linux use the configured XDG Documents location, or ~/Documents when there is no override. Create the Documents folder too if it is missing. This release writes TanksRebirth.targets in Mods during startup, before it creates that directory. No mod files are needed."
+        },
+        {
+          "title": "Start the player from its folder",
+          "instruction": "On Windows, open TanksRebirth.exe in the extracted folder. On Linux or Intel Mac, open a terminal in that folder, run chmod +x TanksRebirth, then run ./TanksRebirth. The player looks for Content relative to its working directory."
+        }
+      ],
+      "warnings": ["The separate Original Campaign mod is outside this setup."],
+      "help_url": "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+      "references": [
+        {
+          "title": "Keep your saves and mods",
+          "instruction": "Close the game and preserve My Games/Tanks Rebirth under the Documents folder used by .NET. This is where the player stores its saves, campaigns, mods and resource packs. Keep a known-working package to return to when trying another release."
+        }
+      ]
+    }
+  }
+}
