@@ -17953,11 +17953,10 @@
         "type": "object"
       },
       "UpdateReleaseNotes": {
-        "description": "Upstream releases between the installed version (exclusive) and the offered\nversion (inclusive), newest first. Notes are untrusted plain text; every URL\nis built by Portcove from the provider origin, repository and tag.",
+        "description": "Upstream releases between the installed version (exclusive) and the offered\nversion (inclusive), newest first. Notes are untrusted plain text.",
         "properties": {
-          "complete": {
-            "description": "Every eligible release since the installed version is listed. False when the\ninstalled version was not found or the list was shortened.",
-            "type": "boolean"
+          "coverage": {
+            "$ref": "#/$defs/UpdateReleaseNotesCoverage"
           },
           "entries": {
             "description": "Empty when the notes are unknown: not cached, or the offered release is not listed.",
@@ -17967,16 +17966,48 @@
             "type": "array"
           },
           "releases_url": {
-            "description": "The provider page that lists every release of this project.",
-            "type": "string"
+            "description": "The project's release list page. Present only when Desktop may open it: it is\nbuilt by Portcove and passes the same reviewed-link check as other handoffs.",
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
-          "releases_url",
           "entries",
-          "complete"
+          "coverage"
         ],
         "type": "object"
+      },
+      "UpdateReleaseNotesCoverage": {
+        "description": "How far `UpdateReleaseNotes::entries` reaches toward the installed version.",
+        "oneOf": [
+          {
+            "const": "complete",
+            "description": "Every eligible release since the installed version is listed.",
+            "type": "string"
+          },
+          {
+            "const": "shortened",
+            "description": "Only the newest releases are listed; older ones since the installed version exist.",
+            "type": "string"
+          },
+          {
+            "const": "installed_not_listed",
+            "description": "The installed version was not found in the usable cached release list.",
+            "type": "string"
+          },
+          {
+            "const": "installed_newer",
+            "description": "The installed version is newer than the offered one; only the offered release is listed.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "No notes are known for the offered release.",
+            "type": "string"
+          }
+        ]
       },
       "UpdateReleaseNotesEntry": {
         "properties": {
@@ -17988,6 +18019,7 @@
             "type": "boolean"
           },
           "published_at": {
+            "description": "Provider timestamp in RFC 3339 shape; absent when missing or malformed.",
             "type": [
               "string",
               "null"
@@ -17999,16 +18031,13 @@
               "null"
             ]
           },
-          "url": {
-            "type": "string"
-          },
           "version": {
+            "description": "The release tag, normalized for display.",
             "type": "string"
           }
         },
         "required": [
           "version",
-          "url",
           "notes",
           "notes_truncated"
         ],

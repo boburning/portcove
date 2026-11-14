@@ -61,12 +61,7 @@ impl PortcoveService {
         let acquisition = self.acquisition_for_review(&status, &plan)?;
         // Informational and outside the digest: edited upstream notes never
         // invalidate a reviewed update. Read from cached metadata only.
-        let release_notes = self.releases.cached_release_notes(
-            self.catalog.port(port_id)?,
-            plan.channel,
-            status.active.as_ref().map(|active| active.version.as_str()),
-            &plan.release.version,
-        );
+        let release_notes = self.update_release_notes(port_id, &plan, &status)?;
         if let Some(review) = &transition {
             plan_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
                 "Portcove reviewed archive data transition v1",
@@ -84,6 +79,34 @@ impl PortcoveService {
             plan_sha256,
             release_notes,
         })
+    }
+
+    /// The release list link is kept only when Desktop's reviewed-link check would
+    /// open it; nothing else in the notes is a link.
+    fn update_release_notes(
+        &self,
+        port_id: &str,
+        plan: &crate::InstallPlan,
+        status: &crate::PortStatus,
+    ) -> Result<Option<crate::UpdateReleaseNotes>> {
+        if plan.action == crate::InstallPlanAction::AlreadyActive {
+            return Ok(None);
+        }
+        let Some(mut notes) = self.releases.cached_release_notes(
+            self.catalog.port(port_id)?,
+            plan.channel,
+            plan.platform,
+            status.active.as_ref().map(|active| active.version.as_str()),
+            &plan.release.version,
+        ) else {
+            return Ok(None);
+        };
+        if let Some(url) = &notes.releases_url
+            && !self.is_reviewed_resource_url(url)?
+        {
+            notes.releases_url = None;
+        }
+        Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
     }
 
     // Shared exact-input digest; each operation retains its own legal-state and
@@ -433,7 +456,25 @@ mod tests {
 
     struct NotesProvider {
         inner: std::sync::Arc<dyn crate::ReleaseProvider>,
+        /// Repository used for the release list link; the port's own when `None`.
+        repository: Option<String>,
+        entries: Vec<crate::UpdateReleaseNotesEntry>,
         requests: std::sync::Mutex<Vec<(Option<String>, String)>>,
+    }
+
+    impl NotesProvider {
+        fn new(
+            service: &PortcoveService,
+            repository: Option<&str>,
+            entries: Vec<crate::UpdateReleaseNotesEntry>,
+        ) -> std::sync::Arc<Self> {
+            std::sync::Arc::new(Self {
+                inner: service.releases.clone(),
+                repository: repository.map(str::to_owned),
+                entries,
+                requests: Default::default(),
+            })
+        }
     }
 
     #[async_trait::async_trait]
@@ -449,8 +490,9 @@ mod tests {
 
         fn cached_release_notes(
             &self,
-            _port: &crate::PortDefinition,
+            port: &crate::PortDefinition,
             _channel: crate::ReleaseChannel,
+            _platform: crate::Platform,
             installed: Option<&str>,
             offered: &str,
         ) -> Option<crate::UpdateReleaseNotes> {
@@ -458,12 +500,40 @@ mod tests {
                 .lock()
                 .unwrap()
                 .push((installed.map(str::to_owned), offered.to_owned()));
+            // Built exactly as the GitHub provider builds it.
+            let repository = self
+                .repository
+                .as_deref()
+                .unwrap_or(&port.release.repository);
             Some(crate::UpdateReleaseNotes {
-                releases_url: "https://example.test/releases".into(),
-                entries: Vec::new(),
-                complete: false,
+                releases_url: Some(format!("https://github.com/{repository}/releases")),
+                coverage: if self.entries.is_empty() {
+                    crate::UpdateReleaseNotesCoverage::Unavailable
+                } else {
+                    crate::UpdateReleaseNotesCoverage::Complete
+                },
+                entries: self.entries.clone(),
             })
         }
+    }
+
+    fn notes_entry() -> crate::UpdateReleaseNotesEntry {
+        crate::UpdateReleaseNotesEntry {
+            version: "v2".into(),
+            title: None,
+            published_at: None,
+            notes: "Fixes".into(),
+            notes_truncated: false,
+        }
+    }
+
+    /// The embedded port's project is its release repository, so the release list
+    /// page the provider builds is a reviewed handoff.
+    fn reviewed_repository_service(
+        library: &Library,
+        provider: std::sync::Arc<NotesProvider>,
+    ) -> PortcoveService {
+        PortcoveService::with_provider(library.clone(), provider).unwrap()
     }
 
     #[tokio::test]
@@ -471,16 +541,13 @@ mod tests {
         let (_temporary, service) = fixture();
         let without = service.plan_game_update(PORT, true).await.unwrap();
         assert_eq!(without.release_notes, None);
-        let provider = std::sync::Arc::new(NotesProvider {
-            inner: service.releases.clone(),
-            requests: Default::default(),
-        });
+        let provider = NotesProvider::new(&service, None, vec![notes_entry()]);
         let noted =
             PortcoveService::with_provider(service.library.clone(), provider.clone()).unwrap();
         let with = noted.plan_game_update(PORT, true).await.unwrap();
         assert_eq!(
-            with.release_notes.as_ref().unwrap().releases_url,
-            "https://example.test/releases"
+            with.release_notes.as_ref().unwrap().entries,
+            [notes_entry()]
         );
         assert_eq!(with.plan_sha256, without.plan_sha256);
         assert_eq!(
@@ -492,6 +559,66 @@ mod tests {
             .authorize_game_update(PORT, true, &without.plan_sha256)
             .await
             .unwrap();
+    }
+
+    #[tokio::test]
+    async fn every_exposed_release_notes_link_is_a_reviewed_handoff() {
+        let (_temporary, service) = fixture();
+        // The port's own reviewed repository: the release list link is kept.
+        let reviewed = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, None, vec![notes_entry()]),
+        );
+        let notes = reviewed
+            .plan_game_update(PORT, true)
+            .await
+            .unwrap()
+            .release_notes
+            .unwrap();
+        assert_eq!(
+            notes.releases_url.as_deref(),
+            Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases")
+        );
+        assert!(
+            reviewed
+                .is_reviewed_resource_url(notes.releases_url.as_deref().unwrap())
+                .unwrap()
+        );
+        // A link Desktop would refuse is dropped; the notes remain.
+        let foreign = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, Some("foreign/game"), vec![notes_entry()]),
+        );
+        let notes = foreign
+            .plan_game_update(PORT, true)
+            .await
+            .unwrap()
+            .release_notes
+            .unwrap();
+        assert_eq!(notes.releases_url, None);
+        assert_eq!(notes.entries, [notes_entry()]);
+        // Neither notes nor an openable link: nothing to show.
+        let empty = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, Some("foreign/game"), Vec::new()),
+        );
+        assert_eq!(
+            empty
+                .plan_game_update(PORT, true)
+                .await
+                .unwrap()
+                .release_notes,
+            None
+        );
+        // The active release is never presented as news.
+        let current = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, None, vec![notes_entry()]),
+        );
+        current.activate_staged(PORT).unwrap();
+        let review = current.plan_game_update(PORT, true).await.unwrap();
+        assert_eq!(review.plan.action, crate::InstallPlanAction::AlreadyActive);
+        assert_eq!(review.release_notes, None);
     }
 
     #[tokio::test]

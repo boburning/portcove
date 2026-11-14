@@ -2034,27 +2034,43 @@ pub struct GameUpdatePlan {
 }
 
 /// Upstream releases between the installed version (exclusive) and the offered
-/// version (inclusive), newest first. Notes are untrusted plain text; every URL
-/// is built by Portcove from the provider origin, repository and tag.
+/// version (inclusive), newest first. Notes are untrusted plain text.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateReleaseNotes {
-    /// The provider page that lists every release of this project.
-    pub releases_url: String,
+    /// The project's release list page. Present only when Desktop may open it: it is
+    /// built by Portcove and passes the same reviewed-link check as other handoffs.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub releases_url: Option<String>,
     /// Empty when the notes are unknown: not cached, or the offered release is not listed.
     pub entries: Vec<UpdateReleaseNotesEntry>,
-    /// Every eligible release since the installed version is listed. False when the
-    /// installed version was not found or the list was shortened.
-    pub complete: bool,
+    pub coverage: UpdateReleaseNotesCoverage,
+}
+
+/// How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdateReleaseNotesCoverage {
+    /// Every eligible release since the installed version is listed.
+    Complete,
+    /// Only the newest releases are listed; older ones since the installed version exist.
+    Shortened,
+    /// The installed version was not found in the usable cached release list.
+    InstalledNotListed,
+    /// The installed version is newer than the offered one; only the offered release is listed.
+    InstalledNewer,
+    /// No notes are known for the offered release.
+    Unavailable,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateReleaseNotesEntry {
+    /// The release tag, normalized for display.
     pub version: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
+    /// Provider timestamp in RFC 3339 shape; absent when missing or malformed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub published_at: Option<String>,
-    pub url: String,
     /// Normalized plain text; may contain unrendered Markdown or HTML source.
     pub notes: String,
     pub notes_truncated: bool,

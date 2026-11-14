@@ -65,16 +65,17 @@ impl ReleaseProvider for CompositeReleaseProvider {
         &self,
         port: &PortDefinition,
         channel: ReleaseChannel,
+        platform: Platform,
         installed: Option<&str>,
         offered: &str,
     ) -> Option<crate::UpdateReleaseNotes> {
         match port.release.provider {
             ReleaseSource::Github => self
                 .github
-                .cached_release_notes(port, channel, installed, offered),
+                .cached_release_notes(port, channel, platform, installed, offered),
             ReleaseSource::Gitlab => self
                 .gitlab
-                .cached_release_notes(port, channel, installed, offered),
+                .cached_release_notes(port, channel, platform, installed, offered),
             ReleaseSource::DirectManifest | ReleaseSource::UserPrepared => None,
         }
     }

@@ -76,11 +76,12 @@ pub trait ReleaseProvider: Send + Sync {
 
     /// Informational release notes between the installed and offered versions, read
     /// only from metadata this provider already persisted. Never makes a request.
-    /// `None` means the provider has no hosted release page for this port.
+    /// `None` means the provider has no hosted release list for this port.
     fn cached_release_notes(
         &self,
         _port: &PortDefinition,
         _channel: ReleaseChannel,
+        _platform: Platform,
         _installed: Option<&str>,
         _offered: &str,
     ) -> Option<crate::UpdateReleaseNotes> {
@@ -1349,36 +1350,31 @@ impl ReleaseProvider for GithubReleaseProvider {
         &self,
         port: &PortDefinition,
         channel: ReleaseChannel,
+        platform: Platform,
         installed: Option<&str>,
         offered: &str,
     ) -> Option<crate::UpdateReleaseNotes> {
         if port.release.provider != crate::ReleaseSource::Github {
             return None;
         }
-        let repository = crate::release_notes::repository_segments(&port.release.repository)?;
-        let releases_url = crate::release_notes::web_url(
-            &self.web_root,
-            &[repository.as_slice(), &["releases"][..]].concat(),
-        )?;
+        let repository = crate::release_notes::repository_segments(&port.release.repository);
+        let releases_url = repository.and_then(|repository| {
+            crate::release_notes::web_url(
+                &self.web_root,
+                &[repository.as_slice(), &["releases"][..]].concat(),
+            )
+        });
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
-        let mut releases = Vec::<GithubRelease>::new();
-        for page in 1..=GITHUB_MAX_RELEASE_PAGES {
-            let Some(cached) = paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE)
-                .ok()
-                .and_then(|url| self.cached_http_response(&url))
-                .filter(|cached| cached.body.len() <= PROVIDER_JSON_MAX_BYTES)
-            else {
-                break;
-            };
-            let Ok(mut current) = serde_json::from_str::<Vec<GithubRelease>>(&cached.body) else {
-                break;
-            };
-            let has_more = current.len() == PROVIDER_PAGE_SIZE;
-            releases.append(&mut current);
-            if !has_more {
-                break;
-            }
-        }
+        let releases: Vec<GithubRelease> = crate::release_notes::cached_pages(
+            GITHUB_MAX_RELEASE_PAGES,
+            PROVIDER_PAGE_SIZE,
+            PROVIDER_JSON_MAX_BYTES,
+            |page| {
+                paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE)
+                    .ok()
+                    .and_then(|url| self.cached_http_response(&url))
+            },
+        );
         let listed = releases
             .iter()
             .map(|release| crate::release_notes::ListedRelease {
@@ -1386,7 +1382,9 @@ impl ReleaseProvider for GithubReleaseProvider {
                 title: release.name.as_deref(),
                 published_at: release.published_at.as_deref(),
                 notes: release.body.as_deref().unwrap_or_default(),
-                published: !release.draft,
+                // Same platform stream as release selection.
+                selectable: !release.draft
+                    && native_release_applies_to_platform(port, platform, release),
                 beta: is_beta_release(release),
             })
             .collect::<Vec<_>>();
@@ -1399,12 +1397,6 @@ impl ReleaseProvider for GithubReleaseProvider {
                 offered,
             },
             releases_url,
-            |tag| {
-                crate::release_notes::web_url(
-                    &self.web_root,
-                    &[repository.as_slice(), &["releases", "tag", tag][..]].concat(),
-                )
-            },
         ))
     }
 }
@@ -4488,24 +4480,45 @@ mod tests {
         );
     }
 
+    fn notes_port(repository: &str) -> PortDefinition {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.release.provider = crate::ReleaseSource::Github;
+        port.release.repository = repository.into();
+        port.release.rolling_tag = None;
+        port
+    }
+
+    fn notes_release(tag: &str, draft: bool, prerelease: bool, body: &str) -> serde_json::Value {
+        serde_json::json!({"id":1,"tag_name":tag,"name":format!("Release {tag}"),
+            "draft":draft,"prerelease":prerelease,"published_at":"2026-11-01T00:00:00Z",
+            "body":body,"html_url":"javascript:alert(1)","assets":[]})
+    }
+
+    fn note_versions(notes: &crate::UpdateReleaseNotes) -> Vec<&str> {
+        notes
+            .entries
+            .iter()
+            .map(|entry| entry.version.as_str())
+            .collect()
+    }
+
     #[tokio::test]
     async fn update_release_notes_come_from_the_cached_release_list_without_requests() {
-        let release = |tag: &str, draft: bool, prerelease: bool, body: &str| {
-            serde_json::json!({"id":1,"tag_name":tag,"name":format!("Release {tag}"),
-                "draft":draft,"prerelease":prerelease,"published_at":"2026-11-01T00:00:00Z",
-                "body":body,"html_url":"javascript:alert(1)","assets":[]})
-        };
         let page = serde_json::json!([
-            release(
+            notes_release(
                 "v4",
                 false,
                 false,
                 "Four <!-- hidden -->\r\n<img src=x onerror=alert(1)>"
             ),
-            release("v3-rc1", false, true, "candidate"),
-            release("v3.5", true, false, "draft"),
-            release("v3", false, false, "Three"),
-            release("v2", false, false, "installed"),
+            notes_release("v3-rc1", false, true, "candidate"),
+            notes_release("v3.5", true, false, "draft"),
+            notes_release("v3", false, false, "Three"),
+            notes_release("v2", false, false, "installed"),
         ])
         .to_string();
         let (api_root, requests, server) =
@@ -4515,24 +4528,21 @@ mod tests {
         let provider =
             GithubReleaseProvider::with_api_root_and_library(api_root.clone(), library.clone())
                 .unwrap();
-        let mut port = crate::Catalog::embedded()
-            .unwrap()
-            .port("zelda64-recomp")
-            .unwrap()
-            .clone();
-        port.release.provider = crate::ReleaseSource::Github;
-        port.release.repository = "owner/repo".into();
-        port.release.rolling_tag = None;
+        let mut port = notes_port("owner/repo");
+        let windows = Platform::WindowsX86_64;
 
-        // Nothing cached: only the release page link is known.
+        // Nothing cached: only the release list link is known.
         let unknown = provider
-            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
             .unwrap();
         assert!(unknown.entries.is_empty());
-        assert!(!unknown.complete);
+        assert_eq!(
+            unknown.coverage,
+            crate::UpdateReleaseNotesCoverage::Unavailable
+        );
         assert_eq!(
             unknown.releases_url,
-            format!("{api_root}/owner/repo/releases")
+            Some(format!("{api_root}/owner/repo/releases"))
         );
 
         // Release resolution persists the list; notes then read it offline.
@@ -4543,34 +4553,153 @@ mod tests {
         server.join().unwrap();
         assert_eq!(requests.try_iter().count(), 1);
         let notes = provider
-            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
             .unwrap();
-        assert!(notes.complete);
-        let versions = notes
-            .entries
-            .iter()
-            .map(|entry| entry.version.as_str())
-            .collect::<Vec<_>>();
-        assert_eq!(versions, ["v4", "v3"]);
+        assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+        assert_eq!(note_versions(&notes), ["v4", "v3"]);
         assert_eq!(notes.entries[0].notes, "Four\n<img src=x onerror=alert(1)>");
         assert_eq!(notes.entries[0].title.as_deref(), Some("Release v4"));
-        assert_eq!(
-            notes.entries[0].url,
-            format!("{api_root}/owner/repo/releases/tag/v4")
-        );
         let beta = provider
-            .cached_release_notes(&port, ReleaseChannel::Beta, Some("v2"), "v4")
+            .cached_release_notes(&port, ReleaseChannel::Beta, windows, Some("v2"), "v4")
             .unwrap();
         assert_eq!(beta.entries.len(), 3);
         let missing = provider
-            .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v5")
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v5")
             .unwrap();
         assert!(missing.entries.is_empty());
         port.release.provider = crate::ReleaseSource::Gitlab;
         assert!(
             provider
-                .cached_release_notes(&port, ReleaseChannel::Stable, Some("v2"), "v4")
+                .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
                 .is_none()
+        );
+    }
+
+    #[test]
+    fn update_release_notes_skip_releases_outside_this_platform_stream() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let api_root = "https://api.example.test";
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root, library.clone()).unwrap();
+        let mut port = notes_port("owner/repo");
+        port.adapter = AdapterKind::NativePortable;
+        port.archive_data_compatibility_v1 = None;
+        port.release.curated.clear();
+        let with_assets = |tag: &str, asset: &str| {
+            let mut release = notes_release(tag, false, false, tag);
+            release["assets"] = serde_json::json!([{"id":1,"name":asset,
+                "browser_download_url":format!("https://example.test/{asset}"),"size":1,"digest":null}]);
+            release
+        };
+        let page = serde_json::json!([
+            with_assets("v4", "game-windows-x64.zip"),
+            with_assets("v3-linux", "game-linux-x86_64.tar.gz"),
+            with_assets("v3", "game-windows-x64.zip"),
+            with_assets("v2", "game-windows-x64.zip"),
+        ]);
+        let url = paginated_url(
+            &format!("{api_root}/repos/owner/repo"),
+            "releases",
+            1,
+            PROVIDER_PAGE_SIZE,
+        )
+        .unwrap();
+        library
+            .store_http_cache(&url, Some("\"page\""), None, &page.to_string())
+            .unwrap();
+        let notes = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v2"),
+                "v4",
+            )
+            .unwrap();
+        assert_eq!(note_versions(&notes), ["v4", "v3"]);
+        assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+    }
+
+    #[test]
+    fn update_release_notes_never_join_pages_from_different_observations() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let api_root = "https://api.example.test";
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root, library.clone()).unwrap();
+        let port = notes_port("owner/repo");
+        let repository_url = format!("{api_root}/repos/owner/repo");
+        let page_url =
+            |page| paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE).unwrap();
+        let first = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| notes_release(&format!("v{}", 200 - index), false, false, ""))
+            .collect::<Vec<_>>();
+        // The stale second page repeats a tag and lacks the releases that moved.
+        let second = serde_json::json!([
+            notes_release("v101", false, false, "stale"),
+            notes_release("v50", false, false, "installed"),
+        ]);
+        library
+            .store_http_cache(
+                &page_url(1),
+                Some("\"1\""),
+                None,
+                &serde_json::json!(first).to_string(),
+            )
+            .unwrap();
+        library
+            .store_http_cache(&page_url(2), Some("\"2\""), None, &second.to_string())
+            .unwrap();
+        let request = |provider: &GithubReleaseProvider| {
+            provider
+                .cached_release_notes(
+                    &port,
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                    Some("v50"),
+                    "v200",
+                )
+                .unwrap()
+        };
+        // Pages confirmed together are one list; the bound applies.
+        let together = request(&provider);
+        assert_eq!(together.entries.len(), crate::release_notes::MAX_RELEASES);
+        assert_eq!(
+            together.coverage,
+            crate::UpdateReleaseNotesCoverage::Shortened
+        );
+        // A second page confirmed long before the first is not joined to it.
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE github_http_cache SET updated_at=updated_at-?1 WHERE url=?2",
+                rusqlite::params![crate::release_notes::PAGE_SKEW_SECONDS + 60, page_url(2)],
+            )
+            .unwrap();
+        let installed_older = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v50"),
+                "v105",
+            )
+            .unwrap();
+        assert_eq!(
+            installed_older.coverage,
+            crate::UpdateReleaseNotesCoverage::InstalledNotListed
+        );
+        assert!(
+            installed_older
+                .entries
+                .iter()
+                .all(|entry| entry.notes != "stale")
+        );
+        assert_ne!(
+            request(&provider).coverage,
+            crate::UpdateReleaseNotesCoverage::Complete
         );
     }
 

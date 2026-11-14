@@ -698,6 +698,11 @@ export type GameSettingChange =
   | {
       action: "reset";
     };
+/**
+ * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+ */
+export type UpdateReleaseNotesCoverage =
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -3897,23 +3902,19 @@ export interface ArchiveDataTransitionReview {
 }
 /**
  * Upstream releases between the installed version (exclusive) and the offered
- * version (inclusive), newest first. Notes are untrusted plain text; every URL
- * is built by Portcove from the provider origin, repository and tag.
+ * version (inclusive), newest first. Notes are untrusted plain text.
  */
 export interface UpdateReleaseNotes {
-  /**
-   * Every eligible release since the installed version is listed. False when the
-   * installed version was not found or the list was shortened.
-   */
-  complete: boolean;
+  coverage: UpdateReleaseNotesCoverage;
   /**
    * Empty when the notes are unknown: not cached, or the offered release is not listed.
    */
   entries: UpdateReleaseNotesEntry[];
   /**
-   * The provider page that lists every release of this project.
+   * The project's release list page. Present only when Desktop may open it: it is
+   * built by Portcove and passes the same reviewed-link check as other handoffs.
    */
-  releases_url: string;
+  releases_url?: string | null;
   [k: string]: unknown;
 }
 export interface UpdateReleaseNotesEntry {
@@ -3922,9 +3923,14 @@ export interface UpdateReleaseNotesEntry {
    */
   notes: string;
   notes_truncated: boolean;
+  /**
+   * Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+   */
   published_at?: string | null;
   title?: string | null;
-  url: string;
+  /**
+   * The release tag, normalized for display.
+   */
   version: string;
   [k: string]: unknown;
 }
