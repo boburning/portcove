@@ -2984,11 +2984,17 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
     desktopHarnessDeadlineMs(
       resolveDesktopSelection({ scenarios: ["native-library-move-invalidates-prior-reviews"] }),
     ),
-    300_000,
+    600_000,
   );
   const handoff = resolveDesktopSelection({ scenarios: ["native-contextual-cli-handoff"] });
   assert.ok(handoff.setup_scenarios.includes("native-library-move-invalidates-prior-reviews"));
-  assert.equal(desktopHarnessDeadlineMs(handoff), 300_000);
+  assert.equal(desktopHarnessDeadlineMs(handoff), 600_000);
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: ["native-source-intake-and-discovery-dialogs"] }),
+    ),
+    600_000,
+  );
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 1_200_000);
 });
 

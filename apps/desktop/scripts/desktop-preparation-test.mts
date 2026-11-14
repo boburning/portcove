@@ -2797,9 +2797,11 @@ export async function preparationScenarios({
       60_000,
       "Update now did not open the game update review",
     );
+    // Calibrated from 5 s (#4879): hosted debug-build update plans take ~10 s
+    // (run 43616138586, plan_game_update 9.8 s), and each disposition replans.
     await browser.wait(
       async () => (await review.getText()).includes("Confirm the release"),
-      5_000,
+      60_000,
       "Game update review did not show its release confirmation",
     );
     // The immediate disposition is explicit; changing it requests a new bound plan.
@@ -2813,7 +2815,8 @@ export async function preparationScenarios({
       await clickVisible(browser, keepForLater[0]!);
       await browser.wait(
         async () => (await review.getText()).includes("keep using your current version"),
-        5_000,
+        60_000,
+        "Game update review did not show the keep-for-later plan",
       );
     }
     const reviewText = await review.getText();

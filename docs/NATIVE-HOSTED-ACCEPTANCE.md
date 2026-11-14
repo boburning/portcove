@@ -272,7 +272,12 @@ rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a ho
 diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
 20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
 runs enable debug host diagnostics and retain the latest IPC dispatch and
-blocking-worker records beside each scenario failure. Its
+blocking-worker records beside each scenario failure. With reads no longer serialized,
+run 43616138586 measured debug-build capability reads at 12-15 s, update plans at
+about 10 s and workspace snapshots at 6-15 s. The game update review's release and
+keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
+from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
+300 s and 180 s to 600 s. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

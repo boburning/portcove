@@ -1009,9 +1009,18 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
+    // the copy and move journeys and was still in the CLI handoff when the 300 s
+    // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
     selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
-      ? 300_000
+      ? 600_000
+      : 0,
+    // Calibrated from 180 s (#4879): hosted owned-sources (run 43616138586) reached
+    // its 180 s watchdog during the source journeys' native dialogs and reviews on
+    // the debug build. Harness only; inner waits are unchanged.
+    selection.selected_scenarios.includes("native-source-intake-and-discovery-dialogs")
+      ? 600_000
       : 0,
     // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
     // 76 s and interrupted recovery was still in its native cleanup confirmations
