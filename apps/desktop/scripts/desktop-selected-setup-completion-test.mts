@@ -625,7 +625,10 @@ export async function selectedSetupCompletionScenario({
             };
           });
           assert.ok(enlarged.width <= 240 && enlarged.scroll <= enlarged.client + 1);
-          assert.equal(enlarged.query, port.name);
+          // Game details replace the browsing workspace at every interface size,
+          // so the search field is absent here. Query retention across opening
+          // details and returning is owned by the preparation 400% round trip.
+          assert.equal(enlarged.query, null, JSON.stringify(enlarged));
           assert.equal(enlarged.selected, port.id);
           const receipt = path.join(output, "add-games-native-400.json");
           await writeFile(receipt, JSON.stringify(enlarged, null, 2), { flag: "wx" });
