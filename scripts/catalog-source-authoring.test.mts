@@ -96,6 +96,41 @@ for (const [label, version] of [
   });
 }
 
+void test("ordinary authoring rejects direct guides beyond Core's combined entry limit", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = structuredClone(
+    requiredFixture(
+      source.records.find(({ listing }) => listing.id === "openjkdf2-jedi-knight-dark-forces-ii"),
+    ),
+  );
+  const guide = fixtureRecord(record.listing.manual_setup);
+  const steps = fixtureRecords(guide.steps);
+  const references = fixtureRecords(guide.references).slice(0, 8 - steps.length);
+  guide.references = references;
+  assert.equal(steps.length + references.length, 8);
+  assert.doesNotThrow(() => checkedAuthoredPort(record));
+
+  const extra = { title: "Extra reference", instruction: "Keep the current profile." };
+  references.push(extra);
+  assert.throws(
+    () => checkedAuthoredPort(record),
+    /openjkdf2.*listing.manual_setup.*eight steps and references combined/,
+  );
+
+  const catalog = structuredClone(schema3Fixture);
+  const port = requiredFixture(
+    fixtureRecords(catalog.ports).find(({ id }) => id === record.listing.id),
+  );
+  const presentation = fixtureRecord(port.presentation);
+  presentation.manual_setup = { ...guide, references: references.slice(0, -1) };
+  assert.doesNotThrow(() => checkedCurrentCatalog(catalog));
+  presentation.manual_setup = { ...guide, references };
+  assert.throws(
+    () => checkedCurrentCatalog(catalog),
+    /openjkdf2.*presentation.manual_setup.*eight steps and references combined/,
+  );
+});
+
 void test("current authored operational routes remain valid read-only health inventory inputs", () => {
   // Core-readable prepared routes still need canonical explicit repository
   // names. Validate the whole authored inventory without fetching or waiting

@@ -1,12 +1,9 @@
 //! Library-bound adapter; Core owns all settings eligibility and mutation.
 use crate::{
-    DesktopError, DesktopResult, DesktopState, blocking_worker, require_library_generation,
+    DesktopResult, DesktopState, blocking_worker, require_library_generation,
     service_at_generation, state_generation,
 };
-use portcove_core::{
-    GameSettingChange, GameSettingReview, GameSettingsView, PortcoveError, PortcoveService,
-    ReleaseProvider,
-};
+use portcove_core::{GameSettingChange, GameSettingReview, GameSettingsView, PortcoveService};
 
 /// Orders settings reads after an in-process settings change instead of letting
 /// them meet its exclusive port lock, which refuses a shared reader at once.
@@ -28,22 +25,20 @@ fn settings_write() -> std::sync::RwLockWriteGuard<'static, ()> {
         .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
+/// A settings change binds like other file-changing commands: it resolves the
+/// service at its generation and releases the desktop state lock before Core
+/// runs, so a change waiting on Core's port lock (up to the writer yield budget,
+/// for example behind a CLI settings read) cannot stall every other command. A
+/// library switch still waits for the service's library lease, so the change
+/// cannot be redirected; it is not re-checked afterwards because a committed
+/// change must not be reported as refused.
 pub(crate) fn at_generation<T>(
     state: &DesktopState,
     generation: u64,
     operation: impl FnOnce(PortcoveService) -> portcove_core::Result<T>,
 ) -> DesktopResult<T> {
+    let service = service_at_generation(state, generation)?;
     let _settings = settings_write();
-    // Keep the selection binding through the complete synchronous operation.
-    // Library switching cannot redirect or retire it after the generation check.
-    let initialization = state
-        .initialization
-        .lock()
-        .map_err(|_| DesktopError::from(PortcoveError::state("desktop state lock was poisoned")))?;
-    require_library_generation(state_generation(state), generation)?;
-    let ready = initialization.as_ref().map_err(Clone::clone)?;
-    let releases: std::sync::Arc<dyn ReleaseProvider> = ready.releases.clone();
-    let service = PortcoveService::with_provider_read_only(ready.library.clone(), releases)?;
     operation(service).map_err(Into::into)
 }
 
@@ -147,6 +142,7 @@ pub(crate) async fn apply_game_setting(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::DesktopError;
     use crate::initialize_desktop_selection;
     use portcove_core::{ErrorCode, HostPreferenceStore, LibrarySelection, LibrarySelectionSource};
     use std::sync::{Arc, Mutex, atomic::AtomicU64};
@@ -251,6 +247,31 @@ mod tests {
         assert_eq!(done.recv_timeout(Duration::from_secs(30)), Ok(true));
         writer.join().unwrap().unwrap();
         reader.join().unwrap();
+    }
+
+    #[test]
+    fn a_settings_change_leaves_other_commands_free() {
+        use std::sync::mpsc::channel;
+        use std::time::Duration;
+        let temporary = tempfile::tempdir().unwrap();
+        let state = ready_state(&temporary);
+        let (entered_tx, entered) = channel();
+        let (release, release_rx) = channel::<()>();
+        let change = {
+            let state = state.clone();
+            std::thread::spawn(move || {
+                at_generation(&state, 1, |_| {
+                    entered_tx.send(()).unwrap();
+                    let _ = release_rx.recv_timeout(Duration::from_secs(30));
+                    Ok(())
+                })
+            })
+        };
+        entered.recv_timeout(Duration::from_secs(30)).unwrap();
+        let free = crate::ready(&state).is_ok();
+        release.send(()).unwrap();
+        assert!(free, "a settings change held the desktop state lock");
+        change.join().unwrap().unwrap();
     }
 
     #[test]

@@ -762,6 +762,15 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type RuntimeHostCheck = "checked" | "not_windows";
+export type RuntimeInspection = "complete" | "partial" | "not_windows_program" | "unreadable";
+export type WindowsArchitecture = "x86" | "x64" | "arm64";
+export type RuntimePresence = "present" | "missing" | "unknown";
+export type WindowsRuntime =
+  | ("visual_cpp_2013" | "visual_cpp_2012" | "visual_cpp_2010")
+  | "visual_cpp_2015_or_later"
+  | "directx_june_2010"
+  | "dotnet";
 export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
 export type LauncherEntryStatus =
   | "ready-to-review"
@@ -988,6 +997,7 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
  */
@@ -1288,6 +1298,7 @@ export interface TransportOutputs {
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
   retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
+  runtime_prerequisite_report: OutputRuntimePrerequisiteReport;
   save_folder_push_result: OutputSaveFolderPushResult;
   save_folder_status: OutputSaveFolderStatus;
   setup_launch_targets: OutputSetupLaunchTargets;
@@ -4213,6 +4224,12 @@ export interface LaunchSessionView {
   owner_kind: "managed" | "external";
   phase: LaunchSessionPhase;
   port_id: string;
+  /**
+   * Microsoft runtimes the installation that ran most likely needs, present
+   * only for an exit most likely caused by a missing DLL and only while that
+   * installation is still the current one. Derived on read, never stored.
+   */
+  runtime_prerequisites?: RuntimePrerequisiteReport | null;
   started_at: number;
   supervisor_identity: string | null;
   supervisor_pid: number;
@@ -4231,6 +4248,54 @@ export interface ExitExplanation {
    */
   raw_code: string;
   table_version: number;
+  [k: string]: unknown;
+}
+/**
+ * Microsoft runtimes the active installation's launch program most likely
+ * needs. Derived on request; nothing is stored.
+ */
+export interface RuntimePrerequisiteReport {
+  host: RuntimeHostCheck;
+  inspection: RuntimeInspection;
+  requirements: RuntimePrerequisite[];
+  [k: string]: unknown;
+}
+export interface RuntimePrerequisite {
+  /**
+   * Architecture of the launch program; absent for an architecture Portcove
+   * does not assess.
+   */
+  architecture?: WindowsArchitecture | null;
+  /**
+   * Microsoft's official download page for this runtime.
+   */
+  download_page: string;
+  /**
+   * Lowercase runtime DLL names the game imports and does not ship.
+   */
+  files?: string[];
+  framework?: DotnetFramework | null;
+  /**
+   * The part of `files` this host reports absent.
+   */
+  missing_files?: string[];
+  presence: RuntimePresence;
+  runtime: WindowsRuntime;
+  [k: string]: unknown;
+}
+export interface DotnetFramework {
+  /**
+   * Shared framework name, e.g. `Microsoft.WindowsDesktop.App`.
+   */
+  name: string;
+  /**
+   * The program's declared roll-forward policy; absent means `Minor`.
+   */
+  roll_forward?: string | null;
+  /**
+   * Version the program was built against.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputLauncherLibraryInventory {

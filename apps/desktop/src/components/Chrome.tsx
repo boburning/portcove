@@ -2318,7 +2318,7 @@ function HostReadiness({
   failure?: unknown;
 }) {
   return (
-    <SettingsRow className="col-span-full min-h-0">
+    <SettingsRow className="col-span-full min-h-0 grid-cols-1">
       <h2 className="flex items-center gap-2" id="disc-tools-heading" tabIndex={-1}>
         <Icon glyph={Wrench} />
         Disc tools
@@ -2330,7 +2330,7 @@ function HostReadiness({
           {(stale || Boolean(failure)) && (
             <p role="status">Showing the last successful host check.</p>
           )}
-          <p className="host-summary mb-3 flex items-center justify-between gap-3">
+          <p className="host-summary mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {doctor.platform}
             </code>
@@ -2456,7 +2456,7 @@ export function HostToolRow({
           : "Not resolved";
   return (
     <div
-      className="host-tool-row grid min-w-0 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
+      className="host-tool-row grid min-w-0 grid-cols-1 gap-1 rounded-pc-md border border-pc-border bg-[var(--color-bg-inset)] p-3"
       data-focus-group
       data-host-tool-id={tool.id}
       tabIndex={-1}

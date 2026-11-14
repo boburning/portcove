@@ -4629,6 +4629,48 @@
       }
     },
     {
+      "id": "40-winks-faderz48",
+      "project_url": "https://github.com/Faderz48/40-Winks-PC-Port",
+      "name": "40 Winks / Faderz48",
+      "summary": "Build and play 40 Winks on Windows or Linux with upstream’s setup tools and your own clean USA Nintendo 64 ROM.",
+      "issue_number": 6006,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the upstream setup for your platform",
+            "instruction": "Open the v0.1.7-alpha release linked below and pick the Windows x64 setup EXE or Linux x86-64 AppImage. Check the file against its SHA-256 sidecar before opening it. Both paths need a clean big-endian USA .z64 from your own game. Setup checks SHA-256 057232ef7618e25f5645df50d3cd45f08cb5a2cccb3e2fdf48faa8755c4ddb1a. Keep that original available for later launches."
+          },
+          {
+            "title": "Build the playable copy once",
+            "instruction": "On Windows, open the upstream setup, select the matching ROM and choose a folder for the generated player. On Linux, install the development dependencies from the build guide, then open the upstream self-building AppImage, select the ROM and choose where to save the playable AppImage. First setup needs Internet access and builds locally. On later Windows launches open 40-Winks-PC-Port.exe from the output folder. On Linux reopen the original AppImage to start the locally built player."
+          }
+        ],
+        "warnings": [
+          "The Windows setup is unsigned. Follow your usual executable trust settings.",
+          "Keep the original outside the build and player folders. Replacement builds and player data are managed through upstream."
+        ],
+        "help_url": "https://github.com/Faderz48/40-Winks-PC-Port/releases/tag/v0.1.7-alpha",
+        "references": [
+          {
+            "title": "Keep Windows settings and Controller Pak saves",
+            "instruction": "Preserve %LOCALAPPDATA%\\40-winks-pc-port when changing the player. The separate %LOCALAPPDATA%\\40WinksBuild stores build tools and generated files."
+          },
+          {
+            "title": "Linux build requirements and launcher paths",
+            "instruction": "Follow the tagged build guide for Git, Python, CMake, a C++20 compiler, SDL2 development files, Vulkan and the runtime dependencies. The builder tracks the selected ROM and playable AppImage under the 40-winks-pc-port directory in XDG_CONFIG_HOME. The first-run launcher suggests ~/Applications/40-Winks-Recompiled-x86_64.AppImage for the playable copy. Its build cache is under XDG_CACHE_HOME. Preserve the game data under XDG_DATA_HOME/40-winks-pc-port (normally ~/.local/share/40-winks-pc-port), or the data directory you explicitly chose."
+          }
+        ]
+      },
+      "recommended_download_channel": "beta"
+    },
+    {
       "id": "abilliontokens-bustinout-recomp",
       "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
       "summary": "The project reports a playable Linux household in The Sims: Bustin’ Out, with experimental Hor+ widescreen. Physical gamepad use and visible save/reload are unconfirmed. Linux uses Vulkan/SDL3; Windows is intended to use Direct3D 12/XAudio2, but the README says it has never been compiled while a win64 ZIP is published. Windows play remains unconfirmed. Setup needs your own North American original-Xbox disc: default.xbe, 3211264 bytes, SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other regions and revisions need separate review. Generated game code stays local; no separate console BIOS requirement is stated. You and the project manage installation and version changes. Release files are not qualified packages in Portcove, and Portcove has not confirmed setup or gameplay.",
@@ -21846,7 +21888,11 @@
         "steps": [
           {
             "title": "Set up a separate upstream copy",
-            "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
+            "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library."
+          },
+          {
+            "title": "Carry your progress to a new upstream version",
+            "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
           }
         ],
         "warnings": [],
@@ -27681,7 +27727,8 @@
       "manual_setup": {
         "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "warnings": [
-          "The upstream importer has 99 backup names and can overwrite its last slot when full."
+          "The upstream importer has 99 backup names and can overwrite its last slot when full.",
+          "On Linux v0.5.0, the in-game settings restart starts a new process that Portcove cannot track. Quit the game and choose Play again to keep the whole session visible in Portcove. If you already used the restart, close the new game window before changing the runtime or copying its data."
         ],
         "steps": [
           {
@@ -43523,6 +43570,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43542,19 +43593,21 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
       "id": "pokemon-crystal-gen1recomp",
       "name": "Pokémon Crystal (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Crystal route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Crystal ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Crystal remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Crystal original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Crystal",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1514,
         "cover_id": 266349,
@@ -43563,7 +43616,40 @@
         "game_slug": "pokemon-crystal-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2870
+      "issue_number": 2870,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Crystal ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-emerald-emeraldrecomp",
@@ -43659,6 +43745,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43678,7 +43768,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -43778,6 +43871,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43797,19 +43894,21 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
       "id": "pokemon-gold-gen1recomp",
       "name": "Pokémon Gold (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Gold route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Gold ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Gold remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Gold original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Gold",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1558,
         "cover_id": 266338,
@@ -43818,7 +43917,40 @@
         "game_slug": "pokemon-gold-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2868
+      "issue_number": 2868,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Gold ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
@@ -43917,6 +44049,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43936,7 +44072,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -44096,6 +44235,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44115,7 +44258,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -44208,6 +44354,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44227,7 +44377,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -44287,13 +44440,12 @@
     {
       "id": "pokemon-silver-gen1recomp",
       "name": "Pokémon Silver (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Silver route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Silver ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Silver remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Silver original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Silver",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
-      "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1513,
         "cover_id": 266341,
@@ -44302,7 +44454,40 @@
         "game_slug": "pokemon-silver-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2869
+      "issue_number": 2869,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Silver ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
@@ -44400,6 +44585,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44419,7 +44608,10 @@
         ]
       },
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {

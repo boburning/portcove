@@ -80,6 +80,23 @@ it("isolates a mixed-script Windows path in an RTL layout without changing its t
   expect(getComputedStyle(code).unicodeBidi).toBe("isolate");
 });
 
+it("fits the saved-location impact and actions inside the 400% Settings column", async () => {
+  container.style.inlineSize = "144px";
+  container.className = "flex flex-wrap items-center gap-2.5";
+  const source = {
+    ...preview.source,
+    path: "D:\\Originals ü\\العربية\\" + "long".repeat(30) + ".iso",
+  };
+  vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue({ ...preview, source });
+  await root.rerender(
+    <SourceRemovalControl source={source} generation={3} ports={ports} disabled={false} />,
+  );
+  await click("Review saved location removal");
+  await expect.poll(() => impact().querySelector("code")?.textContent).toBe(source.path);
+  expect(container.scrollWidth).toBeLessThanOrEqual(container.clientWidth + 1);
+  expect(impact().scrollWidth).toBeLessThanOrEqual(impact().clientWidth + 1);
+});
+
 it("requires fresh intent after location identity changes and never opens renderer approval", async () => {
   const read = vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
   const remove = vi.spyOn(desktopApi, "removeSource");

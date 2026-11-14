@@ -89,12 +89,9 @@ export function SetupIntentChoice({
       {choices
         .map((mode) => ({ mode, ...choiceCopy(t, mode) }))
         .map((choice) => (
-          <label
-            key={choice.mode}
-            className="flex cursor-pointer items-start gap-3"
-            aria-label={choice.label}
-          >
+          <label key={choice.mode} className="flex cursor-pointer items-start gap-3">
             <input
+              aria-label={choice.label}
               aria-describedby={`${name}-${choice.mode}`}
               type="radio"
               name={name}

@@ -89,7 +89,7 @@ it("shows why the last launch failed on an installed game's details page, with O
       key: "dll_not_found",
       raw_code: "0xC0000135",
       explanation: "A required DLL or runtime is most likely missing.",
-      next_action: "Install the runtime the game's page lists, then try again.",
+      next_action: "Check the game's page for a Microsoft runtime to install, then try again.",
     },
   } as never);
   const openActivity = vi.fn();

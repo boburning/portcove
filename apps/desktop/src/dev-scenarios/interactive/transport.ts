@@ -189,6 +189,17 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_launch_failure", args, { portId: args.portId, generation });
       return null;
     },
+    // Fixture installations ship no Windows program for Core to read.
+    get_runtime_prerequisites: (args) => {
+      if (typeof args?.portId !== "string" || typeof args.installId !== "string")
+        return unsupported("get_runtime_prerequisites (unexpected arguments)");
+      requireArgs("get_runtime_prerequisites", args, {
+        portId: args.portId,
+        installId: args.installId,
+        generation,
+      });
+      return null;
+    },
     // Fixtures never run a setup batch, so none is left unfinished.
     get_unfinished_install_batches: (args) => {
       requireArgs("get_unfinished_install_batches", args, { generation });
