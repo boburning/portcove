@@ -1894,7 +1894,8 @@ export interface OutputArtworkState {
   choice: ArtworkChoice;
   generated_fallback: GeneratedArtworkFallback;
   /**
-   * Recorded listing evidence for the credited images; empty until checked.
+   * Recorded listing evidence for the credited images; empty until an image
+   * is chosen from a provider or checked.
    */
   provider_listing: ArtworkProviderListing[];
   reason: string | null;
