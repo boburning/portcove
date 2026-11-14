@@ -256,8 +256,10 @@ outer budget is calibrated from 15 s to 60 s, because its own picker and close w
 plus a cold `pwsh` start exceeded 15 s, and the selected-setup preparation completion
 wait from 15 s to 120 s, because a hosted preparation was still running at 15 s. A new
 preparation that ends failed or cancelled is reported at once rather than at the deadline.
-The preparation scenario likewise calibrates its `get_statuses` script budget from 15 s
-to 60 s, because a full status read during Try launch exceeded 15 s, and its waits for
+The harness IPC bridge raises the WebDriver script budget to at least 60 s for each
+native IPC call and restores the prior budget, because full reads such as `get_statuses`
+during Try launch and `preview_steam_batch_add` exceeded the session's 15 s. The
+preparation scenario calibrates its waits for
 primary navigation after a full reload from 15 s to 60 s, matching the existing Library
 reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
 successful launch, and the backup review's wait to close after a deletion, are calibrated

@@ -1299,19 +1299,8 @@ export async function preparationScenarios({
       "The readiness listbox must finish closing before workspace interaction",
     );
   }
-  // Timeout calibration (docs/QUALITY.md), as for the acquisition journey: on
-  // hosted Windows debug builds a full get_statuses read during Try launch
-  // exceeded the session's 15 s WebDriver script budget, which bounds the harness
-  // IPC bridge (script timeout at desktop-test.mts invoke, job 132410024452).
-  // Status reads use 60 s and restore 15 s; product deadlines are unchanged.
   async function status(portId: string) {
-    await browser.manage().setTimeouts({ script: 60_000 });
-    let result;
-    try {
-      result = await invoke("get_statuses");
-    } finally {
-      await browser.manage().setTimeouts({ script: 15_000 });
-    }
+    const result = await invoke("get_statuses");
     assert.equal(result.ok, true);
     return required(
       transportValues("status", result.value).find((item) => item.port_id === portId),

@@ -1154,6 +1154,29 @@ async function requireUnusedPort(number: number) {
     server.close((error) => (error ? reject(error) : resolve())),
   );
 }
+
+// Timeout calibration (docs/QUALITY.md): the WebDriver script budget bounds the
+// IPC bridge below, and on hosted Windows debug builds full reads such as
+// get_statuses and preview_steam_batch_add exceeded the session's 15 s (jobs
+// 132410024452, 132417354793). IPC calls use at least 60 s and restore the prior
+// budget; DOM scripts and product deadlines are unchanged.
+const ipcScriptBudgetMs = 60_000;
+
+async function withIpcScriptBudget<Result>(run: () => Promise<Result>): Promise<Result> {
+  const timeouts = required(browser).manage() as {
+    getTimeouts?: () => Promise<{ script?: number | null }>;
+    setTimeouts(values: { script: number }): Promise<void>;
+  };
+  // The Linux inspector protocol has no WebDriver script budget to widen.
+  if (typeof timeouts.getTimeouts !== "function") return run();
+  const prior = (await timeouts.getTimeouts()).script ?? 15_000;
+  await timeouts.setTimeouts({ script: Math.max(prior, ipcScriptBudgetMs) });
+  try {
+    return await run();
+  } finally {
+    await timeouts.setTimeouts({ script: prior });
+  }
+}
 function invoke(
   command: "get_bootstrap_status",
   args?: object | null,
@@ -1193,21 +1216,23 @@ function invoke(
 function invoke(command: string, args?: object | null): Promise<IpcReply<unknown>>;
 async function invoke(command: string, args: object | null = {}): Promise<IpcReply<unknown>> {
   const observer: MainBoundaryBrowser = required(browser);
-  const serialized = await observer.executeAsyncScript(
-    (name, input, done) => {
-      const native = (
-        window as Window & {
-          __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
-        }
-      ).__TAURI_INTERNALS__;
-      if (!native) throw new Error("Native IPC bridge is missing");
-      void native.invoke(name, input).then(
-        (value) => done(JSON.stringify({ ok: true, value })),
-        (error: unknown) => done(JSON.stringify({ ok: false, error })),
-      );
-    },
-    command,
-    args,
+  const serialized = await withIpcScriptBudget(() =>
+    observer.executeAsyncScript(
+      (name, input, done) => {
+        const native = (
+          window as Window & {
+            __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
+          }
+        ).__TAURI_INTERNALS__;
+        if (!native) throw new Error("Native IPC bridge is missing");
+        void native.invoke(name, input).then(
+          (value) => done(JSON.stringify({ ok: true, value })),
+          (error: unknown) => done(JSON.stringify({ ok: false, error })),
+        );
+      },
+      command,
+      args,
+    ),
   );
   const parsed: unknown = JSON.parse(text(serialized));
   const reply = object(parsed);
