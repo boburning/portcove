@@ -33,9 +33,15 @@ impl PortcoveService {
         }
         self.require_completed_backup_restore(port_id)?;
         self.require_completed_backup_deletion(port_id)?;
-        let install = self.status(port_id)?.active.ok_or_else(|| {
-            PortcoveError::not_found("no active managed installation offers settings")
-        })?;
+        // Settings only need the active record. Full status also inspects the
+        // rollback target and sources while this port's lock is held.
+        let install = self
+            .library
+            .status(port_id, ReleaseChannel::Stable)?
+            .active
+            .ok_or_else(|| {
+                PortcoveError::not_found("no active managed installation offers settings")
+            })?;
         self.managed_install_root(port_id, &install.path)?;
         let installer = Installer::new(self.library.clone())?;
         // Do not use installed_catalog's historical current-catalog fallback.
