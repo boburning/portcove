@@ -204,7 +204,7 @@ export const DESKTOP_EVENT_COMPATIBILITY = Object.freeze([
 ]);
 
 export const DESKTOP_EVENT_PAYLOAD_COMPATIBILITY = Object.freeze({
-  DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: "ApplicationUpdateNoticeSnapshot",
+  DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: "ApplicationUpdateStatus",
   DESKTOP_EVENT_LIBRARY_CHANGED: "()",
   DESKTOP_EVENT_OPERATION: "portcove_core::OperationEvent",
 });

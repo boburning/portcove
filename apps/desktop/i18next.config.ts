@@ -67,6 +67,7 @@ export default defineConfig({
       "src/components/CatalogMedia.tsx",
       "src/components/DetailQualificationSummary.tsx",
       "src/components/DetailLayout.tsx",
+      "src/components/FundingLinks.tsx",
       "src/components/PortCapabilities.tsx",
       "src/components/Preparation.tsx",
       "src/components/RecoveryReview.tsx",

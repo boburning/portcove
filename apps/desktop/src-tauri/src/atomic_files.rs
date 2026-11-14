@@ -1,4 +1,4 @@
-//! Shared durable-file primitives for host-owned application update state.
+//! Shared durable-file primitives for small host-owned state files.
 
 use std::fs::{self, OpenOptions};
 use std::io::{Read, Write};

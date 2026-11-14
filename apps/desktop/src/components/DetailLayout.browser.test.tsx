@@ -287,6 +287,54 @@ it("composes About beside authored requirements and support without reserving ab
   expect(document.querySelector(".game-hero-background")).toBeNull();
 });
 
+it("lists reviewed support pages only when the listing names them", async () => {
+  const layout = (funding?: string[]) => (
+    <DetailLayout
+      port={{
+        ...portDefinition(),
+        listing: {
+          id: "sample",
+          name: "Sample",
+          summary: "Sample listing.",
+          platforms: [],
+          availability: "unknown",
+          project_url: "https://github.com/example/project",
+          ...(funding ? { funding_urls: funding } : {}),
+        },
+      }}
+      initialSection="overview"
+      readiness="Ready"
+      installation="Managed installation"
+      close={vi.fn()}
+      action={() => <button>Play</button>}
+    >
+      {() => ({ overview: null, files: null, saves: null, versions: null })}
+    </DetailLayout>
+  );
+  const { rerender } = await render(layout());
+  // Nothing to show: no Resources section and no empty support heading.
+  expect(document.querySelector(".detail-resources")).toBeNull();
+  await rerender(
+    layout([
+      "https://github.com/sponsors/example",
+      "https://ko-fi.com/maker",
+      "https://example.org/donate",
+    ]),
+  );
+  await expect
+    .element(page.getByRole("heading", { name: "Help fund this project", exact: true }))
+    .toBeVisible();
+  const links = page
+    .getByRole("region", { name: "Help fund this project" })
+    .getByRole("link")
+    .elements();
+  expect(links.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
+    ["GitHub Sponsors example", "https://github.com/sponsors/example"],
+    ["Ko-fi maker", "https://ko-fi.com/maker"],
+    ["example.org", "https://example.org/donate"],
+  ]);
+});
+
 it("shows the selected channel in the hero and keeps supporting evidence after the primary overview", async () => {
   await render(
     <DetailLayout

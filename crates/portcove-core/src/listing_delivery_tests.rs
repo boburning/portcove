@@ -423,8 +423,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // The embedded base now carries first-listed dates, so the combined directory is format 9.
-    assert_eq!(catalog.listing_document().format_version, 9);
+    // The embedded base now carries funding links, so the combined directory is format 10.
+    assert_eq!(catalog.listing_document().format_version, 10);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -445,8 +445,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format; 9 is now the first-listed-date format this reader accepts.
-    candidate["directory"]["format_version"] = json!(10);
+    // The next unknown format; 10 is now the funding-link format this reader accepts.
+    candidate["directory"]["format_version"] = json!(11);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -460,6 +460,70 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .0
             .listing_document()
             .format_version,
-        9
+        10
+    );
+}
+
+#[tokio::test]
+async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_embedded_listings()
+{
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let (_temp, library) = library();
+    let embedded = Catalog::embedded().unwrap();
+    assert!(
+        embedded
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    // A format-9 snapshot (no funding links) that corrects one funded embedded record.
+    let mut corrected = serde_json::to_value(embedded.listing("severed-chains").unwrap()).unwrap();
+    corrected.as_object_mut().unwrap().remove("funding_urls");
+    corrected["summary"] = json!("Corrected descriptive summary.");
+    let mut candidate = feed(1);
+    candidate["directory"]["format_version"] = json!(9);
+    candidate["directory"]["listings"]
+        .as_array_mut()
+        .unwrap()
+        .push(corrected);
+    let root = publish(&fixture, &key, 1, &candidate).await;
+    provision(&library, &root);
+    assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
+    let (catalog, _) = library.load_catalog().unwrap();
+    // Snapshot replacement: the delivered record carries no links, so none are shown for it.
+    let replaced = catalog.listing("severed-chains").unwrap();
+    assert_eq!(replaced.summary, "Corrected descriptive summary.");
+    assert!(replaced.funding_urls.is_none());
+    // Bundled records the snapshot omits keep their links, so the combined directory is 10.
+    assert!(
+        catalog
+            .listing("ambermoon-ambermoon-net")
+            .unwrap()
+            .funding_urls
+            .is_some()
+    );
+    assert_eq!(catalog.listing_document().format_version, 10);
+
+    // A delivered format-10 snapshot carries links for this reader.
+    candidate["revision"] = json!(2);
+    candidate["directory"]["format_version"] = json!(10);
+    candidate["directory"]["listings"][1]["funding_urls"] = json!(["https://ko-fi.com/example"]);
+    let next_root = publish(&fixture, &key, 2, &candidate).await;
+    assert!(
+        refresh(&library, &fixture, &next_root)
+            .await
+            .unwrap()
+            .selected
+    );
+    let (catalog, _) = library.load_catalog().unwrap();
+    assert_eq!(
+        catalog
+            .listing("severed-chains")
+            .unwrap()
+            .funding_urls
+            .as_deref(),
+        Some(&["https://ko-fi.com/example".to_owned()][..])
     );
 }

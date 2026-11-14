@@ -20,9 +20,6 @@ on:
       - vendor/rfd-provenance.json
       - apps/desktop/src-tauri/Cargo.toml
       - apps/desktop/src-tauri/src/application_update.rs
-      - apps/desktop/src-tauri/src/application_update_commands.rs
-      - apps/desktop/src-tauri/src/application_update_linux.rs
-      - apps/desktop/src-tauri/src/application_update_recovery.rs
       - apps/desktop/src-tauri/tauri.conf.json
       - scripts/test-linux-package-ownership.sh
   workflow_dispatch:

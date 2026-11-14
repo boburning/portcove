@@ -18,6 +18,12 @@
     },
     "issue_number": 2701,
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://www.patreon.com/nuclearmonster",
+      "https://ko-fi.com/mrnuclearmonster",
+      "https://www.patreon.com/icculus",
+      "https://www.patreon.com/SmileTheory"
+    ],
     "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
     "manual_setup": {
       "steps": [

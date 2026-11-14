@@ -773,7 +773,7 @@ fn write_ownership(config: &Path, records: &[OwnershipRecord]) -> Result<()> {
         schema_version: OWNERSHIP_SCHEMA_VERSION,
         records: records.to_vec(),
     };
-    crate::application_update_storage::write_bytes_atomically(
+    crate::atomic_files::write_bytes_atomically(
         config,
         OWNERSHIP_TEMPORARY_FILE,
         OWNERSHIP_FILE,
@@ -918,7 +918,7 @@ fn prepare_publication(
         ownership_before,
         ownership_after,
     };
-    crate::application_update_storage::write_bytes_atomically(
+    crate::atomic_files::write_bytes_atomically(
         config,
         JOURNAL_TEMPORARY_FILE,
         JOURNAL_FILE,

@@ -221,39 +221,13 @@ export type DesktopSupportBundleExport =
 export type ApplicationUpdatePreferences =
   Generated.TransportOutputs["desktop_application_update_preferences"];
 
-export type ApplicationUpdateChoice = Requests.TransportInputs["desktop_application_update_choice"];
-
-export type ApplicationUpdateProductionDecision =
-  Requests.TransportInputs["desktop_application_update_production_decision"];
-
-export type ApplicationUpdateProductionTransition =
-  Generated.TransportOutputs["desktop_application_update_production_transition"];
-
-export type ApplicationUpdateProductionTransitionResult =
-  Generated.TransportOutputs["desktop_application_update_production_transition_result"];
+export type ApplicationUpdateChannel = ApplicationUpdatePreferences["channel"];
 
 export type ApplicationUpdateStatus =
   Generated.TransportOutputs["desktop_application_update_status"];
 
-export type ApplicationUpdateRecoveryArea =
-  Requests.TransportInputs["desktop_application_update_recovery_area"];
-
-export type ApplicationUpdateCheckResult =
-  Generated.TransportOutputs["desktop_application_update_check_result"];
-
-export type ApplicationUpdateManualCheckRequest =
-  Requests.TransportInputs["desktop_application_update_manual_check_request"];
-export type ApplicationUpdateManualCheckResult =
-  Generated.TransportOutputs["desktop_application_update_manual_check_result"];
-
-export type ApplicationUpdateNoticeSnapshot =
-  Generated.TransportOutputs["desktop_application_update_notice"];
-
-export type ApplicationUpdateCheckPhase =
-  Generated.TransportOutputs["desktop_application_update_check_phase"];
-
-export type ApplicationUpdateDownloadRequest =
-  Requests.TransportInputs["desktop_application_update_download_request"];
+export type ApplicationUpdateProgress =
+  Generated.TransportOutputs["desktop_application_update_progress"];
 
 export type LibrarySelection = Generated.TransportOutputs["library_selection"];
 

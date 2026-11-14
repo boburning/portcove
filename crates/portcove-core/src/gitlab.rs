@@ -584,6 +584,64 @@ impl ReleaseProvider for GitlabReleaseProvider {
         self.store_release(key, resolved.clone()).await;
         Ok(resolved)
     }
+
+    fn cached_release_notes(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        _platform: Platform,
+        installed: Option<&str>,
+        offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        if port.release.provider != ReleaseSource::Gitlab {
+            return None;
+        }
+        let releases_url = self
+            .api_root
+            .strip_suffix("/api/v4")
+            .zip(crate::release_notes::repository_segments(
+                &port.release.repository,
+            ))
+            .and_then(|(web_root, repository)| {
+                crate::release_notes::web_url(
+                    web_root,
+                    &[repository.as_slice(), &["-", "releases"][..]].concat(),
+                )
+            });
+        let project_url = self.project_url(&port.release.repository).ok()?;
+        let releases: Vec<GitlabRelease> = crate::release_notes::cached_pages(
+            GITLAB_MAX_RELEASE_PAGES,
+            PROVIDER_PAGE_SIZE,
+            PROVIDER_JSON_MAX_BYTES,
+            |page| {
+                paginated_url(&project_url, "releases", page, PROVIDER_PAGE_SIZE)
+                    .ok()
+                    .and_then(|url| self.cached_http_response(&url))
+            },
+        );
+        let listed = releases
+            .iter()
+            .map(|release| crate::release_notes::ListedRelease {
+                tag: &release.tag_name,
+                title: release.name.as_deref(),
+                published_at: release.released_at.as_deref(),
+                notes: &release.description,
+                // Same selection rule as GitLab release resolution.
+                selectable: !release.upcoming_release,
+                beta: is_beta_tag(&release.tag_name),
+            })
+            .collect::<Vec<_>>();
+        Some(crate::release_notes::between(
+            &listed,
+            &crate::release_notes::NotesRequest {
+                channel,
+                rolling_tag: port.release.rolling_tag.as_deref(),
+                installed,
+                offered,
+            },
+            releases_url,
+        ))
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -598,6 +656,9 @@ struct GitlabProject {
 #[derive(Debug, Deserialize)]
 struct GitlabRelease {
     tag_name: String,
+    /// Informational only: shown as untrusted plain text in update reviews.
+    #[serde(default)]
+    name: Option<String>,
     #[serde(default)]
     description: String,
     #[serde(default)]
@@ -1442,6 +1503,75 @@ mod tests {
         .unwrap()
     }
 
+    #[test]
+    fn update_release_notes_read_only_the_cached_gitlab_release_list() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider = GitlabReleaseProvider::with_api_root_and_library(
+            "https://gitlab.example.test/api/v4",
+            library.clone(),
+        )
+        .unwrap();
+        let mut port = generic_test_port();
+        port.release.provider = ReleaseSource::Gitlab;
+        port.release.rolling_tag = None;
+        let release = |tag: &str, upcoming: bool, description: &str| {
+            serde_json::json!({"tag_name":tag,"name":tag,"description":description,
+                "released_at":"2026-11-01T00:00:00Z","upcoming_release":upcoming,
+                "assets":{"links":[]}})
+        };
+        let unknown = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v1.0"),
+                "v1.2",
+            )
+            .unwrap();
+        assert!(unknown.entries.is_empty());
+        assert_eq!(
+            unknown.releases_url.as_deref(),
+            Some("https://gitlab.example.test/group/project/-/releases")
+        );
+        let url = paginated_url(
+            &provider.project_url("group/project").unwrap(),
+            "releases",
+            1,
+            PROVIDER_PAGE_SIZE,
+        )
+        .unwrap();
+        let page = serde_json::json!([
+            release("v1.3", true, "upcoming"),
+            release("v1.2", false, "Fixes\u{202E} audio"),
+            release("v1.2-beta", false, "beta"),
+            release("v1.1", false, "Adds widescreen"),
+            release("v1.0", false, "installed"),
+        ]);
+        library
+            .store_http_cache(&url, Some("\"releases\""), None, &page.to_string())
+            .unwrap();
+        let notes = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v1.0"),
+                "v1.2",
+            )
+            .unwrap();
+        assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+        assert_eq!(
+            notes
+                .entries
+                .iter()
+                .map(|entry| (entry.version.as_str(), entry.notes.as_str()))
+                .collect::<Vec<_>>(),
+            [("v1.2", "Fixes audio"), ("v1.1", "Adds widescreen")]
+        );
+        assert_eq!(notes.entries[0].title, None);
+    }
+
     fn generic_test_port() -> PortDefinition {
         let mut port = crate::Catalog::embedded()
             .unwrap()
@@ -2259,6 +2389,7 @@ mod tests {
         let project_url = provider.project_url("group/project").unwrap();
         let release = GitlabRelease {
             tag_name: "v1.0.0".into(),
+            name: None,
             description: String::new(),
             released_at: None,
             upcoming_release: false,
@@ -2393,6 +2524,7 @@ mod tests {
             GitlabReleaseProvider::with_api_root(format!("{server_root}/api/v4")).unwrap();
         let release = GitlabRelease {
             tag_name: "v1.0.0".into(),
+            name: None,
             description: String::new(),
             released_at: None,
             upcoming_release: false,

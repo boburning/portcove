@@ -43,6 +43,35 @@ and inserts a single line. The date is excluded from the observer's listing
 declaration hash, so adding or backfilling it does not invalidate retained upstream
 observations. A listing without a date is valid and simply has no recency.
 
+A listing may carry `funding_urls`: 1 to 12 distinct public HTTPS pages where the
+upstream developers accept funding. Omit the field when there are none; an empty
+list is refused. Desktop shows them under "Help fund this project" in the port's
+Resources as ordinary external links and opens only those exact URLs. They are
+descriptive and grant no support, availability, trust or operation; Portcove does
+not fetch them at runtime. A directory carrying any link requires listing format 10,
+exports to formats 5 through 9 and retained user-selected listings omit them, and the
+observer's listing declaration hash ignores them. Delivering a format-10 directory
+stops listing updates for format-9 readers; see
+[descriptive directory delivery](DEFINITION-DELIVERY.md#descriptive-directory-delivery).
+
+`node scripts/listing-funding.mts` reads each GitHub-hosted project's `FUNDING.yml`
+in GitHub's lookup order (the repository's `.github/`, root and `docs/`, then the same
+places in the owner's `.github` repository); the first file found decides. It keeps
+`github`, `patreon`, `open_collective`, `ko_fi`, `liberapay`, `buy_me_a_coffee` and
+HTTPS `custom` entries in that order (several entries for one platform keep their
+order in the file), reports every entry it skips, and when there are
+more than 12 keeps the first 12 and reports the rest. Only a readable project with no
+`FUNDING.yml` in any location means "no links". A missing, renamed or unreadable
+repository, or a file that is oversized, malformed (including YAML aliases) or has no
+usable entry, leaves the listing unchanged; a renamed repository is reported with its
+new name so `project_url` can be corrected. The script prints its plan; `--write`
+adds links to listings without any, and only `--write --replace` replaces or removes
+existing links, which may be hand-authored. `--replace` never clears links when the
+upstream file exists but yields no usable link; remove them by hand if they are
+obsolete. `--only <id>` limits it to named
+listings. Review the diff like any other listing change and regenerate the catalog.
+Other hosts may carry reviewed hand-authored links.
+
 Legacy format-5/6 exports omit only inert compatibility advice and retain
 acquisition restrictions. GitLab-bearing directories refuse exports below format
 8; format 7 retains advice without accepting GitLab observation identities.

@@ -19,6 +19,7 @@
     },
     "issue_number": 2695,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/jorjbarbosa"],
     "manual_setup": {
       "help_url": "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
       "steps": [

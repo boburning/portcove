@@ -742,6 +742,11 @@ export type GameSettingChange =
   | {
       action: "reset";
     };
+/**
+ * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+ */
+export type UpdateReleaseNotesCoverage =
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -1022,32 +1027,22 @@ export type SteamGridDbCheckStop =
     };
 export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
-export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateCheckResultKind =
-  | "consent-required"
-  | "paused"
-  | "manual-mode"
-  | "offline"
-  | "metered"
-  | "metered-state-unknown"
-  | "startup-delay"
-  | "cadence"
-  | "superseded"
-  | "current"
-  | "update-available"
-  | "held"
-  | "incompatible"
-  | "no-candidate";
-export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
-export type ApplicationUpdateNativeLaunchSummary =
-  "starting" | "started" | "failed" | "installer-succeeded" | "installer-failed";
-export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
-export type ApplicationUpdateObservedTermination =
-  "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
-export type ApplicationUpdateInstallEligibility =
-  "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
-export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
+export type OutputDesktopApplicationUpdateProgress =
+  | {
+      downloaded_bytes: number;
+      phase: "downloading";
+      total_bytes: number | null;
+      [k: string]: unknown;
+    }
+  | {
+      phase: "installing";
+      [k: string]: unknown;
+    };
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
@@ -1326,13 +1321,8 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_adoption_batch_preview: OutputAdoptionBatchPreview;
   desktop_adoption_batch_result: OutputDesktopAdoptionBatchResult;
-  desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
-  desktop_application_update_check_result: ApplicationUpdateCheckResult;
-  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
-  desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
-  desktop_application_update_preferences: ApplicationUpdatePreferences;
-  desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
-  desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
+  desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
+  desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
@@ -3090,6 +3080,13 @@ export interface PortListing {
    * no execution, management or permission over an existing copy.
    */
   download_block_reason?: string | null;
+  /**
+   * Reviewed pages where the upstream developers accept funding, normally taken
+   * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+   * HTTPS links that grant nothing. Requires listing format 10; when present it
+   * is never empty, so an earlier strict reader never meets an inert empty key.
+   */
+  funding_urls?: string[] | null;
   id: string;
   issue_number?: number | null;
   /**
@@ -4067,6 +4064,12 @@ export interface OutputGameUpdatePlan {
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * Informational upstream notes for this review. Read from cached provider
+   * metadata only, excluded from `plan_sha256`, never authority. Absent when
+   * the provider has no hosted release page.
+   */
+  release_notes?: UpdateReleaseNotes | null;
   [k: string]: unknown;
 }
 /**
@@ -4087,6 +4090,40 @@ export interface ArchiveDataTransitionReview {
   producing_archive_sha256: string;
   retained_installations: number;
   temporary_space: InstallSpaceRequirement;
+  [k: string]: unknown;
+}
+/**
+ * Upstream releases between the installed version (exclusive) and the offered
+ * version (inclusive), newest first. Notes are untrusted plain text.
+ */
+export interface UpdateReleaseNotes {
+  coverage: UpdateReleaseNotesCoverage;
+  /**
+   * Empty when the notes are unknown: not cached, or the offered release is not listed.
+   */
+  entries: UpdateReleaseNotesEntry[];
+  /**
+   * The project's release list page. Present only when Desktop may open it: it is
+   * built by Portcove and passes the same reviewed-link check as other handoffs.
+   */
+  releases_url?: string | null;
+  [k: string]: unknown;
+}
+export interface UpdateReleaseNotesEntry {
+  /**
+   * Normalized plain text; may contain unrendered Markdown or HTML source.
+   */
+  notes: string;
+  notes_truncated: boolean;
+  /**
+   * Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+   */
+  published_at?: string | null;
+  title?: string | null;
+  /**
+   * The release tag, normalized for display.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {
@@ -6150,80 +6187,33 @@ export interface ObservedResolution {
   release_id: number;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateCheckResult {
-  candidate: ApplicationUpdateCandidateSummary | null;
-  kind: ApplicationUpdateCheckResultKind;
-  reasons: string[];
-  staged: boolean;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
-}
-export interface OutputDesktopApplicationUpdateManualCheckResult {
-  checked_channel: ApplicationChannel;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateNotice {
-  notice: ApplicationUpdateNotice | null;
-  revision: number;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateNotice {
-  preference_revision: number;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdatePreferences {
+export interface OutputDesktopApplicationUpdatePreferences {
   /**
-   * `None` means the user has not completed the one-time choice.
+   * Check for updates at startup and periodically. A found update is only
+   * announced; installing always needs the player's click.
    */
-  choice: ApplicationUpdateChoice | null;
-  revision: number;
-  schema_version: number;
-}
-export interface ApplicationUpdateChoice {
-  channel: ApplicationChannel;
-  mode: ApplicationUpdateMode;
-  paused: boolean;
-}
-export interface ApplicationUpdateProductionTransition {
-  offer_required: boolean;
-  preference_revision: number;
-  schema_version: number;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateProductionTransitionResult {
-  preferences: ApplicationUpdatePreferences;
-  transition: ApplicationUpdateProductionTransition;
-  [k: string]: unknown;
+  automatic_checks: boolean;
+  channel: ApplicationUpdateChannel;
 }
 export interface OutputDesktopApplicationUpdateStatus {
-  apply: ApplicationUpdateApplySummary | null;
-  install_eligibility: ApplicationUpdateInstallEligibility;
-  recovery_required: ApplicationUpdateRecoveryNotice[];
-  schedule: ApplicationUpdateScheduleSummary | null;
-  staged: ApplicationUpdateCandidateSummary | null;
+  available: ApplicationUpdateAvailable | null;
+  checking: boolean;
+  current_version: string;
+  installing: boolean;
+  last_checked_unix_seconds: number | null;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateApplySummary {
-  native_launch: ApplicationUpdateNativeLaunchSummary | null;
-  request: ApplicationUpdateRequestedAction;
-  revision: number;
-  termination: ApplicationUpdateObservedTermination | null;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateRecoveryNotice {
-  area: ApplicationUpdateRecoveryArea;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateScheduleSummary {
-  consecutive_failures: number;
-  last_success_unix_seconds: number | null;
-  next_automatic_check_unix_seconds: number | null;
+/**
+ * A newer signed release announced by the channel feed.
+ */
+export interface ApplicationUpdateAvailable {
+  channel: ApplicationUpdateChannel;
+  /**
+   * Publication date as written in the feed (RFC 3339).
+   */
+  date: string | null;
+  notes: string | null;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {

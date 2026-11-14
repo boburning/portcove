@@ -433,8 +433,8 @@ void test("original game identity projects exact authored groups and multiple so
   };
   const record = checkedAuthoredPort(base);
   const projected = assembleCatalogRecords(shared, [...source.records, record]);
-  // The real source carries first-listed dates (format 9); the date-free record alone stays 3.
-  assert.equal(projected.directory.format_version, 9);
+  // The real source carries funding links (format 10); the date-free record alone stays 3.
+  assert.equal(projected.directory.format_version, 10);
   assert.equal(assembleCatalogRecords(shared, [record]).directory.format_version, 3);
   assert.deepEqual(projected.catalog, source.catalog);
   assert.deepEqual(
@@ -564,7 +564,7 @@ void test("optional recommendation observations round-trip as inert presentation
 void test("reference guides select strict new formats and retain actions and warnings", () => {
   const source = readCatalogSource(catalogRoot);
   assert.equal(source.catalog.schema_version, 3);
-  assert.equal(source.directory.format_version, 9);
+  assert.equal(source.directory.format_version, 10);
   const syphon = source.directory.listings.find(
     (listing) => listing.id === "syphon-filter-sf-pc-port",
   );
@@ -666,8 +666,8 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   const { ports: _ports, ...shared } = accepted.catalog;
   const assembled = assembleCatalogRecords(shared, records);
-  // GitLab observations need 8; the real source's first-listed dates lift the directory to 9.
-  assert.equal(assembled.directory.format_version, 9);
+  // GitLab observations need 8; the real source's funding links lift the directory to 10.
+  assert.equal(assembled.directory.format_version, 10);
   assert.deepEqual(assembled.catalog, accepted.catalog);
   const compatibility = {
     format_version: 1,
@@ -686,7 +686,7 @@ void test("GitLab descriptive observations derive listing format8 without changi
   };
   record.listing.compatibility = compatibility;
   const combined = assembleCatalogRecords(shared, records);
-  assert.equal(combined.directory.format_version, 9);
+  assert.equal(combined.directory.format_version, 10);
   assert.deepEqual(
     combined.directory.listings.find((listing) => listing.id === record.listing.id)?.compatibility,
     compatibility,
@@ -945,5 +945,43 @@ void test("the observation declaration hash ignores the first-listed date", () =
   assert.notEqual(
     listingDeclarationHash(listing),
     listingDeclarationHash({ ...listing, name: "A different declaration" }),
+  );
+});
+
+void test("funding links are authored per listing, validated, and select listing format 10", () => {
+  const source = readCatalogSource(catalogRoot);
+  const { ports: _ports, ...shared } = source.catalog;
+  const fixture = (extra: Record<string, unknown>) =>
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "funded-fixture",
+        name: "Funded fixture",
+        summary: "Descriptive metadata only.",
+        project_url: "https://example.com/funded",
+        listed_at: "2026-11-09",
+        ...extra,
+      },
+    });
+  const urls = ["https://github.com/sponsors/example", "https://ko-fi.com/example"];
+  const funded = fixture({ funding_urls: urls });
+  assert.deepEqual(funded.listing.funding_urls, urls);
+  assert.equal(assembleCatalogRecords(shared, [funded]).directory.format_version, 10);
+  assert.equal(assembleCatalogRecords(shared, [fixture({})]).directory.format_version, 9);
+  const tooMany = Array.from({ length: 13 }, (_, index) => `https://example.com/${index}`);
+  for (const bad of [
+    [],
+    ["http://ko-fi.com/example"],
+    ["https://user:secret@example.com/support"],
+    ["https://ko-fi.com/example", "https://ko-fi.com/example"],
+    tooMany,
+    "https://ko-fi.com/example",
+  ])
+    assert.throws(() => fixture({ funding_urls: bad }), /funding_urls/u, JSON.stringify(bad));
+  // Adding or refreshing links must not invalidate retained observations.
+  const listing = { id: "hash-fixture", name: "Hash", summary: "Hash.", project_url: urls[0] };
+  assert.equal(
+    listingDeclarationHash(listing),
+    listingDeclarationHash({ ...listing, funding_urls: urls }),
   );
 });

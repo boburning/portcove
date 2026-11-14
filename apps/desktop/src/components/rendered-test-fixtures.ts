@@ -8,6 +8,7 @@ import type {
   UpdateCheckOutcome,
 } from "../types";
 import type { DetailActions } from "./DetailPanel";
+import type { ApplicationUpdateModel } from "../features/application-update/use-application-update";
 
 export const port: PortDefinition = {
   ...portDefinition(),
@@ -58,17 +59,23 @@ export const actions: DetailActions = {
   verify: vi.fn(),
 };
 
+export const idleApplicationUpdate: ApplicationUpdateModel = {
+  status: undefined,
+  preferences: undefined,
+  busy: undefined,
+  progress: undefined,
+  failure: undefined,
+  noticeVersion: undefined,
+  check: vi.fn(),
+  savePreferences: vi.fn(),
+  install: vi.fn(),
+  dismissNotice: vi.fn(),
+};
+
 export const defaultNoticeProps = {
-  updateNotice: undefined,
-  updateChoiceRequired: false,
-  productionTransitionRequired: false,
-  productionTransitionBusy: false,
-  reviewUpdate: vi.fn(),
-  dismissUpdate: vi.fn().mockResolvedValue(undefined),
-  dismissUpdateChoice: vi.fn(),
-  useStable: vi.fn(),
-  keepPreview: vi.fn(),
-  dismissProductionTransition: vi.fn(),
+  version: undefined,
+  review: vi.fn(),
+  dismiss: vi.fn(),
 };
 
 export const installRecord = (overrides: Partial<InstallRecord> = {}): InstallRecord => ({
