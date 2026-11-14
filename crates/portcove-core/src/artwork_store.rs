@@ -239,6 +239,78 @@ fn listing_check(
         .optional()?)
 }
 
+/// The recorded evidence for every provider record of one asset.
+pub(crate) fn asset_listing_evidence(
+    connection: &Connection,
+    asset_sha256: &str,
+) -> Result<Vec<crate::ArtworkProviderListing>> {
+    validate_hash(asset_sha256)?;
+    let mut statement = connection.prepare(&format!(
+        "SELECT provider,{LISTING_CHECK_COLUMNS} FROM artwork_provider_listing_checks WHERE asset_sha256=?1 ORDER BY provider,asset_id LIMIT {}",
+        MAX_PROVIDER_RECORDS_PER_ASSET + 1
+    ))?;
+    let rows = statement
+        .query_map([asset_sha256], |row| {
+            let provider: String = row.get(0)?;
+            Ok((
+                provider,
+                ListingCheckRow {
+                    asset_sha256: row.get(1)?,
+                    asset_id: row.get(2)?,
+                    revision: row.get(3)?,
+                    last_checked_at: row.get(4)?,
+                    last_result: row.get(5)?,
+                    unknown_reason: row.get(6)?,
+                    not_listed_since: row.get(7)?,
+                    last_listing_total: row.get(8)?,
+                    last_source_status: row.get(9)?,
+                },
+            ))
+        })?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if rows.len() > MAX_PROVIDER_RECORDS_PER_ASSET {
+        return Err(PortcoveError::verification(
+            "artwork asset has too many listing checks",
+        ));
+    }
+    rows.into_iter()
+        .map(|(provider, row)| {
+            let provider = match provider.as_str() {
+                "steamgriddb" => crate::ArtworkProvider::Steamgriddb,
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "artwork listing check names an unknown provider",
+                    ));
+                }
+            };
+            let last_result = match (row.last_result.as_str(), row.unknown_reason.as_deref()) {
+                ("listed", None) => crate::SteamGridDbListingResult::Listed,
+                ("not_listed", None) => crate::SteamGridDbListingResult::NotListed,
+                ("unknown", Some(reason)) => crate::SteamGridDbListingResult::Unknown {
+                    reason: serde_json::from_value(serde_json::Value::String(reason.to_owned()))
+                        .map_err(|_| {
+                            PortcoveError::verification(
+                                "artwork listing check has an unknown reason",
+                            )
+                        })?,
+                },
+                _ => {
+                    return Err(PortcoveError::verification(
+                        "artwork listing check has an invalid result",
+                    ));
+                }
+            };
+            Ok(crate::ArtworkProviderListing {
+                provider,
+                asset_id: row.asset_id,
+                last_checked_at: row.last_checked_at,
+                last_result,
+                not_listed_since: row.not_listed_since,
+            })
+        })
+        .collect()
+}
+
 /// Choosing an image re-resolves it from the provider's own listing, which is
 /// the strongest presence evidence there is: it clears any absence clock. Runs
 /// in the same transaction as the provider record it follows.

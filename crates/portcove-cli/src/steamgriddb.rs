@@ -76,7 +76,7 @@ pub(crate) async fn execute(
             })
         }
         SteamGridDbCommand::CheckListings => {
-            // Report only; the borrowed service runs the bounded network check in place.
+            // The borrowed service runs the bounded network check and records it in place.
             let report = tokio::task::block_in_place(|| service.check_steamgriddb_listings())?;
             render_read_success(mode, name, report, listing_report)
         }
@@ -198,8 +198,12 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
             format!("not confirmed ({reason})")
         }
     };
+    let noticed = image
+        .not_listed_since
+        .map(|since| format!("; first noticed missing {}", human::utc_time(since)))
+        .unwrap_or_default();
     format!(
-        "{}  {} by {} (game {}): {found}",
+        "{}  {} by {} (game {}): {found}{noticed}",
         image.attribution.asset_id,
         role_name(image.attribution.role),
         human::clean(&image.attribution.author_name),
@@ -233,8 +237,13 @@ pub(crate) fn listing_report(report: &SteamGridDbListingReport) -> String {
     };
     let count = report.images.len();
     format!(
-        "SteamGridDB listing check: {count} {}\n\n{lines}\n\nThis check only reports. Every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
-        if count == 1 { "image" } else { "images" }
+        "SteamGridDB listing check: {count} {}\n\n{lines}\n\n{}Nothing was removed: every image, credit and choice was kept, and nothing changed in Steam.{stopped}",
+        if count == 1 { "image" } else { "images" },
+        if report.recorded {
+            "Portcove recorded what it found. "
+        } else {
+            "These results were not recorded; run the check again to record them. "
+        }
     )
 }
 
@@ -289,7 +298,7 @@ mod tests {
             (
                 "artwork steamgriddb check-listings",
                 "artwork.steamgriddb.check-listings",
-                crate::startup::StartupMode::ReadOnly,
+                crate::startup::StartupMode::Recovering,
             ),
         ] {
             let parsed = Cli::try_parse_from(
@@ -431,7 +440,7 @@ mod tests {
         assert!(text.contains("no longer listed, and SteamGridDB no longer serves the file"));
         assert!(text.contains("no longer listed, but SteamGridDB still serves the file"));
         assert!(text.contains("not confirmed (SteamGridDB did not find the game)"));
-        assert!(text.contains("Every image, credit and choice was kept"));
+        assert!(text.contains("Portcove recorded what it found. Nothing was removed"));
         assert!(text.contains("again in 30 seconds"));
         assert!(text.starts_with("SteamGridDB listing check: 4 images"));
         let one = |stopped| {
@@ -450,6 +459,21 @@ mod tests {
             })
         };
         assert!(one(None).starts_with("SteamGridDB listing check: 1 image\n"));
+        let mut unrecorded = SteamGridDbListingReport {
+            checked_at: 0,
+            images: vec![image(
+                6,
+                SteamGridDbListingResult::NotListed,
+                true,
+                SteamGridDbSourceStatus::Served,
+            )],
+            stopped: None,
+            recorded: false,
+        };
+        unrecorded.images[0].not_listed_since = Some(86_400);
+        let text = listing_report(&unrecorded);
+        assert!(text.contains("first noticed missing 1970-01-02T00:00:00Z"));
+        assert!(text.contains("These results were not recorded"));
         assert!(one(Some(SteamGridDbCheckStop::KeyRejected)).contains("set-key"));
         assert!(one(Some(SteamGridDbCheckStop::Unavailable)).contains("could not be reached"));
         assert!(

@@ -65,11 +65,12 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ArtworkCommand::Steamgriddb { command } => match command {
                 SteamGridDbCommand::Status
                 | SteamGridDbCommand::Search { .. }
-                | SteamGridDbCommand::Candidates { .. }
-                | SteamGridDbCommand::CheckListings => ReadOnly,
+                | SteamGridDbCommand::Candidates { .. } => ReadOnly,
+                // The check records listing evidence in the library.
                 SteamGridDbCommand::SetKey { .. }
                 | SteamGridDbCommand::ClearKey
-                | SteamGridDbCommand::Choose { .. } => Recovering,
+                | SteamGridDbCommand::Choose { .. }
+                | SteamGridDbCommand::CheckListings => Recovering,
             },
             ArtworkCommand::Import { .. }
             | ArtworkCommand::Reset { .. }
@@ -449,6 +450,7 @@ mod tests {
             "artwork steamgriddb set-key --stdin",
             "artwork steamgriddb clear-key",
             "artwork steamgriddb choose p --game 1 --candidate 2",
+            "artwork steamgriddb check-listings",
             "auth login",
             "auth set-token --stdin",
             "auth logout",

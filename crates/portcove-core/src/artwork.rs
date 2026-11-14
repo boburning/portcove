@@ -183,6 +183,23 @@ pub struct ArtworkState {
     pub generated_fallback: GeneratedArtworkFallback,
     /// Provider credits for the selected image; empty for a purely local import.
     pub attribution: Vec<ArtworkAttribution>,
+    /// Recorded listing evidence for the credited images; empty until checked.
+    pub provider_listing: Vec<ArtworkProviderListing>,
+}
+
+/// Recorded evidence of whether a provider still lists a credited image. It is
+/// an observation, not an action: nothing is removed because of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkProviderListing {
+    pub provider: ArtworkProvider,
+    pub asset_id: u64,
+    /// When a check or a choice last established this evidence.
+    pub last_checked_at: i64,
+    pub last_result: steamgriddb::SteamGridDbListingResult,
+    /// When a verified listing first lacked the image; cleared only when it is
+    /// seen listed again.
+    pub not_listed_since: Option<i64>,
 }
 
 /// The destination role a provider image is chosen for in each local slot.
@@ -362,6 +379,12 @@ impl PortcoveService {
             Some(asset) => crate::artwork_store::attributions(&transaction, &asset.sha256)?,
             None => Vec::new(),
         };
+        let provider_listing = match &selection {
+            Some(asset) => {
+                crate::artwork_store::asset_listing_evidence(&transaction, &asset.sha256)?
+            }
+            None => Vec::new(),
+        };
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
@@ -403,6 +426,7 @@ impl PortcoveService {
             resolved_source,
             generated_fallback,
             attribution,
+            provider_listing,
         })
     }
 

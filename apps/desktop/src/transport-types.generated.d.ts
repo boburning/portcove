@@ -264,6 +264,29 @@ export type DestinationArtworkRole = "portrait_cover" | "landscape_cover" | "her
 export type ArtworkAvailability = "fallback" | "available" | "unavailable";
 export type ArtworkSlot = ("cover" | "detail") | "landscape";
 /**
+ * Whether SteamGridDB's own listing still includes a stored image.
+ */
+export type SteamGridDbListingResult =
+  | {
+      status: "listed";
+    }
+  | {
+      status: "not_listed";
+    }
+  | {
+      reason: SteamGridDbUnknownReason;
+      status: "unknown";
+    };
+export type SteamGridDbUnknownReason =
+  | "incomplete_listing"
+  | "too_many_images"
+  | "game_not_found"
+  | "empty_listing"
+  | "request_limit"
+  | "check_stopped"
+  | "unavailable"
+  | "invalid_response";
+/**
  * The source core resolves for one slot before a client attempts to transport
  * or render it. A client can still display the generated fallback if a
  * resolved image cannot be retrieved, decoded or presented safely.
@@ -953,21 +976,9 @@ export type SourceReuseCompatibility = "listed_identity" | "potential" | "incomp
 export type OutputSteamgriddbCandidates = SteamGridDbCandidate[];
 export type OutputSteamgriddbGames = SteamGridDbGame[];
 /**
- * Whether SteamGridDB's own listing still includes a stored image.
- */
-export type SteamGridDbListingStatus = "listed" | "not_listed" | "unknown";
-/**
  * What SteamGridDB's image server answered for the stored source URL, without the key.
  */
 export type SteamGridDbSourceStatus = "not_checked" | "served" | "gone" | "unknown";
-export type SteamGridDbUnknownReason =
-  | "incomplete_listing"
-  | "too_many_images"
-  | "game_not_found"
-  | "request_limit"
-  | "check_stopped"
-  | "unavailable"
-  | "invalid_response";
 /**
  * Why a check ended before every group was read.
  */
@@ -981,6 +992,12 @@ export type SteamGridDbCheckStop =
     }
   | {
       reason: "unavailable";
+    }
+  | {
+      reason: "time_limit";
+    }
+  | {
+      reason: "cancelled";
     };
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
 export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
@@ -1876,6 +1893,10 @@ export interface OutputArtworkState {
   availability: ArtworkAvailability;
   choice: ArtworkChoice;
   generated_fallback: GeneratedArtworkFallback;
+  /**
+   * Recorded listing evidence for the credited images; empty until checked.
+   */
+  provider_listing: ArtworkProviderListing[];
   reason: string | null;
   resolved_source: ArtworkResolvedSource;
   selection: LocalArtworkAsset | null;
@@ -1912,6 +1933,24 @@ export interface GeneratedArtworkFallback {
   initials: string;
   palette_index: number;
   style_version: number;
+}
+/**
+ * Recorded evidence of whether a provider still lists a credited image. It is
+ * an observation, not an action: nothing is removed because of it.
+ */
+export interface ArtworkProviderListing {
+  asset_id: number;
+  /**
+   * When a check or a choice last established this evidence.
+   */
+  last_checked_at: number;
+  last_result: SteamGridDbListingResult;
+  /**
+   * When a verified listing first lacked the image; cleared only when it is
+   * seen listed again.
+   */
+  not_listed_since: number | null;
+  provider: ArtworkProvider;
 }
 /**
  * Maintainer-reviewed catalog mapping. These public IDs never contain Twitch
@@ -5746,20 +5785,35 @@ export interface OutputSteamgriddbKeyStatus {
   configured: boolean;
   [k: string]: unknown;
 }
-/**
- * Report only: nothing in the library, its files or Steam changes.
- */
 export interface OutputSteamgriddbListingReport {
   checked_at: number;
   images: SteamGridDbImageCheck[];
+  /**
+   * Whether these results were recorded in the library. A cancelled check, or
+   * one whose recording failed, still reports what it saw.
+   */
+  recorded: boolean;
   stopped: SteamGridDbCheckStop | null;
 }
 export interface SteamGridDbImageCheck {
   asset_sha256: string;
+  /**
+   * Whether this run requested the image's listing and reached a conclusion
+   * other than running out of budget; images not reached are `false`.
+   */
+  attempted: boolean;
   attribution: ArtworkAttribution;
-  listing: SteamGridDbListingStatus;
+  listing: SteamGridDbListingResult;
+  /**
+   * The `total` SteamGridDB reported for the image's listing, when one was read.
+   */
+  listing_total: number | null;
+  /**
+   * When a verified listing first lacked this image, as recorded in the
+   * library after this check; cleared only by a later observed listing.
+   */
+  not_listed_since: number | null;
   source: SteamGridDbSourceStatus;
-  unknown_reason: SteamGridDbUnknownReason | null;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

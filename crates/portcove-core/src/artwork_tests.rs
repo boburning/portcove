@@ -3073,6 +3073,17 @@ fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
     assert!(report.recorded);
     let first_absence = report.images[0].not_listed_since.unwrap();
     assert_eq!(stored(&service).not_listed_since, Some(first_absence));
+    // The artwork state shows the evidence for the selected image.
+    let state = service
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(state.provider_listing.len(), 1);
+    assert_eq!(state.provider_listing[0].asset_id, 7);
+    assert_eq!(state.provider_listing[0].last_result, Listing::NotListed);
+    assert_eq!(
+        state.provider_listing[0].not_listed_since,
+        Some(first_absence)
+    );
 
     // Unattempted images and cancelled checks change nothing.
     let before = stored(&service);
@@ -3196,13 +3207,7 @@ fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record
     ));
     // A check that started from an older state is never applied.
     assert!(!observe("listed", None, None, first_checked, 1_500));
-    assert!(observe(
-        "not_listed",
-        None,
-        Some("unknown"),
-        Some(2),
-        2_000
-    ));
+    assert!(observe("not_listed", None, Some("unknown"), Some(2), 2_000));
     let row = rows(&connection).remove(0);
     assert_eq!(row.not_listed_since, Some(1_000));
     assert_eq!(row.last_source_status.as_deref(), Some("gone"));
