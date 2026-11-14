@@ -3801,7 +3801,7 @@
         "$ref": "#/$defs/GeneratedArtworkFallback"
       },
       "provider_listing": {
-        "description": "Recorded listing evidence for the credited images; empty until checked.",
+        "description": "Recorded listing evidence for the credited images; empty until an image\nis chosen from a provider or checked.",
         "items": {
           "$ref": "#/$defs/ArtworkProviderListing"
         },
