@@ -159,7 +159,10 @@ The player adds writers that v1.0.5 does not have:
   `userdata/<account>/config/shortcuts.vdf` names this game or its executable,
   it copies the package's `steam_art/` pictures into that account's
   `config/grid` folder, which is in Steam's folder, not Portcove's. It never
-  replaces an existing file.
+  replaces an existing file. Its match (`src/steam_art.cpp` 246–247) also
+  picks Portcove's own Steam shortcut for this game, whose name and launch
+  options contain `snap64`, so it would fill the same grid slots that
+  Portcove's Steam artwork fills.
 - **Steam marker:** after writing a picture, it appends to
   `steam_art_done.txt` in the data folder.
 - **Session mark:** `src/mod_installer.cpp` keeps `snap64.running` in the data
@@ -201,10 +204,20 @@ write. The definition now sets `SNAP_NO_STEAM_ART=1` through
   The only effect is the player's start-up question about mods.
 - **Outside Portcove:** the Linux shader-cache fallback can use
   `XDG_CACHE_HOME`. That is a disposable Mesa shader cache that Portcove does
-  not own.
+  not own. Before testing it, the fallback also tries to create the folder
+  that `MESA_SHADER_CACHE_DIR` names (`src/main.cpp` 1636–1640 and 1658),
+  usually Steam's shader cache, which Mesa would create anyway.
+- **Portcove's Steam artwork:** with the switch, new installs no longer put
+  upstream pictures into the grid slots of Portcove's own Steam shortcut.
+  Copies that already ran v1.1.x without the switch may have left upstream
+  pictures there. Portcove did not write them, so it treats them as the
+  player's art and leaves them alone.
 
 Updating an installed v1.0.5 copy to v1.1.7 records today's definition, with
-the switch, for the new version. The installed v1.0.5 copy keeps the
+the switch, only when the update installs a fresh v1.1.7 copy. If Portcove
+finds an older v1.1.7 copy by its checksum and reuses or stages it (for
+example after a rollback to v1.0.5), that copy keeps the definition it was
+installed with, without the switch. The installed v1.0.5 copy keeps the
 definition it was installed with. A v1.1.x copy installed before this change
 keeps that earlier definition, without the switch, until a newer version
 replaces it or it is removed and installed again.

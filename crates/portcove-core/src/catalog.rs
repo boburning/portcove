@@ -7488,22 +7488,38 @@ mod tests {
             .find(|contract| contract.id == "snap64-recomp-game-source")
             .unwrap();
         // The qualified v1.0.5 package stays first; later reviewed packages
-        // are appended after it.
-        assert_eq!(contract.applicability[0].upstream_ref, "v1.0.5");
+        // are appended after it in review order.
+        let bindings = contract
+            .applicability
+            .iter()
+            .map(|binding| {
+                (
+                    binding.upstream_ref.as_str(),
+                    binding.artifact_sha256.as_deref(),
+                )
+            })
+            .collect::<Vec<_>>();
         assert_eq!(
-            contract.applicability[0].artifact_sha256.as_deref(),
-            Some("e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7")
+            bindings,
+            [
+                (
+                    "v1.0.5",
+                    Some("e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7")
+                ),
+                (
+                    "v1.1.7",
+                    Some("fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95")
+                ),
+                (
+                    "v1.1.7",
+                    Some("d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d")
+                ),
+                (
+                    "v1.1.7",
+                    Some("ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50")
+                ),
+            ]
         );
-        for sha256 in [
-            "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95",
-            "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d",
-            "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50",
-        ] {
-            assert!(contract.applicability.iter().any(|binding| {
-                binding.upstream_ref == "v1.1.7"
-                    && binding.artifact_sha256.as_deref() == Some(sha256)
-            }));
-        }
     }
 
     #[test]
