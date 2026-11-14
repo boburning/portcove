@@ -67,7 +67,7 @@ void test("SPDX producer compatibility admits the current scanner while retainin
   const producer = `Tool: syft-${pin.slice(1)}`;
   const unreviewedPatch = `Tool: syft-${version[1]}.${version[2]}.${BigInt(version[3]!) + 1n}`;
   const current = structuredClone(document);
-  for (const creator of ["Tool: syft-1.55.0", producer]) {
+  for (const creator of ["Tool: syft-1.55.0", "Tool: syft-1.56.0", producer]) {
     current.creationInfo.creators = [creator];
     assert.doesNotThrow(() => inspectReleaseSpdx(current));
   }

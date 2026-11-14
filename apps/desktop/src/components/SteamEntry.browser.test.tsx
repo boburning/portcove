@@ -408,6 +408,7 @@ const artworkReview: SteamArtworkReview = {
   writes_required: true,
   recovered: null,
   recovered_shortcut_change: false,
+  withdrawn_sources: [],
 };
 
 it("reviews artwork separately, keeps existing art by default and applies only the reviewed plan", async () => {
@@ -499,8 +500,9 @@ it("requests replacement only when chosen and offers removal of Portcove artwork
   expect(document.body.textContent).toContain(
     "Portcove first finished an interrupted artwork change for this profile.",
   );
+  // Only changed art remains, so the action forgets it rather than removing.
   const removeButton = [...document.body.querySelectorAll("button")].find(
-    (button) => button.textContent === "Remove Portcove artwork",
+    (button) => button.textContent === "Stop tracking changed artwork",
   );
   expect(removeButton?.disabled).toBe(true);
   expect(apply).not.toHaveBeenCalled();
@@ -561,4 +563,181 @@ it("adds a shortcut without artwork when Include artwork is cleared and reports 
   expect(document.body.textContent).toContain(
     `${port.name}: shortcut added; artwork was not completed.`,
   );
+});
+
+it("points out a Steam image whose SteamGridDB source was removed and reviews removing only it", async () => {
+  const evictedAt = 1_790_000_000;
+  const owned = {
+    ...artworkReview.roles[0]!,
+    action: "unavailable" as const,
+    destination_path: null,
+    existing_paths: ["C:\\Steam\\userdata\\12345\\config\\grid\\2147488308p.png"],
+    existing_sha256: "b".repeat(64),
+    proposed_sha256: null,
+    unavailable_reason: "selected_original_unavailable" as const,
+  };
+  const removal: SteamArtworkReview = {
+    ...artworkReview,
+    operation: { kind: "remove_owned_role", role: "portrait_cover" },
+    roles: [{ ...owned, action: "remove", forget_ownership: true }],
+    writes_required: true,
+    withdrawn_sources: [{ role: "portrait_cover", source_evicted_at: evictedAt }],
+    plan_sha256: "single-role-plan",
+  };
+  const preview = vi
+    .spyOn(desktopApi, "previewSteamArtwork")
+    .mockResolvedValueOnce({
+      ...artworkReview,
+      roles: [owned, ...artworkReview.roles.slice(1)],
+      withdrawn_sources: [{ role: "portrait_cover", source_evicted_at: evictedAt }],
+    })
+    .mockResolvedValueOnce(removal);
+  const apply = vi.spyOn(desktopApi, "applySteamArtwork").mockResolvedValue({
+    plan_sha256: removal.plan_sha256,
+    roles: removal.roles,
+    backup_paths: ["C:\\Steam\\userdata\\12345\\config\\portcove-steam-artwork-backup.png"],
+    wrote: true,
+  });
+  await root.rerender(<SteamEntryDialog port={port} generation={4} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  await click("Review artwork update");
+  expect(document.body.textContent).toContain(
+    `This Steam image came from SteamGridDB, which no longer lists it. Portcove removed its own copy on ${new Date(evictedAt * 1000).toLocaleDateString()}. Steam keeps this image until you remove it.`,
+  );
+  // Only the flagged role offers a review, named for its role.
+  const offers = [...document.body.querySelectorAll("button")].filter(
+    (button) => button.textContent === "Review removing this image",
+  );
+  expect(offers).toHaveLength(1);
+  expect(offers[0]?.getAttribute("aria-label")).toBe("Review removing this image: portrait cover");
+  await act(async () => offers[0]?.click());
+  expect(preview).toHaveBeenLastCalledWith(
+    expect.objectContaining({ operation: { kind: "remove_owned_role", role: "portrait_cover" } }),
+    4,
+  );
+  expect(document.body.textContent).toContain(
+    "Only this image is removed, and only if Portcove added it and it has not changed since.",
+  );
+  // A review already removing this role does not offer it again.
+  expect(
+    [...document.body.querySelectorAll("button")].some(
+      (button) => button.textContent === "Review removing this image",
+    ),
+  ).toBe(false);
+  const remove = [...document.body.querySelectorAll("button")].find(
+    (button) => button.textContent === "Remove portrait cover from Steam",
+  );
+  expect(remove?.dataset.variant).toBe("destructive");
+  await click("Remove portrait cover from Steam");
+  expect(apply).toHaveBeenCalledExactlyOnceWith(
+    expect.objectContaining({ operation: removal.operation }),
+    "single-role-plan",
+    4,
+  );
+  expect(document.body.textContent).toContain("Portrait cover: Removed");
+});
+
+it("never presents forgetting changed art as a removal", async () => {
+  vi.spyOn(desktopApi, "previewSteamArtwork").mockResolvedValue({
+    ...artworkReview,
+    operation: { kind: "remove_owned_role", role: "portrait_cover" },
+    roles: [
+      {
+        ...artworkReview.roles[0]!,
+        action: "preserve_modified",
+        forget_ownership: true,
+        destination_path: null,
+        proposed_sha256: null,
+      },
+    ],
+    writes_required: true,
+  });
+  vi.spyOn(desktopApi, "applySteamArtwork").mockResolvedValue({
+    plan_sha256: artworkReview.plan_sha256,
+    roles: [
+      {
+        ...artworkReview.roles[0]!,
+        action: "preserve_modified",
+        forget_ownership: true,
+      },
+    ],
+    backup_paths: [],
+    wrote: true,
+  });
+  await root.rerender(<SteamEntryDialog port={port} generation={4} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  const load = vi.spyOn(desktopApi, "previewSteamArtwork");
+  await click("Review artwork removal");
+  expect(load).toHaveBeenCalled();
+  expect(document.body.textContent).toContain(
+    "Portcove no longer recognizes this image in Steam, so nothing is removed.",
+  );
+  const button = [...document.body.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === "Stop tracking this image",
+  );
+  expect(button?.dataset.variant).toBe("primary");
+  expect(document.body.textContent).toContain(
+    "No Steam file changes. Portcove only stops tracking this image.",
+  );
+  expect(document.body.textContent).not.toContain("Only this image is removed");
+  await click("Stop tracking this image");
+  expect(document.body.textContent).toContain(
+    "Nothing was removed. Portcove no longer tracks this image.",
+  );
+});
+
+it("states single-role and all-roles outcomes when nothing is removed", async () => {
+  const single = (action: SteamArtworkReview["roles"][number]["action"], writes: boolean) => ({
+    ...artworkReview,
+    operation: { kind: "remove_owned_role" as const, role: "portrait_cover" as const },
+    roles: [{ ...artworkReview.roles[0]!, action, forget_ownership: writes }],
+    writes_required: writes,
+  });
+  const preview = vi
+    .spyOn(desktopApi, "previewSteamArtwork")
+    .mockResolvedValueOnce(single("absent", true))
+    .mockResolvedValueOnce(single("absent", false))
+    .mockResolvedValueOnce({
+      ...artworkReview,
+      operation: { kind: "remove_owned" },
+      roles: artworkReview.roles.map((role) => ({
+        ...role,
+        action: "preserve_modified" as const,
+        forget_ownership: true,
+      })),
+    });
+  vi.spyOn(desktopApi, "applySteamArtwork").mockResolvedValue({
+    plan_sha256: artworkReview.plan_sha256,
+    roles: artworkReview.roles.map((role) => ({
+      ...role,
+      action: "preserve_modified" as const,
+      forget_ownership: true,
+    })),
+    backup_paths: [],
+    wrote: true,
+  });
+  await root.rerender(<SteamEntryDialog port={port} generation={4} installed close={vi.fn()} />);
+  await input("Steam installation folder", "C:\\Steam");
+  await input("Steam profile ID", "12345");
+  await click("Review artwork removal");
+  expect(document.body.textContent).toContain(
+    "This image is no longer in Steam, so nothing is removed.",
+  );
+  await click("Check again");
+  expect(document.body.textContent).toContain(
+    "There is no Portcove image to remove for the portrait cover in this Steam profile.",
+  );
+  await click("Check again");
+  // All roles changed outside Portcove: the button only stops tracking.
+  const button = [...document.body.querySelectorAll("button")].find(
+    (candidate) => candidate.textContent === "Stop tracking changed artwork",
+  );
+  expect(button?.dataset.variant).toBe("primary");
+  await click("Stop tracking changed artwork");
+  expect(document.body.textContent).toContain(
+    "Nothing was removed. Portcove no longer tracks artwork that was changed or deleted outside Portcove.",
+  );
+  expect(preview).toHaveBeenCalledTimes(3);
 });

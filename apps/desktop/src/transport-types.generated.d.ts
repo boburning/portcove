@@ -1134,6 +1134,11 @@ export type SteamArtworkOperation =
   | {
       kind: "remove_owned";
       [k: string]: unknown;
+    }
+  | {
+      kind: "remove_owned_role";
+      role: DestinationArtworkRole;
+      [k: string]: unknown;
     };
 export type SteamClientState = "closed" | "running" | "unknown";
 export type SteamEntryChangeKind = "add" | "repair" | "remove" | "unchanged";
@@ -2559,6 +2564,13 @@ export interface SourceEdition {
 }
 export interface ReleaseSpec {
   /**
+   * GitHub accounts a maintainer reviewed and accepted as uploaders of this
+   * project's release packages, in addition to the repository owner, the
+   * project's own Actions automation and its established uploaders. Matched by
+   * numeric account ID; the login records what was reviewed.
+   */
+  accepted_uploaders?: AcceptedUploader[];
+  /**
    * Native13: the package relies on in-archive file links, which extraction writes as
    * regular copies of the files they name.
    */
@@ -2617,6 +2629,14 @@ export interface ReleaseSpec {
     "windows-x86-64"?: UserPreparedRuntimeSpec;
   };
   [k: string]: unknown;
+}
+/**
+ * One reviewed GitHub release uploader. The numeric ID is stable across login
+ * renames; a freed login re-registered by another account does not match.
+ */
+export interface AcceptedUploader {
+  id: number;
+  login: string;
 }
 export interface CuratedAcquisitionRecord {
   acquisition_evidence: CuratedEvidenceReference;
@@ -6624,6 +6644,13 @@ export interface OutputDesktopSteamArtworkReview {
   steam_client_state: SteamClientState;
   steam_root: string;
   steam_user_id: string;
+  /**
+   * Roles whose Portcove-added Steam image came from a SteamGridDB image
+   * Portcove has since removed from its library. Display only: it is not
+   * part of the reviewed plan, and removal still needs its own review.
+   * Empty when unknown.
+   */
+  withdrawn_sources: SteamArtworkWithdrawnSource[];
   writes_required: boolean;
   [k: string]: unknown;
 }
@@ -6633,6 +6660,14 @@ export interface OutputDesktopSteamArtworkReview {
 export interface SteamArtworkRecovery {
   abandoned: DestinationArtworkRole[];
   completed: DestinationArtworkRole[];
+  [k: string]: unknown;
+}
+export interface SteamArtworkWithdrawnSource {
+  role: DestinationArtworkRole;
+  /**
+   * When Portcove removed its own copy of the source image.
+   */
+  source_evicted_at: number;
   [k: string]: unknown;
 }
 export interface OutputDesktopSteamBatchReview {

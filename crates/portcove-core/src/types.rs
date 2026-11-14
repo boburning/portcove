@@ -718,6 +718,21 @@ pub struct ReleaseSpec {
     pub direct: BTreeMap<Platform, DirectReleaseSpec>,
     #[serde(default)]
     pub user_prepared: BTreeMap<Platform, UserPreparedRuntimeSpec>,
+    /// GitHub accounts a maintainer reviewed and accepted as uploaders of this
+    /// project's release packages, in addition to the repository owner, the
+    /// project's own Actions automation and its established uploaders. Matched by
+    /// numeric account ID; the login records what was reviewed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub accepted_uploaders: Vec<AcceptedUploader>,
+}
+
+/// One reviewed GitHub release uploader. The numeric ID is stable across login
+/// renames; a freed login re-registered by another account does not match.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct AcceptedUploader {
+    pub id: u64,
+    pub login: String,
 }
 
 impl ReleaseSpec {

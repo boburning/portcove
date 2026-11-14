@@ -20,6 +20,8 @@ interface RefreshWindow extends Window {
     original: typeof fetch;
     calls: string[];
     remaining: number;
+    /** Keeps failing every workspace read while the scenario captures the failure. */
+    holding: boolean;
     injected: number;
   };
   __portcoveExternalReconciliationProbe?: {
@@ -102,6 +104,7 @@ export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => 
     original,
     calls: [],
     remaining: 1,
+    holding: false,
     injected: 0,
   };
   window.fetch = function (input, ...args) {
@@ -119,7 +122,7 @@ export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => 
     const parsed = new URL(url, location.href);
     if (parsed.hostname === "ipc.localhost")
       probe.calls.push(decodeURIComponent(parsed.pathname.slice(1)));
-    if (url === target && probe.remaining-- > 0) {
+    if (url === target && (probe.holding || probe.remaining-- > 0)) {
       probe.injected++;
       return Promise.resolve(
         new Response(
@@ -382,7 +385,7 @@ export async function workspaceRefreshScenario({
     const before = await browser.findElements(By.css(".discover-game"));
     const observations: RefreshObservations = {
       injection:
-        "one synthetic get_workspace_snapshot rejection; subsequent requests use actual native IPC",
+        "synthetic get_workspace_snapshot rejections until Retry; subsequent requests use actual native IPC",
       before_cards: before.length,
     };
     try {
@@ -393,6 +396,13 @@ export async function workspaceRefreshScenario({
         until.elementLocated(By.xpath('//button[normalize-space(.)="Retry refresh"]')),
         10_000,
       );
+      // Keep the failure visible while the slow native captures run; an automatic
+      // poll would otherwise clear the banner before Retry is exercised.
+      await executeBrowserScript(browser, () => {
+        const runtime = window as RefreshWindow;
+        if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        runtime.__portcoveRefreshProbe.holding = true;
+      });
       assert.equal(await retry.getAttribute("data-slot"), "button");
       assert.equal(await retry.getAttribute("data-variant"), "outline");
       observations.failure_text = await executeBrowserScript(
@@ -428,6 +438,12 @@ export async function workspaceRefreshScenario({
         30_000,
         "Retry refresh did not become available after the failed refresh settled",
       );
+      // Release the held failure only for the retry itself.
+      await executeBrowserScript(browser, () => {
+        const runtime = window as RefreshWindow;
+        if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        runtime.__portcoveRefreshProbe.holding = false;
+      });
       await currentRetry.click();
       await browser.wait(until.stalenessOf(currentRetry), 10_000);
       await browser.wait(
@@ -447,13 +463,14 @@ export async function workspaceRefreshScenario({
         if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
         return runtime.__portcoveRefreshProbe.calls;
       });
-      assert.equal(
-        await executeBrowserScript(browser, () => {
+      // At least the first read failed; a visible-idle poll during the captures
+      // may also have failed while the failure was held.
+      assert.ok(
+        (await executeBrowserScript(browser, () => {
           const runtime = window as RefreshWindow;
           if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
           return runtime.__portcoveRefreshProbe.injected;
-        }),
-        1,
+        })) >= 1,
       );
       // The failed read and the retry read, plus any visible-idle poll (every 10 s,
       // use-workspace-data.ts) or focus refetch in between. Every command stays

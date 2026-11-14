@@ -313,7 +313,7 @@ export async function registeredSourceReuseScenario(context: Context) {
       const choiceHeading = await browser.wait(
         until.elementLocated(
           By.xpath(
-            '//*[@aria-label="Reuse saved game files"]//h3[normalize-space(.)="Choose an implementation for these files"]',
+            '//*[@aria-label="Reuse saved game files"]//h3[normalize-space(.)="Choose a port for these files"]',
           ),
         ),
         30000,

@@ -969,6 +969,10 @@ export function desktopHarnessDeadlineMs(
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
+  // Calibrated from 180 s (#4879): with its waits calibrated for the debug build,
+  // hosted selected-setup (job 132439346311) was still progressing at 161 s and the
+  // 180 s watchdog left no room for failure capture and cleanup. Harness only.
+  if (selection.selected_scenarios.includes("native-selected-setup-completion")) return 600_000;
   // Two ordinary downloads/setups, real launches, file repair and positive exit joins.
   if (selection.selected_scenarios.includes("native-registered-source-reuse")) return 1_200_000;
   if (selection.selected_scenarios.includes("native-game-first-installed-mm"))
@@ -1005,9 +1009,18 @@ export function desktopHarnessDeadlineMs(
           selection.setup_scenarios.includes("native-reviewed-backup-restore-and-delete")
         ? 10 * 60_000
         : 3 * 60_000,
+    // Calibrated from 300 s (#4879): hosted owned-handoff (run 43616138586) passed
+    // the copy and move journeys and was still in the CLI handoff when the 300 s
+    // watchdog stopped it; debug-build capability reads take 12-15 s. Harness only.
     selection.selected_scenarios.includes("native-library-move-invalidates-prior-reviews") ||
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
-      ? 300_000
+      ? 600_000
+      : 0,
+    // Calibrated from 180 s (#4879): hosted owned-sources (run 43616138586) reached
+    // its 180 s watchdog during the source journeys' native dialogs and reviews on
+    // the debug build. Harness only; inner waits are unchanged.
+    selection.selected_scenarios.includes("native-source-intake-and-discovery-dialogs")
+      ? 600_000
       : 0,
     // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
     // 76 s and interrupted recovery was still in its native cleanup confirmations
@@ -1019,6 +1032,15 @@ export function desktopHarnessDeadlineMs(
     selection.selected_scenarios.includes("native-reviewed-steam-batch-add") ||
       selection.selected_scenarios.includes("native-reviewed-steam-entry-add-and-remove")
       ? 600_000
+      : 0,
+    // Calibrated from 600 s (#4879): with the debug build's IPC, launch and reload
+    // waits calibrated, hosted owned-ready (job 132439346320) completed preparation,
+    // Try launch and two later journeys before the 600 s watchdog stopped it.
+    // Harness only; individual waits and product deadlines are unchanged.
+    executed > 8 &&
+      (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
+        selection.setup_scenarios.includes("native-preparation-review-and-play"))
+      ? 1_200_000
       : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(

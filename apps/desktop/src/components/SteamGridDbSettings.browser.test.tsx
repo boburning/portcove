@@ -239,6 +239,20 @@ it("counts only finished removals and explains kept, listed-again and held copie
     "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam.",
   );
   expect(pending.join(" ")).not.toContain("Nothing was removed");
+  // Removed or removing copies point to the game's Steam shortcut review.
+  const pointer =
+    "If Portcove added any of these images to Steam, choose the game's Steam shortcut button, then Review artwork update or Review artwork removal.";
+  expect(pending).toContain(pointer);
+  expect(summary).toContain(pointer);
+  expect(
+    listingSummary({
+      checked_at: 1,
+      images: [checked({ status: "listed" })],
+      stopped: null,
+      recorded: true,
+      ...counts,
+    }),
+  ).not.toContain(pointer);
   expect(summary).toContain("3 more copies will be removed by the next check, export or move.");
   expect(summary).toContain(
     "Portcove couldn't remove 1 copy. It is no longer shown or used. Close any program that may be using Portcove's artwork folder, then check again.",

@@ -78,6 +78,11 @@ import {
   reviewControls,
 } from "./desktop-review-controls.mts";
 
+// Calibrated from 10 s (#4879): the readiness omission appears only on the next
+// get_workspace_snapshot, which takes 6-15 s on the hosted debug build
+// (run 43616138586). Harness only.
+const READINESS_REFRESH_MS = 60_000;
+
 export async function injectActionHold(browser: WebDriver, portId: string, action: string) {
   const result = object(
     await browser.executeAsyncScript<unknown>(
@@ -558,7 +563,7 @@ export async function readinessScenario({
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
             "Can't check right now",
           ),
-        10_000,
+        READINESS_REFRESH_MS,
       );
       await revealDetailSection(browser, "Game files");
       const primary = await browser.findElement(By.css(".detail-panel .primary-actions button"));
@@ -578,7 +583,7 @@ export async function readinessScenario({
       artifacts.push(screenshot);
       await controls.click(By.css(".detail-back"));
       await controls.click(By.css(`[data-detail-origin="library:card:${port.id}:review"]`));
-      await browser.wait(until.elementLocated(By.css(".detail-panel")), 10_000);
+      await browser.wait(until.elementLocated(By.css(".detail-panel")), READINESS_REFRESH_MS);
       assert.equal(
         await browser.findElement(By.css(".detail-panel")).getAttribute("data-detail-port-id"),
         port.id,
@@ -588,7 +593,7 @@ export async function readinessScenario({
           (await browser.findElement(By.css(".detail-panel")).getText()).includes(
             "Can't check right now",
           ),
-        10_000,
+        READINESS_REFRESH_MS,
       );
       observations.after_review = command(["status", port.id]);
       assert.equal(required(observations.after_review.readiness).launchable, true);
@@ -616,13 +621,13 @@ export async function readinessScenario({
     await open(port, false);
     await browser.wait(
       until.elementLocated(By.css(".detail-panel .primary-actions button")),
-      10_000,
+      READINESS_REFRESH_MS,
     );
     await browser.wait(
       async () =>
         (await browser.findElement(By.css(".detail-panel .primary-actions button")).getText()) ===
         "Try launch",
-      10_000,
+      READINESS_REFRESH_MS,
     );
     assert.equal(
       await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),

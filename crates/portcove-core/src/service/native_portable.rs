@@ -4240,7 +4240,10 @@ mod tests {
 
     fn compatible_archive_fixture_catalog(mut port: PortDefinition, original: &[u8]) -> Catalog {
         // Controlled original bytes replace only this consumer's original identity.
-        // The real schema-3 source-policy gate and all other declarations remain.
+        // The real schema-3 source-policy gate and all other declarations remain,
+        // except a route-wide acquisition hold: these fixtures install controlled
+        // loopback releases, and the hold's own policy tests cover its refusal.
+        port.managed_acquisition_hold = None;
         let embedded = Catalog::embedded().unwrap();
         let mut document = serde_json::to_value(embedded.authoritative_document()).unwrap();
         let hash = hex::encode(Sha256::digest(original));

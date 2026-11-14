@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import {
+  harnessFrames,
   observeDesktopScenario,
   recordDesktopCheck,
   type ScenarioObservation,
@@ -2983,11 +2984,17 @@ void test("large lifecycle profiles receive a bounded profile-scale watchdog", (
     desktopHarnessDeadlineMs(
       resolveDesktopSelection({ scenarios: ["native-library-move-invalidates-prior-reviews"] }),
     ),
-    300_000,
+    600_000,
   );
   const handoff = resolveDesktopSelection({ scenarios: ["native-contextual-cli-handoff"] });
   assert.ok(handoff.setup_scenarios.includes("native-library-move-invalidates-prior-reviews"));
-  assert.equal(desktopHarnessDeadlineMs(handoff), 300_000);
+  assert.equal(desktopHarnessDeadlineMs(handoff), 600_000);
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({ scenarios: ["native-source-intake-and-discovery-dialogs"] }),
+    ),
+    600_000,
+  );
   assert.equal(desktopHarnessDeadlineMs(resolveDesktopSelection({ profile: "full" })), 1_200_000);
 });
 
@@ -3083,7 +3090,7 @@ void test("selected setup completion remains a separate Windows/Linux opt-in wit
     required(desktopScenarioById.get(id)).source,
     "desktop-selected-setup-completion-test.mts",
   );
-  assert.equal(desktopHarnessDeadlineMs(selected), 180_000);
+  assert.equal(desktopHarnessDeadlineMs(selected), 600_000);
   for (const ids of Object.values(DESKTOP_PROFILES)) assert.ok(!ids.includes(id));
   assert.throws(
     () =>
@@ -3342,4 +3349,36 @@ void test("installed MM is Windows-only standalone with two-install custody budg
       () => resolveDesktopSelection({ scenarios: [id], platform }),
       /requires Windows/u,
     );
+});
+
+void test("scenario failures name their harness call sites", async () => {
+  const failure = new Error("script timeout");
+  failure.stack = [
+    "ScriptTimeoutError: script timeout",
+    "    at Object.throwDecodedError (file:///D:/a/portcove/node_modules/selenium-webdriver/lib/error.js:521:15)",
+    "    at async clickVisible (file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-review-controls.mts:203:5)",
+    "    at async file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-preparation-test.mts:1642:5",
+    "    at async observeDesktopScenario (file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-scenario-outcomes.mts:49:5)",
+    "    at async file:///D:/a/portcove/portcove/apps/desktop/scripts/desktop-preparation-test.mts:1642:5",
+  ].join("\n");
+  assert.deepEqual(harnessFrames(failure), [
+    "desktop-review-controls.mts:203",
+    "desktop-preparation-test.mts:1642",
+  ]);
+  const records: ScenarioObservation[] = [];
+  await observeDesktopScenario(
+    () => {
+      throw failure;
+    },
+    {
+      record: (observation) => records.push(observation),
+      diagnostics: async () => {},
+      screenshot: async () => {},
+    },
+    () => 0,
+  );
+  assert.equal(
+    records[0]?.message,
+    "script timeout\nHarness frames: desktop-review-controls.mts:203 < desktop-preparation-test.mts:1642",
+  );
 });

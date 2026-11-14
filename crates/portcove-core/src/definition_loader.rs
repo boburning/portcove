@@ -50,6 +50,7 @@ pub(crate) fn validate_definition_transition(
     }
     validate_acquisition_hold_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
     validate_package_layout_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
+    validate_accepted_uploader_transition(&baseline.ports, &candidate.ports, selected_port_id)?;
 
     match (
         baseline.source_catalog.as_ref(),
@@ -126,6 +127,37 @@ fn validate_package_layout_transition(
         Ok(())
     } else {
         Err(out_of_scope("a reviewed package layout was removed"))
+    }
+}
+
+/// A selected definition may keep or narrow the reviewed release uploaders, but
+/// never accept one the baseline did not. Accepting a new uploader is a reviewed
+/// catalog change shipped with the application.
+fn validate_accepted_uploader_transition(
+    baseline: &[crate::PortDefinition],
+    candidate: &[crate::PortDefinition],
+    selected_port_id: &str,
+) -> Result<()> {
+    let accepted = |ports: &[crate::PortDefinition]| {
+        ports
+            .iter()
+            .find(|port| port.id == selected_port_id)
+            .map(|port| {
+                port.release
+                    .accepted_uploaders
+                    .iter()
+                    .map(|uploader| uploader.id)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default()
+    };
+    let baseline = accepted(baseline);
+    if accepted(candidate).iter().all(|id| baseline.contains(id)) {
+        Ok(())
+    } else {
+        Err(out_of_scope(
+            "a selected definition accepts an unreviewed release uploader",
+        ))
     }
 }
 
@@ -546,6 +578,34 @@ mod tests {
         let removed = rebuilt(&|port| port.reviewed_package_layouts.clear());
         let error = validate_definition_transition(&baseline, &removed, port_id).unwrap_err();
         assert!(error.message.contains("package layout was removed"));
+    }
+
+    #[test]
+    fn a_selected_definition_can_narrow_but_not_widen_accepted_release_uploaders() {
+        let port_id = "open-nectar-pikmin";
+        let uploader = |id: u64| crate::AcceptedUploader {
+            id,
+            login: format!("reviewed-{id}"),
+        };
+        let rebuilt = |ids: &[u64]| {
+            let mut document = Catalog::embedded().unwrap().authoritative_document();
+            let port = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == port_id)
+                .unwrap();
+            port.release.accepted_uploaders = ids.iter().copied().map(uploader).collect();
+            rebuild(document)
+        };
+        let baseline = rebuilt(&[7, 8]);
+        validate_definition_transition(&baseline, &rebuilt(&[7, 8]), port_id).unwrap();
+        validate_definition_transition(&baseline, &rebuilt(&[8]), port_id).unwrap();
+        validate_definition_transition(&baseline, &rebuilt(&[]), port_id).unwrap();
+        let error =
+            validate_definition_transition(&baseline, &rebuilt(&[7, 9]), port_id).unwrap_err();
+        assert!(error.message.contains("unreviewed release uploader"));
+        let error = validate_definition_transition(&rebuilt(&[]), &baseline, port_id).unwrap_err();
+        assert!(error.message.contains("unreviewed release uploader"));
     }
 
     #[test]

@@ -226,10 +226,13 @@ export async function removalReviewScenario({
       await assert.rejects(stat(affected), { code: "ENOENT" });
     assert.equal(transportValue("status", command(["status", port.id])).active, null);
     assert.deepEqual(await readFile(save), beforeSave);
-    assert.deepEqual(
-      transportValue("backup_inventory", command(["backup", "list", port.id])),
-      snapshots,
-    );
+    // Removal keeps every backup record. The inventory's protection and
+    // create/restore assessments describe current installations, so they
+    // legitimately change once nothing is installed.
+    const afterRemoval = transportValue("backup_inventory", command(["backup", "list", port.id]));
+    assert.equal(afterRemoval.port_id, snapshots.port_id);
+    assert.deepEqual(afterRemoval.backups, snapshots.backups);
+    assert.deepEqual(afterRemoval.problems, snapshots.problems);
     assert.deepEqual(transportValues("source", command(["source", "list"])), sources);
     assert.deepEqual(
       await Promise.all(preservedFiles.map((item) => fileIdentity(item.path))),

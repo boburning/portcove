@@ -344,6 +344,8 @@
       flex: 1 1 auto;
     }
   }
+  /* The facts sit inside the details control's outline; a pointer over a
+     plain fact opens details instead of landing on an inert label. */
   .collection-row .library-entry-chips {
     position: relative;
     z-index: 1;
@@ -351,6 +353,10 @@
     grid-row: 2;
     margin: 0;
     padding: 0;
+    pointer-events: none;
+  }
+  .collection-row .library-entry-chips :is(button, a, [tabindex]) {
+    pointer-events: auto;
   }
   @supports (grid-template-rows: subgrid) {
     .collection-row .collection-main:has(> .library-entry-chips) {

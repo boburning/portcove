@@ -19200,6 +19200,252 @@ fn main() {
         );
     }
 
+    /// Register `port`'s retained contract at a fresh artifact-addressed root
+    /// with the host program and the given files.
+    fn register_forward_install(
+        library: &Library,
+        port: &PortDefinition,
+        version: &str,
+        active: bool,
+        files: &[(&str, &[u8])],
+    ) -> InstallRecord {
+        let artifact = ArtifactIdentity {
+            asset_name: format!("{}-{version}.zip", port.id),
+            sha256: hex::encode(Sha256::digest(format!("{}:{version}", port.id))),
+            size: 4,
+        };
+        let root = library.versions_dir().join(&port.id).join(&artifact.sha256);
+        fs::create_dir_all(&root).unwrap();
+        let executable = root.join(&port.executable_hints[&Platform::current().unwrap()][0]);
+        fs::write(&executable, b"test").unwrap();
+        crate::permissions::normalize_archive_entry(&executable, false, true).unwrap();
+        for (relative, bytes) in files {
+            let path = root.join(relative);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, bytes).unwrap();
+        }
+        register_existing_test_artifact_with_port(library, port, version, &root, artifact, active)
+    }
+
+    #[tokio::test]
+    async fn sonic2_installations_before_the_disposable_replay_logs_keep_their_data_lifecycle() {
+        const ID: &str = "sonic-the-hedgehog-2-recomp";
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        if !cfg!(windows) {
+            // The Windows-only coordinate envelope cannot describe a host
+            // fixture; persistence ownership is independent of it.
+            port.windows_runtime_path_policy = None;
+        }
+        crate::test_fixture::declare_host_platform(port);
+        let current = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+        let new_port = current.port(ID).unwrap().clone();
+        assert!(crate::persistence::requires_restore_receipt(&new_port));
+        let mut old_port = new_port.clone();
+        old_port.runtime_mutable_paths.retain(|path| path != "logs");
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = register_forward_install(
+            &library,
+            &old_port,
+            "v0.8.3",
+            true,
+            &[
+                ("settings.ini", b"player settings"),
+                ("native_save_1.bin", b"player progress"),
+                (LAUNCH_MARKER, b"1"),
+            ],
+        );
+        register_forward_install(&library, &new_port, "v0.9.23", false, &[]);
+        let mut service = service_with_release(library.clone(), "v0.9.23");
+        // Declaring `logs` persistent instead would make this receipt-governed
+        // copy borrow a wider scope and hold its data lifecycle.
+        let mut persistent_logs = document.clone();
+        let port = persistent_logs
+            .ports
+            .iter_mut()
+            .find(|port| port.id == ID)
+            .unwrap();
+        port.runtime_mutable_paths.retain(|path| path != "logs");
+        port.persistent_paths.push("logs".into());
+        service.replace_catalog_for_test(
+            Catalog::from_json(&serde_json::to_string(&persistent_logs).unwrap()).unwrap(),
+        );
+        let held = service
+            .persistence_contract_for_install(&old)
+            .err()
+            .unwrap();
+        assert_eq!(held.code, crate::ErrorCode::Conflict);
+        service.replace_catalog_for_test(current);
+
+        // The new runtime-only path keeps the retained persistence contract.
+        let contract = service.persistence_contract_for_install(&old).unwrap();
+        assert_eq!(contract.port.persistent_paths, old_port.persistent_paths);
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        let user = library.user_dir(ID);
+        assert_eq!(
+            fs::read(user.join("settings.ini")).unwrap(),
+            b"player settings"
+        );
+        service.restore_retained_user_data_to(&old).unwrap();
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(backup.path.join("data/native_save_1.bin")).unwrap(),
+            b"player progress"
+        );
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.version, "v0.9.23");
+        assert_eq!(
+            fs::read(updated.path.join("native_save_1.bin")).unwrap(),
+            b"player progress"
+        );
+        // Recordings are disposable runtime output: never collected or backed up.
+        fs::create_dir_all(updated.path.join("logs")).unwrap();
+        fs::write(
+            updated.path.join("logs/sonic2-feedback.replay"),
+            b"recording",
+        )
+        .unwrap();
+        fs::write(updated.path.join(LAUNCH_MARKER), b"1").unwrap();
+        service.collect_active_user_data_if_launched(ID).unwrap();
+        assert!(!user.join("logs").exists());
+        let backup = service.create_backup(ID).unwrap();
+        assert!(!backup.path.join("data/logs").exists());
+    }
+
+    #[tokio::test]
+    async fn ape_escape_whole_mods_installation_moves_to_the_split_mod_paths() {
+        const ID: &str = "ape-escape-recompiled";
+        let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
+        let new_port = current.port(ID).unwrap().clone();
+        assert!(!crate::persistence::requires_restore_receipt(&new_port));
+        let mut old_port = new_port.clone();
+        old_port.persistent_paths = [
+            "saves",
+            "settings.toml",
+            "input.ini",
+            "keybinds.ini",
+            "disc.cfg",
+            "bios.cfg",
+            "mods",
+        ]
+        .map(String::from)
+        .to_vec();
+        old_port
+            .runtime_mutable_paths
+            .retain(|path| path != "mods/cache");
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let old = register_forward_install(
+            &library,
+            &old_port,
+            "v0.3.0",
+            true,
+            &[
+                ("saves/card1.mcd", b"memory card"),
+                (
+                    "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                    b"old default",
+                ),
+                (
+                    "mods/installed/player.mod/1.0.0/manifest.toml",
+                    b"added mod",
+                ),
+                ("mods/state.toml", b"format_version = 2\n"),
+                ("mods/texture-packs/SCUS-94423/replacements/a.png", b"pack"),
+                (LAUNCH_MARKER, b"1"),
+            ],
+        );
+        let new = register_forward_install(
+            &library,
+            &new_port,
+            "v0.5.7",
+            false,
+            &[(
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"new default",
+            )],
+        );
+        let mut service = service_with_release(library.clone(), "v0.5.7");
+        service.replace_catalog_for_test(current);
+        // The whole-mods copy keeps its retained definition and scope.
+        let contract = service.persistence_contract_for_install(&old).unwrap();
+        assert_eq!(contract.port.persistent_paths, old_port.persistent_paths);
+
+        let updated = service.update(ID, None, None, true, |_| {}).await.unwrap();
+        assert_eq!(updated.id, new.id);
+        for (relative, bytes) in [
+            ("saves/card1.mcd", b"memory card".as_slice()),
+            (
+                "mods/installed/player.mod/1.0.0/manifest.toml",
+                b"added mod",
+            ),
+            ("mods/state.toml", b"format_version = 2\n"),
+            ("mods/texture-packs/SCUS-94423/replacements/a.png", b"pack"),
+            // The new package's built-in mods are never replaced by old defaults.
+            (
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"new default",
+            ),
+        ] {
+            assert_eq!(
+                fs::read(new.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+        assert!(service.verify(ID).unwrap().valid);
+        // The old built-in mods stay in canonical data and backups only.
+        let user = library.user_dir(ID);
+        assert_eq!(
+            fs::read(user.join("mods/bundled/ape.fixture/1.0.0/manifest.toml")).unwrap(),
+            b"old default"
+        );
+        let backup = service.create_backup(ID).unwrap();
+        assert_eq!(
+            fs::read(
+                backup
+                    .path
+                    .join("data/mods/bundled/ape.fixture/1.0.0/manifest.toml")
+            )
+            .unwrap(),
+            b"old default"
+        );
+
+        // Rollback restores the whole retained tree to the old copy.
+        fs::write(
+            new.path.join("mods/state.toml"),
+            b"format_version = 2\n# new\n",
+        )
+        .unwrap();
+        fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+        let rolled_back = service.rollback(ID).unwrap();
+        assert_eq!(rolled_back.id, old.id);
+        for (relative, bytes) in [
+            ("mods/state.toml", b"format_version = 2\n# new\n".as_slice()),
+            (
+                "mods/installed/player.mod/1.0.0/manifest.toml",
+                b"added mod",
+            ),
+            (
+                "mods/bundled/ape.fixture/1.0.0/manifest.toml",
+                b"old default",
+            ),
+            ("saves/card1.mcd", b"memory card"),
+        ] {
+            assert_eq!(
+                fs::read(old.path.join(relative)).unwrap(),
+                bytes,
+                "{relative}"
+            );
+        }
+    }
+
     #[test]
     fn interrupted_activation_recovers_with_newly_admitted_retained_preferences() {
         const PORT: &str = "zelda64-recomp";

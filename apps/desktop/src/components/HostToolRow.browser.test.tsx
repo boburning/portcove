@@ -196,3 +196,21 @@ describe("host-tool feedback identity", () => {
     expect(container.textContent).not.toContain(result.message);
   });
 });
+
+describe("host-tool row reflow", () => {
+  it("keeps a missing tool's status inside a 400% interface-size column", async () => {
+    container.style.width = "164px";
+    await render({
+      ...initial,
+      id: "dolphin-tool",
+      display_name: "DolphinTool",
+      state: "missing",
+      path: null,
+      source: null,
+      purpose: "compressed GameCube validation and ISO materialization",
+    });
+    const row = container.querySelector<HTMLElement>(".host-tool-row")!;
+    expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth);
+    expect(container.scrollWidth).toBeLessThanOrEqual(164);
+  });
+});

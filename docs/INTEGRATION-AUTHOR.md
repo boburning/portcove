@@ -494,7 +494,10 @@ is no longer produced, and readers of schema 4 refuse it. Catalog defaults repor
 disposable display thumbnail exists. Missing or invalid selected originals report
 `selected_original_unavailable` while retaining the choice and provenance, as do
 originals Portcove removed after a confirmed SteamGridDB withdrawal (API 93),
-whether or not the file has been deleted yet.
+whether or not the file has been deleted yet. An external destination adapter
+learns of an eviction only through `artwork_state.evicted_at` for the current
+selection; it gets no lookup for images it copied earlier, and it never removes
+its own copies on that basis without the player's explicit review.
 Generated fallback also has no reusable original. Never stretch or destructively
 crop one role into another; originals are exported unmodified.
 

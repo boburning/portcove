@@ -339,7 +339,12 @@ export function BackupHistory({
                 data-focusable
                 data-backup-action="restore"
                 variant="outline"
-                disabled={Boolean(busy) || state === "recovery_required" || !restoreAllowed}
+                disabled={
+                  Boolean(busy) ||
+                  state === "recovery_required" ||
+                  !restoreAllowed ||
+                  backup.file_count === 0
+                }
                 onClick={(event) =>
                   setSelection({ backup, action: "restore", opener: event.currentTarget, index })
                 }

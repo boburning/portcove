@@ -477,13 +477,48 @@ where
     F: FnOnce() -> DesktopResult<T> + Send + 'static,
 {
     let active = ActiveBlockingWorker::begin()?;
-    tauri::async_runtime::spawn_blocking(move || {
+    // Debug-only correlation for stalled IPC reads. Only the owning command's
+    // function name is recorded; no arguments, paths or results.
+    let worker = NEXT_BLOCKING_WORKER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let owner = blocking_worker_owner(std::any::type_name::<F>());
+    tracing::debug!(
+        request_id = worker,
+        phase = "accepted",
+        message = format!("blocking worker queued for {owner}")
+    );
+    let queued = std::time::Instant::now();
+    let result = tauri::async_runtime::spawn_blocking(move || {
         let _active = active;
+        tracing::debug!(
+            request_id = worker,
+            phase = "start",
+            elapsed_ms = u64::try_from(queued.elapsed().as_millis()).unwrap_or(u64::MAX),
+            message = "blocking worker started"
+        );
         operation()
     })
-    .await
-    .map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
+    .await;
+    tracing::debug!(
+        request_id = worker,
+        phase = "complete",
+        success = matches!(result, Ok(Ok(_))),
+        elapsed_ms = u64::try_from(queued.elapsed().as_millis()).unwrap_or(u64::MAX),
+        message = "blocking worker completed"
+    );
+    result.map_err(|error| DesktopError::from(PortcoveError::state(error.to_string())))?
 }
+
+/// Names the command function that owns a worker closure, skipping the shared
+/// `blocking_*` wrappers, from a compiler type name.
+fn blocking_worker_owner(type_name: &str) -> &str {
+    type_name
+        .split("::{{closure}}")
+        .filter_map(|chunk| chunk.rsplit([':', '<', ' ', ',']).next())
+        .find(|name| !name.is_empty() && !name.starts_with("blocking_"))
+        .unwrap_or("unknown")
+}
+
+static NEXT_BLOCKING_WORKER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
 async fn confirm_destructive(
     app: &tauri::AppHandle,
@@ -2756,6 +2791,10 @@ where
 {
     move |invoke| {
         let label = invoke.message.webview_ref().label().to_owned();
+        tracing::debug!(
+            phase = "command",
+            message = format!("IPC command dispatched: {}", invoke.message.command())
+        );
         #[cfg(feature = "native-compatibility-qualification")]
         if label == MAIN_WINDOW_LABEL
             && webview_boundary_qualification::handles(invoke.message.command())
@@ -3223,6 +3262,30 @@ fn finish_desktop_startup(app: &tauri::AppHandle) -> StartupResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn worker_owner_names_the_command_not_the_wrapper() {
+        fn owner_of<F>(_: &F) -> &'static str {
+            blocking_worker_owner(std::any::type_name::<F>())
+        }
+        fn get_backups_like() -> &'static str {
+            let command = || ();
+            let wrapper = move || command();
+            fn blocking_service_like<F: Fn()>(operation: F) -> &'static str {
+                let worker = move || operation();
+                owner_of(&worker)
+            }
+            let _ = &wrapper;
+            blocking_service_like(command)
+        }
+        assert_eq!(get_backups_like(), "get_backups_like");
+        let direct = || ();
+        assert_eq!(
+            owner_of(&direct),
+            "worker_owner_names_the_command_not_the_wrapper"
+        );
+        assert_eq!(blocking_worker_owner("no_closure_here"), "no_closure_here");
+    }
 
     #[test]
     fn early_startup_diagnostics_distinguish_phase_without_private_error_text() {

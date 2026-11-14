@@ -528,7 +528,7 @@ export async function gameFirstInstalledMMScenario(context: MMInstalledContext) 
       await installBothImplementations();
       await libraryView();
       const group = await browser.findElement(By.css(groupSelector));
-      assert.ok((await group.getText()).includes("Choose an implementation"));
+      assert.ok((await group.getText()).includes("Choose the port to show for this game"));
       assert.equal((await group.findElements(By.css("button.library-card-play"))).length, 0);
       report.ambiguous_without_preference = true;
       const chosenDefinition = required(
