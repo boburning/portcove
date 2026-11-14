@@ -38,6 +38,11 @@ The disc-image unpacking work added the optional port fields
 not know them cannot offer or perform the unpacking, so a port that uses them
 is not usable there; the rest of the catalog is unaffected.
 
+The uploader-continuity guard added the optional release field
+`accepted_uploaders` under this rule. A reader that does not know it has no
+uploader-continuity guard, so it has nothing to relax; an independent entry
+carrying the field fails that reader's complete typed projection check.
+
 ROM patching ([#5405](https://github.com/boburning/portcove/issues/5405)) added the
 optional port field `runtime_rom_patch` and the materialization `rom-patch` under
 the same rule. An indexed definition that uses them also requires staged-source

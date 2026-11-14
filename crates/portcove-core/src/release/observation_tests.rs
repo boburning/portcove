@@ -957,6 +957,8 @@ fn dk64_windows_selector_covers_both_release_name_forms() -> Result<()> {
             browser_download_url: format!("https://example.test/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         })
         .collect();
         assert_eq!(
