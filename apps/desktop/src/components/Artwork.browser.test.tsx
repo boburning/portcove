@@ -979,7 +979,7 @@ it("states recorded SteamGridDB listing evidence, withdrawals and removals with 
     withdrawal_signal: withdrawn_at === null ? null : "gone",
   });
   const next =
-    "If a check at least a day later confirms it, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
+    "If SteamGridDB's image server reports it gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
   expect(listingEvidenceText(evidence({ status: "listed" }, null), false)).toBe(
     `Listed when last checked (${at(2_000_000)}).`,
   );

@@ -50,7 +50,8 @@ choice, revision and credit stay. The Library database moves to writer schema 59
 `artwork_provider_listing_checks.not_listed_since_server`). Library metadata schema
 10 adds `artwork.withdrawals` and `artwork.evicted_assets`; evicted originals are
 not carried, and older readers refuse it. `steamgriddb_listing_report` images gain
-`effect` (`none`, `withdrawn`, `removed` or `listed_again`) and the report gains
+`effect` (`none`, `withdrawn`, `removed` or `listed_again`), `withdrawn_at` and
+`evicted_at`, and the report gains
 `skipped`, `removed`, `removal_deferred` and `removal_failed`. `artwork_state` gains
 `evicted_at`, and each `provider_listing` entry gains `withdrawn_at` and
 `withdrawal_signal`. An evicted selection is `unavailable`, and the destination

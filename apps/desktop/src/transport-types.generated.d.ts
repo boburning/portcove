@@ -5917,6 +5917,11 @@ export interface SteamGridDbImageCheck {
    * What recording this result changed; `none` when the check was not recorded.
    */
   effect: "none" | "withdrawn" | "removed" | "listed_again";
+  /**
+   * When Portcove removed the stored copy behind this record, as recorded
+   * after this check; choosing the image again restores it.
+   */
+  evicted_at: number | null;
   listing: SteamGridDbListingResult;
   /**
    * The `total` SteamGridDB reported for the image's listing, when one was read.
@@ -5928,6 +5933,11 @@ export interface SteamGridDbImageCheck {
    */
   not_listed_since: number | null;
   source: SteamGridDbSourceStatus;
+  /**
+   * When a check confirmed this record withdrawn, as recorded after this
+   * check; cleared when it is seen listed again or chosen again.
+   */
+  withdrawn_at: number | null;
 }
 export interface OutputUpdateBatchOutcome {
   error: FailureReport | null;

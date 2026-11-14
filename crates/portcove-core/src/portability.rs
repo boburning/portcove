@@ -81,6 +81,13 @@ pub struct LibraryMetadataFile {
 }
 
 impl PortcoveService {
+    /// Finishes removing artwork copies of withdrawn SteamGridDB images before
+    /// metadata is written anywhere, and stops with a next step when a copy
+    /// cannot be deleted, because a removed original must not travel.
+    pub fn finish_pending_artwork_removals(&self) -> Result<()> {
+        crate::artwork_eviction::prepare_transfer(self.library())
+    }
+
     pub fn export_library_metadata(&self) -> Result<LibraryMetadata> {
         self.library().metadata_snapshot()
     }

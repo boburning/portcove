@@ -709,21 +709,40 @@ impl PortcoveService {
             }
             report.skipped = 0;
         }
-        if let Ok(rows) = self.library().connection().and_then(|connection| {
-            crate::artwork_store::listing_checks(&connection, ArtworkProvider::Steamgriddb)
-        }) {
-            for image in &mut report.images {
-                image.not_listed_since = rows
-                    .iter()
-                    .find(|row| {
-                        row.asset_sha256 == image.asset_sha256
-                            && row.asset_id == image.attribution.asset_id
-                    })
-                    .and_then(|row| row.not_listed_since);
-            }
+        // Each image shows the library's state after this check, recorded or
+        // not, and only from the library it was prepared for.
+        if self.library().root() == library_root {
+            let _ = self.read_back_listing_state(&mut report);
         }
         drop(single_flight);
         report
+    }
+
+    fn read_back_listing_state(
+        &self,
+        report: &mut steamgriddb::SteamGridDbListingReport,
+    ) -> Result<()> {
+        let connection = self.library().connection()?;
+        let rows = crate::artwork_store::listing_checks(&connection, ArtworkProvider::Steamgriddb)?;
+        for image in &mut report.images {
+            image.not_listed_since = rows
+                .iter()
+                .find(|row| {
+                    row.asset_sha256 == image.asset_sha256
+                        && row.asset_id == image.attribution.asset_id
+                })
+                .and_then(|row| row.not_listed_since);
+            image.withdrawn_at =
+                crate::artwork_store::asset_withdrawals(&connection, &image.asset_sha256)?
+                    .into_iter()
+                    .find(|(provider, row)| {
+                        provider == image.attribution.provider.key()
+                            && row.asset_id == image.attribution.asset_id
+                    })
+                    .map(|(_, row)| row.withdrawn_at);
+            image.evicted_at = crate::artwork_store::evicted_at(&connection, &image.asset_sha256)?;
+        }
+        Ok(())
     }
 
     /// The recording orchestration around one check, separate from the network
@@ -772,6 +791,9 @@ impl PortcoveService {
         let mut skipped = 0;
         let mut effects = vec![Effect::None; report.images.len()];
         let mut withdrawn_assets = std::collections::BTreeSet::new();
+        // An asset with a record this run could not write may still carry a
+        // withdrawal that the unwritten result would have cleared.
+        let mut unwritten_assets = std::collections::BTreeSet::new();
         for (index, image) in report.images.iter().enumerate() {
             if !image.attempted {
                 continue;
@@ -831,26 +853,34 @@ impl PortcoveService {
                         Applied::Recorded(WithdrawalChange::Unchanged) | Applied::Skipped => {}
                     }
                 }
-                Err(_) => skipped += 1,
+                Err(_) => {
+                    skipped += 1;
+                    unwritten_assets.insert(image.asset_sha256.clone());
+                }
             }
         }
         // After every record is applied, inside the same transaction: an asset
         // is evicted only when every one of its records is withdrawn now.
-        let mut evicted = std::collections::BTreeSet::new();
-        for asset in &withdrawn_assets {
+        for asset in withdrawn_assets.difference(&unwritten_assets) {
             if crate::artwork_store::evictable(&transaction, asset)? {
                 crate::artwork_store::mark_evicted(&transaction, asset, report.checked_at)?;
-                evicted.insert(asset.clone());
             }
+        }
+        // A withdrawal confirmed on an asset whose copy is removed, now or by an
+        // earlier check, reads as removed.
+        let mut removed = Vec::with_capacity(report.images.len());
+        for image in report.images.iter() {
+            removed.push(
+                crate::artwork_store::evicted_at(&transaction, &image.asset_sha256)?.is_some(),
+            );
         }
         transaction.commit()?;
         for (index, image) in report.images.iter_mut().enumerate() {
-            image.effect =
-                if effects[index] == Effect::Withdrawn && evicted.contains(&image.asset_sha256) {
-                    Effect::Removed
-                } else {
-                    effects[index]
-                };
+            image.effect = if effects[index] == Effect::Withdrawn && removed[index] {
+                Effect::Removed
+            } else {
+                effects[index]
+            };
         }
         report.skipped = skipped;
         // The markers are committed; deleting the files can only follow.

@@ -66911,7 +66911,7 @@
           },
           {
             "const": "withdrawn",
-            "description": "The image is now confirmed withdrawn: a second signal followed an\nearlier absence. The stored copy is kept, because another credit or the\nplayer's own import still stands behind it.",
+            "description": "This check confirmed the image withdrawn: a verified absence with a\nsecond signal (a `gone` answer in the same check, or an absence at least\n24 hours old). The stored copy is kept, because another credit or the\nplayer's own import still stands behind it.",
             "type": "string"
           },
           {
@@ -67027,6 +67027,14 @@
             "$ref": "#/$defs/SteamGridDbCheckEffect",
             "description": "What recording this result changed; `none` when the check was not recorded."
           },
+          "evicted_at": {
+            "description": "When Portcove removed the stored copy behind this record, as recorded\nafter this check; choosing the image again restores it.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "listing": {
             "$ref": "#/$defs/SteamGridDbListingResult"
           },
@@ -67049,6 +67057,14 @@
           },
           "source": {
             "$ref": "#/$defs/SteamGridDbSourceStatus"
+          },
+          "withdrawn_at": {
+            "description": "When a check confirmed this record withdrawn, as recorded after this\ncheck; cleared when it is seen listed again or chosen again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
@@ -67059,7 +67075,9 @@
           "listing_total",
           "source",
           "not_listed_since",
-          "effect"
+          "effect",
+          "withdrawn_at",
+          "evicted_at"
         ],
         "type": "object"
       },

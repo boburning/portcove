@@ -434,7 +434,8 @@ export class ArtworkCache {
       const selected = value.state?.selection?.sha256;
       if (!selected || !assetSha256s.has(selected)) continue;
       const [portId, slot] = JSON.parse(key) as [string, ArtworkSlot];
-      if (this.listeners.has(key)) void this.load(portId, slot, true);
+      // A read already in flight may predate the check, so wait for it and read again.
+      if (this.listeners.has(key)) void this.refreshAfterChange(portId, slot);
       else {
         this.entries.delete(key);
         this.remoteQueued.delete(key);

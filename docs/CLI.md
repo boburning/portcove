@@ -1442,8 +1442,11 @@ generated fallback with a reason, and the choice, its revision and the credit st
 `withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
 restores the copy. A copy you imported yourself is kept and only marked withdrawn.
 
-Each image's `effect` is `none`, `withdrawn` (confirmed, copy kept), `removed`
-(confirmed and the copy removed) or `listed_again`. `skipped` counts results that
+Each image's `effect` is what this check changed: `none`, `withdrawn` (confirmed,
+copy kept), `removed` (confirmed and the copy is removed) or `listed_again`. Its
+`withdrawn_at` and `evicted_at` show the library's state after the check, so an image
+confirmed or removed earlier reads as such. A check never confirms a withdrawal while
+the computer's clock reads before 2020 or after 2199. `skipped` counts results that
 could not be written and stay unrecorded. One check deletes at most 32 copies:
 `removed` counts deletions that finished, `removal_deferred` those left for the next
 check, export or move, and `removal_failed` those another program kept open. A

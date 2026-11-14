@@ -203,20 +203,23 @@ fn image_finding(image: &SteamGridDbImageCheck) -> String {
         .not_listed_since
         .map(|since| format!("; first noticed missing {}", human::utc_time(since)))
         .unwrap_or_default();
-    let effect = match image.effect {
-        SteamGridDbCheckEffect::Removed => {
+    // The library's state after this check, so an image confirmed or removed
+    // earlier is described as it stands, not as a new finding.
+    let effect = match (image.evicted_at, image.withdrawn_at) {
+        (Some(_), _) if image.listing == Listing::Listed => {
+            ". Listed again; choose it again to restore Portcove's copy"
+        }
+        (Some(_), Some(_)) if image.effect == SteamGridDbCheckEffect::Removed => {
             ". Confirmed, so Portcove removed its copy; your choice and the credit are kept"
         }
-        SteamGridDbCheckEffect::Withdrawn => {
-            ". Confirmed; you imported this image yourself, so Portcove kept it"
+        (Some(_), _) => ". Portcove removed its copy earlier; your choice and the credit are kept",
+        (None, Some(_)) => {
+            ". Confirmed; Portcove kept its copy, because you imported this image yourself or another credit still lists it"
         }
-        SteamGridDbCheckEffect::ListedAgain => {
-            ". Listed again; if Portcove removed its copy, choose the image again to restore it"
+        (None, None) if image.listing == Listing::NotListed => {
+            ". If SteamGridDB's image server reports the file gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported it yourself"
         }
-        SteamGridDbCheckEffect::None if image.listing == Listing::NotListed => {
-            ". A check at least a day from now can confirm it"
-        }
-        SteamGridDbCheckEffect::None => "",
+        (None, None) => "",
     };
     format!(
         "{}  {} by {} (game {}): {found}{noticed}{effect}",
@@ -270,7 +273,15 @@ fn copies(count: u32) -> String {
 
 /// What the check removed, counting only deletions that finished.
 fn removal_summary(report: &SteamGridDbListingReport) -> String {
-    let mut text = if report.removed == 0 {
+    let removing = report.removal_deferred + report.removal_failed > 0
+        || report
+            .images
+            .iter()
+            .any(|image| image.effect == SteamGridDbCheckEffect::Removed);
+    let mut text = if report.removed == 0 && removing {
+        "No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
+            .to_owned()
+    } else if report.removed == 0 {
         "Nothing was removed: every image, credit and choice was kept, and nothing changed in Steam.".to_owned()
     } else {
         format!(
@@ -280,14 +291,20 @@ fn removal_summary(report: &SteamGridDbListingReport) -> String {
     };
     if report.removal_deferred > 0 {
         text.push_str(&format!(
-            "\n{} more will be removed by the next check, export or move.",
-            copies(report.removal_deferred)
+            "\n{} more {} will be removed by the next check, export or move.",
+            report.removal_deferred,
+            if report.removal_deferred == 1 {
+                "copy"
+            } else {
+                "copies"
+            }
         ));
     }
     if report.removal_failed > 0 {
         text.push_str(&format!(
-            "\nPortcove couldn't remove {}. They are no longer shown or used.\nNext step: Close any program that may be using Portcove's artwork folder, then run the check again.",
-            copies(report.removal_failed)
+            "\nPortcove couldn't remove {}. {} no longer shown or used.\nNext step: Close any program that may be using Portcove's artwork folder, then run the check again.",
+            copies(report.removal_failed),
+            if report.removal_failed == 1 { "It is" } else { "They are" }
         ));
     }
     if report.skipped > 0 {
@@ -457,6 +474,8 @@ mod tests {
             source,
             not_listed_since: None,
             effect: SteamGridDbCheckEffect::None,
+            withdrawn_at: None,
+            evicted_at: None,
         };
         let text = listing_report(&SteamGridDbListingReport {
             checked_at: 0,
@@ -535,12 +554,14 @@ mod tests {
         unrecorded.images[0].not_listed_since = Some(86_400);
         let text = listing_report(&unrecorded);
         assert!(text.contains("first noticed missing 1970-01-02T00:00:00Z"));
-        assert!(text.contains("A check at least a day from now can confirm it"));
+        assert!(text.contains("or a check at least a day later still finds it missing"));
         assert!(text.contains("These results were not recorded"));
         // Confirmed withdrawals: only finished removals are counted as removed.
         let mut removed = unrecorded.clone();
         removed.recorded = true;
         removed.images[0].effect = SteamGridDbCheckEffect::Removed;
+        removed.images[0].withdrawn_at = Some(5);
+        removed.images[0].evicted_at = Some(5);
         removed.images.push(image(
             7,
             SteamGridDbListingResult::NotListed,
@@ -548,6 +569,7 @@ mod tests {
             SteamGridDbSourceStatus::Gone,
         ));
         removed.images[1].effect = SteamGridDbCheckEffect::Withdrawn;
+        removed.images[1].withdrawn_at = Some(5);
         removed.images.push(image(
             8,
             SteamGridDbListingResult::Listed,
@@ -555,16 +577,28 @@ mod tests {
             SteamGridDbSourceStatus::NotChecked,
         ));
         removed.images[2].effect = SteamGridDbCheckEffect::ListedAgain;
+        removed.images[2].evicted_at = Some(5);
         removed.removed = 1;
         removed.removal_deferred = 2;
         removed.removal_failed = 1;
         removed.skipped = 1;
         let text = listing_report(&removed);
         assert!(text.contains("Confirmed, so Portcove removed its copy"));
-        assert!(text.contains("you imported this image yourself, so Portcove kept it"));
-        assert!(text.contains("Listed again; if Portcove removed its copy"));
+        assert!(text.contains(
+            "Portcove kept its copy, because you imported this image yourself or another credit still lists it"
+        ));
+        assert!(text.contains("Listed again; choose it again to restore Portcove's copy"));
         assert!(text.contains("Removed 1 copy of images SteamGridDB no longer lists"));
-        assert!(text.contains("2 copies more will be removed by the next check"));
+        assert!(text.contains("2 more copies will be removed by the next check"));
+        assert!(text.contains("couldn't remove 1 copy. It is no longer shown"));
+        // A removal that has not finished never reads as "nothing was removed".
+        removed.removed = 0;
+        let pending = listing_report(&removed);
+        assert!(pending.contains("No copy was deleted yet"));
+        assert!(!pending.contains("Nothing was removed"));
+        // An image removed by an earlier check is described as it stands.
+        removed.images[0].effect = SteamGridDbCheckEffect::None;
+        assert!(listing_report(&removed).contains("Portcove removed its copy earlier"));
         assert!(text.contains("couldn't remove 1 copy"));
         assert!(text.contains("1 result could not be recorded"));
         assert!(!text.contains("Nothing was removed"));

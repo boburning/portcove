@@ -81,22 +81,29 @@ export function listingSummary(report: SteamGridDbListingReport): string[] {
   const listedAgain = report.images.filter((image) => image.effect === "listed_again").length;
   if (kept > 0)
     lines.push(
-      `${plural(kept, "image is", "images are")} confirmed removed from SteamGridDB. You imported ${kept === 1 ? "it" : "them"} yourself, so Portcove kept ${kept === 1 ? "it" : "them"}.`,
+      `${plural(kept, "image is", "images are")} confirmed removed from SteamGridDB. Portcove kept ${kept === 1 ? "its copy" : "their copies"}, because you imported ${kept === 1 ? "it" : "them"} yourself or another credit still lists ${kept === 1 ? "it" : "them"}.`,
     );
   if (listedAgain > 0)
     lines.push(
       `${plural(listedAgain, "image is", "images are")} listed again. If Portcove removed ${listedAgain === 1 ? "its copy" : "their copies"}, choose ${listedAgain === 1 ? "it" : "them"} again to restore ${listedAgain === 1 ? "it" : "them"}.`,
     );
-  const removedNothing = report.removed === 0;
-  lines.push(
-    !reached
-      ? "Nothing was checked this time. Nothing was removed."
-      : !report.recorded
-        ? "These results were not recorded. Nothing was removed; check again to record them."
-        : removedNothing
-          ? "Portcove recorded what it found. Nothing was removed."
-          : `Portcove recorded what it found and removed ${plural(report.removed, "copy", "copies")} of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.`,
-  );
+  const removing =
+    report.removal_deferred + report.removal_failed > 0 ||
+    report.images.some((image) => image.effect === "removed");
+  const removedLine = `Removed ${plural(report.removed, "copy", "copies")} of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.`;
+  if (report.removed > 0 && !reached) lines.push("Nothing new was checked this time.", removedLine);
+  else
+    lines.push(
+      !reached
+        ? "Nothing was checked this time. Nothing was removed."
+        : !report.recorded
+          ? "These results were not recorded. Nothing was removed; check again to record them."
+          : report.removed > 0
+            ? `Portcove recorded what it found. ${removedLine}`
+            : removing
+              ? "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam."
+              : "Portcove recorded what it found. Nothing was removed.",
+    );
   if (report.removal_deferred > 0)
     lines.push(
       `${plural(report.removal_deferred, "more copy", "more copies")} will be removed by the next check, export or move.`,
@@ -273,10 +280,11 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
           </Button>
           <p className="text-[length:var(--text-sm)] text-[var(--color-text-muted)]">
             Checks whether SteamGridDB still lists the images you chose from it and records what it
-            finds. If a later check confirms that SteamGridDB removed an image, Portcove removes its
-            copy unless you imported the image yourself; your choice and the credit are kept, and
-            nothing changes in Steam. A check takes up to three minutes and starts with the images
-            checked longest ago.
+            finds. When SteamGridDB no longer lists an image and its image server reports the file
+            gone, or a check at least a day later still finds it missing, Portcove removes its copy
+            unless you imported the image yourself; your choice and the credit are kept, and nothing
+            changes in Steam. A check takes up to three minutes and starts with the images checked
+            longest ago.
           </p>
           {summary && (
             <div role="status">

@@ -414,7 +414,7 @@ export function listingEvidenceText(
       ? `Listed again when last checked (${checked}). Choose it again to restore Portcove's copy.`
       : `Listed when last checked (${checked}).`;
   const next =
-    "If a check at least a day later confirms it, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
+    "If SteamGridDB's image server reports it gone, or a check at least a day later still finds it missing, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
   if (evidence.last_result.status === "not_listed")
     return `Not in SteamGridDB's list when last checked (${checked}). First noticed ${since ?? checked}. ${next}`;
   return since

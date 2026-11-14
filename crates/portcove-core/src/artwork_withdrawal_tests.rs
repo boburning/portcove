@@ -432,24 +432,227 @@ fn evicted_artwork_moves_and_imports_without_its_original() {
     assert_eq!(restored.availability, ArtworkAvailability::Available);
 }
 
+/// `count` provider-only assets of the largest allowed size, each with one
+/// SteamGridDB record; the first `evicted` of them carry the eviction marker.
+fn full_size_provider_assets(count: usize, evicted: usize) -> crate::ArtworkMetadata {
+    let mut metadata = crate::ArtworkMetadata::default();
+    for index in 0..count {
+        let sha = format!("{index:064x}");
+        metadata.assets.push(crate::LocalArtworkAsset {
+            sha256: sha.clone(),
+            original_name: format!("steamgriddb-{}.png", index + 1),
+            format: crate::ArtworkImageFormat::Png,
+            byte_size: crate::artwork_image::MAX_ORIGINAL_BYTES,
+            width: 600,
+            height: 900,
+            imported_at: 1_790_000_000,
+        });
+        metadata.providers.push(crate::ArtworkProviderRecord {
+            asset_sha256: sha.clone(),
+            attribution: crate::ArtworkAttribution {
+                provider: Steamgriddb,
+                asset_id: index as u64 + 1,
+                game_id: 42,
+                role: Role::PortraitCover,
+                author_name: "Artist".into(),
+                author_steam64: None,
+                source_url: format!("https://cdn2.steamgriddb.com/grid/{}.png", index + 1),
+                fetched_at: 1_790_000_000,
+            },
+        });
+        metadata.provider_only_assets.push(sha.clone());
+        if index < evicted {
+            metadata.withdrawals.push(crate::ArtworkWithdrawalRecord {
+                asset_sha256: sha.clone(),
+                provider: Steamgriddb,
+                asset_id: index as u64 + 1,
+                withdrawn_at: 1_790_000_000,
+                signal: crate::ArtworkWithdrawalSignal::Gone,
+            });
+            metadata.evicted_assets.push(crate::ArtworkEvictedAsset {
+                asset_sha256: sha,
+                evicted_at: 1_790_000_000,
+            });
+        }
+    }
+    metadata
+}
+
 #[test]
-fn removed_originals_no_longer_count_against_storage() {
+fn removed_originals_no_longer_count_against_storage_or_the_transfer_limit() {
+    // 65 full-size images exceed the 1 GiB limit by one image.
+    let over = full_size_provider_assets(65, 0);
+    assert!(crate::artwork_store::validate_metadata_with(&over, |_| Ok(())).is_err());
+    // With one copy removed, the same metadata moves and imports.
+    let within = full_size_provider_assets(65, 1);
+    crate::artwork_store::validate_metadata_with(&within, |_| Ok(())).unwrap();
+
+    // The live store applies the same rule when a new image is added.
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let mut connection = service.library().connection().unwrap();
+    let transaction = connection.transaction().unwrap();
+    crate::artwork_store::restore(&transaction, &full_size_provider_assets(64, 0)).unwrap();
+    let proposed = crate::LocalArtworkAsset {
+        sha256: "f".repeat(64),
+        original_name: "cover.png".into(),
+        format: crate::ArtworkImageFormat::Png,
+        byte_size: 1,
+        width: 1,
+        height: 1,
+        imported_at: 1_790_000_000,
+    };
+    assert_eq!(
+        crate::artwork_store::check_capacity(&transaction, &proposed)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let first = format!("{:064x}", 0);
+    crate::artwork_store::mark_evicted(&transaction, &first, 1_790_000_000).unwrap();
+    crate::artwork_store::check_capacity(&transaction, &proposed).unwrap();
+    // Restoring the removed image is checked like a new one: with the other
+    // slot now taken by the new image it no longer fits.
+    crate::artwork_store::write_asset(&transaction, &proposed).unwrap();
+    let removed = within.assets[0].clone();
+    assert!(crate::artwork_store::check_capacity(&transaction, &removed).is_err());
+}
+
+#[test]
+fn every_credit_must_be_withdrawn_before_a_copy_is_removed() {
     let temp = tempfile::tempdir().unwrap();
     let service = open_service(&temp.path().join("library"));
     let chosen = choose_provider(&service, 0);
-    let asset = chosen.selection.unwrap();
-    absent(&service, Source::Gone);
-    let connection = service.library().connection().unwrap();
-    let (stored, live): (u64, u64) = connection
-        .query_row(
-            "SELECT COALESCE(SUM(byte_size),0),COALESCE(SUM(CASE WHEN sha256 IN (SELECT asset_sha256 FROM artwork_evicted_assets) THEN 0 ELSE byte_size END),0) FROM artwork_assets",
-            [],
-            |row| Ok((row.get(0)?, row.get(1)?)),
+    let sha = chosen.selection.clone().unwrap().sha256;
+    // The same image chosen again under a second SteamGridDB ID adds a credit.
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let second = service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                9,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            chosen.choice.revision,
         )
         .unwrap();
-    assert_eq!((stored, live), (asset.byte_size, 0));
-    // Restoring is checked like a new import, and fits.
-    crate::artwork_store::check_capacity(&connection, &asset).unwrap();
+    assert_eq!(second.selection.unwrap().sha256, sha);
+    assert_eq!(second.attribution.len(), 2);
+    let check = |gone: &[u64]| {
+        service
+            .run_listing_check(&|| false, |subjects, now| {
+                let mut report = prepared_report(&subjects, Listing::NotListed, true, now);
+                for image in &mut report.images {
+                    if gone.contains(&image.attribution.asset_id) {
+                        image.source = Source::Gone;
+                    }
+                }
+                Ok(report)
+            })
+            .unwrap()
+    };
+    let effect = |report: &crate::SteamGridDbListingReport, id| {
+        report
+            .images
+            .iter()
+            .find(|image| image.attribution.asset_id == id)
+            .unwrap()
+            .effect
+    };
+    // One credit confirmed: the other still stands behind the copy.
+    let report = check(&[7]);
+    assert_eq!(effect(&report, 7), Effect::Withdrawn);
+    assert_eq!(report.removed, 0);
+    assert_eq!(cover(&service).availability, ArtworkAvailability::Available);
+    let image = |report: &crate::SteamGridDbListingReport, id| {
+        report
+            .images
+            .iter()
+            .find(|image| image.attribution.asset_id == id)
+            .cloned()
+            .unwrap()
+    };
+    assert!(image(&report, 7).withdrawn_at.is_some());
+    assert_eq!(image(&report, 7).evicted_at, None);
+    // Both confirmed: the copy goes, and an earlier confirmation is not repeated.
+    let report = check(&[9]);
+    assert_eq!(effect(&report, 9), Effect::Removed);
+    assert_eq!(effect(&report, 7), Effect::None);
+    assert!(image(&report, 7).evicted_at.is_some());
+    assert_eq!(report.removed, 1);
+    assert_eq!(
+        cover(&service).availability,
+        ArtworkAvailability::Unavailable
+    );
+}
+
+#[test]
+fn importing_the_same_image_restores_a_removed_copy_as_the_players_own() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let sha = chosen.selection.clone().unwrap().sha256;
+    absent(&service, Source::Gone);
+    let source = temp.path().join("cover.png");
+    fs::write(&source, encoded(12, 24, image::ImageFormat::Png)).unwrap();
+    let restored = service
+        .import_artwork(
+            "zelda64-recomp",
+            ArtworkSlot::Cover,
+            &source,
+            cover(&service).choice.revision,
+        )
+        .unwrap();
+    assert_eq!(restored.availability, ArtworkAvailability::Available);
+    assert_eq!(restored.evicted_at, None);
+    // The credit stays, but the copy is now the player's own and is never removed.
+    assert_eq!(restored.attribution.len(), 1);
+    let connection = service.library().connection().unwrap();
+    assert!(!crate::artwork_store::evictable(&connection, &sha).unwrap());
+    let report = absent(&service, Source::Gone);
+    assert_eq!(report.removed, 0);
+    assert_eq!(cover(&service).availability, ArtworkAvailability::Available);
+}
+
+#[test]
+fn a_copy_republished_before_its_choice_was_written_is_removed_again() {
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let chosen = choose_provider(&service, 0);
+    let sha = chosen.selection.clone().unwrap().sha256;
+    absent(&service, Source::Gone);
+    // A restore that crashed after publishing, before the choice transaction:
+    // the file is back but the marker still stands.
+    let original = crate::artwork::original_path(service.library(), &sha).unwrap();
+    fs::write(&original, encoded(12, 24, image::ImageFormat::Png)).unwrap();
+    assert_eq!(
+        cover(&service).availability,
+        ArtworkAvailability::Unavailable
+    );
+    assert!(
+        service
+            .destination_artwork_bytes(
+                "zelda64-recomp",
+                Role::PortraitCover,
+                &service.library().identity_record().unwrap().id,
+                chosen.choice.revision,
+                &sha,
+            )
+            .is_err()
+    );
+    // The next check's preparation finishes the removal.
+    service
+        .run_listing_check(&|| false, |subjects, now| {
+            Ok(prepared_report(&subjects, Listing::NotListed, false, now))
+        })
+        .unwrap();
+    assert!(!original.exists());
 }
 
 #[test]

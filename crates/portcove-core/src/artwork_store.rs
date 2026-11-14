@@ -509,7 +509,9 @@ fn withdrawal_signal(
     previous: Option<&ListingCheckRow>,
     now: i64,
 ) -> Option<&'static str> {
-    if observation.result != "not_listed" {
+    // A confirmation dated by a clock outside any plausible range would make
+    // the library's metadata unreadable, so it confirms nothing.
+    if observation.result != "not_listed" || !valid_event_time(now) {
         return None;
     }
     if observation.source == Some("gone") {

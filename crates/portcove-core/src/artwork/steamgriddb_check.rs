@@ -95,6 +95,12 @@ pub struct SteamGridDbImageCheck {
     pub not_listed_since: Option<i64>,
     /// What recording this result changed; `none` when the check was not recorded.
     pub effect: SteamGridDbCheckEffect,
+    /// When a check confirmed this record withdrawn, as recorded after this
+    /// check; cleared when it is seen listed again or chosen again.
+    pub withdrawn_at: Option<i64>,
+    /// When Portcove removed the stored copy behind this record, as recorded
+    /// after this check; choosing the image again restores it.
+    pub evicted_at: Option<i64>,
 }
 
 /// What recording one image's result changed in the library.
@@ -104,8 +110,9 @@ pub enum SteamGridDbCheckEffect {
     /// Nothing beyond the recorded evidence.
     #[default]
     None,
-    /// The image is now confirmed withdrawn: a second signal followed an
-    /// earlier absence. The stored copy is kept, because another credit or the
+    /// This check confirmed the image withdrawn: a verified absence with a
+    /// second signal (a `gone` answer in the same check, or an absence at least
+    /// 24 hours old). The stored copy is kept, because another credit or the
     /// player's own import still stands behind it.
     Withdrawn,
     /// The image is confirmed withdrawn and Portcove removed its copy. The
@@ -559,6 +566,8 @@ pub(crate) fn check_listings_dated(
                 source: sources[index],
                 not_listed_since: None,
                 effect: SteamGridDbCheckEffect::None,
+                withdrawn_at: None,
+                evicted_at: None,
             })
             .collect(),
         stopped,

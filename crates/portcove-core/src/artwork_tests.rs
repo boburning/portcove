@@ -3024,6 +3024,8 @@ fn prepared_report(
                 source: crate::SteamGridDbSourceStatus::Served,
                 not_listed_since: None,
                 effect: crate::SteamGridDbCheckEffect::None,
+                withdrawn_at: None,
+                evicted_at: None,
             })
             .collect(),
         stopped: None,

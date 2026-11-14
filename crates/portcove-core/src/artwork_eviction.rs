@@ -102,7 +102,22 @@ pub(crate) fn complete_pending_evictions(
 /// without the per-check bound, and a removed original that is still present
 /// stops the transfer, because it must not travel.
 pub(crate) fn prepare_transfer(library: &Library) -> Result<()> {
-    let _guard = library.try_lock_artwork()?;
+    // Most libraries have no removed copies; they never wait for the lock.
+    if crate::artwork_store::evicted_assets(&library.connection()?)?.is_empty() {
+        return Ok(());
+    }
+    // Thumbnails and handoffs take the artwork lock briefly and routinely.
+    let mut attempts = 0;
+    let _guard = loop {
+        match library.try_lock_artwork() {
+            Ok(guard) => break guard,
+            Err(error) if error.code == crate::ErrorCode::Conflict && attempts < 8 => {
+                attempts += 1;
+                std::thread::sleep(std::time::Duration::from_millis(200));
+            }
+            Err(error) => return Err(error),
+        }
+    };
     complete_pending_evictions(library, None)?;
     let present = present_evicted_originals(library)?;
     if present.is_empty() {

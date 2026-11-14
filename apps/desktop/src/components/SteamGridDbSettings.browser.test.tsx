@@ -107,6 +107,8 @@ const checked = (
   source: "not_checked",
   not_listed_since: null,
   effect: "none",
+  withdrawn_at: null,
+  evicted_at: null,
 });
 const counts = { skipped: 0, removed: 0, removal_deferred: 0, removal_failed: 0 };
 
@@ -189,7 +191,7 @@ it("keeps one check per library across a remount and forgets it when the library
   );
   await vi.waitFor(() =>
     expect(container.textContent).toContain(
-      "Portcove recorded what it found and removed 1 copy of images SteamGridDB no longer lists.",
+      "Portcove recorded what it found. Removed 1 copy of images SteamGridDB no longer lists.",
     ),
   );
   // Another library never shows this library's result.
@@ -216,14 +218,27 @@ it("counts only finished removals and explains kept, listed-again and held copie
     removal_failed: 1,
   });
   expect(summary).toContain(
-    "1 image is confirmed removed from SteamGridDB. You imported it yourself, so Portcove kept it.",
+    "1 image is confirmed removed from SteamGridDB. Portcove kept its copy, because you imported it yourself or another credit still lists it.",
   );
   expect(summary).toContain(
     "1 image is listed again. If Portcove removed its copy, choose it again to restore it.",
   );
   expect(summary).toContain(
-    "Portcove recorded what it found and removed 2 copies of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.",
+    "Portcove recorded what it found. Removed 2 copies of images SteamGridDB no longer lists. Your choices and credits were kept, and nothing changed in Steam.",
   );
+  // A removal that has not finished never reads as nothing removed.
+  const pending = listingSummary({
+    checked_at: 1,
+    images: [{ ...checked({ status: "not_listed" }), effect: "removed" }],
+    stopped: null,
+    recorded: true,
+    ...counts,
+    removal_failed: 1,
+  });
+  expect(pending).toContain(
+    "Portcove recorded what it found. No copy was deleted yet. Your choices and credits were kept, and nothing changed in Steam.",
+  );
+  expect(pending.join(" ")).not.toContain("Nothing was removed");
   expect(summary).toContain("3 more copies will be removed by the next check, export or move.");
   expect(summary).toContain(
     "Portcove couldn't remove 1 copy. It is no longer shown or used. Close any program that may be using Portcove's artwork folder, then check again.",
