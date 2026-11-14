@@ -1800,6 +1800,12 @@ programs and folders, leaves the installed copy untouched, and uses the existing
 unsupported-acquisition surface, not a new hold authority. Platforms without a
 fingerprint keep today's behavior.
 
+For an official Linux archive with a dedicated portable-data directory, omit
+that directory from the reviewed layout. Core checks that the executable's
+declared data directory is absent or empty before comparing the package layout.
+An empty directory at the observed package root does not count as package drift.
+This combination requires native-portable version 32.
+
 macOS layouts may opt into `ignore_verified_macos_libraries` when an upstream
 archive stores patch-versioned shared libraries with execute permission. The
 classifier excludes a matching library filename only when bounded native header

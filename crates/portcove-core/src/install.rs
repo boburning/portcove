@@ -1294,7 +1294,15 @@ impl Installer {
             if grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
-            crate::package_layout::require_reviewed_layout(port, platform, &payload_root)?;
+            let portable_data_name = crate::native_portable_data::directory_name(port, platform);
+            if portable_data_name.is_none() {
+                crate::package_layout::require_reviewed_layout(
+                    port,
+                    platform,
+                    &payload_root,
+                    None,
+                )?;
+            }
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
@@ -1393,9 +1401,7 @@ impl Installer {
                 )?;
                 crate::native_temp::require_canonical_data(port, &self.library)?;
             }
-            if let Some(name) =
-                crate::native_portable_data::directory_name(port, request.qualification.platform)
-            {
+            if let Some(name) = portable_data_name {
                 if !crate::native_portable_data::matches_archive(
                     port,
                     request.qualification.platform,
@@ -1406,10 +1412,16 @@ impl Installer {
                     ));
                 }
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
-                crate::native_portable_data::require_pristine_package(
+                let data = crate::native_portable_data::require_pristine_package(
                     &payload_root,
                     &selected,
                     name,
+                )?;
+                crate::package_layout::require_reviewed_layout(
+                    port,
+                    platform,
+                    &payload_root,
+                    Some(&data),
                 )?;
             }
         }

@@ -298,6 +298,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::native_external_profile::VCMI_WINDOWS_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::PORTABLE_DATA_LAYOUT_CAPABILITY,
+        });
         supported
     }
 }

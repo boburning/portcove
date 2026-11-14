@@ -185,6 +185,12 @@ VCMI Windows ZIP. Fresh and retained indexed entries declaring it require
 version 31. The direct client uses its external Windows Documents profile.
 Core refuses the runtime-directory fallback and custom directory configuration.
 
+Native portable version 32 combines a Linux reviewed package layout with the
+existing dedicated portable-data directory. Fresh and retained entries using
+both require version 32. After validating the data directory, Core excludes an
+empty declared directory at the observed package root. Packaged data, aliases
+and links remain subject to the portable-data checks.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

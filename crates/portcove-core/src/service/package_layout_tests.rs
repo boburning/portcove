@@ -257,6 +257,7 @@ fn opensc2k_release(
     for (name, mode, bytes) in [
         ("OpenSC2K.x86_64", 0o755, elf.as_slice()),
         ("OpenSC2K.pck", 0o644, version.as_bytes()),
+        ("licenses/fixture.txt", 0o644, b"fixture".as_slice()),
     ] {
         let mut header = tar::Header::new_ustar();
         header.set_mode(mode);
