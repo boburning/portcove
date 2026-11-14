@@ -86,12 +86,17 @@ try {
     assert.equal(small.set.length, 4);
     assert.ok(small.match("../a/b/../c/d"));
     assert.ok(small.match("x/a/b/y/c/d"));
-    // Eight splits are bounded even on the old implementation (256 rows), not a large PoC.
-    const capped = new Minimatch(Array<string>(8).fill("**/../a/b").join("/"), {
-      optimizationLevel: 2,
-      braceExpandMax: 8,
-    });
-    assert.equal(capped.set.length, 8);
+    // Eight splits must stay bounded (the old implementation built 256 rows).
+    // minimatch 10 caps the expansion at braceExpandMax; minimatch 11 refuses
+    // the pattern instead. Either outcome bounds the work.
+    const eightSplits = Array<string>(8).fill("**/../a/b").join("/");
+    let capped: Minimatch | undefined;
+    try {
+      capped = new Minimatch(eightSplits, { optimizationLevel: 2, braceExpandMax: 8 });
+    } catch (error) {
+      assert.ok(error instanceof RangeError && /too many patterns/u.test(error.message), error);
+    }
+    if (capped) assert.ok(capped.set.length <= 8, `expanded to ${capped.set.length} patterns`);
 
     assert.deepEqual((await glob("**/*.txt", { cwd: root })).sort(), [
       "left/nested/two.txt",
@@ -137,7 +142,7 @@ try {
       consumer,
       globVersion,
       minimatchVersion,
-      cappedRows: capped.set.length,
+      cappedRows: capped?.set.length ?? "refused",
       reads,
     });
   }
