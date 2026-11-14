@@ -2461,8 +2461,9 @@ export function HostToolRow({
       data-host-tool-id={tool.id}
       tabIndex={-1}
     >
-      <div className="flex items-center justify-between gap-3">
-        <strong>{tool.display_name}</strong>
+      {/* Wraps the status below the name at 400% interface size. */}
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+        <strong className="min-w-0 [overflow-wrap:anywhere]">{tool.display_name}</strong>
         <span
           className={`inline-flex items-center gap-1 text-xs whitespace-nowrap ${
             tool.state === "available"

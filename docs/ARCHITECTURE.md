@@ -1541,7 +1541,17 @@ generation under that same lock; successful selection and every attempted transf
 publish the reopened state and new generation together. A transfer error can follow
 committed changes or reopening through a relocation receipt, so it also expires
 earlier reviews. Rejected overlapping handoffs leave the owned operation untouched.
-Reviews from the previous generation must be requested again. Core still owns library leases, copy verification,
+Reviews from the previous generation must be requested again. Read-only adapter
+commands never hold that lock while Core works: game setting, setting review,
+capability and mod setup reads resolve the service at their generation, release the
+lock, and reject a result whose generation changed meanwhile, so one slow read cannot
+queue every other command behind it. Applying a game setting keeps the lock for its
+whole operation. An in-process settings access lock, taken exclusively before the adapter lock by the apply and after releasing it by a setting review, and shared by those reads, keeps a read from meeting either one's exclusive port lock, which would refuse it. Like other reads, one still running after the
+two-second drain makes a switch or transfer report the library as in use and restore
+the previous state. Within one process, Core admits no new shared port reader while a
+writer waits for existing readers, so overlapping read-only views cannot keep a player
+action refused as busy; every such wait stays within the writer's two-second yield
+budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 

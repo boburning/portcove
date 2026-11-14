@@ -39,6 +39,10 @@ interface InstallContext extends ScenarioContext {
 }
 interface InstallWindow extends Window {
   __TAURI_INTERNALS__?: { convertFileSrc(command: string, protocol: string): string };
+  __portcoveBackupReadProbe?: {
+    started: number;
+    reads: { start: number; end?: number; ok?: boolean }[];
+  };
   __portcoveInstallRefreshProbe?: {
     original: typeof fetch;
     target: string;
@@ -109,6 +113,69 @@ async function waitForFixture(
     if (Date.now() >= deadline) throw new Error(message);
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
+}
+
+/** Record each page-side backup inventory IPC read without changing it. */
+async function installBackupReadProbe(browser: WebDriver) {
+  await browser.executeScript(() => {
+    const runtime = window as InstallWindow;
+    const native = runtime.__TAURI_INTERNALS__;
+    if (!native || runtime.__portcoveBackupReadProbe) return;
+    const target = native.convertFileSrc("get_backups", "ipc");
+    const probe = {
+      started: performance.now(),
+      reads: [] as { start: number; end?: number; ok?: boolean }[],
+    };
+    runtime.__portcoveBackupReadProbe = probe;
+    const original = window.fetch;
+    window.fetch = function (input, ...args) {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : typeof input === "object" && input !== null && "url" in input
+              ? String(input.url)
+              : String(input);
+      if (!url.startsWith(target)) return original.call(this, input, ...args);
+      const read: { start: number; end?: number; ok?: boolean } = { start: performance.now() };
+      probe.reads.push(read);
+      return original.call(this, input, ...args).then(
+        (response) => {
+          read.end = performance.now();
+          read.ok = response.ok;
+          return response;
+        },
+        (error: unknown) => {
+          read.end = performance.now();
+          read.ok = false;
+          throw error;
+        },
+      );
+    };
+  });
+}
+
+/** Distinguishes discarded page reads from a backup read that never settles. */
+async function backupReadDiagnostics(browser: WebDriver) {
+  return browser.executeScript(() => {
+    const probe = (window as InstallWindow).__portcoveBackupReadProbe;
+    const now = performance.now();
+    return {
+      observed_ms: probe ? Math.round(now - probe.started) : null,
+      reads: (probe?.reads ?? []).map((read) => ({
+        start_ms: probe ? Math.round(read.start - probe.started) : null,
+        duration_ms: read.end === undefined ? null : Math.round(read.end - read.start),
+        ok: read.ok ?? null,
+      })),
+      unsettled: (probe?.reads ?? []).filter((read) => read.end === undefined).length,
+      status_text: [
+        ...document.querySelectorAll(
+          '[aria-labelledby="detail-saves-and-storage"] [role="status"]',
+        ),
+      ].map((node) => node.textContent?.trim()),
+    };
+  });
 }
 
 export async function installRefreshProbe(browser: WebDriver) {
@@ -1611,6 +1678,8 @@ export async function installScenarios({
       const rollbackFrom = required(beforeRollback.active);
       const rollbackTo = required(beforeRollback.previous);
       const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
+      // Observe every page backup read the rollback triggers, not only later ones.
+      await installBackupReadProbe(browser);
       const saveBeforeRollback = await readFile(save, "utf8");
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
@@ -1670,14 +1739,56 @@ export async function installScenarios({
       );
       const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
       await revealDetailSection(browser, "Saves & backups");
-      const rollbackHistory = await browser.wait(
-        until.elementLocated(
-          By.css(
-            `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
+      let rollbackHistory: WebElement;
+      try {
+        rollbackHistory = await browser.wait(
+          until.elementLocated(
+            By.css(
+              `[aria-labelledby="detail-saves-and-storage"] [data-backup-id="${rollbackSnapshot.id}"] [data-automatic-snapshot]`,
+            ),
           ),
-        ),
-        15_000,
-      );
+          // Hosted debug get_backups reads settled after 20.6 s (job 132474930950).
+          60_000,
+        );
+      } catch (error) {
+        // Core already returned this snapshot to the harness; record whether the
+        // page kept reading (and discarding) or one read never settled.
+        // Best effort: a diagnostic failure must not replace the original timeout.
+        try {
+          const diagnostic = path.join(output, "rollback-history-backup-reads.json");
+          await writeFile(
+            diagnostic,
+            JSON.stringify(
+              {
+                core_snapshot_id: rollbackSnapshot.id,
+                probe_scope:
+                  "page get_backups reads issued from just before Restore previous version",
+                page: await backupReadDiagnostics(browser),
+                // A single fresh read while the page's reads are still pending
+                // distinguishes a stuck read from a uniformly slow one.
+                fresh_page_read: await (async () => {
+                  const started = Date.now();
+                  try {
+                    success(await invoke("get_backups", { portId: port.id }));
+                    return { ok: true, ms: Date.now() - started };
+                  } catch (failure) {
+                    return { ok: false, ms: Date.now() - started, error: String(failure) };
+                  }
+                })(),
+                page_after_fresh_read: await backupReadDiagnostics(browser),
+                activities: await invoke("get_activities"),
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(diagnostic);
+        } catch (diagnosticError) {
+          console.error(`Rollback history diagnostic unavailable: ${String(diagnosticError)}`);
+        }
+        throw error;
+      }
       await browser.wait(
         async () => (await rollbackHistory.getText()) === rollbackHistoryText,
         15_000,

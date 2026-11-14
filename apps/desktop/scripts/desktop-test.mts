@@ -33,7 +33,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, writeFile, lstat } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -1086,10 +1086,18 @@ async function refreshSettings(category?: string) {
   // WebView's refresh command can return while the previous renderer is still visible.
   // Select the category only after the new document and workspace have settled.
   await browser.wait(until.stalenessOf(previousDocument), 15_000);
-  await browser.wait(until.elementLocated(By.css('nav[aria-label="Primary navigation"]')), 15_000);
+  // Calibrated from 15 s, like the preparation reload waits: hosted job
+  // 132439346494 left the reloaded Settings document without primary navigation
+  // at 15 s while the debug build re-bootstrapped. Returns once it renders.
+  await browser.wait(
+    until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
+    60_000,
+    "Reloaded Settings did not render primary navigation",
+  );
   await browser.wait(
     () => executeBrowserScript(browser, () => document.querySelector(".loading-state") === null),
-    15_000,
+    60_000,
+    "Reloaded Settings did not finish loading",
   );
   await selectPrimaryNavigation(browser, "Settings");
   if (category) await selectSettingsCategory(category);
@@ -1154,6 +1162,29 @@ async function requireUnusedPort(number: number) {
     server.close((error) => (error ? reject(error) : resolve())),
   );
 }
+
+// Timeout calibration (docs/QUALITY.md): the WebDriver script budget bounds the
+// IPC bridge below, and on hosted Windows debug builds full reads such as
+// get_statuses and preview_steam_batch_add exceeded the session's 15 s (jobs
+// 132410024452, 132417354793). IPC calls use at least 60 s and restore the prior
+// budget; DOM scripts and product deadlines are unchanged.
+const ipcScriptBudgetMs = 60_000;
+
+async function withIpcScriptBudget<Result>(run: () => Promise<Result>): Promise<Result> {
+  const timeouts = required(browser).manage() as {
+    getTimeouts?: () => Promise<{ script?: number | null }>;
+    setTimeouts(values: { script: number }): Promise<void>;
+  };
+  // The Linux inspector protocol has no WebDriver script budget to widen.
+  if (typeof timeouts.getTimeouts !== "function") return run();
+  const prior = (await timeouts.getTimeouts()).script ?? 15_000;
+  await timeouts.setTimeouts({ script: Math.max(prior, ipcScriptBudgetMs) });
+  try {
+    return await run();
+  } finally {
+    await timeouts.setTimeouts({ script: prior });
+  }
+}
 function invoke(
   command: "get_bootstrap_status",
   args?: object | null,
@@ -1193,21 +1224,23 @@ function invoke(
 function invoke(command: string, args?: object | null): Promise<IpcReply<unknown>>;
 async function invoke(command: string, args: object | null = {}): Promise<IpcReply<unknown>> {
   const observer: MainBoundaryBrowser = required(browser);
-  const serialized = await observer.executeAsyncScript(
-    (name, input, done) => {
-      const native = (
-        window as Window & {
-          __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
-        }
-      ).__TAURI_INTERNALS__;
-      if (!native) throw new Error("Native IPC bridge is missing");
-      void native.invoke(name, input).then(
-        (value) => done(JSON.stringify({ ok: true, value })),
-        (error: unknown) => done(JSON.stringify({ ok: false, error })),
-      );
-    },
-    command,
-    args,
+  const serialized = await withIpcScriptBudget(() =>
+    observer.executeAsyncScript(
+      (name, input, done) => {
+        const native = (
+          window as Window & {
+            __TAURI_INTERNALS__?: { invoke(name: string, input: object | null): Promise<unknown> };
+          }
+        ).__TAURI_INTERNALS__;
+        if (!native) throw new Error("Native IPC bridge is missing");
+        void native.invoke(name, input).then(
+          (value) => done(JSON.stringify({ ok: true, value })),
+          (error: unknown) => done(JSON.stringify({ ok: false, error })),
+        );
+      },
+      command,
+      args,
+    ),
   );
   const parsed: unknown = JSON.parse(text(serialized));
   const reply = object(parsed);
@@ -1288,6 +1321,29 @@ async function captureScenarioDiagnostics(name: string, setup: boolean) {
     artifacts.push(report);
   } catch {
     /* Preserve the original failure if its window is unavailable. */
+  }
+  await captureIpcTrace(`${setup ? "setup-" : ""}${name}`);
+}
+
+/** Retains the latest debug IPC dispatch and blocking-worker records from the
+ * host diagnostics log, so a stalled read shows whether the backend received,
+ * started and completed it. Best effort; never replaces the scenario failure. */
+async function captureIpcTrace(name: string) {
+  if (!ipcTraceRequested) return;
+  try {
+    const root = path.join(runtimeRoot, "diagnostics");
+    const logs = (await readdir(root, { recursive: true }))
+      .filter((entry) => path.basename(entry) === "portcove-desktop.jsonl")
+      .map((entry) => path.join(root, entry));
+    const lines: string[] = [];
+    for (const log of logs)
+      for (const line of (await readFile(log, "utf8")).split("\n"))
+        if (/IPC command dispatched|blocking worker/u.test(line)) lines.push(line);
+    const trace = path.join(output, `${name}-ipc-trace.jsonl`);
+    await writeFile(trace, `${lines.slice(-200).join("\n")}\n`, { flag: "wx" });
+    artifacts.push(trace);
+  } catch (error) {
+    console.error(`Could not retain the IPC trace for ${name}: ${String(error)}`);
   }
 }
 
@@ -2171,6 +2227,8 @@ async function driverReady() {
 }
 
 let publicationRestartRoot: string | undefined;
+// Windows native runs record debug IPC timing for stalled-read diagnosis (#4879).
+const ipcTraceRequested = process.platform === "win32" && !nativeAccount && !linuxBinding;
 function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
   const environment: NodeJS.ProcessEnv = {
     ...(nativeAccount || linuxBinding ? {} : process.env),
@@ -2204,6 +2262,7 @@ function driverEnvironment(childEnvironment: NodeJS.ProcessEnv) {
     ),
     PORTCOVE_APPLICATION_UPDATE_STAGING: path.join(runtimeRoot, "application-update-state"),
     WEBVIEW2_USER_DATA_FOLDER: profile,
+    ...(ipcTraceRequested ? { PORTCOVE_DIAGNOSTICS_DEBUG: "1" } : {}),
   };
   if (externalBrowser) {
     delete environment.BROWSER;

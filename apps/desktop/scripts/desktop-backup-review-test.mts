@@ -350,11 +350,15 @@ export async function backupReviewScenario({
       selected.path,
       "backup-native-delete-confirmed",
     );
+    // Calibrated from 15 s: the review closes only after the post-delete workspace
+    // and backup refreshes settle. Hosted job 132417354795 showed the delete
+    // finished while the debug build's refresh kept the review open past 15 s.
     await browser.wait(
       async () =>
         (await browser.findElements(By.css('[aria-labelledby="backup-review-title"]'))).length ===
         0,
-      15_000,
+      60_000,
+      "The backup deletion review did not close after the deletion finished",
     );
     assert.deepEqual(
       list()

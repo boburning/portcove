@@ -336,11 +336,8 @@ void test("execution planning preserves the independently reviewed pre-change or
         assert.deepEqual(selection.selected_scenarios, row.options.scenarios);
         assert.deepEqual(selection.setup_scenarios, []);
         // Saved-folder intake adds three picker reviews and two library handoffs.
-        // Keep the original oracle immutable and the ordinary completion budget intact.
-        assert.equal(
-          desktopHarnessDeadlineMs(selection),
-          row.options.scenarios[0] === "native-saved-folder-selected-setup" ? 600_000 : 180_000,
-        );
+        // Completion was calibrated from 180 s on hosted debug-build evidence (#4879).
+        assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
         const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
         assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
         continue;
@@ -700,7 +697,7 @@ void test("selected setup completion requires identity-bound positive exit evide
   );
   assert.equal(completion.session.identityBoundSession, true);
   assert.equal(completion.session.cleanupName, "selected-setup-completion");
-  assert.equal(desktopHarnessDeadlineMs(completion.selection), 180000);
+  assert.equal(desktopHarnessDeadlineMs(completion.selection), 600000);
   const discovery = planDesktopExecution(
     resolveDesktopSelection({
       scenarios: ["native-saved-folder-selected-setup"],

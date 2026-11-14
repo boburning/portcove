@@ -498,3 +498,42 @@ it.each(["dark", "light"])(
       .toBe("collection-2");
   },
 );
+
+it("opens details from a plain fact inside a narrow row's details outline", async () => {
+  localStorage.clear();
+  await page.viewport(240, 640);
+  const snapshot = desktopApi.workspaceSnapshot;
+  vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async (generation) => {
+    const workspace = await snapshot(generation);
+    return {
+      ...workspace,
+      statuses: workspace.statuses.map((status) =>
+        status.port_id === "collection-0" ? { ...status, channel: "beta" as const } : status,
+      ),
+    };
+  });
+  await mount("dark");
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  const identity = document.querySelector<HTMLButtonElement>(
+    '.collection-row [data-detail-game-id="collection-0"]',
+  )!;
+  const fact = identity
+    .closest(".collection-main")!
+    .querySelector<HTMLElement>(".library-entry-chips .identity-chip:not(.identity-chip-button)")!;
+  expect(fact.textContent).toContain("Stable");
+  fact.scrollIntoView({ block: "center" });
+  const box = fact.getBoundingClientRect();
+  const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+  const ib = identity.getBoundingClientRect();
+  expect(
+    identity.contains(hit),
+    JSON.stringify({
+      hit: `${hit?.tagName}.${hit?.className}`,
+      pe: hit && getComputedStyle(hit).pointerEvents,
+      factPe: getComputedStyle(fact).pointerEvents,
+      fact: [box.x, box.y, box.width, box.height],
+      identity: [ib.x, ib.y, ib.width, ib.height],
+      subgrid: CSS.supports("grid-template-rows", "subgrid"),
+    }),
+  ).toBe(true);
+});
