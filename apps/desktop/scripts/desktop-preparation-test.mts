@@ -2730,9 +2730,12 @@ export async function preparationScenarios({
     await open(port, false);
     await revealDetailSection(browser, "Versions & updates");
     await clickVisible(browser, await browser.findElement(button("Check for updates")));
+    // Calibrated from 15 s: hosted job 132429767568 still had the check running
+    // (Check for updates disabled, no saved check) at 15 s on the debug build.
     const updateControl = await browser.wait(
       until.elementLocated(By.css('section[aria-label="Review game update"]')),
-      15_000,
+      60_000,
+      "Check for updates did not offer the game update review",
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
