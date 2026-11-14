@@ -387,12 +387,62 @@ The fixed source scope is:
 | PortForge               | `zamiba/portforge-mediaitems`, exact commit tree, at most eight changed `.mediaitem.json`/`.forge.json` records per run; preserve continuation and tree truncation. Never execute recipes.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | PCGamingWiki            | Normally accessible `List_of_unofficial_ports`, revision and relevant changed rows. A denied request is inaccessible, never an empty table.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | Primary/community leads | Resource-admitted bounded search pages across upstream announcements/docs, native-port/decomp/recomp and relevant game communities, including attributable developer posts. Verify worthwhile leads against primary upstreams; no expansion to whole new registries.                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| Curated community lists | Lead hints only: the Decomp Buddy finds feed, portsdr.com and the Alexbeav PS1 catalog, read at most weekly as repository URLs plus inert titles. Bounded primary metadata reads turn uncovered GitHub hints into ordinary leads; see [curated list leads](#curated-list-leads).                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 
 The additional recomp.board source reads the published
 `https://recomp.fyi/feed.xml` Atom feed, not the restricted bulk table. It validates
 the full currently published feed and retains exact upstream links, event clocks
 and provenance. A feed gap retains positive leads without advancing its
 successful clock; an expired entry is not evidence of project deletion.
+
+### Curated list leads
+
+`collect` first reads three public curated lists through the bounded discovery
+transport: the Decomp Buddy finds feed
+(`https://tanookistudios.com/decomp-buddy/finds.json`, 8 MiB cap), portsdr.com
+(`port-card` Repository links, 4 MiB cap) and the Alexbeav PS1 catalog
+(`catalog-data.js`, read as text and never executed, 1 MiB cap). Decomp Buddy's
+aggregated catalog is not read; its finds feed plus the two original lists
+cover it. Each list is read at most once per run, again seven days after its
+last complete collection, and only while twenty-two requests (the research
+reserve plus four possible redirects) and the list cap plus 1 MiB remain. A
+malformed, oversized, count-mismatched or failed list keeps its prior complete
+clock and hints, records its failed attempt, waits two days before another read
+and is recorded as a partial note. Parser diagnostics never copy list bytes. A
+failure anywhere in this step leaves the rest of `collect` running.
+
+Only HTTPS GitHub and Codeberg `owner/name` and GitLab project paths (up to four
+group segments) and a truncated inert title are retained in `leads.json` as
+hints, with the lists that named them and first/last observation clocks.
+Name-only entries are counted, never mapped. A list no longer naming a
+repository is not deletion evidence. Hints are not leads: they grant no
+admission, support, catalog or planning facts, and list text is never followed
+as instructions. Retired list ids stay readable in retained state.
+
+After list collection, at most eight uncovered GitHub hints per run, newest
+first, receive one primary `repos/{owner}/{name}` metadata read while eighteen
+requests remain. A hint is covered when a canonical issue upstream, reviewed
+catalog lineage URL or a retained lead's current repository path names it;
+covered hints are never read. Historical lead aliases do not cover a hint,
+because another repository can reuse an old path. Only an answer for the listed
+path joins the ordinary lead queue, through the same immutable-ID rules as
+search results. The discovery SDK refuses redirects, so a renamed or transferred
+path, HTTP 404/410 and HTTP 403/451 access blocks mark only that hint
+unavailable for thirty days for manual research at its new location. An answer
+for another path or a path owned by another retained ID marks it as a conflict
+for thirty days; malformed metadata or another typed client answer for that
+path is a failed read retried after one day. Admission, budget, quota,
+rate-limit, deadline, credential (HTTP 401), server (HTTP 5xx), retry-exhaustion
+and scope refusals, and any unclassified error, stop resolution and mark no hint.
+A list read refused for budget or quota stays due; other list failures wait.
+Resolved leads record `external_lists` provenance and then follow the unchanged
+ranking, research, disposition and intake guards. Non-GitHub hints remain manual
+research hints. The lead summary's `external` entry reports each list's last
+complete collection, last attempt and due state, and covered, queued, unresolved,
+unavailable, conflict, failed and non-GitHub hints; without a validated inventory,
+canonical overlap is unknown. List collection does not count toward
+quiet-rotation lead coverage. Hints live in `leads.json` and its recovery copy
+in the run journal, never in registry checkpoint sources.
 
 Collect registry entry fingerprints and exact evidence URLs/clocks cheaply
 before deep investigation. Process offered-integration safety/availability
@@ -626,7 +676,7 @@ recovery, physical envelopes or the requirement to retain confirmed identities.
 
 | `op`           | Additional message fields and completion criterion                                                                                                                                                                                                         |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `collect`      | Fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                                                                                       |
+| `collect`      | Due curated list hints and bounded hint resolution, then fixed registry snapshots, bounded manifest rotation and accessible source evidence saved. Each failure remains partial/inaccessible.                                                              |
 | `search`       | `query`: a resource-admitted bounded GitHub repository lead search. Search is a lead page and cannot prove absence or complete community coverage.                                                                                                         |
 | `discover`     | Resume complementary bounded lead searches and return retained provider identities, research evidence and exact query/page continuations. `collect` invokes it first.                                                                                      |
 | `lead-dispose` | `disposition`: investigated `evidence_id`, `outcome` (`held`, `no-change`, `canonical`), `reason`, `resume`. Canonical requires a current canonical upstream match; this never writes planning fields.                                                     |

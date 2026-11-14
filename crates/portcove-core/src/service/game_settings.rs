@@ -83,7 +83,7 @@ impl PortcoveService {
     pub fn inspect_settings_qualification_scope(&self, port_id: &str) -> Result<serde_json::Value> {
         let _ownership = self
             .library
-            .try_lock_port(port_id, "inspect-settings-qualification")?;
+            .try_read_lock_port(port_id, "inspect-settings-qualification")?;
         let context = self.settings_context_already_locked(port_id)?;
         let descriptor =
             context.port.game_settings.as_ref().ok_or_else(|| {
@@ -103,7 +103,9 @@ impl PortcoveService {
     }
 
     pub fn get_game_settings(&self, port_id: &str) -> Result<GameSettingsView> {
-        let _ownership = self.library.try_lock_port(port_id, "read-game-settings")?;
+        let _ownership = self
+            .library
+            .try_read_lock_port(port_id, "read-game-settings")?;
         let context = match self.settings_context_already_locked(port_id) {
             Ok(context) => context,
             Err(error) => {

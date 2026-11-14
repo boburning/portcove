@@ -590,6 +590,7 @@ fn inspect_with_limits_and_checkpoint(
         });
     }
     Ok(crate::SourceInspection {
+        integrity_advisories: Vec::new(),
         profile_id: profile_id.into(),
         path: path.into(),
         observed_digests: digests,

@@ -1854,7 +1854,15 @@ for (const [file, tests] of [
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],
   ],
   ["scripts/package-local.ps1", ["scripts/repository-skills.test.mts"]],
-  ["scripts/release-preflight.ps1", ["scripts/repository-skills.test.mts"]],
+  [
+    "scripts/release-preflight.ps1",
+    [
+      "scripts/repository-skills.test.mts",
+      // Both run the real preflight script under fixtures on Windows.
+      "scripts/dev-storage.test.mts",
+      "scripts/windows-helper-checks.test.mts",
+    ],
+  ],
   [
     "scripts/roadmap.mts",
     [
@@ -1964,7 +1972,13 @@ for (const [file, tests] of [
   ],
   [
     "crates/portcove-core/catalog/catalog.json",
-    [...catalogGeneratorContractTests, "scripts/repository-skills.test.mts"],
+    [
+      ...catalogGeneratorContractTests,
+      "scripts/repository-skills.test.mts",
+      // Runs the real catalog through the upstream health collector, so catalog
+      // growth that breaks it is caught on the pull request rather than on main.
+      "scripts/check-catalog-repositories.test.mts",
+    ],
   ],
   ["crates/portcove-core/src/catalog.rs", ["scripts/repository-skills.test.mts"]],
   [
@@ -2209,6 +2223,7 @@ for (const [file, tests] of [
   ].map((file): [string, string[]] => [file, roadmapContractTests]),
   [".github/pr-conventions.json", ["scripts/pr-conventions.test.mts"]],
   [".github/viteplus-problem-matcher.json", ["scripts/ci-baseline.test.mts"]],
+  [".github/release-content-accounting.json", ["scripts/release-content-scan.test.mts"]],
   [
     ".github/upstream-health-accounting.json",
     [
@@ -3314,6 +3329,9 @@ function classifyOnePath(
     selection.scopes.add("tooling");
     for (const testFile of catalogGeneratorContractTests) addNodeTest(selection, testFile);
     addNodeTest(selection, "scripts/catalog-staged-check.test.mts");
+    // The release-content accounting is validated against the listings' port IDs.
+    if (file === "crates/portcove-core/catalog/listings.json")
+      addNodeTest(selection, "scripts/release-content-scan.test.mts");
     recognized = true;
   }
 

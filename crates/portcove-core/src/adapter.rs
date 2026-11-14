@@ -562,6 +562,7 @@ impl Adapter for StandardAdapter {
                 checkpoint,
                 crate::tool_process::ToolProcessObserver::default(),
                 disc.as_ref(),
+                port.runtime_stfs_package.as_ref(),
             )?;
             checkpoint()?;
         }
@@ -818,6 +819,7 @@ pub(crate) fn prepare_runtime_source_with_tool(
         checkpoint,
         observer,
         None,
+        None,
     )
 }
 
@@ -891,9 +893,11 @@ pub(crate) fn prepare_disc_runtime_source(
         checkpoint,
         crate::tool_process::ToolProcessObserver::default(),
         Some(disc),
+        None,
     )
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn prepare_admitted_runtime_source(
     source: &SourceRecord,
     destination: &Path,
@@ -902,6 +906,7 @@ pub(crate) fn prepare_admitted_runtime_source(
     pinned_host_tool: Option<&Path>,
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
+    stfs: Option<&crate::StfsPackageProfile>,
 ) -> Result<()> {
     prepare_runtime_source_input(
         RuntimeSourceInput::Admitted(source),
@@ -912,6 +917,7 @@ pub(crate) fn prepare_admitted_runtime_source(
         checkpoint,
         observer,
         None,
+        stfs,
     )
 }
 
@@ -930,6 +936,7 @@ fn prepare_runtime_source_input(
     checkpoint: &dyn Fn() -> Result<()>,
     observer: crate::tool_process::ToolProcessObserver<'_>,
     disc: Option<&DiscUnpack<'_>>,
+    stfs: Option<&crate::StfsPackageProfile>,
 ) -> Result<()> {
     let (source, admitted_zip) = match input {
         RuntimeSourceInput::Legacy(path) => (path, None),
@@ -949,6 +956,14 @@ fn prepare_runtime_source_input(
     )?;
     if let Some(copy) = &admitted_zip {
         copy.verify_container(&expected.storage_sha256, expected.storage_size)?;
+    }
+    // A declared STFS binding is checked before reuse or extraction, so a package for
+    // another game or a title update never reaches the runtime directory.
+    if materialization == RuntimeSourceMaterialization::StfsDirectory
+        && let Some(profile) = stfs
+    {
+        let header = crate::stfs::read_header_from_path(source)?;
+        crate::stfs::check_binding(&header, std::fs::metadata(source)?.len(), profile)?;
     }
     let destination_ready = match materialization {
         RuntimeSourceMaterialization::PsxBinCue
@@ -1010,7 +1025,7 @@ fn prepare_runtime_source_input(
             materialize_ps2_iso(source, destination, pinned_host_tool, checkpoint, observer)?
         }
         RuntimeSourceMaterialization::StfsDirectory => {
-            materialize_stfs_directory(source, destination, required_hashes, checkpoint)?
+            materialize_stfs_directory(source, destination, required_hashes, stfs, checkpoint)?
         }
         RuntimeSourceMaterialization::XdvdfsDirectory
         | RuntimeSourceMaterialization::Iso9660Directory => {
@@ -1238,6 +1253,7 @@ fn materialize_stfs_directory(
     source: &Path,
     destination: &Path,
     required_hashes: &BTreeMap<String, String>,
+    binding: Option<&crate::StfsPackageProfile>,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     let parent = destination
@@ -1245,10 +1261,31 @@ fn materialize_stfs_directory(
         .ok_or_else(|| PortcoveError::state("STFS destination has no parent directory"))?;
     std::fs::create_dir_all(parent)?;
     let temporary = parent.join(format!(".portcove-stfs-{}", Uuid::new_v4()));
-    if let Err(error) = crate::stfs::extract_with_checkpoint(source, &temporary, checkpoint)
-        .and_then(|()| checkpoint())
-        .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
-        .and_then(|()| checkpoint())
+    // The policy is selected by the binding alone. With `runtime_stfs_package` the reader
+    // enforces every integrity check, and catalog validation requires that binding for
+    // any content identity. Without one, catalog validation requires the port's source
+    // profile to carry an exact whole-package SHA-256 (`accepted_sha256`), which
+    // registration verified, so integrity findings are advisories and the reader keeps
+    // only the bounds that prevent unsafe reads and writes.
+    if let Err(error) = crate::stfs::extract_with_checkpoint(
+        source,
+        &temporary,
+        binding,
+        crate::stfs::HashPolicy::Advisory,
+        checkpoint,
+    )
+    .map(|advisories| {
+        if !advisories.is_empty() {
+            tracing::warn!(
+                source = %source.display(),
+                ?advisories,
+                "STFS package extracted with hash-tree advisories; its exact digest was verified"
+            );
+        }
+    })
+    .and_then(|()| checkpoint())
+    .and_then(|()| verify_runtime_source_hashes(&temporary, required_hashes, checkpoint))
+    .and_then(|()| checkpoint())
     {
         let _ = std::fs::remove_dir_all(&temporary);
         return Err(error);
@@ -4241,32 +4278,7 @@ mod tests {
     }
 
     fn write_stfs_payload_fixture(path: &Path, payload: &[u8]) {
-        let blocks = payload.len().div_ceil(0x1000) as u32;
-        let mut package = vec![0_u8; 0xd000 + blocks as usize * 0x1000];
-        package[..4].copy_from_slice(b"LIVE");
-        package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
-        package[0x37b] = 1;
-        package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
-        package[0x395..0x399].copy_from_slice(&(blocks + 1).to_be_bytes());
-        package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
-        for block in 1..=blocks {
-            let next = if block == blocks {
-                0x00ff_ffff
-            } else {
-                block + 1
-            };
-            let slot = 0xb000 + block as usize * 24 + 20;
-            package[slot..slot + 4].copy_from_slice(&next.to_be_bytes());
-        }
-        let entry = &mut package[0xc000..0xc040];
-        entry[..11].copy_from_slice(b"default.xex");
-        entry[0x28] = 11;
-        entry[0x29..0x2c].copy_from_slice(&blocks.to_le_bytes()[..3]);
-        entry[0x2f] = 1;
-        entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
-        entry[0x34..0x38].copy_from_slice(&(payload.len() as u32).to_be_bytes());
-        package[0xd000..0xd000 + payload.len()].copy_from_slice(payload);
-        std::fs::write(path, package).unwrap();
+        std::fs::write(path, crate::stfs::fixtures::single_file(payload)).unwrap();
     }
 
     #[test]
@@ -4346,6 +4358,34 @@ mod tests {
         .unwrap();
         assert_eq!(std::fs::read(&marker).unwrap(), accepted_marker);
         assert_eq!(std::fs::read(&source).unwrap(), source_bytes);
+    }
+
+    #[test]
+    fn an_exact_digest_stfs_route_extracts_despite_a_hash_tree_advisory() {
+        let temporary = tempfile::tempdir().unwrap();
+        let source = temporary.path().join("source");
+        let mut package = crate::stfs::fixtures::single_file(b"XEX2");
+        // The level-0 entry of `default.xex` (block 1) no longer matches its block.
+        package[0xb000 + 0x18] ^= 0x01;
+        std::fs::write(&source, &package).unwrap();
+        let destination = temporary.path().join("assets");
+        let required =
+            BTreeMap::from([("default.xex".into(), hex::encode(Sha256::digest(b"XEX2")))]);
+
+        prepare_runtime_source(
+            &source,
+            &destination,
+            RuntimeSourceMaterialization::StfsDirectory,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read(destination.join("default.xex")).unwrap(),
+            b"XEX2"
+        );
+        assert_eq!(std::fs::read(&source).unwrap(), package);
     }
 
     #[test]

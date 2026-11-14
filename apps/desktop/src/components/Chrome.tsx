@@ -1997,7 +1997,7 @@ export function SettingsView(props: SettingsViewProps) {
             ) : null}
           </SettingsRow>
           <GithubSettings github={github} busy={busy} />
-          <SteamGridDbSettings />
+          <SteamGridDbSettings generation={generation} />
         </SettingsSection>
         <SettingsSection
           id="controls"

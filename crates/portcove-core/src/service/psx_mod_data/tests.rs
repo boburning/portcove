@@ -1558,13 +1558,13 @@ mod retained_scope {
         assert!(!backup.path.join("data").join(TEXTURES).exists());
         assert_eq!(fs::read(&file).unwrap(), b"older copy texture");
         let verification = service.verify(ID).unwrap();
+        assert!(!verification.valid);
         assert!(
             verification
-                .failures
+                .unknown_files
                 .iter()
-                .any(|failure| failure.contains("tex.png")),
-            "{:?}",
-            verification.failures
+                .any(|path| path.contains("tex.png")),
+            "{verification:?}"
         );
         fs::remove_file(&file).unwrap();
         assert!(service.verify(ID).unwrap().valid);

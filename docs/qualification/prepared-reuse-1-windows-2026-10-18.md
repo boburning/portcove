@@ -155,3 +155,11 @@ definition delivery remain separate from these observations and from protected
 publication authority. This three-consumer batch does not complete #136 or #1422.
 
 Retained receipts: `E:/Codex-Evidence/slice6-20261018/prepared-reuse-1-*`.
+
+## Note, November 14, 2026
+
+Since #5359 Tier 1, `verify` reports an added `debug.ini` as an unknown
+player-side file instead of a verification failure, so it no longer holds
+update, rollback, removal or backup. Launch still refuses it: `debug.ini` is on
+the reviewed loader-read list beside the executable because it enables the
+developer listener described above.

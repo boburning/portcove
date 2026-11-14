@@ -763,19 +763,36 @@ asset removes its provenance. Library metadata that carries provenance uses sche
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits.
 
-Withdrawal handling is player-triggered (2026-11-13 owner decision). Its first slice,
-`check_steamgriddb_listings`, only reports. It snapshots the stored records without
-the artwork lock and groups them by game, role collection, stored size and format. It
-lists each group with every content flag set to `any`, so a re-tagged image or a later
-Portcove filter change never reads as missing. This listing is separate from the
-picker's lossy one and matches raw IDs only. It accepts absence only from a listing
-whose pages echo the request, carry `data` and a stable `total`, and whose unique IDs
-equal `total`. Everything else, including a game 404, is unknown. Absent images get a
-keyless image-server probe. Each check has a request budget (120 API, 60 image
-server), 250 ms spacing, and an early stop on a rate limit, a rejected key or two
-unreachable listings in a row. It reads its snapshot in one read transaction, so a
-concurrent choice or removal cannot make a healthy library fail verification. Recording
-and eviction need two independent signals and come in a later #527 slice.
+Withdrawal handling is player-triggered (2026-11-13 owner decision) and is
+delivered in slices; none removes anything yet. `check_steamgriddb_listings` takes a
+dedicated single-flight lock, then snapshots the stored records and their evidence in
+one read transaction, without the artwork lock. It groups the records by game, role
+collection, stored size and format and lists the stalest groups first, with every
+content flag set to `any`, so a re-tagged image or a later Portcove filter change never
+reads as missing. This listing is separate from the picker's lossy one and matches raw
+IDs only. An ID on any envelope-valid page is presence evidence. Absence is accepted
+only from a listing whose pages echo the request, carry `data` and a stable `total`,
+and whose unique IDs equal `total`; an empty narrowed listing is corroborated by the
+unfiltered one, so the only image of its size and format can still be found missing.
+Everything else, including a game 404, is unknown. Absent images get a keyless
+image-server probe. Each check has a request budget (120 API, 60 image server), 250 ms
+spacing, a three-minute deadline and a cancel hook checked before every request.
+
+SQLite schema 58 records the evidence in `artwork_provider_listing_checks`, keyed
+exactly like `artwork_asset_providers` with a cascading composite foreign key, a
+revision taken from a one-row sequence (so no revision is ever reused) and state
+constraints; removing an asset also deletes its rows explicitly. Hosts can run the
+check in three phases: prepare (single-flight lock and snapshot), the network check,
+which holds no library connection or lease, and record. Desktop holds a service only
+to prepare and to record, so a library switch, move or import never waits for the
+network phase; the check then stops before its next request and reports unrecorded. Attempted results are applied in one immediate transaction under a
+briefly retried artwork lock, each only if the row's revision is unchanged since the
+snapshot, so a concurrent choice or removal always wins. Choosing an image marks it
+listed in the same transaction as its provider record. `not_listed_since` keeps the
+first verified absence and is cleared only by an observed listing; unknown results
+never move it. A cancelled check records nothing. Evidence travels with a library
+move (the database is copied) but not with metadata export or import. Eviction, which
+needs two independent signals, is a later #527 slice.
 
 The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` and `check-listings`, which borrow the
@@ -1226,7 +1243,13 @@ removes only that quarantine, then records metadata commit and retires the journ
 The existing restore/deletion fault points and recovery rules still distinguish
 those phases; activity finalization remains separate from payload publication.
 Backup inventory probes the per-port lock to distinguish live staging from idle
-owned preparation without changing the lock owner payload. The detailed backup
+owned preparation without changing the lock owner payload. Read-only game-settings
+views hold a shared port lock: they admit each other, block writers only for the
+read, and never replace the owner record. A port writer refused only by shared
+readers retries for at most two seconds, then reports the port busy with
+`held_by: read_only_views`; a writer refused by another exclusive holder reports
+it at once with the last published writer's operation, which is advisory because
+inventory probes publish no record. Probes never wait. The detailed backup
 durability contract below owns stage classification and filesystem guarantees.
 
 ## Steam shortcut compatibility boundary
@@ -2741,6 +2764,78 @@ For a live desktop switch, the adapter makes its current state unavailable and d
 
 Persistent-data backups use the same per-port lock and canonical user root. A backup is copied into a same-volume temporary directory, rejects symlinks or unsupported entries, flushes every copied file plus its identity/count/size/tree-digest manifest, and is then renamed into `backups/<port-id>/<backup-id>`. That rename is an atomic namespace-visibility boundary for running processes. On Linux filesystems that accept directory `fsync`, core also synchronizes the staged directory tree and relevant library/backup parent directories before the rename, then synchronizes the final parent before returning success; a final-parent sync failure attempts to roll the visible snapshot back to private staging. Other platforms and Linux filesystems that reject directory synchronization explicitly do not receive a sudden-power-loss durability claim. New stages write a bounded preparation identity before copying; the final manifest binds its backup ID to that same staging name. Inventory holds a per-port lock probe while classifying private backup stages; the probe may create the normal lock file but does not rewrite its owner payload. An active owner is not called abandoned, an idle owned stage is reported as recovery-required through backup inventory and doctor, and an unowned or mismatched entry remains explicitly ambiguous. The staged manifest distinguishes an interrupted copy from complete-looking but unpublished data; neither stage is a restorable or verified backup. Lock ownership that cannot be checked remains ambiguous, and no stage is cleaned automatically. Inventory still returns published manifest entries alongside structured per-entry problems, and marks unmatched private deletion data or an incomplete deletion journal as recovery-required; one damaged entry cannot hide healthy backups or prevent an unrelated new snapshot. A validated deletion that has already moved its backup out of view (quarantined or later, original absent, and neither a runtime-safety binding nor an unauthorized runtime-safety companion) is the exception: the next backup, restore, deletion or version change attempts to finish it under the port lock before its own unchanged guard, so inventory and the restore and create assessments do not hold those actions for it. If that attempt or a startup recovery attempt fails, the journal records it and inventory holds again until a later startup recovery finishes the deletion. Doctor lists the deletion until it completes. Restore review stays read-only: it refuses only for a pending deletion that the restore could not finish. Restore stages and rehashes the selected tree before mutation, creates an automatic safety backup when current data is non-empty, and records the staged/current/recovery paths before swapping them. Startup can finish either half of an unambiguous process interruption; that journal and same-volume rename boundary do not claim cross-platform power-loss atomicity. Confirmed deletion records the exact bounded original and private quarantine paths before rename, then advances its lifecycle record after quarantine, filesystem removal, and commit. Startup completes an unambiguous authorized deletion, including a partially removed quarantine, but retains ambiguous or out-of-root state for repair review. Backups are intentionally independent of install rollback: they preserve mutable data, while release rollback changes application versions.
 
+#### Unknown player-side files
+
+Managed portable runtimes (native-portable, generated-cache, N64
+executable-parent and ready staged-source archive routes) use complete
+immutable verification. Since [#5359](https://github.com/boburning/portcove/issues/5359)
+Tier 1, `service::native_portable::portable_runtime_unknown_files` is the one
+place that splits its result. Hazards hold update, rollback target, removal
+review, collection, the persistence contract and backups exactly as before:
+changed, missing or permission-changed manifest files and undeclared hazards.
+An undeclared file is a hazard when it is a link, reparse point or other non-regular entry; when its name is a program or script (`exe`, `appimage`, `bat`, `cmd`, `ps1`, `sh`, `msi`, `jar`, `vbs`, `lnk`) or code (`dll`, `so`, `so.N`, `dylib`, `asi`, `node`, `ocx`, `cpl`, `sys`, `drv`, `com`, `scr`, `js`, `mjs`, `cjs`, `py`, `pyc`, `pyo`, `pyd`, `pth`, `lua`, `luac`, `psm1`, `wsf`, `hta`, `jse`, `vbe`, `gd`, `gdc`, `pck`, `wasm`, `class`); when it has an executable mode bit; when its first four bytes are an executable signature (PE `MZ`, ELF, Mach-O, universal binary or Java class, or a `#!` interpreter line); or when it is anywhere under the `resources` folder beside the executable of an Electron-shaped package (one that ships `resources/app.asar`, `default_app.asar` or `electron.asar`). Changed, missing or permission-changed package files are hazards too. The extension list and signature sniff live in
+`package_layout::is_unknown_file_hazard`; the Electron rule is
+`install::electron_resources`, because Electron loads `resources/app`,
+`resources/app.asar` or `resources/default_app.asar`, whichever it finds first.
+
+Every other undeclared regular file is an unknown player-side file, such as a
+settings file a game writes beside itself. `VerificationReport` keeps it out of
+`failures` and reports `unknown_file_count` with up to 64 sorted paths; `valid`
+still means an exact match. Unknown files do not hold those operations or
+launch. An update leaves them in the old version folder; nothing carries them
+forward.
+
+Launch-time `verify_critical` applies the same split to the full inventory.
+Beside the selected executable it still rejects new programs, libraries and
+links, and new names on the reviewed loader-read list in
+`install::is_loader_sensitive_name`: `<proxy>.ini` and `<proxy>.cfg` for common
+proxy DLLs (`dinput8`, `d3d9`, `d3d11`, `dxgi`, `dsound`, `winmm`, `version`,
+`xinput1_3` and similar), `ReShade.ini`, `dxvk.conf`, `enblocal.ini`, the
+NES/SNES-recomp developer-listener switch `debug.ini`, and
+`*.exe.config`, `*.exe.manifest` and `*.exe.local`, case-insensitively. The
+list also covers Godot `override.cfg`, CPython `pyvenv.cfg` and `*._pth`, .NET
+`*.runtimeconfig.dev.json`, numbered proxies such as `xaudio2_9` and
+`d3dcompiler_47`, and undeclared portable markers (`portable.txt` and the
+catalog's `<engine>_portable.ini` names), which would silently move saves into
+the version folder where they are never collected. That
+list keeps audit finding PCV-REAUD-003 from
+[#237](https://github.com/boburning/portcove/pull/237) (#17, #20) and
+[SECURITY](../SECURITY.md); the owner narrowed it on November 14, 2026 from
+every new `ini`, `cfg` or `toml`. Ordinary settings such as `settings.ini`
+beside the executable, and loader names elsewhere, launch. The game-update
+acquisition precondition, update reuse and the rollback target check use
+`verify_critical_for_replacement`, which starts no process and treats even the
+loader-read names as unknown data.
+
+Every backup copies the unknown files of the versions it already checks (the
+collectible active version and every generated-cache version) into
+`unknown-files/<install-id>/<install-relative path>`, beside `data/`. Removal
+first takes an ordinary backup holding the unknown files of every version,
+because removal deletes the version folders, and its review lists them
+(`PortRemovalPreview.unknown_file_count` and up to 64 paths) and binds them
+into the review fingerprint. The manifest records the area as `unknown_files_v1`
+(count, size, digest) outside the restorable content digest, and
+`BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
+so it never writes an unknown file into a declared path, and an older reader
+ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+empty, holding only unknown files, cannot be restored (restore and its review
+refuse it, and the restore assessment ignores it) and is never the latest
+protection in `BackupInventory.protection`.
+
+Output relocation, library transfer copies and managed preparation output
+checks still require an exact match and refuse any unknown file. That is
+intentionally strict for now: those paths copy or re-derive the whole runtime,
+and Tier 1 does not decide how unknown files travel with it.
+
+The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
+total. Past a cap, an explicit backup and removal (review and execution) hold
+instead of truncating. An automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot copy none of the
+unknown files and record `unknown_files_left_in_place_v1`, because those
+operations delete nothing. Update, rollback, collection and launch are never
+held by a cap. Declared
+persistence, retained-scope receipts and canonical collection are unchanged.
+
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
 
 Backup inventory exposes separate Core creation and Restore assessments. Restore
@@ -2811,7 +2906,7 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 ## Source discovery
 
-Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages. A four-byte LIVE probe is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only exact compound digest matches trigger the existing bounded structural validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages, as do content-identified LIVE and PIRS packages. A four-byte probe (LIVE, or PIRS only when a selected profile declares a content identity) is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only an exact compound digest match or a declared content identity triggers the bounded structural and hash-tree validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
 
 Core also provides explicit bounded registered-source observation batches,
 separate from query evaluation. Readers cover ordinary raw files, uncompressed
@@ -2902,6 +2997,30 @@ completed scan batch rather than carrying an old observation into an active scan
 The existing 512-port selection bound and independent implementations apply;
 each selected port opens its fresh Core plan without automatic registration or
 installation.
+
+Core also lists game folders that Steam, GOG and Epic recorded on this host, so
+a player can choose the PC original a remake or source port needs. A
+`StoreInstallHost` seam supplies Steam client roots, GOG registry installs and
+Epic manifest folders; the production host reads default locations and the
+Windows registry, and tests use fixture folders. Core reads Steam
+`libraryfolders.vdf` and `appmanifest_*.acf` files and Epic `*.item` files with
+bounded regular-file reads, skips unsafe or missing locations, canonicalizes and
+deduplicates folders (keeping a linked `steamapps` as its resolved folder), drops
+filesystem roots, the home folder and ancestors of the library, and reports the
+matching saved game-file root identity plus the stores this host could check,
+so an unchecked store stays distinct from an empty one. Core unit-test services
+default to a host that reads no store.
+The result is a read-only suggestion: it adds no saved root, registration, setup
+intent or second scanner, and store titles never identify a source. Search and
+admission stay with the existing discovery and inspector. Source import refuses
+Move for an original inside a detected store game folder or a Steam library's
+`steamapps` folder, for a folder that contains one, and for any path through a
+folder named `steamapps`, so Portcove does not remove a recognized store's
+files; Copy and Use current location are unchanged. Recognition depends on
+readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
+`get_store_game_installs` command expose the same Core result, and Desktop **Find
+required files** loads it only when the player asks and uses a chosen folder as
+the ordinary search folder.
 
 ## Install transaction
 
@@ -3070,7 +3189,7 @@ Backup restore publishes its verified canonical snapshot, then synchronizes the 
 
 Restore consumes its one-use, action/target-bound authorization under the port lock before expensive save collection and fingerprint recomputation. Expiry is an admission deadline; an admitted operation can finish hashing a large tree. The current backup/data fingerprint must still match the reviewed state before any restore publication. Expired or mismatched tokens never begin that work, and changed state consumes the grant and requires a new review.
 
-When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, loader configuration, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions.
+When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
 The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers, observes running launches and reconciles a pending application update, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
@@ -3590,7 +3709,7 @@ split, and do not claim exhaustive arbitrary configuration, upstream-build,
 gameplay or native termination qualification. New contradictory inputs require
 an exact causal case and compatible normal/recovery consumer migration.
 
-Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/STFS extraction into a new directory. STFS extraction validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
+Adapters describe recurring families rather than individual games: libultraship portable releases, N64 recomp portable releases, staged-source portable releases, referenced-disc ports, generated-cache ports, upstream-managed setup, and managed PS1 recomp builds. Port-specific facts stay in `catalog.json`: repository, channels, platform availability, source profile, executable hints, launch behavior, persistent paths, and optional runtime subdirectory and source paths. Source profiles may use exact SHA-1, SHA-256, file-set CRC32, reviewed PS1 ISO-volume allowlists, or a tightly bounded upstream-validator handoff so Portcove can enforce the strongest identity form an upstream actually publishes while continuing to record SHA-256 in local state. A declared runtime subdirectory keeps working-directory, portable-marker, and stored-source behavior inside a stable nested release layout without port-specific code. Runtime source materialization is limited to reviewed generic operations: N64 byte-order normalization, bounded exact copy or ZIP-member extraction, GameCube or PS2 ISO conversion, single-disc PS1 CHD expansion to a multi-BIN/CUE directory, multi-disc PS1 CHD expansion to numbered raw data tracks, and read-only LIVE/PIRS STFS extraction into a new directory. STFS extraction verifies the header SHA-1 and the complete SHA-1 hash tree (top hash, level-2/level-1/level-0 tables and every data block read), honours the contiguous-file flag, refuses CON, two-table and SVOD packages, compares an optional catalog title/content-type binding before extraction, validates a bounded ASCII path table, rejects traversal, case collisions, cyclic or out-of-range block chains, caps depth/count/expanded bytes against available storage, and publishes only after declared inner-file SHA-256 checks pass. An STFS source profile may also identify a package by content (verified hash tree, header title ID and content type, and extracted member SHA-256) beside its exact whole-package identity; a package matching both is admitted by its exact identity. Hash-tree and newer descriptor checks are enforced for content identities and for ports with an STFS binding. For a package proven by its exact whole-package digest they run in an advisory mode: findings are reported as inspection advisories and extraction warnings, the recorded block chain is followed, and only the bounds that prevent unsafe reads and writes refuse. File replacements and directory swaps preserve the prior destination until the staged replacement is ready; schema-2 source sidecars bind reuse to the current storage SHA-256 and size instead of path metadata, forcing restaging even when changed bytes retain the same path, length, and timestamp.
 
 For an observed cartridge ZIP, exact-copy preparation selects the admitted member
 by its retained name and content identity, independently of the runtime filename.

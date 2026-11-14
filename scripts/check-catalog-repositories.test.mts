@@ -485,24 +485,19 @@ function requiredFixture<T>(value: T | null | undefined): T {
     assert.equal(beyondBatch.consumed.requests, 353);
     assert.equal(beyondBatch.collection_status, "complete");
     assert.ok(beyondBatch.observations.every((record) => record.attempted));
-    // Only the per-report observation ceiling refuses before network.
-    let overflowCalls = 0;
-    const overflow = await collect(
-      catalog(...Array.from({ length: 513 }, (_, i) => port(`overflow-${i}`))),
-      async () => {
-        overflowCalls += 1;
-        assert.fail("overflow must refuse before network");
-      },
+    // More locations than one scheduled batch never refuses a full collection.
+    const beyondOperation = await collect(
+      catalog(...Array.from({ length: 513 }, (_, i) => port(`beyond-operation-${i}`))),
     );
-    assert.equal(overflow.request_plan.status, "overflow");
-    assert.equal(overflow.consumed.requests, 0);
-    assert.equal(overflowCalls, 0);
-    assert.equal(overflow.observations.length, 513);
-    assert.ok(
-      overflow.observations.every(
-        (record) => record.reason === "budget" && record.attempted === false,
-      ),
+    assert.equal(beyondOperation.request_plan.status, "overflow");
+    assert.equal(beyondOperation.limits.requests, 513);
+    assert.equal(beyondOperation.consumed.requests, 513);
+    assert.equal(beyondOperation.collection_status, "complete");
+    assert.equal(
+      beyondOperation.scope.global_health,
+      "collection attempted; not an installability claim",
     );
+    assert.ok(beyondOperation.observations.every((record) => record.attempted));
     let elapsed = 0;
     const timeLimited = await collect(
       input,

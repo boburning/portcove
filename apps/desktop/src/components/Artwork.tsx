@@ -394,6 +394,21 @@ function ArtworkSlotControl({
   );
 }
 
+/** Recorded evidence as an observation with its dates; nothing was removed because of it. */
+export function listingEvidenceText(evidence: ArtworkState["provider_listing"][number]): string {
+  const checked = new Date(evidence.last_checked_at * 1000).toLocaleString();
+  const since =
+    evidence.not_listed_since === null
+      ? undefined
+      : new Date(evidence.not_listed_since * 1000).toLocaleString();
+  if (evidence.last_result.status === "listed") return `Listed when last checked (${checked}).`;
+  if (evidence.last_result.status === "not_listed")
+    return `Not in SteamGridDB's list when last checked (${checked}). First noticed ${since ?? checked}. Nothing was removed.`;
+  return since
+    ? `Not confirmed when last checked (${checked}). First noticed missing ${since}. Nothing was removed.`
+    : `Not confirmed when last checked (${checked}).`;
+}
+
 export function ArtworkSource({
   state,
   renderedSource,
@@ -451,6 +466,18 @@ export function ArtworkSource({
             </span>
           ))}
         </dd>
+        {state.provider_listing.length > 0 && (
+          <>
+            <dt>SteamGridDB listing</dt>
+            <dd>
+              {state.provider_listing.map((evidence) => (
+                <span key={`${evidence.provider}:${evidence.asset_id}`} className="block">
+                  {listingEvidenceText(evidence)}
+                </span>
+              ))}
+            </dd>
+          </>
+        )}
         <dt>Image</dt>
         <dd>
           {asset.width} × {asset.height} · {asset.format.toUpperCase()} ·{" "}

@@ -3025,7 +3025,7 @@ impl Discovery<'_> {
                     &profile.id,
                     path,
                     &observation.identity,
-                    observation.validated,
+                    &observation.validated,
                 )
             };
             if let Ok(inspection) = inspection

@@ -1551,6 +1551,8 @@ if ($env:TEMP -ne $previousTemp) { throw "Caller environment was not restored" }
         env: environment({
           PORTCOVE_TEMP_DIR: "scratch",
           PORTCOVE_PNPM_STORE_DIR: "store",
+          // The preflight resolves a GitHub token before any other work.
+          GH_TOKEN: "fixture-token",
         }),
       },
     );

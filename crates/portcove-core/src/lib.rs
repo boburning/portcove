@@ -133,6 +133,7 @@ mod source_report;
 mod source_reuse;
 mod source_zip;
 mod stfs;
+mod store_install;
 mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
@@ -158,14 +159,14 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderRecord,
-    ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail, DestinationArtworkBytes,
-    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
-    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
-    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    ArtworkChoice, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderListing,
+    ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail,
+    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
+    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
+    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
     STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbCheckStop,
     SteamGridDbFailure, SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus,
-    SteamGridDbListingReport, SteamGridDbListingStatus, SteamGridDbSourceStatus,
+    SteamGridDbListingReport, SteamGridDbListingResult, SteamGridDbSourceStatus,
     SteamGridDbUnknownReason, clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key,
     steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
@@ -417,6 +418,10 @@ pub use source_reuse::{
     SourceRegistrationReference, SourceReuseApplication, SourceReuseCompatibility,
     SourceReuseReview,
 };
+pub use store_install::{
+    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
+    SystemStoreInstallHost,
+};
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
     SupportBundleExport, SupportBundleLimits, SupportBundleManifest, SupportBundleProvenance,
@@ -464,7 +469,7 @@ pub use windows_runtime::{
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 91;
+pub const API_SCHEMA_VERSION: u32 = 92;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

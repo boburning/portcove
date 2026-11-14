@@ -482,6 +482,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "store_game_installs",
+                serde_json::json!(schema_for_contract::<portcove_core::StoreGameInstalls>(
+                    contract
+                )),
+            ),
+            (
                 "source_discovery_limits",
                 serde_json::json!(schema_for_contract::<portcove_core::SourceDiscoveryLimits>(
                     contract
@@ -907,6 +913,39 @@ mod tests {
         output_only: bool,
         #[serde(skip_serializing)]
         input_only: bool,
+    }
+
+    /// API 92 adds recorded listing evidence to exactly two outputs. The handoff,
+    /// metadata, attribution and every other contract must not change with it.
+    #[test]
+    fn listing_evidence_appears_only_in_the_artwork_state_and_the_listing_report() {
+        let markers = [
+            "provider_listing",
+            "not_listed_since",
+            "listing_total",
+            "SteamGridDbListingResult",
+            "ArtworkProviderListing",
+        ];
+        for contract in [SchemaContract::Output, SchemaContract::Input] {
+            let schemas = document(contract);
+            let schemas = schemas.as_object().unwrap();
+            for owner in ["artwork_state", "steamgriddb_listing_report"] {
+                let text = schemas[owner].to_string();
+                assert!(
+                    markers.iter().any(|marker| text.contains(marker)),
+                    "{owner} carries the evidence"
+                );
+            }
+            for (name, schema) in schemas {
+                if name == "artwork_state" || name == "steamgriddb_listing_report" {
+                    continue;
+                }
+                let text = schema.to_string();
+                for marker in markers {
+                    assert!(!text.contains(marker), "{name} must not carry {marker}");
+                }
+            }
+        }
     }
 
     #[test]

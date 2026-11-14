@@ -745,6 +745,7 @@ fn materialize_single_source(
                     Ok(())
                 }),
             },
+            port.runtime_stfs_package.as_ref(),
         )?;
     }
     Ok(())

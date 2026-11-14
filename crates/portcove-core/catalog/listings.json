@@ -18697,7 +18697,7 @@
       "issue_number": 1821,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md",
+      "setup_url": "https://github.com/craigshaw/FZeroRecomp#readme",
       "artwork": {
         "game_id": 3490,
         "cover_id": 319391,
@@ -18706,21 +18706,26 @@
         "game_slug": "f-zero",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/craigshaw/FZeroRecomp/releases/tag/v0.6.0",
+      "release_url": "https://github.com/craigshaw/FZeroRecomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Start with your original game",
             "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+          },
+          {
+            "title": "Set up the Apple Silicon app",
+            "instruction": "On Apple Silicon with macOS 13 or later, download the upstream arm64 ZIP and extract the complete app outside your Portcove library. Follow upstream’s first-launch instructions. Choose your own supported F-Zero USA ROM. Keep the actual FZeroRecomp profile under Library/Application Support and any custom save folder."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+        "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
       },
       "original_game_title": "F-Zero",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -21321,6 +21326,10 @@
           {
             "title": "Choose your original disc on Play",
             "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+          },
+          {
+            "title": "Set up the universal Mac app",
+            "instruction": "On Intel or Apple Silicon with macOS 11 or later, extract the upstream macOS ZIP with the system archive tool and keep the complete app. If downloading through Portcove, clear “Extract the archive after downloading”. Follow upstream’s first-launch instructions. Use your own supported USA disc. Preserve the actual AlienResurrection profile under Library/Application Support or your custom save directory."
           }
         ],
         "warnings": [
@@ -21337,7 +21346,9 @@
       },
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -21776,7 +21787,7 @@
       "issue_number": 721,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md",
+      "setup_url": "https://github.com/elliotttate/DKC1Recomp#readme",
       "artwork": {
         "game_id": 1090,
         "cover_id": 327551,
@@ -21785,20 +21796,25 @@
         "game_slug": "donkey-kong-country",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/elliotttate/DKC1Recomp/releases/tag/v0.0.17",
+      "release_url": "https://github.com/elliotttate/DKC1Recomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Select your original in the game",
             "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+          },
+          {
+            "title": "Set up the Apple Silicon preview",
+            "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+        "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
       },
       "original_game_title": "Donkey Kong Country",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -24295,7 +24311,7 @@
       "issue_number": 1811,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md",
+      "setup_url": "https://github.com/elliotttate/DKC2Recomp#readme",
       "artwork": {
         "game_id": 1092,
         "cover_id": 94882,
@@ -24304,20 +24320,25 @@
         "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/elliotttate/DKC2Recomp/releases/tag/v0.0.8",
+      "release_url": "https://github.com/elliotttate/DKC2Recomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+          },
+          {
+            "title": "Set up the Apple Silicon app",
+            "instruction": "Use the upstream Apple Silicon ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and follow upstream’s first-launch instructions for the unnotarized app. Select your own North American v1.0 ROM. Preserve the Flat2VR/DKC2Recomp profile under Library/Application Support."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+        "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
       },
       "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -33086,9 +33107,33 @@
       "listed_at": "2026-10-23",
       "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
       "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+      "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up a separate Linux copy",
+            "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
+          },
+          {
+            "title": "Set up Oracles on Mac",
+            "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
+          },
+          {
+            "title": "Set up Oracles on Android",
+            "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+          }
+        ],
+        "warnings": [
+          "You and upstream manage these Linux, Mac and Android copies."
+        ],
+        "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+      },
       "availability": "unknown"
     },
     {
@@ -33696,8 +33741,8 @@
       "original_game_title": "Metal Gear Solid Mobile",
       "availability": "packages",
       "recommended_download_channel": "beta",
-      "setup_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
-      "release_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+      "setup_url": "https://github.com/LeithSilver/mgsm#readme",
+      "release_url": "https://github.com/LeithSilver/mgsm/releases",
       "manual_setup": {
         "steps": [
           {
@@ -33714,7 +33759,7 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+        "help_url": "https://github.com/LeithSilver/mgsm#readme",
         "references": [
           {
             "title": "Keep the Android app data",

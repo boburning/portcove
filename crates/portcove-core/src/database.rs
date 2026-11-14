@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 57;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 58;
 
 struct Migration {
     version: i64,
@@ -365,7 +365,40 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_57,
         verify: verify_migration_57,
     },
+    Migration {
+        version: 58,
+        name: "artwork listing checks",
+        apply: migration_58,
+        verify: verify_migration_58,
+    },
 ];
+
+fn migration_58(transaction: &Transaction<'_>) -> Result<()> {
+    // Evidence of whether a provider still lists a stored image, beside each
+    // provider record and never inside it. It changes no asset, choice or file.
+    crate::artwork_store::migrate_listing_checks(transaction)?;
+    verify_migration_58(transaction)
+}
+
+fn verify_migration_58(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "artwork_provider_listing_checks",
+        &[
+            "asset_sha256",
+            "provider",
+            "asset_id",
+            "revision",
+            "last_checked_at",
+            "last_result",
+            "unknown_reason",
+            "not_listed_since",
+            "last_listing_total",
+            "last_source_status",
+        ],
+    )?;
+    crate::artwork_store::verify_listing_checks(connection)
+}
 
 fn migration_57(transaction: &Transaction<'_>) -> Result<()> {
     // SQLite cannot widen a CHECK, so the choice table is rebuilt in this
@@ -3204,6 +3237,55 @@ mod tests {
     }
 
     #[test]
+    fn interrupted_listing_checks_migration_rolls_back_to_schema_57() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 57).unwrap();
+        let connection = connect(root).unwrap();
+        // A pre-existing name makes the create fail inside the migration.
+        connection
+            .execute_batch("CREATE TABLE artwork_provider_listing_checks (blocker INTEGER);")
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 58).is_err());
+        let connection = connect(root).unwrap();
+        let version: i64 = connection
+            .query_row("SELECT MAX(version) FROM schema_migrations", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(version, 57);
+        assert!(crate::artwork_store::verify_listing_checks(&connection).is_err());
+    }
+
+    #[test]
+    fn listing_checks_verification_rejects_a_weakened_definition() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 58).unwrap();
+        let connection = connect(root).unwrap();
+        crate::artwork_store::verify_listing_checks(&connection).unwrap();
+        // Without the cascade, removing a record would fail on the foreign key.
+        connection
+            .execute_batch(
+                "DROP TABLE artwork_provider_listing_checks;
+                 CREATE TABLE artwork_provider_listing_checks (
+                    asset_sha256 TEXT NOT NULL, provider TEXT NOT NULL, asset_id INTEGER NOT NULL, revision INTEGER NOT NULL CHECK(revision>=1),
+                    last_checked_at INTEGER NOT NULL, last_result TEXT NOT NULL, unknown_reason TEXT,
+                    not_listed_since INTEGER, last_listing_total INTEGER, last_source_status TEXT,
+                    PRIMARY KEY(asset_sha256,provider,asset_id),
+                    FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id),
+                    CHECK((last_result='unknown')=(unknown_reason IS NOT NULL)),
+                    CHECK(last_result!='listed' OR not_listed_since IS NULL)
+                 );",
+            )
+            .unwrap();
+        assert!(crate::artwork_store::verify_listing_checks(&connection).is_err());
+    }
+
+    #[test]
     fn landscape_slot_migration_keeps_every_choice_and_constraint() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3486,6 +3568,7 @@ mod tests {
         schema_54: 54,
         schema_55: 55,
         schema_56: 56,
+        schema_57: 57,
     }
 
     #[test]

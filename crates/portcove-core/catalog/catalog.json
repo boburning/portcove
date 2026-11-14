@@ -52837,6 +52837,16 @@
           "game_slug": "banjo-tooie",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "third_party"
+          ],
+          "executables": [
+            "banjotooiescurvydogport.exe"
+          ]
+        }
       }
     },
     {
@@ -56084,10 +56094,14 @@
             {
               "title": "Start with your original game",
               "instruction": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path."
+            },
+            {
+              "title": "Set up the Apple Silicon app",
+              "instruction": "On Apple Silicon with macOS 13 or later, download the upstream arm64 ZIP and extract the complete app outside your Portcove library. Follow upstream’s first-launch instructions. Choose your own supported F-Zero USA ROM. Keep the actual FZeroRecomp profile under Library/Application Support and any custom save folder."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/craigshaw/FZeroRecomp/blob/v0.6.0/README.md"
+          "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
         },
         "artwork": {
           "game_id": 3490,
@@ -56096,6 +56110,27 @@
           "image_sha256": "c504dbfa253882ca87b76d75a5cd290aef6b717a368617107d69e836bd651553",
           "game_slug": "f-zero",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "fzero_recomp.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "lib",
+            "licenses"
+          ],
+          "executables": [
+            "fzero_recomp"
+          ]
         }
       }
     },
@@ -56776,6 +56811,10 @@
             {
               "title": "Choose your original disc on Play",
               "instruction": "Use your own USA PlayStation Alien Resurrection disc, SLUS-00633. The game launcher accepts its .cue, a .bin track or the containing folder and checks the edition."
+            },
+            {
+              "title": "Set up the universal Mac app",
+              "instruction": "On Intel or Apple Silicon with macOS 11 or later, extract the upstream macOS ZIP with the system archive tool and keep the complete app. If downloading through Portcove, clear “Extract the archive after downloading”. Follow upstream’s first-launch instructions. Use your own supported USA disc. Preserve the actual AlienResurrection profile under Library/Application Support or your custom save directory."
             }
           ],
           "warnings": [
@@ -56788,6 +56827,27 @@
               "title": "Preserve the profile before changing versions",
               "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
             }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "textures"
+          ],
+          "executables": [
+            "alienresurrection.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "lib",
+            "licenses",
+            "textures"
+          ],
+          "executables": [
+            "alienresurrection"
           ]
         }
       }
@@ -56909,10 +56969,14 @@
             {
               "title": "Select your original in the game",
               "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            },
+            {
+              "title": "Set up the Apple Silicon preview",
+              "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+          "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
         },
         "artwork": {
           "game_id": 1090,
@@ -56921,6 +56985,18 @@
           "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
           "game_slug": "donkey-kong-country",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "docs",
+            "licenses"
+          ],
+          "executables": [
+            "dkc1_dixie_desktop.exe",
+            "dkc1recomp.exe"
+          ]
         }
       }
     },
@@ -58268,10 +58344,14 @@
             {
               "title": "Finish the game’s setup",
               "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+            },
+            {
+              "title": "Set up the Apple Silicon app",
+              "instruction": "Use the upstream Apple Silicon ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and follow upstream’s first-launch instructions for the unnotarized app. Select your own North American v1.0 ROM. Preserve the Flat2VR/DKC2Recomp profile under Library/Application Support."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+          "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
         },
         "artwork": {
           "game_id": 1092,
@@ -58280,6 +58360,21 @@
           "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
           "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "docs",
+            "licenses",
+            "scripts",
+            "third_party"
+          ],
+          "executables": [
+            "dkc2recomp.exe",
+            "dkc2recompsdl.exe"
+          ]
         }
       }
     },
@@ -60185,6 +60280,16 @@
           "game_slug": "descent-3",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "online"
+          ],
+          "executables": [
+            "piccuengine.exe"
+          ]
+        }
       }
     },
     {
@@ -60929,7 +61034,35 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
-        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
+        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up a separate Linux copy",
+              "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
+            },
+            {
+              "title": "Set up Oracles on Mac",
+              "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
+            },
+            {
+              "title": "Set up Oracles on Android",
+              "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+            }
+          ],
+          "warnings": [
+            "You and upstream manage these Linux, Mac and Android copies."
+          ],
+          "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "oracles.exe"
+          ]
+        }
       }
     },
     {
@@ -61101,7 +61234,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "help_url": "https://github.com/LeithSilver/mgsm#readme",
           "references": [
             {
               "title": "Keep the Android app data",
@@ -61116,6 +61249,17 @@
           "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
           "game_slug": "metal-gear-solid-mobile",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "rom"
+          ],
+          "executables": [
+            "mgs_mobile.exe"
+          ]
         }
       }
     },
@@ -61798,6 +61942,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61909,6 +62074,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62027,6 +62213,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [

@@ -356,7 +356,15 @@ $previousTemp = $env:TEMP
 $previousStore = $env:pnpm_config_store_dir
 # Functions are invoked from release-preflight.ps1's script scope. This state is
 # deliberately global only inside the disposable fixture process.
-$global:PortcovePreflightUxFixture = @{root=$PSScriptRoot; phase='metadata'}
+$global:PortcovePreflightUxFixture = @{root=$PSScriptRoot; phase='metadata'; catalogToken=$null}
+Remove-Item Env:GH_TOKEN, Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+function gh {
+  # Only a github.com login is read, with prompts disabled.
+  if ($args -join ' ' -ne 'auth token --hostname github.com' -or $env:GH_HOST -ne 'github.com' -or $env:GH_PROMPT_DISABLED -ne '1') { throw 'gh was not pinned to github.com' }
+  if ($global:PortcovePreflightUxFixture.phase -eq 'token') { $global:LASTEXITCODE = 1; return }
+  $global:LASTEXITCODE = 0
+  'fixture-token'
+}
 function pnpm {
   $global:LASTEXITCODE = 0
   if ($args[0] -eq '--version') { '1.0.0' }
@@ -373,21 +381,29 @@ function node {
   elseif ($args[0] -like '*check-release-metadata.mts') {
     if ($state.phase -eq 'metadata') { $global:LASTEXITCODE = 23 }
   }
+  elseif ($args[0] -like '*check-catalog-repositories.mts' -and $state.phase -eq 'catalog') {
+    $state.catalogToken = $env:GITHUB_TOKEN
+    $global:LASTEXITCODE = 31
+  }
   else { throw 'A later command ran after the failed gate' }
 }
 function just {
-  if ($global:PortcovePreflightUxFixture.phase -ne 'audit') { throw 'Audit ran after a failed gate' }
+  $phase = $global:PortcovePreflightUxFixture.phase
+  if ($phase -eq 'catalog') { $global:LASTEXITCODE = 0; return }
+  if ($phase -ne 'audit') { throw 'Audit ran after a failed gate' }
   $global:LASTEXITCODE = 29
 }
-foreach ($phase in @('tests', 'metadata', 'audit')) {
+foreach ($phase in @('token', 'tests', 'metadata', 'audit', 'catalog')) {
   $global:PortcovePreflightUxFixture.phase = $phase
   $message = $null
   try { & (Join-Path $PSScriptRoot 'scripts/release-preflight.ps1') -Tag v0.1.0 }
   catch { $message = $_.Exception.Message }
   if (-not $message) { throw 'Failed gate was accepted' }
   if ($env:TEMP -ne $previousTemp -or $env:pnpm_config_store_dir -ne $previousStore) { throw 'Caller environment was not restored' }
+  if (Test-Path Env:GITHUB_TOKEN) { throw 'The catalog token leaked into the caller environment' }
   $message
 }
+if ($global:PortcovePreflightUxFixture.catalogToken -ne 'fixture-token') { throw 'The catalog check did not receive the resolved token' }
 `;
     const fixture = path.join(root, "fixture.ps1");
     await writeFile(fixture, script);
@@ -404,6 +420,12 @@ foreach ($phase in @('tests', 'metadata', 'audit')) {
       /check failed with exit code 23\. Command: node '[^\r\n]+' --tag 'v0\.1\.0'\./u,
     );
     assert.match(result.stdout, /audit failed with exit code 29\. Command: just audit --fresh\./u);
+    assert.match(
+      result.stdout,
+      /needs a GitHub token[^\r\n]+Nothing has been checked or built yet\./u,
+    );
+    assert.match(result.stdout, /Catalog repository check failed with exit code 31\./u);
+    assert.doesNotMatch(result.stdout + result.stderr, /fixture-token/u);
   },
 );
 

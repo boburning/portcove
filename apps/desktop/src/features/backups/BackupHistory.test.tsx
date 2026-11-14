@@ -60,6 +60,31 @@ describe("backup history presentation", () => {
     expect(populated).not.toContain(`${backup.sha256.slice(0, 10)}…`);
   });
 
+  it("names unrecognized files a backup keeps and that restore leaves them out", () => {
+    const backup = {
+      id: "backup-1",
+      port_id: port.id,
+      path: "backups/sample/backup-1",
+      created_at: 1,
+      file_count: 1,
+      size: 1024,
+      sha256: "a".repeat(64),
+    };
+    const plain = renderToStaticMarkup(
+      <BackupHistory backups={[backup]} restore={vi.fn()} remove={vi.fn()} />,
+    );
+    const withUnknown = renderToStaticMarkup(
+      <BackupHistory
+        backups={[{ ...backup, unknown_file_count: 2 }]}
+        restore={vi.fn()}
+        remove={vi.fn()}
+      />,
+    );
+    expect(plain).not.toContain("didn&#x27;t install");
+    expect(withUnknown).toContain("Also keeps 2 files Portcove didn&#x27;t install.");
+    expect(withUnknown).toContain("Restoring this backup doesn&#x27;t put them back.");
+  });
+
   it("keeps verified backups listed but blocks actions during required recovery", () => {
     const backups = [
       {
