@@ -26,7 +26,7 @@ The foundation was implemented on 2026-09-22 with the exact registry packages be
 | --------------- | ------: | ------------------------------------------------------------------------------------ |
 | `i18next`       |  26.7.2 | Offline resource lookup, fallback, interpolation, plural rules, and language changes |
 | `react-i18next` | 17.1.13 | React provider, hooks, and safe rich-text composition                                |
-| `i18next-cli`   |  1.85.0 | Development-only extraction, status, lint, and generated TypeScript contracts        |
+| `i18next-cli`   |  1.88.0 | Development-only extraction, status, lint, and generated TypeScript contracts        |
 
 The official CLI requires Node 22 or newer. It is a development dependency and is absent from production bundles. A bounded Lingui comparison confirmed that it also met the current React and Node floor, but its additional compile and macro layer did not improve this small offline foundation enough to reverse the approved i18next direction. This is not an invitation to repeat the framework comparison during screen migration.
 
