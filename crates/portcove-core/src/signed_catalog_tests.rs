@@ -955,6 +955,66 @@ fn format_one_growth_at_the_exact_envelope_bound_preserves_verification_and_refu
     assert!(signed_catalog::verify(&overflow, &[trust], now).is_err());
 }
 
+fn padded_envelope(payload: &SignedCatalogPayload, length: usize) -> Vec<u8> {
+    let mut envelope: SignedCatalogEnvelope = serde_json::from_slice(&sign(payload)).unwrap();
+    let padding = length - serde_json::to_vec(&envelope).unwrap().len();
+    envelope.payload.push_str(&" ".repeat(padding));
+    let key = signing_key();
+    envelope.signature = hex::encode(
+        key.sign(&signed_catalog::signing_message(
+            &envelope.key_id,
+            &envelope.payload,
+        ))
+        .to_bytes(),
+    );
+    let bytes = serde_json::to_vec(&envelope).unwrap();
+    assert_eq!(bytes.len(), length);
+    bytes
+}
+
+#[tokio::test]
+async fn catalog_above_the_legacy_bound_is_applied_stored_and_refused_only_past_the_new_bound() {
+    use signed_catalog::LEGACY_MAX_CATALOG_BYTES;
+    let root = tempfile::tempdir().unwrap();
+    let library = Library::open(root.path().join("library")).unwrap();
+    trusted(&library);
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let larger = root.path().join("larger.json");
+    let bytes = padded_envelope(
+        &fixture(1, Library::now()),
+        LEGACY_MAX_CATALOG_BYTES + 1024 * 1024,
+    );
+    std::fs::write(&larger, &bytes).unwrap();
+    let status = publish(&service, &CatalogUpdateSource::File(larger)).await;
+    assert_eq!(status.highest_sequence, 1);
+    assert_eq!(status.provenance.sequence, Some(1));
+    let stored: Vec<u8> = library
+        .connection()
+        .unwrap()
+        .query_row("SELECT active FROM catalog_state", [], |row| row.get(0))
+        .unwrap();
+    assert_eq!(stored, bytes);
+
+    // Past the new bound the candidate is refused whole, before any parse or
+    // selection change; nothing is truncated to fit.
+    let oversized = root.path().join("oversized.json");
+    let overflow = padded_envelope(&fixture(2, Library::now()), MAX_CATALOG_BYTES + 1);
+    std::fs::write(&oversized, &overflow).unwrap();
+    assert!(
+        service
+            .plan_catalog_update(&CatalogUpdateSource::File(oversized))
+            .await
+            .is_err()
+    );
+    let Err(error) = signed_catalog::verify(&overflow, &[], Library::now()) else {
+        panic!("an envelope past the bound must be refused");
+    };
+    assert_eq!(error.message, signed_catalog::MAX_CATALOG_LIMIT_MESSAGE);
+    let status = library.catalog_status().unwrap();
+    assert_eq!(status.highest_sequence, 1);
+    assert_eq!(status.provenance.sequence, Some(1));
+}
+
 #[test]
 fn legacy_signed_catalog_cannot_supply_shipwright_persistence() {
     let now = 1_800_000_000;

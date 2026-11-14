@@ -218,7 +218,7 @@ async fn read_candidate(source: &CatalogUpdateSource) -> Result<Vec<u8>> {
                 .is_some_and(|length| length > MAX_CATALOG_BYTES as u64)
             {
                 return Err(PortcoveError::verification(
-                    "signed catalog exceeds the 4 MiB limit",
+                    signed_catalog::MAX_CATALOG_LIMIT_MESSAGE,
                 ));
             }
             let mut bytes = Vec::new();
@@ -229,7 +229,7 @@ async fn read_candidate(source: &CatalogUpdateSource) -> Result<Vec<u8>> {
                 })?;
                 if chunk.len() > MAX_CATALOG_BYTES - bytes.len() {
                     return Err(PortcoveError::verification(
-                        "signed catalog exceeds the 4 MiB limit",
+                        signed_catalog::MAX_CATALOG_LIMIT_MESSAGE,
                     ));
                 }
                 bytes.extend_from_slice(&chunk);

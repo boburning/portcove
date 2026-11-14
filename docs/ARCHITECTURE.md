@@ -1072,9 +1072,10 @@ immutable manifest digest covers both the snapshot and admission record. Format 
 continues to retain canonical legacy catalog content. Format 2 remains readable as
 exact supplied successor content but does not acquire invented authentication.
 Pure decode caching is bounded to one exact format/content pair and never caches
-filesystem integrity, source admission or revocation decisions. Each content
-component keeps its existing 4 MiB bound; the three retained components total at
-most 12 MiB before JSON string encoding and decoding overhead.
+filesystem integrity, source admission or revocation decisions. The index keeps
+its 4 MiB bound and the entry and shared leaf each keep the 16 MiB content bound
+(4 MiB before writer protocol 60); the three retained components total at most
+36 MiB before JSON string encoding and decoding overhead.
 
 SQLite writer protocols 25 and 27 prevent older clients from discarding exact
 successor bytes and authenticated admission provenance respectively. They change
@@ -1089,8 +1090,13 @@ manifests include the port identity and complete referenced source graph, covere
 by the existing immutable manifest digest. Keeping the complete bounded catalog
 avoids a second mutable database or a missing sidecar during moves and exports.
 This trades repeated catalog bytes per version for a single atomic payload and
-an independently readable contract. The retained catalog uses the existing 4 MiB
-catalog limit and rejects unknown or discarded semantics.
+an independently readable contract. The retained catalog uses the 16 MiB signed
+catalog limit and rejects unknown or discarded semantics. SQLite writer protocol
+60 raised that limit from 4 MiB: it rebuilds `catalog_state` with the larger BLOB
+checks and makes older clients, which refuse retained content above 4 MiB, refuse
+the library before they read or rewrite a manifest. A Core test and the CI size
+guard keep the catalog, its projection and the escaped retained copy below 85% of
+the 4 MiB floor ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
 Core memoizes pure decoding of the most recently validated exact content string,
 bounded to one catalog. Each read still verifies the current manifest bytes and
 digest; the cache contains no filesystem, source-admission, or revocation decision.

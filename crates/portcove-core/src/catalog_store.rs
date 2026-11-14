@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     Catalog, CatalogProvenance, CatalogTrustKey, Library, PortcoveError, Result,
-    signed_catalog::{self, CatalogOrigin, MAX_CATALOG_BYTES},
+    signed_catalog::{self, CatalogOrigin, LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -390,14 +390,59 @@ impl Library {
     }
 }
 
+fn catalog_state_table(name: &str, bound: usize) -> String {
+    format!(
+        "CREATE TABLE {name}(singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+           revision INTEGER NOT NULL CHECK(revision>=0), highest_sequence INTEGER NOT NULL CHECK(highest_sequence>=0),
+           enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
+           active BLOB CHECK(length(active)<={bound}), previous BLOB CHECK(length(previous)<={bound}));"
+    )
+}
+
+/// Historical migration 11. Its schema keeps the 4 MiB bound that released
+/// clients created; migration 60 rebuilds the table with the current bound.
 pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
     transaction.execute_batch(&format!(
         "CREATE TABLE catalog_trust(key_id TEXT PRIMARY KEY, public_key TEXT NOT NULL);
-         CREATE TABLE catalog_state(singleton INTEGER PRIMARY KEY CHECK(singleton=1),
-           revision INTEGER NOT NULL CHECK(revision>=0), highest_sequence INTEGER NOT NULL CHECK(highest_sequence>=0),
-           enabled INTEGER NOT NULL CHECK(enabled IN (0,1)),
-           active BLOB CHECK(length(active)<={MAX_CATALOG_BYTES}), previous BLOB CHECK(length(previous)<={MAX_CATALOG_BYTES}));
-         INSERT INTO catalog_state VALUES(1,0,0,0,NULL,NULL);"
+         {}
+         INSERT INTO catalog_state VALUES(1,0,0,0,NULL,NULL);",
+        catalog_state_table("catalog_state", LEGACY_MAX_CATALOG_BYTES)
     ))?;
+    Ok(())
+}
+
+/// Migration 60: rebuild `catalog_state` so its BLOB checks admit the current
+/// signed-catalog bound. SQLite cannot alter a CHECK in place. The singleton
+/// row is copied unchanged inside the migration transaction; a failure rolls
+/// the whole migration back and leaves the 4 MiB table in place.
+pub(crate) fn migrate_catalog_bound(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(&format!(
+        "{}
+         INSERT INTO catalog_state_rebuild(singleton,revision,highest_sequence,enabled,active,previous)
+           SELECT singleton,revision,highest_sequence,enabled,active,previous FROM catalog_state;
+         DROP TABLE catalog_state;
+         ALTER TABLE catalog_state_rebuild RENAME TO catalog_state;",
+        catalog_state_table("catalog_state_rebuild", MAX_CATALOG_BYTES)
+    ))?;
+    verify_catalog_bound(transaction)
+}
+
+/// The rebuilt table must keep exactly one singleton row and the current bound.
+pub(crate) fn verify_catalog_bound(connection: &Connection) -> Result<()> {
+    let schema: String = connection.query_row(
+        "SELECT sql FROM sqlite_master WHERE type='table' AND name='catalog_state'",
+        [],
+        |row| row.get(0),
+    )?;
+    let rows: i64 =
+        connection.query_row("SELECT count(*) FROM catalog_state", [], |row| row.get(0))?;
+    if rows != 1
+        || !schema.contains(&format!("length(active)<={MAX_CATALOG_BYTES}"))
+        || !schema.contains(&format!("length(previous)<={MAX_CATALOG_BYTES}"))
+    {
+        return Err(PortcoveError::state(
+            "signed catalog state does not use the current catalog bound",
+        ));
+    }
     Ok(())
 }

@@ -31,7 +31,7 @@ expansion or data migration. The format-1 behavior below remains unchanged.
 
 ## Publisher format
 
-The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 4 MiB, including all JSON escaping. `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.
+The outer JSON object has exactly `format_version: 1`, `key_id`, `payload`, and `signature`. It is at most 16 MiB, including all JSON escaping; clients before library writer protocol 60 still refuse more than 4 MiB (see [Size bounds and older clients](#size-bounds-and-older-clients)). `key_id` is the lowercase hex SHA-256 of the raw 32-byte Ed25519 public key. `signature` is the 64-byte signature in hex. `payload` is a JSON **string**; its exact UTF-8 bytes are signed, without parsing, whitespace changes, or reserialization by the verifier.
 
 The signing message is the byte concatenation of:
 
@@ -68,9 +68,10 @@ node scripts/sign-catalog.mts --catalog legacy-catalog.json --key publisher-priv
 ```
 
 The key and catalog inputs must be regular files, limited to 64 KiB (65536 bytes)
-and 4 MiB (4194304 bytes), respectively. The escaped signed envelope has its own
-4 MiB limit, so a catalog within its input limit can still produce an oversized
-envelope. Refusals identify the affected argument, limit and observed size without
+and 16 MiB (16777216 bytes), respectively. The escaped signed envelope has its own
+16 MiB limit, so a catalog within its input limit can still produce an oversized
+envelope. The signer does not apply the older-client 4 MiB floor; the repository
+size guard below does. Refusals identify the affected argument, limit and observed size without
 including key or catalog contents. Sequence must be a positive safe integer;
 issuance and expiry use integer Unix seconds with validity of at most 366 days.
 
@@ -100,6 +101,43 @@ Explicit rollback consumes the previous selection and keeps the highest sequence
 Trust and replay state belong to the local library's database. Managed moves retain it. Metadata-only export/import intentionally leaves it out, so each destination configures its own trust; old installed artifacts remain subject to the same embedded safety contracts. This protects against network/publisher-delivery tampering and replay under an intact local database. It does not protect against a local attacker rewriting that database, restore its newer replay floor after a whole-database rollback, or supply a trustworthy system clock.
 
 Bundled-runtime updates may change their pinned archive asset and archive root, like a game release update. They cannot add or remove a runtime platform, change its mount directory or executable, or make runtime files mutable. Runtime-only updates receive a distinct immutable install identity. Adding a new runtime execution contract requires an application update; an older cached catalog that omits the new contract is rejected and falls back through the normal verified selection rules.
+
+## Size bounds and older clients
+
+Core's `MAX_CATALOG_BYTES` is 16 MiB (16777216 bytes). It bounds the signed
+envelope, the local or HTTPS catalog read (refused from the declared length or as
+the stream passes the bound), the stored active and previous envelopes, a retained
+format-1 installation catalog, the projected catalog and `catalog inspect-proposal`
+input. Content above it is refused whole; nothing is truncated to fit. Indexed
+definition content targets move with it, because one target can carry the
+complete catalog projection; the 4 MiB index bound is unchanged.
+
+Library writer protocol 60 rebuilds the `catalog_state` table so its BLOB checks
+admit 16 MiB, copying the singleton selection, replay floor and both stored
+envelopes unchanged in the migration transaction. A failed rebuild rolls back to
+schema 59 with the 4 MiB table intact. Clients before schema 60 refuse a migrated
+library as newer before reading or writing it, and they still refuse a signed
+envelope, retained catalog or definition target above 4 MiB with their existing
+errors. They never accept or truncate larger content, but they would lose catalog
+updates and indexed definitions that outgrow 4 MiB.
+
+Until the owner retires those clients (#5894), the repository keeps the bytes
+they receive at most 85% of the 4 MiB floor (3565158 bytes).
+`node scripts/catalog-capacity.mts --check` measures the compact catalog and the
+escaped signed envelope against that ceiling, and the generated `catalog.json`
+against 85% of the current 16 MiB bound, printing each size and its headroom.
+Core's `catalog_growth_stays_within_the_legacy_compatibility_margin` test holds
+the serialized catalog projection, retained format-1 `catalog_json` and its
+JSON-escaped manifest copy to the same ceiling, because those bytes come from
+Core serialization rather than the source file. Both read the bounds and
+`CATALOG_GROWTH_CEILING_PERCENT` from `signed_catalog.rs`. A failure asks for
+fewer catalog bytes or an owner decision to move the floor, not a larger margin.
+
+Measured November 14, 2026: generated `catalog.json` 3728878 bytes (88.9% of
+the old floor, 22.2% of the current bound), compact catalog 2895856 bytes (69.0%),
+escaped envelope 3046445 bytes (72.6%), Core projection 3122403 bytes (74.4%),
+retained `catalog_json` 3122333 bytes and its escaped contract 3291814 bytes
+(78.5%, 273344 bytes of headroom). Requalification cohorts add roughly 5–15 KB.
 
 ## Capacity diagnostics and retained representations
 

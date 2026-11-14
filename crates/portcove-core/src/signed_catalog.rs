@@ -11,7 +11,19 @@ use sha2::{Digest, Sha256};
 
 use crate::{Catalog, CatalogDocument, PortcoveError, Result, SourceCatalog};
 
-pub(crate) const MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
+/// Bound for a signed envelope, the local catalog read and a retained format-1
+/// catalog. Raised from 4 MiB with database writer protocol 60; content above
+/// it is refused, never truncated.
+pub(crate) const MAX_CATALOG_BYTES: usize = 16 * 1024 * 1024;
+/// The bound every client before writer protocol 60 still enforces. Historical
+/// migration 11 keeps it, and the catalog size guard keeps published catalogs
+/// within a stated margin below it until the owner retires those clients.
+pub(crate) const LEGACY_MAX_CATALOG_BYTES: usize = 4 * 1024 * 1024;
+/// Published catalogs stay below this share of the legacy bound. The Core
+/// growth test and `scripts/catalog-capacity.mts --check` both enforce it.
+#[cfg(test)]
+pub(crate) const CATALOG_GROWTH_CEILING_PERCENT: usize = 85;
+pub(crate) const MAX_CATALOG_LIMIT_MESSAGE: &str = "signed catalog exceeds the 16 MiB limit";
 pub(crate) const MAX_SEQUENCE: i64 = 9_007_199_254_740_991;
 const SIGNING_DOMAIN: &[u8] = b"Portcove signed catalog v1\n";
 
@@ -122,9 +134,7 @@ pub(crate) fn verify(bytes: &[u8], keys: &[CatalogTrustKey], now: i64) -> Result
     VERIFY_INVOCATIONS.set(VERIFY_INVOCATIONS.get() + 1);
 
     if bytes.len() > MAX_CATALOG_BYTES {
-        return Err(PortcoveError::verification(
-            "signed catalog exceeds the 4 MiB limit",
-        ));
+        return Err(PortcoveError::verification(MAX_CATALOG_LIMIT_MESSAGE));
     }
     let envelope: SignedCatalogEnvelope = serde_json::from_slice(bytes)
         .map_err(|_| PortcoveError::verification("invalid signed catalog envelope"))?;

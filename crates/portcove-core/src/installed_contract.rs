@@ -810,6 +810,47 @@ mod tests {
         );
     }
 
+    // Core-serialized catalog bytes that a node script cannot reproduce: the
+    // compact catalog projection, the retained format-1 contract and the
+    // manifest-embedded (JSON-escaped) copy that browsing reads under
+    // MAX_CATALOG_BYTES. Each stays within the stated margin below the bound
+    // older clients still enforce, so growth fails here before it strands them.
+    #[test]
+    fn catalog_growth_stays_within_the_legacy_compatibility_margin() {
+        use crate::signed_catalog::{
+            CATALOG_GROWTH_CEILING_PERCENT, LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES,
+        };
+        let ceiling = LEGACY_MAX_CATALOG_BYTES * CATALOG_GROWTH_CEILING_PERCENT / 100;
+        let catalog = Catalog::embedded().unwrap();
+        let projection = serde_json::to_vec(&serde_json::json!({
+            "contract_schema": 1, "representation": "catalog_projection",
+            "catalog": catalog.authoritative_document()
+        }))
+        .unwrap();
+        let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
+        assert!(contract.definition.is_none());
+        let escaped = serde_json::to_vec(&contract).unwrap();
+        for (measure, bytes) in [
+            ("compact catalog projection", projection.len()),
+            (
+                "retained format-1 catalog_json",
+                contract.catalog_json.len(),
+            ),
+            ("escaped retained contract", escaped.len()),
+        ] {
+            println!(
+                "{measure}: {bytes} bytes; ceiling {ceiling} ({CATALOG_GROWTH_CEILING_PERCENT}% of the \
+                 legacy {LEGACY_MAX_CATALOG_BYTES}); headroom {}; current bound {MAX_CATALOG_BYTES}",
+                ceiling as i64 - bytes as i64
+            );
+            assert!(
+                bytes <= ceiling,
+                "{measure} is {bytes} bytes, above {ceiling}: older clients would soon refuse it. \
+                 Reduce catalog bytes or record an owner decision to move the compatibility floor."
+            );
+        }
+    }
+
     #[test]
     fn retention_keeps_complete_catalog_and_source_graph_before_later_edits() {
         let original = Catalog::embedded().unwrap();

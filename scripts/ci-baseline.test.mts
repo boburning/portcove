@@ -697,6 +697,11 @@ void test("selected contract tests retain cheap actual-checkout integrity", () =
       (args) => args[0] === "scripts/check-retcomm-upstreams.mts" && args[1] === "--offline",
     ),
   );
+  assert.equal(
+    catalog.filter((args) => args[0] === "scripts/catalog-capacity.mts" && args[1] === "--check")
+      .length,
+    1,
+  );
   const docs = baselineIntegrityCommands(make(["docs/QUALITY.md"]));
   assert.ok(
     docs.some((args) => args[0] === "scripts/repository-settings.mts" && args[1] === "--validate"),
