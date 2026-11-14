@@ -344,6 +344,7 @@ mod tests {
         let refusal = require_acquisition_available(&catalog, id).unwrap_err();
         assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
         assert!(refusal.message.contains("can't follow"));
+        assert!(refusal.message.contains("Exit, not Quit to launcher"));
         assert!(hold_withdraws(crate::PortAction::Install));
         assert!(hold_withdraws(crate::PortAction::Update));
         assert!(!hold_withdraws(crate::PortAction::Launch));
@@ -382,6 +383,14 @@ mod tests {
                 "{version}"
             );
         }
+        // A published Linux sibling is reviewed too, so it activates.
+        let mut linux = staged(
+            "v0.4.5",
+            "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+        );
+        linux.artifact.asset_name = "supermetroid-0.4.5-linux-x64.zip".into();
+        linux.selected_executable = "SuperMetroidSNESRecomp".into();
+        assert!(require_managed_activation_available(&catalog, &linux).is_ok());
         let refusal = require_managed_activation_available(
             &catalog,
             &staged(

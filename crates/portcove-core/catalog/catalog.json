@@ -39091,7 +39091,7 @@
       ],
       "adapter": "staged-source-portable",
       "managed_acquisition_hold": {
-        "reason": "Super Metroid Recompiled installs and updates are paused. Its newest version can restart the game in a new window that Portcove can't follow, so saves made there could be missed. Your installed copy, saves and settings stay as they are, and you can keep playing it.",
+        "reason": "Super Metroid Recompiled installs and updates are paused because version 0.4.6 can restart the game in a new window that Portcove can't follow. If you're playing 0.4.6, leave the game with Exit, not Quit to launcher, or roll back to an earlier version if you have one. Your saves and settings stay as they are.",
         "activation_reason": "This prepared Super Metroid Recompiled version hasn't been checked for restarting the game in a new window. Keep playing your current version.",
         "reviewed_artifacts": [
           {
@@ -39099,8 +39099,32 @@
             "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
           },
           {
+            "version": "v0.4.2",
+            "sha256": "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a"
+          },
+          {
+            "version": "v0.4.2",
+            "sha256": "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2"
+          },
+          {
+            "version": "v0.4.2",
+            "sha256": "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8"
+          },
+          {
             "version": "v0.4.5",
             "sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14"
+          },
+          {
+            "version": "v0.4.5",
+            "sha256": "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946"
           }
         ]
       },

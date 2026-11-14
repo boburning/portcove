@@ -3193,6 +3193,8 @@ mod tests {
         // v0.4.6 relaunches the game in an untracked successor process, so the
         // route is held and only the reviewed Windows packages may activate.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        // The Windows packages plus each release's published Linux and Mac
+        // siblings, all matching their release SHA256SUMS.
         assert_eq!(
             hold.reviewed_artifacts
                 .iter()
@@ -3204,11 +3206,36 @@ mod tests {
                     "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
                 ),
                 (
+                    "v0.4.2",
+                    "b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a",
+                ),
+                (
+                    "v0.4.2",
+                    "a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2",
+                ),
+                (
+                    "v0.4.2",
+                    "2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8",
+                ),
+                (
                     "v0.4.5",
                     "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
                 ),
+                (
+                    "v0.4.5",
+                    "72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe",
+                ),
+                (
+                    "v0.4.5",
+                    "938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14",
+                ),
+                (
+                    "v0.4.5",
+                    "08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946",
+                ),
             ]
         );
+        assert!(hold.reason.contains("Exit, not Quit to launcher"));
         assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
             artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
         }));

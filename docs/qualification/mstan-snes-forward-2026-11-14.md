@@ -254,10 +254,29 @@ the selector would install or update to v0.4.6 today without a reviewed row.
 no hold for a single release: `require_acquisition_available` refuses Install,
 Update and catalog download before any provider contact. So the selector does
 not fall back to v0.4.5; fresh Install and Update are withdrawn for every
-release until the hold is removed. Play, backup and removal of existing installations continue. The hold's `reviewed_artifacts` are the v0.4.2 and
-v0.4.5 Windows packages, so a staged or interrupted copy of those may still
-activate and a staged v0.4.6 copy is refused. The hold also pauses the explicit
-data transition for v0.3.x installations.
+release until the hold is removed. Play, backup and removal of existing
+installations continue.
+
+The hold's `reviewed_artifacts` are the v0.4.2 and v0.4.5 Windows, Linux x64,
+Mac x64 and Mac arm64 packages. Each sibling was downloaded with `python3 -I`
+into its own new empty directory, matched its release `SHA256SUMS`, and was
+deleted; none was inspected further or bound as applicability:
+
+| Release | Linux x64                                                                       | Mac arm64                                                                       | Mac x64                                                                         |
+| ------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| v0.4.2  | `b2fbc6a301edaab07efd8d52a2b17ea098e4f890d6f6308056c9ce6395acee5a` (14,567,176) | `a0b9faa72f8bad0e12d7f9ff49541c0088478f7e79d56ebfaccf8fcd8dfc89a2` (15,725,031) | `2e283b20410edb61df3fff7805c06af3bfbeaa842ccf17666d1f59462f7c79f8` (16,260,320) |
+| v0.4.5  | `72e6d67a0de4115a1bd943cd33d9e2e2a282315b6f6bd84199c0d05b83f65cbe` (15,246,207) | `938499cd2e2ac3e511e8295cd94f51e0bbcb7315f9dc62cd7073818df4987c14` (16,345,640) | `08dbb8cc0eba47bd42a3311bb92d3b695a7339ef37be77c3a45e7f69cc8c9946` (16,904,968) |
+
+A staged or interrupted copy of those packages may still activate; a staged
+v0.4.6 copy is refused. The hold also pauses the explicit data transition for
+v0.3.x installations.
+
+**Existing v0.4.6 copies.** Before this hold, the selector could already install
+or update players to v0.4.6, and the hold does not gate launch. Those copies stay
+active and playable, and Quit to launcher still starts an untracked successor.
+The hold's player text tells them to leave the game with **Exit**, not **Quit to
+launcher**, or to roll back where an earlier copy is kept. How many such copies
+exist is unknown.
 
 Remove the hold on #164 once v0.4.6's successor process is tracked or reviewed.
 A per-release hold would need new Core behavior.
@@ -270,8 +289,8 @@ A per-release hold would need new Core behavior.
 - Any runtime behavior: launch, first-run file creation, actual write locations,
   network traffic or its absence, settings migration, save compatibility and
   gameplay. Reachability above is static source reading.
-- Linux and macOS Super Metroid v0.4.5 packages. Their `SHA256SUMS` entries
-  were read but not bound.
+- Linux and macOS Super Metroid package contents. Only their digests were
+  checked; they are hold-reviewed artifacts, not applicability bindings.
 - Intermediate tags between each reviewed and newest release.
 - Core lifecycle execution: the transition, rollback and hold outcomes above
   come from reading the code and unit tests, not from an isolated library run.
