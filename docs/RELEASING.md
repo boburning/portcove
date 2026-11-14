@@ -1,9 +1,79 @@
 # Releasing Portcove
 
-Start with [Release task order](#release-task-order) for reusable instructions.
-The [upstream-first integration record](#upstream-first-release-integration)
-retains dated rehearsal inputs, failures and limits; it does not grant a new run
-or publication. Live scope and remaining acceptance belong to the owning issues.
+## Current release process
+
+The owner set this process on [#534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340)
+on 2026-11-13. It replaces the unattended release engine described in the
+sections below, which are retained only until the cleanup PR removes them.
+Releases do not depend on AI review.
+
+**A `v*` tag on protected `main` is the release decision.**
+[`app-release.yml`](../.github/workflows/app-release.yml) then:
+
+1. Classifies the tag and confirms that the commit is on `main` and that its
+   `CI` run succeeded.
+2. Stamps the version, then builds and signs the Windows NSIS installer and CLI
+   ZIP, the Linux AppImage, and the universal macOS app and DMG. Signing uses the
+   Tauri updater key. macOS builds are ad-hoc signed.
+3. Publishes an immutable GitHub Release with every asset and `SHA256SUMS`.
+4. Writes `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
+   branch, which GitHub Pages serves. Older feeds are never overwritten by a
+   lower version.
+
+| Tag                | Channel          | Feeds updated         | Approval                   |
+| ------------------ | ---------------- | --------------------- | -------------------------- |
+| `vX.Y.Z-preview.N` | Preview (opt-in) | preview               | none                       |
+| `v0.Y.Z`           | Beta (default)   | beta, preview         | none                       |
+| `v1.Y.Z` and later | Stable           | stable, beta, preview | owner, on `release-stable` |
+
+Previews are pre-releases of the _next_ version, for example
+`0.2.0-preview.1`. That keeps them above every earlier release in SemVer order.
+
+**To release**, from a clean checkout of the current `origin/main`:
+
+```sh
+PORTCOVE_RELEASE_NOTES_FILE=notes.md just release 0.1.1
+```
+
+The command refuses in these cases: the checkout is not exactly `origin/main`,
+there are uncommitted changes, the version is not greater than every existing
+`v*` tag, or `CI` has not succeeded on that commit. If none apply, it pushes an
+annotated tag whose message becomes the release notes. An agent asked to
+"review and release X.Y.Z" reviews the changes since the last tag, writes the
+notes, and runs the same command. The owner's request is the authorization.
+Only Stable waits for the owner's approval on the `release-stable` environment.
+
+**Before calling a Beta release supported** on a platform, record its install
+evidence, an installed update from the previous version, and preserved saves on
+the owning issue. macOS stays labelled experimental until someone confirms a
+physical first launch through System Settings → Privacy & Security → Open Anyway.
+Windows users see SmartScreen's "More info → Run anyway" step because the
+installers have no Authenticode signature yet.
+
+**What the Stable approval protects.** Both environments hold the same updater
+key, because installed clients trust exactly one key. Tag creation is not
+restricted, and a tag runs the workflow file at the tagged commit. So the
+`release-stable` approval is a process gate: it stops an accidental Stable
+release. It is not a key boundary against someone who can already push to the
+repository. Keep repository write access limited to the owner.
+
+**First release.** Tags cannot be deleted. Tag `v0.1.0-preview.1` first. That
+confirms every build, signing, asset-name and feed step before `0.1.0` itself
+is used. If a publish step fails after the GitHub Release exists, re-run the
+failed jobs. The publish job continues only when the release's asset set is
+identical.
+
+**Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
+and `release-stable` environments, and the owner keeps an offline backup. If
+the key is lost, installed clients cannot be updated. Never rotate it without a
+transition release signed by the old key.
+
+## Retired unattended release engine
+
+Everything below describes the replaced engine: the coordinator journal,
+protection observers, wake controllers, semantic review and TUF application
+metadata. It is history, not instructions. Publication through it remains
+paused.
 
 ## Release task order
 
