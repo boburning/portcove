@@ -1796,19 +1796,26 @@ loop. This section is the single place for concrete model recommendations.
 
 ### Current recommendations
 
-Recommendations as of 2026-11-13. They are starting assignments by
+Recommendations as of 2026-11-14. They are starting assignments by
 responsibility, not claims of equivalent performance or compute across
 providers. The two visual-helper choices in particular are separate starting
-points, each to be evaluated on its own evidence.
+points, each to be evaluated on its own evidence. The implementation owner is
+normally the main session itself, which runs on the model the person selected;
+these instructions do not change it.
 
-| Responsibility                      | Codex                   | Claude                      |
-| ----------------------------------- | ----------------------- | --------------------------- |
-| Implementation owner                | `gpt-6.1-sol`, medium   | `claude-opus-5-5`, medium   |
-| Independent reviewer                | `gpt-6.1-sol`, high     | `claude-opus-5-5`, high     |
-| Critical reviewer                   | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Specialist (difficult problem)      | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
-| Research scout (bounded extraction) | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
-| Visual helper (optional)            | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
+| Responsibility                                 | Codex                   | Claude                      |
+| ---------------------------------------------- | ----------------------- | --------------------------- |
+| Delegated implementation (only when asked)     | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Independent reviewer                           | `gpt-6.1-sol`, medium   | `claude-sonnet-5-5`, medium |
+| Critical reviewer (listed critical areas only) | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Specialist (named difficult problem)           | `gpt-6-astra`, high     | `claude-fable-5-2`, high    |
+| Research scout (bounded extraction)            | `gpt-6-luna`, medium    | `claude-haiku-5-5`, medium  |
+| Visual helper (optional)                       | `gpt-6.1-terra`, medium | `claude-sonnet-5-5`, medium |
+
+Escalate an independent review to `claude-opus-5-5` or `gpt-6.1-sol` at high
+effort only when a first review leaves a substantive unresolved question that a
+stronger pass is likely to settle. The critical reviewer and specialist rows are
+for the narrow cases QUALITY and AGENTS name, not for routine PRs.
 
 Documented availability, checked 2026-11-13: all eight models appear on
 the official [OpenAI models](https://developers.openai.com/api/docs/models) and
@@ -1832,6 +1839,20 @@ rather than claiming the recommended setting. Delegate only when the assignment
 is bounded and worth the coordination cost. Updated defaults apply to new
 assignments; ongoing work keeps its models unless the owner deliberately
 escalates or must transition.
+
+### Usage controls
+
+Delegated agents are short-lived. Each assignment states its end condition: a
+report, findings, or a pushed draft candidate. It never sleeps, polls or watches
+CI, review or merge. Prompt caches expire after a few idle minutes, so a waiting
+agent rewrites its whole context each time it resumes. After the 2026-11-13
+recommendations, 23 delegated agents ran for over an hour waiting on CI and
+review, and 79.5M of their 87.2M cache-write tokens followed more than five idle
+minutes. Only the main session waits, once, for all of its candidates. Resume a
+reviewer for a repair delta only when it ended recently; otherwise give a fresh
+reviewer the delta packet. Parallel delegated implementation needs the
+requester's explicit request, because each delegated owner repeats the whole
+repository orientation.
 
 ### What instructions control
 

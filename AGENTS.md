@@ -86,21 +86,25 @@ owns the one dated model/effort table and what instructions cannot enforce.
 Stay with the session's provider, environment, account and spending boundaries.
 
 The implementation owner starts from the current issue, acceptance, relevant
-architecture and actual dependencies, and keeps decisions, integration and
-delivery. Delegate only bounded work worth its coordination cost: a research
-scout answers stated questions with evidence, sources and open uncertainty; a
-specialist takes a named hard problem; a visual helper inspects presentation.
-Most issues need only some responsibilities.
+architecture and actual dependencies, and implements in its own session. It keeps
+decisions, integration and delivery, including every wait for CI, review and
+merge. Delegate only bounded work worth its coordination cost: a research scout
+answers stated questions with evidence, sources and open uncertainty; a
+specialist takes a named hard problem; a visual helper inspects presentation;
+a reviewer reviews. Delegate implementation itself only when the requester
+explicitly asks for parallel delegated implementation. Every delegated
+assignment ends by returning its report, findings or pushed draft candidate; it
+never waits on CI, review or merge. Most issues need only some responsibilities.
 
 Substantive candidates follow the [review and repair loop](docs/QUALITY.md#review-and-repair-loop):
 a fresh non-writing reviewer who did not help design or implement the candidate,
 a complete review packet, classified evidence-backed findings, repair and
-reassessment. Changes in the loop's listed critical areas start with a critical
-reviewer. After repeated
-unsuccessful attempts, change approach, investigate a discriminating
-reproduction or bring in a specialist; no attempt count turns a blocker into
-approval. While CI, review or an external prerequisite is pending, keep the
-waiting head frozen and continue independent authorized work.
+reassessment. Only changes in the loop's listed critical areas use a critical
+reviewer. After repeated unsuccessful attempts, change approach, investigate a
+discriminating reproduction or bring in a specialist; no attempt count turns a
+blocker into approval. While CI, review or an external prerequisite is pending,
+keep the waiting head frozen and continue independent authorized work in the
+same session rather than starting new delegated owners.
 
 ## Task map
 
