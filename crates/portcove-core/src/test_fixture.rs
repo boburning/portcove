@@ -343,7 +343,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if port.runtime_rom_patch.is_some() {
+        let capability_version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
+            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; it is the newest
             // staged-source requirement, so it stays first.
             33

@@ -1956,17 +1956,26 @@ rule change; existing transition and recovery guards still apply.
 
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
-`managed_acquisition_hold` instead of port-specific Core code. Its `reason`
-refuses fresh Install, Update, catalog download and managed adoption before any
-provider contact. Its `activation_reason` refuses activation and recovery of a
-staged or interrupted package unless that package's version and SHA-256 match one
-of the `reviewed_artifacts`. Installed copies keep their retained definition and
-existing Play, backup and removal checks. Remove the hold only after reviewing
-the changed upstream behavior on the canonical port issue. A selected independent
-definition may reword or narrow an existing hold but cannot remove it or add a
-reviewed artifact. Because the catalog is currently embedded, the hold reaches
-players with the next application release; independent delivery to unchanged
-clients remains with #246.
+`managed_acquisition_hold` instead of port-specific Core code. A hold without
+`excluded_artifacts` refuses fresh Install, Update, catalog download and managed
+adoption before provider contact. Its `activation_reason` refuses activation and
+recovery of a staged or interrupted package unless its version and SHA-256 match
+one of the `reviewed_artifacts`.
+
+A hold with `excluded_artifacts` identifies excluded packages by version and
+SHA-256. If the selected platform's package matches an exclusion, Core looks for
+a `reviewed_artifacts` match on that platform and channel and includes the hold
+reason in the install plan. The fallback must match the reviewed digest using
+GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
+checks. An excluded package cannot be activated from staging or recovery.
+Installed copies retain their existing Play, backup and removal checks. A player
+can choose the reviewed fallback through Update when the installed artifact
+differs from the selected fallback.
+
+Review changes to the hold on the canonical port issue. A selected independent
+definition may preserve or strengthen the embedded restrictions. It cannot drop
+an exclusion or add a reviewed fallback. Embedded catalog changes reach players
+with an application release. Independent delivery remains with #246.
 
 An integration may also record `reviewed_package_layouts`, one bounded fingerprint
 per platform, so a release that matches the selector but changes shape is held

@@ -6004,6 +6004,13 @@
             "description": "Player-facing explanation for a refused staged activation.",
             "type": "string"
           },
+          "excluded_artifacts": {
+            "description": "Exact artifacts unavailable for acquisition or staged activation. An\nempty list preserves the route-wide acquisition hold.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
+          },
           "reason": {
             "description": "Player-facing explanation for refused Install and Update.",
             "type": "string"
@@ -34134,6 +34141,13 @@
             "description": "Player-facing explanation for a refused staged activation.",
             "type": "string"
           },
+          "excluded_artifacts": {
+            "description": "Exact artifacts unavailable for acquisition or staged activation. An\nempty list preserves the route-wide acquisition hold.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
+          },
           "reason": {
             "description": "Player-facing explanation for refused Install and Update.",
             "type": "string"
@@ -48972,6 +48986,13 @@
           "activation_reason": {
             "description": "Player-facing explanation for a refused staged activation.",
             "type": "string"
+          },
+          "excluded_artifacts": {
+            "description": "Exact artifacts unavailable for acquisition or staged activation. An\nempty list preserves the route-wide acquisition hold.",
+            "items": {
+              "$ref": "#/$defs/ReviewedHoldArtifact"
+            },
+            "type": "array"
           },
           "reason": {
             "description": "Player-facing explanation for refused Install and Update.",

@@ -99,7 +99,9 @@ fn entry_with_reference(document: &Value, reference: &str, port_index: usize) ->
     let port = &document["catalog"]["ports"][port_index];
     // Declare the semantics of each complete port in this synthetic envelope.
     let typed: crate::PortDefinition = serde_json::from_value(port.clone()).unwrap();
-    let version = if typed.optional_game_source {
+    let version = if crate::managed_runtime_policy::has_exact_exclusions(&typed) {
+        crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+    } else if typed.optional_game_source {
         // An optional game source needs staged-source capability version 31. Keep this
         // branch first: a later capability chain that matched earlier would silently
         // skip the requirement.

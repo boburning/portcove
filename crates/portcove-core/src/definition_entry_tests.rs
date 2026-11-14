@@ -1111,8 +1111,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(34);
-        entry["required_capabilities"][0]["maximum_version"] = json!(34);
+        entry["required_capabilities"][0]["minimum_version"] = json!(35);
+        entry["required_capabilities"][0]["maximum_version"] = json!(35);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1309,11 +1309,16 @@ fn entry_for_port(port: &crate::PortDefinition) -> Value {
 #[test]
 fn staged_sibling_packages_require_version_29_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("super-metroid-recomp").unwrap();
+    let mut port = catalog.port("super-metroid-recomp").unwrap().clone();
+    port.managed_acquisition_hold
+        .as_mut()
+        .unwrap()
+        .excluded_artifacts
+        .clear();
     assert!(crate::runtime_path_policy::has_staged_sibling_platforms(
-        port
+        &port
     ));
-    let mut entry = entry_for_port(port);
+    let mut entry = entry_for_port(&port);
     let requirement = &mut entry["required_capabilities"][0];
     requirement["minimum_version"] = json!(28);
     requirement["maximum_version"] = json!(29);
@@ -1336,6 +1341,26 @@ fn staged_sibling_packages_require_version_29_in_fresh_and_retained_readers() {
             .capabilities()
             .compatible
     );
+}
+
+#[test]
+fn exact_exclusions_require_version_34_in_fresh_and_retained_readers() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("super-metroid-recomp").unwrap();
+    let mut entry = entry_for_port(port);
+    entry["required_capabilities"][0]["minimum_version"] = json!(33);
+    entry["required_capabilities"][0]["maximum_version"] = json!(34);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap_err().message.contains("version 34"));
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap_err()
+            .message
+            .contains("version 34")
+    );
+    entry["required_capabilities"][0]["minimum_version"] = json!(34);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 
 fn target(bytes: &[u8]) -> String {
@@ -1649,7 +1674,9 @@ fn every_existing_official_projection_keeps_its_complete_fields() {
         value["required_capabilities"][0]["template"] = json!(port.adapter);
         // These synthetic envelopes must declare the semantics of the real port.
         // Keep entry_for_port at v1 for the explicit older-reader refusal tests.
-        let version = if port.runtime_rom_patch.is_some() {
+        let version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
+            crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+        } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; keep it first.
             33
         } else if port.optional_game_source {

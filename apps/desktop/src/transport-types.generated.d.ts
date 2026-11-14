@@ -2466,6 +2466,11 @@ export interface ManagedAcquisitionHold {
    */
   activation_reason: string;
   /**
+   * Exact artifacts unavailable for acquisition or staged activation. An
+   * empty list preserves the route-wide acquisition hold.
+   */
+  excluded_artifacts?: ReviewedHoldArtifact[];
+  /**
    * Player-facing explanation for refused Install and Update.
    */
   reason: string;

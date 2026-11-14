@@ -168,6 +168,18 @@ impl DefinitionContentIndex {
             return Err(crate::cartridge_build::retired_creation());
         }
         let adapter = serde_json::to_value(port.adapter)?;
+        crate::managed_runtime_policy::validate_exact_exclusions(&port)?;
+        if crate::managed_runtime_policy::has_exact_exclusions(&port)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version
+                        >= crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "exact release exclusions require staged-source capability version 34",
+            ));
+        }
         if (!retained && !port.reviewed_package_layouts.is_empty())
             || crate::package_layout::layout_capability(&port)
                 > crate::package_layout::NATIVE_CAPABILITY
