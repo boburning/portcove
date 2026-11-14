@@ -139,7 +139,7 @@ function fakeRunner(state: {
   main?: string;
   dirty?: string;
   tags?: string[];
-  ci?: { conclusion: string; status: string }[];
+  ci?: string;
 }) {
   const calls: string[][] = [];
   const run: Runner = (command, args) => {
@@ -153,12 +153,14 @@ function fakeRunner(state: {
       return (state.tags ?? ["v0.1.0-alpha.2"]).join("\n");
     return "";
   };
-  return { run, calls };
+  const ci = (sha: string) =>
+    sha === (state.head ?? "a".repeat(40)) ? (state.ci ?? "success") : "";
+  return { run, ci, calls };
 }
 
 void test("the release command tags and pushes only an exact, clean, CI-green main commit", () => {
   const ok = fakeRunner({});
-  assert.deepEqual(tagRelease("0.1.0-preview.1", "notes.md", ok.run), {
+  assert.deepEqual(tagRelease("0.1.0-preview.1", "notes.md", ok.ci, ok.run), {
     tag: "v0.1.0-preview.1",
     channel: "preview",
     commit: "a".repeat(40),
@@ -180,12 +182,12 @@ void test("the release command tags and pushes only an exact, clean, CI-green ma
     [{ dirty: " M Cargo.toml" }, /uncommitted changes/u],
     [{ tags: ["v0.1.0"] }, /greater than existing v0\.1\.0/u],
     [{ tags: ["v0.1.0-preview.1"] }, /already exists/u],
-    [{ ci: [{ status: "in_progress", conclusion: "" }] }, /CI has not succeeded/u],
-    [{ ci: [{ status: "completed", conclusion: "failure" }] }, /CI has not succeeded/u],
+    [{ ci: "" }, /CI has not succeeded/u],
+    [{ ci: "failure" }, /CI has not succeeded/u],
   ];
   for (const [state, message] of refusals) {
     const fake = fakeRunner(state);
-    assert.throws(() => tagRelease("0.1.0-preview.1", undefined, fake.run), message);
+    assert.throws(() => tagRelease("0.1.0-preview.1", undefined, fake.ci, fake.run), message);
     assert.ok(!fake.calls.some((call) => call[1] === "push"), "a refused release never pushes");
   }
 });

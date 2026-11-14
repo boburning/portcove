@@ -48,13 +48,7 @@ jobs:
       - name: Require successful CI on the tagged commit
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          conclusion=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$GITHUB_SHA&event=push&per_page=100" \
-            --jq '[.workflow_runs[] | select(.name == "CI" and .status == "completed")] | sort_by(.run_attempt) | last | .conclusion // ""')
-          if [ "$conclusion" != success ]; then
-            echo "::error::CI on main commit $GITHUB_SHA has not succeeded (got '${conclusion:-none}')."
-            exit 1
-          fi
+        run: node scripts/app-release.mts ci-status --sha "$GITHUB_SHA"
 
   build:
     name: Build ${{ matrix.label }}
@@ -182,43 +176,18 @@ jobs:
           [ -n "$(echo "$notes" | tr -d '[:space:]')" ] || notes="Portcove $VERSION"
           printf '%s\n' "$notes" > notes.md
       - name: Publish the GitHub Release with all assets
-        run: |
-          set -euo pipefail
-          expected=$(cd dist && ls -1 | sort)
-          if view=$(gh release view "$GITHUB_REF_NAME" --json isDraft --jq 'if .isDraft then "draft" else "published" end' 2>&1); then
-            state=$view
-          elif grep -q "release not found" <<<"$view"; then
-            state=missing
-          else
-            echo "::error::Could not read the release state: $view"; exit 1
-          fi
-          case "$state" in missing|draft|published) ;; *) echo "::error::Unexpected release state: $state"; exit 1 ;; esac
-          if [ "$state" = missing ]; then
-            flags=()
-            [ "${{ needs.plan.outputs.prerelease }}" = true ] && flags+=(--prerelease)
-            gh release create "$GITHUB_REF_NAME" --verify-tag --draft --latest=false --title "Portcove $VERSION" --notes-file notes.md "${flags[@]}" dist/*
-            state=draft
-          elif [ "$state" = draft ]; then
-            gh release upload "$GITHUB_REF_NAME" --clobber dist/*
-          fi
-          # A re-run after a partial publish continues only with the identical asset set.
-          actual=$(gh release view "$GITHUB_REF_NAME" --json assets --jq '.assets[].name' | sort)
-          if [ "$actual" != "$expected" ]; then
-            echo "::error::Release assets differ from this run's build."; diff <(echo "$expected") <(echo "$actual") || true; exit 1
-          fi
-          if [ "$state" = draft ]; then
-            latest=false
-            [ "${{ needs.plan.outputs.prerelease }}" = true ] || latest=true
-            gh release edit "$GITHUB_REF_NAME" --draft=false --latest="$latest"
-          fi
+        # Creates a draft with every asset, or completes an existing draft, and
+        # continues an already published release only with an identical asset set.
+        run: >-
+          node scripts/app-release.mts publish --tag "$GITHUB_REF_NAME" --version "$VERSION"
+          --prerelease "${{ needs.plan.outputs.prerelease }}" --notes-file notes.md --dist dist
       - name: Write the updater feed from the published signatures
         # The feed must match the immutable published bytes, even when this run rebuilt them.
-        run: >-
-          gh release download "$GITHUB_REF_NAME" --pattern '*.sig' --dir published --clobber &&
-          node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md
-          --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published
-          --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
-          > latest.json
+        run: |
+          node scripts/app-release.mts download-signatures --tag "$GITHUB_REF_NAME" --dir published
+          node scripts/app-release.mts feed --version "$VERSION" --notes-file notes.md \
+            --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --assets-dir published \
+            --download-base "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" > latest.json
       - name: Publish the feed to the Pages branch
         env:
           FEEDS: ${{ needs.plan.outputs.feeds }}

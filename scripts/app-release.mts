@@ -3,7 +3,9 @@
 // Tauri updater key and publishes the GitHub Release plus a per-channel
 // `latest.json` feed. No AI review, journal or controller is involved.
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { readFileSync, writeFileSync, readdirSync, mkdirSync } from "node:fs";
+import { performance } from "node:perf_hooks";
+import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -118,7 +120,7 @@ export function buildFeed(options: {
   return { version: options.version, notes: options.notes, pub_date: options.pubDate, platforms };
 }
 
-export type Runner = (command: "git" | "gh", args: string[]) => string;
+export type Runner = (command: "git", args: string[]) => string;
 
 const defaultRunner: Runner = (command, args) =>
   execFileSync(command, args, { encoding: "utf8" }).trim();
@@ -135,7 +137,12 @@ export function assertNewerThanTags(version: string, tags: readonly string[]) {
 }
 
 /** Local guarded tagging for owners and agents: `just release X.Y.Z`. */
-export function tagRelease(version: string, notesFile?: string, run: Runner = defaultRunner) {
+export function tagRelease(
+  version: string,
+  notesFile: string | undefined,
+  ci: (sha: string) => string,
+  run: Runner = defaultRunner,
+) {
   const release = classifyRelease(version);
   const git = (args: string[]) => run("git", args);
   git(["fetch", "--quiet", "--tags", "origin", "main"]);
@@ -147,21 +154,8 @@ export function tagRelease(version: string, notesFile?: string, run: Runner = de
   const tags = git(["tag", "--list", "v*"]).split("\n").filter(Boolean);
   if (tags.includes(`v${version}`)) throw new Error(`tag v${version} already exists`);
   assertNewerThanTags(version, tags);
-  const runs = JSON.parse(
-    run("gh", [
-      "run",
-      "list",
-      "--commit",
-      head,
-      "--workflow",
-      "CI",
-      "--event",
-      "push",
-      "--json",
-      "conclusion,status",
-    ]),
-  ) as { conclusion: string; status: string }[];
-  if (!runs.some((entry) => entry.status === "completed" && entry.conclusion === "success"))
+  const conclusion = ci(head);
+  if (conclusion !== "success")
     throw new Error(`CI has not succeeded on main commit ${head}; wait for it before releasing`);
   // verbatim keeps Markdown headings ("## Fixes") that the default strip mode removes.
   git([
@@ -176,8 +170,164 @@ export function tagRelease(version: string, notesFile?: string, run: Runner = de
   return { tag: `v${version}`, channel: release.channel, commit: head };
 }
 
-function main(argv: string[]) {
+const repository = "boburning/portcove";
+const read = (): { request: { portcove: GitHubRequestPolicy } } => ({
+  request: { portcove: { replay: "safe-read", attempts: 0 } },
+});
+const once = (): { request: { portcove: GitHubRequestPolicy } } => ({
+  request: { portcove: { replay: "once", attempts: 0 } },
+});
+
+async function client(token: string, baseUrl?: string) {
+  return createGitHubClient({
+    credential: { kind: "explicit", token },
+    deadline: performance.now() + 20 * 60_000,
+    requestTimeoutMs: 600_000,
+    maxBytes: 4 * 1024 * 1024,
+    ...(baseUrl ? { baseUrl } : {}),
+  });
+}
+
+/** Conclusion of the newest completed `CI` push run for one commit, or "" when none. */
+export async function ciConclusion(token: string, sha: string) {
+  const api = await client(token);
+  const response = await api.request("GET /repos/{owner}/{repo}/actions/runs", {
+    owner: "boburning",
+    repo: "portcove",
+    head_sha: sha,
+    event: "push",
+    per_page: 100,
+    ...read(),
+  });
+  const runs = (
+    response.data as {
+      workflow_runs: {
+        name: string;
+        status: string;
+        conclusion: string | null;
+        run_attempt: number;
+        id: number;
+      }[];
+    }
+  ).workflow_runs
+    .filter((run) => run.name === "CI" && run.status === "completed")
+    .sort((a, b) => a.id - b.id || a.run_attempt - b.run_attempt);
+  return runs.at(-1)?.conclusion ?? "";
+}
+
+type Release = {
+  id: number;
+  tag_name: string;
+  draft: boolean;
+  assets: { id: number; name: string; browser_download_url: string }[];
+};
+
+async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  // The list endpoint includes drafts, which the by-tag endpoint does not.
+  for (let page = 1; page <= 10; page++) {
+    const response = await api.request("GET /repos/{owner}/{repo}/releases", {
+      owner: "boburning",
+      repo: "portcove",
+      per_page: 100,
+      page,
+      ...read(),
+    });
+    const releases = response.data as Release[];
+    const matches = releases.filter((release) => release.tag_name === tag);
+    if (matches.length > 1) throw new Error(`more than one release exists for ${tag}`);
+    if (matches[0]) return matches[0];
+    if (releases.length < 100) return null;
+  }
+  throw new Error("release inventory exceeds its bound");
+}
+
+/** Creates or completes the release so its asset set equals `distDir`, then publishes it once. */
+export async function publishRelease(options: {
+  token: string;
+  tag: string;
+  version: string;
+  prerelease: boolean;
+  notes: string;
+  distDir: string;
+}) {
+  const api = await client(options.token);
+  const uploads = await client(options.token, "https://uploads.github.com");
+  const expected = readdirSync(options.distDir).sort();
+  let release = await findRelease(api, options.tag);
+  if (release === null) {
+    const created = await api.request("POST /repos/{owner}/{repo}/releases", {
+      owner: "boburning",
+      repo: "portcove",
+      tag_name: options.tag,
+      name: `Portcove ${options.version}`,
+      body: options.notes,
+      draft: true,
+      prerelease: options.prerelease,
+      make_latest: "false",
+      ...once(),
+    });
+    release = { ...(created.data as Release), assets: [] };
+  }
+  if (release.draft) {
+    for (const asset of release.assets)
+      await api.request("DELETE /repos/{owner}/{repo}/releases/assets/{asset_id}", {
+        owner: "boburning",
+        repo: "portcove",
+        asset_id: asset.id,
+        ...once(),
+      });
+    for (const name of expected)
+      await uploads.request(
+        `POST /repos/${repository}/releases/${release.id}/assets?name=${encodeURIComponent(name)}`,
+        {
+          data: new Uint8Array(readFileSync(path.join(options.distDir, name))),
+          headers: { "Content-Type": "application/octet-stream" },
+          ...once(),
+        },
+      );
+  }
+  const current = (await findRelease(api, options.tag))!;
+  const actual = current.assets.map((asset) => asset.name).sort();
+  if (JSON.stringify(actual) !== JSON.stringify(expected))
+    throw new Error(
+      `release assets differ from this build: ${JSON.stringify({ expected, actual })}`,
+    );
+  if (current.draft)
+    await api.request("PATCH /repos/{owner}/{repo}/releases/{release_id}", {
+      owner: "boburning",
+      repo: "portcove",
+      release_id: current.id,
+      draft: false,
+      make_latest: options.prerelease ? "false" : "true",
+      ...once(),
+    });
+  return { id: current.id, assets: actual.length };
+}
+
+/** Writes the published release's `.sig` files, so the feed always matches the immutable bytes. */
+export async function downloadPublishedSignatures(token: string, tag: string, dir: string) {
+  const api = await client(token);
+  const release = await findRelease(api, tag);
+  if (release === null || release.draft) throw new Error(`${tag} is not a published release`);
+  mkdirSync(dir, { recursive: true });
+  for (const asset of release.assets.filter((entry) => entry.name.endsWith(".sig"))) {
+    const response = await fetch(asset.browser_download_url, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok) throw new Error(`download of ${asset.name} failed with ${response.status}`);
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.length > 4096) throw new Error(`${asset.name} exceeds the signature bound`);
+    writeFileSync(path.join(dir, asset.name), bytes);
+  }
+}
+
+async function main(argv: string[]) {
   const [command, ...rest] = argv;
+  const token = () => {
+    const value = process.env.GH_TOKEN;
+    if (!value) throw new Error("GH_TOKEN is required");
+    return value;
+  };
   const flag = (name: string) => {
     const index = rest.indexOf(`--${name}`);
     if (index < 0 || rest[index + 1] === undefined) throw new Error(`--${name} is required`);
@@ -218,14 +368,36 @@ function main(argv: string[]) {
     // Exit 0 when --candidate is newer than --current (or no current feed exists).
     const current = rest.includes("--current") ? flag("current") : "";
     process.exitCode = current === "" || compareVersions(flag("candidate"), current) > 0 ? 0 : 1;
-  } else if (command === "tag") {
+  } else if (command === "ci-status") {
+    const conclusion = await ciConclusion(token(), flag("sha"));
+    if (conclusion !== "success")
+      throw new Error(`CI on ${flag("sha")} has not succeeded (got '${conclusion || "none"}')`);
+  } else if (command === "publish") {
+    const result = await publishRelease({
+      token: token(),
+      tag: flag("tag"),
+      version: flag("version"),
+      prerelease: flag("prerelease") === "true",
+      notes: readFileSync(flag("notes-file"), "utf8"),
+      distDir: flag("dist"),
+    });
+    console.log(`published release ${result.id} with ${result.assets} assets`);
+  } else if (command === "download-signatures")
+    await downloadPublishedSignatures(token(), flag("tag"), flag("dir"));
+  else if (command === "tag") {
     const result = tagRelease(
       flag("version"),
       process.env.PORTCOVE_RELEASE_NOTES_FILE || undefined,
     );
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
-  } else throw new Error("usage: app-release.mts plan|stamp|feed|compare|tag");
+  } else
+    throw new Error(
+      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|tag",
+    );
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url))
-  main(process.argv.slice(2));
+  main(process.argv.slice(2)).catch((error: unknown) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+  });
