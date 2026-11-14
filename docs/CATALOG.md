@@ -43,6 +43,22 @@ and inserts a single line. The date is excluded from the observer's listing
 declaration hash, so adding or backfilling it does not invalidate retained upstream
 observations. A listing without a date is valid and simply has no recency.
 
+A listing may carry `funding_urls`: up to 12 distinct public HTTPS pages where the
+upstream developers accept support. Desktop shows them in the port's Resources as
+ordinary external links and opens only those exact URLs. They are descriptive and grant
+no support, availability, trust or operation; Portcove does not fetch them at runtime.
+A directory carrying any link requires listing format 10, exports to formats 5 through
+9 and retained user-selected listings omit them, and the observer's listing declaration
+hash ignores them. `node scripts/listing-funding.mts` reads each GitHub-hosted
+project's `FUNDING.yml` in GitHub's lookup order (the repository's `.github/`, root
+and `docs/`, then the same places in the owner's `.github` repository), keeps
+`github`, `patreon`, `open_collective`, `ko_fi`, `liberapay`, `buy_me_a_coffee` and
+HTTPS `custom` entries, and prints the changes; `--write` updates authored port files
+(add or replace `funding_urls`, or remove it when the project no longer publishes
+any), and `--only <id>` limits it to named listings. Review the diff like any other
+listing change and regenerate the catalog. Other hosts may carry reviewed
+hand-authored links.
+
 Legacy format-5/6 exports omit only inert compatibility advice and retain
 acquisition restrictions. GitLab-bearing directories refuse exports below format
 8; format 7 retains advice without accepting GitLab observation identities.

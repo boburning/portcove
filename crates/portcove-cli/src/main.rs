@@ -5237,7 +5237,7 @@ mod tests {
     fn capabilities_advertise_failure_isolated_batches() {
         let capabilities = CapabilityDocument::current();
         assert_eq!(capabilities.port_capability_schema, Some(1));
-        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9]);
+        assert_eq!(capabilities.listing_formats, [5, 6, 7, 8, 9, 10]);
         assert!(
             capabilities
                 .commands

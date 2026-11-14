@@ -13,6 +13,8 @@ pub(crate) fn embedded_listings_sha256() -> String {
     hex::encode(sha2::Sha256::digest(EMBEDDED_LISTINGS.as_bytes()))
 }
 const MAX_LISTING_BYTES: usize = 8 * 1024 * 1024;
+/// Upper bound on a listing's funding links; GitHub's `FUNDING.yml` allows four custom ones.
+const MAX_FUNDING_URLS: usize = 12;
 
 // Keep the directory extras separate from platforms supplied by its embedded
 // managed baseline, so a newer selected definition can withdraw its own set.
@@ -43,6 +45,7 @@ impl From<&PortDefinition> for PortListing {
             variant_label: presentation.and_then(|value| value.variant_label.clone()),
             issue_number: None,
             listed_at: None,
+            funding_urls: Vec::new(),
             platforms: port.platforms.clone(),
             availability: ListingAvailability::Unknown,
             download_block_reason: None,
@@ -79,13 +82,19 @@ fn has_extended_media(listing: &PortListing) -> bool {
 impl CatalogListingDocument {
     /// Format 5 retains every reference paragraph in the original flat guide.
     pub fn export_format(&self, format_version: u32) -> Result<Self> {
-        if !matches!(format_version, 5..=9) {
+        if !matches!(format_version, 5..=10) {
             return Err(PortcoveError::unsupported(
-                "listing export supports formats 5, 6, 7, 8 and 9",
+                "listing export supports formats 5, 6, 7, 8, 9 and 10",
             ));
         }
         let mut document = self.clone();
         document.format_version = format_version;
+        if format_version < 10 {
+            for listing in &mut document.listings {
+                // Funding links are inert; earlier strict readers never see them.
+                listing.funding_urls.clear();
+            }
+        }
         if format_version < 9 {
             for listing in &mut document.listings {
                 // The first-listed date is inert; earlier strict readers never see it.
@@ -161,6 +170,13 @@ impl CatalogListingDocument {
         {
             self.format_version = self.format_version.max(9);
         }
+        if self
+            .listings
+            .iter()
+            .any(|listing| !listing.funding_urls.is_empty())
+        {
+            self.format_version = self.format_version.max(10);
+        }
     }
 
     fn has_gitlab_observations(&self) -> bool {
@@ -201,7 +217,7 @@ impl CatalogListingDocument {
     }
 
     fn validate_identity_set(&self) -> Result<()> {
-        if !matches!(self.format_version, 1..=9) {
+        if !matches!(self.format_version, 1..=10) {
             return Err(PortcoveError::unsupported(format!(
                 "listing format {} is not supported",
                 self.format_version
@@ -230,6 +246,16 @@ impl CatalogListingDocument {
         {
             return Err(PortcoveError::unsupported(
                 "the first-listed date requires listing format 9",
+            ));
+        }
+        if self.format_version < 10
+            && self
+                .listings
+                .iter()
+                .any(|listing| !listing.funding_urls.is_empty())
+        {
+            return Err(PortcoveError::unsupported(
+                "funding links require listing format 10",
             ));
         }
         if self.format_version == 1
@@ -646,6 +672,17 @@ impl PortListing {
                 ));
             }
         }
+        let mut funding = HashSet::new();
+        if self.funding_urls.len() > MAX_FUNDING_URLS
+            || self
+                .funding_urls
+                .iter()
+                .any(|url| !valid_url(url) || !funding.insert(url))
+        {
+            return Err(PortcoveError::usage(format!(
+                "funding links must be at most {MAX_FUNDING_URLS} distinct public HTTPS URLs"
+            )));
+        }
         for hints in self.download_asset_hints.values() {
             let mut unique = HashSet::new();
             if !(1..=8).contains(&hints.len())
@@ -835,6 +872,7 @@ impl Catalog {
                     media,
                     issue_number,
                     listed_at: listing.listed_at.clone(),
+                    funding_urls: listing.funding_urls.clone(),
                     platforms,
                     availability,
                     download_block_reason,
@@ -1152,7 +1190,7 @@ mod tests {
         let mut operational_listing = listing();
         operational_listing["launch_arguments"] = json!(["--run-script"]);
         for document in [
-            json!({"format_version":10,"listings":[]}),
+            json!({"format_version":11,"listings":[]}),
             json!({"format_version":1,"listings":[listing(),listing()]}),
             json!({"format_version":1,"listings":[unsafe_listing]}),
             json!({"format_version":1,"listings":[operational_listing]}),
@@ -1357,7 +1395,8 @@ mod tests {
                 .id,
             "beetle-adventure-racing"
         );
-        assert_eq!(projected.listing_document().format_version, 9);
+        // Embedded listings carry funding links, which need format 10.
+        assert_eq!(projected.listing_document().format_version, 10);
     }
 
     #[test]
@@ -1546,11 +1585,11 @@ mod observation_metadata_tests {
         assert_eq!(retained.listing_document().format_version, 8);
         assert!(retained.port("observed-project").is_err());
         let mut future = document;
-        future.format_version = 10;
+        future.format_version = 11;
         future.promote_projected_format();
-        assert_eq!(future.format_version, 10);
+        assert_eq!(future.format_version, 11);
         assert!(future.validate().is_err());
-        assert!(parse(&value, 10).is_err());
+        assert!(parse(&value, 11).is_err());
     }
 
     #[test]
@@ -1577,11 +1616,12 @@ mod observation_metadata_tests {
     #[test]
     fn references_are_versioned_bounded_and_lossless_in_legacy_listings() {
         let mut document = CatalogListingDocument::from_json(EMBEDDED_LISTINGS).unwrap();
-        // Embedded listings carry first-listed dates, which need format 9.
-        assert_eq!(document.format_version, 9);
-        // This test is about setup references, so drop the unrelated date requirement.
+        // Embedded listings carry funding links, which need format 10.
+        assert_eq!(document.format_version, 10);
+        // This test is about setup references, so drop the unrelated date and funding requirements.
         for listing in &mut document.listings {
             listing.listed_at = None;
+            listing.funding_urls.clear();
         }
         document.format_version = 6;
         let legacy = document.export_format(5).unwrap();

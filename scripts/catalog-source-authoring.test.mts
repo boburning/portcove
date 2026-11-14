@@ -947,3 +947,41 @@ void test("the observation declaration hash ignores the first-listed date", () =
     listingDeclarationHash({ ...listing, name: "A different declaration" }),
   );
 });
+
+void test("funding links are authored per listing, validated, and select listing format 10", () => {
+  const source = readCatalogSource(catalogRoot);
+  const { ports: _ports, ...shared } = source.catalog;
+  const fixture = (extra: Record<string, unknown>) =>
+    checkedAuthoredPort({
+      format_version: 1,
+      listing: {
+        id: "funded-fixture",
+        name: "Funded fixture",
+        summary: "Descriptive metadata only.",
+        project_url: "https://example.com/funded",
+        listed_at: "2026-11-09",
+        ...extra,
+      },
+    });
+  const urls = ["https://github.com/sponsors/example", "https://ko-fi.com/example"];
+  const funded = fixture({ funding_urls: urls });
+  assert.deepEqual(funded.listing.funding_urls, urls);
+  assert.equal(assembleCatalogRecords(shared, [funded]).directory.format_version, 10);
+  assert.equal(assembleCatalogRecords(shared, [fixture({})]).directory.format_version, 9);
+  const tooMany = Array.from({ length: 13 }, (_, index) => `https://example.com/${index}`);
+  for (const bad of [
+    [],
+    ["http://ko-fi.com/example"],
+    ["https://user:secret@example.com/support"],
+    ["https://ko-fi.com/example", "https://ko-fi.com/example"],
+    tooMany,
+    "https://ko-fi.com/example",
+  ])
+    assert.throws(() => fixture({ funding_urls: bad }), /funding_urls/u, JSON.stringify(bad));
+  // Adding or refreshing links must not invalidate retained observations.
+  const listing = { id: "hash-fixture", name: "Hash", summary: "Hash.", project_url: urls[0] };
+  assert.equal(
+    listingDeclarationHash(listing),
+    listingDeclarationHash({ ...listing, funding_urls: urls }),
+  );
+});

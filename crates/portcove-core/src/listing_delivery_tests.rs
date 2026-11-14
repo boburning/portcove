@@ -423,8 +423,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     assert!(refresh(&library, &fixture, &root).await.unwrap().selected);
     let original = library.listing_delivery_status().unwrap().target_sha256;
     let (catalog, _) = library.load_catalog().unwrap();
-    // The embedded base now carries first-listed dates, so the combined directory is format 9.
-    assert_eq!(catalog.listing_document().format_version, 9);
+    // The embedded base now carries funding links, so the combined directory is format 10.
+    assert_eq!(catalog.listing_document().format_version, 10);
     assert_eq!(
         catalog
             .listing("new-unmanaged-port")
@@ -445,8 +445,8 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
     );
     assert!(catalog.port("new-unmanaged-port").is_err());
     candidate["revision"] = json!(2);
-    // The next unknown format; 9 is now the first-listed-date format this reader accepts.
-    candidate["directory"]["format_version"] = json!(10);
+    // The next unknown format; 10 is now the funding-link format this reader accepts.
+    candidate["directory"]["format_version"] = json!(11);
     let next_root = publish(&fixture, &key, 2, &candidate).await;
     assert!(refresh(&library, &fixture, &next_root).await.is_err());
     assert_eq!(
@@ -460,6 +460,6 @@ async fn authenticated_gitlab_listing_observations_and_unknown_format_recovery_s
             .0
             .listing_document()
             .format_version,
-        9
+        10
     );
 }

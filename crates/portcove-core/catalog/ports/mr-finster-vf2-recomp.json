@@ -11,6 +11,7 @@
     "setup_url": "https://github.com/mr-finster/vf2-recomp",
     "issue_number": 2834,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://buymeacoffee.com/mrfinster"],
     "manual_setup": {
       "help_url": "https://github.com/mr-finster/vf2-recomp/blob/5e8bb67fa5235e2c0df843c8651049e6a785a89e/README.md",
       "steps": [

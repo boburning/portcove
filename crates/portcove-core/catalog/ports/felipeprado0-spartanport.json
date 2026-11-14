@@ -19,6 +19,7 @@
     },
     "issue_number": 2826,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/felipeprado0"],
     "manual_setup": {
       "help_url": "https://github.com/FelipePrado0/SpartanPort/blob/a2299cd59bc363fb9d0dbfe11cac26c2a49e5aaa/README.md",
       "steps": [

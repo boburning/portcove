@@ -1022,6 +1022,11 @@ pub struct PortListing {
     /// Requires listing format 9.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listed_at: Option<String>,
+    /// Reviewed pages where the upstream developers accept support, normally taken
+    /// from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+    /// HTTPS links that grant nothing. Requires listing format 10.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub funding_urls: Vec<String>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -2374,7 +2379,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9],
+            listing_formats: vec![5, 6, 7, 8, 9, 10],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

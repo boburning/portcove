@@ -19,6 +19,7 @@
     },
     "issue_number": 2625,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/Pyrdacor", "https://www.patreon.com/Pyrdacor"],
     "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
     "manual_setup": {
       "help_url": "https://github.com/Pyrdacor/Ambermoon.net/tree/ade13444f139adaf8cf4e60915907d7e3dbbd4dc",

@@ -405,10 +405,16 @@ export without an explicit format is the current format 9 and carries the dates,
 an explicit export to formats 5 through 8 omits them. A reader that predates format 9
 must request a format it understands.
 
+Listing format 10 adds optional inert `funding_urls`: at most 12 distinct public HTTPS
+pages where the upstream developers accept support. `capabilities.listing_formats`
+advertises 5 through 10; an export without an explicit format is the current format 10
+and carries the links, while an explicit export to formats 5 through 9 omits them.
+Retained user-selected listings never carry them. Desktop opens only those exact links.
+
 The catalog listing document has its own format version. Readers accept formats
-1–9 with independent field gates: format 7 adds advice, format 8 adds GitLab
-descriptive observations using provider-qualified project/tag identities, and format 9
-adds the first-listed date. `catalog listings --format-version 8` preserves advice and
+1–10 with independent field gates: format 7 adds advice, format 8 adds GitLab
+descriptive observations using provider-qualified project/tag identities, format 9
+adds the first-listed date and format 10 adds funding links. `catalog listings --format-version 8` preserves advice and
 GitLab observations and omits the date. Exports to 5/6 omit only
 inert advice; any GitLab-bearing export below 8 refuses. A reader that understands
 only format 6 cannot consume 7 or 8; failed refresh retains its previous accepted

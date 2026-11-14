@@ -7,6 +7,7 @@
     "summary": "The project reports Windows Vulkan boot, menus and fights at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Thorhax/usf4-nx",
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://www.patreon.com/thorhax", "https://ko-fi.com/thorhax"],
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/Thorhax/usf4-nx",

@@ -8,6 +8,7 @@
     "project_url": "https://github.com/power-pudu/egg-of-time",
     "issue_number": 3740,
     "listed_at": "2026-11-09",
+    "funding_urls": ["https://ko-fi.com/powerpudu"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "release_url": "https://github.com/power-pudu/egg-of-time/releases",
