@@ -963,30 +963,44 @@ describe("SteamGridDB picker", () => {
   });
 });
 
-it("states recorded SteamGridDB listing evidence as an observation with its dates", () => {
+it("states recorded SteamGridDB listing evidence, withdrawals and removals with their dates", () => {
   const at = (seconds: number) => new Date(seconds * 1000).toLocaleString();
   const evidence = (
     last_result: ArtworkState["provider_listing"][number]["last_result"],
     not_listed_since: number | null,
-  ) => ({
+    withdrawn_at: number | null = null,
+  ): ArtworkState["provider_listing"][number] => ({
     provider: "steamgriddb" as const,
     asset_id: 3,
     last_checked_at: 2_000_000,
     last_result,
     not_listed_since,
+    withdrawn_at,
+    withdrawal_signal: withdrawn_at === null ? null : "gone",
   });
-  expect(listingEvidenceText(evidence({ status: "listed" }, null))).toBe(
+  const next =
+    "If a check at least a day later confirms it, Portcove removes its copy unless you imported this image yourself. Your choice and the credit are kept.";
+  expect(listingEvidenceText(evidence({ status: "listed" }, null), false)).toBe(
     `Listed when last checked (${at(2_000_000)}).`,
   );
-  expect(listingEvidenceText(evidence({ status: "not_listed" }, 1_000_000))).toBe(
-    `Not in SteamGridDB's list when last checked (${at(2_000_000)}). First noticed ${at(1_000_000)}. Nothing was removed.`,
+  expect(listingEvidenceText(evidence({ status: "not_listed" }, 1_000_000), false)).toBe(
+    `Not in SteamGridDB's list when last checked (${at(2_000_000)}). First noticed ${at(1_000_000)}. ${next}`,
   );
   expect(
-    listingEvidenceText(evidence({ status: "unknown", reason: "unavailable" }, 1_000_000)),
+    listingEvidenceText(evidence({ status: "unknown", reason: "unavailable" }, 1_000_000), false),
   ).toBe(
-    `Not confirmed when last checked (${at(2_000_000)}). First noticed missing ${at(1_000_000)}. Nothing was removed.`,
+    `Not confirmed when last checked (${at(2_000_000)}). First noticed missing ${at(1_000_000)}. ${next}`,
   );
-  expect(listingEvidenceText(evidence({ status: "unknown", reason: "empty_listing" }, null))).toBe(
-    `Not confirmed when last checked (${at(2_000_000)}).`,
+  expect(
+    listingEvidenceText(evidence({ status: "unknown", reason: "empty_listing" }, null), false),
+  ).toBe(`Not confirmed when last checked (${at(2_000_000)}).`);
+  expect(listingEvidenceText(evidence({ status: "not_listed" }, 1_000_000, 1_500_000), true)).toBe(
+    `Removed from SteamGridDB (confirmed ${at(1_500_000)}). Portcove removed its copy; the credit is kept.`,
+  );
+  expect(listingEvidenceText(evidence({ status: "not_listed" }, 1_000_000, 1_500_000), false)).toBe(
+    `Removed from SteamGridDB (confirmed ${at(1_500_000)}). Portcove kept its copy, because you imported this image yourself or another credit still lists it.`,
+  );
+  expect(listingEvidenceText(evidence({ status: "listed" }, null), true)).toBe(
+    `Listed again when last checked (${at(2_000_000)}). Choose it again to restore Portcove's copy.`,
   );
 });

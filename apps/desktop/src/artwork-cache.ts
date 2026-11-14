@@ -424,6 +424,24 @@ export class ArtworkCache {
     return result;
   }
 
+  /**
+   * After a SteamGridDB check removed, kept or listed again some images: every
+   * shown slot that selects one is read again through the ordinary refresh, and
+   * hidden entries are dropped so a later visit reads fresh state.
+   */
+  refreshAfterListingCheck(assetSha256s: ReadonlySet<string>) {
+    for (const [key, value] of [...this.entries]) {
+      const selected = value.state?.selection?.sha256;
+      if (!selected || !assetSha256s.has(selected)) continue;
+      const [portId, slot] = JSON.parse(key) as [string, ArtworkSlot];
+      if (this.listeners.has(key)) void this.load(portId, slot, true);
+      else {
+        this.entries.delete(key);
+        this.remoteQueued.delete(key);
+      }
+    }
+  }
+
   async refreshAfterChange(
     portId: string,
     slot: ArtworkSlot,
