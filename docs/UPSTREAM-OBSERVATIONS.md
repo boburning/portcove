@@ -734,15 +734,20 @@ resumed invocations and defer related reads without
 blocking unrelated providers. Unknown capacity retains the finite request
 bootstrap. Failed reads are not retried within the same logical job.
 
-The standalone full collector, which the release workflow runs, is bounded by its
-own validated forecast instead of the 352-request ceiling: every request is
-admitted against that conservative plan, the provider quota reserve, the
-three-minute limit and the byte limits, so a larger request forecast never refuses
-the inventory. It still refuses before network work when the selected inventory
-exceeds the 512-location observation ceiling, which bounds one report. In observed release
-runs 34761853116, 34769169958, 34847939207 and 35158181486 (2026-09-13 to
-2026-09-16), the "Verify active catalog upstreams" step took 14–17 seconds; this is
-an observation of a smaller catalog, not a guarantee. Without provider quota headers, the forecast is the only request bound. The maintained
+The standalone full collector, which the release workflow and the local release
+preflight run, is never refused by inventory size. The 352-request and
+512-location ceilings size scheduled monitor operations only; a plan above the
+location ceiling still reports `request_plan.status: "overflow"` so the monitor's
+planner splits it, but a full collection attempts it. Every request is admitted
+against the collection's own conservative forecast, the provider quota reserve,
+the three-minute limit and the byte limits. Locations the time or byte limits
+leave unattempted are reported as `budget`, and the collection is `partial`. In
+observed release runs 34761853116, 34769169958, 34847939207 and 35158181486
+(2026-09-13 to 2026-09-16), the "Verify active catalog upstreams" step took 14–17
+seconds; this is an observation of a smaller catalog, not a guarantee. Without
+provider quota headers, the forecast is the only request bound, so the local
+preflight requires a GitHub token. Catalog edits run the real-catalog collector
+test, so growth that breaks it fails on the pull request. The maintained
 workflow uses incremental admission instead: completed locations are checkpointed
 atomically after each operation, under the existing lock and 16 MiB envelope.
 Continuation binds the accounting policy and exact per-owner health contracts.
@@ -1064,8 +1069,11 @@ provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
 release is downloaded once; a rules change rescans. Each run has an asset
 budget that counts every attempt, a byte budget that counts failed transfers
-too, and a 75-minute deadline that also caps every download, listing and
-file read, so a slow package cannot outlast the job. Every target not scanned
+too, and a 75-minute deadline that also caps every release read (each at
+most one minute), download, listing and file read, so a slow provider or
+package cannot outlast the job. No release read starts after the deadline;
+those targets are reported as `time-budget`. Targets that share one package
+re-check it once per run. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a
@@ -1075,14 +1083,37 @@ redirect, 404 or 410, for example a renamed repository), `asset-too-large`
 the package). The checkpoint remembers `asset-too-large`, `digest-mismatch`
 and `encrypted-archive` for a downloaded asset, so it is not fetched again
 until its release, the rules or, for its size, the per-asset limit changes.
-`unlistable` is re-checked on every run, because a lister or environment fault
-can cause it too, and each retry spends the asset and byte budgets. The rest (`time-budget`,
-`asset-budget`, `time-cut`, `release-read-failed` and `scan-failed` for
-transient network, provider or tool failures) continues in a later run. The
-report (format 2) declares how many targets the listings produced and a digest
-of that list, and a run with no targets fails. Each record notes candidate files it could not read
-or did not reach. The job summary lists findings first, each finding is also a
-workflow warning, and the report artifact keeps every record for 30 days.
+`unlistable` is remembered as a retry instead, because a lister or environment
+fault can cause it too. Known retries are re-checked in rotation under their
+own allowance (4 attempts and 2 GB by default, `--max-retry-assets` and
+`--max-retry-bytes`), which never spends the main asset or byte budget. The
+least recently checked come first, and the checkpoint records each retry's
+last check (`checked_at`, a retry-run counter). A retry outside this run's
+rotation or byte allowance is reported as `unlistable` again, never deferred,
+so it cannot keep a port's coverage partial, and every retry is re-checked in
+turn. A retry that now lists cleanly becomes an ordinary scanned record. Each
+not-scanned target also names its provider. The rest (`time-budget`,
+`asset-budget`, `time-cut`,
+`release-read-failed` and `scan-failed` for transient network, provider or tool
+failures) continues in a later run. The report (format 3) declares how many
+targets the listings produced and a digest of that list, and a run with no
+targets fails. Each record notes candidate files it could not read or did not
+reach, and keeps at most 20 signals, sorted, with `signal_count` giving the
+true total. The job summary lists findings first, each unaccounted finding is
+also a workflow warning, and the report artifact keeps every record for 30
+days.
+
+A confirmed false positive, such as a homebrew test ROM, is dismissed in
+[`.github/release-content-accounting.json`](../.github/release-content-accounting.json)
+by a reviewed change. Each entry names the port, platform, package SHA-256 and
+rules version, a reason, and the reviewed `boburning/portcove` issue or pull
+request as evidence. The scan validates the file strictly against the listings
+and fails on a malformed or duplicate entry, wrong evidence or an unknown port.
+A finding that matches an entry under the current rules is reported as
+`accounted` with that reason and evidence: the summary lists it separately and
+it raises no warning. A new package digest or rules version is not covered, so
+the finding returns for review. The summary also lists entries no finding
+matched in that run (stale, or their target was not reached).
 Nested archives and installers are listed only at their outer level.
 Findings from the latest scheduled `main` report reach the
 [maintenance inventory](MAINTENANCE-STORE.md#release-content) with their

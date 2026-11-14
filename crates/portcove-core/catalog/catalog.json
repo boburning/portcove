@@ -60185,6 +60185,16 @@
           "game_slug": "descent-3",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "online"
+          ],
+          "executables": [
+            "piccuengine.exe"
+          ]
+        }
       }
     },
     {
@@ -60929,7 +60939,35 @@
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
-        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons"
+        "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up a separate Linux copy",
+              "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
+            },
+            {
+              "title": "Set up Oracles on Mac",
+              "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
+            },
+            {
+              "title": "Set up Oracles on Android",
+              "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+            }
+          ],
+          "warnings": [
+            "You and upstream manage these Linux, Mac and Android copies."
+          ],
+          "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "oracles.exe"
+          ]
+        }
       }
     },
     {
@@ -61798,6 +61836,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_breakthrough",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -61909,6 +61968,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_base",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [
@@ -62027,6 +62107,27 @@
       ],
       "adapter": "native-portable",
       "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-x86-64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
+        "macos-aarch64": {
+          "directories": [],
+          "executables": [
+            "launch_openmohaa_spearhead",
+            "openmohaa"
+          ]
+        },
         "windows-x86-64": {
           "directories": [],
           "executables": [

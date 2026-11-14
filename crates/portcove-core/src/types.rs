@@ -359,6 +359,21 @@ pub struct DiscImageProfile {
     pub product_codes: Vec<String>,
 }
 
+/// Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+/// header facts are compared before anything is extracted, so another game, a title
+/// update or downloadable content is refused first. Requires staged-source capability 32.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StfsPackageProfile {
+    /// Accepted header content types as eight uppercase hex digits; currently only
+    /// `000D0000` (Xbox Live Arcade title).
+    pub content_types: Vec<String>,
+    /// Accepted header title IDs as eight uppercase hex digits. At least one is required.
+    pub title_ids: Vec<String>,
+    /// Explicit bound on the selected package in bytes; at most 16 GiB.
+    pub max_package_bytes: u64,
+}
+
 /// Patch file format applied by the `rom-patch` materialization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "kebab-case")]
@@ -911,6 +926,10 @@ pub struct PortDefinition {
     /// materializations: image kind, size bound and accepted game identifiers.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_disc_image: Option<DiscImageProfile>,
+    /// Only valid with the `stfs-directory` materialization: accepted header title IDs
+    /// and content types and a size bound, checked before extraction.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_stfs_package: Option<StfsPackageProfile>,
     /// Required by, and only valid with, the `rom-patch` materialization: the
     /// patch format and the exact original and patch members it combines.
     #[serde(default, skip_serializing_if = "Option::is_none")]

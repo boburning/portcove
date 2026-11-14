@@ -33086,9 +33086,33 @@
       "listed_at": "2026-10-23",
       "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
       "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+      "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Set up a separate Linux copy",
+            "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
+          },
+          {
+            "title": "Set up Oracles on Mac",
+            "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
+          },
+          {
+            "title": "Set up Oracles on Android",
+            "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+          }
+        ],
+        "warnings": [
+          "You and upstream manage these Linux, Mac and Android copies."
+        ],
+        "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+      },
       "availability": "unknown"
     },
     {

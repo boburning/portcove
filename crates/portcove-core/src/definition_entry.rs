@@ -341,14 +341,24 @@ impl DefinitionContentIndex {
                 "disc-image unpacking requires staged-source capability version 30",
             ));
         }
-        if port.runtime_rom_patch.is_some()
+        if port.runtime_stfs_package.is_some()
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"
-                    && requirement.minimum_version >= 32
+                    && requirement.minimum_version >= crate::stfs::PACKAGE_BINDING_CAPABILITY
             })
         {
             return Err(PortcoveError::verification(
-                "ROM patching requires staged-source capability version 32",
+                "an STFS package binding requires staged-source capability version 32",
+            ));
+        }
+        if port.runtime_rom_patch.is_some()
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 33
+            })
+        {
+            return Err(PortcoveError::verification(
+                "ROM patching requires staged-source capability version 33",
             ));
         }
         if port.optional_game_source

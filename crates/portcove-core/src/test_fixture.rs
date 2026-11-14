@@ -122,6 +122,12 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // An STFS package binding needs staged-source capability 32 whatever chain matched.
+    let default_version = if port.runtime_stfs_package.is_some() {
+        default_version.max(crate::stfs::PACKAGE_BINDING_CAPABILITY)
+    } else {
+        default_version
+    };
     // Track counts live in the embedded source profile, not on the port.
     let default_version = if port.adapter == crate::AdapterKind::PsxRecompManaged
         && crate::Catalog::embedded()
@@ -329,9 +335,9 @@ impl<'a> IndexedCatalogFixture<'a> {
         let port = self.port.as_ref();
         let port_id = &port.id;
         let capability_version = if port.runtime_rom_patch.is_some() {
-            // ROM patching needs staged-source capability version 32; it is the newest
+            // ROM patching needs staged-source capability version 33; it is the newest
             // staged-source requirement, so it stays first.
-            32
+            33
         } else if port.optional_game_source {
             // An optional game source needs staged-source capability version 31. Keep this
             // branch first: a later capability chain that matched earlier would silently

@@ -158,6 +158,17 @@ pub enum SourceRepresentationKind {
         format: CompoundSourceFormat,
         identities: Vec<DigestIdentity>,
     },
+    /// Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ
+    /// between owners (licence entries and signature). A package matches only when its
+    /// complete SHA-1 hash tree verifies, its header type, title ID and content type are
+    /// listed, and every member's extracted SHA-256 is equal. Declared explicitly beside,
+    /// never instead of, an existing whole-package identity.
+    StfsContent {
+        package_types: Vec<StfsPackageType>,
+        title_ids: Vec<String>,
+        content_types: Vec<String>,
+        members: Vec<StfsContentMember>,
+    },
     InformationalExtension {
         evidence_gap: String,
     },
@@ -167,6 +178,23 @@ pub enum SourceRepresentationKind {
 #[serde(rename_all = "kebab-case")]
 pub enum CompoundSourceFormat {
     StfsLive,
+}
+
+/// The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum StfsPackageType {
+    Live,
+    Pirs,
+}
+
+/// One extracted file of a content-identified STFS package.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StfsContentMember {
+    /// Relative path inside the package, compared without regard to ASCII case.
+    pub path: String,
+    pub sha256: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -945,7 +973,10 @@ impl SourceIdentityProfile {
                     SourceRepresentationKind::PinnedValidator { .. } => {
                         SourceKind::UpstreamValidatedDisc
                     }
-                    SourceRepresentationKind::InformationalExtension { .. } => SourceKind::File,
+                    // Content identity has no whole-file digest to project; only the
+                    // schema-2 inspector admits it, and never by structural checks.
+                    SourceRepresentationKind::StfsContent { .. }
+                    | SourceRepresentationKind::InformationalExtension { .. } => SourceKind::File,
                 };
                 if let Some(previous) = represented_kind
                     && previous != kind
@@ -1025,6 +1056,33 @@ impl SourceRepresentation {
             | SourceRepresentationKind::MultiDiscSet { .. }
             | SourceRepresentationKind::VolumeId { .. } => {
                 return Ok(vec![serde_json::to_string(&self.kind)?]);
+            }
+            // Two variants may not claim the same title, content type and members.
+            SourceRepresentationKind::StfsContent {
+                title_ids,
+                content_types,
+                members,
+                ..
+            } => {
+                let mut members = members
+                    .iter()
+                    .map(|member| {
+                        format!(
+                            "{}={}",
+                            member.path.to_ascii_lowercase(),
+                            member.sha256.to_ascii_lowercase()
+                        )
+                    })
+                    .collect::<Vec<_>>();
+                members.sort();
+                let members = members.join(",");
+                let mut keys = Vec::new();
+                for title in title_ids {
+                    for kind in content_types {
+                        keys.push(format!("stfs-content:{title}:{kind}:{members}"));
+                    }
+                }
+                return Ok(keys);
             }
             SourceRepresentationKind::PinnedValidator { .. }
             | SourceRepresentationKind::InformationalExtension { .. } => return Ok(Vec::new()),
@@ -1128,9 +1186,70 @@ impl SourceRepresentation {
             SourceRepresentationKind::InformationalExtension { evidence_gap } => {
                 require_text(evidence_gap, "informational representation evidence gap")?;
             }
+            SourceRepresentationKind::StfsContent {
+                package_types,
+                title_ids,
+                content_types,
+                members,
+            } => validate_stfs_content(package_types, title_ids, content_types, members)?,
         }
         Ok(())
     }
+}
+
+/// Eight uppercase hexadecimal digits, as STFS header title IDs and content types are
+/// written in catalog data.
+pub(crate) fn is_stfs_header_value(value: &str) -> bool {
+    value.len() == 8
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'A'..=b'F').contains(&byte))
+}
+
+/// The STFS content types a content identity or port binding may name. Only an Xbox
+/// Live Arcade title is reviewed; title updates and downloadable content need their own
+/// decisions.
+pub(crate) const STFS_ACCEPTED_CONTENT_TYPES: [&str; 1] = ["000D0000"];
+
+fn validate_stfs_content(
+    package_types: &[StfsPackageType],
+    title_ids: &[String],
+    content_types: &[String],
+    members: &[StfsContentMember],
+) -> Result<()> {
+    let unique = |values: &[String]| values.iter().collect::<HashSet<_>>().len() == values.len();
+    if package_types.is_empty()
+        || package_types.iter().collect::<HashSet<_>>().len() != package_types.len()
+        || title_ids.is_empty()
+        || title_ids.len() > 16
+        || !unique(title_ids)
+        || !title_ids.iter().all(|value| is_stfs_header_value(value))
+        || content_types.is_empty()
+        || !unique(content_types)
+        || !content_types
+            .iter()
+            .all(|value| STFS_ACCEPTED_CONTENT_TYPES.contains(&value.as_str()))
+    {
+        return Err(PortcoveError::usage(
+            "STFS content identity needs package types, uppercase title IDs and the arcade content type",
+        ));
+    }
+    if members.is_empty() || members.len() > 16 {
+        return Err(PortcoveError::usage(
+            "STFS content identity needs 1 to 16 member digests",
+        ));
+    }
+    let mut keys = HashSet::new();
+    for member in members {
+        let (_, key) = crate::archive::validate_relative_path(&member.path, false)?;
+        if member.path.contains('\\') || !keys.insert(key) {
+            return Err(PortcoveError::usage(
+                "STFS content identity has an invalid or colliding member path",
+            ));
+        }
+        require_digest(&member.sha256, 64, "SHA-256")?;
+    }
+    Ok(())
 }
 
 fn validate_identities(identities: &[DigestIdentity]) -> Result<()> {

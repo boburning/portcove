@@ -511,6 +511,14 @@ export type SourceRepresentation1 =
       [k: string]: unknown;
     }
   | {
+      content_types: string[];
+      kind: "stfs-content";
+      members: StfsContentMember[];
+      package_types: StfsPackageType[];
+      title_ids: string[];
+      [k: string]: unknown;
+    }
+  | {
       evidence_gap: string;
       kind: "informational-extension";
       [k: string]: unknown;
@@ -526,6 +534,10 @@ export type DigestScope =
   | "file-set-member"
   | "disc-set-member";
 export type CompoundSourceFormat = "stfs-live";
+/**
+ * The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.
+ */
+export type StfsPackageType = "live" | "pirs";
 export type CatalogDownloadAssetId = number | CatalogForeignAssetId;
 export type CatalogForeignAssetId = {
   file_id: number;
@@ -2229,6 +2241,11 @@ export interface PortDefinition {
   };
   runtime_source_materialization: RuntimeSourceMaterialization | null;
   runtime_source_set: RuntimeSourceTarget[];
+  /**
+   * Only valid with the `stfs-directory` materialization: accepted header title IDs
+   * and content types and a size bound, checked before extraction.
+   */
+  runtime_stfs_package?: StfsPackageProfile | null;
   runtime_subdirectory: string | null;
   /**
    * Per-platform runtime subdirectories for packages whose wrapper folder is named differently
@@ -2660,6 +2677,26 @@ export interface RuntimeSourceTarget {
   source_filenames: string[];
   [k: string]: unknown;
 }
+/**
+ * Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The
+ * header facts are compared before anything is extracted, so another game, a title
+ * update or downloadable content is refused first. Requires staged-source capability 32.
+ */
+export interface StfsPackageProfile {
+  /**
+   * Accepted header content types as eight uppercase hex digits; currently only
+   * `000D0000` (Xbox Live Arcade title).
+   */
+  content_types: string[];
+  /**
+   * Explicit bound on the selected package in bytes; at most 16 GiB.
+   */
+  max_package_bytes: number;
+  /**
+   * Accepted header title IDs as eight uppercase hex digits. At least one is required.
+   */
+  title_ids: string[];
+}
 export interface SourceCatalog {
   contracts: PortSourceContract[];
   evidence: CatalogEvidence[];
@@ -2763,6 +2800,16 @@ export interface SourceDiscIdentity {
   label: string;
   track_counts: number[];
   volume_ids: string[];
+}
+/**
+ * One extracted file of a content-identified STFS package.
+ */
+export interface StfsContentMember {
+  /**
+   * Relative path inside the package, compared without regard to ASCII case.
+   */
+  path: string;
+  sha256: string;
 }
 export interface SourceValidatorContract {
   evidence_ids: string[];
@@ -3660,6 +3707,11 @@ export interface SourceInspection {
   archive_member_name?: string | null;
   assessment: SourceAssessment;
   components: ObservedSourceComponent[];
+  /**
+   * Integrity checks that did not pass but did not decide admission, such as an STFS
+   * hash-tree mismatch on a package already proven by its exact whole-file digest.
+   */
+  integrity_advisories?: string[];
   message: string;
   observed_digests: ObservedSourceDigest[];
   path: string;

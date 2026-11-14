@@ -6254,6 +6254,17 @@
             },
             "type": "array"
           },
+          "runtime_stfs_package": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StfsPackageProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only valid with the `stfs-directory` materialization: accepted header title IDs\nand content types and a size bound, checked before extraction."
+          },
           "runtime_subdirectory": {
             "default": null,
             "type": [
@@ -7772,6 +7783,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -7959,6 +8011,64 @@
           "catalog-identity",
           "upstream-validator",
           "catalog-rules"
+        ],
+        "type": "string"
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageProfile": {
+        "additionalProperties": false,
+        "description": "Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The\nheader facts are compared before anything is extracted, so another game, a title\nupdate or downloadable content is refused first. Requires staged-source capability 32.",
+        "properties": {
+          "content_types": {
+            "description": "Accepted header content types as eight uppercase hex digits; currently only\n`000D0000` (Xbox Live Arcade title).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max_package_bytes": {
+            "description": "Explicit bound on the selected package in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title_ids": {
+            "description": "Accepted header title IDs as eight uppercase hex digits. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_types",
+          "title_ids",
+          "max_package_bytes"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
         ],
         "type": "string"
       },
@@ -14728,6 +14838,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -15947,6 +16064,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },
@@ -33940,6 +34064,38 @@
         ],
         "type": "string"
       },
+      "StfsPackageProfile": {
+        "additionalProperties": false,
+        "description": "Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The\nheader facts are compared before anything is extracted, so another game, a title\nupdate or downloadable content is refused first. Requires staged-source capability 32.",
+        "properties": {
+          "content_types": {
+            "description": "Accepted header content types as eight uppercase hex digits; currently only\n`000D0000` (Xbox Live Arcade title).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max_package_bytes": {
+            "description": "Explicit bound on the selected package in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title_ids": {
+            "description": "Accepted header title IDs as eight uppercase hex digits. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_types",
+          "title_ids",
+          "max_package_bytes"
+        ],
+        "type": "object"
+      },
       "SupportTier": {
         "enum": [
           "stable",
@@ -34432,6 +34588,17 @@
           "$ref": "#/$defs/RuntimeSourceTarget"
         },
         "type": "array"
+      },
+      "runtime_stfs_package": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/StfsPackageProfile"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Only valid with the `stfs-directory` materialization: accepted header title IDs\nand content types and a size bound, checked before extraction."
       },
       "runtime_subdirectory": {
         "default": null,
@@ -39058,6 +39225,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -39634,6 +39808,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -39774,6 +39989,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -48347,6 +48588,17 @@
             },
             "type": "array"
           },
+          "runtime_stfs_package": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StfsPackageProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Only valid with the `stfs-directory` materialization: accepted header title IDs\nand content types and a size bound, checked before extraction."
+          },
           "runtime_subdirectory": {
             "default": null,
             "type": [
@@ -49865,6 +50117,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -50052,6 +50345,64 @@
           "catalog-identity",
           "upstream-validator",
           "catalog-rules"
+        ],
+        "type": "string"
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageProfile": {
+        "additionalProperties": false,
+        "description": "Port binding for an Xbox 360 STFS package that `stfs-directory` extracts. The\nheader facts are compared before anything is extracted, so another game, a title\nupdate or downloadable content is refused first. Requires staged-source capability 32.",
+        "properties": {
+          "content_types": {
+            "description": "Accepted header content types as eight uppercase hex digits; currently only\n`000D0000` (Xbox Live Arcade title).",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "max_package_bytes": {
+            "description": "Explicit bound on the selected package in bytes; at most 16 GiB.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "title_ids": {
+            "description": "Accepted header title IDs as eight uppercase hex digits. At least one is required.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "content_types",
+          "title_ids",
+          "max_package_bytes"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
         ],
         "type": "string"
       },
@@ -52034,6 +52385,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -52610,6 +52968,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -52800,6 +53199,32 @@
           "inspection"
         ],
         "type": "object"
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -53643,6 +54068,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -53801,6 +54267,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -54554,6 +55046,13 @@
             "default": [],
             "items": {
               "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
             },
             "type": "array"
           },
@@ -56245,6 +56744,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -57438,6 +57944,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -57920,6 +58433,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -58060,6 +58614,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -59150,6 +59730,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -59726,6 +60313,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -59866,6 +60494,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -61437,6 +62091,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -62029,6 +62690,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -62220,6 +62922,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -63242,6 +63970,13 @@
             },
             "type": "array"
           },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -63818,6 +64553,47 @@
             "type": "object"
           },
           {
+            "description": "Content-based identity for an Xbox 360 STFS package whose whole-file bytes differ\nbetween owners (licence entries and signature). A package matches only when its\ncomplete SHA-1 hash tree verifies, its header type, title ID and content type are\nlisted, and every member's extracted SHA-256 is equal. Declared explicitly beside,\nnever instead of, an existing whole-package identity.",
+            "properties": {
+              "content_types": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "stfs-content",
+                "type": "string"
+              },
+              "members": {
+                "items": {
+                  "$ref": "#/$defs/StfsContentMember"
+                },
+                "type": "array"
+              },
+              "package_types": {
+                "items": {
+                  "$ref": "#/$defs/StfsPackageType"
+                },
+                "type": "array"
+              },
+              "title_ids": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "kind",
+              "package_types",
+              "title_ids",
+              "content_types",
+              "members"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "evidence_gap": {
                 "type": "string"
@@ -63958,6 +64734,32 @@
             "type": "object"
           }
         ]
+      },
+      "StfsContentMember": {
+        "additionalProperties": false,
+        "description": "One extracted file of a content-identified STFS package.",
+        "properties": {
+          "path": {
+            "description": "Relative path inside the package, compared without regard to ASCII case.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "type": "object"
+      },
+      "StfsPackageType": {
+        "description": "The STFS container magic: `LIVE` or `PIRS`. `CON` is not read yet.",
+        "enum": [
+          "live",
+          "pirs"
+        ],
+        "type": "string"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",

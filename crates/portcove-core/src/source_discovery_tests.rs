@@ -376,23 +376,8 @@ fn schema2_catalog_with_current_n64(bytes: &[u8]) -> Catalog {
 }
 
 fn live_package() -> Vec<u8> {
-    let mut package = vec![0_u8; 0xe000];
-    package[..4].copy_from_slice(b"LIVE");
-    package[0x340..0x344].copy_from_slice(&0xad0e_u32.to_be_bytes());
-    package[0x37b] = 1;
-    package[0x37c..0x37e].copy_from_slice(&1_u16.to_le_bytes());
-    package[0x395..0x399].copy_from_slice(&2_u32.to_be_bytes());
-    package[0xb014..0xb018].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
-    package[0xb02c..0xb030].copy_from_slice(&0x00ff_ffff_u32.to_be_bytes());
-    let entry = &mut package[0xc000..0xc040];
-    entry[..11].copy_from_slice(b"default.xex");
-    entry[0x28] = 11;
-    entry[0x29] = 1;
-    entry[0x2f] = 1;
-    entry[0x32..0x34].copy_from_slice(&u16::MAX.to_be_bytes());
-    entry[0x34..0x38].copy_from_slice(&4_u32.to_be_bytes());
-    package[0xd000..0xd004].copy_from_slice(b"XEX2");
-    package
+    // A real hashed single-file LIVE package with the historical byte layout.
+    crate::stfs::fixtures::single_file(b"XEX2")
 }
 
 fn live_catalog(package: &[u8]) -> Catalog {
