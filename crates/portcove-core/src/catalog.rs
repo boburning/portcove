@@ -12,7 +12,7 @@ use crate::{
 pub(crate) mod listings;
 
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
-static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
+pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
 /// SHA-256 of the catalog compiled into this binary, before any listing merge.
 pub(crate) fn embedded_catalog_sha256() -> String {

@@ -76,6 +76,7 @@ mod operation;
 mod output_relocation;
 mod output_root;
 mod package_layout;
+mod package_shape;
 mod path;
 mod permissions;
 mod persistence;
@@ -303,6 +304,11 @@ pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
 pub use package_layout::{inspect_package_archive, inspect_package_archive_with_program_filter};
+pub use package_shape::{
+    InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
+    PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
+    ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+};
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
     PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,

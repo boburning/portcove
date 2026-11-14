@@ -595,6 +595,33 @@ managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
 
+### Package shape inspection
+
+Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`
+with the publisher's independently obtained size and digest. It verifies and
+extracts the bytes like `inspect-package-layout`, prepares them as the managed
+installer does for the embedded catalog's route, and returns
+`catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
+`shape_version`, the derived `shape`, its `provenance`, the
+`derivation_inputs_sha256` of the embedded catalog facts it derived with
+(absent for a route outside the embedded catalog) and a shadow `verdict`
+against the embedded generated table or explicit fingerprint
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict
+`status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
+`reason`). It runs before opening a library, executes nothing and establishes
+no review; `scripts/package-shape-baselines.mts --record` uses it.
+
+`portcove --library PATH --json installation package-shape PORT_ID` lists each
+registered installation of the port with `install_id`, `version`, `active`,
+`status` and, when `status` is `recorded`, the `record`: shape, derivation
+version, provenance and the shadow verdict computed at install. `status` is
+`recorded`, `not_recorded` (installations from before #5359), `unrecognized`
+(a record from another derivation version or a newer Portcove) or
+`manifest_unverifiable`, with the verification error in `detail`. It is
+read-only and takes no port lock. Human output of both commands says
+`compatible (unreviewed baseline)` when the matching baseline was never
+reviewed.
+
 ### Standalone package and focused build
 
 `catalog inspect-observation <port-id> <file> --repository-id <numeric-id>`
