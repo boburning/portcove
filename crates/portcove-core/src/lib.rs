@@ -385,9 +385,9 @@ pub use service::{
     PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
     PortIntentSource, PortMaintenance, PortReadiness, PortReadinessAcknowledgement,
     PortRemovalPreview, PortcoveService, ProtectionDeclaration, QUIVER_FORMAT_REVISION,
-    ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment, RootSetupFailure,
-    RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget, SetupLaunchTargets,
-    StandingSetupFailure, StandingSetupResult,
+    RECENTLY_PLAYED_LIMIT, ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame, RootSetupConsent,
+    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
+    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,

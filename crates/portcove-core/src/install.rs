@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+mod transfer;
+
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -2008,6 +2010,10 @@ impl Installer {
 
     /// Shared bounded byte transfer; callers supply a provider-constrained
     /// client and still own checksum verification and publication policy.
+    ///
+    /// Contract: a non-empty `asset.sha256` promises that the caller verifies
+    /// the complete file against it before use. Only then may a dropped body
+    /// continue with `Range`; an empty digest makes every retry start over.
     pub(crate) async fn download_with_client<F>(
         client: &reqwest::Client,
         asset: &ReleaseAsset,
@@ -2018,86 +2024,15 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        validate_download_progress(0, asset.size)?;
-        let response = operation
-            .interruptible(async {
-                let response = client.get(&asset.url).send().await.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let status = response.status();
-                response.error_for_status().map_err(|error| {
-                    PortcoveError::network(error.to_string()).with_upstream(Some(
-                        crate::failure::UpstreamObservation::Status(status.as_u16()),
-                    ))
-                })
-            })
-            .await?;
-        let total = response
-            .content_length()
-            .or(Some(asset.size))
-            .filter(|value| *value > 0);
-        let mut stream = response.bytes_stream();
-        // Network chunks are small; batch them so each write is not its own
-        // blocking-pool dispatch. `flush` below drains the buffer and the file.
-        let mut file = tokio::io::BufWriter::with_capacity(
-            1024 * 1024,
-            tokio::fs::File::create(destination).await?,
-        );
-        let mut completed = 0_u64;
-        let transfer_result: Result<()> = async {
-            let mut reported = 0_u64;
-            while let Some(chunk) = operation
-                .interruptible(async { Ok(stream.next().await) })
-                .await?
-            {
-                let chunk = chunk.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let next = completed
-                    .checked_add(chunk.len() as u64)
-                    .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
-                validate_download_progress(next, asset.size)?;
-                file.write_all(&chunk).await?;
-                completed = next;
-                if total.is_some_and(|total| completed == total)
-                    || completed.saturating_sub(reported) >= 1024 * 1024
-                {
-                    emit(operation.progress_with_unit(
-                        "download",
-                        crate::ProgressUnit::Bytes,
-                        completed,
-                        total,
-                    ));
-                    reported = completed;
-                }
-            }
-            if completed != reported {
-                emit(operation.progress_with_unit(
-                    "download",
-                    crate::ProgressUnit::Bytes,
-                    completed,
-                    total,
-                ));
-            }
-            Ok(())
-        }
-        .await;
-        // Tokio write_all can return with a blocking file write still queued.
-        // Drain even on cancellation/network/size/write errors before callers
-        // may clean private staging or publish the terminal transfer result.
-        // This await is deliberately outside cooperative interruption.
-        let drain_result = file.flush().await;
-        if let Err(error) = transfer_result {
-            return Err(match drain_result {
-                Ok(()) => error,
-                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
-            });
-        }
-        drain_result?;
-        validate_download_size(completed, asset.size)?;
-        Ok(())
+        transfer::download(
+            client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+        )
+        .await
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
@@ -5239,6 +5174,7 @@ mod tests {
     mod native_paths;
     mod network_download;
     mod package_shape;
+    mod resumable_download;
     use std::{
         fs::File,
         sync::{
