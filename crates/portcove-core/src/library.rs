@@ -281,7 +281,10 @@ pub struct Library {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum LockMode {
+    /// Probes and non-port locks refuse at once on any contention.
     Exclusive,
+    /// Port writers wait briefly for read-only views before refusing.
+    ExclusiveYieldingToReaders,
     Shared,
 }
 
@@ -1067,7 +1070,12 @@ impl Library {
     ) -> Result<PortOperationGuard> {
         let key = hex::encode(Sha256::digest(port_id.as_bytes()));
         let mut file = self
-            .acquire_lock(&key, port_id, operation)
+            .acquire_lock_mode(
+                &key,
+                port_id,
+                operation,
+                LockMode::ExclusiveYieldingToReaders,
+            )
             .map_err(|error| error.detail("port_id", port_id))?;
         self.require_port_unowned_by_recovery_or_launch(
             port_id,
@@ -1115,33 +1123,23 @@ impl Library {
         Ok(())
     }
 
-    /// Best effort: the owner record only explains a later busy refusal.
+    /// Best effort: the owner record only explains a later busy refusal and
+    /// never grants lock or recovery authority.
     fn publish_lock_owner(&self, key: &str, owner: &serde_json::Value) {
         let target = self.locks_dir().join(format!("{key}.owner"));
-        let staged = self
-            .locks_dir()
-            .join(format!("{key}.owner.{}.tmp", std::process::id()));
-        let written = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .open(&staged)
-            .and_then(|mut file| {
-                serde_json::to_writer(&mut file, owner)?;
-                file.sync_data()
-            });
-        if written.is_err() || std::fs::rename(&staged, &target).is_err() {
-            let _ = std::fs::remove_file(&staged);
+        if crate::path::refuse_symlink_ancestors(&target).is_err()
+            || std::fs::symlink_metadata(&target).is_ok_and(|metadata| !metadata.is_file())
+        {
+            return;
         }
+        let _ = crate::durability::write_json_atomically(&target, owner, true);
     }
 
-    /// The most recent mutating owner's record, when it is a small regular file.
+    /// The most recent port writer's record, when it is a small regular file.
     fn last_lock_owner(&self, key: &str) -> Option<serde_json::Map<String, serde_json::Value>> {
         let path = self.locks_dir().join(format!("{key}.owner"));
-        let metadata = std::fs::symlink_metadata(&path).ok()?;
-        if !metadata.is_file() || metadata.len() > 4096 {
-            return None;
-        }
-        match serde_json::from_slice(&std::fs::read(&path).ok()?).ok()? {
+        let bytes = crate::external_runtime::read_stable_metadata(&path, 4096).ok()?;
+        match serde_json::from_slice(&bytes).ok()? {
             serde_json::Value::Object(owner) => Some(owner),
             _ => None,
         }
@@ -1163,8 +1161,15 @@ impl Library {
     /// Whether every current holder is a shared reader. A second handle's
     /// shared lock is admitted only beside other shared locks.
     fn lock_held_only_by_readers(&self, key: &str) -> bool {
-        self.open_lock_file(key)
-            .is_ok_and(|probe| probe.try_lock_shared().is_ok())
+        let Ok(probe) = self.open_lock_file(key) else {
+            return false;
+        };
+        let admitted = probe.try_lock_shared().is_ok();
+        if admitted {
+            // Release now rather than on close, which Windows may defer.
+            let _ = probe.unlock();
+        }
+        admitted
     }
 
     fn acquire_lock_mode(
@@ -1176,20 +1181,22 @@ impl Library {
     ) -> Result<File> {
         let file = self.open_lock_file(key)?;
         let deadline = std::time::Instant::now() + READER_YIELD_BUDGET;
+        let mut refused_by_readers = false;
         let attempt = loop {
             let attempt = match mode {
-                LockMode::Exclusive => file.try_lock(),
+                LockMode::Exclusive | LockMode::ExclusiveYieldingToReaders => file.try_lock(),
                 LockMode::Shared => file.try_lock_shared(),
             };
-            // Read-only views hold the lock for milliseconds; wait them out
-            // rather than refuse. Another writer still refuses at once.
+            // Read-only views usually finish quickly; wait them out rather
+            // than refuse. Another writer or probe still refuses at once.
             if matches!(attempt, Err(std::fs::TryLockError::WouldBlock))
-                && mode == LockMode::Exclusive
-                && std::time::Instant::now() < deadline
-                && self.lock_held_only_by_readers(key)
+                && mode == LockMode::ExclusiveYieldingToReaders
             {
-                std::thread::sleep(std::time::Duration::from_millis(10));
-                continue;
+                refused_by_readers = self.lock_held_only_by_readers(key);
+                if refused_by_readers && std::time::Instant::now() < deadline {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    continue;
+                }
             }
             break attempt;
         };
@@ -1201,8 +1208,11 @@ impl Library {
                 .with_known_cause(crate::failure::KnownFailureCause::Busy)
                 .detail("resource_id", target)
                 .detail("operation", operation);
-                // The last mutating owner; a read-only probe never replaces it.
-                if let Some(owner) = self.last_lock_owner(key) {
+                // Readers publish no record, so naming the last writer would
+                // misattribute a refusal they caused.
+                if refused_by_readers {
+                    refusal = refusal.detail("held_by", "read_only_views");
+                } else if let Some(owner) = self.last_lock_owner(key) {
                     for (field, detail) in [
                         ("operation", "last_owner_operation"),
                         ("pid", "last_owner_pid"),
@@ -4866,6 +4876,8 @@ mod tests {
         let second = Library::open(temporary.path()).unwrap();
 
         // Readers admit each other and never publish an owner record.
+        let key = hex::encode(Sha256::digest("lighthouse".as_bytes()));
+        let owner = temporary.path().join("locks").join(format!("{key}.owner"));
         let reader = first
             .try_read_lock_port("lighthouse", "read-game-settings")
             .unwrap();
@@ -4873,6 +4885,7 @@ mod tests {
             .try_read_lock_port("lighthouse", "read-game-settings")
             .unwrap();
         drop(other_reader);
+        assert!(!owner.exists());
 
         // A writer arriving during a read waits for it instead of refusing.
         let started = std::time::Instant::now();
@@ -4902,7 +4915,17 @@ mod tests {
         let started = std::time::Instant::now();
         let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
         assert_eq!(refused.code, crate::ErrorCode::Conflict);
+        assert_eq!(refused.details["held_by"], "read_only_views");
+        assert!(!refused.details.contains_key("last_owner_operation"));
         assert!(started.elapsed() >= READER_YIELD_BUDGET);
+        // Probes never wait for readers.
+        let started = std::time::Instant::now();
+        assert!(second.try_probe_port_lock("lighthouse").unwrap().is_none());
+        assert!(started.elapsed() < READER_YIELD_BUDGET);
         drop(reader);
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&std::fs::read(&owner).unwrap()).unwrap()["operation"],
+            "adopt"
+        );
     }
 }
