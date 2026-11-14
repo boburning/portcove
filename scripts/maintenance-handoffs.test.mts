@@ -735,6 +735,17 @@ void test("release-content guidance follows what the handoff holds", () => {
     both.invocation,
     /accounting\.json entry for a confirmed false positive.*; for the unavailable release, confirm/u,
   );
+  // A condition stored before the provider was recorded gets neutral wording.
+  const unknown = guide({
+    findings: [],
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable" }],
+  });
+  assert.doesNotMatch(unknown.action, /GitLab/u);
+  assert.match(
+    unknown.action,
+    /^The release read is redirected or gone: confirm it, then fix the listing's upstream location in a reviewed catalog change \(for a GitHub repository through the owner-only release-health-relocation handoff and its authority\)\./u,
+  );
+  assert.match(unknown.receipt, /reads the release/u);
   // An unreadable condition keeps the registry entry.
   assert.deepEqual(guide(null), {
     action: entry.action,

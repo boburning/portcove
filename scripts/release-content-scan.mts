@@ -332,7 +332,8 @@ export const assetKey = (target: ScanTarget, tag: string, asset: ReleaseAsset) =
   ].join("|");
 
 export interface ScanDependencies {
-  releases(target: ScanTarget): Promise<UpstreamRelease[]>;
+  /** `stopAt` is the run's deadline in epoch milliseconds; no read may outlive it. */
+  releases(target: ScanTarget, stopAt: number): Promise<UpstreamRelease[]>;
   /** `stopAt` is the run's deadline in epoch milliseconds; no call may outlive it. */
   download(asset: ReleaseAsset, file: string, maxBytes: number, stopAt: number): Promise<void>;
   list(file: string, name: string, stopAt: number): Promise<PackageEntry[]>;
@@ -418,18 +419,30 @@ export async function scan(
     | { target: ScanTarget; release: UpstreamRelease; asset: ReleaseAsset; key: string };
   const plans: Plan[] = [];
   for (const target of targets) {
+    // No release read starts after the deadline; the rest are left for a later run.
+    if (clock() >= deadline) {
+      plans.push({
+        target,
+        skip: { code: "time-budget", reason: "time budget reached; scanned in a later run" },
+      });
+      continue;
+    }
     let releases: UpstreamRelease[];
     try {
       const cacheKey = `${target.provider}|${target.repository.toLowerCase()}`;
-      if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target));
+      if (!releaseCache.has(cacheKey)) releaseCache.set(cacheKey, deps.releases(target, deadline));
       releases = await releaseCache.get(cacheKey)!;
     } catch (error) {
       plans.push({
         target,
-        skip: {
-          code: error instanceof ScanError ? error.code : "release-read-failed",
-          reason: `release read failed: ${(error as Error).message}`,
-        },
+        skip:
+          // A read the deadline cut says nothing about the release.
+          clock() >= deadline && !(error instanceof ScanError)
+            ? { code: "time-budget", reason: "time budget reached; scanned in a later run" }
+            : {
+                code: error instanceof ScanError ? error.code : "release-read-failed",
+                reason: `release read failed: ${(error as Error).message}`,
+              },
       });
       continue;
     }
@@ -480,6 +493,7 @@ export async function scan(
     rechecks.add(plan.key);
   }
   // Phase 2: scan in target order.
+  const recheckOutcomes = new Map<string, { code: UnscannedCode; reason: string }>();
   for (const plan of plans) {
     const { target } = plan;
     const skip = (code: UnscannedCode, reason: string) =>
@@ -530,6 +544,13 @@ export async function scan(
         failed.code,
         `asset ${asset.name}: ${failed.code} in an earlier run; not retried for this release`,
       );
+      continue;
+    }
+    // An unlistable package another target already re-checked this run (the same key)
+    // takes that outcome instead of a second download; a clean re-check was reused above.
+    const outcome = recheckOutcomes.get(key);
+    if (outcome) {
+      skip(outcome.code, `${outcome.reason} (checked for another target in this run)`);
       continue;
     }
     const retry = retries.has(key);
@@ -611,7 +632,9 @@ export async function scan(
         failures.set(key, { key, code, max_asset_bytes: maxAssetBytes });
         retries.delete(key);
       } else if (code === "unlistable") retries.set(key, retryRun);
-      skip(code, `asset ${asset.name} could not be scanned: ${(error as Error).message}`);
+      const reason = `asset ${asset.name} could not be scanned: ${(error as Error).message}`;
+      if (retry || code === "unlistable") recheckOutcomes.set(key, { code, reason });
+      skip(code, reason);
     } finally {
       // Failed transfers spend their budget too, so a bad asset cannot repeat unbounded.
       const spent = await stat(file).then(
@@ -652,8 +675,15 @@ export function callTimeout(cap: number, stopAt: number, now = Date.now()) {
 /** Member names a lister could read as an option, list file or wildcard are not opened. */
 export const safeMember = (name: string) => !/^[-@]/.test(name) && !/[*?[\]]/.test(name);
 
-async function json(url: string, token?: string) {
+/** One release read's own cap; never beyond the run's deadline. */
+const RELEASE_READ_TIMEOUT_MS = 60_000;
+
+async function json(url: string, token: string | undefined, stopAt: number) {
+  // The signal also bounds reading the body. A timeout is an ordinary error, so the
+  // scan defers the target (`release-read-failed`, or `time-budget` past the deadline).
+  const signal = AbortSignal.timeout(callTimeout(RELEASE_READ_TIMEOUT_MS, stopAt));
   const response = await fetch(url, {
+    signal,
     headers: {
       Accept: "application/json",
       "User-Agent": "portcove-release-scan",
@@ -709,11 +739,12 @@ export function listerFailure(error: unknown, sevenZip = false): unknown {
 export type Runner = typeof run;
 
 export const hostedDependencies = (token?: string, exec: Runner = run): ScanDependencies => ({
-  async releases(target) {
+  async releases(target, stopAt) {
     if (target.provider === "github") {
       const list = (await json(
         `https://api.github.com/repos/${target.repository}/releases?per_page=10`,
         token,
+        stopAt,
       )) as Record<string, unknown>[];
       return list.map((release) => ({
         tag: String(release.tag_name),
@@ -729,6 +760,8 @@ export const hostedDependencies = (token?: string, exec: Runner = run): ScanDepe
     }
     const list = (await json(
       `https://gitlab.com/api/v4/projects/${encodeURIComponent(target.repository)}/releases?per_page=10`,
+      undefined,
+      stopAt,
     )) as Record<string, unknown>[];
     return list.map((release) => ({
       tag: String(release.tag_name),

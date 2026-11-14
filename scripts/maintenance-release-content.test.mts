@@ -383,3 +383,13 @@ void test("an unavailable release keeps its provider so the handoff names the ri
   missing.unscanned[0] = { ...missing.unscanned[0]!, provider: "" };
   assert.throws(() => releaseContentFacts(bound(missing)), /has no provider/u);
 });
+
+void test("a newer gap copy of a not-scannable target wins over the stored one", () => {
+  const stored = { unscannable: [{ platform: "linux-x86-64", code: "release-unavailable" }] };
+  const gap = {
+    unscannable: [{ platform: "linux-x86-64", code: "release-unavailable", provider: "github" }],
+  };
+  assert.deepEqual(releaseContentUnscannable(stored, gap), [
+    { platform: "linux-x86-64", code: "release-unavailable", provider: "github", attention: true },
+  ]);
+});

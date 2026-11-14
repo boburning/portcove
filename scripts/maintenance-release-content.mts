@@ -426,7 +426,8 @@ export function releaseContentUnscannable(payload: unknown, gap?: unknown): Unsc
     return Array.isArray(list) ? (list as UnscannableEntry[]) : [];
   };
   const seen = new Set<string>();
-  return [...listed(payload), ...listed(gap)].flatMap(({ platform, code, provider }) => {
+  // As for findings, the gap's copy comes from the latest run and wins.
+  return [...listed(gap), ...listed(payload)].flatMap(({ platform, code, provider }) => {
     const key = `${platform}\t${code}`;
     if (seen.has(key)) return [];
     seen.add(key);

@@ -944,6 +944,9 @@ names against the registry.
   - The relocation route reads GitHub repositories only. A GitLab target is
     fixed by a reviewed change to the listing's upstream location, and then the
     next scan reads the release.
+  - A condition stored before the provider was recorded gets neutral wording:
+    confirm, then fix the location in a reviewed change, through the owner-only
+    relocation handoff for a GitHub repository.
   - In both cases the receipt is the next scan reading the release.
   - Adding `signal_count` and the provider to the condition records one changed
     condition for an already-open handoff on the first `complete` run after

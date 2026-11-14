@@ -1064,8 +1064,11 @@ provider, repository, tag, name and, where the provider gives them, digest or
 size, so a successfully scanned
 release is downloaded once; a rules change rescans. Each run has an asset
 budget that counts every attempt, a byte budget that counts failed transfers
-too, and a 75-minute deadline that also caps every download, listing and
-file read, so a slow package cannot outlast the job. Every target not scanned
+too, and a 75-minute deadline that also caps every release read (each at
+most one minute), download, listing and file read, so a slow provider or
+package cannot outlast the job. No release read starts after the deadline;
+those targets are reported as `time-budget`. Targets that share one package
+re-check it once per run. Every target not scanned
 is reported with a stable code. Persistent targets are reported as not
 scannable: `no-release`,
 `no-single-asset`, `release-unavailable` (the release read answers with a

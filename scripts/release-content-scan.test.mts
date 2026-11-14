@@ -308,11 +308,21 @@ void test("failed downloads spend the asset and byte budgets and the deadline st
     bytes.report.unscanned.map(({ code }) => code),
     ["scan-failed", "asset-budget", "no-single-asset"],
   );
+  // The clock passes the deadline during the first download.
   let now = 0;
-  const late = await scan(scanTargets(listings), new Map(), fakes([]), {
-    deadline: 1,
-    clock: () => now++,
-  });
+  const slowDeps = fakes([]);
+  const late = await scan(
+    scanTargets(listings),
+    new Map(),
+    {
+      ...slowDeps,
+      async download(asset, file, maxBytes, stopAt) {
+        await slowDeps.download(asset, file, maxBytes, stopAt);
+        now = 5;
+      },
+    },
+    { deadline: 1, clock: () => now },
+  );
   assert.equal(late.report.scanned.length, 1);
   assert.ok(late.report.unscanned.every((entry) => entry.reason.startsWith("time budget")));
   assert.ok(late.report.unscanned.every(({ code }) => code === "time-budget"));
@@ -323,7 +333,7 @@ void test("a published digest that differs from the bytes is not scanned", async
   const mismatched: ScanDependencies = {
     ...deps,
     async releases(target) {
-      return (await deps.releases(target)).map((release) => ({
+      return (await deps.releases(target, Number.POSITIVE_INFINITY)).map((release) => ({
         ...release,
         assets: release.assets.map((asset) => ({ ...asset, digest: `sha256:${"0".repeat(64)}` })),
       }));
@@ -372,7 +382,7 @@ void test("deterministic failures are persistent codes; transient ones stay defe
         if (target.repository === "up/code")
           throw new ScanError("release-unavailable", "301 from api.github.com");
         if (target.repository === "up/header") throw new Error("fetch failed");
-        return deps.releases(target);
+        return deps.releases(target, Number.POSITIVE_INFINITY);
       },
     }),
     [
@@ -634,7 +644,7 @@ void test("the hosted release read reports a redirect, 404 or 410 as unavailable
   const gitlab = scanTargets(listings)[2]!;
   const outcome = async (target: typeof github) => {
     try {
-      await hostedDependencies("token").releases(target);
+      await hostedDependencies("token").releases(target, Date.now() + 60_000);
       return "ok";
     } catch (error) {
       return error instanceof ScanError ? error.code : "deferred";
@@ -1045,4 +1055,171 @@ void test("a cached record's own accounting is ignored without the reviewed file
   const again = await scan(scanTargets(listings), tampered, fakes([]), { accounting: [] });
   assert.ok(again.report.findings.length > 0);
   assert.ok(again.report.findings.every((finding) => !("accounted" in finding)));
+});
+
+void test("release reads stop at the deadline and the rest of the targets wait for a later run", async () => {
+  const many = {
+    listings: Array.from({ length: 6 }, (_, index) => ({
+      id: `p${index}`,
+      project_url: `https://github.com/up/p${index}`,
+      download_asset_hints: { "linux-x86-64": [`p${index}.zip`] },
+    })),
+  };
+  let now = 0;
+  let reads = 0;
+  const stops: number[] = [];
+  const result = await scan(
+    scanTargets(many),
+    new Map(),
+    {
+      ...fakes([]),
+      async releases(_target, stopAt) {
+        stops.push(stopAt);
+        // The clock passes the deadline after the second read.
+        if (++reads === 2) now = 10;
+        return [];
+      },
+    },
+    { deadline: 5, clock: () => now },
+  );
+  assert.equal(reads, 2);
+  assert.deepEqual(stops, [5, 5], "each read is bounded by the run's deadline");
+  assert.deepEqual(
+    result.report.unscanned.map(({ code }) => code),
+    ["time-budget", "time-budget", "time-budget", "time-budget", "time-budget", "time-budget"],
+  );
+  // A read that fails because the deadline cut it is time-budget, not a release fault.
+  now = 0;
+  const cut = await scan(
+    scanTargets(many).slice(0, 1),
+    new Map(),
+    {
+      ...fakes([]),
+      async releases() {
+        now = 10;
+        throw new Error("The operation was aborted due to timeout");
+      },
+    },
+    { deadline: 5, clock: () => now },
+  );
+  assert.deepEqual(
+    cut.report.unscanned.map(({ code }) => code),
+    ["time-budget"],
+  );
+});
+
+void test("a hosted release read times out within the deadline as an ordinary deferred failure", async (context) => {
+  const signals: AbortSignal[] = [];
+  context.mock.method(globalThis, "fetch", (_url: unknown, init?: RequestInit) => {
+    signals.push(init!.signal!);
+    return new Promise((_resolve, reject) =>
+      init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason)),
+    );
+  });
+  const target = scanTargets(listings)[0]!;
+  const started = Date.now();
+  // The deadline is closer than the per-read cap, so it bounds the read.
+  const failure = await hostedDependencies("token")
+    .releases(target, Date.now() + 50)
+    .then(
+      () => null,
+      (error: unknown) => error,
+    );
+  assert.ok(Date.now() - started < 5_000);
+  assert.ok(
+    failure instanceof Error && !(failure instanceof ScanError),
+    "deferred, not persistent",
+  );
+  assert.equal(signals.length, 1);
+  // Through the scan it is a deferred release-read failure while time remains.
+  const outcome = await scan(
+    [target],
+    new Map(),
+    {
+      ...fakes([]),
+      async releases() {
+        throw failure;
+      },
+    },
+    { deadline: Number.POSITIVE_INFINITY },
+  );
+  assert.deepEqual(
+    outcome.report.unscanned.map(({ code }) => code),
+    ["release-read-failed"],
+  );
+  // Past the deadline no read starts at all.
+  await assert.rejects(
+    hostedDependencies("token").releases(target, Date.now() - 1),
+    /time budget reached/u,
+  );
+  assert.equal(signals.length, 1);
+});
+
+void test("two targets sharing an unlistable package re-check it once in a run", async () => {
+  const shared = {
+    listings: ["a", "b"].map((id) => ({
+      id,
+      project_url: "https://github.com/up/shared",
+      download_asset_hints: { "linux-x86-64": ["shared.zip"] },
+    })),
+  };
+  const targets = scanTargets(shared);
+  let listable = false;
+  const downloads: string[] = [];
+  const deps: ScanDependencies = {
+    async releases() {
+      return [
+        {
+          tag: "v1",
+          draft: false,
+          prerelease: false,
+          assets: [{ name: "shared.zip", url: "u", size: 10, digest: null }],
+        },
+      ];
+    },
+    async download(asset, file) {
+      downloads.push(asset.name);
+      await writeFile(file, asset.name);
+    },
+    async list() {
+      if (!listable) throw new ScanError("unlistable", "lister exited with status 2");
+      return [{ path: "game.exe", size: 1 }];
+    },
+    async heads() {
+      return new Map();
+    },
+  };
+  const first = await scan(targets, new Map(), deps);
+  assert.deepEqual(downloads, ["shared.zip"], "the second target reuses the first outcome");
+  assert.deepEqual(
+    first.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["a", "unlistable"],
+      ["b", "unlistable"],
+    ],
+  );
+  downloads.length = 0;
+  const again = await scan(targets, first.checkpoint, deps, { retries: first.retries });
+  assert.deepEqual(downloads, ["shared.zip"], "one re-check for both targets");
+  assert.deepEqual(
+    again.report.unscanned.map(({ id, code }) => [id, code]),
+    [
+      ["a", "unlistable"],
+      ["b", "unlistable"],
+    ],
+  );
+  // Once it lists cleanly, the second target reuses the new record.
+  listable = true;
+  downloads.length = 0;
+  const fixed = await scan(targets, again.checkpoint, deps, { retries: again.retries });
+  assert.deepEqual(downloads, ["shared.zip"]);
+  assert.deepEqual(
+    fixed.report.scanned.map(({ id }) => id),
+    ["a"],
+  );
+  assert.deepEqual(
+    fixed.report.reused_targets.map(({ id }) => id),
+    ["b"],
+  );
+  assert.equal(fixed.retries.size, 0);
 });

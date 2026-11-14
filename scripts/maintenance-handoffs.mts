@@ -642,7 +642,11 @@ function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): 
   const unavailable = targets.filter((target) => target.code === "release-unavailable");
   // The relocation evidence route reads GitHub repositories only.
   const github = unavailable.some((target) => target.provider === "github");
-  const other = unavailable.some((target) => target.provider !== "github");
+  const gitlab = unavailable.some((target) => target.provider === "gitlab");
+  // A condition recorded before the provider was stored names no route.
+  const unknown = unavailable.some(
+    (target) => target.provider !== "github" && target.provider !== "gitlab",
+  );
   const inspect = [...new Set(codes.filter((code) => code !== "release-unavailable"))];
   const actions: string[] = [];
   const invocations: string[] = [];
@@ -671,7 +675,15 @@ function releaseContentGuidance(guidance: HandoffGuidance, condition: unknown): 
       "confirm the release read still fails; relocation evidence and the rename follow the owner-only release-health-relocation handoff; the next scheduled run of release-content-scan.yml on main reports the result",
     );
   }
-  if (other) {
+  if (unknown) {
+    actions.push(
+      "The release read is redirected or gone: confirm it, then fix the listing's upstream location in a reviewed catalog change (for a GitHub repository through the owner-only release-health-relocation handoff and its authority).",
+    );
+    invocations.push(
+      "confirm the release read still fails; a reviewed catalog change to the listing's upstream location, through the owner-only release-health-relocation handoff for a GitHub repository; the next scheduled run of release-content-scan.yml on main reports the result",
+    );
+  }
+  if (gitlab) {
     actions.push(
       "The GitLab release read is redirected or gone: fix the listing's upstream location in a reviewed catalog change, then wait for the next scan.",
     );
