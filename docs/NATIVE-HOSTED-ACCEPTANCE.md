@@ -246,7 +246,10 @@ the group at once. On the elevated runner
 WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
 step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
 `portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can
-be created. Groups also enable process-creation auditing, and a failed group
+be created. The same policy adds `--disable-backgrounding-occluded-windows`,
+`--disable-renderer-backgrounding` and `--disable-background-timer-throttling`:
+on runtime 157.0.4341.60 a Portcove window covered by a launched fixture or native
+picker stopped answering the driver and left reads pending (#4879). Groups also enable process-creation auditing, and a failed group
 prints bounded startup diagnostics, scenario failures and its largest retained
 outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
 to 60 s for the debug build's IPC status reads, and its wait for a held fixture

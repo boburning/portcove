@@ -778,7 +778,10 @@ jobs:
           # automation port for the development executable the harness launches.
           $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
           New-Item -Path $policy -Force | Out-Null
-          New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
+          # Runtime 157.0.4341.60 stalls a covered window's renderer and timers
+          # (#4879); keep the window active so scenarios observe the product.
+          $arguments = '--remote-debugging-port=0 --disable-backgrounding-occluded-windows --disable-renderer-backgrounding --disable-background-timer-throttling'
+          New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value $arguments -PropertyType String -Force | Out-Null
       # Evergreen may install a runtime whose exactly matching msedgedriver
       # Microsoft has not made available yet. Driver bootstrap keeps the exact match;
       # this bounded wait turns that window into one actionable outcome.
