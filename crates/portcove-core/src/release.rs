@@ -1073,9 +1073,7 @@ impl GithubReleaseProvider {
             })?;
             if session.expires_at <= Instant::now() {
                 sessions.remove(session_id);
-                return Err(PortcoveError::network(
-                    "GitHub device-login session expired",
-                ));
+                return Err(expired_device_login());
             }
             if !self.auth_intent_is_current(session.intent) {
                 sessions.remove(session_id);
@@ -1131,13 +1129,15 @@ impl GithubReleaseProvider {
             }
             Some("expired_token") => {
                 self.device_sessions.lock().await.remove(session_id);
-                Err(PortcoveError::network(
-                    "GitHub device-login session expired",
-                ))
+                Err(expired_device_login())
             }
             Some("access_denied") => {
                 self.device_sessions.lock().await.remove(session_id);
-                Err(PortcoveError::conflict("GitHub login was cancelled"))
+                Err(PortcoveError::conflict("GitHub login was cancelled")
+                    .with_known_cause(
+                        crate::failure::KnownFailureCause::GithubDeviceAuthorizationDenied,
+                    )
+                    .with_mutation_state(crate::MutationState::NoChanges))
             }
             Some(error) => Err(PortcoveError::network(format!(
                 "GitHub device login failed: {error}"
@@ -1867,6 +1867,12 @@ fn obsolete_auth_intent() -> PortcoveError {
     PortcoveError::conflict(
         "GitHub sign-in result is obsolete because a newer login or logout was started",
     )
+}
+
+fn expired_device_login() -> PortcoveError {
+    PortcoveError::network("GitHub device-login session expired")
+        .with_known_cause(crate::failure::KnownFailureCause::GithubDeviceCodeExpired)
+        .with_mutation_state(crate::MutationState::NoChanges)
 }
 
 fn pending_device_login() -> GithubDeviceLoginResult {
@@ -3381,7 +3387,16 @@ mod tests {
                     );
                 }
                 Expected::Expired => {
-                    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+                    let failure = result.unwrap_err().report();
+                    assert_eq!(failure.code, crate::ErrorCode::Network);
+                    assert_eq!(
+                        failure.presentation.presentation_key,
+                        "github_device_code_expired"
+                    );
+                    assert_eq!(
+                        failure.presentation.mutation_state,
+                        crate::MutationState::NoChanges
+                    );
                     assert!(
                         !provider
                             .device_sessions
@@ -3391,7 +3406,16 @@ mod tests {
                     );
                 }
                 Expected::Cancelled => {
-                    assert_eq!(result.unwrap_err().code, crate::ErrorCode::Conflict);
+                    let failure = result.unwrap_err().report();
+                    assert_eq!(failure.code, crate::ErrorCode::Conflict);
+                    assert_eq!(
+                        failure.presentation.presentation_key,
+                        "github_device_authorization_denied"
+                    );
+                    assert_eq!(
+                        failure.presentation.mutation_state,
+                        crate::MutationState::NoChanges
+                    );
                     assert!(
                         !provider
                             .device_sessions
@@ -3419,6 +3443,10 @@ mod tests {
         );
         let expired = provider.poll_device_login(&session_id).await.unwrap_err();
         assert_eq!(expired.code, crate::ErrorCode::Network);
+        assert_eq!(
+            expired.report().presentation.presentation_key,
+            "github_device_code_expired"
+        );
         assert!(
             !provider
                 .device_sessions

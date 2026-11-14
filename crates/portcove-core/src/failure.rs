@@ -211,6 +211,8 @@ pub(crate) enum KnownFailureCause {
         volume: String,
     },
     DeviceLoginUnavailable,
+    GithubDeviceCodeExpired,
+    GithubDeviceAuthorizationDenied,
     ProviderRequest {
         provider: FailureProvider,
         status: u16,
@@ -427,6 +429,14 @@ impl KnownFailureCause {
             Self::DeviceLoginUnavailable => (
                 "device_login_unavailable",
                 "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",
+            ),
+            Self::GithubDeviceCodeExpired => (
+                "github_device_code_expired",
+                "The GitHub sign-in code expired. Choose Sign in with GitHub to get a new code.",
+            ),
+            Self::GithubDeviceAuthorizationDenied => (
+                "github_device_authorization_denied",
+                "GitHub sign-in was cancelled. Choose Sign in with GitHub to try again.",
             ),
             Self::ProviderRequest {
                 provider,
