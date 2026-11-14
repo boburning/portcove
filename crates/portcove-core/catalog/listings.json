@@ -21787,7 +21787,7 @@
       "issue_number": 721,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md",
+      "setup_url": "https://github.com/elliotttate/DKC1Recomp#readme",
       "artwork": {
         "game_id": 1090,
         "cover_id": 327551,
@@ -21796,20 +21796,25 @@
         "game_slug": "donkey-kong-country",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/elliotttate/DKC1Recomp/releases/tag/v0.0.17",
+      "release_url": "https://github.com/elliotttate/DKC1Recomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Select your original in the game",
             "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+          },
+          {
+            "title": "Set up the Apple Silicon preview",
+            "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+        "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
       },
       "original_game_title": "Donkey Kong Country",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-aarch64"
       ]
     },
     {
@@ -24306,7 +24311,7 @@
       "issue_number": 1811,
       "listed_at": "2026-10-23",
       "availability": "packages",
-      "setup_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md",
+      "setup_url": "https://github.com/elliotttate/DKC2Recomp#readme",
       "artwork": {
         "game_id": 1092,
         "cover_id": 94882,
@@ -24315,20 +24320,25 @@
         "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
         "match_kind": "underlying-game"
       },
-      "release_url": "https://github.com/elliotttate/DKC2Recomp/releases/tag/v0.0.8",
+      "release_url": "https://github.com/elliotttate/DKC2Recomp/releases",
       "manual_setup": {
         "steps": [
           {
             "title": "Finish the game’s setup",
             "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+          },
+          {
+            "title": "Set up the Apple Silicon app",
+            "instruction": "Use the upstream Apple Silicon ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and follow upstream’s first-launch instructions for the unnotarized app. Select your own North American v1.0 ROM. Preserve the Flat2VR/DKC2Recomp profile under Library/Application Support."
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+        "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
       },
       "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "macos-aarch64"
       ]
     },
     {

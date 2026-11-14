@@ -52837,6 +52837,16 @@
           "game_slug": "banjo-tooie",
           "match_kind": "underlying-game"
         }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "third_party"
+          ],
+          "executables": [
+            "banjotooiescurvydogport.exe"
+          ]
+        }
       }
     },
     {
@@ -56959,10 +56969,14 @@
             {
               "title": "Select your original in the game",
               "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+            },
+            {
+              "title": "Set up the Apple Silicon preview",
+              "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+          "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
         },
         "artwork": {
           "game_id": 1090,
@@ -56971,6 +56985,18 @@
           "image_sha256": "a348e97c032a181e95a9c4d1fb3cc43667fda92e39c994c6d3b24b2dce91cd6e",
           "game_slug": "donkey-kong-country",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "docs",
+            "licenses"
+          ],
+          "executables": [
+            "dkc1_dixie_desktop.exe",
+            "dkc1recomp.exe"
+          ]
         }
       }
     },
@@ -58318,10 +58344,14 @@
             {
               "title": "Finish the game’s setup",
               "instruction": "On first Play, select your own North American v1.0 Donkey Kong Country 2 ROM in the launcher. It remembers that external path without copying the ROM. DKC2Recomp.exe is the upstream default; the bundled DKC2RecompSDL.exe remains an alternative through external registration. Character packs and MSU-1 audio are optional upstream-guided imports."
+            },
+            {
+              "title": "Set up the Apple Silicon app",
+              "instruction": "Use the upstream Apple Silicon ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and follow upstream’s first-launch instructions for the unnotarized app. Select your own North American v1.0 ROM. Preserve the Flat2VR/DKC2Recomp profile under Library/Application Support."
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/elliotttate/DKC2Recomp/blob/v0.0.8/README.md"
+          "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
         },
         "artwork": {
           "game_id": 1092,
@@ -58330,6 +58360,21 @@
           "image_sha256": "14026039a1de169794ab52fb49d5b5675b059ab037ebccc8a4ce6891b31bcadd",
           "game_slug": "donkey-kong-country-2-diddy-s-kong-quest",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "docs",
+            "licenses",
+            "scripts",
+            "third_party"
+          ],
+          "executables": [
+            "dkc2recomp.exe",
+            "dkc2recompsdl.exe"
+          ]
         }
       }
     },
