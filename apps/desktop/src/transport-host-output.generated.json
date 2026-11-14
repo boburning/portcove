@@ -16592,6 +16592,82 @@
     "title": "Array_of_string",
     "type": "array"
   },
+  "store_game_installs": {
+    "$defs": {
+      "GameStore": {
+        "enum": [
+          "steam",
+          "gog",
+          "epic"
+        ],
+        "type": "string"
+      },
+      "StoreGameInstall": {
+        "description": "One game folder a store installed, as the store's own metadata records it.",
+        "properties": {
+          "path": {
+            "description": "Canonical existing folder.",
+            "type": "string"
+          },
+          "saved_root_id": {
+            "description": "The saved game-file folder at exactly this path, when there is one.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "store": {
+            "$ref": "#/$defs/GameStore"
+          },
+          "title": {
+            "description": "The store's title for the game; a label, never an identity.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "store",
+          "title",
+          "path",
+          "saved_root_id"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "checked_stores": {
+        "description": "The stores this host's metadata was read for. A store missing here was\nnot checked, which is different from having no games installed.",
+        "items": {
+          "$ref": "#/$defs/GameStore"
+        },
+        "type": "array"
+      },
+      "installs": {
+        "items": {
+          "$ref": "#/$defs/StoreGameInstall"
+        },
+        "type": "array"
+      },
+      "limited": {
+        "description": "Whether a detection bound stopped the list early.",
+        "type": "boolean"
+      },
+      "skipped_entries": {
+        "description": "Store entries left out because their metadata was unreadable, malformed,\nunsafe or named a folder that does not exist.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "checked_stores",
+      "installs",
+      "skipped_entries",
+      "limited"
+    ],
+    "title": "StoreGameInstalls",
+    "type": "object"
+  },
   "submitted_report": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "description": "An issue GitHub created from a submitted report.",

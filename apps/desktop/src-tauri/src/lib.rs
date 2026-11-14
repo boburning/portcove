@@ -1443,6 +1443,19 @@ async fn get_game_file_root_match_profiles(
     .await
 }
 
+/// Game folders Steam, GOG and Epic installed on this computer, as search
+/// suggestions. Reads only; nothing is saved or registered.
+#[tauri::command]
+async fn get_store_game_installs(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+) -> DesktopResult<portcove_core::StoreGameInstalls> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service.store_game_installs().map_err(Into::into)
+    })
+    .await
+}
+
 #[tauri::command]
 async fn get_game_file_scan_snapshot(
     state: tauri::State<'_, DesktopState>,
@@ -3373,6 +3386,7 @@ pub fn run() -> std::process::ExitCode {
             get_game_file_scan_snapshot,
             get_game_file_scan_matches,
             get_game_file_root_match_profiles,
+            get_store_game_installs,
             refresh_game_file_query,
             discover_sources,
             open_source_inbox,

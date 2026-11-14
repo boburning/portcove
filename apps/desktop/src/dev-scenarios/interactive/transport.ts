@@ -757,6 +757,10 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
       requireArgs("get_game_file_root_match_profiles", args, { generation, rootId: args?.rootId });
       return [];
     },
+    get_store_game_installs: (args) => {
+      requireArgs("get_store_game_installs", args, { generation });
+      return { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
+    },
     get_backups: (args) => {
       if (!workspace(journey).catalog.ports.some((port) => port.id === args?.portId))
         return unsupported("get_backups");

@@ -2466,6 +2466,7 @@ impl CapabilityDocument {
                 "source.roots.scan".into(),
                 "source.roots.matches".into(),
                 "source.roots.profiles".into(),
+                "source.roots.stores".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),
