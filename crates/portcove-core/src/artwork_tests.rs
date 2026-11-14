@@ -1638,6 +1638,66 @@ fn legacy_metadata_imports_execute_without_manufacturing_artwork() {
 }
 
 #[test]
+fn listing_check_evidence_moves_with_the_library_and_import_starts_without_it() {
+    use crate::artwork_store::listing_checks;
+    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    let temp = tempfile::tempdir().unwrap();
+    let root = temp.path().join("source");
+    let destination = temp.path().join("destination");
+    let service = open_service(&root);
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    service
+        .choose_fetched_artwork(
+            &port,
+            ArtworkSlot::Cover,
+            42,
+            provider_candidate(
+                7,
+                Role::PortraitCover,
+                12,
+                24,
+                "image/png",
+                encoded(12, 24, image::ImageFormat::Png),
+            ),
+            0,
+        )
+        .unwrap();
+    let before = listing_checks(&service.library().connection().unwrap(), Steamgriddb).unwrap();
+    assert_eq!(before.len(), 1);
+    let export = temp.path().join("export.json");
+    fs::write(
+        &export,
+        serde_json::to_vec(&service.export_library_metadata().unwrap()).unwrap(),
+    )
+    .unwrap();
+    let plan = service.plan_library_move(&destination).unwrap();
+    drop(service);
+    PortcoveService::move_library(&root, &destination, &plan.plan_sha256).unwrap();
+    // A move copies the database, so the same records keep their evidence.
+    let moved = open_service(&destination);
+    let connection = moved.library().connection().unwrap();
+    assert_eq!(listing_checks(&connection, Steamgriddb).unwrap(), before);
+    let orphans: i64 = connection
+        .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(orphans, 0);
+    drop(connection);
+    drop(moved);
+    // An import rebuilds from metadata, which carries no evidence: it starts empty.
+    let imported = temp.path().join("imported");
+    let plan = PortcoveService::plan_library_import(&export, &destination, &imported).unwrap();
+    PortcoveService::import_library(&export, &destination, &imported, &plan.plan_sha256).unwrap();
+    let imported = open_service(&imported);
+    assert!(
+        listing_checks(&imported.library().connection().unwrap(), Steamgriddb)
+            .unwrap()
+            .is_empty()
+    );
+}
+
+#[test]
 fn managed_move_preserves_artwork_and_excludes_cached_payloads() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("source");
@@ -2942,6 +3002,321 @@ fn provider_candidate(
     }
 }
 
+/// A prepared check result for every subject, as the network check would return.
+fn prepared_report(
+    subjects: &[crate::artwork::steamgriddb::CheckSubject],
+    listing: crate::SteamGridDbListingResult,
+    attempted: bool,
+    now: i64,
+) -> crate::SteamGridDbListingReport {
+    crate::SteamGridDbListingReport {
+        checked_at: now,
+        images: subjects
+            .iter()
+            .map(|subject| crate::SteamGridDbImageCheck {
+                asset_sha256: subject.asset_sha256.clone(),
+                attribution: subject.attribution.clone(),
+                listing,
+                attempted,
+                listing_total: Some(2),
+                source: crate::SteamGridDbSourceStatus::Gone,
+                not_listed_since: None,
+            })
+            .collect(),
+        stopped: None,
+        recorded: false,
+    }
+}
+
+#[test]
+fn a_listing_check_records_attempted_results_and_respects_concurrent_choices() {
+    use crate::{DestinationArtworkRole as Role, SteamGridDbListingResult as Listing};
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let choose = |revision| {
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                provider_candidate(
+                    7,
+                    Role::PortraitCover,
+                    12,
+                    24,
+                    "image/png",
+                    encoded(12, 24, image::ImageFormat::Png),
+                ),
+                revision,
+            )
+            .unwrap()
+    };
+    let chosen = choose(0);
+    let stored = |service: &PortcoveService| {
+        crate::artwork_store::listing_checks(
+            &service.library().connection().unwrap(),
+            crate::ArtworkProvider::Steamgriddb,
+        )
+        .unwrap()
+        .remove(0)
+    };
+    let chosen_at = stored(&service).last_checked_at;
+
+    // Rotation sees the stored time; an attempted absence is recorded.
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            assert_eq!(subjects[0].last_checked_at, Some(chosen_at));
+            Ok(prepared_report(&subjects, Listing::NotListed, true, now))
+        })
+        .unwrap();
+    assert!(report.recorded);
+    let first_absence = report.images[0].not_listed_since.unwrap();
+    assert_eq!(stored(&service).not_listed_since, Some(first_absence));
+    // The artwork state shows the evidence for the selected image.
+    let state = service
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    assert_eq!(state.provider_listing.len(), 1);
+    assert_eq!(state.provider_listing[0].asset_id, 7);
+    assert_eq!(state.provider_listing[0].last_result, Listing::NotListed);
+    assert_eq!(
+        state.provider_listing[0].not_listed_since,
+        Some(first_absence)
+    );
+
+    // Unattempted images and cancelled checks change nothing.
+    let before = stored(&service);
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            Ok(prepared_report(&subjects, Listing::Listed, false, now))
+        })
+        .unwrap();
+    assert!(report.recorded);
+    assert_eq!(stored(&service), before);
+    let report = service
+        .run_listing_check(&|| true, |subjects, now| {
+            Ok(prepared_report(&subjects, Listing::Listed, true, now))
+        })
+        .unwrap();
+    assert!(!report.recorded);
+    assert_eq!(stored(&service), before);
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            let mut report = prepared_report(&subjects, Listing::Listed, true, now);
+            report.stopped = Some(crate::SteamGridDbCheckStop::Cancelled);
+            Ok(report)
+        })
+        .unwrap();
+    assert!(!report.recorded);
+    assert_eq!(stored(&service), before);
+
+    // Only one check runs at a time.
+    service
+        .run_listing_check(&|| false, |subjects, now| {
+            let error = service
+                .run_listing_check(&|| false, |_, _| unreachable!())
+                .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Conflict);
+            Ok(prepared_report(&subjects, Listing::NotListed, false, now))
+        })
+        .unwrap();
+
+    // Removing and choosing the same image again during a check also wins: the
+    // new row's revision is never one an earlier snapshot saw.
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            let current = service
+                .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                .unwrap();
+            let sha = current.selection.clone().unwrap().sha256;
+            let reset = service
+                .reset_artwork(
+                    "zelda64-recomp",
+                    ArtworkSlot::Cover,
+                    current.choice.revision,
+                )
+                .unwrap();
+            service.remove_unused_local_artwork(&sha).unwrap();
+            choose(reset.choice.revision);
+            Ok(prepared_report(&subjects, Listing::NotListed, true, now))
+        })
+        .unwrap();
+    assert!(report.recorded);
+    assert_eq!(report.images[0].not_listed_since, None);
+    assert_eq!(stored(&service).last_result, "listed");
+
+    // A re-choose during the check wins: the stale result is not applied.
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            choose(
+                service
+                    .artwork("zelda64-recomp", ArtworkSlot::Cover)
+                    .unwrap()
+                    .choice
+                    .revision,
+            );
+            Ok(prepared_report(&subjects, Listing::NotListed, true, now))
+        })
+        .unwrap();
+    assert!(report.recorded);
+    assert_eq!(report.images[0].not_listed_since, None);
+    assert_eq!(stored(&service).last_result, "listed");
+
+    // A host whose library changed before recording reports what it saw.
+    let unrecorded = service
+        .prepare_steamgriddb_listing_check()
+        .unwrap()
+        .check_with(|subjects, now| Ok(prepared_report(&subjects, Listing::NotListed, true, now)))
+        .unwrap()
+        .unrecorded();
+    assert!(!unrecorded.recorded);
+    assert_eq!(unrecorded.images.len(), 1);
+    assert_eq!(stored(&service).last_result, "listed");
+
+    // A held artwork lock does not lose the report; it is shown unrecorded.
+    let held = service.library().try_lock_artwork().unwrap();
+    let report = service
+        .run_listing_check(&|| false, |subjects, now| {
+            Ok(prepared_report(&subjects, Listing::NotListed, true, now))
+        })
+        .unwrap();
+    drop(held);
+    assert!(!report.recorded);
+    assert_eq!(report.images.len(), 1);
+    assert_eq!(stored(&service).last_result, "listed");
+}
+
+#[test]
+fn listing_check_records_keep_the_first_absence_and_follow_their_provider_record() {
+    use crate::artwork_store::{ListingObservation, apply_listing_check, listing_checks};
+    use crate::{ArtworkProvider::Steamgriddb, DestinationArtworkRole as Role};
+    let temp = tempfile::tempdir().unwrap();
+    let service = open_service(&temp.path().join("library"));
+    let port = service.artwork_port("zelda64-recomp").unwrap();
+    let choose = |revision| {
+        service
+            .choose_fetched_artwork(
+                &port,
+                ArtworkSlot::Cover,
+                42,
+                provider_candidate(
+                    7,
+                    Role::PortraitCover,
+                    12,
+                    24,
+                    "image/png",
+                    encoded(12, 24, image::ImageFormat::Png),
+                ),
+                revision,
+            )
+            .unwrap()
+    };
+    let chosen = choose(0);
+    let sha = chosen.selection.clone().unwrap().sha256;
+    let connection = service.library().connection().unwrap();
+    let rows = |connection: &rusqlite::Connection| listing_checks(connection, Steamgriddb).unwrap();
+    // Choosing re-resolved the image from the provider's listing.
+    let chosen_row = rows(&connection).remove(0);
+    assert_eq!(chosen_row.last_result, "listed");
+    assert_eq!(chosen_row.not_listed_since, None);
+    let observe = |result, reason, source, expected, now| {
+        apply_listing_check(
+            &connection,
+            Steamgriddb,
+            &sha,
+            7,
+            expected,
+            &ListingObservation {
+                result,
+                unknown_reason: reason,
+                total: Some(3),
+                source,
+            },
+            now,
+        )
+        .unwrap()
+    };
+    assert_eq!(chosen_row.revision, 1);
+    let first_checked = Some(1);
+    assert!(observe(
+        "not_listed",
+        None,
+        Some("gone"),
+        first_checked,
+        1_000
+    ));
+    // A check that started from an older state is never applied.
+    assert!(!observe("listed", None, None, first_checked, 1_500));
+    assert!(observe("not_listed", None, Some("unknown"), Some(2), 2_000));
+    let row = rows(&connection).remove(0);
+    assert_eq!(row.not_listed_since, Some(1_000));
+    assert_eq!(row.last_source_status.as_deref(), Some("gone"));
+    assert_eq!(row.last_listing_total, Some(3));
+    // Unknown never starts, moves or clears the absence clock.
+    assert!(observe(
+        "unknown",
+        Some("unavailable"),
+        None,
+        Some(3),
+        3_000
+    ));
+    let row = rows(&connection).remove(0);
+    assert_eq!(
+        (row.not_listed_since, row.unknown_reason.as_deref()),
+        (Some(1_000), Some("unavailable"))
+    );
+    // Only an observed listing clears it, and with it any earlier source answer.
+    assert!(observe("listed", None, None, Some(4), 4_000));
+    let row = rows(&connection).remove(0);
+    assert_eq!((row.not_listed_since, row.last_source_status), (None, None));
+    assert!(observe("not_listed", None, None, Some(5), 5_000));
+    // Choosing the image again resets it to listed.
+    choose(chosen.choice.revision);
+    let row = rows(&connection).remove(0);
+    assert_eq!(
+        (row.last_result.as_str(), row.not_listed_since),
+        ("listed", None)
+    );
+    // A record that no longer exists is never written.
+    assert!(
+        !apply_listing_check(
+            &connection,
+            Steamgriddb,
+            &sha,
+            8,
+            None,
+            &ListingObservation {
+                result: "not_listed",
+                unknown_reason: None,
+                total: None,
+                source: None
+            },
+            6_000,
+        )
+        .unwrap()
+    );
+    // Removing the unused asset removes its evidence, leaving no orphan.
+    let current = service
+        .artwork("zelda64-recomp", ArtworkSlot::Cover)
+        .unwrap();
+    service
+        .reset_artwork(
+            "zelda64-recomp",
+            ArtworkSlot::Cover,
+            current.choice.revision,
+        )
+        .unwrap();
+    service.remove_unused_local_artwork(&sha).unwrap();
+    assert!(rows(&connection).is_empty());
+    let orphans: i64 = connection
+        .query_row("SELECT count(*) FROM pragma_foreign_key_check", [], |row| {
+            row.get(0)
+        })
+        .unwrap();
+    assert_eq!(orphans, 0);
+}
+
 #[test]
 fn listing_check_subjects_carry_the_stored_image_facts() {
     use crate::DestinationArtworkRole as Role;
@@ -2985,7 +3360,7 @@ fn listing_check_subjects_carry_the_stored_image_facts() {
     let transaction = connection.transaction().unwrap();
     let metadata = crate::artwork_store::snapshot(&transaction).unwrap();
     transaction.commit().unwrap();
-    let mut subjects: Vec<_> = crate::artwork::steamgriddb::check_subjects(&metadata)
+    let mut subjects: Vec<_> = crate::artwork::steamgriddb::check_subjects(&metadata, |_, _| None)
         .into_iter()
         .map(|subject| {
             (

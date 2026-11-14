@@ -11,7 +11,7 @@ import type { Perform } from "../features/operations/use-operation-state";
 import * as picker from "../file-picker";
 import { artworkState, portDefinition } from "../test-fixtures";
 import type { ArtworkState, PortListing } from "../types";
-import { ArtworkControls, ArtworkImage } from "./Artwork";
+import { ArtworkControls, ArtworkImage, listingEvidenceText } from "./Artwork";
 import { ListingDetailPanel } from "./ListingDetailPanel";
 
 let container: HTMLDivElement, root: RenderResult;
@@ -961,4 +961,32 @@ describe("SteamGridDB picker", () => {
       ).toContain("aspect-[92/43]"),
     );
   });
+});
+
+it("states recorded SteamGridDB listing evidence as an observation with its dates", () => {
+  const at = (seconds: number) => new Date(seconds * 1000).toLocaleString();
+  const evidence = (
+    last_result: ArtworkState["provider_listing"][number]["last_result"],
+    not_listed_since: number | null,
+  ) => ({
+    provider: "steamgriddb" as const,
+    asset_id: 3,
+    last_checked_at: 2_000_000,
+    last_result,
+    not_listed_since,
+  });
+  expect(listingEvidenceText(evidence({ status: "listed" }, null))).toBe(
+    `Listed when last checked (${at(2_000_000)}).`,
+  );
+  expect(listingEvidenceText(evidence({ status: "not_listed" }, 1_000_000))).toBe(
+    `Not in SteamGridDB's list when last checked (${at(2_000_000)}). First noticed ${at(1_000_000)}. Nothing was removed.`,
+  );
+  expect(
+    listingEvidenceText(evidence({ status: "unknown", reason: "unavailable" }, 1_000_000)),
+  ).toBe(
+    `Not confirmed when last checked (${at(2_000_000)}). First noticed missing ${at(1_000_000)}. Nothing was removed.`,
+  );
+  expect(listingEvidenceText(evidence({ status: "unknown", reason: "empty_listing" }, null))).toBe(
+    `Not confirmed when last checked (${at(2_000_000)}).`,
+  );
 });

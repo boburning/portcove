@@ -52,6 +52,7 @@ export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
 export type ArtworkAttribution = ArtworkState["attribution"][number];
 export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
+export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
 export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
 export type SteamGridDbCandidate = Generated.TransportOutputs["steamgriddb_candidates"][number];
 export type DestinationArtworkRole = SteamGridDbCandidate["role"];

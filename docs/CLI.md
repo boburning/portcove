@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 91 and event schema 3.
+and `listing_formats` independently from API schema 92 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -1389,30 +1389,44 @@ the default and `remove-unused` deletes it once nothing selects it. Library expo
 that contain chosen SteamGridDB images use metadata schema 8.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
-`check-listings` reports, with your key, whether SteamGridDB still lists each
-SteamGridDB image in your library, and returns `steamgriddb_listing_report`. It only
-reports: every image, credit and choice is kept, nothing changes in Steam, and no
-artwork lock is held while it waits on the network. Each stored image is checked
-against its game's listing for the same role collection, stored size (when it is a
-size Portcove offers for the role) and format, with adult, humor and epilepsy flags
-set to `any`, so a re-tagged image or a later Portcove filter change never reads as
-missing. `listing` is `not_listed` only when every page echoes the requested `page`
-and `limit`, carries `data` and the same `total`, every entry has a readable ID, and
-the unique IDs seen equal `total`. Anything else is `unknown` with an
-`unknown_reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
-`game_not_found` (a 404 is never read as a withdrawal), `request_limit`,
-`check_stopped`, `unavailable` or `invalid_response`. Only a 404 for the first page
-is `game_not_found`; one for a later page is `incomplete_listing`. For `not_listed`
-and `game_not_found` images, `source` reports what the image server answers for the
-stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. It is
-`not_checked` for listed images and for any image not probed before the check
-stopped. One check makes at most 120 SteamGridDB API requests and 60 image-server
-requests, spaced 250 ms apart. A rate limit, a rejected key, or two unreachable
-listings in a row end the check, reported in `stopped` as `rate_limited`,
-`key_rejected` or `unavailable`; results already read are kept and the rest are
-`check_stopped`. Groups are read in a fixed order, so a library with more than 120
-listings reports the same remainder as `request_limit` on every run. A library with no
-SteamGridDB images makes no request and needs no key.
+`check-listings` checks, with your key, whether SteamGridDB still lists each
+SteamGridDB image in your library, records what it finds beside each image's credit,
+and returns `steamgriddb_listing_report`. Nothing is removed: every image, credit and
+choice is kept, nothing changes in Steam, and no artwork lock is held while it waits
+on the network. Each stored image is checked against its game's listing for the same
+role collection, stored size (when it is a size Portcove offers for the role) and
+format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
+later Portcove filter change never reads as missing. An image seen on any listing page
+that echoes the request is `listed`. It is `not_listed` only when every page echoes
+the requested `page` and `limit`, carries `data` and the same `total`, every entry has
+a readable ID, and the unique IDs seen equal `total`. A narrowed listing with no images
+at all is checked again without the size and format filters; when that listing is
+also empty the result is `unknown` with `empty_listing`. Anything else is `unknown`
+with a `reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
+`game_not_found` (only a first-page 404; never read as a withdrawal), `empty_listing`,
+`request_limit`, `check_stopped`, `unavailable` or `invalid_response`. For
+`not_listed`, `game_not_found` and `empty_listing` images, `source` reports what the
+image server answers for the stored URL without your key: `served`, `gone` (404 or 410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
+reached a conclusion for the image's listing, and `listing_total` is the `total`
+SteamGridDB reported.
+
+One check makes at most 120 SteamGridDB API requests and 60 image-server requests,
+spaced 250 ms apart, and stops after three minutes. It starts with the images checked
+longest ago, so a large library is covered across runs. A rate limit, a rejected key,
+two unreachable listings in a row, the time limit or cancellation end the check,
+reported in `stopped` as `rate_limited`, `key_rejected`, `unavailable`, `time_limit` or
+`cancelled`; results already read are kept and the rest are `check_stopped`. Only one
+check runs at a time in a library.
+
+Results for attempted images are recorded in one transaction. A choice or removal
+made while the check ran always wins, and choosing an image again marks it listed.
+`not_listed_since` is the first time a verified listing lacked the image; it is kept
+across later absences and unknown results and cleared only when the image is seen
+listed again. `recorded` is false when the check was cancelled or recording failed,
+in which case the results are shown but not kept. `artwork_state.provider_listing`
+shows the recorded evidence for the selected image. Library moves keep this evidence;
+library exports and imports do not carry it. A library with no SteamGridDB images
+makes no request and needs no key.
 
 ## Export and restore a library
 

@@ -3454,6 +3454,44 @@
         ],
         "type": "string"
       },
+      "ArtworkProviderListing": {
+        "additionalProperties": false,
+        "description": "Recorded evidence of whether a provider still lists a credited image. It is\nan observation, not an action: nothing is removed because of it.",
+        "properties": {
+          "asset_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "last_checked_at": {
+            "description": "When a check or a choice last established this evidence.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "last_result": {
+            "$ref": "#/$defs/SteamGridDbListingResult"
+          },
+          "not_listed_since": {
+            "description": "When a verified listing first lacked the image; cleared only when it is\nseen listed again.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "provider": {
+            "$ref": "#/$defs/ArtworkProvider"
+          }
+        },
+        "required": [
+          "provider",
+          "asset_id",
+          "last_checked_at",
+          "last_result",
+          "not_listed_since"
+        ],
+        "type": "object"
+      },
       "ArtworkResolvedSource": {
         "description": "The source core resolves for one slot before a client attempts to transport\nor render it. A client can still display the generated fallback if a\nresolved image cannot be retrieved, decoded or presented safely.",
         "oneOf": [
@@ -3647,6 +3685,101 @@
           "imported_at"
         ],
         "type": "object"
+      },
+      "SteamGridDbListingResult": {
+        "description": "Whether SteamGridDB's own listing still includes a stored image.",
+        "oneOf": [
+          {
+            "additionalProperties": false,
+            "description": "The image was seen on a listing page that passed the envelope checks.",
+            "properties": {
+              "status": {
+                "const": "listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "A complete, verified, non-empty listing does not include the image.",
+            "properties": {
+              "status": {
+                "const": "not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "Neither could be established.",
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SteamGridDbUnknownReason"
+              },
+              "status": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SteamGridDbUnknownReason": {
+        "oneOf": [
+          {
+            "const": "incomplete_listing",
+            "description": "Pages disagreed, an entry had no readable ID, or the IDs seen did not match `total`.",
+            "type": "string"
+          },
+          {
+            "const": "too_many_images",
+            "description": "The listing is longer than one check reads.",
+            "type": "string"
+          },
+          {
+            "const": "game_not_found",
+            "description": "SteamGridDB answered that the game was not found; not treated as a withdrawal.",
+            "type": "string"
+          },
+          {
+            "const": "empty_listing",
+            "description": "SteamGridDB listed no images at all for the game and role, so absence proves nothing.",
+            "type": "string"
+          },
+          {
+            "const": "request_limit",
+            "description": "The check's request budget ran out before this listing was complete.",
+            "type": "string"
+          },
+          {
+            "const": "check_stopped",
+            "description": "The check stopped before reaching this image; see `stopped`.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "SteamGridDB could not be reached or answered with a server error.",
+            "type": "string"
+          },
+          {
+            "const": "invalid_response",
+            "description": "SteamGridDB's answer did not have the expected listing shape.",
+            "type": "string"
+          }
+        ]
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -3666,6 +3799,13 @@
       },
       "generated_fallback": {
         "$ref": "#/$defs/GeneratedArtworkFallback"
+      },
+      "provider_listing": {
+        "description": "Recorded listing evidence for the credited images; empty until an image\nis chosen from a provider or checked.",
+        "items": {
+          "$ref": "#/$defs/ArtworkProviderListing"
+        },
+        "type": "array"
       },
       "reason": {
         "type": [
@@ -3694,7 +3834,8 @@
       "reason",
       "resolved_source",
       "generated_fallback",
-      "attribution"
+      "attribution",
+      "provider_listing"
     ],
     "title": "ArtworkState",
     "type": "object"
@@ -66538,6 +66679,34 @@
               "reason"
             ],
             "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The check reached its three-minute limit.",
+            "properties": {
+              "reason": {
+                "const": "time_limit",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "additionalProperties": false,
+            "description": "The check was cancelled, for example because the library changed.",
+            "properties": {
+              "reason": {
+                "const": "cancelled",
+                "type": "string"
+              }
+            },
+            "required": [
+              "reason"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -66547,52 +66716,96 @@
           "asset_sha256": {
             "type": "string"
           },
+          "attempted": {
+            "description": "Whether this run requested the image's listing and reached a conclusion\nother than running out of budget; images not reached are `false`.",
+            "type": "boolean"
+          },
           "attribution": {
             "$ref": "#/$defs/ArtworkAttribution"
           },
           "listing": {
-            "$ref": "#/$defs/SteamGridDbListingStatus"
+            "$ref": "#/$defs/SteamGridDbListingResult"
+          },
+          "listing_total": {
+            "description": "The `total` SteamGridDB reported for the image's listing, when one was read.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "not_listed_since": {
+            "description": "When a verified listing first lacked this image, as recorded in the\nlibrary after this check; cleared only by a later observed listing.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "source": {
             "$ref": "#/$defs/SteamGridDbSourceStatus"
-          },
-          "unknown_reason": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/SteamGridDbUnknownReason"
-              },
-              {
-                "type": "null"
-              }
-            ]
           }
         },
         "required": [
           "asset_sha256",
           "attribution",
           "listing",
-          "unknown_reason",
-          "source"
+          "attempted",
+          "listing_total",
+          "source",
+          "not_listed_since"
         ],
         "type": "object"
       },
-      "SteamGridDbListingStatus": {
+      "SteamGridDbListingResult": {
         "description": "Whether SteamGridDB's own listing still includes a stored image.",
         "oneOf": [
           {
-            "const": "listed",
-            "description": "The image is in a complete, verified listing.",
-            "type": "string"
+            "additionalProperties": false,
+            "description": "The image was seen on a listing page that passed the envelope checks.",
+            "properties": {
+              "status": {
+                "const": "listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
           },
           {
-            "const": "not_listed",
-            "description": "A complete, verified listing does not include the image.",
-            "type": "string"
+            "additionalProperties": false,
+            "description": "A complete, verified, non-empty listing does not include the image.",
+            "properties": {
+              "status": {
+                "const": "not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status"
+            ],
+            "type": "object"
           },
           {
-            "const": "unknown",
-            "description": "No complete listing could be verified; see `unknown_reason`.",
-            "type": "string"
+            "additionalProperties": false,
+            "description": "Neither could be established.",
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SteamGridDbUnknownReason"
+              },
+              "status": {
+                "const": "unknown",
+                "type": "string"
+              }
+            },
+            "required": [
+              "status",
+              "reason"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -66639,13 +66852,18 @@
             "type": "string"
           },
           {
+            "const": "empty_listing",
+            "description": "SteamGridDB listed no images at all for the game and role, so absence proves nothing.",
+            "type": "string"
+          },
+          {
             "const": "request_limit",
-            "description": "The check's request budget ran out before this listing.",
+            "description": "The check's request budget ran out before this listing was complete.",
             "type": "string"
           },
           {
             "const": "check_stopped",
-            "description": "The check stopped early; see `stopped`.",
+            "description": "The check stopped before reaching this image; see `stopped`.",
             "type": "string"
           },
           {
@@ -66663,7 +66881,6 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
-    "description": "Report only: nothing in the library, its files or Steam changes.",
     "properties": {
       "checked_at": {
         "format": "int64",
@@ -66674,6 +66891,10 @@
           "$ref": "#/$defs/SteamGridDbImageCheck"
         },
         "type": "array"
+      },
+      "recorded": {
+        "description": "Whether these results were recorded in the library. A cancelled check, or\none whose recording failed, still reports what it saw.",
+        "type": "boolean"
       },
       "stopped": {
         "anyOf": [
@@ -66689,7 +66910,8 @@
     "required": [
       "checked_at",
       "images",
-      "stopped"
+      "stopped",
+      "recorded"
     ],
     "title": "SteamGridDbListingReport",
     "type": "object"

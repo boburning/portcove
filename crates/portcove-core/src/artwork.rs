@@ -25,7 +25,7 @@ pub use steamgriddb::{
     STEAMGRIDDB_API_ORIGIN, STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor,
     SteamGridDbCandidate, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
     SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
-    SteamGridDbListingStatus, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
     clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
     steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
@@ -183,6 +183,73 @@ pub struct ArtworkState {
     pub generated_fallback: GeneratedArtworkFallback,
     /// Provider credits for the selected image; empty for a purely local import.
     pub attribution: Vec<ArtworkAttribution>,
+    /// Recorded listing evidence for the credited images; empty until an image
+    /// is chosen from a provider or checked.
+    pub provider_listing: Vec<ArtworkProviderListing>,
+}
+
+/// A prepared SteamGridDB listing check: the records it starts from and the
+/// single-flight lock. It holds no library connection or lease.
+pub struct SteamGridDbListingCheck {
+    subjects: Vec<steamgriddb::CheckSubject>,
+    started_from: std::collections::HashMap<(String, u64), (u64, i64)>,
+    single_flight: crate::PortOperationGuard,
+}
+
+/// A completed network check, ready to be recorded or reported unrecorded.
+pub struct CheckedSteamGridDbListings {
+    report: steamgriddb::SteamGridDbListingReport,
+    started_from: std::collections::HashMap<(String, u64), (u64, i64)>,
+    single_flight: crate::PortOperationGuard,
+}
+
+impl SteamGridDbListingCheck {
+    /// The network phase, with the player's key. It stops before the next
+    /// request once `cancelled` returns true.
+    pub fn check(self, cancelled: &dyn Fn() -> bool) -> Result<CheckedSteamGridDbListings> {
+        self.check_with(|subjects, now| {
+            steamgriddb::check_stored_listings(subjects, now, cancelled)
+        })
+    }
+
+    pub(crate) fn check_with(
+        self,
+        check: impl FnOnce(
+            Vec<steamgriddb::CheckSubject>,
+            i64,
+        ) -> Result<steamgriddb::SteamGridDbListingReport>,
+    ) -> Result<CheckedSteamGridDbListings> {
+        let report = check(self.subjects, Library::now())?;
+        Ok(CheckedSteamGridDbListings {
+            report,
+            started_from: self.started_from,
+            single_flight: self.single_flight,
+        })
+    }
+}
+
+impl CheckedSteamGridDbListings {
+    /// The results as seen, for a host whose library changed before recording.
+    pub fn unrecorded(self) -> steamgriddb::SteamGridDbListingReport {
+        let mut report = self.report;
+        report.recorded = report.images.is_empty();
+        report
+    }
+}
+
+/// Recorded evidence of whether a provider still lists a credited image. It is
+/// an observation, not an action: nothing is removed because of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ArtworkProviderListing {
+    pub provider: ArtworkProvider,
+    pub asset_id: u64,
+    /// When a check or a choice last established this evidence.
+    pub last_checked_at: i64,
+    pub last_result: steamgriddb::SteamGridDbListingResult,
+    /// When a verified listing first lacked the image; cleared only when it is
+    /// seen listed again.
+    pub not_listed_since: Option<i64>,
 }
 
 /// The destination role a provider image is chosen for in each local slot.
@@ -362,6 +429,12 @@ impl PortcoveService {
             Some(asset) => crate::artwork_store::attributions(&transaction, &asset.sha256)?,
             None => Vec::new(),
         };
+        let provider_listing = match &selection {
+            Some(asset) => {
+                crate::artwork_store::asset_listing_evidence(&transaction, &asset.sha256)?
+            }
+            None => Vec::new(),
+        };
         transaction.commit()?;
         let generated_fallback = generated_fallback(port_id, &port.name, slot)?;
         let (availability, reason, resolved_source) = match &selection {
@@ -403,6 +476,7 @@ impl PortcoveService {
             resolved_source,
             generated_fallback,
             attribution,
+            provider_listing,
         })
     }
 
@@ -456,21 +530,181 @@ impl PortcoveService {
         self.choose_fetched_artwork(&port, slot, game_id, fetched, expected_revision)
     }
 
-    /// Report whether SteamGridDB still lists each stored SteamGridDB image,
-    /// using the player's key. Report only: the library, its files and Steam
-    /// are unchanged, and the artwork lock is never taken, so the network work
-    /// never blocks choosing or importing artwork.
+    /// Check whether SteamGridDB still lists each stored SteamGridDB image with
+    /// the player's key, and record the evidence beside each provider record.
+    /// Nothing is deleted and no choice, file, export or Steam entry changes. The
+    /// network work holds no artwork lock; only the short recording step does.
     pub fn check_steamgriddb_listings(&self) -> Result<steamgriddb::SteamGridDbListingReport> {
-        // One read transaction gives a consistent snapshot while choices and
-        // removals continue; no write or artwork lock is taken.
-        let metadata = {
+        self.check_steamgriddb_listings_until(&|| false)
+    }
+
+    /// As [`Self::check_steamgriddb_listings`], stopping before the next request
+    /// once `cancelled` returns true. A cancelled check records nothing.
+    pub fn check_steamgriddb_listings_until(
+        &self,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<steamgriddb::SteamGridDbListingReport> {
+        let checked = self.prepare_steamgriddb_listing_check()?.check(cancelled)?;
+        Ok(self.record_steamgriddb_listings(checked, cancelled))
+    }
+
+    /// The first of three phases a host can run separately: it takes the
+    /// single-flight lock and snapshots the records and their evidence. The
+    /// returned check holds no library connection or lease, so the network phase
+    /// never keeps a library in use; record it with a service for the same library.
+    pub fn prepare_steamgriddb_listing_check(&self) -> Result<SteamGridDbListingCheck> {
+        let single_flight = self.library().try_lock_listing_check()?;
+        // One read transaction gives a consistent snapshot of the records and
+        // their evidence while choices and removals continue.
+        let (metadata, checks) = {
             let mut connection = self.library().connection()?;
             let transaction = connection.transaction()?;
             let metadata = crate::artwork_store::snapshot(&transaction)?;
+            let checks =
+                crate::artwork_store::listing_checks(&transaction, ArtworkProvider::Steamgriddb)?;
             transaction.commit()?;
-            metadata
+            (metadata, checks)
         };
-        steamgriddb::check_stored_listings(steamgriddb::check_subjects(&metadata), Library::now())
+        // Per record: the revision the check started from, and its last check time.
+        let started_from: std::collections::HashMap<(String, u64), (u64, i64)> = checks
+            .into_iter()
+            .map(|row| {
+                (
+                    (row.asset_sha256, row.asset_id),
+                    (row.revision, row.last_checked_at),
+                )
+            })
+            .collect();
+        let subjects = steamgriddb::check_subjects(&metadata, |sha, asset_id| {
+            started_from
+                .get(&(sha.to_owned(), asset_id))
+                .map(|(_, checked_at)| *checked_at)
+        });
+        Ok(SteamGridDbListingCheck {
+            subjects,
+            started_from,
+            single_flight,
+        })
+    }
+
+    /// The last phase: applies a completed check unless it was cancelled. It
+    /// never fails; a check it cannot record is returned with `recorded: false`.
+    pub fn record_steamgriddb_listings(
+        &self,
+        checked: CheckedSteamGridDbListings,
+        cancelled: &dyn Fn() -> bool,
+    ) -> steamgriddb::SteamGridDbListingReport {
+        let CheckedSteamGridDbListings {
+            mut report,
+            started_from,
+            single_flight,
+        } = checked;
+        if report.images.is_empty() {
+            return report;
+        }
+        // A cancelled check may belong to a library that is changing; record nothing.
+        report.recorded = !cancelled()
+            && report.stopped != Some(steamgriddb::SteamGridDbCheckStop::Cancelled)
+            && self.record_listing_report(&report, &started_from).is_ok();
+        if let Ok(rows) = self.library().connection().and_then(|connection| {
+            crate::artwork_store::listing_checks(&connection, ArtworkProvider::Steamgriddb)
+        }) {
+            for image in &mut report.images {
+                image.not_listed_since = rows
+                    .iter()
+                    .find(|row| {
+                        row.asset_sha256 == image.asset_sha256
+                            && row.asset_id == image.attribution.asset_id
+                    })
+                    .and_then(|row| row.not_listed_since);
+            }
+        }
+        drop(single_flight);
+        report
+    }
+
+    /// The recording orchestration around one check, separate from the network
+    /// work so it can be exercised with prepared reports.
+    #[cfg(test)]
+    pub(crate) fn run_listing_check(
+        &self,
+        cancelled: &dyn Fn() -> bool,
+        check: impl FnOnce(
+            Vec<steamgriddb::CheckSubject>,
+            i64,
+        ) -> Result<steamgriddb::SteamGridDbListingReport>,
+    ) -> Result<steamgriddb::SteamGridDbListingReport> {
+        let prepared = self.prepare_steamgriddb_listing_check()?;
+        let checked = prepared.check_with(|subjects, now| check(subjects, now))?;
+        Ok(self.record_steamgriddb_listings(checked, cancelled))
+    }
+
+    /// Applies every attempted result in one immediate transaction. The artwork
+    /// lock is retried briefly because thumbnails and handoffs take it routinely.
+    fn record_listing_report(
+        &self,
+        report: &steamgriddb::SteamGridDbListingReport,
+        started_from: &std::collections::HashMap<(String, u64), (u64, i64)>,
+    ) -> Result<()> {
+        use steamgriddb::{SteamGridDbListingResult as Listing, SteamGridDbSourceStatus as Source};
+        let mut attempts = 0;
+        let _guard = loop {
+            match self.library().try_lock_artwork() {
+                Ok(guard) => break guard,
+                // Only a busy lock is worth waiting for.
+                Err(error) if error.code == crate::ErrorCode::Conflict && attempts < 24 => {
+                    attempts += 1;
+                    std::thread::sleep(std::time::Duration::from_millis(200));
+                }
+                Err(error) => return Err(error),
+            }
+        };
+        let mut connection = self.library().connection()?;
+        let mut transaction =
+            connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        for image in report.images.iter().filter(|image| image.attempted) {
+            let (result, reason) = match image.listing {
+                Listing::Listed => ("listed", None),
+                Listing::NotListed => ("not_listed", None),
+                Listing::Unknown { reason } => ("unknown", Some(reason)),
+            };
+            let reason = reason
+                .map(|reason| {
+                    serde_json::to_value(reason).map(|value| value.as_str().map(str::to_owned))
+                })
+                .transpose()?
+                .flatten();
+            let source = match image.source {
+                Source::NotChecked => None,
+                Source::Served => Some("served"),
+                Source::Gone => Some("gone"),
+                Source::Unknown => Some("unknown"),
+            };
+            // One savepoint per record, so a record that cannot be written is
+            // skipped without losing the rest of the run.
+            let savepoint = transaction.savepoint()?;
+            let applied = crate::artwork_store::apply_listing_check(
+                &savepoint,
+                image.attribution.provider,
+                &image.asset_sha256,
+                image.attribution.asset_id,
+                started_from
+                    .get(&(image.asset_sha256.clone(), image.attribution.asset_id))
+                    .map(|(revision, _)| *revision),
+                &crate::artwork_store::ListingObservation {
+                    result,
+                    unknown_reason: reason.as_deref(),
+                    total: image.listing_total,
+                    source,
+                },
+                report.checked_at,
+            );
+            if applied.is_ok() {
+                savepoint.commit()?;
+            }
+        }
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn choose_fetched_artwork(
@@ -575,12 +809,25 @@ impl PortcoveService {
                 crate::artwork_store::record_local_origin(&transaction, &proposed.sha256)?
             }
             IngestOrigin::Provider(attribution) => {
+                let (provider, asset_id, fetched_at) = (
+                    attribution.provider,
+                    attribution.asset_id,
+                    attribution.fetched_at,
+                );
                 crate::artwork_store::write_provider(
                     &transaction,
                     &ArtworkProviderRecord {
                         asset_sha256: proposed.sha256.clone(),
                         attribution,
                     },
+                )?;
+                // The image was just re-resolved from the provider's listing.
+                crate::artwork_store::mark_listed_on_choose(
+                    &transaction,
+                    provider,
+                    &proposed.sha256,
+                    asset_id,
+                    fetched_at,
                 )?;
                 if !existed {
                     crate::artwork_store::mark_provider_only(&transaction, &proposed.sha256)?;

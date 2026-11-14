@@ -40,6 +40,16 @@ is not usable there; the rest of the catalog is unaffected.
 
 ## Documented API changes
 
+API92 makes `artwork steamgriddb check-listings` record listing evidence: the
+Library database moves to writer schema 58 (`artwork_provider_listing_checks`), and
+older writers refuse the upgraded library. `steamgriddb_listing_report` images replace
+`listing`/`unknown_reason` with a tagged `listing` result (`listed`, `not_listed` or
+`unknown` with `reason`), and gain `attempted`, `listing_total` and `not_listed_since`;
+the report gains `recorded`; `unknown_reason` gains `empty_listing`; `stopped` gains
+`time_limit` and `cancelled`. `artwork_state` gains `provider_listing`. The command
+now records state, so it starts as a recovering command. Library metadata, the
+destination handoff and `ArtworkAttribution` are unchanged.
+
 API91 adds the report-only `artwork steamgriddb check-listings` command and its
 `steamgriddb_listing_report` result: for each stored SteamGridDB image, whether a
 verified listing still includes it (`listed`, `not_listed` or `unknown` with a

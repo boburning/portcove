@@ -580,9 +580,9 @@ pub(crate) enum SteamGridDbCommand {
         #[arg(long)]
         expected_revision: Option<u64>,
     },
-    /// Report whether SteamGridDB still lists each SteamGridDB image in your library.
+    /// Check whether SteamGridDB still lists each SteamGridDB image in your library.
     #[command(
-        after_help = "Uses your own API key. The check only reports: it keeps every image, credit and choice, and changes nothing in Steam. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed."
+        after_help = "Uses your own API key. Portcove records what it finds beside each image's credit; nothing is removed, every image, credit and choice is kept, and nothing changes in Steam. An image counts as no longer listed only when SteamGridDB returns a complete listing for its game, role, size and format that leaves it out; anything less is reported as not confirmed. Each run starts with the images checked longest ago and stops after three minutes."
     )]
     CheckListings,
     /// List proposed static images for one SteamGridDB game and destination role.

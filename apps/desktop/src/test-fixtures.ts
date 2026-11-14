@@ -80,6 +80,7 @@ export function artworkState(
       palette_index: 4,
     },
     attribution: [],
+    provider_listing: [],
   };
 }
 

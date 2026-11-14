@@ -3330,6 +3330,7 @@ pub fn run() -> std::process::ExitCode {
             steamgriddb::get_steamgriddb_candidates,
             steamgriddb::get_steamgriddb_preview,
             steamgriddb::choose_steamgriddb_artwork,
+            steamgriddb::check_steamgriddb_listings,
             backup_review::restore_backup,
             backup_review::delete_backup,
             portable_saves_commands::preview_portable_save_export,

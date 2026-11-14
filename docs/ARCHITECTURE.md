@@ -763,19 +763,36 @@ asset removes its provenance. Library metadata that carries provenance uses sche
 which older readers refuse; a same-user export copies provider originals like every
 other original. `artwork_state` and the handoff expose the credits.
 
-Withdrawal handling is player-triggered (2026-11-13 owner decision). Its first slice,
-`check_steamgriddb_listings`, only reports. It snapshots the stored records without
-the artwork lock and groups them by game, role collection, stored size and format. It
-lists each group with every content flag set to `any`, so a re-tagged image or a later
-Portcove filter change never reads as missing. This listing is separate from the
-picker's lossy one and matches raw IDs only. It accepts absence only from a listing
-whose pages echo the request, carry `data` and a stable `total`, and whose unique IDs
-equal `total`. Everything else, including a game 404, is unknown. Absent images get a
-keyless image-server probe. Each check has a request budget (120 API, 60 image
-server), 250 ms spacing, and an early stop on a rate limit, a rejected key or two
-unreachable listings in a row. It reads its snapshot in one read transaction, so a
-concurrent choice or removal cannot make a healthy library fail verification. Recording
-and eviction need two independent signals and come in a later #527 slice.
+Withdrawal handling is player-triggered (2026-11-13 owner decision) and is
+delivered in slices; none removes anything yet. `check_steamgriddb_listings` takes a
+dedicated single-flight lock, then snapshots the stored records and their evidence in
+one read transaction, without the artwork lock. It groups the records by game, role
+collection, stored size and format and lists the stalest groups first, with every
+content flag set to `any`, so a re-tagged image or a later Portcove filter change never
+reads as missing. This listing is separate from the picker's lossy one and matches raw
+IDs only. An ID on any envelope-valid page is presence evidence. Absence is accepted
+only from a listing whose pages echo the request, carry `data` and a stable `total`,
+and whose unique IDs equal `total`; an empty narrowed listing is corroborated by the
+unfiltered one, so the only image of its size and format can still be found missing.
+Everything else, including a game 404, is unknown. Absent images get a keyless
+image-server probe. Each check has a request budget (120 API, 60 image server), 250 ms
+spacing, a three-minute deadline and a cancel hook checked before every request.
+
+SQLite schema 58 records the evidence in `artwork_provider_listing_checks`, keyed
+exactly like `artwork_asset_providers` with a cascading composite foreign key, a
+revision taken from a one-row sequence (so no revision is ever reused) and state
+constraints; removing an asset also deletes its rows explicitly. Hosts can run the
+check in three phases: prepare (single-flight lock and snapshot), the network check,
+which holds no library connection or lease, and record. Desktop holds a service only
+to prepare and to record, so a library switch, move or import never waits for the
+network phase; the check then stops before its next request and reports unrecorded. Attempted results are applied in one immediate transaction under a
+briefly retried artwork lock, each only if the row's revision is unchanged since the
+snapshot, so a concurrent choice or removal always wins. Choosing an image marks it
+listed in the same transaction as its provider record. `not_listed_since` keeps the
+first verified absence and is cleared only by an observed listing; unknown results
+never move it. A cancelled check records nothing. Evidence travels with a library
+move (the database is copied) but not with metadata export or import. Eviction, which
+needs two independent signals, is a later #527 slice.
 
 The CLI's `artwork steamgriddb` commands are thin adapters:
 lookups run on a blocking task, and `choose` and `check-listings`, which borrow the
