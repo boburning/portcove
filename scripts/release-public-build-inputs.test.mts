@@ -159,7 +159,7 @@ void test("ratified public bytes materialize the existing compile inputs and upd
   );
   // The base configuration now carries the updater plugin key; the generated
   // overlay above remains a separate file that does not edit it.
-  assert.equal(record(dev.bundle).createUpdaterArtifacts, true);
+  assert.equal(record(dev.bundle).createUpdaterArtifacts, false);
   assert.match(String(record(record(dev.plugins).updater).pubkey), /^[A-Za-z0-9+/]+=*$/u);
 });
 

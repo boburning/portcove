@@ -509,7 +509,7 @@ void test("base configuration carries the updater plugin baseline and release ov
     ),
   );
   const updater = object(object(base.plugins).updater);
-  assert.equal(object(base.bundle).createUpdaterArtifacts, true);
+  assert.equal(object(base.bundle).createUpdaterArtifacts, false);
   assert.equal(object(object(object(base.bundle).windows).nsis).installMode, "currentUser");
   assert.equal(object(object(base.bundle).macOS).signingIdentity, "-");
   assert.equal(object(updater.windows).installMode, "passive");

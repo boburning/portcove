@@ -44,7 +44,7 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "createUpdaterArtifacts": true,
+    "createUpdaterArtifacts": false,
     "publisher": "Portcove",
     "homepage": "https://github.com/boburning/portcove",
     "copyright": "Copyright © 2026 Portcove contributors",

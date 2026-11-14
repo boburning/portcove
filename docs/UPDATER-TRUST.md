@@ -28,10 +28,10 @@ Trust rests on two build inputs in
 
 The matching private key is held as a secret in the GitHub `release` and
 `release-stable` environments, with an offline backup kept by the owner. It never
-enters the repository or ordinary builds' inputs. `bundle.createUpdaterArtifacts`
-is on, so a bundling `tauri build` produces `.sig` files and needs
-`TAURI_SIGNING_PRIVATE_KEY`; builds without the key use `--no-bundle` or override
-that setting. [Releasing](RELEASING.md) owns publication.
+enters the repository or ordinary builds' inputs. The base configuration keeps
+`bundle.createUpdaterArtifacts` off, so ordinary and rehearsal bundles need no key.
+The `app-release.yml` workflow turns it on with `--config` and signs with
+`TAURI_SIGNING_PRIVATE_KEY`. [Releasing](RELEASING.md) owns publication.
 
 ## Channels and feeds
 
@@ -42,8 +42,10 @@ that setting. [Releasing](RELEASING.md) owns publication.
 
 Preview gets new versions before Beta. There is no Stable channel before 1.0.
 Each feed is the plugin's static JSON format (`version`, `notes`, `pub_date` and
-per-platform `url` and `signature`). The plugin installs only a version newer than
-the running one.
+per-platform `url` and `signature`). Linux is published as the AppImage under
+`linux-x86_64`. The plugin installs only a version newer than the running one;
+`requireSignedVersion` stays at the plugin default (off), and the release
+workflow keeps each feed's version monotonic.
 
 The preference file `application-update-preferences.json` sits beside host
 preferences (`PORTCOVE_APPLICATION_UPDATE_PREFERENCES` overrides its path for

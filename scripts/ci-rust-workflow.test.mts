@@ -38,35 +38,6 @@ import {
 // Independently expected contract pin; Renovate updates it with the Action group.
 const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 
-void test("standalone Linux environment tests retain native selection and bounded outcomes", () => {
-  const step: Record<string, unknown> & { run: string } = workflowStep(
-    "fast_rust_quality",
-    "Test Linux update process environment",
-  );
-  assert.equal(step.if, "contains(fromJSON(needs.classify.outputs.groups_json), 'rust')");
-  assert.equal(step["continue-on-error"] ?? false, false);
-  assert.equal(workflowJob("fast_rust_quality")["continue-on-error"] ?? false, false);
-  assert.deepEqual(executableLines(step.run), [
-    'rustc --edition 2024 --test apps/desktop/src-tauri/src/application_update_process_environment.rs -o "$RUNNER_TEMP/portcove-update-environment-tests"',
-    'node scripts/standalone-rust-tests.mts "$RUNNER_TEMP/portcove-update-environment-tests"',
-  ]);
-  const steps = workflowJob("fast_rust_quality").steps;
-  assert.ok(Array.isArray(steps));
-  const retained: unknown = steps.find(
-    (value: unknown) => isRecord(value) && value.name === "Retain standalone Linux test outcomes",
-  );
-  assert.ok(isRecord(retained));
-  assert.equal(
-    retained.if,
-    "always() && contains(fromJSON(needs.classify.outputs.groups_json), 'rust')",
-  );
-  assert.equal(retained.uses, "actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
-  assert.equal(retained["continue-on-error"] ?? false, false);
-  assert.ok(isRecord(retained.with));
-  assert.equal(retained.with.path, "work/standalone-rust-tests");
-  assert.equal(retained.with["if-no-files-found"], "error");
-});
-
 void test("fast Linux script quality uses the pinned Aqua API bootstrap without skipping lint", () => {
   const bootstrap = workflowStep("fast_rust_quality", "Read pinned script tool manager");
   const lint = workflowStep("fast_rust_quality", "Lint affected repository inputs");

@@ -210,8 +210,7 @@ void test("Linux package ownership rehearsal is focused and preserves managed ex
   assert.ok(isRecord(settings) && isRecord(settings.on));
   assert.ok(Object.hasOwn(settings.on, "workflow_dispatch"));
   for (const governedPath of [
-    "apps/desktop/src-tauri/src/application_update_linux.rs",
-    "apps/desktop/src-tauri/src/application_update_recovery.rs",
+    "apps/desktop/src-tauri/src/application_update.rs",
     "apps/desktop/src-tauri/tauri.conf.json",
     "scripts/test-linux-package-ownership.sh",
   ]) {

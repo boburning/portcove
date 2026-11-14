@@ -40,20 +40,29 @@ async function mount(journey: string) {
     "text/html",
   ).body.innerHTML;
   await act(async () => startInteractiveScenarios());
+  // The fixture workspace loads asynchronously; wait for the Library before tests read it.
+  if (journey === "library")
+    await vi.waitFor(() => {
+      if (!document.querySelector(".collection-entry")) throw new Error("Library is loading");
+    });
 }
 // The hero, the Game files review opener and the review confirmation all read
 // "Finish setup", so those callers scope to the owning region.
+// Wait for the control, since journeys load their fixture workspace asynchronously.
 async function click(label: string, within = "body") {
-  const button = [
-    ...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? []),
-  ].find(
-    (item) =>
-      !item.hidden &&
-      (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
-  );
-  expect(button, label).toBeDefined();
-  expect(button?.disabled, label).toBe(false);
-  await act(async () => button!.click());
+  const find = () =>
+    [...(document.querySelector(within)?.querySelectorAll<HTMLButtonElement>("button") ?? [])].find(
+      (item) =>
+        !item.hidden &&
+        (item.getAttribute("aria-label") === label || item.textContent?.trim() === label),
+    );
+  const button = await vi.waitFor(() => {
+    const found = find();
+    expect(found, label).toBeDefined();
+    return found!;
+  });
+  expect(button.disabled, label).toBe(false);
+  await act(async () => button.click());
 }
 
 it("gives every disposable detail route five real tabs and binds external Play to its exact ID", async () => {
@@ -121,7 +130,7 @@ it("opens actual game details, returns to Library and resets the selected journe
   await click("Back to Library");
   expect(document.querySelector('[aria-labelledby="port-detail-title"]')).toBeNull();
   await click("Reset journey");
-  expect(document.querySelector("#port-search")).not.toBeNull();
+  await vi.waitFor(() => expect(document.querySelector("#port-search")).not.toBeNull());
   expect(document.querySelectorAll("#scenario-preview .app-shell")).toHaveLength(1);
 });
 
@@ -215,7 +224,7 @@ it("uses a viewport-bound demo workspace across resizing and preserves embedded 
   expect(document.scrollingElement!.scrollHeight).toBeGreaterThan(900);
   await click("Reset journey");
   expect(new URL(window.location.href).searchParams.get("embed")).toBe("1");
-  expect(document.querySelectorAll(".collection-entry")).toHaveLength(60);
+  await vi.waitFor(() => expect(document.querySelectorAll(".collection-entry")).toHaveLength(60));
 });
 
 it("returns to the exact older recovery activity after opening its game", async () => {

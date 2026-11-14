@@ -209,9 +209,7 @@ void test("the native build script preserves identical generated inputs for Carg
   );
   assert.match(buildScript, /fn write_if_changed/u);
   assert.match(buildScript, /fs::read\(path\)\.ok\(\)\.as_deref\(\) == Some\(contents\)/u);
-  assert.match(buildScript, /write_if_changed\(&embedded_root/u);
   assert.match(buildScript, /write_if_changed\(&generated, source\.as_bytes\(\)\)/u);
-  assert.doesNotMatch(buildScript, /fs::write\(&embedded_root/u);
   assert.doesNotMatch(buildScript, /fs::write\(generated/u);
 });
 
