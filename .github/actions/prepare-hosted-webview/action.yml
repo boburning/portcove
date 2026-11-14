@@ -1,0 +1,83 @@
+name: Prepare hosted Windows WebView2
+description: Verify and provision the serviced WebView2 runtime and wait for its matching driver.
+runs:
+  using: composite
+  steps:
+    - name: Provision the serviced Evergreen WebView2 runtime
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Import-Module ./scripts/windows-webview-driver-policy.psm1
+        $minimum = [string]((Get-Content apps/desktop/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).bundle.windows.minimumWebview2Version)
+        if ($minimum -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'Application WebView2 floor is unreadable.' }
+        $before = Get-WebViewRuntimeVersion
+        $record = [ordered]@{ minimum = $minimum; before = $before }
+        if ([version]$before -lt [version]$minimum) {
+          $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer -UseBasicParsing
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Microsoft Corporation') {
+            throw "Evergreen bootstrapper signature is not a valid Microsoft signature: $($signature.Status)"
+          }
+          $record.installer_sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash
+          $record.installer_signer = $signature.SignerCertificate.Subject
+          $process = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru
+          $record.installer_exit_code = $process.ExitCode
+          if ($process.ExitCode -ne 0) { throw "Evergreen bootstrapper exited $($process.ExitCode)." }
+        }
+        $record.after = Get-WebViewRuntimeVersion
+        $record | ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-runtime.json"
+        $record | ConvertTo-Json
+        if ([version]$record.after -lt [version]$minimum) {
+          throw "WebView2 $($record.after) remains below the application floor $minimum."
+        }
+        # The elevated hosted runner's WebView2 ignores msedgedriver's
+        # WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS, so no DevTools endpoint opens.
+        # On this disposable runner only, the machine policy supplies the
+        # automation port for the development executable the harness launches.
+        $policy = 'HKLM:\SOFTWARE\Policies\Microsoft\Edge\WebView2\AdditionalBrowserArguments'
+        New-Item -Path $policy -Force | Out-Null
+        New-ItemProperty -Path $policy -Name 'portcove-desktop.exe' -Value '--remote-debugging-port=0' -PropertyType String -Force | Out-Null
+    # Evergreen may install a runtime whose exactly matching msedgedriver
+    # Microsoft has not made available yet. Driver bootstrap keeps the exact match;
+    # this bounded wait turns that window into one actionable outcome.
+    - name: Wait for the exactly matching msedgedriver
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        Import-Module ./scripts/windows-webview-driver-policy.psm1
+        $version = Get-WebViewRuntimeVersion
+        if ($version -notmatch '^\d+\.\d+\.\d+\.\d+$') { throw 'WebView2 runtime version is unreadable.' }
+        $url = "https://msedgedriver.microsoft.com/$version/edgedriver_win64.zip"
+        $deadline = (Get-Date).AddMinutes(20)
+        $attempts = 0
+        while ($true) {
+          $attempts++
+          $transient = $null
+          try {
+            $status = (Invoke-WebRequest -Uri $url -Method Head -MaximumRedirection 0 -UseBasicParsing -TimeoutSec 30).StatusCode
+          } catch {
+            $response = $_.Exception.Response
+            if ($null -eq $response) {
+              $status = 0
+              $transient = $_.Exception.Message
+            } else {
+              $status = [int]$response.StatusCode
+            }
+          }
+          if ($status -eq 200) { break }
+          # A missing driver (404), no response or a server error (5xx) is retried within
+          # the same bound; any other answer is not a publication window and stops now.
+          if ($status -ge 500) { $transient = "HTTP $status" }
+          if ($status -ne 404 -and $null -eq $transient) { throw "msedgedriver $version availability check returned HTTP $status." }
+          # Decide before sleeping so the last check always ends inside the wait budget.
+          if ((Get-Date).AddSeconds(60) -ge $deadline) {
+            if ($null -ne $transient) {
+              throw "msedgedriver $version availability could not be checked after $attempts attempts over 20 minutes: $transient. Re-run this job once msedgedriver.microsoft.com responds."
+            }
+            throw "Microsoft has not made msedgedriver $version available for the serviced WebView2 $version after $attempts checks over 20 minutes. Re-run this job once it is available."
+          }
+          Start-Sleep -Seconds 60
+        }
+        [ordered]@{ version = $version; url = $url; attempts = $attempts } |
+          ConvertTo-Json | Set-Content "$env:PORTCOVE_OUTPUT_DIR/webview2-driver-availability.json"
