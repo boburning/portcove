@@ -218,15 +218,16 @@ mod tests {
         serde_json::from_value(value).unwrap()
     }
 
+    /// Built through the provider shape so informational release fields keep
+    /// their defaults.
     fn release(assets: Vec<GithubAsset>) -> GithubRelease {
-        GithubRelease {
-            id: None,
-            tag_name: "earlier".into(),
-            draft: false,
-            prerelease: false,
-            published_at: None,
-            assets,
-        }
+        let mut release: GithubRelease = serde_json::from_value(serde_json::json!({
+            "tag_name": "earlier", "draft": false, "prerelease": false,
+            "published_at": null, "assets": []
+        }))
+        .unwrap();
+        release.assets = assets;
+        release
     }
 
     #[test]
