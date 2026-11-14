@@ -2695,6 +2695,33 @@ fn originals_inside_a_store_install_can_be_copied_or_used_but_never_moved() {
         error.details.get("store").map(String::as_str),
         Some("Steam")
     );
+    // Authorization and apply re-plan, so neither path can move the file.
+    let error = service
+        .authorize_source_move(PROFILE, &source, &"0".repeat(64))
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let error = service
+        .import_source(
+            PROFILE,
+            &source,
+            SourceImportMode::Move,
+            &"0".repeat(64),
+            None,
+        )
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    // A folder Move removes the whole folder, so one holding the game is refused.
+    let error = service
+        .plan_source_import(
+            PROFILE,
+            &temporary.path().join("Steam"),
+            SourceImportMode::Move,
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.details.get("store").map(String::as_str),
+        Some("Steam")
+    );
     service
         .plan_source_import(PROFILE, &source, SourceImportMode::UseCurrentLocation)
         .unwrap();

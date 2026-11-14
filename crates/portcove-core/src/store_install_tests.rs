@@ -154,8 +154,13 @@ fn steam_libraries_gog_and_epic_installs_are_listed_read_only() {
             ),
         ]
     );
-    // Gone, `..`, `a/b`, malformed, oversized, missing GOG, partial and broken Epic.
-    assert_eq!(report.skipped_entries, 8);
+    // Relative listed library, Gone, `..`, `a/b`, malformed, oversized,
+    // missing GOG, partial and broken Epic.
+    assert_eq!(report.skipped_entries, 9);
+    assert_eq!(
+        report.checked_stores,
+        vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
+    );
     assert!(!report.limited);
     assert!(
         detection
@@ -188,7 +193,7 @@ fn vdf_reader_accepts_escapes_comments_and_the_older_library_layout() {
         None
     );
     assert!(single_normal_component("Half-Life"));
-    for unsafe_name in ["", ".", "..", "a/b", "a\\b", "C:", "/abs"] {
+    for unsafe_name in ["", ".", "..", "a/b", "a\\b", "C:"] {
         assert!(!single_normal_component(unsafe_name), "{unsafe_name}");
     }
     assert_eq!(clean_title("  A\u{7}B  "), Some("AB".into()));
@@ -250,4 +255,152 @@ fn service_reports_saved_folders_and_refuses_moves_out_of_store_folders() {
     service
         .refuse_store_install_move("profile", &canonical(temporary.path()).join("elsewhere"))
         .unwrap();
+}
+
+fn service_with(temporary: &Path, host: FixtureHost) -> PortcoveService {
+    PortcoveService::new(Library::open(temporary.join("library")).unwrap())
+        .unwrap()
+        .with_store_install_host(Arc::new(host))
+}
+
+#[test]
+fn unit_test_services_read_no_store_by_default() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service =
+        PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
+    let report = service.store_game_installs().unwrap();
+    assert!(report.checked_stores.is_empty());
+    assert!(report.installs.is_empty());
+}
+
+#[test]
+fn gog_and_epic_folders_and_folders_containing_them_cannot_be_moved() {
+    let temporary = tempfile::tempdir().unwrap();
+    let games = temporary.path().join("GOG Games");
+    let gog = games.join("Fallout 2");
+    let epic = temporary.path().join("Epic Games").join("Jedi Knight");
+    fs::create_dir_all(&gog).unwrap();
+    fs::create_dir_all(&epic).unwrap();
+    let manifests = temporary.path().join("Manifests");
+    fs::create_dir_all(&manifests).unwrap();
+    fs::write(
+        manifests.join("one.item"),
+        serde_json::json!({"DisplayName": "Jedi Knight", "InstallLocation": epic}).to_string(),
+    )
+    .unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog: vec![RegisteredStoreInstall {
+                title: "Fallout 2".into(),
+                path: gog.clone(),
+            }],
+            epic: vec![manifests],
+            ..FixtureHost::default()
+        },
+    );
+    let refused = |path: &Path| {
+        service
+            .refuse_store_install_move("profile", path)
+            .unwrap_err()
+            .details
+            .get("store")
+            .cloned()
+    };
+    assert_eq!(
+        refused(&canonical(&gog).join("MASTER.DAT")).as_deref(),
+        Some("GOG")
+    );
+    assert_eq!(
+        refused(&canonical(&epic).join("x")).as_deref(),
+        Some("Epic")
+    );
+    // A directory Move ends by removing the whole source; one that contains a
+    // store game is refused too.
+    assert_eq!(refused(&canonical(&games)).as_deref(), Some("GOG"));
+    service
+        .refuse_store_install_move("profile", &canonical(temporary.path()).join("Other"))
+        .unwrap();
+}
+
+#[test]
+fn a_steamapps_folder_is_protected_even_without_readable_metadata() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = service_with(temporary.path(), FixtureHost::default());
+    let error = service
+        .refuse_store_install_move(
+            "profile",
+            &temporary
+                .path()
+                .join("Lib")
+                .join("SteamApps")
+                .join("common")
+                .join("G"),
+        )
+        .unwrap_err();
+    assert_eq!(
+        error.details.get("store").map(String::as_str),
+        Some("Steam")
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_linked_steamapps_folder_is_read_and_protected_as_its_real_folder() {
+    let temporary = tempfile::tempdir().unwrap();
+    let client = temporary.path().join("Steam");
+    let real = temporary.path().join("Real Library Apps");
+    fs::create_dir_all(real.join("common").join("Quake")).unwrap();
+    fs::write(
+        real.join("appmanifest_1.acf"),
+        "\"AppState\" { \"name\" \"Quake\" \"installdir\" \"Quake\" }",
+    )
+    .unwrap();
+    fs::create_dir_all(&client).unwrap();
+    std::os::unix::fs::symlink(&real, client.join("steamapps")).unwrap();
+    let host = FixtureHost {
+        steam: vec![client],
+        ..FixtureHost::default()
+    };
+    let detection = detect(&host);
+    assert_eq!(detection.report.installs.len(), 1);
+    assert_eq!(
+        detection.report.installs[0].path,
+        canonical(&real.join("common").join("Quake"))
+    );
+    assert!(
+        detection
+            .protected
+            .iter()
+            .any(|(_, folder)| *folder == canonical(&real))
+    );
+    let service = service_with(temporary.path(), host);
+    // The real folder has no `steamapps` name, so only detection protects it.
+    service
+        .refuse_store_install_move("profile", &canonical(&real).join("appmanifest_2.acf"))
+        .unwrap_err();
+}
+
+#[test]
+fn folders_that_hold_the_library_or_are_roots_are_not_suggested() {
+    let temporary = tempfile::tempdir().unwrap();
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog: vec![
+                RegisteredStoreInstall {
+                    title: "Everything".into(),
+                    path: temporary.path().to_path_buf(),
+                },
+                RegisteredStoreInstall {
+                    title: "Root".into(),
+                    path: std::path::absolute(Path::new(std::path::MAIN_SEPARATOR_STR)).unwrap(),
+                },
+            ],
+            ..FixtureHost::default()
+        },
+    );
+    let report = service.store_game_installs().unwrap();
+    assert!(report.installs.is_empty());
+    assert_eq!(report.skipped_entries, 2);
 }

@@ -5,13 +5,34 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 
 const storeLabels: Record<string, string> = { steam: "Steam", gog: "GOG", epic: "Epic" };
+const allStores = ["steam", "gog", "epic"];
 
 export function storeLabel(store: string) {
   return Object.hasOwn(storeLabels, store) ? storeLabels[store] : "Another store";
 }
 
-// Games Steam, GOG and Epic installed on this computer, offered as search
-// folders. Core finds them; choosing one only fills the search folder.
+function storeList(stores: readonly string[]) {
+  const labels = stores.map(storeLabel);
+  if (labels.length <= 1) return labels.join("");
+  return `${labels.slice(0, -1).join(", ")} or ${labels[labels.length - 1]}`;
+}
+
+// What Core read, kept distinct from what it could not read on this system.
+export function storeInstallsSummary(installs: StoreGameInstalls) {
+  const checked = installs.checked_stores;
+  const unchecked = allStores.filter((store) => !checked.some((value) => value === store));
+  const notChecked =
+    unchecked.length > 0
+      ? ` Portcove can't check ${storeList(unchecked)} games on this system.`
+      : "";
+  if (checked.length === 0) return "Portcove can't check Steam, GOG or Epic games on this system.";
+  if (installs.installs.length === 0)
+    return `No games installed by ${storeList(checked)} were found on this computer.${notChecked}`;
+  return `Choose the game the required files come from. Portcove only reads its folder: you can copy matching files or use them where they are, but not move them out of the game.${notChecked}`;
+}
+
+// Games the stores installed on this computer, offered as search folders.
+// Core finds them; choosing one only fills the search folder.
 export function StoreInstallChoices({
   generation,
   disabled,
@@ -37,28 +58,24 @@ export function StoreInstallChoices({
   };
   return (
     <section aria-label="Games installed by Steam, GOG or Epic" className="grid gap-2">
-      {!installs && (
-        <div className="actions flex flex-wrap gap-2">
-          <Button
-            data-focusable
-            variant="outline"
-            disabled={disabled || loading}
-            onClick={() => {
-              void load();
-            }}
-          >
-            Choose a Steam, GOG or Epic game
-          </Button>
-        </div>
-      )}
+      <div className="actions flex flex-wrap gap-2">
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={disabled || loading}
+          onClick={() => {
+            void load();
+          }}
+        >
+          {installs || error ? "Check installed games again" : "Choose a Steam, GOG or Epic game"}
+        </Button>
+      </div>
       {loading && <p role="status">Looking for games installed by Steam, GOG or Epic…</p>}
       {error && <p role="alert">{error}</p>}
       {installs && (
         <>
           <p className="text-sm leading-relaxed text-pc-muted-foreground">
-            {installs.installs.length === 0
-              ? "No games installed by Steam, GOG or Epic were found on this computer."
-              : "Choose the game the required files come from. Portcove only reads its folder: you can copy matching files or use them where they are, but not move them out of the game."}
+            {storeInstallsSummary(installs)}
           </p>
           {(installs.limited || installs.skipped_entries > 0) && (
             <p className="text-sm leading-relaxed text-pc-muted-foreground">

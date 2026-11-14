@@ -52,6 +52,9 @@ pub struct StoreGameInstall {
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StoreGameInstalls {
+    /// The stores this host's metadata was read for. A store missing here was
+    /// not checked, which is different from having no games installed.
+    pub checked_stores: Vec<GameStore>,
     pub installs: Vec<StoreGameInstall>,
     /// Store entries left out because their metadata was unreadable, malformed,
     /// unsafe or named a folder that does not exist.
@@ -76,6 +79,46 @@ pub trait StoreInstallHost: Send + Sync {
     fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall>;
     /// Epic Games Launcher manifest folders holding `*.item` files.
     fn epic_manifest_dirs(&self) -> Vec<PathBuf>;
+    /// The stores this host can read.
+    fn checked_stores(&self) -> Vec<GameStore> {
+        vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
+    }
+}
+
+/// Reads no store. Unit-test services default to it so they never read the
+/// machine's real store metadata.
+#[cfg(test)]
+pub(crate) struct NoStoreInstallHost;
+
+#[cfg(test)]
+impl StoreInstallHost for NoStoreInstallHost {
+    fn steam_client_roots(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+
+    fn gog_registered_installs(&self) -> Vec<RegisteredStoreInstall> {
+        Vec::new()
+    }
+
+    fn epic_manifest_dirs(&self) -> Vec<PathBuf> {
+        Vec::new()
+    }
+
+    fn checked_stores(&self) -> Vec<GameStore> {
+        Vec::new()
+    }
+}
+
+/// The host a new service uses.
+pub(crate) fn default_host() -> std::sync::Arc<dyn StoreInstallHost> {
+    #[cfg(test)]
+    {
+        std::sync::Arc::new(NoStoreInstallHost)
+    }
+    #[cfg(not(test))]
+    {
+        std::sync::Arc::new(SystemStoreInstallHost)
+    }
 }
 
 /// What a detection found, including folders that must never lose files
@@ -127,6 +170,7 @@ impl Detection {
 
 fn detect(host: &dyn StoreInstallHost) -> Detection {
     let mut detection = Detection::default();
+    detection.report.checked_stores = host.checked_stores();
     detect_steam(host, &mut detection);
     for install in host.gog_registered_installs() {
         detection.add(GameStore::Gog, &install.title, &install.path);
@@ -145,26 +189,30 @@ fn detect(host: &dyn StoreInstallHost) -> Detection {
 }
 
 fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
+    // Canonical `steamapps` folders, kept as resolved so a linked or
+    // differently cased folder is still read and protected as itself.
     let mut libraries = Vec::<PathBuf>::new();
     let mut library_keys = BTreeSet::new();
-    let mut push_library = |path: &Path, detection: &mut Detection| {
-        let Some(path) = existing_folder(&path.join("steamapps"))
-            .and_then(|steamapps| steamapps.parent().map(Path::to_path_buf))
-        else {
+    // `listed` libraries come from Steam's own list, so a bad entry counts as
+    // skipped; default client locations are often simply absent.
+    let mut push_library = |path: &Path, listed: bool, detection: &mut Detection| {
+        let Some(steamapps) = existing_folder(&path.join("steamapps")) else {
+            if listed {
+                detection.skip();
+            }
             return;
         };
-        let key = path_key(&path.to_string_lossy());
-        if !library_keys.insert(key) {
+        if !library_keys.insert(path_key(&steamapps.to_string_lossy())) {
             return;
         }
         if libraries.len() >= MAX_STEAM_LIBRARIES {
             detection.report.limited = true;
             return;
         }
-        libraries.push(path);
+        libraries.push(steamapps);
     };
     for root in host.steam_client_roots() {
-        push_library(&root, detection);
+        push_library(&root, false, detection);
         let folders = root.join("steamapps").join("libraryfolders.vdf");
         if !folders.exists() {
             continue;
@@ -172,14 +220,13 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
         match read_text(&folders) {
             Some(text) => {
                 for library in steam_library_paths(&text) {
-                    push_library(&library, detection);
+                    push_library(&library, true, detection);
                 }
             }
             None => detection.skip(),
         }
     }
-    for library in libraries {
-        let steamapps = library.join("steamapps");
+    for steamapps in libraries {
         detection
             .protected
             .push((GameStore::Steam, steamapps.clone()));
@@ -402,11 +449,38 @@ fn steam_app_manifest(text: &str) -> Option<(String, String)> {
 }
 
 fn inside(path: &Path, folder: &Path) -> bool {
-    let separator = std::path::MAIN_SEPARATOR;
-    let path = path_key(&path.to_string_lossy());
-    let folder = path_key(&folder.to_string_lossy());
-    let folder = folder.trim_end_matches(separator);
-    path == folder || path.starts_with(&format!("{folder}{separator}"))
+    crate::game_file_root::key_inside(path, &path_key(&folder.to_string_lossy()))
+}
+
+fn store_name(store: GameStore) -> &'static str {
+    match store {
+        GameStore::Steam => "Steam",
+        GameStore::Gog => "GOG",
+        GameStore::Epic => "Epic",
+    }
+}
+
+/// The nearest ancestor (or `path` itself) named `steamapps`, compared
+/// case-insensitively: Steam keeps every library's games there, so a Move from
+/// it is refused even when Steam's own metadata could not be read.
+fn steamapps_ancestor(path: &Path) -> Option<PathBuf> {
+    path.ancestors()
+        .find(|ancestor| {
+            ancestor
+                .file_name()
+                .is_some_and(|name| name.to_string_lossy().eq_ignore_ascii_case("steamapps"))
+        })
+        .map(Path::to_path_buf)
+}
+
+/// A suggested folder that would make a poor search root or contains this
+/// library: a filesystem root, the home folder, or an ancestor of `library`.
+fn unsuitable_suggestion(path: &Path, library: &Path) -> bool {
+    path.parent().is_none()
+        || directories::BaseDirs::new().is_some_and(|base| {
+            std::fs::canonicalize(base.home_dir()).is_ok_and(|home| home == path)
+        })
+        || inside(library, path)
 }
 
 impl PortcoveService {
@@ -414,6 +488,15 @@ impl PortcoveService {
     /// the stores' own metadata. Reads only; failures leave a shorter list.
     pub fn store_game_installs(&self) -> Result<StoreGameInstalls> {
         let mut report = detect(self.store_install_host()).report;
+        let library = std::fs::canonicalize(self.library().root())
+            .unwrap_or_else(|_| self.library().root().to_path_buf());
+        let before = report.installs.len();
+        report
+            .installs
+            .retain(|install| !unsuitable_suggestion(&install.path, &library));
+        report.skipped_entries = report
+            .skipped_entries
+            .saturating_add(u32::try_from(before - report.installs.len()).unwrap_or(u32::MAX));
         let roots = self.library().game_file_roots()?;
         for install in &mut report.installs {
             let key = path_key(&install.path.to_string_lossy());
@@ -425,24 +508,25 @@ impl PortcoveService {
         Ok(report)
     }
 
-    /// Refuse to remove an original from a folder a store installed: the
-    /// store's game would lose it. `path` is canonical.
+    /// Refuse to remove files from a folder a store installed, or a folder
+    /// that contains one: the store's game would lose them. `path` is
+    /// canonical. Store folders whose metadata could not be read are only
+    /// protected through the `steamapps` folder name.
     pub(crate) fn refuse_store_install_move(&self, profile_id: &str, path: &Path) -> Result<()> {
-        let detection = detect(self.store_install_host());
-        let Some((store, folder)) = detection
-            .protected
-            .iter()
-            .find(|(_, folder)| inside(path, folder))
-        else {
+        let found = steamapps_ancestor(path)
+            .map(|folder| (GameStore::Steam, folder))
+            .or_else(|| {
+                detect(self.store_install_host())
+                    .protected
+                    .into_iter()
+                    .find(|(_, folder)| inside(path, folder) || inside(folder, path))
+            });
+        let Some((store, folder)) = found else {
             return Ok(());
         };
-        let store_name = match store {
-            GameStore::Steam => "Steam",
-            GameStore::Gog => "GOG",
-            GameStore::Epic => "Epic",
-        };
+        let store_name = store_name(store);
         Err(PortcoveError::conflict(format!(
-            "These files belong to a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
+            "These files are part of a game {store_name} installed. Moving them would break that game; copy them into Portcove or use them where they are."
         ))
         .detail("profile_id", profile_id)
         .detail("store", store_name)
@@ -455,6 +539,14 @@ impl PortcoveService {
 pub struct SystemStoreInstallHost;
 
 impl StoreInstallHost for SystemStoreInstallHost {
+    fn checked_stores(&self) -> Vec<GameStore> {
+        if cfg!(windows) {
+            vec![GameStore::Steam, GameStore::Gog, GameStore::Epic]
+        } else {
+            vec![GameStore::Steam]
+        }
+    }
+
     fn steam_client_roots(&self) -> Vec<PathBuf> {
         let mut roots = Vec::new();
         #[cfg(windows)]

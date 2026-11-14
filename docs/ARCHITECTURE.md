@@ -2898,13 +2898,19 @@ Epic manifest folders; the production host reads default locations and the
 Windows registry, and tests use fixture folders. Core reads Steam
 `libraryfolders.vdf` and `appmanifest_*.acf` files and Epic `*.item` files with
 bounded regular-file reads, skips unsafe or missing locations, canonicalizes and
-deduplicates folders, and reports the matching saved game-file root identity.
+deduplicates folders (keeping a linked `steamapps` as its resolved folder), drops
+filesystem roots, the home folder and ancestors of the library, and reports the
+matching saved game-file root identity plus the stores this host could check,
+so an unchecked store stays distinct from an empty one. Core unit-test services
+default to a host that reads no store.
 The result is a read-only suggestion: it adds no saved root, registration, setup
 intent or second scanner, and store titles never identify a source. Search and
 admission stay with the existing discovery and inspector. Source import refuses
 Move for an original inside a detected store game folder or a Steam library's
-`steamapps` folder, so Portcove never removes a store's files; Copy and Use
-current location are unchanged. CLI `source roots stores` and the Tauri
+`steamapps` folder, for a folder that contains one, and for any path through a
+folder named `steamapps`, so Portcove does not remove a recognized store's
+files; Copy and Use current location are unchanged. Recognition depends on
+readable store metadata otherwise, and the CLI guide documents that limit. CLI `source roots stores` and the Tauri
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.

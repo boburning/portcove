@@ -403,7 +403,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
-            store_installs: Arc::new(crate::SystemStoreInstallHost),
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -431,7 +431,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
-            store_installs: Arc::new(crate::SystemStoreInstallHost),
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -470,7 +470,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
-            store_installs: Arc::new(crate::SystemStoreInstallHost),
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -489,7 +489,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
-            store_installs: Arc::new(crate::SystemStoreInstallHost),
+            store_installs: crate::store_install::default_host(),
         })
     }
 

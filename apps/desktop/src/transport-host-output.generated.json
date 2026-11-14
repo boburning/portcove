@@ -16467,6 +16467,13 @@
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "checked_stores": {
+        "description": "The stores this host's metadata was read for. A store missing here was\nnot checked, which is different from having no games installed.",
+        "items": {
+          "$ref": "#/$defs/GameStore"
+        },
+        "type": "array"
+      },
       "installs": {
         "items": {
           "$ref": "#/$defs/StoreGameInstall"
@@ -16485,6 +16492,7 @@
       }
     },
     "required": [
+      "checked_stores",
       "installs",
       "skipped_entries",
       "limited"

@@ -1276,21 +1276,46 @@ pub(crate) fn game_file_roots(roots: &[GameFileRoot]) -> String {
     )
 }
 
+fn store_label(store: portcove_core::GameStore) -> &'static str {
+    match store {
+        portcove_core::GameStore::Steam => "Steam",
+        portcove_core::GameStore::Gog => "GOG",
+        portcove_core::GameStore::Epic => "Epic",
+    }
+}
+
+fn store_list(stores: &[portcove_core::GameStore]) -> String {
+    let labels = stores
+        .iter()
+        .map(|store| store_label(*store))
+        .collect::<Vec<_>>();
+    match labels.split_last() {
+        None => String::new(),
+        Some((last, [])) => (*last).to_owned(),
+        Some((last, rest)) => format!("{} or {last}", rest.join(", ")),
+    }
+}
+
 pub(crate) fn store_game_installs(report: &portcove_core::StoreGameInstalls) -> String {
-    let mut output = if report.installs.is_empty() {
-        "No games installed by Steam, GOG or Epic were found on this computer.".to_owned()
+    use portcove_core::GameStore;
+    let unchecked = [GameStore::Steam, GameStore::Gog, GameStore::Epic]
+        .into_iter()
+        .filter(|store| !report.checked_stores.contains(store))
+        .collect::<Vec<_>>();
+    let mut output = if report.checked_stores.is_empty() {
+        "Portcove can't check Steam, GOG or Epic games on this system.".to_owned()
+    } else if report.installs.is_empty() {
+        format!(
+            "No games installed by {} were found on this computer.",
+            store_list(&report.checked_stores)
+        )
     } else {
         let rows = report
             .installs
             .iter()
             .map(|install| {
                 vec![
-                    match install.store {
-                        portcove_core::GameStore::Steam => "Steam",
-                        portcove_core::GameStore::Gog => "GOG",
-                        portcove_core::GameStore::Epic => "Epic",
-                    }
-                    .into(),
+                    store_label(install.store).into(),
                     install.title.clone(),
                     install.saved_root_id.clone().unwrap_or_else(|| "-".into()),
                     install.path.display().to_string(),
@@ -1303,6 +1328,12 @@ pub(crate) fn store_game_installs(report: &portcove_core::StoreGameInstalls) -> 
             table(&["STORE", "TITLE", "SAVED FOLDER", "PATH"], rows)
         )
     };
+    if !unchecked.is_empty() && !report.checked_stores.is_empty() {
+        output.push_str(&format!(
+            "\nPortcove can't check {} games on this system.",
+            store_list(&unchecked)
+        ));
+    }
     if report.limited {
         output.push_str(
             "\nThe list stopped at a safety limit, so some installed games may be missing.",

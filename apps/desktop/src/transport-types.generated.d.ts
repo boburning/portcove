@@ -5765,6 +5765,11 @@ export interface SteamGridDbImageCheck {
   unknown_reason: SteamGridDbUnknownReason | null;
 }
 export interface OutputStoreGameInstalls {
+  /**
+   * The stores this host's metadata was read for. A store missing here was
+   * not checked, which is different from having no games installed.
+   */
+  checked_stores: GameStore[];
   installs: StoreGameInstall[];
   /**
    * Whether a detection bound stopped the list early.
