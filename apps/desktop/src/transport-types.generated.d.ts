@@ -2896,7 +2896,7 @@ export interface PortListing {
    */
   download_block_reason?: string | null;
   /**
-   * Reviewed pages where the upstream developers accept support, normally taken
+   * Reviewed pages where the upstream developers accept funding, normally taken
    * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
    * HTTPS links that grant nothing. Requires listing format 10; when present it
    * is never empty, so an earlier strict reader never meets an inert empty key.

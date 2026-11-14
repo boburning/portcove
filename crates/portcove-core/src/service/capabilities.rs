@@ -590,6 +590,31 @@ mod tests {
     }
 
     #[test]
+    fn an_explicit_null_funding_key_is_refused_not_read_as_absent() {
+        let value = json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture","funding_urls":null
+        });
+        assert!(serde_json::from_value::<crate::PortListing>(value).is_err());
+        for format_version in [9, 10] {
+            let document = json!({"format_version":format_version,"listings":[{
+                "id":"fixture","name":"Fixture","summary":"Fixture",
+                "project_url":"https://example.com/fixture","funding_urls":null
+            }]});
+            assert!(
+                crate::CatalogListingDocument::from_json(&document.to_string()).is_err(),
+                "{format_version}"
+            );
+        }
+        let absent: crate::PortListing = serde_json::from_value(json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture"
+        }))
+        .unwrap();
+        assert!(absent.funding_urls.is_none());
+    }
+
+    #[test]
     fn funding_links_are_bounded_distinct_public_https_urls() {
         let many = (0..13)
             .map(|index| format!("https://example.com/support/{index}"))

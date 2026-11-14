@@ -58,14 +58,17 @@ stops listing updates for format-9 readers; see
 in GitHub's lookup order (the repository's `.github/`, root and `docs/`, then the same
 places in the owner's `.github` repository); the first file found decides. It keeps
 `github`, `patreon`, `open_collective`, `ko_fi`, `liberapay`, `buy_me_a_coffee` and
-HTTPS `custom` entries in that order, reports every entry it skips, and when there are
+HTTPS `custom` entries in that order (several entries for one platform keep their
+order in the file), reports every entry it skips, and when there are
 more than 12 keeps the first 12 and reports the rest. Only a readable project with no
 `FUNDING.yml` in any location means "no links". A missing, renamed or unreadable
 repository, or a file that is oversized, malformed (including YAML aliases) or has no
 usable entry, leaves the listing unchanged; a renamed repository is reported with its
 new name so `project_url` can be corrected. The script prints its plan; `--write`
 adds links to listings without any, and only `--write --replace` replaces or removes
-existing links, which may be hand-authored. `--only <id>` limits it to named
+existing links, which may be hand-authored. `--replace` never clears links when the
+upstream file exists but yields no usable link; remove them by hand if they are
+obsolete. `--only <id>` limits it to named
 listings. Review the diff like any other listing change and regenerate the catalog.
 Other hosts may carry reviewed hand-authored links.
 
