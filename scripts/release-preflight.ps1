@@ -11,7 +11,9 @@ Options:
   -Help, --help  Show this help without provisioning, checking storage, building, or installing.
 
 Requires the repository-pinned Node/pnpm and quality tools, Rust/Tauri Windows
-build prerequisites, and network access for dependency/upstream checks. Install
+build prerequisites, network access for dependency/upstream checks, and a GitHub
+token (GH_TOKEN, GITHUB_TOKEN or a github.com 'gh auth login') for the catalog
+repository check; without one the preflight stops before any other work. Install
 the pinned quality tools with scripts/bootstrap-quality-tools.ps1 first.
 Failures stop the preflight and name the command and its exit code; retain that
 command's output and reported evidence paths when diagnosing the failure.
@@ -29,6 +31,33 @@ $desktopRoot = Join-Path $projectRoot "apps\desktop"
 $pnpmSpec = (Get-Content (Join-Path $projectRoot "package.json") -Raw | ConvertFrom-Json).packageManager
 $installedPnpm = (& pnpm --version | Out-String).Trim()
 if ($LASTEXITCODE -ne 0 -or "pnpm@$installedPnpm" -ne $pnpmSpec) { throw "Provide the exact repository $pnpmSpec on PATH. Command 'pnpm --version' returned '$installedPnpm' with exit code $LASTEXITCODE." }
+# The catalog repository check makes several hundred GitHub API requests, which
+# exceeds GitHub's anonymous limit of 60 an hour. Credentials follow local tooling
+# (docs/DEVELOPMENT-TOOLS.md): GH_TOKEN, then GITHUB_TOKEN, then the github.com
+# gh login, never another host's. The token is never printed.
+function Resolve-PortcoveGithubToken {
+    if ($env:GH_TOKEN) { return $env:GH_TOKEN }
+    if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
+    if (-not (Get-Command gh -ErrorAction SilentlyContinue)) { return $null }
+    $savedHost = $env:GH_HOST
+    $savedPrompt = $env:GH_PROMPT_DISABLED
+    $env:GH_HOST = "github.com"
+    $env:GH_PROMPT_DISABLED = "1"
+    try {
+        $output = & gh auth token --hostname github.com 2>$null
+        $succeeded = $LASTEXITCODE -eq 0
+    }
+    finally {
+        $env:GH_HOST = $savedHost
+        $env:GH_PROMPT_DISABLED = $savedPrompt
+    }
+    if (-not $succeeded) { return $null }
+    $token = ($output | Out-String).Trim()
+    if ($token) { return $token }
+    return $null
+}
+$catalogToken = Resolve-PortcoveGithubToken
+if (-not $catalogToken) { throw "The catalog repository check needs a GitHub token: it makes several hundred GitHub API requests and anonymous access allows 60 an hour. Run 'gh auth login' for github.com or set GH_TOKEN or GITHUB_TOKEN, then rerun the preflight. Nothing has been checked or built yet." }
 $metadataScript = Join-Path $PSScriptRoot "check-release-metadata.mts"
 $metadataTest = Join-Path $PSScriptRoot "check-release-metadata.test.mts"
 $storageScript = Join-Path $PSScriptRoot "dev-storage.mts"
@@ -50,21 +79,6 @@ $storageEnvironment = @{
 }
 $previousEnvironment = @{}
 
-# The catalog repository check makes several hundred GitHub API requests, which
-# exceeds GitHub's anonymous limit of 60 an hour. Use GITHUB_TOKEN, or else the
-# signed-in GitHub CLI's token; the token is never printed.
-function Resolve-PortcoveGithubToken {
-    if ($env:GITHUB_TOKEN) { return $env:GITHUB_TOKEN }
-    if (Get-Command gh -ErrorAction SilentlyContinue) {
-        $token = (& gh auth token 2>$null | Out-String).Trim()
-        $global:LASTEXITCODE = 0
-        if ($token) { return $token }
-    }
-    return $null
-}
-if (-not (Resolve-PortcoveGithubToken)) {
-    Write-Warning "No GitHub token found. The catalog repository check later in this preflight will stop unless you run 'gh auth login' or set GITHUB_TOKEN first."
-}
 
 Push-Location $projectRoot
 try {
@@ -99,8 +113,6 @@ try {
     & just audit --fresh
     if ($LASTEXITCODE -ne 0) { throw "Repository quality audit failed with exit code $LASTEXITCODE. Command: just audit --fresh. See the failing phase and retained log/report paths above." }
 
-    $catalogToken = Resolve-PortcoveGithubToken
-    if (-not $catalogToken) { throw "The catalog repository check needs a GitHub token: it makes several hundred GitHub API requests and anonymous access allows 60 an hour. Run 'gh auth login' or set GITHUB_TOKEN, then rerun the preflight. Command: node scripts/check-catalog-repositories.mts." }
     $previousGithubToken = $env:GITHUB_TOKEN
     $env:GITHUB_TOKEN = $catalogToken
     try {

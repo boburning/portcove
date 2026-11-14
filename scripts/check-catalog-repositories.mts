@@ -1850,7 +1850,7 @@ export async function collectRepositoryHealth(
         continue;
       }
       // Static no-request failures retain their reasons even when the selected
-      // inventory needs zero calls or preflight refuses the whole collection.
+      // inventory needs zero calls.
       if (record.provider === "unlocated-historical") {
         fail("release-identity-unavailable");
         continue;
