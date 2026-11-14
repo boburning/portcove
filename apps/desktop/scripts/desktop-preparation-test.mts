@@ -3315,10 +3315,12 @@ export async function preparationScenarios({
       availability: "allowed",
       reason: "available",
     });
+    // Hosted Windows job 132562405186 observed the rollback worker take 16.9 s.
     await clickVisible(browser, await rollbackButton());
     await browser.wait(
       async () => required((await status(port.id)).active).id === required(before.previous).id,
-      15_000,
+      60_000,
+      "Rollback did not activate the reviewed previous version",
     );
     observations.previous_active_save = await restoredActiveSave(await status(port.id));
     await open(port, false);
@@ -3330,7 +3332,8 @@ export async function preparationScenarios({
     await clickVisible(browser, await rollbackButton());
     await browser.wait(
       async () => required((await status(port.id)).active).id === required(before.active).id,
-      15_000,
+      60_000,
+      "Return rollback did not reactivate the original version",
     );
     observations.returned_active_save = await restoredActiveSave(await status(port.id));
     assert.deepEqual(observations.returned_active_save, originalActiveSave);
@@ -4023,6 +4026,7 @@ export async function preparationScenarios({
   await scenario("native-release-channel-selection-and-restart", async () => {
     await browser.findElement(By.css(".detail-back")).click();
     await selectPrimaryNavigation(browser, "Discover");
+    const channelSection = 'section[aria-label="Game update channel"]';
     const openCatalogPort = async (id: string) => {
       const port = transportValue("port", command(["catalog", "show", id]));
       const search = await browser.findElement(By.id("port-search"));
@@ -4045,9 +4049,7 @@ export async function preparationScenarios({
           By.xpath('//summary[normalize-space(.)="Future update preferences"]'),
         ),
       );
-      const channel = await browser.findElement(
-        By.css('section[aria-label="Game release channel"]'),
-      );
+      const channel = await browser.findElement(By.css(channelSection));
       await browser.wait(
         until.elementIsVisible(channel),
         5_000,
@@ -4101,7 +4103,7 @@ export async function preparationScenarios({
       "release-channel popup did not close after Escape",
     );
     const releaseChannelTrigger = By.css(
-      'section[aria-label="Game release channel"] button[data-slot="select-trigger"]',
+      `${channelSection} button[data-slot="select-trigger"]`,
     );
     const restoredTrigger = await browser.wait(
       until.elementLocated(releaseChannelTrigger),
