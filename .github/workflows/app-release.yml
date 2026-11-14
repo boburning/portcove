@@ -65,6 +65,9 @@ jobs:
     permissions:
       contents: write
     uses: ./.github/workflows/app-release-build.yml
+    # A called workflow sees its environment's secrets only when the caller passes
+    # them; the shared build references only the two signing secrets, in its signing step.
+    secrets: inherit
     with:
       version: ${{ needs.plan.outputs.version }}
       tag: ${{ github.ref_name }}
