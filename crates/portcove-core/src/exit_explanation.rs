@@ -98,6 +98,11 @@ pub struct LaunchSessionView {
     pub record: LaunchSessionRecord,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exit_explanation: Option<ExitExplanation>,
+    /// Microsoft runtimes the installation that ran most likely needs, present
+    /// only for an exit most likely caused by a missing DLL and only while that
+    /// installation is still the current one. Derived on read, never stored.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub runtime_prerequisites: Option<crate::RuntimePrerequisiteReport>,
 }
 
 impl LaunchSessionView {
@@ -110,9 +115,30 @@ impl LaunchSessionView {
         Self {
             record,
             exit_explanation,
+            runtime_prerequisites: None,
         }
     }
+
+    /// Adds the runtime prerequisites of the installation that ran when its exit
+    /// most likely came from a missing or failing DLL. The report is
+    /// supplementary: an unavailable read leaves it absent.
+    pub fn with_runtime_prerequisites(mut self, library: &crate::Library) -> Self {
+        if self
+            .exit_explanation
+            .as_ref()
+            .is_some_and(|explanation| RUNTIME_EXIT_KEYS.contains(&explanation.key))
+        {
+            self.runtime_prerequisites = library
+                .installation_runtime_prerequisites(&self.record.port_id, &self.record.install_id)
+                .ok()
+                .flatten();
+        }
+        self
+    }
 }
+
+/// Explained exits whose most likely cause includes a missing runtime.
+const RUNTIME_EXIT_KEYS: [&str; 2] = ["dll_not_found", "dll_init_failed"];
 
 #[cfg(test)]
 mod tests {

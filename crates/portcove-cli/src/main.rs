@@ -611,7 +611,11 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         command: LaunchCommand::Show { request_id },
     } = &cli.command
     {
-        let record = library.launch_request(&request_id.to_string())?;
+        let record = library
+            .launch_request(&request_id.to_string())?
+            .map(|record| {
+                portcove_core::LaunchSessionView::new(record).with_runtime_prerequisites(&library)
+            });
         // Observation must remain available even when current catalog/provider
         // initialization fails. This optional human lookup never advances recovery.
         let display_service = if mode == OutputMode::Human {
@@ -619,10 +623,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         } else {
             None
         };
-        let record = record.map(portcove_core::LaunchSessionView::new);
         render_read_success(mode, "launch.show", record, |record| {
             human_adapters::launch_record(
-                record.as_ref().map(|view| &view.record),
+                record.as_ref(),
                 &request_id.to_string(),
                 display_service.as_ref().map(PortcoveService::catalog),
                 cli.technical_details,
@@ -701,6 +704,14 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         Commands::Setup { command } => {
             setup::execute(command, &service, mode, cli.non_interactive).await?;
         }
+        Commands::Installation {
+            command: InstallationCommand::Runtimes { port_id },
+        } => render_read_success(
+            mode,
+            "installation.runtimes",
+            service.library().runtime_prerequisites(&port_id)?,
+            |report| human_adapters::runtime_prerequisites(report.as_ref()),
+        )?,
         Commands::Installation {
             command: InstallationCommand::Retained { port_id },
         } => render_read_success(
@@ -1633,10 +1644,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service
                     .library()
                     .launch_request(&request_id.to_string())?
-                    .map(portcove_core::LaunchSessionView::new),
+                    .map(|record| {
+                        portcove_core::LaunchSessionView::new(record)
+                            .with_runtime_prerequisites(service.library())
+                    }),
                 |record| {
                     human_adapters::launch_record(
-                        record.as_ref().map(|view| &view.record),
+                        record.as_ref(),
                         &request_id.to_string(),
                         Some(service.catalog()),
                         cli.technical_details,
@@ -3821,6 +3835,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::About => "about",
         Commands::Plan { .. } => "plan",
         Commands::Installation { command } => match command {
+            InstallationCommand::Runtimes { .. } => "installation.runtimes",
             InstallationCommand::Retained { .. } => "installation.retained",
             InstallationCommand::Reference { .. } => "installation.reference",
             InstallationCommand::ReferencePlan { .. } => "installation.reference-plan",

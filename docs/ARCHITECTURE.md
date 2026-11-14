@@ -1370,6 +1370,18 @@ support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
+Core `windows_runtime` owns the advisory Microsoft runtime prerequisite report.
+It reads the current installation's launch program and shipped DLLs with fixed
+bounds and without execution, then asks a host-facts seam whether each runtime is
+present; only the Windows host answers, so other hosts and unreadable or limited
+inputs stay unknown rather than missing. `Library::runtime_prerequisites` is an
+on-demand read for one port and stays out of the all-ports status read, which
+would otherwise open program files on every refresh. Launch-session views attach
+the same report to `dll_not_found` and `dll_init_failed` explanations while the
+session's installation is current. CLI and Desktop only present it; the report
+never blocks launch, and Core recognizes the official Microsoft download pages it
+names as reviewed links. Running Microsoft installers is outside this boundary.
+
 API schema 51 exposes one core-owned activity feed. Core reads every current,
 failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite
 snapshot as a bounded newest-first terminal window, deduplicates by durable

@@ -401,6 +401,11 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Check which Microsoft runtimes the installed game's program needs and whether Windows has them.
+    Runtimes {
+        /// Catalog port ID of the installed or registered game.
+        port_id: String,
+    },
     /// Inspect retained local builds and the setup references protecting them from cleanup.
     Retained {
         /// Stable catalog port ID; retained builds are local, not a historical release list.

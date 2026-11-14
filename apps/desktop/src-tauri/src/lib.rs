@@ -1873,6 +1873,24 @@ async fn get_launch_failure(
     .await
 }
 
+/// Microsoft runtimes the port's current installation most likely needs, or
+/// `None` when nothing is installed. Read on request because it opens program files.
+#[tauri::command]
+async fn get_runtime_prerequisites(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    generation: u64,
+) -> DesktopResult<Option<portcove_core::RuntimePrerequisiteReport>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let library = library_at_generation(&state, generation)?;
+        let report = library.runtime_prerequisites(&port_id)?;
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(report)
+    })
+    .await
+}
+
 /// Launch failures surface within seconds, so observe quickly at first and then
 /// back off while a game keeps running instead of reading SQLite four times a
 /// second for the whole play session.
@@ -3367,6 +3385,7 @@ pub fn run() -> std::process::ExitCode {
             bug_report::open_bug_report,
             bug_report::submit_report,
             get_launch_failure,
+            get_runtime_prerequisites,
             get_doctor_report,
             set_host_tool_path,
             clear_host_tool_path,

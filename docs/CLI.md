@@ -1648,7 +1648,10 @@ carry the retained result. A `failed` session may also carry `exit_explanation`
 `exit_code` by a versioned Core table and never stored. Explanations say "most likely"
 and are not proof of cause; an unmapped non-zero code gets the generic key
 `unexplained_exit` with no invented cause, and succeeded, cancelled and unfinished
-sessions omit the field. `exec` itself stays a raw stream with no JSON result;
+sessions omit the field. When the key is `dll_not_found` or `dll_init_failed` and
+the session's installation is still current, `launch show` and `launch recover`
+also carry `runtime_prerequisites`, the
+[runtime report](#microsoft-runtimes-a-game-needs) for that installation. `exec` itself stays a raw stream with no JSON result;
 its process exit status is unchanged. `started_at` is request acceptance, not a precise game-start
 timestamp. `child_pid`/`child_identity` are recorded only after child
 creation; they are observations, never authorization for a client to signal a PID.
@@ -1711,6 +1714,39 @@ portcove --library <path> --json plan <port-id> [--channel stable|preview|rollin
 ```
 
 The plan reports the resolved release and asset size, current platform and channel, registered game-source and BIOS requirements, containing-volume capacity, and one typed action: `already_active`, `use_staged`, `reuse_retained`, `blocked_unverified`, or `download`. These actions compare immutable artifact identity, not display version, so an upstream republish under the same tag is still an update. Planning may perform a normal conditional network lookup and update Portcove's HTTP response cache, but it does not download a release, change source registrations, switch versions, or create an activity record. `use_staged` does not imply activation: the following install's `--stage` choice still controls whether that verified release remains staged. Asset size is the upstream download size; callers must not present it as a guarantee of final extracted footprint.
+
+### Microsoft runtimes a game needs
+
+```bash
+portcove --library <path> --json installation runtimes <port-id>
+```
+
+This read reports which Microsoft runtimes the current managed installation's
+launch program, or the external registration's program, most likely needs, and
+whether this Windows host has them. It returns `null` when nothing is installed.
+Core reads the program's PE import table without running it, follows imports into
+DLLs shipped in the program's folder, and reads a framework-dependent
+`<program>.runtimeconfig.json`. A runtime DLL the game ships satisfies that import.
+Reads are bounded and never follow symlinks.
+
+`inspection` is `complete`, `partial` (something could not be read or a limit was
+reached, so the list may be incomplete), `not_windows_program` or `unreadable`.
+`host` is `checked` or `not_windows`. Each requirement names its `runtime`
+(`visual_cpp_2015_or_later`, `visual_cpp_2013`, `visual_cpp_2012`,
+`visual_cpp_2010`, `directx_june_2010` or `dotnet` with its `framework`), the
+program's `architecture`, `presence`, the runtime `files` the game imports but
+does not ship, any `missing_files`, and Microsoft's official `download_page`.
+
+`presence` is `missing` only when this Windows host reports the file or .NET
+framework absent and the program folder was listed completely. Anything Portcove
+cannot tell is `unknown`, including every requirement on another host or for an
+architecture it does not assess; `unknown` is not a failure. System DLLs are
+checked in the system folder Windows uses for the program's architecture, and
+.NET frameworks under the registered or default .NET location using the
+program's roll-forward policy. Runtime version freshness, side-by-side Visual
+C++ runtimes (2008 and earlier), `DOTNET_ROLL_FORWARD`, delay-loaded and
+dynamically loaded DLLs are not assessed. The report is advisory: it never
+blocks launch, and Portcove neither downloads nor runs Microsoft installers.
 
 ### Review and recover preparation
 

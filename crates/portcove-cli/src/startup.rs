@@ -188,6 +188,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. }
+            | InstallationCommand::Runtimes { .. }
             | InstallationCommand::Retained { .. }
             | InstallationCommand::Reference { .. }
             | InstallationCommand::ReferencePlan { .. }
@@ -333,6 +334,7 @@ mod tests {
     fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {
         for arguments in [
             "installation retained port",
+            "installation runtimes port",
             "installation reference port setup",
             "installation reference-plan port setup install",
             "installation reference-removal-plan port setup",

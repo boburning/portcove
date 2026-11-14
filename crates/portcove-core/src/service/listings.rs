@@ -19,6 +19,7 @@ impl PortcoveService {
             return Ok(false);
         }
         if url == crate::STEAMGRIDDB_KEY_PREFERENCES_URL
+            || crate::is_official_download_page(url)
             || self.is_stored_steamgriddb_credit(url)?
         {
             return Ok(true);

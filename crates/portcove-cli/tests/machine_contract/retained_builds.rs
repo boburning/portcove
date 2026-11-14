@@ -88,6 +88,21 @@ fn retained_build_reference_roundtrip_binds_exact_bytes_and_keeps_missing_refere
     assert_eq!(list["builds"][0]["install"], installed);
     assert_eq!(list["references"], serde_json::json!([]));
     phase("retained baseline observed");
+    let runtimes = result(
+        root,
+        &["--json", "installation", "runtimes", PORT],
+        "installation.runtimes",
+    );
+    if cfg!(windows) {
+        assert_eq!(runtimes["host"], "checked", "{runtimes}");
+        assert!(
+            ["complete", "partial"].contains(&runtimes["inspection"].as_str().unwrap()),
+            "{runtimes}"
+        );
+    } else {
+        assert_eq!(runtimes["host"], "not_windows", "{runtimes}");
+        assert_eq!(runtimes["inspection"], "not_windows_program", "{runtimes}");
+    }
 
     let plan_args = [
         "--json",
@@ -295,7 +310,14 @@ fn retained_build_observations_do_not_recover_pending_work() {
     ).unwrap()
     };
     let pending = state();
+    let runtimes = result(
+        root,
+        &["--json", "installation", "runtimes", PORT],
+        "installation.runtimes",
+    );
+    assert!(runtimes.is_null(), "{runtimes}");
     for arguments in [
+        vec!["--json", "installation", "runtimes", PORT],
         vec!["--json", "installation", "retained", PORT],
         vec!["--json", "installation", "reference", PORT, SETUP],
         vec![
@@ -346,6 +368,7 @@ fn retained_build_schemas_help_and_required_reviews_are_library_free() {
     let capabilities = result(root, &["--json", "capabilities"], "capabilities");
     let commands = capabilities["commands"].as_array().unwrap();
     for name in [
+        "installation.runtimes",
         "installation.retained",
         "installation.reference",
         "installation.reference-plan",
@@ -372,6 +395,7 @@ fn retained_build_schemas_help_and_required_reviews_are_library_free() {
         "retained_build_resolution",
         "retained_build_binding_preview",
         "retained_build_removal_preview",
+        "runtime_prerequisite_report",
     ] {
         assert!(schemas[name].is_object(), "missing schema {name}");
     }
