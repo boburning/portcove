@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "espn-nfl-2k5-remade",
+    "name": "ESPN NFL 2K5 Native PC",
+    "summary": "Play ESPN NFL 2K5 on Windows using upstream setup and your own original Xbox game.",
+    "project_url": "https://github.com/BeyondTomrrow/2K5Remade",
+    "issue_number": 6003,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
+    "download_block_reason": "Portcove downloads are on hold until the published installer contents can be verified. Use the upstream setup guide with a copy you have permission to use.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare your Xbox game",
+          "instruction": "Use an ISO or XISO from your own original retail Xbox disc, or an extracted disc folder that contains default.xbe and vc_53450030. Keep the original in a separate folder you control."
+        },
+        {
+          "title": "Run upstream setup on Windows",
+          "instruction": "Use NFL2K5-PC-Setup.exe from the linked v0.6.1-hotfix release on 64-bit Windows 10 or 11. Choose a folder you can write to and select your extracted disc folder or an ISO/XISO and separate extraction destination. Setup links the extracted game folder through original/disc. Skip optional mod installation for a base-game setup."
+        },
+        {
+          "title": "Start the installed game",
+          "instruction": "After setup, use the ESPN NFL 2K5 Native PC Start menu shortcut, or start NFL2K5.exe from its installation folder. Leave the linked Xbox game data in place."
+        }
+      ],
+      "warnings": [
+        "Keep a separate copy of your saves before changing releases or importing a save. PS2 save conversion is experimental.",
+        "The upstream build contains recompiled game code. Distribution permission for that code is unverified."
+      ],
+      "help_url": "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
+      "references": [
+        {
+          "title": "Keep the active player profile",
+          "instruction": "Preserve saves, mods and Music in your installation folder. Settings, caches and logs default to %LOCALAPPDATA%\\NFL2K5-PC. If you deliberately use portable.txt beside NFL2K5.exe, keep the settings in that writable installation folder too. Back up your files before changing the installation."
+        }
+      ]
+    }
+  }
+}
