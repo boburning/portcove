@@ -78,7 +78,8 @@ describe("DAT files", () => {
             {
               ...ready,
               state: "changed",
-              message: "This DAT file changed after you added it. Add it again to use the new version.",
+              message:
+                "This DAT file changed after you added it. Add it again to use the new version.",
             },
           ]}
         />,
