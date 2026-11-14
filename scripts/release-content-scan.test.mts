@@ -1116,9 +1116,10 @@ void test("release reads stop at the deadline and the rest of the targets wait f
 void test("a hosted release read times out within the deadline as an ordinary deferred failure", async (context) => {
   const signals: AbortSignal[] = [];
   context.mock.method(globalThis, "fetch", (_url: unknown, init?: RequestInit) => {
-    signals.push(init!.signal!);
+    assert.ok(init?.signal instanceof AbortSignal, "every release read carries a timeout signal");
+    signals.push(init.signal);
     return new Promise((_resolve, reject) =>
-      init!.signal!.addEventListener("abort", () => reject(init!.signal!.reason)),
+      init.signal!.addEventListener("abort", () => reject(init.signal!.reason)),
     );
   });
   const target = scanTargets(listings)[0]!;
@@ -1136,6 +1137,8 @@ void test("a hosted release read times out within the deadline as an ordinary de
     "deferred, not persistent",
   );
   assert.equal(signals.length, 1);
+  assert.equal(failure, signals[0]!.reason, "the read failed because its timeout fired");
+  assert.equal(failure.name, "TimeoutError");
   // Through the scan it is a deferred release-read failure while time remains.
   const outcome = await scan(
     [target],
@@ -1161,9 +1164,12 @@ void test("a hosted release read times out within the deadline as an ordinary de
 });
 
 void test("a hosted release read whose body stalls after the headers is cut by the same timeout", async (context) => {
+  const reasons: AbortSignal[] = [];
   // Real fetch aborts an unfinished body when its signal fires; the stream mirrors that.
   context.mock.method(globalThis, "fetch", async (_url: unknown, init?: RequestInit) => {
-    const signal = init!.signal!;
+    assert.ok(init?.signal instanceof AbortSignal, "the read carries a timeout signal");
+    const signal = init.signal;
+    reasons.push(signal);
     const body = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.enqueue(new TextEncoder().encode('[{"tag_name":'));
@@ -1179,22 +1185,29 @@ void test("a hosted release read whose body stalls after the headers is cut by t
       () => null,
       (error: unknown) => error,
     );
-  assert.ok(Date.now() - started < 5_000, "the stalled body does not outlast the deadline");
+  const elapsed = Date.now() - started;
+  assert.ok(
+    elapsed >= 40 && elapsed < 5_000,
+    "the body is cut at the deadline, not before or long after",
+  );
   assert.ok(
     failure instanceof Error && !(failure instanceof ScanError),
     "deferred, not persistent",
   );
+  assert.equal(reasons.length, 1);
+  assert.equal(failure, reasons[0]!.reason, "the body read failed because its timeout fired");
+  assert.equal(failure.name, "TimeoutError");
 });
 
 void test("after the deadline only downloads wait: reuse and remembered retries keep their facts", async () => {
-  const two = {
+  const three = {
     listings: ["kept", "retry", "fresh"].map((id) => ({
       id,
       project_url: `https://github.com/up/${id}`,
       download_asset_hints: { "linux-x86-64": [`${id}.zip`] },
     })),
   };
-  const targets = scanTargets(two);
+  const targets = scanTargets(three);
   let now = 0;
   const downloads: string[] = [];
   const deps: ScanDependencies = {
@@ -1250,6 +1263,8 @@ void test("after the deadline only downloads wait: reuse and remembered retries 
     late.report.unscanned.map(({ id, code }) => `${id}:${code}`),
     ["retry:unlistable", "fresh:time-budget"],
   );
+  // The retry kept its place in the rotation: it is still the least recently checked.
+  assert.deepEqual([...late.retries], [...first.retries]);
 });
 
 void test("two targets sharing an unlistable package re-check it once in a run", async () => {
