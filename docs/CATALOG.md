@@ -1932,6 +1932,88 @@ qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.
 
+### Generated reviewed package shapes (shadow)
+
+Issue #5359 generalizes the fingerprint into a Core-derived package shape for
+every managed portable route, without per-route authoring. Phase 1 only
+records a verdict; it refuses nothing, and the explicit fingerprint above stays
+the only package-layout refusal. The shape has six parts, each a sorted, bounded
+set of lowercase package-relative paths computed after wrapper look-through and
+declared-executable grants, before any adapter adds content:
+
+- `programs`: the fingerprint's program and script classifier, unchanged;
+- `top_directories`;
+- `persistent_parent_children`: child folders under the parent of each
+  declared persistent path, and under each persistent path the package ships as
+  a folder (catches a `mods/packages` to `mods/preloaded` move or a new
+  `saves/netplay` folder);
+- `persistent_overlap`: shipped files at or under a declared persistent path,
+  or matching a declared persistent file pattern (catches a shipped `input.ini`);
+- `config_files`: shipped `.ini`, `.cfg`, `.toml`, `.json` and `.xml` files at
+  any depth, so additions and removals both count;
+- `missing_persistent_parents`: parents of declared persistent paths the
+  package does not ship.
+
+Comparison is exact set equality per part. A part one side does not know is
+reported as unknown, never as a pass: an explicit fingerprint knows only
+programs and top-level directories, and an unresolved declared executable, or a
+declared persistent path or pattern that cannot be located relative to the
+package root, leaves the persistent parts unknown.
+
+The baseline is, in order: the generated table entry for the exact artifact,
+else the route's newest generated entry; the explicit fingerprint; the shape
+recorded by the active local installation (see the install manifest in
+[ARCHITECTURE](ARCHITECTURE.md#install-transaction)). The generated table,
+`crates/portcove-core/catalog/package-shapes.generated.json`, is embedded in
+Core and never hand-written. `node scripts/package-shape-baselines.mts` derives
+each entry from an artifact the catalog already marks as reviewed, a
+source-contract `applicability` row with an `artifact_sha256` or a hold's
+`reviewed_artifacts`, through `portcove catalog inspect-package-shape`, which
+uses Core extraction and executes nothing. Authors change only the review facts
+they already own; `--record` re-derives the entry. `--candidates` lists reviewed
+artifacts that have no entry yet, and downloading them is a separate, explicit
+refresh step. Each entry also records `derivation_inputs_sha256`, a digest of
+the catalog facts the derivation reads for that route and platform: the
+adapter, the platform's executable hints and runtime subdirectory, persistent
+paths and file patterns, install-root persistence (`launch_from_install_root`,
+`n64_runtime_at_executable_parent`), the external profile policy, managed
+shared preferences, declared-executable grants, Mac TAR.XZ platforms and the
+explicit fingerprint's macOS library filter. CI runs the offline `--check`:
+canonical bytes, the entries digest, Core's `SHAPE_VERSION`, and that every
+entry still names a managed portable route, one of its platforms, a reviewed
+catalog artifact with the same version and unchanged derivation inputs. Core's
+table-currency test checks the same digests and versions.
+
+When a catalog edit makes the table stale, run
+`node scripts/package-shape-baselines.mts --prune`; the failing `--check`
+names it. It is offline and needs no review: it drops entries whose route,
+platform or reviewed digest is gone or whose derivation inputs changed, adopts
+the catalog's version label and review source for a still-reviewed digest, and
+rewrites the canonical table and its digest. It never re-derives or edits a
+shape, so a dropped route only loses its baseline (`unknown`) until
+`--candidates` lists it for an explicit `--record` refresh. Nobody edits the
+table by hand.
+
+Entry order follows catalog review order, so the last entry per route and
+platform is the newest reviewed shape. Changing the derivation rules (the
+program classifier, the configuration extensions, a part or its anchoring)
+bumps `SHAPE_VERSION` in the same change; a versioned golden-shape Core test
+over a fixture fails on any such change until the version and the golden are
+updated together. After a bump Core ignores the table and recorded local shapes
+of the older version, and `--prune` empties the table until entries are
+re-derived.
+
+Known limits of the shadow phase: the table is checked against the embedded
+catalog, so a later signed definition delivery that changes a route's
+derivation inputs is not detected at run time and can show drift that is only
+a definition change; runtime behavior, such as files a release writes at first
+launch, is not part of a package shape; an exact-name classifier counts a
+renamed program as one removed and one added; and only the bootstrapped routes
+have a generated baseline, so the rest fall back to the explicit fingerprint,
+the local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
+for the six known-drift routes are in
+[release-drift-shadow-2026-11-14](qualification/release-drift-shadow-2026-11-14.md).
+
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.
 Fresh dynamic acquisition requires an opaque in-process resolver binding to the

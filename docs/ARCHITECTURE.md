@@ -3033,6 +3033,36 @@ warning.
 8. Atomically claim the vacant version path without replacement, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`. A late destination remains untouched and blocks recovery until the conflict is explicitly resolved. On Windows, a just-exited process, indexer, or scanner can briefly retain a handle that denies renaming its parent directory; publication waits up to two seconds only for the corresponding access, sharing, or lock errors while rechecking that staging still exists and the destination remains vacant. Persistent errors retain private staging and report the exact operation paths and operating-system code for recovery.
 9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
 
+Shadow release-drift verdict (#5359 phase 1). After extraction and the
+retained-contract package checks, at the existing reviewed-layout comparison
+point and before bundled runtimes, PS1 preparation or source materialization
+add content, `package_shape` derives the candidate's package shape and compares
+it with the generated reviewed table, the explicit `reviewed_package_layouts`
+fingerprint or the active installation's recorded shape
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict is
+`compatible`, `drifted` with bounded per-part changes, or `unknown` with a
+reason (`no_baseline`, `incomplete_comparison`, `observation_failed`). Every
+observation or baseline failure, including an unverifiable active manifest,
+becomes `unknown`; the shadow verdict never refuses or reorders an install. The
+manifest records it in the optional `package_shape` field with the shape, the
+derivation version and a provenance (`reviewed` for an exactly listed artifact,
+`inherited` when every compared part equals a reviewed or inherited baseline's,
+which says nothing about content outside those parts, else `unreviewed`). The
+field is additive, does not change the manifest schema version and grants
+nothing. Core stores it as untyped JSON and parses it only when it is read: a
+record with another derivation version, or with a part, status or reason this
+build does not know, reads as no record and never makes the manifest, its
+verification, launch checks or rollback fail. Manifest rewrites, such as an
+archive-data admission, carry the stored value unchanged. An active
+installation's recorded shape on the same platform is the local fallback
+baseline for the next install; its provenance travels with the verdict so
+enforcement can decline an unreviewed local baseline. Installations recorded
+before this field have no local shape. `portcove installation package-shape
+PORT` reads the recorded verdicts without a port lock and distinguishes no
+record, an unrecognized record and an unverifiable manifest;
+`portcove catalog inspect-package-shape` derives the same shape from verified
+archive bytes for the table generator.
+
 Launch-critical verification uses complete immutable-file verification when the
 authenticated manifest records a nested executable companion outside the selected
 executable's directory, including historical manifests that did not mark that

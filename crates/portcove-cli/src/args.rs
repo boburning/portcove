@@ -401,6 +401,11 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Show each installation's recorded package shape and shadow release-drift verdict.
+    PackageShape {
+        /// Catalog port ID whose installations should be shown.
+        port_id: String,
+    },
     /// Inspect retained local builds and the setup references protecting them from cleanup.
     Retained {
         /// Stable catalog port ID; retained builds are local, not a historical release list.
