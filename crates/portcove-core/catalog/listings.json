@@ -33720,8 +33720,8 @@
       "original_game_title": "Metal Gear Solid Mobile",
       "availability": "packages",
       "recommended_download_channel": "beta",
-      "setup_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
-      "release_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+      "setup_url": "https://github.com/LeithSilver/mgsm#readme",
+      "release_url": "https://github.com/LeithSilver/mgsm/releases",
       "manual_setup": {
         "steps": [
           {
@@ -33738,7 +33738,7 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+        "help_url": "https://github.com/LeithSilver/mgsm#readme",
         "references": [
           {
             "title": "Keep the Android app data",
