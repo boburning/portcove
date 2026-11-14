@@ -619,6 +619,7 @@ impl Catalog {
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
+            validate_accepted_uploaders(port)?;
             if port.release.grant_declared_executable
                 && (!matches!(
                     port.adapter,
@@ -1964,6 +1965,36 @@ fn is_safe_basename(value: &str) -> bool {
 
 /// A named portable marker is one plain file name that the port also declares persistent,
 /// because the engine keeps its own configuration in it.
+/// Reviewed release uploaders are GitHub account identities: unique, positive
+/// safe-integer IDs with the reviewed login, on a GitHub-provider route.
+fn validate_accepted_uploaders(port: &PortDefinition) -> Result<()> {
+    let accepted = &port.release.accepted_uploaders;
+    if accepted.is_empty() {
+        return Ok(());
+    }
+    let mut ids = HashSet::new();
+    let valid = port.release.provider == ReleaseSource::Github
+        && accepted.iter().all(|uploader| {
+            uploader.id > 0
+                && uploader.id <= 9_007_199_254_740_991
+                && ids.insert(uploader.id)
+                && !uploader.login.is_empty()
+                && uploader.login.len() <= 64
+                && uploader
+                    .login
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || b"-[]".contains(&byte))
+        });
+    if valid {
+        Ok(())
+    } else {
+        Err(PortcoveError::usage(format!(
+            "{} declares invalid accepted release uploaders",
+            port.id
+        )))
+    }
+}
+
 fn validate_portable_marker_file(port: &PortDefinition) -> Result<()> {
     let Some(name) = &port.portable_marker_file else {
         return Ok(());

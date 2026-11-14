@@ -166,6 +166,7 @@ mod tests {
                 grant_declared_executable: false,
                 direct,
                 user_prepared: BTreeMap::new(),
+                accepted_uploaders: Vec::new(),
             },
             bundled_runtime: BTreeMap::new(),
             source_profile: None,

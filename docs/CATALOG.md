@@ -1765,8 +1765,9 @@ valid selectors. Prefer stable discriminating fragments, including the actual pa
 variant. Preserve numeric ABI/engine-generation requirements where intentional.
 Test unchanged rules through the production provider for N, N+1 and a fresh
 installation after N+1, including competing variants, foreign architectures and
-successor-specific integrity evidence. Ordinary observed release changes do not
-add a mandatory maintainer review or full gameplay campaign. Changed setup,
+successor-specific integrity evidence. Ordinary observed release changes from a
+continuing uploader (below) do not add a mandatory maintainer review or full
+gameplay campaign. Changed setup,
 executable/data coordinates, ownership or package handling can require a reviewed
 rule change; existing transition and recovery guards still apply.
 
@@ -1824,6 +1825,53 @@ applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
 data. Exact-name matching means a route whose executable name carries a version
 needs a reviewed fingerprint update, which is the safe direction.
+
+A matching digest proves the bytes are what was uploaded, not who uploaded
+them. Ordinary GitHub selection therefore also checks uploader continuity, using
+the asset `uploader` and `created_at` and the repository `owner` from the same
+observation. After the asset is selected, and before any checksum request,
+download or selection caching, the selected asset continues the project's
+publishing identities when any of these holds:
+
+- it was uploaded before 2026-11-14T00:00:00Z, so existing releases keep their
+  behavior;
+- its uploader is the repository owner account;
+- its uploader is GitHub's Actions app account (`github-actions[bot]`, type
+  `Bot`, ID 41898282); a workflow's repository token can only upload to the
+  repository whose workflow ran;
+- its uploader also uploaded an asset of an observed release of this project
+  before that instant, which makes it an established uploader;
+- its numeric account ID is listed in the integration's reviewed
+  `release.accepted_uploaders`.
+
+Accounts are matched by numeric ID, so a renamed login still matches and a
+freed login taken by another account does not. The baseline instant is fixed:
+an upload after it never makes its uploader established, so a later release
+from the same new account stays held too. Established status comes from assets
+still present in the observed listing, within the provider's existing page
+bound. When a project has deleted every release uploaded before the baseline,
+that evidence is gone, and a later upload by an account other than the owner or
+the project's automation is held until a maintainer accepts it. A known uploader matching none of
+these, or an asset uploaded after the baseline that GitHub reports with no
+uploader account (`uploader: null`), is refused through the existing
+unsupported-acquisition surface with a player-facing reason. The refusal covers
+every provider resolution, including fresh Install, Update and update checks.
+It is not cached and changes nothing on disk; installed copies
+keep Play, backup, rollback and removal. A provider response without an
+`uploader` field does not cover uploaders, so its continuity is UNKNOWN: Core
+claims none and keeps the earlier behavior rather than treating missing optional
+evidence as a known mismatch. Exact curated records, direct manifests,
+preserved-location failover and player-chosen catalog downloads are not
+automatic progression and keep their own identity checks. GitLab release links
+and generic-package rows carry no per-file uploader, and a release author is not
+the file uploader, so GitLab selection remains unevaluated.
+
+To accept a new uploader, review the account and the held release on the
+canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`
+to the integration's `release.accepted_uploaders`. The field is valid only on
+GitHub-provider routes. Because the catalog is embedded, acceptance reaches
+players with the next application release. A selected independent definition
+may keep or remove accepted uploaders but cannot add one.
 
 The reusable managed TFE, GB shared-preferences and version-local credentials
 policies support reviewed GitHub package rules as well as exact direct manifests.

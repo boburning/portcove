@@ -2443,6 +2443,13 @@ export interface SourceEdition {
 }
 export interface ReleaseSpec {
   /**
+   * GitHub accounts a maintainer reviewed and accepted as uploaders of this
+   * project's release packages, in addition to the repository owner, the
+   * project's own Actions automation and its established uploaders. Matched by
+   * numeric account ID; the login records what was reviewed.
+   */
+  accepted_uploaders?: AcceptedUploader[];
+  /**
    * Native13: the package relies on in-archive file links, which extraction writes as
    * regular copies of the files they name.
    */
@@ -2501,6 +2508,14 @@ export interface ReleaseSpec {
     "windows-x86-64"?: UserPreparedRuntimeSpec;
   };
   [k: string]: unknown;
+}
+/**
+ * One reviewed GitHub release uploader. The numeric ID is stable across login
+ * renames; a freed login re-registered by another account does not match.
+ */
+export interface AcceptedUploader {
+  id: number;
+  login: string;
 }
 export interface CuratedAcquisitionRecord {
   acquisition_evidence: CuratedEvidenceReference;

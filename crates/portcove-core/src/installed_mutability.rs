@@ -275,6 +275,12 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         reviewed_package_layouts: _,
         presentation: _,
     } = port;
+    // Reviewed release uploaders gate only fresh acquisition, like the hold and
+    // package layouts above, so accepting one leaves installed identities intact.
+    let release = crate::ReleaseSpec {
+        accepted_uploaders: Vec::new(),
+        ..release.clone()
+    };
     let mut compatibility = serde_json::json!({
         "id": id,
         "channels": channels,
@@ -381,5 +387,17 @@ mod marker_identity_tests {
             .unwrap()
             .remove("windows_tracked_handoff");
         assert_eq!(with, without);
+    }
+
+    #[test]
+    fn accepted_release_uploaders_leave_the_retained_identity_unchanged() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("shipwright").unwrap().clone();
+        let without = operational_compatibility(&port);
+        port.release.accepted_uploaders = vec![crate::AcceptedUploader {
+            id: 9,
+            login: "reviewed".into(),
+        }];
+        assert_eq!(operational_compatibility(&port), without);
     }
 }
