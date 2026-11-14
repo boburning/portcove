@@ -129,65 +129,131 @@ fn digest(value: &str) -> bool {
             .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
-/// Bound on the structural predecessors considered for one policy.
-const MAX_ADDITIVE_PREDECESSORS: usize = 64;
+/// Staged-source reader capability that understands additive data-policy
+/// successors. Indexed definitions that append to a policy require it, so an
+/// older reader refuses the entry instead of holding existing installations.
+pub(crate) const ADDITIVE_DATA_POLICY_CAPABILITY: u32 = 33;
 
-/// Predecessor policies derived from the contract itself, nearest first.
+/// Shared paths are bounded at 64 and one must remain, so at most 63 files can
+/// be appended across a whole lineage.
+const MAX_APPENDED_PATHS: usize = 63;
+const MAX_ADOPTED_FILE_BYTES: u64 = 16 * 1024 * 1024;
+
+/// Lengths of the trailing runs that structurally separate `port` from each of
+/// its additive predecessors, nearest first. No definition is cloned.
 ///
 /// A successor may only append the same non-empty run of conventional files to
 /// the end of both `persistent_paths` and `shared_paths`. Removing that run
-/// must leave a valid policy whose other hashed coordinates (port, contract,
-/// progress paths, source identity and every existing path, in order) are
-/// unchanged. An appended path may not equal, contain or sit inside an existing
-/// persistent path, so no preserved object is reinterpreted. No catalog record
-/// names a predecessor; any other change is a different policy.
-pub(crate) fn additive_predecessors(port: &PortDefinition) -> Vec<PortDefinition> {
+/// must leave every other hashed coordinate (port, contract, progress paths,
+/// source identity and every existing path, in order) unchanged. An appended
+/// path is a file name with an extension, is not an executable companion on any
+/// declared platform, is not the verified original, and may not equal, contain
+/// or sit inside an existing persistent, shared or progress path, so no
+/// preserved object is reinterpreted. No catalog record names a predecessor.
+pub(crate) fn additive_runs(port: &PortDefinition) -> Vec<usize> {
     let Some(policy) = &port.archive_data_compatibility_v1 else {
         return Vec::new();
     };
     let persistent = port.persistent_paths.len();
     let shared = policy.shared_paths.len();
-    let mut result = Vec::new();
     let longest = shared
         .min(persistent)
         .saturating_sub(1)
-        .min(MAX_ADDITIVE_PREDECESSORS);
+        .min(MAX_APPENDED_PATHS);
+    let mut result = Vec::new();
     for count in 1..=longest {
         let added = &port.persistent_paths[persistent - count..];
+        let kept_persistent = &port.persistent_paths[..persistent - count];
+        let kept_shared = &policy.shared_paths[..shared - count];
         if added != &policy.shared_paths[shared - count..]
             || added.iter().any(|path| {
-                port.runtime_source_filename.as_deref() == Some(path.as_str())
+                !file_like(path)
+                    || port.platforms.iter().any(|platform| {
+                        crate::install::is_executable_companion_name(Path::new(path), *platform)
+                    })
+                    || port.runtime_source_filename.as_deref() == Some(path.as_str())
                     || policy
                         .build_specific_progress_paths
                         .iter()
-                        .any(|progress| overlaps(path, progress))
-                    || port.persistent_paths[..persistent - count]
-                        .iter()
+                        .chain(kept_persistent)
+                        .chain(kept_shared)
                         .any(|existing| overlaps(path, existing))
             })
         {
             // Every longer run contains this one, so none can be additive.
             break;
         }
-        let mut predecessor = port.clone();
-        predecessor.persistent_paths.truncate(persistent - count);
-        predecessor
-            .archive_data_compatibility_v1
-            .as_mut()
-            .expect("checked policy")
-            .shared_paths
-            .truncate(shared - count);
-        if validate_layout(&predecessor).is_ok() {
-            result.push(predecessor);
-        }
+        result.push(count);
     }
     result
+}
+
+fn file_like(path: &str) -> bool {
+    let path = Path::new(path);
+    path.extension().is_some_and(|e| !e.is_empty())
+        && path.file_stem().is_some_and(|s| !s.is_empty())
+}
+
+fn truncated(port: &PortDefinition, count: usize) -> PortDefinition {
+    let mut predecessor = port.clone();
+    predecessor
+        .persistent_paths
+        .truncate(port.persistent_paths.len() - count);
+    let policy = predecessor
+        .archive_data_compatibility_v1
+        .as_mut()
+        .expect("checked policy");
+    let shared = policy.shared_paths.len();
+    policy.shared_paths.truncate(shared - count);
+    predecessor
+}
+
+/// The policy hash of the predecessor `count` appended files away, computed
+/// from the same serialized coordinates as [`policy_sha256`] without a clone.
+fn predecessor_sha256(port: &PortDefinition, count: usize) -> Result<String> {
+    let policy = port
+        .archive_data_compatibility_v1
+        .as_ref()
+        .expect("checked policy");
+    let kept = crate::ArchiveDataCompatibilityV1 {
+        contract_id: policy.contract_id.clone(),
+        shared_paths: policy.shared_paths[..policy.shared_paths.len() - count].to_vec(),
+        build_specific_progress_paths: policy.build_specific_progress_paths.clone(),
+    };
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        &port.id,
+        Some(&kept),
+        &port.persistent_paths[..port.persistent_paths.len() - count],
+        &port.source_profile,
+        &port.runtime_source_filename,
+        &port.runtime_source_hashes,
+    ))?)))
+}
+
+/// Predecessor definitions, nearest first, each checked as a full layout.
+/// Production code uses the count-based helpers; this clones per predecessor.
+#[cfg(test)]
+pub(crate) fn additive_predecessors(port: &PortDefinition) -> Vec<PortDefinition> {
+    additive_runs(port)
+        .into_iter()
+        .map(|count| truncated(port, count))
+        .filter(|predecessor| validate_layout(predecessor).is_ok())
+        .collect()
 }
 
 fn overlaps(a: &str, b: &str) -> bool {
     let a = a.to_lowercase();
     let b = b.to_lowercase();
     Path::new(&a).starts_with(&b) || Path::new(&b).starts_with(&a)
+}
+
+fn run_for_policy(port: &PortDefinition, policy: &str) -> Result<Option<usize>> {
+    for count in additive_runs(port) {
+        if predecessor_sha256(port, count)? == policy {
+            return Ok(Some(count));
+        }
+    }
+    Ok(None)
 }
 
 /// The conventional files `successor` appends to `predecessor`, when it is a
@@ -202,15 +268,11 @@ pub(crate) fn added_paths(
     {
         return Ok(None);
     }
-    let expected = policy_sha256(predecessor)?;
-    for candidate in additive_predecessors(successor) {
-        if policy_sha256(&candidate)? == expected {
-            return Ok(Some(
-                successor.persistent_paths[candidate.persistent_paths.len()..].to_vec(),
-            ));
-        }
-    }
-    Ok(None)
+    Ok(
+        run_for_policy(successor, &policy_sha256(predecessor)?)?.map(|count| {
+            successor.persistent_paths[successor.persistent_paths.len() - count..].to_vec()
+        }),
+    )
 }
 
 /// Equal policies, or one an additive successor of the other.
@@ -242,12 +304,7 @@ pub(crate) fn lineage_member(
     if policy_sha256(port)? == policy {
         return Ok(Some(port.clone()));
     }
-    for candidate in additive_predecessors(port) {
-        if policy_sha256(&candidate)? == policy {
-            return Ok(Some(candidate));
-        }
-    }
-    Ok(None)
+    Ok(run_for_policy(port, policy)?.map(|count| truncated(port, count)))
 }
 
 /// The lineage member of `port` whose persistence scope is exactly `paths`.
@@ -258,15 +315,40 @@ pub(crate) fn lineage_member_with_paths(
     if port.persistent_paths == paths {
         return Some(port.clone());
     }
-    additive_predecessors(port)
+    additive_runs(port)
         .into_iter()
-        .find(|candidate| candidate.persistent_paths == paths)
+        .find(|count| {
+            port.persistent_paths.len() - count == paths.len()
+                && port.persistent_paths[..paths.len()] == *paths
+        })
+        .map(|count| truncated(port, count))
 }
 
 /// Whether an existing namespace or snapshot framing belongs to this policy or
 /// one of its structural predecessors.
 pub(crate) fn accepts_policy(port: &PortDefinition, policy: &str) -> Result<bool> {
-    Ok(lineage_member(port, policy)?.is_some())
+    if port.archive_data_compatibility_v1.is_none() {
+        return Ok(false);
+    }
+    Ok(policy_sha256(port)? == policy || run_for_policy(port, policy)?.is_some())
+}
+
+/// Appended files a snapshot framed by a strict predecessor policy does not
+/// cover. A restore keeps the current files at these paths when the snapshot
+/// lacks them, instead of deleting them.
+pub(crate) fn uncovered_added_paths(port: &PortDefinition, root: &Path) -> Result<Vec<String>> {
+    if port.archive_data_compatibility_v1.is_none() {
+        return Ok(Vec::new());
+    }
+    let Some(framing) = snapshot_policy(root)? else {
+        return Ok(Vec::new());
+    };
+    if framing == policy_sha256(port)? {
+        return Ok(Vec::new());
+    }
+    Ok(run_for_policy(port, &framing)?
+        .map(|count| port.persistent_paths[port.persistent_paths.len() - count..].to_vec())
+        .unwrap_or_default())
 }
 
 /// A successor keeps the namespace its predecessor established, so archive-
@@ -295,11 +377,32 @@ pub(crate) fn namespace(port: &PortDefinition, user_root: &Path) -> Result<PathB
     Ok(base.join(current))
 }
 
-/// Give a successor's appended conventional files their initial content from
-/// the active predecessor runtime. Canonical content already present (for
-/// example from an earlier successor before a rollback) is kept, and absent
-/// runtime files stay absent. Returns the adopted relative paths.
-pub(crate) fn adopt_added_paths(
+/// An ordinary regular file's digest, or none when absent. Anything else at
+/// an appended file coordinate holds for review.
+fn appended_file(root: &Path, relative: &str) -> Result<Option<String>> {
+    crate::persistence::require_exact_path(root, relative)?;
+    let path = root.join(relative);
+    crate::path::refuse_symlink_ancestors(&path)?;
+    let metadata = match fs::symlink_metadata(&path) {
+        Ok(value) => value,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(e.into()),
+    };
+    if !metadata.is_file() || metadata.len() > MAX_ADOPTED_FILE_BYTES {
+        return Err(held(
+            "a newly declared settings file is not an ordinary bounded file; preserve it and review the installation",
+        )
+        .detail("path", relative));
+    }
+    Ok(Some(
+        crate::external_runtime::hash_stable_regular(&path, MAX_ADOPTED_FILE_BYTES, &|| Ok(()))?.0,
+    ))
+}
+
+/// Read-only preflight for a successor's appended files. Returns the files the
+/// active predecessor runtime holds and canonical data lacks. When both hold a
+/// file with different bytes, the player must choose: that holds.
+pub(crate) fn require_adoptable(
     predecessor: &PortDefinition,
     successor: &PortDefinition,
     runtime: &Path,
@@ -308,34 +411,52 @@ pub(crate) fn adopt_added_paths(
     let Some(added) = added_paths(predecessor, successor)? else {
         return Ok(Vec::new());
     };
-    let mut adopted = Vec::new();
+    let mut adoptable = Vec::new();
     for relative in added {
-        crate::persistence::require_exact_path(runtime, &relative)?;
-        crate::persistence::require_exact_path(user, &relative)?;
-        let source = runtime.join(&relative);
-        let destination = user.join(&relative);
-        crate::path::refuse_symlink_ancestors(&source)?;
-        crate::path::refuse_symlink_ancestors(&destination)?;
-        if fs::symlink_metadata(&destination).is_ok() {
-            continue;
+        match (
+            appended_file(runtime, &relative)?,
+            appended_file(user, &relative)?,
+        ) {
+            (Some(active), Some(canonical)) if active != canonical => {
+                return Err(held(
+                    "the current version and saved data hold different copies of a newly declared settings file; keep the one you want and review the update again",
+                )
+                .detail("path", relative.as_str()));
+            }
+            (Some(_), None) => adoptable.push(relative),
+            _ => {}
         }
-        let metadata = match fs::symlink_metadata(&source) {
-            Ok(value) => value,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
-            Err(e) => return Err(e.into()),
-        };
-        if !metadata.is_file() {
+    }
+    Ok(adoptable)
+}
+
+/// After the successor copy's ordinary restore, give its appended files their
+/// initial content from the active predecessor runtime where canonical data
+/// has none. Only the successor copy is written: canonical data gains the files
+/// through the successor's own later collection, so an interrupted activation
+/// leaves no canonical change behind. Returns the adopted relative paths.
+pub(crate) fn adopt_added_paths(
+    predecessor: &PortDefinition,
+    successor: &PortDefinition,
+    runtime: &Path,
+    user: &Path,
+    target: &Path,
+) -> Result<Vec<String>> {
+    let adoptable = require_adoptable(predecessor, successor, runtime, user)?;
+    for relative in &adoptable {
+        if appended_file(target, relative)?.is_some() {
             return Err(held(
-                "a newly declared settings file in the active runtime is not an ordinary file; preserve it and review the installation",
-            ));
+                "the new version already holds a newly declared settings file that saved data lacks; preserve it and review the update",
+            )
+            .detail("path", relative.as_str()));
         }
+        let destination = target.join(relative);
         if let Some(parent) = destination.parent() {
             fs::create_dir_all(parent)?;
         }
-        crate::runtime_data_policy::copy_ordinary_file(&source, &destination)?;
-        adopted.push(relative);
+        crate::runtime_data_policy::copy_ordinary_file(&runtime.join(relative), &destination)?;
     }
-    Ok(adopted)
+    Ok(adoptable)
 }
 
 /// Coordinates and content framing only; never runtime or source admission.
@@ -838,6 +959,19 @@ mod tests {
         assert!(same_lineage(&next, &base)?);
         // A chain of successors still reaches every earlier policy.
         let third = successor(&next, &["access.ini"]);
+        // Every count-based run is a fully valid predecessor layout.
+        assert_eq!(additive_runs(&third), [1, 2, 3]);
+        assert_eq!(
+            additive_predecessors(&third)
+                .iter()
+                .map(|p| p.persistent_paths.len())
+                .collect::<Vec<_>>(),
+            [
+                next.persistent_paths.len(),
+                next.persistent_paths.len() - 1,
+                base.persistent_paths.len()
+            ]
+        );
         assert_eq!(added_paths(&base, &third)?.unwrap().len(), 3);
         assert_eq!(added_paths(&next, &third)?.unwrap(), ["access.ini"]);
         assert!(accepts_policy(&third, &policy_sha256(&base)?)?);
@@ -942,20 +1076,33 @@ mod tests {
             1,
             "no second namespace"
         );
+        // Adoption writes only the new copy, never canonical data, so an
+        // activation that fails afterwards leaves no stale canonical snapshot.
         assert_eq!(
-            adopt_added_paths(&base, &next, &old_runtime, &user)?,
+            adopt_added_paths(&base, &next, &old_runtime, &user, &new_runtime)?,
             ["sound.ini"]
         );
-        assert_eq!(fs::read(user.join("sound.ini"))?, b"runtime choice");
+        assert_eq!(fs::read(new_runtime.join("sound.ini"))?, b"runtime choice");
+        assert!(!user.join("sound.ini").exists());
+        // The new copy's collection later makes it canonical.
+        fs::write(user.join("sound.ini"), b"runtime choice")?;
         let mapped = entries(&next, Some(&"b".repeat(64)), &new_runtime, &user)?;
         assert!(
             mapped
                 .iter()
                 .any(|e| e.relative == "sound.ini" && e.canonical == user.join("sound.ini"))
         );
-        // Existing canonical content is never replaced by a later adoption.
+        // Equal copies need nothing; differing copies wait for the player.
+        let elsewhere = directory.path().join("elsewhere");
+        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere)?.is_empty());
         fs::write(old_runtime.join("sound.ini"), b"older runtime choice")?;
-        assert!(adopt_added_paths(&base, &next, &old_runtime, &user)?.is_empty());
+        let held = require_adoptable(&base, &next, &old_runtime, &user).unwrap_err();
+        assert_eq!(
+            held.details.get("path").map(String::as_str),
+            Some("sound.ini")
+        );
+        assert!(adopt_added_paths(&base, &next, &old_runtime, &user, &elsewhere).is_err());
+        assert!(!elsewhere.exists());
         assert_eq!(fs::read(user.join("sound.ini"))?, b"runtime choice");
         // Rollback: the predecessor maps only its own coordinates and still
         // finds its archive-bound objects; the successor's file stays canonical.
@@ -998,11 +1145,57 @@ mod tests {
         let user = directory.path().join("user");
         let base = port();
         let next = successor(&base, &["sound.ini"]);
+        let target = directory.path().join("target");
         fs::create_dir_all(runtime.join("sound.ini"))?;
-        assert!(adopt_added_paths(&base, &next, &runtime, &user).is_err());
+        assert!(adopt_added_paths(&base, &next, &runtime, &user, &target).is_err());
         assert!(!user.join("sound.ini").exists());
+        assert!(!target.exists());
         // Unrelated policies adopt nothing.
-        assert!(adopt_added_paths(&next, &base, &runtime, &user)?.is_empty());
+        assert!(adopt_added_paths(&next, &base, &runtime, &user, &target)?.is_empty());
+        Ok(())
+    }
+
+    #[test]
+    fn appended_paths_are_ordinary_non_executable_files() -> Result<()> {
+        let base = port();
+        for name in [
+            // Directories, or names that could become one, are not files.
+            "presets",
+            ".hidden",
+            // Executable companions on the declared Windows platform.
+            "override.dll",
+            "launcher.exe",
+            "setup.bat",
+            "hook.ps1",
+        ] {
+            let next = successor(&base, &[name]);
+            assert_eq!(added_paths(&base, &next)?, None, "{name}");
+            assert!(additive_runs(&next).is_empty(), "{name}");
+        }
+        // A file within a new directory is still an ordinary file.
+        let nested = successor(&base, &["presets/sound.ini"]);
+        assert!(added_paths(&base, &nested)?.is_some());
+        Ok(())
+    }
+
+    #[test]
+    fn predecessor_framed_snapshots_leave_appended_files_uncovered() -> Result<()> {
+        let directory = tempfile::tempdir()?;
+        let user = directory.path().join("user");
+        let base = port();
+        let next = successor(&base, &["sound.ini", "fixes.ini"]);
+        initialize(&base, &user)?;
+        assert_eq!(
+            uncovered_added_paths(&next, &user)?,
+            ["sound.ini", "fixes.ini"]
+        );
+        assert!(uncovered_added_paths(&base, &user)?.is_empty());
+        let fresh = directory.path().join("fresh");
+        initialize(&next, &fresh)?;
+        assert!(uncovered_added_paths(&next, &fresh)?.is_empty());
+        // A cheap count-based hash matches the full predecessor definition.
+        let count = additive_runs(&next)[1];
+        assert_eq!(predecessor_sha256(&next, count)?, policy_sha256(&base)?);
         Ok(())
     }
 

@@ -818,10 +818,10 @@ impl PortcoveService {
         self.collect_active_user_data_if_launched(&install.port_id)?;
         if let Some(active) = &active {
             self.require_portable_target_transition(active, install)?;
-            self.adopt_additive_archive_data(active, install)?;
         }
         self.restore_retained_user_data_to(install)?;
         if let Some(active) = &active {
+            self.adopt_additive_archive_data(active, install)?;
             self.require_portable_target_transition(active, install)?;
         }
         Installer::new(self.library.clone())?.verify_critical(install, &qualification)?;

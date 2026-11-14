@@ -1618,31 +1618,16 @@ mod retained_scope {
     }
 
     #[test]
-    fn another_disjoint_added_path_keeps_the_retained_scope() {
+    fn another_added_path_still_refuses() {
         let temporary = tempfile::tempdir().unwrap();
         let mut service =
             PortcoveService::new(Library::open(temporary.path().join("library")).unwrap()).unwrap();
         let narrow = catalog(&SPLIT);
         service.replace_catalog_for_test(narrow.clone());
-        let old = register(&service, &narrow, "v1", true);
-        let old_runtime = old.path.join("build-portcove");
-        write(&old_runtime, "saves/card1.mcd", b"saved before update");
-        write(&old_runtime, "mods/other/new.ini", b"runtime-only");
+        register(&service, &narrow, "v1", true);
         let mut paths = SPLIT.to_vec();
         paths.push("mods/other");
         service.replace_catalog_for_test(catalog(&paths));
-        // The generic rule: the copy keeps its retained scope; the new path
-        // stays with that copy until a version change crosses it.
-        let backup = service.create_backup(ID).unwrap();
-        assert!(backup.path.join("data/saves/card1.mcd").is_file());
-        assert!(!backup.path.join("data/mods/other").exists());
-        assert_eq!(
-            service
-                .persistence_contract_for_install(&old)
-                .unwrap()
-                .port
-                .persistent_paths,
-            narrow.port(ID).unwrap().persistent_paths
-        );
+        assert_scope_refusal(&service.create_backup(ID).unwrap_err());
     }
 }

@@ -18,8 +18,9 @@ no catalog field names it. The rule and its refusals are owned by
 `sonic1-bug-fixes.ini` and `sonic1-easy-access.ini` to both its persistent and
 shared paths. Every existing path, the contract ID and progress paths are
 unchanged, so existing installations keep their namespace. On their next update
-each file the active runtime already wrote becomes its initial canonical
-content. The v1.2.0 applicability row is appended after the existing rows with
+each file the active runtime already wrote is copied into the new version when
+saved data lacks it; differing copies hold for the player. Indexed delivery of
+this definition requires staged-source capability 33. The v1.2.0 applicability row is appended after the existing rows with
 one new `upstream_support` record.
 
 ## Artifact and tag evidence

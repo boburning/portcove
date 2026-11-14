@@ -41,38 +41,6 @@ pub(crate) fn only_adds_psx_texture_packs(
         })
 }
 
-/// A newer definition that only appends persistent paths to an installation
-/// whose synchronized scope is bound by its restore receipt (ready archives,
-/// managed PS1 and N64 executable-parent routes). The installation keeps its
-/// retained scope, so collection, launch restore, backup and restore behave as
-/// before the paths were declared. Widening happens only when a version
-/// change crosses it: the update's empty-path proof, or an additive archive
-/// data-policy successor. Installations created under the wider definition
-/// retain it. Removed, reordered-away or pattern changes are not covered.
-pub(crate) fn keeps_retained_scope(retained: &PortDefinition, current: &PortDefinition) -> bool {
-    only_adds_psx_texture_packs(retained, current)
-        || (requires_restore_receipt(retained)
-            && retained.persistent_file_patterns == current.persistent_file_patterns
-            && current.persistent_paths.len() > retained.persistent_paths.len()
-            && retained
-                .persistent_paths
-                .iter()
-                .all(|path| current.persistent_paths.contains(path))
-            && current
-                .persistent_paths
-                .iter()
-                .filter(|path| !retained.persistent_paths.contains(path))
-                .all(|added| {
-                    // A nested or enclosing path would re-scope preserved data.
-                    let added = added.to_lowercase();
-                    retained.persistent_paths.iter().all(|path| {
-                        let path = path.to_lowercase();
-                        !Path::new(&added).starts_with(&path)
-                            && !Path::new(&path).starts_with(&added)
-                    })
-                }))
-}
-
 /// Entries declaring a path older managed PS1 readers would treat as a
 /// changed scope for existing installations.
 pub(crate) fn requires_psx_retained_scope(port: &PortDefinition) -> bool {
@@ -195,7 +163,10 @@ pub(crate) fn legacy_direct_reader(port_id: &str) -> Option<(&'static str, &'sta
 }
 
 pub(crate) fn fresh_direct_data_guard_capability(port: &crate::PortDefinition) -> Option<u32> {
-    if crate::runtime_path_policy::has_staged_sibling_platforms(port) {
+    if !crate::archive_data::additive_runs(port).is_empty() {
+        // Older readers would hold every installation of the predecessor policy.
+        Some(crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY)
+    } else if crate::runtime_path_policy::has_staged_sibling_platforms(port) {
         Some(crate::runtime_path_policy::minimum_capability(port))
     } else if port.archive_data_transition_v1.is_some() {
         Some(28)

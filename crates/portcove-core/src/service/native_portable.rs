@@ -152,6 +152,9 @@ impl PortcoveService {
             to,
             retained_rollback.is_some() || staged_target.is_some(),
         )?;
+        if additive {
+            self.require_additive_adoption(from, &retained, to)?;
+        }
         if retained.adapter != AdapterKind::NativePortable
             && to.adapter != AdapterKind::NativePortable
             && !crate::persistence::ready_staged_archive(&retained)
@@ -288,9 +291,45 @@ impl PortcoveService {
         Ok(())
     }
 
-    /// Before a structural additive data-policy successor first restores data,
-    /// give its appended settings files their initial canonical content from
-    /// the active predecessor runtime. Canonical content is never replaced.
+    /// The active predecessor package must not ship or execute anything at a
+    /// successor's appended paths, and its runtime and canonical copies of an
+    /// appended file must not disagree. Read-only; a reverse switch is a no-op.
+    fn require_additive_adoption(
+        &self,
+        from: &InstallRecord,
+        retained: &PortDefinition,
+        to: &PortDefinition,
+    ) -> Result<()> {
+        let Some(added) = crate::archive_data::added_paths(retained, to)? else {
+            return Ok(());
+        };
+        let platform = Platform::current()?;
+        let installed = self.installed_port(from)?;
+        let original = InstallQualification::from_port(&installed, platform)?;
+        let mut expanded = installed.clone();
+        expanded.persistent_paths.extend(added.iter().cloned());
+        if let Some(policy) = expanded.archive_data_compatibility_v1.as_mut() {
+            policy.shared_paths.extend(added.iter().cloned());
+        }
+        let candidate = InstallQualification::from_port(&expanded, platform)?;
+        if !Installer::new(self.library.clone())?
+            .permits_additive_mutability(from, &original, &candidate)?
+        {
+            return Err(portable_data_change());
+        }
+        crate::archive_data::require_adoptable(
+            retained,
+            to,
+            &self.persistence_root(retained, &from.path)?,
+            &self.library.user_dir(&to.id),
+        )?;
+        Ok(())
+    }
+
+    /// After a structural additive data-policy successor's ordinary restore,
+    /// give its appended settings files their initial content from the active
+    /// predecessor runtime. Only the successor copy is written; canonical data
+    /// is never replaced and gains the files through later collection.
     pub(super) fn adopt_additive_archive_data(
         &self,
         active: &InstallRecord,
@@ -305,11 +344,13 @@ impl PortcoveService {
             return Ok(());
         }
         self.require_portable_runtime_unchanged(active)?;
+        self.require_additive_adoption(active, &from, &to)?;
         crate::archive_data::adopt_added_paths(
             &from,
             &to,
             &self.persistence_root(&from, &active.path)?,
             &self.library.user_dir(&to.id),
+            &self.persistence_root(&to, &target.path)?,
         )?;
         Ok(())
     }
@@ -412,7 +453,6 @@ impl PortcoveService {
             self.persistence_root(retained, &from.path)?,
             self.library.user_dir(&from.port_id),
         ];
-        let mut owned_by_target = None;
         if let Some(target) = target {
             let target_catalog = installer
                 .retained_catalog(target)?
@@ -424,44 +464,8 @@ impl PortcoveService {
             }
             self.persistence_contract_for_install(target)?;
             roots.push(self.persistence_root(target_port, &target.path)?);
-            // A wider retained copy whose own data restore completed already
-            // owns the added paths: canonical content there came from its
-            // scope (for example a file its runtime writes on every start).
-            if psx_mod_data::initialized(target)? {
-                let active = self
-                    .library
-                    .status(&target.port_id, target.channel)?
-                    .active
-                    .is_some_and(|active| active.id == target.id);
-                owned_by_target = Some((roots[roots.len() - 1].clone(), active));
-            }
         }
         self.require_direct_empty_expansion(retained, to, &roots)?;
-        if let Some((wide_runtime, wide_active)) = owned_by_target {
-            // Switching between the two retained copies, in either direction,
-            // never writes these paths into the narrower copy: its contract
-            // does not own them. Collection keeps the wider copy's files
-            // canonical, and the narrower runtime's own objects stay in place.
-            // Aliases and links still hold. The switch never lets an absent
-            // side replace a present one: a wider active copy must not mirror
-            // away canonical-only content, and a wider destination's own
-            // uncollected file must not be replaced by absent canonical data.
-            let canonical = self.library.user_dir(&from.port_id);
-            for path in added {
-                for root in &roots {
-                    crate::persistence::require_exact_path(root, path)
-                        .map_err(|_| portable_data_change().detail("path", path.as_str()))?;
-                }
-                let in_runtime = fs::symlink_metadata(wide_runtime.join(path)).is_ok();
-                let in_canonical = fs::symlink_metadata(canonical.join(path)).is_ok();
-                if (wide_active && in_canonical && !in_runtime)
-                    || (!wide_active && in_runtime && !in_canonical)
-                {
-                    return Err(portable_data_change().detail("path", path.as_str()));
-                }
-            }
-            return Ok(());
-        }
         for path in added {
             for root in &roots {
                 crate::persistence::require_absent_path(root, path).map_err(|error| {
@@ -4603,6 +4607,41 @@ mod tests {
         for path in added {
             fs::write(first.path.join(path), b"runtime-only settings").unwrap();
         }
+        if !added.is_empty() {
+            let successor = fixed.port(id).unwrap();
+            let canonical = library.user_dir(id).join(added[0]);
+            // Differing runtime and canonical copies wait for the player.
+            fs::write(&canonical, b"a different saved copy").unwrap();
+            let held = service
+                .require_portable_transition(&first, successor)
+                .unwrap_err();
+            assert_eq!(held.details.get("path").map(String::as_str), Some(added[0]));
+            fs::remove_file(&canonical).unwrap();
+            service
+                .require_portable_transition(&first, successor)
+                .unwrap();
+            // A path the predecessor package ships is never adopted.
+            let mut member = successor.clone();
+            member.persistent_paths.push("package.txt".into());
+            member
+                .archive_data_compatibility_v1
+                .as_mut()
+                .unwrap()
+                .shared_paths
+                .push("package.txt".into());
+            assert!(
+                crate::archive_data::added_paths(successor, &member)
+                    .unwrap()
+                    .is_some()
+            );
+            assert!(
+                service
+                    .require_portable_transition(&first, &member)
+                    .is_err(),
+                "a predecessor package member cannot become shared data"
+            );
+            assert!(!library.user_dir(id).join("package.txt").exists());
+        }
         let next_release = package("fixture-next", 2);
         let next_metadata = release_metadata(&next_release, 2, true);
         let mut held = next_metadata.clone();
@@ -4697,6 +4736,12 @@ mod tests {
                     fs::read(second.path.join(path)).unwrap(),
                     b"runtime-only settings"
                 );
+                // Activation writes only the new copy; canonical data gains
+                // the file through that copy's own collection.
+                assert!(!library.user_dir(id).join(path).exists());
+            }
+            service.collect_user_data(id).unwrap();
+            for path in added {
                 assert_eq!(
                     fs::read(library.user_dir(id).join(path)).unwrap(),
                     b"runtime-only settings"
@@ -4722,6 +4767,11 @@ mod tests {
                 b"player settings from N"
             );
             for path in added {
+                // The predecessor-era snapshot does not cover appended files.
+                assert_eq!(
+                    fs::read(second.path.join(path)).unwrap(),
+                    b"runtime-only settings"
+                );
                 fs::write(second.path.join(path), b"successor settings").unwrap();
             }
         }
@@ -5805,20 +5855,7 @@ mod tests {
             fs::read(backup.path.join("data/campaign.dat")).unwrap(),
             b"newly owned progress"
         );
-        // The wider copy wrote its added path, yet rollback to the narrower
-        // copy stays available: the narrower contract never receives that
-        // path, and the file stays canonical for the return.
-        assert_eq!(service.rollback(ID).unwrap().id, first.id);
-        assert!(!first.path.join("campaign.dat").exists());
-        assert_eq!(
-            fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
-            b"newly owned progress"
-        );
-        assert_eq!(service.rollback(ID).unwrap().id, staged.id);
-        assert_eq!(
-            fs::read(staged.path.join("campaign.dat")).unwrap(),
-            b"newly owned progress"
-        );
+        assert!(service.rollback(ID).is_err());
         assert_eq!(service.status(ID).unwrap().active.unwrap().id, staged.id);
         fs::write(staged.path.join("campaign.dat"), b"later runtime progress").unwrap();
         let preview = service
@@ -5870,20 +5907,13 @@ mod tests {
             fs::read(first.path.join(PSX_DATA_RECEIPT)).unwrap(),
             receipt
         );
-        // A future otherwise-identical catalog that only adds paths leaves the
-        // inactive copy on its retained scope instead of holding it.
+        // A future otherwise-identical catalog must hold inactive scope expansion.
         service.replace_catalog_for_test(ready_persistence_catalog(true, false));
-        service
+        let refusal = service
             .preview_backup_action(ID, &backup.id, crate::BackupAction::Restore)
-            .unwrap();
-        assert_eq!(
-            service
-                .persistence_contract_for_install(&first)
-                .unwrap()
-                .port
-                .persistent_paths,
-            service.installed_port(&first).unwrap().persistent_paths
-        );
+            .unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+        assert_eq!(refusal.details.get("install_id"), Some(&first.id));
         assert_eq!(
             fs::read(library.user_dir(ID).join("campaign.dat")).unwrap(),
             b"newly owned progress"
@@ -6190,12 +6220,6 @@ mod tests {
                 .unwrap();
                 let canonical_before = fs::read(library.user_dir(ID).join("settings.ini")).ok();
                 let before = crate::test_fixture::library_file_snapshot(&library);
-                // Both copies completed their own restore, so the wider copy owns
-                // the added path. Only a side that an absent copy would replace
-                // still holds: canonical-only data under the wider active copy,
-                // or a wider destination's own uncollected file.
-                let holds = (larger_active && location == "canonical")
-                    || (!larger_active && location == "target");
                 let held = service.status(ID).unwrap();
                 assert_eq!(
                     held.port_actions
@@ -6203,23 +6227,9 @@ mod tests {
                         .find(|a| a.action == PortAction::Rollback)
                         .unwrap()
                         .availability,
-                    if holds {
-                        PortActionAvailability::Held
-                    } else {
-                        PortActionAvailability::Allowed
-                    },
-                    "{larger_active} {location}"
+                    PortActionAvailability::Held
                 );
                 assert_eq!(crate::test_fixture::library_file_snapshot(&library), before);
-                if !holds {
-                    assert_eq!(service.rollback(ID).unwrap().id, target.id);
-                    assert_eq!(
-                        fs::read(root.join("campaign.dat")).unwrap(),
-                        b"preserve after preview",
-                        "{larger_active} {location}"
-                    );
-                    continue;
-                }
                 assert!(service.rollback(ID).is_err(), "{larger_active} {location}");
                 assert_eq!(
                     library
@@ -6245,9 +6255,8 @@ mod tests {
     #[tokio::test]
     async fn empty_retained_scope_rollback_preserves_authority_and_alias_refusals() {
         const ID: &str = "portable-fixture";
-        // An ordinary object at the added path of the wider copy is owned
-        // by it once both copies completed their restore; aliases still hold.
         for case in [
+            "empty-directory",
             "case-alias",
             "active-manifest",
             "target-manifest",
@@ -6287,6 +6296,7 @@ mod tests {
             )
             .unwrap();
             match case {
+                "empty-directory" => fs::create_dir(second.path.join("campaign.dat")).unwrap(),
                 "case-alias" => fs::write(second.path.join("Campaign.dat"), b"case alias").unwrap(),
                 "active-manifest" => {
                     fs::write(second.path.join(".portcove-manifest.json"), b"tampered").unwrap()

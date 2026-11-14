@@ -235,6 +235,10 @@ impl EngineTemplateCapability {
             contract_version: 32,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -1004,7 +1008,11 @@ mod tests {
             ("sonic-3-and-knuckles-recomp", 26),
             ("super-metroid-recomp", 29),
             ("mega-man-x2-snes-recomp", 28),
-            ("sonic-the-hedgehog-recomp", 28),
+            // Its v1.2.0 settings files append to the predecessor policy.
+            (
+                "sonic-the-hedgehog-recomp",
+                crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY,
+            ),
         ] {
             let bundle = crate::test_fixture::indexed_catalog_bundle(&catalog, id);
             let index = crate::DefinitionContentIndex::parse(&bundle.index).unwrap();
@@ -1080,7 +1088,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 33, 33)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 34, 34)).unwrap();
         assert!(!future.compatible);
     }
 

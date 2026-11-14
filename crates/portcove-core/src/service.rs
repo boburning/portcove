@@ -4027,9 +4027,11 @@ impl PortcoveService {
                     &previous.version,
                     false,
                 )?;
-                self.adopt_additive_archive_data(active, &previous)?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
+            if let Some(active) = &status.active {
+                self.adopt_additive_archive_data(active, &previous)?;
+            }
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&previous, &qualification)?;
             self.library.rollback(port_id)
@@ -6694,6 +6696,9 @@ impl PortcoveService {
                     &persistent_root,
                     &user_root,
                 )?;
+                // A snapshot framed by a predecessor policy does not cover its
+                // successor's appended files: keep the current ones.
+                let uncovered = crate::archive_data::uncovered_added_paths(port, &user_root)?;
                 crate::archive_data::initialize(port, &user_root)?;
                 for entry in entries {
                     let relative = entry.relative;
@@ -6717,7 +6722,7 @@ impl PortcoveService {
                         )?;
                     } else if source.exists() {
                         sync_entry(&source, &destination)?;
-                    } else if destination.exists() {
+                    } else if destination.exists() && !uncovered.contains(&relative) {
                         remove_managed_entry(&destination)?;
                     }
                 }
