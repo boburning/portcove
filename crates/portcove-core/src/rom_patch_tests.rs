@@ -366,6 +366,60 @@ fn cancellation_is_honoured() {
     assert!(cancelled.is_err());
 }
 
+/// Byte-literal patches assembled by hand from the format descriptions by a
+/// separate reviewer and checked with an independent decoder; they bypass the
+/// encoders above so encoder and decoder do not share an author.
+#[test]
+fn hand_assembled_golden_vectors_apply_exactly() {
+    let vector = |hex_text: &str| hex::decode(hex_text).unwrap();
+    // BPS: SourceRead 4, TargetRead "xx", SourceCopy +4 len 4, overlapping
+    // TargetCopy +8 len 4, SourceCopy -8 len 2.
+    assert_eq!(
+        run(
+            RomPatchFormat::Bps,
+            b"ABCDEFGH",
+            &vector("425053318890808c8578788e888f9086911cb6dc68a20618dad1db94ac"),
+        )
+        .unwrap(),
+        b"ABCDxxEFGHGHGHAB"
+    );
+    // UPS shrinking 8 -> 4 bytes, with XOR data past the new end.
+    assert_eq!(
+        run(
+            RomPatchFormat::Ups,
+            b"ABCDEFGH",
+            &vector("5550533188848120008145464748001cb6dc6845665ae348d9f8e7"),
+        )
+        .unwrap(),
+        b"AbCD"
+    );
+    // IPS: literal "XY" at 2, run of three 'Z' at 6, truncation to 8.
+    assert_eq!(
+        run(
+            RomPatchFormat::Ips,
+            b"abcdefgh",
+            &vector("504154434800000200025859000006000000035a454f46000008"),
+        )
+        .unwrap(),
+        b"abXYefZZ"
+    );
+    for (encoded, value) in [
+        ("ff", 127_u64),
+        ("0080", 128),
+        ("7fff", 16_511),
+        ("000080", 16_512),
+    ] {
+        let bytes = vector(encoded);
+        let mut cursor = Cursor {
+            bytes: &bytes,
+            position: 0,
+            end: bytes.len(),
+        };
+        assert_eq!(cursor.number().unwrap(), value, "{encoded}");
+        assert_eq!(cursor.position, bytes.len(), "{encoded}");
+    }
+}
+
 #[test]
 fn numbers_have_a_single_bounded_encoding() {
     for value in [0_u64, 1, 127, 128, 16_511, 16_512, 1 << 40] {

@@ -1201,7 +1201,9 @@ declares `runtime_rom_patch` without `rom-patch`, or `rom-patch` without a compl
 declaration, is invalid.
 
 Before every launch Core reads both members (each at most 64 MiB), checks each against its
-pinned SHA-256 and refuses a mismatch as a source problem. An existing output whose marker
+pinned SHA-256 and refuses a mismatch as a source problem. File-set registration accepts
+members up to 512 MiB, so a larger member can register but cannot be patched; pin only
+inputs within the 64 MiB limit. An existing output whose marker
 records the same inputs and whose bytes still match the pinned output is used as it is.
 Otherwise Core applies the patch in memory and checks the result against the pinned output
 before writing; only a match is written, to a private file beside the destination that then

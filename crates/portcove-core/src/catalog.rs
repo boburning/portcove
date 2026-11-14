@@ -2102,6 +2102,14 @@ pub(crate) fn rom_patch_fixture_document(
         .iter_mut()
         .find(|identity| identity.id == profile_id)
         .unwrap();
+    // The fixture rewrites exactly one representation; a catalog change that adds
+    // another must fail here rather than leave a member set the test did not mean.
+    assert_eq!(identity.variants.len(), 1, "{profile_id} variants");
+    assert_eq!(
+        identity.variants[0].representations.len(),
+        1,
+        "{profile_id} representations"
+    );
     for variant in &mut identity.variants {
         for representation in &mut variant.representations {
             representation.kind = crate::SourceRepresentationKind::FileSet {
