@@ -118,7 +118,11 @@ export function SteamGridDbSettings({ generation }: { generation: number }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string>();
   const [error, setError] = useState<string>();
-  const stored = useSyncExternalStore(subscribeListingCheck, () => listingCheck);
+  const stored = useSyncExternalStore(
+    subscribeListingCheck,
+    () => listingCheck,
+    () => listingCheck,
+  );
   const current = stored.generation === generation ? stored : undefined;
   const checking = current?.checking ?? false;
   const summary = current?.summary;
