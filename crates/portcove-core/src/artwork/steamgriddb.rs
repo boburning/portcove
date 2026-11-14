@@ -619,11 +619,11 @@ fn http_client() -> Result<&'static reqwest::blocking::Client> {
 
 #[path = "steamgriddb_check.rs"]
 mod check;
+pub(crate) use check::{CheckSubject, check_stored_listings, check_subjects};
 pub use check::{
     SteamGridDbCheckStop, SteamGridDbImageCheck, SteamGridDbListingReport,
     SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
 };
-pub(crate) use check::{check_stored_listings, check_subjects};
 
 #[cfg(test)]
 #[path = "steamgriddb_tests.rs"]

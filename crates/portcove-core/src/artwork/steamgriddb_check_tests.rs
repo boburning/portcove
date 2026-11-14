@@ -397,6 +397,7 @@ fn an_empty_library_needs_no_key_and_makes_no_request() {
             checked_at: 5,
             images: Vec::new(),
             stopped: None,
+            recorded: true,
         }
     );
 }

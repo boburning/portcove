@@ -902,6 +902,21 @@ impl Library {
         })
     }
 
+    /// One SteamGridDB listing check at a time across Portcove processes, so two
+    /// checks never double the request rate. Separate from the artwork lock.
+    pub(crate) fn try_lock_listing_check(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("artwork-listing-check.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "artwork-listing-check",
+                "SteamGridDB listing check",
+                "check-artwork-listings",
+            )?,
+        })
+    }
+
     pub(crate) fn try_lock_curated_cache(&self) -> Result<PortOperationGuard> {
         crate::path::refuse_symlink_ancestors(&self.locks_dir().join("curated-cache.lock"))?;
         Ok(PortOperationGuard {

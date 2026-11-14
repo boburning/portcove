@@ -90,6 +90,9 @@ pub struct SteamGridDbImageCheck {
     /// The `total` SteamGridDB reported for the image's listing, when one was read.
     pub listing_total: Option<u64>,
     pub source: SteamGridDbSourceStatus,
+    /// When a verified listing first lacked this image, as recorded in the
+    /// library after this check; cleared only by a later observed listing.
+    pub not_listed_since: Option<i64>,
 }
 
 /// Why a check ended before every group was read.
@@ -114,6 +117,9 @@ pub struct SteamGridDbListingReport {
     pub checked_at: i64,
     pub images: Vec<SteamGridDbImageCheck>,
     pub stopped: Option<SteamGridDbCheckStop>,
+    /// Whether these results were recorded in the library. A cancelled check, or
+    /// one whose recording failed, still reports what it saw.
+    pub recorded: bool,
 }
 
 /// One stored provider record and the decoded facts of its image.
@@ -166,6 +172,7 @@ pub(crate) fn check_stored_listings(
             checked_at: now,
             images: Vec::new(),
             stopped: None,
+            recorded: true,
         });
     }
     with_key(|key| {
@@ -449,9 +456,11 @@ pub(crate) fn check_listings(
                 attempted: attempted[index],
                 listing_total: totals[index],
                 source: sources[index],
+                not_listed_since: None,
             })
             .collect(),
         stopped,
+        recorded: false,
     }
 }
 

@@ -117,6 +117,237 @@ pub(crate) fn verify_landscape_slot(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Library migration 58: listing-check evidence beside each provider record. It
+/// is keyed exactly like the record, so grid and hero IDs never mix and an image
+/// stored under two assets has one row per asset, and it cascades with the record.
+pub(crate) const LISTING_CHECKS_TABLE: &str = "CREATE TABLE artwork_provider_listing_checks (
+            asset_sha256 TEXT NOT NULL,
+            provider TEXT NOT NULL CHECK(provider IN ('steamgriddb')),
+            asset_id INTEGER NOT NULL CHECK(asset_id>0),
+            revision INTEGER NOT NULL CHECK(revision>=1),
+            last_checked_at INTEGER NOT NULL CHECK(last_checked_at>0),
+            last_result TEXT NOT NULL CHECK(last_result IN ('listed','not_listed','unknown')),
+            unknown_reason TEXT CHECK(unknown_reason IS NULL OR length(unknown_reason) BETWEEN 1 AND 64),
+            not_listed_since INTEGER CHECK(not_listed_since IS NULL OR not_listed_since>0),
+            last_listing_total INTEGER CHECK(last_listing_total IS NULL OR last_listing_total>=0),
+            last_source_status TEXT CHECK(last_source_status IS NULL OR last_source_status IN ('served','gone','unknown')),
+            PRIMARY KEY(asset_sha256,provider,asset_id),
+            FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE,
+            CHECK((last_result='unknown')=(unknown_reason IS NOT NULL)),
+            CHECK(last_result!='listed' OR not_listed_since IS NULL)
+        )";
+
+pub(crate) fn migrate_listing_checks(transaction: &Transaction<'_>) -> Result<()> {
+    transaction.execute_batch(LISTING_CHECKS_TABLE)?;
+    Ok(())
+}
+
+/// Checked on migration and every later open: the stored definition keeps the
+/// composite key, the cascading foreign key and the state constraints.
+pub(crate) fn verify_listing_checks(connection: &Connection) -> Result<()> {
+    let definition: Option<String> = connection
+        .query_row(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='artwork_provider_listing_checks'",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?;
+    let required = [
+        "PRIMARY KEY(asset_sha256,provider,asset_id)",
+        "revision INTEGER NOT NULL CHECK(revision>=1)",
+        "FOREIGN KEY(asset_sha256,provider,asset_id) REFERENCES artwork_asset_providers(asset_sha256,provider,asset_id) ON DELETE CASCADE",
+        "CHECK((last_result='unknown')=(unknown_reason IS NOT NULL))",
+        "CHECK(last_result!='listed' OR not_listed_since IS NULL)",
+    ];
+    if !definition.is_some_and(|sql| required.iter().all(|clause| sql.contains(clause))) {
+        return Err(PortcoveError::state(
+            "artwork listing checks are missing or incomplete",
+        ));
+    }
+    Ok(())
+}
+
+/// One provider record's stored listing evidence.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ListingCheckRow {
+    pub(crate) asset_sha256: String,
+    pub(crate) asset_id: u64,
+    /// Incremented by every write, so a check can tell whether the row changed
+    /// while it ran, even within the same second.
+    pub(crate) revision: u64,
+    pub(crate) last_checked_at: i64,
+    /// `listed`, `not_listed` or `unknown`.
+    pub(crate) last_result: String,
+    pub(crate) unknown_reason: Option<String>,
+    /// The first verified absence, kept until an observed listing clears it.
+    pub(crate) not_listed_since: Option<i64>,
+    pub(crate) last_listing_total: Option<u64>,
+    /// `served`, `gone` or `unknown`; kept until a newer probe answers.
+    pub(crate) last_source_status: Option<String>,
+}
+
+const LISTING_CHECK_COLUMNS: &str = "asset_sha256,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status";
+
+fn listing_check_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<ListingCheckRow> {
+    Ok(ListingCheckRow {
+        asset_sha256: row.get(0)?,
+        asset_id: row.get(1)?,
+        revision: row.get(2)?,
+        last_checked_at: row.get(3)?,
+        last_result: row.get(4)?,
+        unknown_reason: row.get(5)?,
+        not_listed_since: row.get(6)?,
+        last_listing_total: row.get(7)?,
+        last_source_status: row.get(8)?,
+    })
+}
+
+/// Every stored listing check for one provider, bounded like the records.
+pub(crate) fn listing_checks(
+    connection: &Connection,
+    provider: crate::ArtworkProvider,
+) -> Result<Vec<ListingCheckRow>> {
+    let mut statement = connection.prepare(&format!(
+        "SELECT {LISTING_CHECK_COLUMNS} FROM artwork_provider_listing_checks WHERE provider=?1 ORDER BY asset_sha256,asset_id LIMIT {}",
+        MAX_PROVIDER_RECORDS + 1
+    ))?;
+    let rows = statement
+        .query_map([provider.key()], listing_check_row)?
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    if rows.len() > MAX_PROVIDER_RECORDS {
+        return Err(PortcoveError::verification(
+            "artwork listing checks exceed their limit",
+        ));
+    }
+    Ok(rows)
+}
+
+fn listing_check(
+    connection: &Connection,
+    provider: crate::ArtworkProvider,
+    asset_sha256: &str,
+    asset_id: u64,
+) -> Result<Option<ListingCheckRow>> {
+    Ok(connection
+        .query_row(
+            &format!(
+                "SELECT {LISTING_CHECK_COLUMNS} FROM artwork_provider_listing_checks WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3"
+            ),
+            params![asset_sha256, provider.key(), asset_id],
+            listing_check_row,
+        )
+        .optional()?)
+}
+
+/// Choosing an image re-resolves it from the provider's own listing, which is
+/// the strongest presence evidence there is: it clears any absence clock. Runs
+/// in the same transaction as the provider record it follows.
+pub(crate) fn mark_listed_on_choose(
+    connection: &Connection,
+    provider: crate::ArtworkProvider,
+    asset_sha256: &str,
+    asset_id: u64,
+    now: i64,
+) -> Result<()> {
+    connection.execute(
+        "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result)
+         VALUES (?1,?2,?3,1,?4,'listed')
+         ON CONFLICT(asset_sha256,provider,asset_id) DO UPDATE SET
+            revision=revision+1,
+            last_checked_at=excluded.last_checked_at,
+            last_result='listed',
+            unknown_reason=NULL,
+            not_listed_since=NULL",
+        params![asset_sha256, provider.key(), asset_id, now.max(1)],
+    )?;
+    Ok(())
+}
+
+/// What one check concluded for one record.
+pub(crate) struct ListingObservation<'a> {
+    /// `listed`, `not_listed` or `unknown`.
+    pub(crate) result: &'a str,
+    pub(crate) unknown_reason: Option<&'a str>,
+    pub(crate) total: Option<u64>,
+    /// `served`, `gone` or `unknown`; `None` when the source was not probed.
+    pub(crate) source: Option<&'a str>,
+}
+
+/// Applies one observation only if the record still exists and its stored
+/// `revision` is still the one the check started from, so a choice,
+/// removal or concurrent check in between is never overwritten. Returns whether
+/// it applied. An absence keeps its first time; only an observed listing clears it;
+/// an unknown result never sets or clears it.
+pub(crate) fn apply_listing_check(
+    connection: &Connection,
+    provider: crate::ArtworkProvider,
+    asset_sha256: &str,
+    asset_id: u64,
+    expected_revision: Option<u64>,
+    observation: &ListingObservation<'_>,
+    now: i64,
+) -> Result<bool> {
+    let record_exists: bool = connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM artwork_asset_providers WHERE asset_sha256=?1 AND provider=?2 AND asset_id=?3)",
+        params![asset_sha256, provider.key(), asset_id],
+        |row| row.get(0),
+    )?;
+    if !record_exists {
+        return Ok(false);
+    }
+    let current = listing_check(connection, provider, asset_sha256, asset_id)?;
+    if current.as_ref().map(|row| row.revision) != expected_revision {
+        return Ok(false);
+    }
+    let previous_absence = current.as_ref().and_then(|row| row.not_listed_since);
+    let not_listed_since = match observation.result {
+        "listed" => None,
+        "not_listed" => Some(previous_absence.unwrap_or(now)),
+        "unknown" => previous_absence,
+        _ => {
+            return Err(PortcoveError::state("unknown artwork listing result"));
+        }
+    };
+    let source = match observation.source {
+        Some(status @ ("served" | "gone")) => Some(status.to_owned()),
+        // An unanswered probe never erases an earlier answer.
+        Some("unknown") | None => current
+            .as_ref()
+            .and_then(|row| row.last_source_status.clone())
+            .or_else(|| observation.source.map(str::to_owned)),
+        Some(_) => {
+            return Err(PortcoveError::state("unknown artwork source status"));
+        }
+    };
+    let total = observation
+        .total
+        .or_else(|| current.as_ref().and_then(|row| row.last_listing_total));
+    connection.execute(
+        "INSERT INTO artwork_provider_listing_checks(asset_sha256,provider,asset_id,revision,last_checked_at,last_result,unknown_reason,not_listed_since,last_listing_total,last_source_status)
+         VALUES (?1,?2,?3,1,?4,?5,?6,?7,?8,?9)
+         ON CONFLICT(asset_sha256,provider,asset_id) DO UPDATE SET
+            revision=revision+1,
+            last_checked_at=excluded.last_checked_at,
+            last_result=excluded.last_result,
+            unknown_reason=excluded.unknown_reason,
+            not_listed_since=excluded.not_listed_since,
+            last_listing_total=excluded.last_listing_total,
+            last_source_status=excluded.last_source_status",
+        params![
+            asset_sha256,
+            provider.key(),
+            asset_id,
+            now.max(1),
+            observation.result,
+            observation.unknown_reason,
+            not_listed_since,
+            total,
+            source,
+        ],
+    )?;
+    Ok(true)
+}
+
 pub(crate) fn validate_hash(id: &str) -> Result<()> {
     if id.len() != 64
         || !id
@@ -379,6 +610,11 @@ pub(crate) fn provider_image_attributions(
 }
 
 pub(crate) fn remove_asset_provenance(connection: &Connection, id: &str) -> Result<()> {
+    // Explicit, so correctness never rests on the foreign-key pragma alone.
+    connection.execute(
+        "DELETE FROM artwork_provider_listing_checks WHERE asset_sha256=?1",
+        [id],
+    )?;
     connection.execute(
         "DELETE FROM artwork_asset_providers WHERE asset_sha256=?1",
         [id],

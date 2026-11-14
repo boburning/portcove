@@ -368,6 +368,7 @@ mod tests {
                 checked_at: 0,
                 images: Vec::new(),
                 stopped: None,
+                recorded: true,
             })
             .contains("no SteamGridDB images")
         );
@@ -387,6 +388,7 @@ mod tests {
             attempted,
             listing_total: Some(1),
             source,
+            not_listed_since: None,
         };
         let text = listing_report(&SteamGridDbListingReport {
             checked_at: 0,
@@ -421,6 +423,7 @@ mod tests {
             stopped: Some(SteamGridDbCheckStop::RateLimited {
                 retry_after_seconds: Some(30),
             }),
+            recorded: true,
         });
         assert!(text.contains("1  cover by Art"));
         assert!(!text.contains('\u{1b}'));
@@ -443,6 +446,7 @@ mod tests {
                     SteamGridDbSourceStatus::NotChecked,
                 )],
                 stopped,
+                recorded: true,
             })
         };
         assert!(one(None).starts_with("SteamGridDB listing check: 1 image\n"));
