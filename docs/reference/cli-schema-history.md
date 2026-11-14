@@ -24,6 +24,20 @@ renaming; this history does not deliver future commands or migrate stored data.
 | Manifest, retained-contract and library writer versions | Installed execution/persistence contracts and private durable state              | Older writers refuse unsupported upgraded state. External clients use public commands rather than interpreting SQLite or rewriting historical representations.                                                 |
 | Signed envelope format                                  | Optional signed catalog delivery                                                 | Implemented format 1 remains distinct from the successor definition-delivery work. Signature verification does not establish artifact, source or gameplay qualification.                                       |
 
+## Optional catalog-port fields
+
+Adding an optional field to a catalog port, or a new value to an existing
+materialization list, is recorded here and does not change `API_SCHEMA_VERSION`:
+an older reader sees the same document without the field, and nothing it relied
+on changes. A change that alters the meaning of an existing field, removes one,
+or makes one required is a catalog or API version change.
+
+The disc-image unpacking work added the optional port fields
+`runtime_disc_image` and `optional_game_source`, and the materializations
+`xdvdfs-directory` and `iso9660-directory`, under this rule. A reader that does
+not know them cannot offer or perform the unpacking, so a port that uses them
+is not usable there; the rest of the catalog is unaffected.
+
 ## Documented API changes
 
 API91 adds the report-only `artwork steamgriddb check-listings` command and its
