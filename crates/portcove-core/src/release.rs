@@ -3349,6 +3349,7 @@ mod tests {
             platform: Platform::WindowsX86_64,
             rolling_tag: None,
             asset_hints: Vec::new(),
+            acquisition_policy: None,
             accepted_uploaders: Vec::new(),
         };
         provider
@@ -3378,6 +3379,7 @@ mod tests {
                         platform: Platform::WindowsX86_64,
                         rolling_tag: None,
                         asset_hints: Vec::new(),
+                        acquisition_policy: None,
                         accepted_uploaders: Vec::new(),
                     },
                     release.clone(),
