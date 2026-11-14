@@ -780,8 +780,12 @@ spacing, a three-minute deadline and a cancel hook checked before every request.
 
 SQLite schema 58 records the evidence in `artwork_provider_listing_checks`, keyed
 exactly like `artwork_asset_providers` with a cascading composite foreign key, a
-per-row revision and state constraints; removing an asset also deletes its rows
-explicitly. Attempted results are applied in one immediate transaction under a
+revision taken from a one-row sequence (so no revision is ever reused) and state
+constraints; removing an asset also deletes its rows explicitly. Hosts can run the
+check in three phases: prepare (single-flight lock and snapshot), the network check,
+which holds no library connection or lease, and record. Desktop holds a service only
+to prepare and to record, so a library switch, move or import never waits for the
+network phase; the check then stops before its next request and reports unrecorded. Attempted results are applied in one immediate transaction under a
 briefly retried artwork lock, each only if the row's revision is unchanged since the
 snapshot, so a concurrent choice or removal always wins. Choosing an image marks it
 listed in the same transaction as its provider record. `not_listed_since` keeps the
