@@ -68,7 +68,10 @@ the workflow-shape test in `scripts/app-release.test.mts` refuses any workflow
 except `app-release-build.yml` that selects `release` or `release-stable`, any
 caller of `app-release-build.yml` except `app-release.yml` and
 `nightly-preview.yml`, and any external reusable workflow. It also requires the
-signing job to restore no package cache.
+signing job to restore no package cache. Both callers pass `secrets: inherit`,
+because GitHub gives a called workflow its environment's secrets only that way.
+The shared build references only the two signing secrets, in its signing step,
+so the repository's other secrets never reach the build.
 Rulesets let only the owner create `v*` tags, and no one can move or delete one.
 Anyone with write access can create a `nightly-*` tag, but such a tag grants no
 key access. Only the owner can move or delete one, and only a `nightly-*` tag
