@@ -55,6 +55,20 @@
     "channels": ["stable"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
+    "managed_acquisition_hold": {
+      "reason": "Super Metroid Recompiled installs and updates are paused. Its newest version can restart the game in a new window that Portcove can't follow, so saves made there could be missed. Your installed copy, saves and settings stay as they are, and you can keep playing it.",
+      "activation_reason": "This prepared Super Metroid Recompiled version hasn't been checked for restarting the game in a new window. Keep playing your current version.",
+      "reviewed_artifacts": [
+        {
+          "version": "v0.4.2",
+          "sha256": "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531"
+        },
+        {
+          "version": "v0.4.5",
+          "sha256": "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314"
+        }
+      ]
+    },
     "automated_tested_platforms": [],
     "manually_validated_platforms": [],
     "release": {

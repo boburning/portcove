@@ -3117,7 +3117,7 @@ mod tests {
     }
 
     #[test]
-    fn mstan_snes_routes_append_newest_bindings_after_reviewed_ones() {
+    fn mstan_snes_bindings_add_only_super_metroid_v0_4_5_under_its_hold() {
         let catalog = Catalog::embedded().unwrap();
         let sources = catalog.source_catalog().unwrap();
         let bindings = |id: &str| {
@@ -3130,78 +3130,52 @@ mod tests {
                 .iter()
                 .map(|binding| {
                     (
-                        binding.upstream_ref.clone(),
-                        binding.artifact_sha256.clone().unwrap(),
+                        binding.upstream_ref.as_str(),
+                        binding.artifact_sha256.as_deref().unwrap(),
                     )
                 })
                 .collect::<Vec<_>>()
         };
-        let pairs = |rows: &[(&str, &str)]| {
-            rows.iter()
-                .map(|(tag, sha)| ((*tag).to_owned(), (*sha).to_owned()))
-                .collect::<Vec<_>>()
-        };
-        // The newer packages moved the mod root to mods/preloaded. The old
-        // selection pair stays declared so installations from the reviewed
-        // releases keep their data; the new pair is an empty expansion.
-        for (id, contract, rows) in [
+        // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
+        // mod selection to mods/preloaded. Adding that path to an installed
+        // receipt scope is not yet a supported transition, so both routes keep
+        // their reviewed binding and persistence until that rule exists.
+        for (id, contract, row) in [
             (
                 "super-mario-world-recomp",
                 "super-mario-world-recomp-game-source",
-                [
-                    (
-                        "v0.12.0",
-                        "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-                    ),
-                    (
-                        "v0.15.9",
-                        "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
-                    ),
-                ],
+                (
+                    "v0.12.0",
+                    "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                ),
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
-                [
-                    (
-                        "v0.6.1",
-                        "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-                    ),
-                    (
-                        "v0.6.6",
-                        "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
-                    ),
-                ],
+                (
+                    "v0.6.1",
+                    "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                ),
             ),
         ] {
             let port = catalog.port(id).unwrap();
-            for path in [
-                "mods/state.toml",
-                "mods/state.toml.tmp",
-                "mods/preloaded/state.toml",
-                "mods/preloaded/state.toml.tmp",
-            ] {
-                assert!(
-                    port.persistent_paths.iter().any(|p| p == path),
-                    "{id}: {path}"
-                );
-            }
-            assert!(port.archive_data_compatibility_v1.is_none(), "{id}");
-            assert_eq!(bindings(contract), pairs(&rows), "{id}");
+            assert!(
+                !port
+                    .persistent_paths
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded")),
+                "{id}"
+            );
+            assert!(port.managed_acquisition_hold.is_none(), "{id}");
+            assert_eq!(bindings(contract), [row], "{id}");
         }
-        // Super Metroid v0.4.5 keeps the v0.4.2 writer set, so its partitioned
-        // data policy is unchanged and only the exact Windows package is added.
+        // Super Metroid v0.4.5 keeps the v0.4.2 writer set and is appended after
+        // the reviewed packages; its partitioned data policy is unchanged.
         let metroid = catalog.port("super-metroid-recomp").unwrap();
         assert!(metroid.archive_data_compatibility_v1.is_some());
-        assert!(
-            !metroid
-                .persistent_paths
-                .iter()
-                .any(|p| p == "mods/state.toml")
-        );
         assert_eq!(
             bindings("super-metroid-recomp-game-source"),
-            pairs(&[
+            [
                 (
                     "v0.3.12",
                     "2b864f287e971f4ed8fa4205b69927ab43ecce5b1a4e79d08a8bd7530c3d87c9",
@@ -3214,8 +3188,30 @@ mod tests {
                     "v0.4.5",
                     "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
                 ),
-            ])
+            ]
         );
+        // v0.4.6 relaunches the game in an untracked successor process, so the
+        // route is held and only the reviewed Windows packages may activate.
+        let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(
+            hold.reviewed_artifacts
+                .iter()
+                .map(|artifact| (artifact.version.as_str(), artifact.sha256.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "v0.4.2",
+                    "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+                ),
+                (
+                    "v0.4.5",
+                    "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+                ),
+            ]
+        );
+        assert!(!hold.reviewed_artifacts.iter().any(|artifact| {
+            artifact.sha256 == "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+        }));
     }
 
     #[test]

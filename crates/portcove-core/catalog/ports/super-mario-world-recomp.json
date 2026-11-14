@@ -76,9 +76,7 @@
       "rom.cfg",
       "saves",
       "mods/state.toml",
-      "mods/state.toml.tmp",
-      "mods/preloaded/state.toml",
-      "mods/preloaded/state.toml.tmp"
+      "mods/state.toml.tmp"
     ],
     "runtime_mutable_paths": ["last_run_report.json", ".snesrecomp_write_probe"]
   }

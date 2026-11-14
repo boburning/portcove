@@ -334,6 +334,70 @@ mod tests {
         assert!(refusal.message.contains("unreviewed package"));
     }
 
+    #[test]
+    fn super_metroid_hold_withdraws_acquisition_and_unreviewed_v0_4_6_activation() {
+        // v0.4.6's "Quit to launcher" restarts the game in a successor process
+        // the route does not track. The selector would offer it, so the route
+        // is held before provider contact; reviewed staged packages still activate.
+        let catalog = crate::Catalog::embedded().unwrap();
+        let id = "super-metroid-recomp";
+        let refusal = require_acquisition_available(&catalog, id).unwrap_err();
+        assert_eq!(refusal.code, crate::ErrorCode::Unsupported);
+        assert!(refusal.message.contains("can't follow"));
+        assert!(hold_withdraws(crate::PortAction::Install));
+        assert!(hold_withdraws(crate::PortAction::Update));
+        assert!(!hold_withdraws(crate::PortAction::Launch));
+        assert!(!hold_withdraws(crate::PortAction::BackupCreate));
+
+        let staged = |version: &str, sha256: &str| crate::InstallRecord {
+            id: "staged".into(),
+            port_id: id.into(),
+            version: version.into(),
+            path: std::path::PathBuf::from("staged"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity {
+                asset_name: format!("supermetroid-{}-windows-x64.zip", &version[1..]),
+                sha256: sha256.into(),
+                size: 1,
+            },
+            manifest_sha256: "a".repeat(64),
+            selected_executable: "SuperMetroidSNESRecomp.exe".into(),
+            runtime: None,
+        };
+        for (version, sha256) in [
+            (
+                "v0.4.2",
+                "72b7c179b855fba9404eec07abdbacefaffa4c67898f5c5232f0b1444b73d531",
+            ),
+            (
+                "v0.4.5",
+                "337c1daa92bc74b6f7dcd881366d9791b8d7bb0710b1c945f5b88ee07d20a314",
+            ),
+        ] {
+            assert!(
+                require_managed_activation_available(&catalog, &staged(version, sha256)).is_ok(),
+                "{version}"
+            );
+        }
+        let refusal = require_managed_activation_available(
+            &catalog,
+            &staged(
+                "v0.4.6",
+                "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429",
+            ),
+        )
+        .unwrap_err();
+        assert!(refusal.message.contains("new window"));
+        // A reviewed tag carrying other bytes is not a reviewed package.
+        assert!(
+            require_managed_activation_available(&catalog, &staged("v0.4.5", &"c".repeat(64)))
+                .is_err()
+        );
+    }
+
     const PORTS: [&str; 3] = [
         "the-force-engine-dark-forces",
         "resident-evil-gaiden-recomp",
