@@ -1729,6 +1729,7 @@ export interface UpstreamActivity {
   /**
    * The GitHub `owner/name` repository these facts describe. A port whose
    * catalog provider or repository differs no longer owns this observation.
+   * Empty (an observation without a recorded repository) describes no port.
    */
   repository: string;
   [k: string]: unknown;
