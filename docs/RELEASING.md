@@ -7,27 +7,34 @@ on 2026-11-13. It replaces the unattended release engine described in the
 sections below, which are retained only until the cleanup PR removes them.
 Releases do not depend on AI review.
 
-**A `v*` tag on protected `main` is the release decision.**
-[`app-release.yml`](../.github/workflows/app-release.yml) then:
+**A `v*` tag on protected `main` is the release decision.** Only the owner, or
+an agent acting through the owner's account, can create `v*` tags.
+[`app-release.yml`](../.github/workflows/app-release.yml) classifies the tag and
+confirms that the commit is on `main` and that its `CI` run succeeded. It then
+calls the shared jobs in
+[`app-release-build.yml`](../.github/workflows/app-release-build.yml), which:
 
-1. Classifies the tag and confirms that the commit is on `main` and that its
-   `CI` run succeeded.
-2. Stamps the version, then builds and signs the Windows NSIS installer and CLI
+1. Refuse inputs that disagree with the version's channel, tag or signing
+   environment.
+2. Stamp the version, then build and sign the Windows NSIS installer and CLI
    ZIP, the Linux AppImage, and the universal macOS app and DMG. Signing uses the
    Tauri updater key. macOS builds are ad-hoc signed.
-3. Publishes an immutable GitHub Release with every asset and `SHA256SUMS`.
-4. Writes `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
+3. Publish an immutable GitHub Release with every asset and `SHA256SUMS`.
+4. Write `latest.json` to `updates/<channel>/latest.json` on the `gh-pages`
    branch, which GitHub Pages serves. Older feeds are never overwritten by a
    lower version.
 
-| Tag                | Channel          | Feeds updated         | Approval                   |
-| ------------------ | ---------------- | --------------------- | -------------------------- |
-| `vX.Y.Z-preview.N` | Preview (opt-in) | preview               | none                       |
-| `v0.Y.Z`           | Beta (default)   | beta, preview         | none                       |
-| `v1.Y.Z` and later | Stable           | stable, beta, preview | owner, on `release-stable` |
+| Tag                       | Channel          | Feeds updated         | Approval                   |
+| ------------------------- | ---------------- | --------------------- | -------------------------- |
+| `vX.Y.Z-preview.N`        | Preview (opt-in) | preview               | none                       |
+| `nightly-X.Y.Z-preview.N` | Preview (opt-in) | preview               | none; built from `main`    |
+| `v0.Y.Z`                  | Beta (default)   | beta, preview         | none                       |
+| `v1.Y.Z` and later        | Stable           | stable, beta, preview | owner, on `release-stable` |
 
 Previews are pre-releases of the _next_ version, for example
 `0.2.0-preview.1`. That keeps them above every earlier release in SemVer order.
+`v*` and `nightly-*` tags name versions in the same sequence. Every new release
+must be newer than both, so `0.1.0` can follow `nightly-0.1.0-preview.3`.
 
 **To release**, from a clean checkout of the current `origin/main`:
 
@@ -37,11 +44,12 @@ PORTCOVE_RELEASE_NOTES_FILE=notes.md just release 0.1.1
 
 The command refuses in these cases: the checkout is not exactly `origin/main`,
 there are uncommitted changes, the version is not greater than every existing
-`v*` tag, or `CI` has not succeeded on that commit. If none apply, it pushes an
-annotated tag whose message becomes the release notes. An agent asked to
-"review and release X.Y.Z" reviews the changes since the last tag, writes the
-notes, and runs the same command. The owner's request is the authorization.
-Only Stable waits for the owner's approval on the `release-stable` environment.
+`v*` and `nightly-*` tag, or `CI` has not succeeded on that commit. If none
+apply, it pushes an annotated tag whose message becomes the release notes. An
+agent asked to "review and release X.Y.Z" reviews the changes since the last
+tag, writes the notes, and runs the same command. The owner's request is the
+authorization. Only Stable waits for the owner's approval on the
+`release-stable` environment.
 
 **Before calling a Beta release supported** on a platform, record its install
 evidence, an installed update from the previous version, and preserved saves on
@@ -50,20 +58,82 @@ physical first launch through System Settings → Privacy & Security → Open An
 Windows users see SmartScreen's "More info → Run anyway" step because the
 installers have no Authenticode signature yet.
 
-**What the Stable approval protects.** Both environments hold the same updater
-key, because installed clients trust exactly one key. Rulesets let only the owner
-create Beta and Stable `v*` tags. Any repository writer, including GitHub Actions
-for nightly previews, can create `v*-preview.*` tags. No one can move or delete
-a `v*` tag.
-The `release-stable` approval therefore guards Stable against anything that is
+**Who can reach the updater key.** Both environments hold the same updater key,
+because installed clients trust exactly one key. A run on a tag executes the
+workflow file at the tagged commit, so the environments admit only refs whose
+code is reviewed or owner-chosen. The `release` environment admits `v*` tags and
+`main`. `release-stable` admits `v*` tags and also needs the owner's approval.
+The `release` environment admits a run on `main` whatever event started it. So
+the workflow-shape test in `scripts/app-release.test.mts` refuses any workflow
+except `app-release-build.yml` that selects `release` or `release-stable`, any
+caller of `app-release-build.yml` except `app-release.yml` and
+`nightly-preview.yml`, and any external reusable workflow. It also requires the
+signing job to restore no package cache.
+Rulesets let only the owner create `v*` tags, and no one can move or delete one.
+Anyone with write access can create a `nightly-*` tag, but such a tag grants no
+key access. Only the owner can move or delete one, and only a `nightly-*` tag
+that names a preview version counts as an existing version, so a stray
+`nightly-9.9.9` cannot block releases. The `release-stable` approval guards Stable against anything that is
 not the owner or acting as the owner. It is not a boundary against the owner's
 own account, which agents use.
 
-**First release.** Tags cannot be deleted. Tag `v0.1.0-preview.1` first. That
-confirms every build, signing, asset-name and feed step before `0.1.0` itself
-is used. If a publish step fails after the GitHub Release exists, re-run the
-failed jobs. The publish job continues only when the release's asset set is
-identical.
+**First release.** Tags cannot be deleted. Tag `v0.1.0-preview.1` first, or let
+the first nightly publish `nightly-0.1.0-preview.1`. Either confirms every build,
+signing, asset-name and feed step before `0.1.0` itself is used. If a publish
+step fails after the GitHub Release exists, re-run the failed jobs. The publish
+job continues only when the release's asset set is identical.
+
+**Nightly previews.** [`nightly-preview.yml`](../.github/workflows/nightly-preview.yml)
+runs daily at 05:37 UTC on `main` and can be started by hand on `main`. It does
+nothing when the `main` commit already carries a `v*` or `nightly-*` tag, or its
+`CI` run has not succeeded. Otherwise it pushes one annotated
+`nightly-X.Y.Z-preview.N` tag at that commit with `GITHUB_TOKEN`. Then it builds,
+signs and publishes exactly that commit through the shared jobs, in the
+`release` environment, which admits the run because its ref is `main`. The
+release and feed version is `X.Y.Z-preview.N`, and asset names carry only the
+version.
+
+- **Version:** a pre-release of the patch after the newest release, or of the
+  `Cargo.toml` workspace version when that is higher or nothing has been
+  released. N is one more than the highest existing `v*` or `nightly-*` preview
+  of that version. `node scripts/app-release.mts next-preview` prints the
+  version the nightly would use.
+- **Notes:** the tag message lists the commits since the previous `v*` or
+  `nightly-*` tag. At signs are replaced so that subjects cannot mention anyone.
+- **Tag integrity:** the publish job refuses a `nightly-*` tag that no longer
+  points at the built commit. Publishing the immutable release locks the tag.
+  Right before creating any release, the publish job refuses if another `v*` or
+  `nightly-*` tag on the remote already names the same version, for example an
+  owner tag pushed while a nightly was building.
+- **Failures:** if a build or publish job fails, re-run the failed jobs. A full
+  re-run skips the already tagged commit, and the next nightly with new commits
+  takes the next N.
+
+**Withdrawing a release.** The owner runs
+[`withdraw-release.yml`](../.github/workflows/withdraw-release.yml) from `main`
+with a `version` such as `0.1.1` and an optional `replacement_note`. The job runs
+only when the owner both started and re-ran it (`github.actor_id` and
+`github.triggering_actor`). This check is a process guard, not a security
+boundary. Repository writers can already edit releases and push `gh-pages`, and
+they could run a changed copy of the workflow from a branch. The workflow:
+
+1. Requires a published release of that version, tagged `v<version>` or
+   `nightly-<version>`.
+2. Adds the version to `updates/withdrawn.json` on `gh-pages`.
+3. Repoints each feed that serves a withdrawn version to the newest published,
+   non-withdrawn release that channel accepts (Preview: any; Beta: any
+   non-pre-release; Stable: 1.0.0 and later). A candidate without all four
+   updater signatures is skipped for the next older one. If no release
+   qualifies, it deletes that feed.
+4. Prefixes the release notes with "⚠️ Withdrawn — do not install." and the
+   note. If the release was Latest, the newest non-withdrawn Beta or Stable
+   release becomes Latest.
+
+Tags, releases and assets are never deleted. The shared publish job never writes
+a feed for a withdrawn version, so re-running a release cannot bring the version
+back. Re-running the withdrawal is safe. Installed clients only update to a
+version higher than their own. Clients already on a withdrawn version stay on it
+until a fix release with a higher version ships.
 
 **Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
 and `release-stable` environments, and the owner keeps an offline backup. If

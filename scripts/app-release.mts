@@ -3,7 +3,16 @@
 // Tauri updater key and publishes the GitHub Release plus a per-channel
 // `latest.json` feed. No AI review, journal or controller is involved.
 import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync, readdirSync, mkdirSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import os from "node:os";
 import { performance } from "node:perf_hooks";
 import { createGitHubClient, type GitHubRequestPolicy } from "./github-client.mts";
 import path from "node:path";
@@ -74,14 +83,24 @@ export function compareVersions(a: string, b: string) {
   return 0;
 }
 
+const workspaceVersionPattern = /(\[workspace\.package\][^[]*?\nversion = ")([^"]+)(")/u;
+
+/** The `[workspace.package]` version in Cargo.toml. */
+export function readWorkspaceVersion(root: string) {
+  const match = workspaceVersionPattern.exec(readFileSync(path.join(root, "Cargo.toml"), "utf8"));
+  if (!match) throw new Error("workspace.package version not found");
+  parseVersion(match[2]!);
+  return match[2]!;
+}
+
 /** Writes the release version into every version source used by the build. */
 export function stampVersion(root: string, version: string) {
   parseVersion(version);
   const cargo = path.join(root, "Cargo.toml");
   const text = readFileSync(cargo, "utf8");
-  const section = /(\[workspace\.package\][^[]*?\nversion = ")[^"]+(")/u;
+  const section = workspaceVersionPattern;
   if (!section.test(text)) throw new Error("workspace.package version not found");
-  writeFileSync(cargo, text.replace(section, `$1${version}$2`));
+  writeFileSync(cargo, text.replace(section, `$1${version}$3`));
   for (const file of ["apps/desktop/package.json", "apps/desktop/src-tauri/tauri.conf.json"]) {
     const target = path.join(root, file);
     const json = JSON.parse(readFileSync(target, "utf8")) as Record<string, unknown>;
@@ -125,12 +144,47 @@ export type Runner = (command: "git", args: string[]) => string;
 const defaultRunner: Runner = (command, args) =>
   execFileSync(command, args, { encoding: "utf8" }).trim();
 
-/** Refuses a version that is not newer than every existing release tag. */
-export function assertNewerThanTags(version: string, tags: readonly string[]) {
+/** Release tags are `vX.Y.Z[-preview.N]` (owner-only); nightly previews use `nightly-X.Y.Z-preview.N`. */
+export const nightlyTagPrefix = "nightly-";
+const versionTagPatterns = ["v*", `${nightlyTagPrefix}*`];
+
+/**
+ * The version a `v*` tag or a preview `nightly-*` tag names, or null for any other
+ * tag. Any writer can create a `nightly-*` tag, so one naming a non-preview version
+ * (such as `nightly-9.9.9`) is ignored rather than blocking owner releases.
+ */
+export function tagVersion(tag: string) {
+  if (tag.startsWith("v")) {
+    const version = tag.slice(1);
+    return semver.test(version) ? version : null;
+  }
+  if (!tag.startsWith(nightlyTagPrefix)) return null;
+  const version = tag.slice(nightlyTagPrefix.length);
+  if (!semver.test(version)) return null;
+  try {
+    return classifyRelease(version).channel === "preview" ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Every `v*` and `nightly-*` tag; both name versions that must never repeat. */
+export function listVersionTags(run: Runner = defaultRunner) {
+  return run("git", ["tag", "--list", ...versionTagPatterns])
+    .split("\n")
+    .filter(Boolean);
+}
+
+/** Refuses a version that is not newer than every existing `v*` and `nightly-*` version. */
+export function assertNewerThanTags(
+  version: string,
+  tags: readonly string[],
+  ownTag = `v${version}`,
+) {
   for (const tag of tags) {
-    if (tag === `v${version}`) continue;
-    const prior = tag.slice(1);
-    if (!tag.startsWith("v") || !semver.test(prior)) continue;
+    if (tag === ownTag) continue;
+    const prior = tagVersion(tag);
+    if (prior === null) continue;
     if (compareVersions(prior, version) >= 0)
       throw new Error(`version ${version} must be greater than existing ${tag}`);
   }
@@ -151,7 +205,7 @@ export function tagRelease(
     throw new Error("HEAD must equal origin/main; check out the exact main commit to release");
   if (git(["status", "--porcelain", "--untracked-files=no"]) !== "")
     throw new Error("working tree has uncommitted changes");
-  const tags = git(["tag", "--list", "v*"]).split("\n").filter(Boolean);
+  const tags = listVersionTags(run);
   if (tags.includes(`v${version}`)) throw new Error(`tag v${version} already exists`);
   assertNewerThanTags(version, tags);
   const conclusion = ci(head);
@@ -168,6 +222,183 @@ export function tagRelease(
   ]);
   git(["push", "origin", `refs/tags/v${version}`]);
   return { tag: `v${version}`, channel: release.channel, commit: head };
+}
+
+/** Release versions: valid SemVer `v*` tags without a pre-release part. */
+function releaseVersions(tags: readonly string[]) {
+  const versions: string[] = [];
+  for (const tag of tags) {
+    const version = tag.startsWith("v") ? tagVersion(tag) : null;
+    if (version !== null && parseVersion(version).prerelease === null) versions.push(version);
+  }
+  return versions;
+}
+
+function newest<T>(items: readonly T[], version: (item: T) => string) {
+  return items.reduce<T | null>(
+    (best, item) =>
+      best === null || compareVersions(version(item), version(best)) > 0 ? item : best,
+    null,
+  );
+}
+
+/**
+ * The next nightly preview: a pre-release of the patch after the newest release,
+ * or of the workspace version when that is higher or nothing is released yet.
+ * N follows the highest `v*` or `nightly-*` preview of that version.
+ */
+export function nextPreviewVersion(tags: readonly string[], workspaceVersion: string) {
+  const workspace = parseVersion(workspaceVersion);
+  if (workspace.prerelease !== null)
+    throw new Error(`workspace version ${workspaceVersion} must be X.Y.Z`);
+  const released = newest(releaseVersions(tags), (version) => version);
+  let base = workspaceVersion;
+  if (released !== null) {
+    const latest = parseVersion(released);
+    const nextPatch = `${latest.major}.${latest.minor}.${latest.patch + 1}`;
+    base = compareVersions(workspaceVersion, nextPatch) > 0 ? workspaceVersion : nextPatch;
+  }
+  const prefix = `${base}-preview.`;
+  const previous: number[] = [];
+  for (const tag of tags) {
+    const version = tagVersion(tag);
+    if (version?.startsWith(prefix) && /^(0|[1-9]\d*)$/u.test(version.slice(prefix.length)))
+      previous.push(Number(version.slice(prefix.length)));
+  }
+  const version = `${base}-preview.${Math.max(0, ...previous) + 1}`;
+  assertNewerThanTags(version, tags);
+  return version;
+}
+
+const nightlyCommitLimit = 50;
+
+/** Commit subjects become release notes; a full-width at sign cannot mention anyone. */
+export function quietMentions(text: string) {
+  return text.replaceAll("@", "＠");
+}
+
+/**
+ * Tags and pushes at most one `nightly-X.Y.Z-preview.N` of the `origin/main`
+ * commit. Skips when that commit already carries a `v*` or `nightly-*` tag or its
+ * CI has not succeeded. The tag only names the release: signing is admitted by
+ * the `main` ref of the nightly run, never by this tag.
+ */
+export function nightlyPreview(
+  workspaceVersion: string,
+  ci: (sha: string) => string,
+  run: Runner = defaultRunner,
+): { skipped: string } | { tag: string; version: string; commit: string } {
+  const git = (args: string[]) => run("git", args);
+  const head = git(["rev-parse", "HEAD"]);
+  if (head !== git(["rev-parse", "origin/main"]))
+    throw new Error("nightly previews are tagged only from the origin/main commit");
+  const existing = git(["tag", "--points-at", head, "--list", ...versionTagPatterns])
+    .split("\n")
+    .filter((tag) => tag.startsWith("v") || tagVersion(tag) !== null);
+  if (existing.length > 0)
+    return { skipped: `main ${head} is already tagged ${existing.join(", ")}` };
+  const conclusion = ci(head);
+  if (conclusion !== "success")
+    return { skipped: `CI on main ${head} has not succeeded (got '${conclusion || "none"}')` };
+  const tags = listVersionTags(run);
+  const version = nextPreviewVersion(tags, workspaceVersion);
+  const tag = `${nightlyTagPrefix}${version}`;
+  let previous = "";
+  try {
+    previous = git([
+      "describe",
+      "--tags",
+      "--abbrev=0",
+      ...versionTagPatterns.flatMap((pattern) => ["--match", pattern]),
+      head,
+    ]);
+  } catch {
+    // No earlier version tag is reachable; the list then shows the latest commits.
+  }
+  const commits = git([
+    "log",
+    "--no-merges",
+    "--format=- %s (%h)",
+    "-n",
+    String(nightlyCommitLimit + 1),
+    previous ? `${previous}..${head}` : head,
+  ])
+    .split("\n")
+    .filter(Boolean)
+    .map(quietMentions);
+  const listed = commits.slice(0, nightlyCommitLimit);
+  if (commits.length > nightlyCommitLimit) listed.push("- and earlier commits");
+  const message = [
+    `Portcove ${version} (nightly)`,
+    "",
+    previous ? `Changes since ${previous}:` : "Recent changes:",
+    "",
+    ...listed,
+    "",
+  ].join("\n");
+  git(["tag", "-a", "--cleanup=verbatim", tag, "-m", message, head]);
+  git(["push", "origin", `refs/tags/${tag}`]);
+  return { tag, version, commit: head };
+}
+
+/**
+ * Refuses to publish when another `v*` or `nightly-*` tag on the remote names the
+ * same version, for example an owner tag pushed while a nightly was building.
+ */
+export function assertVersionUnclaimed(
+  version: string,
+  ownTag: string,
+  run: Runner = defaultRunner,
+) {
+  const remote = run("git", [
+    "ls-remote",
+    "--tags",
+    "origin",
+    ...versionTagPatterns.map((pattern) => `refs/tags/${pattern}`),
+  ]);
+  const tags = new Set(
+    remote
+      .split("\n")
+      .map((line) => line.split("\t")[1] ?? "")
+      .filter((ref) => ref.startsWith("refs/tags/"))
+      .map((ref) => ref.slice("refs/tags/".length).replace(/\^\{\}$/u, "")),
+  );
+  if (!tags.has(ownTag)) throw new Error(`${ownTag} is not on the remote`);
+  const others = [...tags].filter((tag) => tag !== ownTag && tagVersion(tag) === version);
+  if (others.length > 0)
+    throw new Error(
+      `${others.join(", ")} already names ${version}; ${ownTag} is not published to avoid two releases of one version`,
+    );
+}
+
+/**
+ * Refuses inputs to the shared build-and-publish workflow that disagree with the
+ * version's classification, so no caller can route a Stable build to `release`
+ * or publish anything but a preview under a `nightly-*` tag.
+ */
+export function verifyReleaseInputs(inputs: {
+  tag: string;
+  version: string;
+  prerelease: string;
+  feeds: string;
+  environment: string;
+  commit: string;
+}) {
+  const release = classifyRelease(inputs.version);
+  const tags = [`v${inputs.version}`];
+  if (release.channel === "preview") tags.push(`${nightlyTagPrefix}${inputs.version}`);
+  if (!tags.includes(inputs.tag))
+    throw new Error(`tag ${inputs.tag} does not name release ${inputs.version}`);
+  if (!/^[a-f0-9]{40}$/u.test(inputs.commit)) throw new Error("commit must be a full SHA");
+  const expected = {
+    prerelease: String(release.prerelease),
+    feeds: release.feeds.join(" "),
+    environment: release.environment,
+  };
+  for (const key of ["prerelease", "feeds", "environment"] as const)
+    if (inputs[key] !== expected[key])
+      throw new Error(`${key} '${inputs[key]}' differs from ${inputs.version}: '${expected[key]}'`);
+  return release;
 }
 
 const repository = "boburning/portcove";
@@ -219,11 +450,15 @@ type Release = {
   id: number;
   tag_name: string;
   draft: boolean;
+  prerelease: boolean;
+  body: string | null;
+  published_at: string | null;
   assets: { id: number; name: string; browser_download_url: string }[];
 };
 
-async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
-  // The list endpoint includes drafts, which the by-tag endpoint does not.
+/** Every release, drafts included (the by-tag endpoint omits drafts). */
+async function listReleases(api: Awaited<ReturnType<typeof client>>) {
+  const all: Release[] = [];
   for (let page = 1; page <= 10; page++) {
     const response = await api.request("GET /repos/{owner}/{repo}/releases", {
       owner: "boburning",
@@ -233,12 +468,16 @@ async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string)
       ...read(),
     });
     const releases = response.data as Release[];
-    const matches = releases.filter((release) => release.tag_name === tag);
-    if (matches.length > 1) throw new Error(`more than one release exists for ${tag}`);
-    if (matches[0]) return matches[0];
-    if (releases.length < 100) return null;
+    all.push(...releases);
+    if (releases.length < 100) return all;
   }
   throw new Error("release inventory exceeds its bound");
+}
+
+async function findRelease(api: Awaited<ReturnType<typeof client>>, tag: string) {
+  const matches = (await listReleases(api)).filter((release) => release.tag_name === tag);
+  if (matches.length > 1) throw new Error(`more than one release exists for ${tag}`);
+  return matches[0] ?? null;
 }
 
 /** Creates or completes the release so its asset set equals `distDir`, then publishes it once. */
@@ -249,6 +488,8 @@ export async function publishRelease(options: {
   prerelease: boolean;
   notes: string;
   distDir: string;
+  /** The built commit; GitHub uses it only if the tag does not exist yet. */
+  commit?: string;
 }) {
   const api = await client(options.token);
   const uploads = await client(options.token, "https://uploads.github.com");
@@ -259,6 +500,7 @@ export async function publishRelease(options: {
       owner: "boburning",
       repo: "portcove",
       tag_name: options.tag,
+      ...(options.commit ? { target_commitish: options.commit } : {}),
       name: `Portcove ${options.version}`,
       body: options.notes,
       draft: true,
@@ -321,6 +563,282 @@ export async function downloadPublishedSignatures(token: string, tag: string, di
   }
 }
 
+/** `updates/withdrawn.json` on gh-pages: a sorted, unique JSON array of versions. */
+export function parseWithdrawnList(text: string | null) {
+  if (text === null) return [];
+  const value: unknown = JSON.parse(text);
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string"))
+    throw new Error("withdrawn.json must be a JSON array of versions");
+  const versions = value as string[];
+  for (const version of versions) parseVersion(version);
+  return versions;
+}
+
+export function addWithdrawn(list: readonly string[], version: string) {
+  parseVersion(version);
+  return [...new Set([...list, version])].sort(compareVersions);
+}
+
+export function isWithdrawn(version: string, listText: string | null) {
+  return parseWithdrawnList(listText).includes(version);
+}
+
+export type PublishedRelease = {
+  id: number;
+  tag: string;
+  version: string;
+  prerelease: boolean;
+  body: string;
+  publishedAt: string;
+};
+
+/**
+ * Published (non-draft) releases whose `v*` tags name Preview, Beta or Stable
+ * versions, or whose `nightly-*` tags name previews.
+ */
+export function publishedReleases(releases: readonly Omit<Release, "assets">[]) {
+  const result: PublishedRelease[] = [];
+  for (const release of releases) {
+    const version = tagVersion(release.tag_name);
+    if (release.draft || version === null) continue;
+    let channel: Channel;
+    try {
+      channel = classifyRelease(version).channel;
+    } catch {
+      continue; // alpha, rehearsal and other non-release tags
+    }
+    if (release.tag_name.startsWith(nightlyTagPrefix) && channel !== "preview") continue;
+    result.push({
+      id: release.id,
+      tag: release.tag_name,
+      version,
+      prerelease: release.prerelease,
+      body: release.body ?? "",
+      publishedAt: release.published_at ?? "",
+    });
+  }
+  return result;
+}
+
+/** Published, non-withdrawn releases that the channel's feed may offer, newest first. */
+export function replacementCandidates(
+  channel: Channel,
+  releases: readonly PublishedRelease[],
+  withdrawn: readonly string[],
+) {
+  return releases
+    .filter(
+      (release) =>
+        !withdrawn.includes(release.version) &&
+        classifyRelease(release.version).feeds.includes(channel),
+    )
+    .sort((a, b) => compareVersions(b.version, a.version));
+}
+
+export const withdrawnNotice = "⚠️ Withdrawn — do not install.";
+const channels: Channel[] = ["preview", "beta", "stable"];
+
+export type WithdrawApi = {
+  releases(): Promise<Omit<Release, "assets">[]>;
+  /** Tag of the repository's Latest release, or null when none is Latest. */
+  latestTag(): Promise<string | null>;
+  /** Writes the published `.sig` assets of `tag` into `dir`. */
+  signatures(tag: string, dir: string): Promise<void>;
+  editRelease(id: number, fields: { body?: string; make_latest?: "true" | "false" }): Promise<void>;
+};
+
+function readOptional(file: string) {
+  return existsSync(file) ? readFileSync(file, "utf8") : null;
+}
+
+/**
+ * Records `version` as withdrawn on gh-pages, repoints every feed that serves a
+ * withdrawn version to the newest eligible release with all four signatures (or
+ * removes it), then marks the GitHub Release. Tags, releases and assets are never
+ * deleted. The release may carry a `v*` or `nightly-*` tag. Re-runs are safe.
+ */
+export async function withdrawRelease(options: {
+  version: string;
+  note: string;
+  repoDir: string;
+  workDir: string;
+  api: WithdrawApi;
+  run?: Runner;
+  sleep?: (milliseconds: number) => Promise<void>;
+  log?: (message: string) => void;
+}) {
+  const { version, api } = options;
+  classifyRelease(version);
+  const run = options.run ?? defaultRunner;
+  const log = options.log ?? ((message: string) => console.error(message));
+  const sleep =
+    options.sleep ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+  const listed = await api.releases();
+  const matches = listed.filter((release) => tagVersion(release.tag_name) === version);
+  if (matches.length > 1) throw new Error(`more than one release exists for ${version}`);
+  const target = matches[0];
+  if (!target || target.draft) throw new Error(`${version} is not a published release`);
+  const tag = target.tag_name;
+  const releases = publishedReleases(listed);
+  const latestBefore = await api.latestTag();
+
+  // One feed per release, or null when its published signatures are incomplete.
+  const feeds = new Map<string, string | null>();
+  const feedFor = async (release: PublishedRelease) => {
+    const cached = feeds.get(release.version);
+    if (cached !== undefined) return cached;
+    const dir = path.join(options.workDir, "signatures", release.tag);
+    rmSync(dir, { recursive: true, force: true });
+    mkdirSync(dir, { recursive: true });
+    await api.signatures(release.tag, dir);
+    let text: string | null = null;
+    try {
+      const feed = buildFeed({
+        version: release.version,
+        notes: release.body.trim() || `Portcove ${release.version}`,
+        pubDate: release.publishedAt,
+        assetsDir: dir,
+        downloadBase: `https://github.com/${repository}/releases/download/${release.tag}`,
+      });
+      text = `${JSON.stringify(feed, null, 2)}\n`;
+    } catch (error) {
+      if (!(error instanceof Error && error.message.startsWith("missing signed updater asset")))
+        throw error;
+      log(`::warning::${release.tag} cannot replace a feed: ${error.message}`);
+    }
+    feeds.set(release.version, text);
+    return text;
+  };
+
+  const git = (args: string[]) => run("git", ["-C", options.repoDir, ...args]);
+  const site = path.join(options.workDir, "site");
+  const siteGit = (args: string[]) => run("git", ["-C", site, ...args]);
+  let withdrawn: string[] = [];
+  const changes: Partial<Record<Channel, string>> = {};
+  let pushed = false;
+  for (let attempt = 1; ; attempt++) {
+    git(["fetch", "--quiet", "origin", "refs/heads/gh-pages:refs/remotes/origin/gh-pages"]);
+    rmSync(site, { recursive: true, force: true });
+    git(["worktree", "prune"]);
+    git([
+      "worktree",
+      "add",
+      "--quiet",
+      "--force",
+      "--detach",
+      site,
+      "refs/remotes/origin/gh-pages",
+    ]);
+    const updates = path.join(site, "updates");
+    const listFile = path.join(updates, "withdrawn.json");
+    withdrawn = addWithdrawn(parseWithdrawnList(readOptional(listFile)), version);
+    mkdirSync(updates, { recursive: true });
+    writeFileSync(listFile, `${JSON.stringify(withdrawn, null, 2)}\n`);
+    for (const key of Object.keys(changes)) delete changes[key as Channel];
+    for (const channel of channels) {
+      const feedFile = path.join(updates, channel, "latest.json");
+      const text = readOptional(feedFile);
+      if (text === null) continue;
+      const current = (JSON.parse(text) as { version?: unknown }).version;
+      if (typeof current !== "string") throw new Error(`${channel} feed has no version`);
+      if (!withdrawn.includes(current)) continue;
+      let replaced = false;
+      for (const candidate of replacementCandidates(channel, releases, withdrawn)) {
+        const feed = await feedFor(candidate);
+        if (feed === null) continue;
+        writeFileSync(feedFile, feed);
+        changes[channel] = candidate.version;
+        replaced = true;
+        break;
+      }
+      if (!replaced) {
+        rmSync(feedFile);
+        changes[channel] = "removed";
+      }
+    }
+    siteGit(["add", "--all", "updates"]);
+    if (siteGit(["status", "--porcelain"]) === "") break;
+    const summary = Object.entries(changes)
+      .map(([channel, change]) => `${channel}: ${change}`)
+      .join(", ");
+    siteGit([
+      "commit",
+      "--quiet",
+      "-m",
+      `Withdraw Portcove ${version}${summary ? ` (${summary})` : ""}`,
+    ]);
+    try {
+      siteGit(["push", "--quiet", "origin", "HEAD:refs/heads/gh-pages"]);
+      pushed = true;
+      break;
+    } catch (error) {
+      git(["worktree", "remove", "--force", site]);
+      if (attempt >= 4)
+        throw new Error("could not publish the withdrawal to gh-pages", { cause: error });
+      await sleep(attempt * 5000);
+    }
+  }
+  git(["worktree", "remove", "--force", site]);
+
+  // The feeds are safe now; then mark the immutable release (notes and Latest stay editable).
+  const fields: { body?: string; make_latest?: "true" | "false" } = {};
+  const body = target.body ?? "";
+  if (!body.startsWith(withdrawnNotice)) {
+    const note = options.note.trim();
+    fields.body = `${withdrawnNotice}${note ? ` ${note}` : ""}\n\n---\n\n${body}`;
+  }
+  if (!target.prerelease) fields.make_latest = "false";
+  if (Object.keys(fields).length > 0) await api.editRelease(target.id, fields);
+  let latest: string | null = null;
+  if (latestBefore === tag) {
+    const replacement = newest(
+      releases.filter(
+        (release) =>
+          !release.prerelease &&
+          !withdrawn.includes(release.version) &&
+          classifyRelease(release.version).channel !== "preview",
+      ),
+      (release) => release.version,
+    );
+    if (replacement !== null) {
+      await api.editRelease(replacement.id, { make_latest: "true" });
+      latest = replacement.tag;
+    }
+  }
+  const latestAfter = await api.latestTag();
+  return { tag, withdrawn, feeds: changes, pushed, latestBefore, latest, latestAfter };
+}
+
+async function withdrawApi(token: string): Promise<WithdrawApi> {
+  const api = await client(token);
+  return {
+    releases: () => listReleases(api),
+    latestTag: async () => {
+      try {
+        const response = await api.request("GET /repos/{owner}/{repo}/releases/latest", {
+          owner: "boburning",
+          repo: "portcove",
+          ...read(),
+        });
+        return (response.data as { tag_name: string }).tag_name;
+      } catch (error) {
+        if ((error as { status?: unknown }).status === 404) return null;
+        throw error;
+      }
+    },
+    signatures: (tag, dir) => downloadPublishedSignatures(token, tag, dir),
+    editRelease: async (id, fields) => {
+      await api.request("PATCH /repos/{owner}/{repo}/releases/{release_id}", {
+        owner: "boburning",
+        repo: "portcove",
+        release_id: id,
+        ...fields,
+        ...once(),
+      });
+    },
+  };
+}
+
 async function main(argv: string[]) {
   const [command, ...rest] = argv;
   const token = () => {
@@ -340,18 +858,26 @@ async function main(argv: string[]) {
     const tag = flag("tag");
     if (!tag.startsWith("v")) throw new Error("release tags start with v");
     const release = classifyRelease(tag.slice(1));
-    // The workflow checks out full history, so every release tag is visible here.
-    assertNewerThanTags(
-      release.version,
-      execFileSync("git", ["tag", "--list", "v*"], { encoding: "utf8" })
-        .split("\n")
-        .filter(Boolean),
-    );
+    // The workflow checks out full history, so every v* and nightly-* tag is visible here.
+    assertNewerThanTags(release.version, listVersionTags());
     console.log(`version=${release.version}`);
     console.log(`channel=${release.channel}`);
     console.log(`prerelease=${release.prerelease}`);
     console.log(`environment=${release.environment}`);
     console.log(`feeds=${release.feeds.join(" ")}`);
+  } else if (command === "verify-inputs") {
+    const release = verifyReleaseInputs({
+      tag: flag("tag"),
+      version: flag("version"),
+      prerelease: flag("prerelease"),
+      feeds: flag("feeds"),
+      environment: flag("environment"),
+      commit: flag("commit"),
+    });
+    console.log(`${flag("tag")} is a ${release.channel} release signed in ${release.environment}`);
+  } else if (command === "version-unclaimed") {
+    assertVersionUnclaimed(flag("version"), flag("tag"));
+    console.log(`no other tag names ${flag("version")}`);
   } else if (command === "stamp") stampVersion(process.cwd(), flag("version"));
   else if (command === "feed")
     console.log(
@@ -383,11 +909,51 @@ async function main(argv: string[]) {
       prerelease: flag("prerelease") === "true",
       notes: readFileSync(flag("notes-file"), "utf8"),
       distDir: flag("dist"),
+      commit: flag("commit"),
     });
     console.log(`published release ${result.id} with ${result.assets} assets`);
   } else if (command === "download-signatures")
     await downloadPublishedSignatures(token(), flag("tag"), flag("dir"));
-  else if (command === "tag") {
+  else if (command === "withdrawn")
+    // Prints true or false; an unreadable list fails instead of reading as "not withdrawn".
+    console.log(String(isWithdrawn(flag("version"), readOptional(flag("file")))));
+  else if (command === "next-preview")
+    console.log(nextPreviewVersion(listVersionTags(), readWorkspaceVersion(process.cwd())));
+  else if (command === "nightly-preview") {
+    const head = defaultRunner("git", ["rev-parse", "HEAD"]);
+    const conclusion = await ciConclusion(token(), head);
+    const result = nightlyPreview(readWorkspaceVersion(process.cwd()), (sha) =>
+      sha === head ? conclusion : "",
+    );
+    if ("skipped" in result) {
+      console.error(`::notice::No nightly preview: ${result.skipped}`);
+      console.log("tag=");
+    } else {
+      console.error(`Tagged ${result.tag} at ${result.commit}`);
+      console.log(`tag=${result.tag}`);
+      console.log(`version=${result.version}`);
+      console.log(`commit=${result.commit}`);
+      const release = classifyRelease(result.version);
+      console.log(`prerelease=${release.prerelease}`);
+      console.log(`feeds=${release.feeds.join(" ")}`);
+    }
+  } else if (command === "withdraw") {
+    const note = process.env.PORTCOVE_WITHDRAW_NOTE ?? "";
+    if (note.length > 2000) throw new Error("the replacement note exceeds 2000 characters");
+    const version = flag("version");
+    parseVersion(version);
+    const workDir = mkdtempSync(path.join(os.tmpdir(), "portcove-withdraw-"));
+    const result = await withdrawRelease({
+      version,
+      note,
+      repoDir: process.cwd(),
+      workDir,
+      api: await withdrawApi(token()),
+    });
+    console.log(JSON.stringify(result, null, 2));
+    if (result.latestAfter === result.tag)
+      console.error(`::warning::${result.tag} is still the Latest release; change it manually.`);
+  } else if (command === "tag") {
     // Resolve CI first; the guard itself stays synchronous and re-checks HEAD.
     const head = defaultRunner("git", ["rev-parse", "HEAD"]);
     const conclusion = await ciConclusion(localToken(), head);
@@ -399,7 +965,7 @@ async function main(argv: string[]) {
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
   } else
     throw new Error(
-      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|tag",
+      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
     );
 }
 
