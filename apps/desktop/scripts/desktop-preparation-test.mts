@@ -3313,10 +3313,12 @@ export async function preparationScenarios({
       availability: "allowed",
       reason: "available",
     });
+    // Hosted Windows job 132562405186 observed the rollback worker take 16.9 s.
     await clickVisible(browser, await rollbackButton());
     await browser.wait(
       async () => required((await status(port.id)).active).id === required(before.previous).id,
-      15_000,
+      60_000,
+      "Rollback did not activate the reviewed previous version",
     );
     observations.previous_active_save = await restoredActiveSave(await status(port.id));
     await open(port, false);
@@ -3328,7 +3330,8 @@ export async function preparationScenarios({
     await clickVisible(browser, await rollbackButton());
     await browser.wait(
       async () => required((await status(port.id)).active).id === required(before.active).id,
-      15_000,
+      60_000,
+      "Return rollback did not reactivate the original version",
     );
     observations.returned_active_save = await restoredActiveSave(await status(port.id));
     assert.deepEqual(observations.returned_active_save, originalActiveSave);
