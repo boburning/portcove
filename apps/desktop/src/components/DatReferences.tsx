@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../api";
 import { pickDatPath } from "../file-picker";
 import type { DatReferenceStatus } from "../types";
@@ -39,23 +39,24 @@ export function DatReferenceSettings({
   const [references, setReferences] = useState<DatReferenceStatus[] | undefined>();
   const [problem, setProblem] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
+  // Each completed change asks Core again; only the latest read is shown.
+  const [revision, setRevision] = useState(0);
   const request = useRef(0);
-  const refresh = useCallback(async () => {
-    const current = ++request.current;
-    try {
-      const loaded = await load();
-      if (request.current === current) setReferences(loaded);
-    } catch (value) {
-      if (request.current === current)
-        setProblem(problemText(value, "Portcove couldn’t read your saved DAT files."));
-    }
-  }, [load]);
   useEffect(() => {
-    void refresh();
+    const current = ++request.current;
+    load().then(
+      (loaded) => {
+        if (request.current === current) setReferences(loaded);
+      },
+      (value) => {
+        if (request.current === current)
+          setProblem(problemText(value, "Portcove couldn’t read your saved DAT files."));
+      },
+    );
     return () => {
       request.current += 1;
     };
-  }, [refresh]);
+  }, [load, revision]);
   const change = async (operation: () => Promise<unknown>, failure: string) => {
     setBusy(true);
     setProblem(undefined);
@@ -64,7 +65,7 @@ export function DatReferenceSettings({
     } catch (value) {
       setProblem(problemText(value, failure));
     } finally {
-      await refresh();
+      setRevision((value) => value + 1);
       setBusy(false);
     }
   };
