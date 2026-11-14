@@ -546,7 +546,9 @@ export async function gameFirstScenarios({
       });
       await clickVisible(
         browser,
-        await browser.findElement(By.xpath('//summary[normalize-space(.)="Implementations (2)"]')),
+        await browser.findElement(
+          By.xpath('//summary[normalize-space(.)="Other ports for this game (2)"]'),
+        ),
       );
       for (const port of ports) {
         const alternativeControl = await browser.findElement(

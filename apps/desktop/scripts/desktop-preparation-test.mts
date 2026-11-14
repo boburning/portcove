@@ -21,6 +21,7 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
+
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -155,6 +156,13 @@ import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
 import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
+
+// Calibrated from 15 s: a full reload re-bootstraps the hosted debug build. The
+// existing Library reload wait was already calibrated to 60 s for this; hosted
+// WebView2 157.0.4341.60 runs (job 132410024493) also left the post-seeding
+// reload on "Opening your Portcove library" past 15 s. The wait returns as soon
+// as primary navigation renders.
+const reloadBootstrapBudgetMs = 60_000;
 
 export function assertPreparationReviewSummary(text: string) {
   const normalized = text.replace(/\s+/gu, " ").trim();
@@ -861,13 +869,29 @@ async function assertReviewedUpdateOutcomes({
           5_000,
         );
         assert.equal(await outcome.getAttribute("role"), cancelled ? "status" : "alert");
+        // A committed outcome states its consequence only in the banner ("Your
+        // change was saved."); details then omit the duplicate mutation summary.
         const consequence =
           mutation === "committed"
-            ? "The change was saved"
+            ? "change was saved"
             : mutation === "unknown"
               ? "couldn't confirm whether anything changed"
               : "No files were changed";
-        assert.ok((await outcome.getText()).includes(consequence));
+        // Read textContent: getText omits text behind the still-open review
+        // dialog, and the consequence can render after the summary (hosted job
+        // 132524655921). Still required; only the single racy read is removed.
+        let outcomeText = "";
+        await browser
+          .wait(async () => {
+            outcomeText = (await outcome.getAttribute("textContent")) ?? "";
+            return outcomeText.includes(consequence);
+          }, 60_000)
+          .catch((error: unknown) => {
+            throw new Error(
+              `Update outcome did not state "${consequence}"; observed: ${outcomeText.slice(0, 400)}`,
+              { cause: error },
+            );
+          });
         await browser.wait(
           async () => (await browser.findElements(dialog)).length === 0,
           5_000,
@@ -1207,31 +1231,12 @@ export async function preparationScenarios({
   }
   const button = (label: string) =>
     By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
-  async function dismissApplicationUpdateChoice() {
-    const preferences = await invoke("get_application_update_preferences");
-    assert.equal(preferences.ok, true);
-    if (transportValue("desktop_application_update_preferences", preferences.value).choice !== null)
-      return;
-    const choice = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
-    );
-    await browser.wait(until.elementLocated(choice), 15_000);
-    await browser
-      .findElement(
-        By.xpath(
-          '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
-        ),
-      )
-      .click();
-    await browser.wait(async () => (await browser.findElements(choice)).length === 0, 15_000);
-  }
   async function open(port: PortDefinition, waitForPreparation = true) {
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
-    await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
     const search = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     await search.sendKeys(
@@ -1640,7 +1645,14 @@ export async function preparationScenarios({
     }
 
     await clickVisible(browser, trial);
-    await browser.wait(async () => (await status(port.id)).successful_launches > 0, 15_000);
+    // Calibrated from 15 s: Core records the launch only after the fixture exits
+    // and its saves are collected, and each debug-build status read here takes
+    // most of 15 s (job 132417354795 timed out at 24.5 s on "Working: launch").
+    await browser.wait(
+      async () => (await status(port.id)).successful_launches > 0,
+      60_000,
+      "Try launch did not record a successful launch",
+    );
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
     await browser.findElement(By.css(".detail-back")).click();
     const libraryHeader = await browser.wait(
@@ -1797,7 +1809,9 @@ export async function preparationScenarios({
       play: "Try launch",
       play_disabled: false,
       play_slot: "button",
-      play_variant: "outline",
+      // Library cards render their launch action as primary (PortBrowser,
+      // #5226), including Try launch for unconfirmed compatibility.
+      play_variant: "primary",
       more_label: `More actions for Jak and Daxter: The Precursor Legacy · ${port.name}`,
       more_popup: "menu",
       workspace_horizontal_overflow: false,
@@ -1955,9 +1969,8 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
-    await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
     const modifier = process.platform === "darwin" ? Key.COMMAND : Key.CONTROL;
     const shortcut = (key: string) =>
@@ -2001,28 +2014,103 @@ export async function preparationScenarios({
           15_000,
           "Both exact prepared Library entries must render before layout measurement",
         );
-        await browser.wait(
-          () =>
-            executeBrowserScript(browser, () => {
-              const frames = [
-                ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
-              ];
-              return (
-                document.fonts.status === "loaded" &&
-                frames.length === 2 &&
-                frames.every((frame) => {
-                  const image = frame.querySelector("img");
-                  return (
-                    frame.dataset.artworkSource === "local_import" &&
-                    image?.complete &&
-                    image.naturalWidth > 0
-                  );
-                })
-              );
-            }),
-          10_000,
-          "Both owned local artwork images must load before the resize journey",
-        );
+        try {
+          await browser.wait(
+            () =>
+              executeBrowserScript(browser, () => {
+                const frames = [
+                  ...document.querySelectorAll<HTMLElement>(".collection-entry .artwork-image"),
+                ];
+                return (
+                  document.fonts.status === "loaded" &&
+                  frames.length === 2 &&
+                  frames.every((frame) => {
+                    const image = frame.querySelector("img");
+                    return (
+                      frame.dataset.artworkSource === "local_import" &&
+                      image?.complete &&
+                      image.naturalWidth > 0
+                    );
+                  })
+                );
+              }),
+            10_000,
+            "Both owned local artwork images must load before the resize journey",
+          );
+        } catch (error) {
+          // Record whether the page or Core lost an imported cover; best effort,
+          // never replacing the original timeout.
+          try {
+            const diagnostic = path.join(output, `library-cover-load-${theme}.json`);
+            await writeFile(
+              diagnostic,
+              JSON.stringify(
+                {
+                  page: await executeBrowserScript(browser, () =>
+                    [...document.querySelectorAll<HTMLElement>(".collection-entry")].map(
+                      (entry) => {
+                        const frame = entry.querySelector<HTMLElement>(".artwork-image");
+                        const image = frame?.querySelector("img");
+                        return {
+                          game: entry.querySelector<HTMLElement>("[data-detail-game-id]")?.dataset
+                            .detailGameId,
+                          frame: Boolean(frame),
+                          source: frame?.dataset.artworkSource ?? null,
+                          complete: image?.complete ?? null,
+                          natural_width: image?.naturalWidth ?? null,
+                        };
+                      },
+                    ),
+                  ),
+                  core: [first.port.id, second.port.id].map((id) => ({
+                    port_id: id,
+                    artwork: transportValue(
+                      "artwork_state",
+                      command(["artwork", "show", id, "--slot", "cover"]),
+                    ),
+                  })),
+                  // Observation only: whether the missing cover arrives late
+                  // (slow read) or not at all (stalled read). The scenario
+                  // still fails at its original 10 s wait (#4879).
+                  late_load: await (async () => {
+                    const started = Date.now();
+                    const loaded = await browser
+                      .wait(
+                        () =>
+                          executeBrowserScript(browser, () =>
+                            [
+                              ...document.querySelectorAll<HTMLElement>(
+                                ".collection-entry .artwork-image",
+                              ),
+                            ].every((frame) => {
+                              const image = frame.querySelector("img");
+                              return (
+                                frame.dataset.artworkSource === "local_import" &&
+                                image?.complete &&
+                                image.naturalWidth > 0
+                              );
+                            }),
+                          ),
+                        30_000,
+                      )
+                      .then(
+                        () => true,
+                        () => false,
+                      );
+                    return { loaded, waited_ms: Date.now() - started };
+                  })(),
+                },
+                null,
+                2,
+              ),
+              { flag: "wx" },
+            );
+            artifacts.push(diagnostic);
+          } catch (diagnosticError) {
+            console.error(`Library cover diagnostic unavailable: ${String(diagnosticError)}`);
+          }
+          throw error;
+        }
         for (const layout of ["Covers", "Compact rows"]) {
           const viewControls = await browser.findElement(
             By.css('[role="group"][aria-label="Collection view"]'),
@@ -2360,7 +2448,9 @@ export async function preparationScenarios({
               },
               artwork,
             ),
-          15_000,
+          // Calibrated from 15 s: hosted job 132439346320 showed the cover rendered
+          // just after the 15 s wait on the debug build's first asset decode.
+          60_000,
           "The owned port cover image or identified fallback did not settle before visual capture",
         );
         for (const { width, height } of [
@@ -2507,9 +2597,8 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
-    await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
     const originalWindow = await browser.manage().window().getRect();
     try {
@@ -2703,6 +2792,21 @@ export async function preparationScenarios({
       artifacts.push(screenshot);
     } finally {
       await browser.manage().window().setRect(originalWindow);
+      // Restore the Library view this journey narrowed (search and Ready), so
+      // later scenarios do not inherit a filter that hides a game which stops
+      // being ready (hosted job 132524655921). Best effort; never masks a failure.
+      try {
+        const reset = await browser.findElements(button("Reset view"));
+        if (reset[0]) {
+          await clickVisible(browser, reset[0]);
+          await browser.wait(
+            async () => (await browser.findElements(button("Reset view"))).length === 0,
+            15_000,
+          );
+        }
+      } catch (error) {
+        console.error(`Could not restore the Library view after game return: ${String(error)}`);
+      }
     }
   });
   await scenario("native-game-update-review", async () => {
@@ -2710,9 +2814,12 @@ export async function preparationScenarios({
     await open(port, false);
     await revealDetailSection(browser, "Versions & updates");
     await clickVisible(browser, await browser.findElement(button("Check for updates")));
+    // Calibrated from 15 s: hosted job 132429767568 still had the check running
+    // (Check for updates disabled, no saved check) at 15 s on the debug build.
     const updateControl = await browser.wait(
       until.elementLocated(By.css('section[aria-label="Review game update"]')),
-      15_000,
+      60_000,
+      "Check for updates did not offer the game update review",
     );
     assert.equal(
       (await updateControl.findElements(By.css('[data-slot="select-trigger"]'))).length,
@@ -2723,10 +2830,18 @@ export async function preparationScenarios({
     const trigger = await browser.findElement(button("Update now"));
     await clickVisible(browser, trigger);
     const dialog = By.css("[data-game-update-review]");
-    const review = await browser.wait(until.elementLocated(dialog), 15_000);
+    // Calibrated from 15 s: hosted job 132439346320 had not shown the review 15 s
+    // after Update now while the debug build prepared its bound update plan.
+    const review = await browser.wait(
+      until.elementLocated(dialog),
+      60_000,
+      "Update now did not open the game update review",
+    );
+    // Calibrated from 5 s (#4879): hosted debug-build update plans take ~10 s
+    // (run 43616138586, plan_game_update 9.8 s), and each disposition replans.
     await browser.wait(
       async () => (await review.getText()).includes("Confirm the release"),
-      5_000,
+      60_000,
       "Game update review did not show its release confirmation",
     );
     // The immediate disposition is explicit; changing it requests a new bound plan.
@@ -2740,7 +2855,8 @@ export async function preparationScenarios({
       await clickVisible(browser, keepForLater[0]!);
       await browser.wait(
         async () => (await review.getText()).includes("keep using your current version"),
-        5_000,
+        60_000,
+        "Game update review did not show the keep-for-later plan",
       );
     }
     const reviewText = await review.getText();
@@ -3293,7 +3409,7 @@ export async function preparationScenarios({
       const action = await settleDirectPreparationRecovery(browser);
       const inventory = await activities();
       const readOnlyReview = By.xpath(
-        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Review current state"]',
+        '//div[contains(@class,"error-actions")]//button[normalize-space(.)="Refresh library"]',
       );
       await browser.findElement(readOnlyReview).click();
       assert.deepEqual(
@@ -3641,7 +3757,7 @@ export async function preparationScenarios({
       await browser.navigate().refresh();
       await browser.wait(
         until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-        15_000,
+        reloadBootstrapBudgetMs,
       );
       assert.deepEqual(
         required((await activities()).find((item) => item.id === required(activity).id)).failure,
@@ -3803,7 +3919,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await selectPrimaryNavigation(browser, "Library");
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
@@ -4027,7 +4143,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await selectPrimaryNavigation(browser, "Discover");
     const restarted = await openCatalogPort("re-blue");

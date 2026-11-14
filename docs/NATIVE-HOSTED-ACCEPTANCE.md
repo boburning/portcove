@@ -251,7 +251,33 @@ prints bounded startup diagnostics, scenario failures and its largest retained
 outputs. The acquisition journey calibrates its WebDriver script budget from 15 s
 to 60 s for the debug build's IPC status reads, and its wait for a held fixture
 transfer to start from 10 s to 60 s, and its wait for each update check's review from
-15 s to 60 s; it records the slowest of each. Its
+15 s to 60 s; it records the slowest of each. The Windows folder-picker helper's
+outer budget is calibrated from 15 s to 60 s, because its own picker and close waits
+plus a cold `pwsh` start exceeded 15 s, and the selected-setup preparation completion
+wait from 15 s to 120 s, because a hosted preparation was still running at 15 s. A new
+preparation that ends failed or cancelled is reported at once rather than at the deadline.
+The harness IPC bridge raises the WebDriver script budget to at least 60 s for each
+native IPC call and restores the prior budget, because full reads such as `get_statuses`
+during Try launch and `preview_steam_batch_add` exceeded the session's 15 s. The
+preparation scenario calibrates its waits for
+primary navigation after a full reload from 15 s to 60 s, matching the existing Library
+reload wait, because the debug build's re-bootstrap exceeded 15 s. Its wait for Try launch to record a
+successful launch, and the backup review's wait to close after a deletion, are calibrated
+from 15 s to 60 s for the same debug-build status and refresh reads, its waits for the game
+update review after Check for updates and after Update now, and for the ready detail cover
+to settle, from 15 s to 60 s. A product-workflows group of more than eight scenarios that
+includes the preparation journey gets a 20-minute harness watchdog instead of 10, and the
+selected-setup completion journey gets 10 minutes instead of 3. The wait for the
+rollback snapshot's row in Saves & backups is calibrated from 15 s to 60 s: a hosted
+diagnostic (job 132474930950) showed the page's `get_backups` reads settling after
+20.6 s and a fresh read taking 7.4 s, so the reads are slow, not lost. Windows native
+runs enable debug host diagnostics and retain the latest IPC dispatch and
+blocking-worker records beside each scenario failure. With reads no longer serialized,
+run 43616138586 measured debug-build capability reads at 12-15 s, update plans at
+about 10 s and workspace snapshots at 6-15 s. The game update review's release and
+keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
+from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
+300 s and 180 s to 600 s. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

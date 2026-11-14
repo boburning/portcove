@@ -19,6 +19,7 @@
     },
     "issue_number": 2581,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/saulob"],
     "manual_setup": {
       "steps": [
         {

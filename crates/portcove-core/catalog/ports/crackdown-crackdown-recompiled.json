@@ -8,6 +8,7 @@
     "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "issue_number": 2559,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/saulob"],
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/saulob/crackdown-xbox360-recompiled",

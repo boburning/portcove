@@ -263,6 +263,7 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         runtime_source_hashes,
         runtime_disc_image,
         runtime_stfs_package,
+        runtime_rom_patch,
         optional_game_source,
         runtime_source_set,
         launch_disc_choice,
@@ -276,6 +277,12 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
         reviewed_package_layouts: _,
         presentation: _,
     } = port;
+    // Reviewed release uploaders gate only fresh acquisition, like the hold and
+    // package layouts above, so accepting one leaves installed identities intact.
+    let release = crate::ReleaseSpec {
+        accepted_uploaders: Vec::new(),
+        ..release.clone()
+    };
     let mut compatibility = serde_json::json!({
         "id": id,
         "channels": channels,
@@ -334,6 +341,10 @@ fn operational_compatibility(port: &PortDefinition) -> serde_json::Value {
     if let Some(package) = runtime_stfs_package {
         compatibility["runtime_stfs_package"] = serde_json::json!(package);
     }
+    // Likewise, a declared patch format and its exact inputs join only when declared.
+    if let Some(patch) = runtime_rom_patch {
+        compatibility["runtime_rom_patch"] = serde_json::json!(patch);
+    }
     // A launch disc choice changes what launch writes, so it joins when declared.
     if let Some(choice) = launch_disc_choice {
         compatibility["launch_disc_choice"] = serde_json::json!(choice);
@@ -386,5 +397,17 @@ mod marker_identity_tests {
             .unwrap()
             .remove("windows_tracked_handoff");
         assert_eq!(with, without);
+    }
+
+    #[test]
+    fn accepted_release_uploaders_leave_the_retained_identity_unchanged() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("shipwright").unwrap().clone();
+        let without = operational_compatibility(&port);
+        port.release.accepted_uploaders = vec![crate::AcceptedUploader {
+            id: 9,
+            login: "reviewed".into(),
+        }];
+        assert_eq!(operational_compatibility(&port), without);
     }
 }

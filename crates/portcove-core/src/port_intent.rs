@@ -1479,6 +1479,7 @@ mod tests {
             required_runtime: None,
             update_available: true,
             release,
+            upstream_activity: None,
         };
         service
             .library()

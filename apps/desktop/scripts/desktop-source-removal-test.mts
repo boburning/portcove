@@ -29,6 +29,8 @@ import {
   captureAccessibilityReport,
 } from "./desktop-review-controls.mts";
 
+const impactSelector = '[aria-label="Review removal of the saved file location"]';
+
 export async function sourceRemovalScenario({
   browser,
   invoke,
@@ -79,28 +81,12 @@ export async function sourceRemovalScenario({
     const { install, port, sources, source, backup, preserved, others, otherSources } =
       await retainSourceRemovalPreimages();
     await browser.navigate().refresh();
-    const updatePreference = await invoke("get_application_update_preferences");
-    assert(isRecord(updatePreference));
-    assert.equal(updatePreference.ok, true);
-    const preferences = transportValue(
-      "desktop_application_update_preferences",
-      updatePreference.value,
-    );
-    if (preferences.choice === null) {
-      const defer = await browser.wait(
-        until.elementLocated(By.xpath('//button[normalize-space(.)="Not now"]')),
-        15_000,
-      );
-      await defer.click();
-      await browser.wait(until.stalenessOf(defer), 15_000);
-    }
     const { button, click } = reviewControls(browser);
     await click(By.xpath('//nav//button[contains(., "Settings")]'));
     await click(
       By.xpath('//nav[@aria-label="Settings categories"]//button[normalize-space(.)="Game files"]'),
     );
     const row = By.css(`.source-health-row[data-source-profile="${source.profile_id}"]`);
-    const impactSelector = '[aria-label="Saved-location removal impact"]';
     const dialog = By.css(impactSelector);
     const trigger = By.xpath(
       `//*[@data-source-profile="${source.profile_id}"]//button[normalize-space(.)="Review saved location removal"]`,
@@ -369,7 +355,7 @@ export async function sourceRemovalScenario({
             observe(() =>
               executeBrowserScript(
                 browser,
-                (profileId) => {
+                (profileId, impactSelector) => {
                   const matches = [
                     ...document.querySelectorAll<HTMLElement>(
                       ".source-health-row[data-source-profile]",
@@ -378,9 +364,7 @@ export async function sourceRemovalScenario({
                   return {
                     total_matches: matches.length,
                     rows: matches.slice(0, 4).map((row) => {
-                      const impact = row.querySelector(
-                        '[aria-label="Saved-location removal impact"]',
-                      );
+                      const impact = row.querySelector(impactSelector);
                       const owner = row.closest(
                         "[data-saved-folders-workspace], section[aria-label], section[aria-labelledby]",
                       );
@@ -411,6 +395,7 @@ export async function sourceRemovalScenario({
                   };
                 },
                 source.profile_id,
+                impactSelector,
               ),
             ),
           ]);

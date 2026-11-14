@@ -19,6 +19,7 @@
     },
     "issue_number": 2664,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://ko-fi.com/iexplosiverage"],
     "manual_setup": {
       "help_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md",
       "steps": [

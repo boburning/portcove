@@ -612,362 +612,13 @@
     ],
     "title": "Nullable_AdoptionBatchResult"
   },
-  "application_update_check_phase": {
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "enum": [
-      "checking",
-      "acquiring-and-verifying",
-      "staged",
-      "complete"
-    ],
-    "title": "ApplicationUpdateCheckPhase",
-    "type": "string"
-  },
-  "application_update_check_result": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateCandidateSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "bytes": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "channel",
-          "bytes"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCheckResultKind": {
-        "enum": [
-          "consent-required",
-          "paused",
-          "manual-mode",
-          "offline",
-          "metered",
-          "metered-state-unknown",
-          "startup-delay",
-          "cadence",
-          "superseded",
-          "current",
-          "update-available",
-          "held",
-          "incompatible",
-          "no-candidate"
-        ],
-        "type": "string"
-      }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "candidate": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "kind": {
-        "$ref": "#/$defs/ApplicationUpdateCheckResultKind"
-      },
-      "reasons": {
-        "items": {
-          "type": "string"
-        },
-        "type": "array"
-      },
-      "staged": {
-        "type": "boolean"
-      }
-    },
-    "required": [
-      "kind",
-      "candidate",
-      "reasons",
-      "staged"
-    ],
-    "title": "ApplicationUpdateCheckResult",
-    "type": "object"
-  },
-  "application_update_manual_check_result": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateCandidateSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "bytes": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "channel",
-          "bytes"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCheckResult": {
-        "properties": {
-          "candidate": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "kind": {
-            "$ref": "#/$defs/ApplicationUpdateCheckResultKind"
-          },
-          "reasons": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "staged": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "kind",
-          "candidate",
-          "reasons",
-          "staged"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCheckResultKind": {
-        "enum": [
-          "consent-required",
-          "paused",
-          "manual-mode",
-          "offline",
-          "metered",
-          "metered-state-unknown",
-          "startup-delay",
-          "cadence",
-          "superseded",
-          "current",
-          "update-available",
-          "held",
-          "incompatible",
-          "no-candidate"
-        ],
-        "type": "string"
-      }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "checked_channel": {
-        "$ref": "#/$defs/ApplicationChannel"
-      },
-      "result": {
-        "$ref": "#/$defs/ApplicationUpdateCheckResult"
-      }
-    },
-    "required": [
-      "checked_channel",
-      "result"
-    ],
-    "title": "ApplicationUpdateManualCheckResult",
-    "type": "object"
-  },
-  "application_update_notice": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateCandidateSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "bytes": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "version": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "version",
-          "channel",
-          "bytes"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCheckResult": {
-        "properties": {
-          "candidate": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "kind": {
-            "$ref": "#/$defs/ApplicationUpdateCheckResultKind"
-          },
-          "reasons": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "staged": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "kind",
-          "candidate",
-          "reasons",
-          "staged"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCheckResultKind": {
-        "enum": [
-          "consent-required",
-          "paused",
-          "manual-mode",
-          "offline",
-          "metered",
-          "metered-state-unknown",
-          "startup-delay",
-          "cadence",
-          "superseded",
-          "current",
-          "update-available",
-          "held",
-          "incompatible",
-          "no-candidate"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateNotice": {
-        "properties": {
-          "preference_revision": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "result": {
-            "$ref": "#/$defs/ApplicationUpdateCheckResult"
-          }
-        },
-        "required": [
-          "preference_revision",
-          "result"
-        ],
-        "type": "object"
-      }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "notice": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationUpdateNotice"
-          },
-          {
-            "type": "null"
-          }
-        ]
-      },
-      "revision": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
-      }
-    },
-    "required": [
-      "revision",
-      "notice"
-    ],
-    "title": "ApplicationUpdateNoticeSnapshot",
-    "type": "object"
-  },
   "application_update_preferences": {
     "$defs": {
-      "ApplicationChannel": {
+      "ApplicationUpdateChannel": {
+        "description": "The application release feed a player follows. Beta is the default; Preview\nis an opt-in feed that receives builds before Beta.",
         "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateChoice": {
-        "additionalProperties": false,
-        "properties": {
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "mode": {
-            "$ref": "#/$defs/ApplicationUpdateMode"
-          },
-          "paused": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "channel",
-          "mode",
-          "paused"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateMode": {
-        "enum": [
-          "automatic",
-          "notify-only",
-          "manual"
+          "beta",
+          "preview"
         ],
         "type": "string"
       }
@@ -975,228 +626,86 @@
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "additionalProperties": false,
     "properties": {
-      "choice": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationUpdateChoice"
-          },
-          {
-            "type": "null"
-          }
-        ],
-        "description": "`None` means the user has not completed the one-time choice."
+      "automatic_checks": {
+        "description": "Check for updates at startup and periodically. A found update is only\nannounced; installing always needs the player's click.",
+        "type": "boolean"
       },
-      "revision": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
-      },
-      "schema_version": {
-        "format": "uint32",
-        "minimum": 0,
-        "type": "integer"
+      "channel": {
+        "$ref": "#/$defs/ApplicationUpdateChannel"
       }
     },
     "required": [
-      "schema_version",
-      "revision",
-      "choice"
+      "channel",
+      "automatic_checks"
     ],
     "title": "ApplicationUpdatePreferences",
     "type": "object"
   },
-  "application_update_production_transition": {
+  "application_update_progress": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "offer_required": {
-        "type": "boolean"
-      },
-      "preference_revision": {
-        "format": "uint64",
-        "minimum": 0,
-        "type": "integer"
-      },
-      "schema_version": {
-        "format": "uint32",
-        "minimum": 0,
-        "type": "integer"
-      }
-    },
-    "required": [
-      "schema_version",
-      "preference_revision",
-      "offer_required"
-    ],
-    "title": "ApplicationUpdateProductionTransition",
-    "type": "object"
-  },
-  "application_update_production_transition_result": {
-    "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateChoice": {
-        "additionalProperties": false,
+    "oneOf": [
+      {
         "properties": {
-          "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
-          },
-          "mode": {
-            "$ref": "#/$defs/ApplicationUpdateMode"
-          },
-          "paused": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "channel",
-          "mode",
-          "paused"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateMode": {
-        "enum": [
-          "automatic",
-          "notify-only",
-          "manual"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdatePreferences": {
-        "additionalProperties": false,
-        "properties": {
-          "choice": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ApplicationUpdateChoice"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "`None` means the user has not completed the one-time choice."
-          },
-          "revision": {
+          "downloaded_bytes": {
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
           },
-          "schema_version": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          }
-        },
-        "required": [
-          "schema_version",
-          "revision",
-          "choice"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateProductionTransition": {
-        "properties": {
-          "offer_required": {
-            "type": "boolean"
+          "phase": {
+            "const": "downloading",
+            "type": "string"
           },
-          "preference_revision": {
+          "total_bytes": {
             "format": "uint64",
             "minimum": 0,
-            "type": "integer"
-          },
-          "schema_version": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
+            "type": [
+              "integer",
+              "null"
+            ]
           }
         },
         "required": [
-          "schema_version",
-          "preference_revision",
-          "offer_required"
+          "phase",
+          "downloaded_bytes",
+          "total_bytes"
+        ],
+        "type": "object"
+      },
+      {
+        "properties": {
+          "phase": {
+            "const": "installing",
+            "type": "string"
+          }
+        },
+        "required": [
+          "phase"
         ],
         "type": "object"
       }
-    },
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "properties": {
-      "preferences": {
-        "$ref": "#/$defs/ApplicationUpdatePreferences"
-      },
-      "transition": {
-        "$ref": "#/$defs/ApplicationUpdateProductionTransition"
-      }
-    },
-    "required": [
-      "preferences",
-      "transition"
     ],
-    "title": "ApplicationUpdateProductionTransitionResult",
-    "type": "object"
+    "title": "ApplicationUpdateProgress"
   },
   "application_update_status": {
     "$defs": {
-      "ApplicationChannel": {
-        "enum": [
-          "preview",
-          "stable"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateApplySummary": {
+      "ApplicationUpdateAvailable": {
+        "description": "A newer signed release announced by the channel feed.",
         "properties": {
-          "native_launch": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ApplicationUpdateNativeLaunchSummary"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "request": {
-            "$ref": "#/$defs/ApplicationUpdateRequestedAction"
-          },
-          "revision": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "termination": {
-            "anyOf": [
-              {
-                "$ref": "#/$defs/ApplicationUpdateObservedTermination"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          }
-        },
-        "required": [
-          "revision",
-          "request",
-          "termination",
-          "native_launch"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateCandidateSummary": {
-        "additionalProperties": false,
-        "properties": {
-          "bytes": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": "integer"
-          },
           "channel": {
-            "$ref": "#/$defs/ApplicationChannel"
+            "$ref": "#/$defs/ApplicationUpdateChannel"
+          },
+          "date": {
+            "description": "Publication date as written in the feed (RFC 3339).",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "version": {
             "type": "string"
@@ -1205,146 +714,56 @@
         "required": [
           "version",
           "channel",
-          "bytes"
+          "notes",
+          "date"
         ],
         "type": "object"
       },
-      "ApplicationUpdateInstallEligibility": {
+      "ApplicationUpdateChannel": {
+        "description": "The application release feed a player follows. Beta is the default; Preview\nis an opt-in feed that receives builds before Beta.",
         "enum": [
-          "eligible",
-          "package-managed-deb",
-          "package-managed-rpm",
-          "not-configured",
-          "unavailable"
+          "beta",
+          "preview"
         ],
         "type": "string"
-      },
-      "ApplicationUpdateNativeLaunchSummary": {
-        "enum": [
-          "starting",
-          "started",
-          "failed",
-          "installer-succeeded",
-          "installer-failed"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateObservedTermination": {
-        "enum": [
-          "normal-exit",
-          "restart-to-apply",
-          "crash",
-          "os-shutdown",
-          "steam-stop"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateRecoveryArea": {
-        "enum": [
-          "schedule",
-          "staging",
-          "apply"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateRecoveryNotice": {
-        "properties": {
-          "area": {
-            "$ref": "#/$defs/ApplicationUpdateRecoveryArea"
-          }
-        },
-        "required": [
-          "area"
-        ],
-        "type": "object"
-      },
-      "ApplicationUpdateRequestedAction": {
-        "enum": [
-          "safe-exit",
-          "restart-to-apply"
-        ],
-        "type": "string"
-      },
-      "ApplicationUpdateScheduleSummary": {
-        "properties": {
-          "consecutive_failures": {
-            "format": "uint32",
-            "minimum": 0,
-            "type": "integer"
-          },
-          "last_success_unix_seconds": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          },
-          "next_automatic_check_unix_seconds": {
-            "format": "uint64",
-            "minimum": 0,
-            "type": [
-              "integer",
-              "null"
-            ]
-          }
-        },
-        "required": [
-          "last_success_unix_seconds",
-          "consecutive_failures",
-          "next_automatic_check_unix_seconds"
-        ],
-        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
-      "apply": {
+      "available": {
         "anyOf": [
           {
-            "$ref": "#/$defs/ApplicationUpdateApplySummary"
+            "$ref": "#/$defs/ApplicationUpdateAvailable"
           },
           {
             "type": "null"
           }
         ]
       },
-      "install_eligibility": {
-        "$ref": "#/$defs/ApplicationUpdateInstallEligibility"
+      "checking": {
+        "type": "boolean"
       },
-      "recovery_required": {
-        "items": {
-          "$ref": "#/$defs/ApplicationUpdateRecoveryNotice"
-        },
-        "type": "array"
+      "current_version": {
+        "type": "string"
       },
-      "schedule": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationUpdateScheduleSummary"
-          },
-          {
-            "type": "null"
-          }
-        ]
+      "installing": {
+        "type": "boolean"
       },
-      "staged": {
-        "anyOf": [
-          {
-            "$ref": "#/$defs/ApplicationUpdateCandidateSummary"
-          },
-          {
-            "type": "null"
-          }
+      "last_checked_unix_seconds": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": [
+          "integer",
+          "null"
         ]
       }
     },
     "required": [
-      "schedule",
-      "staged",
-      "apply",
-      "install_eligibility",
-      "recovery_required"
+      "current_version",
+      "checking",
+      "installing",
+      "available",
+      "last_checked_unix_seconds"
     ],
     "title": "ApplicationUpdateStatus",
     "type": "object"
@@ -9480,6 +8899,16 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
           "id": {
             "type": "string"
           },
@@ -10772,6 +10201,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -10793,6 +10233,39 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -16143,6 +15616,23 @@
               "kind"
             ],
             "type": "object"
+          },
+          {
+            "description": "As `RemoveOwned`, for one role only; the entry's other artwork stays.",
+            "properties": {
+              "kind": {
+                "const": "remove_owned_role",
+                "type": "string"
+              },
+              "role": {
+                "$ref": "#/$defs/DestinationArtworkRole"
+              }
+            },
+            "required": [
+              "kind",
+              "role"
+            ],
+            "type": "object"
           }
         ]
       },
@@ -16240,6 +15730,23 @@
         ],
         "type": "object"
       },
+      "SteamArtworkWithdrawnSource": {
+        "properties": {
+          "role": {
+            "$ref": "#/$defs/DestinationArtworkRole"
+          },
+          "source_evicted_at": {
+            "description": "When Portcove removed its own copy of the source image.",
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "role",
+          "source_evicted_at"
+        ],
+        "type": "object"
+      },
       "SteamClientState": {
         "enum": [
           "closed",
@@ -16308,6 +15815,13 @@
       "steam_user_id": {
         "type": "string"
       },
+      "withdrawn_sources": {
+        "description": "Roles whose Portcove-added Steam image came from a SteamGridDB image\nPortcove has since removed from its library. Display only: it is not\npart of the reviewed plan, and removal still needs its own review.\nEmpty when unknown.",
+        "items": {
+          "$ref": "#/$defs/SteamArtworkWithdrawnSource"
+        },
+        "type": "array"
+      },
       "writes_required": {
         "type": "boolean"
       }
@@ -16326,7 +15840,8 @@
       "steam_client_state",
       "writes_required",
       "recovered",
-      "recovered_shortcut_change"
+      "recovered_shortcut_change",
+      "withdrawn_sources"
     ],
     "title": "SteamArtworkReview",
     "type": "object"
@@ -17785,6 +17300,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -17796,6 +17322,39 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       }
@@ -17858,6 +17417,25 @@
           "contract",
           "account_sid_sha256",
           "path"
+        ],
+        "type": "object"
+      },
+      "AcceptedUploader": {
+        "additionalProperties": false,
+        "description": "One reviewed GitHub release uploader. The numeric ID is stable across login\nrenames; a freed login re-registered by another account does not match.",
+        "properties": {
+          "id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "login": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "login"
         ],
         "type": "object"
       },
@@ -21813,6 +21391,17 @@
             },
             "type": "array"
           },
+          "runtime_rom_patch": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/RomPatchProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required by, and only valid with, the `rom-patch` materialization: the\npatch format and the exact original and patch members it combines."
+          },
           "runtime_source_filename": {
             "default": null,
             "type": [
@@ -22092,6 +21681,16 @@
             "description": "A reviewed restriction on fresh self-service downloads only. It grants\nno execution, management or permission over an existing copy.",
             "type": [
               "string",
+              "null"
+            ]
+          },
+          "funding_urls": {
+            "description": "Reviewed pages where the upstream developers accept funding, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10; when present it\nis never empty, so an earlier strict reader never meets an inert empty key.",
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
               "null"
             ]
           },
@@ -22980,6 +22579,13 @@
       },
       "ReleaseSpec": {
         "properties": {
+          "accepted_uploaders": {
+            "description": "GitHub accounts a maintainer reviewed and accepted as uploaders of this\nproject's release packages, in addition to the repository owner, the\nproject's own Actions automation and its established uploaders. Matched by\nnumeric account ID; the login records what was reviewed.",
+            "items": {
+              "$ref": "#/$defs/AcceptedUploader"
+            },
+            "type": "array"
+          },
           "archive_file_links": {
             "description": "Native13: the package relies on in-archive file links, which extraction writes as\nregular copies of the files they name.",
             "type": "boolean"
@@ -23203,6 +22809,54 @@
         ],
         "type": "object"
       },
+      "RomPatchFormat": {
+        "description": "Patch file format applied by the `rom-patch` materialization.",
+        "enum": [
+          "ips",
+          "bps",
+          "ups"
+        ],
+        "type": "string"
+      },
+      "RomPatchProfile": {
+        "additionalProperties": false,
+        "description": "Port declaration for producing a patched runtime file from two members of the\nport's file-set source. Both inputs are pinned to one exact SHA-256 each; the\noutput is pinned by the port's single `runtime_source_hashes` entry.",
+        "properties": {
+          "format": {
+            "$ref": "#/$defs/RomPatchFormat"
+          },
+          "original_filenames": {
+            "description": "Accepted filenames of the file-set member holding the unmodified original.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "original_sha256": {
+            "description": "The one original this patch applies to; also an accepted SHA-256 of its member.",
+            "type": "string"
+          },
+          "patch_filenames": {
+            "description": "Accepted filenames of the file-set member holding the patch file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "patch_sha256": {
+            "description": "The one reviewed patch file; also an accepted SHA-256 of its member.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "format",
+          "original_filenames",
+          "original_sha256",
+          "patch_filenames",
+          "patch_sha256"
+        ],
+        "type": "object"
+      },
       "RuntimeDataPolicy": {
         "description": "Closed handling of runtime-owned host credentials, never a catalog exclusion DSL.",
         "enum": [
@@ -23272,6 +22926,11 @@
           {
             "const": "iso9660-directory",
             "description": "Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.",
+            "type": "string"
+          },
+          {
+            "const": "rom-patch",
+            "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
           }
         ]
@@ -24808,6 +24467,17 @@
           },
           "update_available": {
             "type": "boolean"
+          },
+          "upstream_activity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UpstreamActivity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Repository maintenance facts from the provider's most recent observation of\nthis port. Absent means unknown, never active. It may be older than\n`checked_at` when this check did not read the repository itself."
           }
         },
         "required": [
@@ -24843,6 +24513,39 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UpstreamActivity": {
+        "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
+        "properties": {
+          "archived": {
+            "description": "The repository owner archived the repository (read-only upstream).",
+            "type": "boolean"
+          },
+          "last_change_at": {
+            "description": "Unix seconds of the latest push the provider reported, when it reported one.",
+            "format": "int64",
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "observed_at": {
+            "description": "Unix seconds when the provider reported these facts.",
+            "format": "int64",
+            "type": "integer"
+          },
+          "repository": {
+            "default": "",
+            "description": "The GitHub `owner/name` repository these facts describe. A port whose\ncatalog provider or repository differs no longer owns this observation.\nEmpty (an observation without a recorded repository) describes no port.",
+            "type": "string"
+          }
+        },
+        "required": [
+          "repository",
+          "observed_at",
+          "archived"
         ],
         "type": "object"
       },

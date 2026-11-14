@@ -86,7 +86,20 @@ export async function captureNativeEnlargement(
           if (!(element instanceof globalThis.Element)) continue;
           const rect = element.getBoundingClientRect();
           const style = globalThis.getComputedStyle(element);
+          // Content of a horizontally scrolling or clipping ancestor (such as the
+          // Settings category strip) cannot widen the document; report only
+          // elements that can (hosted job 132524656212 listed the strip instead).
+          let clipped = false;
+          for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+            if (globalThis.getComputedStyle(parent).overflowX !== "visible") {
+              clipped =
+                parent !== globalThis.document.documentElement &&
+                parent !== globalThis.document.body;
+              break;
+            }
+          }
           if (
+            !clipped &&
             rect.width > 0 &&
             rect.height > 0 &&
             style.visibility !== "hidden" &&
@@ -140,6 +153,15 @@ export async function retainNativeEnlargement(
     } catch (retentionFailure) {
       console.error(`Could not retain enlargement failure metrics: ${String(retentionFailure)}`);
     }
+    // Hosted runs keep only the log, so name the widest offenders in the failure itself.
+    if (failure instanceof Error && observed.overflowingElements?.length)
+      failure.message += `\nOverflowing: ${observed.overflowingElements
+        .slice(0, 6)
+        .map(
+          ({ tag, className, text, right }) =>
+            `${tag.toLowerCase()}.${className.split(/\s+/).slice(0, 3).join(".")} "${text.slice(0, 40)}" right=${Math.round(right)}`,
+        )
+        .join("; ")}`;
     throw failure;
   }
   const file = path.join(output, `${prefix}-400-${stage}.json`);

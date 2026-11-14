@@ -130,7 +130,7 @@ installed_mode=$(stat -c '%a' "$installed_executable")
 guidance_file="$evidence_root/$format-guidance.txt"
 set +e
 env -u APPIMAGE -u APPDIR -u DISPLAY \
-  "$installed_executable" --application-update-recovery eligibility \
+  "$installed_executable" --portcove-update-eligibility \
   >"$guidance_file" 2>&1
 eligibility_status=$?
 set -e
@@ -139,9 +139,8 @@ if (( eligibility_status != 1 )); then
   cat "$guidance_file" >&2
   exit 1
 fi
-grep -Fq "This Portcove $expected_manager installation is managed by its package manager." "$guidance_file"
-grep -Fq "Update it through the same package source; Portcove did not modify package-managed files." "$guidance_file"
-grep -Fq "No update check, download, install, restart, or native prompt was started." "$guidance_file"
+grep -Fq "This copy of Portcove was installed by your package manager. Update it through your package manager instead." "$guidance_file"
+grep -Fq "Portcove did not check for, download or install an update." "$guidance_file"
 hash_after=$(sha256sum "$installed_executable" | cut -d ' ' -f 1)
 if [[ "$hash_before" != "$hash_after" ]]; then
   echo "$expected_manager eligibility modified the package-managed executable" >&2

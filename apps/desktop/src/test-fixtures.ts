@@ -81,6 +81,7 @@ export function artworkState(
     },
     attribution: [],
     provider_listing: [],
+    evicted_at: null,
   };
 }
 

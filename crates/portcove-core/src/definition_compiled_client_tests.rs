@@ -394,7 +394,17 @@ async fn qualification_managed_compiled_clients(include_desktop: bool) {
                     required_runtime: None,
                     update_available: true,
                     release: serde_json::from_value(expected_release.clone()).unwrap(),
+                    // Repository maintenance facts are observation-timed; the
+                    // fixture repository is never archived.
+                    upstream_activity: snapshot.check.upstream_activity.clone(),
                 };
+                assert!(
+                    snapshot
+                        .check
+                        .upstream_activity
+                        .as_ref()
+                        .is_none_or(|activity| !activity.archived)
+                );
                 assert_eq!(
                     serde_json::to_value(&snapshot.check).unwrap(),
                     serde_json::to_value(expected_check).unwrap()

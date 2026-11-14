@@ -72,6 +72,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // selection must preserve. Keeping it would put a field that earlier strict readers
         // do not know inside an envelope version they still accept.
         listing.listed_at = None;
+        // Funding links are directory descriptions for the same reason; the current
+        // directory supplies them again while it lists the project.
+        listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.compatibility.is_some() {
@@ -288,8 +291,60 @@ enum LockMode {
     Shared,
 }
 
-/// Longest a writer waits for read-only views that hold a port lock.
+/// Longest a writer waits for read-only views that hold a port lock. A single
+/// settings view holds its shared lock across status, retained-catalog and
+/// critical-file verification reads, which took several seconds on the hosted
+/// Windows debug build while capability reads ran 12-16 s (#4879); two seconds
+/// refused uninstall as busy. Player writers show progress while they wait, so
+/// waiting is preferred to refusal, and the wait stays bounded.
+#[cfg(not(test))]
+const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
+/// Unit tests exercise the same waiting and refusal paths on a short budget.
+#[cfg(test)]
 const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// Port writers in this process currently waiting for read-only views, by lock
+/// file. New shared readers in this process hold off while one waits, so a
+/// stream of overlapping reads cannot keep a player action refused as busy.
+/// Readers in other processes are not ordered; they still drain or refuse as
+/// before. Every wait remains bounded by [`READER_YIELD_BUDGET`].
+static WAITING_PORT_WRITERS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<PathBuf, usize>>,
+> = std::sync::LazyLock::new(Default::default);
+
+fn waiting_port_writers()
+-> std::sync::MutexGuard<'static, std::collections::HashMap<PathBuf, usize>> {
+    // The map holds only counters, so a panicked holder leaves nothing to repair.
+    WAITING_PORT_WRITERS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Registers one waiting writer until dropped.
+struct WaitingPortWriter(PathBuf);
+
+impl WaitingPortWriter {
+    fn register(path: PathBuf) -> Self {
+        *waiting_port_writers().entry(path.clone()).or_default() += 1;
+        Self(path)
+    }
+}
+
+impl Drop for WaitingPortWriter {
+    fn drop(&mut self) {
+        let mut waiting = waiting_port_writers();
+        if let Some(count) = waiting.get_mut(&self.0) {
+            *count -= 1;
+            if *count == 0 {
+                waiting.remove(&self.0);
+            }
+        }
+    }
+}
+
+fn port_writer_waiting(path: &Path) -> bool {
+    waiting_port_writers().contains_key(path)
+}
 
 #[derive(Debug)]
 pub struct PortOperationGuard {
@@ -699,8 +754,10 @@ impl Library {
     }
 
     /// Preflights the durable idle conditions required before the desktop
-    /// exits for an explicit application update. The post-exit helper still
-    /// acquires the exclusive library lease and repeats this check.
+    /// installs an explicit application update. This read alone proves nothing
+    /// lasting: the desktop then closes its own library, releases its shared
+    /// lease and acquires [`ApplicationUpdateQuiescenceGuard`], which repeats
+    /// this check under the exclusive library lease held across the install.
     pub fn require_application_update_idle(&self) -> Result<()> {
         require_current_application_update_library(&self.root)?;
         require_application_update_idle(&self.root)
@@ -1197,6 +1254,16 @@ impl Library {
         let file = self.open_lock_file(key)?;
         let deadline = std::time::Instant::now() + READER_YIELD_BUDGET;
         let mut refused_by_readers = false;
+        let lock_path = self.locks_dir().join(format!("{key}.lock"));
+        if mode == LockMode::Shared {
+            // Let a waiting writer in this process acquire before admitting
+            // another reader. A reader nested inside one the writer waits for
+            // is delayed at most until that writer's own budget ends.
+            while port_writer_waiting(&lock_path) && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        let mut waiting_writer = None;
         let attempt = loop {
             let attempt = match mode {
                 LockMode::Exclusive | LockMode::ExclusiveYieldingToReaders => file.try_lock(),
@@ -1209,12 +1276,15 @@ impl Library {
             {
                 refused_by_readers = self.lock_held_only_by_readers(key);
                 if refused_by_readers && std::time::Instant::now() < deadline {
+                    waiting_writer
+                        .get_or_insert_with(|| WaitingPortWriter::register(lock_path.clone()));
                     std::thread::sleep(std::time::Duration::from_millis(10));
                     continue;
                 }
             }
             break attempt;
         };
+        drop(waiting_writer);
         if let Err(error) = attempt {
             if matches!(error, std::fs::TryLockError::WouldBlock) {
                 let mut refusal = PortcoveError::conflict(format!(
@@ -1735,6 +1805,33 @@ impl Library {
         Ok(())
     }
 
+    /// Successful-launch history, newest first, for ports that still have an
+    /// active Portcove-managed installation or a registered external runtime.
+    /// Ties order by port ID so the read is deterministic.
+    pub(crate) fn recently_played_installed_ports(
+        &self,
+        limit: usize,
+    ) -> Result<Vec<(String, i64)>> {
+        let limit = i64::try_from(limit).unwrap_or(i64::MAX);
+        let connection = self.connection()?;
+        let mut statement = connection.prepare(
+            "SELECT history.port_id, history.last_launched_at FROM launch_history AS history
+             WHERE EXISTS (
+                     SELECT 1 FROM port_settings AS settings
+                     WHERE settings.port_id = history.port_id
+                       AND settings.active_install_id IS NOT NULL
+                   )
+                OR EXISTS (
+                     SELECT 1 FROM external_runtime_registrations AS external
+                     WHERE external.port_id = history.port_id
+                   )
+             ORDER BY history.last_launched_at DESC, history.port_id
+             LIMIT ?1",
+        )?;
+        let rows = statement.query_map([limit], |row| Ok((row.get(0)?, row.get(1)?)))?;
+        rows.collect::<rusqlite::Result<_>>().map_err(Into::into)
+    }
+
     pub(crate) fn create_launch_session(&self, session: &LaunchSessionRecord) -> Result<()> {
         let install_root = crate::path::unicode(&session.install_root, "install")?;
         let mut connection = self.connection()?;
@@ -1899,6 +1996,23 @@ impl Library {
             )
             .optional()?;
         row.map(parse_launch_session).transpose()
+    }
+
+    /// Whether the request is an active launch session whose recorded supervisor no longer
+    /// exists. Read-only: recovery stays an explicit action, and a session with no recorded
+    /// supervisor identity counts as lost, as it does for `stale_launch_sessions`. A request
+    /// that is unknown or already finished is not lost.
+    pub fn launch_supervisor_lost(&self, id: &str) -> Result<bool> {
+        let Some(session) = self.launch_request(id)? else {
+            return Ok(false);
+        };
+        if session.outcome.is_some() {
+            return Ok(false);
+        }
+        Ok(match session.supervisor_identity.as_deref() {
+            Some(identity) => !crate::launch::process_matches(session.supervisor_pid, identity)?,
+            None => true,
+        })
     }
 
     /// The most recently finished launch session for a port, if any. Callers
@@ -3485,6 +3599,28 @@ mod tests {
     }
 
     #[test]
+    fn a_retained_selection_does_not_carry_directory_funding_links() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"funded-project", "name":"Funded project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "funding_urls":["https://github.com/sponsors/example"]
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "funded-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("funding_urls"), "{content}");
+        let retained = decode_external_catalog(&content, "funded-project").unwrap();
+        assert!(
+            retained
+                .listing("funded-project")
+                .unwrap()
+                .funding_urls
+                .is_none()
+        );
+    }
+
+    #[test]
     fn referenced_listing_retains_notes_with_an_explicit_reader_fence() {
         let listing = Catalog::embedded()
             .unwrap()
@@ -4542,6 +4678,7 @@ mod tests {
                         sha256: "a".repeat(64),
                     },
                 },
+                upstream_activity: None,
             })
             .unwrap();
 
@@ -4882,6 +5019,46 @@ mod tests {
         let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
         assert!(!refused.details.contains_key("last_owner_operation"));
         drop(held);
+    }
+
+    #[test]
+    fn overlapping_in_process_reads_cannot_starve_a_waiting_writer() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Two readers alternate so a shared lock is always held unless new
+        // readers hold off for the waiting writer.
+        let readers = (0..2)
+            .map(|offset| {
+                let library = library.clone();
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(offset * 30));
+                    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                        if let Ok(guard) =
+                            library.try_read_lock_port("lighthouse", "read-capabilities")
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(60));
+                            drop(guard);
+                        }
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let result = library.try_lock_port("lighthouse", "remove");
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        drop(result.as_ref().ok());
+        for reader in readers {
+            reader.join().unwrap();
+        }
+        result.expect("a waiting writer must acquire between overlapping reads");
+        assert!(!port_writer_waiting(&temporary.path().join("locks").join(
+            format!(
+                "{}.lock",
+                hex::encode(Sha256::digest("lighthouse".as_bytes()))
+            )
+        )));
     }
 
     #[test]

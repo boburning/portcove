@@ -60,7 +60,7 @@ fn scopes_do_not_inherit_to_similar_files_or_similar_values() {
     let root = repository();
     let owner = "crates/portcove-core/src/external_runtime/tfe_settings_tests.rs";
     let adjacent = "crates/portcove-core/src/external_runtime/other_tests.rs";
-    let desktop = "apps/desktop/src-tauri/src/application_update_process_environment_tests.rs";
+    let desktop = "apps/desktop/src-tauri/src/source_removal_tests.rs";
     write(
         root.path(),
         owner,
@@ -70,7 +70,7 @@ fn scopes_do_not_inherit_to_similar_files_or_similar_values() {
     write(
         root.path(),
         desktop,
-        r#"const ROOT: &str = "/owned host helpers/fusermount3";"#,
+        r#"const ROOT: &str = "D:/Original ü/game.iso";"#,
     );
     let result = scan(root.path());
     let stderr = String::from_utf8(result.stderr).unwrap();

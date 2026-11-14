@@ -17,6 +17,7 @@
     },
     "issue_number": 2876,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://buymeacoffee.com/ripleyxlr8"],
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "manual_setup": {
       "steps": [

@@ -548,7 +548,99 @@ mod tests {
                 .as_deref(),
             Some("2026-11-09")
         );
-        assert!(dated.export_format(10).is_err());
+        assert!(dated.export_format(11).is_err());
+    }
+
+    fn funded_listing(urls: &[&str]) -> crate::PortListing {
+        serde_json::from_value(json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture","funding_urls":urls
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn funding_links_need_format_ten_and_older_exports_omit_them() {
+        let urls = [
+            "https://github.com/sponsors/example",
+            "https://ko-fi.com/example",
+        ];
+        let document = |format_version| crate::CatalogListingDocument {
+            format_version,
+            listings: vec![funded_listing(&urls)],
+        };
+        assert!(document(10).validate().is_ok());
+        for older in [5, 6, 7, 8, 9] {
+            assert!(document(older).validate().is_err(), "{older}");
+        }
+        let funded = document(10);
+        for version in [5, 6, 7, 8, 9] {
+            assert!(
+                funded.export_format(version).unwrap().listings[0]
+                    .funding_urls
+                    .is_none()
+            );
+        }
+        assert_eq!(
+            funded.export_format(10).unwrap().listings[0]
+                .funding_urls
+                .as_deref(),
+            Some(&urls.map(String::from)[..])
+        );
+    }
+
+    #[test]
+    fn an_explicit_null_funding_key_is_refused_not_read_as_absent() {
+        let value = json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture","funding_urls":null
+        });
+        assert!(serde_json::from_value::<crate::PortListing>(value).is_err());
+        for format_version in [9, 10] {
+            let document = json!({"format_version":format_version,"listings":[{
+                "id":"fixture","name":"Fixture","summary":"Fixture",
+                "project_url":"https://example.com/fixture","funding_urls":null
+            }]});
+            assert!(
+                crate::CatalogListingDocument::from_json(&document.to_string()).is_err(),
+                "{format_version}"
+            );
+        }
+        let absent: crate::PortListing = serde_json::from_value(json!({
+            "id":"fixture","name":"Fixture","summary":"Fixture",
+            "project_url":"https://example.com/fixture"
+        }))
+        .unwrap();
+        assert!(absent.funding_urls.is_none());
+    }
+
+    #[test]
+    fn funding_links_are_bounded_distinct_public_https_urls() {
+        let many = (0..13)
+            .map(|index| format!("https://example.com/support/{index}"))
+            .collect::<Vec<_>>();
+        let many = many.iter().map(String::as_str).collect::<Vec<_>>();
+        for bad in [
+            &["http://ko-fi.com/example"][..],
+            &["https://user:secret@example.com/support"],
+            &["https://ko-fi.com/example", "https://ko-fi.com/example"],
+            &[" https://ko-fi.com/example"],
+            &["javascript:alert(1)"],
+            &[""],
+            &[],
+            &many,
+        ] {
+            let document = crate::CatalogListingDocument {
+                format_version: 10,
+                listings: vec![funded_listing(bad)],
+            };
+            assert!(document.validate().is_err(), "{bad:?} must be refused");
+        }
+        let document = crate::CatalogListingDocument {
+            format_version: 10,
+            listings: vec![funded_listing(&many[..12])],
+        };
+        assert!(document.validate().is_ok());
     }
 
     #[test]

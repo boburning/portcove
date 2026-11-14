@@ -74,7 +74,22 @@ import {
   retainLeadResults,
   LeadSearchChanged,
   restartLeadSlice,
+  linkExternalHints,
+  resolveExternalHint,
 } from "./discovery-leads.mts";
+import type { ExternalResolution } from "./discovery-leads.mts";
+import {
+  externalHintSummary,
+  externalLeadLists,
+  externalListDue,
+  externalRepository,
+  leadPaths,
+  mergeExternalList,
+  parseExternalList,
+  recordExternalListFailure,
+  selectExternalResolutions,
+} from "./discovery-external-lists.mts";
+import { assessUpstreamLineage } from "./upstream-lineage.mts";
 import type { LeadState } from "./discovery-leads.mts";
 import { ecosystemBursts } from "./discovery-ecosystems.mts";
 import { readCatalogSource } from "./catalog-authoring.mts";
@@ -292,6 +307,7 @@ export class DiscoverySession {
   deferredLeadFamilies = new Set<string>();
   researchedLeads = new Set<number>();
   leadCollectionAttempted = false;
+  externalCollectionAttempted = false;
   private constructor(stateDir: string, runDir: string, startedAt: string, head: string) {
     this.stateDir = stateDir;
     this.runDir = runDir;
@@ -754,8 +770,222 @@ export class DiscoverySession {
       next: pending?.slice(0, 12) ?? [],
       continuations: this.leads.slices,
       ecosystem_bursts: ecosystemBursts(Object.values(this.leads.records), this.journal.started_at),
+      external: this.leads.external
+        ? externalHintSummary(
+            this.leads.external,
+            this.inventory ? this.externalCovered() : undefined,
+            leadPaths(Object.values(this.leads.records)),
+            this.journal.started_at,
+          )
+        : null,
       scope: "Bounded GitHub lead searches; not complete community discovery",
     };
+  }
+  /** Canonical issue upstreams plus reviewed catalog lineage, as normalized hint keys. */
+  externalCovered() {
+    const covered = new Set<string>();
+    const add = (url: string) => {
+      const repository = externalRepository(url);
+      if (repository) covered.add(repository.key);
+    };
+    for (const url of this.knownLeadUrls()) add(url);
+    for (const record of (this.intakeRecords ??= readCatalogSource(
+      fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+    ).records)) {
+      const lineage = assessUpstreamLineage(record);
+      for (const identity of [lineage.current, ...lineage.history]) add(identity.project_url);
+    }
+    return covered;
+  }
+  /** Curated community lists add lead hints only. Each due list is read once per run
+   * and a bounded number of uncovered GitHub hints is bound to primary repository IDs.
+   */
+  async collectExternalLists() {
+    if (this.externalCollectionAttempted) return this.leadSummary().external;
+    this.externalCollectionAttempted = true;
+    const at = this.journal.started_at;
+    // Provider-wide refusals stop this run. Only a typed GitHub answer about one
+    // repository path is recorded on that hint; anything unclassified stops too.
+    const providerWide = (error: unknown) =>
+      !(error instanceof GitHubApiError) ||
+      error.status === 401 ||
+      (error.status ?? 0) >= 500 ||
+      [
+        "budget_exhausted",
+        "rate_limited",
+        "deadline_exceeded",
+        "cancelled",
+        "credential_unavailable",
+        "invalid_configuration",
+        "request_refused",
+        "quota_unknown",
+        "quota_stale",
+        "retry_exhausted",
+      ].includes(error.code);
+    for (const list of externalLeadLists) {
+      if (!externalListDue(this.leads.external, list.id, at)) continue;
+      const left = this.budget.remaining();
+      // One list read may follow up to four redirects; keep the research reserve after them.
+      if (left.requests < 22 || left.bytes < list.cap + 1024 * 1024) {
+        this.journal.notes.push({
+          phase: "external-list",
+          source: list.id,
+          status: "deferred",
+          resume: "Read this list on a later admitted run; retained hints are unchanged",
+        });
+        continue;
+      }
+      const name = `external-list-${list.id}`;
+      try {
+        const response = await this.source.http.request(
+          "GET",
+          list.url,
+          undefined,
+          false,
+          list.cap,
+        );
+        this.save(name, { url: list.url, ...response });
+        if (response.status !== 200)
+          throw new Error(`External list returned HTTP ${String(response.status)}`);
+        const parsed = parseExternalList(list.id, response.text);
+        this.leads = linkExternalHints(
+          {
+            ...this.leads,
+            external: mergeExternalList(
+              this.leads.external,
+              list.id,
+              parsed,
+              at,
+              path.join(this.runDir, `${name}.json`),
+            ),
+          },
+          at,
+        );
+      } catch (error) {
+        // A list-specific failure waits before its next read; a budget or provider
+        // refusal leaves the list due for the next admitted run.
+        const budgetRefusal =
+          error instanceof GitHubApiError &&
+          ["budget_exhausted", "rate_limited", "quota_unknown", "quota_stale"].includes(error.code);
+        if (!budgetRefusal)
+          this.leads = {
+            ...this.leads,
+            external: recordExternalListFailure(
+              this.leads.external,
+              list.id,
+              at,
+              errorMessage(error),
+            ),
+          };
+        this.journal.notes.push({
+          phase: "external-list",
+          source: list.id,
+          status: "partial",
+          evidence: list.url,
+          error: errorMessage(error),
+          resume: "Retained hints and the last successful list clock are unchanged",
+        });
+        if (budgetRefusal) {
+          this.persist();
+          break;
+        }
+      }
+      this.persist();
+    }
+    const picks = this.leads.external
+      ? selectExternalResolutions(
+          this.leads.external,
+          this.externalCovered(),
+          leadPaths(Object.values(this.leads.records)),
+          at,
+        )
+      : [];
+    for (const pick of picks) {
+      // Keep the same capacity for two upstream investigations that lead searches keep.
+      if (this.budget.remaining().requests < 18 || this.budget.remaining().bytes < 1024 * 1024) {
+        this.journal.notes.push({
+          phase: "external-resolution",
+          status: "deferred",
+          next: pick.repository,
+          resume: "Resolve remaining curated-list hints on a later admitted run",
+        });
+        break;
+      }
+      const name = `external-resolution-${observationHash(pick.key).slice(0, 16)}`;
+      let outcome: ExternalResolution;
+      try {
+        // Admission failures are budget/quota state, never evidence about this hint.
+        await this.budget.admit(1, 1);
+      } catch (error) {
+        this.journal.notes.push({
+          phase: "external-resolution",
+          status: "deferred",
+          next: pick.repository,
+          error: errorMessage(error),
+          resume: "Resolve remaining curated-list hints on a later admitted run",
+        });
+        break;
+      }
+      try {
+        const response = await this.source.sdk.request({
+          method: "GET",
+          url: new URL(`repos/${repoName(pick.repository)}`, "https://api.github.com/").href,
+        });
+        this.save(name, response.data);
+        outcome = { status: "found", repository: response.data };
+      } catch (error) {
+        if (providerWide(error)) {
+          this.journal.notes.push({
+            phase: "external-resolution",
+            status: "partial",
+            next: pick.repository,
+            error: errorMessage(error),
+            resume: "Resolve remaining curated-list hints on a later admitted run",
+          });
+          break;
+        }
+        const status = error instanceof GitHubApiError ? error.status : undefined;
+        outcome =
+          error instanceof GitHubApiError && error.code === "redirect_refused"
+            ? {
+                status: "unavailable",
+                reason:
+                  "GitHub redirected this path (renamed or transferred repository); research its new location manually",
+              }
+            : status === 404 || status === 410
+              ? { status: "unavailable", reason: `Repository metadata returned HTTP ${status}` }
+              : status === 451 || status === 403
+                ? {
+                    status: "unavailable",
+                    reason: `Repository access is blocked (HTTP ${status})`,
+                  }
+                : {
+                    status: "failed",
+                    reason: `Repository metadata read failed: ${errorMessage(error).slice(0, 200)}`,
+                  };
+      }
+      try {
+        this.leads = resolveExternalHint(
+          this.leads,
+          pick.key,
+          outcome,
+          at,
+          path.join(this.runDir, `${name}.json`),
+        );
+      } catch (error) {
+        // Malformed provider metadata: record a short retry so this hint cannot block others.
+        this.leads = resolveExternalHint(
+          this.leads,
+          pick.key,
+          { status: "failed", reason: `Malformed repository metadata: ${errorMessage(error)}` },
+          at,
+          path.join(this.runDir, `${name}.json`),
+        );
+      }
+      this.persist();
+    }
+    this.persist();
+    return this.leadSummary().external;
   }
   async discover() {
     if (this.leadCollectionAttempted) return this.leadSummary();
@@ -1382,6 +1612,18 @@ export class DiscoverySession {
   async collect() {
     if (this.journal.collection_done)
       throw new Error("Source collection already completed in this run");
+    try {
+      await this.collectExternalLists();
+    } catch (error) {
+      // Curated hints are optional lead input; their failure never blocks collection.
+      this.journal.notes.push({
+        phase: "external-list",
+        status: "partial",
+        error: errorMessage(error),
+        resume: "Retained hints are unchanged; retry on a later run",
+      });
+      this.persist();
+    }
     await this.discover();
     const reserve = this.budget.reserve;
     const pending = pendingLeads(this.leads, this.knownLeadUrls());

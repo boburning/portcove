@@ -27,6 +27,7 @@ mod catalog_download;
 #[cfg(any(test, feature = "qualification-fixtures"))]
 mod forbidden_memories_qualification;
 mod observation;
+mod uploader_continuity;
 pub(crate) use catalog_download::repository_from_url as catalog_download_repository;
 pub(crate) use observation::encoded_segment_matches as observed_url_segment_matches;
 pub use observation::{
@@ -72,6 +73,20 @@ pub trait ReleaseProvider: Send + Sync {
         _scoped: bool,
     ) -> Result<crate::RequestCostForecast> {
         Ok(crate::RequestCostForecast::default())
+    }
+
+    /// Informational release notes between the installed and offered versions, read
+    /// only from metadata this provider already persisted. Never makes a request.
+    /// `None` means the provider has no hosted release list for this port.
+    fn cached_release_notes(
+        &self,
+        _port: &PortDefinition,
+        _channel: ReleaseChannel,
+        _platform: Platform,
+        _installed: Option<&str>,
+        _offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        None
     }
 }
 
@@ -149,6 +164,7 @@ pub(crate) struct ReleaseSelectionCacheKey {
     platform: Platform,
     rolling_tag: Option<String>,
     asset_hints: Vec<String>,
+    accepted_uploaders: Vec<u64>,
     scope_binding: Option<String>,
 }
 
@@ -198,6 +214,17 @@ impl ReleaseSelectionCacheKey {
                 .get(&platform)
                 .map(|hints| hints.iter().map(|hint| hint.to_ascii_lowercase()).collect())
                 .unwrap_or_default(),
+            accepted_uploaders: {
+                let mut ids = port
+                    .release
+                    .accepted_uploaders
+                    .iter()
+                    .map(|accepted| accepted.id)
+                    .collect::<Vec<_>>();
+                ids.sort_unstable();
+                ids.dedup();
+                ids
+            },
         }
     }
 }
@@ -212,6 +239,7 @@ struct CachedRelease {
 struct ResolvedGithub {
     release: ResolvedRelease,
     identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    activity: Option<crate::UpstreamActivity>,
 }
 
 const RELEASE_CACHE_TTL: Duration = Duration::from_secs(5 * 60);
@@ -780,6 +808,7 @@ impl GithubReleaseProvider {
         cache.get(key).map(|entry| ResolvedGithub {
             release: entry.release.clone(),
             identity: entry.identity.clone(),
+            activity: None,
         })
     }
 
@@ -1310,6 +1339,7 @@ impl ReleaseProvider for GithubReleaseProvider {
         }?
         .for_selection(port, platform, channel)?;
         resolved.github_identity = selected.identity;
+        resolved.upstream_activity = selected.activity;
         Ok(resolved)
     }
 
@@ -1329,6 +1359,60 @@ impl ReleaseProvider for GithubReleaseProvider {
             port.release.curated.contains_key(&platform),
             self.has_conditional_cache(&repository_url),
             self.has_conditional_cache(&releases_url),
+        ))
+    }
+
+    fn cached_release_notes(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        installed: Option<&str>,
+        offered: &str,
+    ) -> Option<crate::UpdateReleaseNotes> {
+        if port.release.provider != crate::ReleaseSource::Github {
+            return None;
+        }
+        let repository = crate::release_notes::repository_segments(&port.release.repository);
+        let releases_url = repository.and_then(|repository| {
+            crate::release_notes::web_url(
+                &self.web_root,
+                &[repository.as_slice(), &["releases"][..]].concat(),
+            )
+        });
+        let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
+        let releases: Vec<GithubRelease> = crate::release_notes::cached_pages(
+            GITHUB_MAX_RELEASE_PAGES,
+            PROVIDER_PAGE_SIZE,
+            PROVIDER_JSON_MAX_BYTES,
+            |page| {
+                paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE)
+                    .ok()
+                    .and_then(|url| self.cached_http_response(&url))
+            },
+        );
+        let listed = releases
+            .iter()
+            .map(|release| crate::release_notes::ListedRelease {
+                tag: &release.tag_name,
+                title: release.name.as_deref(),
+                published_at: release.published_at.as_deref(),
+                notes: release.body.as_deref().unwrap_or_default(),
+                // Same platform stream as release selection.
+                selectable: !release.draft
+                    && native_release_applies_to_platform(port, platform, release),
+                beta: is_beta_release(release),
+            })
+            .collect::<Vec<_>>();
+        Some(crate::release_notes::between(
+            &listed,
+            &crate::release_notes::NotesRequest {
+                channel,
+                rolling_tag: port.release.rolling_tag.as_deref(),
+                installed,
+                offered,
+            },
+            releases_url,
         ))
     }
 }
@@ -1372,7 +1456,13 @@ impl GithubReleaseProvider {
                 crate::definition_repository::publisher_policy::CuratedArtifactOperation::Acquisition,
             )?;
         }
-        match self.resolve_observed(port, channel, platform, scope).await {
+        // Repository facts read before a later failure stay fresh for a fallback;
+        // they remain unknown only when the repository document itself was unread.
+        let mut observed_activity = None;
+        match self
+            .resolve_observed(port, channel, platform, scope, &mut observed_activity)
+            .await
+        {
             Ok(resolved) => Ok(resolved),
             Err(error) => match (port.release.curated.get(&platform), scope) {
                 (Some(record), Some(scope))
@@ -1380,7 +1470,10 @@ impl GithubReleaseProvider {
                         && error.upstream_failure()
                             == crate::failure::UpstreamFailure::Unavailable =>
                 {
-                    preserved_resolution(port, channel, record, scope)
+                    preserved_resolution(port, channel, record, scope).map(|mut resolved| {
+                        resolved.activity = observed_activity;
+                        resolved
+                    })
                 }
                 _ => Err(error),
             },
@@ -1394,6 +1487,7 @@ impl GithubReleaseProvider {
         channel: ReleaseChannel,
         platform: Platform,
         scope: Option<&crate::DefinitionAcquisitionScope>,
+        observed_activity: &mut Option<crate::UpstreamActivity>,
     ) -> Result<ResolvedGithub> {
         let repository_url = format!("{}/repos/{}", self.api_root, port.release.repository);
         let repository: GithubRepository = match scope {
@@ -1407,10 +1501,11 @@ impl GithubReleaseProvider {
                 "GitHub repository stable identity differs from its publisher grant",
             ));
         }
-        // Keep metadata validation before cached selection. Archive state is a
-        // maintenance fact; it neither revokes exact release authority nor
-        // replaces the artifact integrity checks below.
-        let _archived = repository.archived;
+        // Keep metadata validation before cached selection. Archive state and the
+        // latest push are maintenance facts reported to the player; they neither
+        // revoke exact release authority nor replace the integrity checks below.
+        let activity = Some(repository.activity(&port.release.repository));
+        observed_activity.clone_from(&activity);
         let mut cache_key = ReleaseSelectionCacheKey::new(port, channel, platform);
         cache_key.scope_binding = scope.map(|scope| {
             format!(
@@ -1422,7 +1517,7 @@ impl GithubReleaseProvider {
         // Curated selection revalidates mutable release, asset and tag identity;
         // only the separately verified byte cache may be reused.
         if curated.is_none()
-            && let Some(selection) = self.cached_selection(&cache_key).await
+            && let Some(mut selection) = self.cached_selection(&cache_key).await
         {
             if selection
                 .identity
@@ -1437,6 +1532,7 @@ impl GithubReleaseProvider {
                 scope.require_current()?;
                 scope.require_asset_url(&selection.release.asset.url)?;
             }
+            selection.activity = activity;
             return Ok(selection);
         }
         let releases = match scope {
@@ -1489,6 +1585,18 @@ impl GithubReleaseProvider {
         if let Some(scope) = scope {
             scope.require_current()?;
             scope.require_asset_url(&asset.browser_download_url)?;
+        }
+        // An exact curated record already binds reviewed release and asset IDs;
+        // every other selection follows upstream and must continue its uploaders.
+        // Refuse before any checksum request or caching.
+        if curated.is_none() {
+            uploader_continuity::require(
+                port,
+                repository.owner.as_ref(),
+                &releases,
+                &release.tag_name,
+                asset,
+            )?;
         }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
@@ -1591,6 +1699,7 @@ impl GithubReleaseProvider {
         Ok(ResolvedGithub {
             release: resolved,
             identity,
+            activity,
         })
     }
 }
@@ -1637,6 +1746,7 @@ fn preserved_resolution(
             },
         },
         identity: Some(identity),
+        activity: None,
     })
 }
 
@@ -1880,6 +1990,33 @@ struct GithubRepository {
     #[serde(default)]
     id: Option<u64>,
     archived: bool,
+    #[serde(default)]
+    owner: Option<uploader_continuity::GithubAccount>,
+    /// Kept untyped so an unexpected value is an unknown fact, not a failed check.
+    #[serde(default)]
+    pushed_at: Option<serde_json::Value>,
+}
+
+impl GithubRepository {
+    fn activity(&self, repository: &str) -> crate::UpstreamActivity {
+        crate::UpstreamActivity {
+            repository: repository.to_owned(),
+            observed_at: Library::now(),
+            archived: self.archived,
+            last_change_at: self
+                .pushed_at
+                .as_ref()
+                .and_then(serde_json::Value::as_str)
+                .and_then(|value| {
+                    time::OffsetDateTime::parse(
+                        value,
+                        &time::format_description::well_known::Rfc3339,
+                    )
+                    .ok()
+                })
+                .map(time::OffsetDateTime::unix_timestamp),
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -1907,6 +2044,11 @@ struct GithubRelease {
     #[serde(default)]
     id: Option<u64>,
     tag_name: String,
+    /// Informational only: shown as untrusted plain text in update reviews.
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    body: Option<String>,
     draft: bool,
     prerelease: bool,
     published_at: Option<String>,
@@ -1921,6 +2063,11 @@ struct GithubAsset {
     browser_download_url: String,
     size: u64,
     digest: Option<String>,
+    /// Who uploaded the asset and when; retained for uploader continuity.
+    #[serde(default)]
+    uploader: uploader_continuity::AssetUploader,
+    #[serde(default)]
+    created_at: Option<String>,
 }
 
 pub(crate) enum NativeAppImage<'a> {
@@ -2301,6 +2448,7 @@ mod tests {
     };
 
     mod unchanged_definition;
+    mod uploader_progression;
 
     #[tokio::test]
     async fn github_selection_retains_exact_ids_through_cache_and_refuses_repository_rebinding() {
@@ -2355,6 +2503,56 @@ mod tests {
                 .message
                 .contains("repository identity changed")
         );
+        server.join().unwrap();
+    }
+
+    #[tokio::test]
+    async fn github_selection_reports_repository_activity_from_existing_metadata() {
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("shipwright")
+            .unwrap()
+            .clone();
+        let response = |value: serde_json::Value| {
+            let body = value.to_string();
+            format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+                body.len()
+            )
+        };
+        let releases = serde_json::json!([{"id":2,"tag_name":"fixture-n","draft":false,"prerelease":false,
+            "assets":[{"id":3,"name":"game-windows.zip","size":42,"digest":format!("sha256:{}","a".repeat(64)),
+            "browser_download_url":"https://github.com/HarbourMasters/Shipwright/releases/download/fixture-n/game-windows.zip"}]}]);
+        // Two selections: the second is served from the selection cache, so the
+        // only provider reads are the two repository documents and one release list.
+        let (origin, _, server) = serve_http(vec![
+            response(serde_json::json!({
+                "id":1,"archived":true,"pushed_at":"2023-04-05T06:07:08Z"
+            })),
+            response(releases),
+            response(serde_json::json!({"id":1,"archived":false,"pushed_at":7})),
+        ]);
+        let provider = GithubReleaseProvider::with_api_root(origin).unwrap();
+        let before = Library::now();
+        let archived = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap()
+            .upstream_activity
+            .unwrap();
+        assert!(archived.archived);
+        assert_eq!(archived.repository, port.release.repository);
+        assert_eq!(archived.last_change_at, Some(1_680_674_828));
+        assert!(archived.observed_at >= before);
+        // A malformed push time is an unknown fact, never a failed selection.
+        let cached = provider
+            .resolve_scoped(&port, ReleaseChannel::Stable, Platform::WindowsX86_64, None)
+            .await
+            .unwrap()
+            .upstream_activity
+            .unwrap();
+        assert!(!cached.archived);
+        assert_eq!(cached.last_change_at, None);
         server.join().unwrap();
     }
 
@@ -2912,6 +3110,7 @@ mod tests {
             platform: Platform::WindowsX86_64,
             rolling_tag: None,
             asset_hints: Vec::new(),
+            accepted_uploaders: Vec::new(),
         };
         provider
             .store_release(oldest_key.clone(), release.clone())
@@ -2940,6 +3139,7 @@ mod tests {
                         platform: Platform::WindowsX86_64,
                         rolling_tag: None,
                         asset_hints: Vec::new(),
+                        accepted_uploaders: Vec::new(),
                     },
                     release.clone(),
                 )
@@ -3298,6 +3498,8 @@ mod tests {
         let release = GithubRelease {
             id: None,
             tag_name: "v0.2.0-dev".into(),
+            name: None,
+            body: None,
             draft: false,
             prerelease: false,
             published_at: None,
@@ -3312,6 +3514,8 @@ mod tests {
         let release = GithubRelease {
             id: None,
             tag_name: "v1.2.3".into(),
+            name: None,
+            body: None,
             draft: false,
             prerelease: false,
             published_at: None,
@@ -3428,6 +3632,8 @@ mod tests {
             browser_download_url: format!("https://downloads.example.invalid/{name}"),
             size: 1,
             digest: Some(format!("sha256:{}", digest.to_string().repeat(64))),
+            uploader: Default::default(),
+            created_at: None,
         });
 
         assert_eq!(
@@ -3566,6 +3772,8 @@ mod tests {
                 browser_download_url: "https://downloads.example.invalid/one.zip".into(),
                 size: 1,
                 digest: Some(format!("sha256:{}", "a".repeat(64))),
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -3573,6 +3781,8 @@ mod tests {
                 browser_download_url: "https://downloads.example.invalid/two.zip".into(),
                 size: 1,
                 digest: Some(format!("sha256:{}", "b".repeat(64))),
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
         let error = choose_asset(port, Platform::WindowsX86_64, &ambiguous).unwrap_err();
@@ -3617,6 +3827,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/symbols.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -3624,6 +3836,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/runtime.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
 
@@ -3748,6 +3962,8 @@ mod tests {
                     browser_download_url: "https://example.invalid/package.zip".into(),
                     size: 1,
                     digest: Some(format!("sha256:{}", "a".repeat(64))),
+                    uploader: Default::default(),
+                    created_at: None,
                 })
                 .collect::<Vec<_>>();
             let selected = choose_asset(port, Platform::LinuxX86_64, &assets).unwrap();
@@ -4403,6 +4619,229 @@ mod tests {
         );
     }
 
+    fn notes_port(repository: &str) -> PortDefinition {
+        let mut port = crate::Catalog::embedded()
+            .unwrap()
+            .port("zelda64-recomp")
+            .unwrap()
+            .clone();
+        port.release.provider = crate::ReleaseSource::Github;
+        port.release.repository = repository.into();
+        port.release.rolling_tag = None;
+        port
+    }
+
+    fn notes_release(tag: &str, draft: bool, prerelease: bool, body: &str) -> serde_json::Value {
+        serde_json::json!({"id":1,"tag_name":tag,"name":format!("Release {tag}"),
+            "draft":draft,"prerelease":prerelease,"published_at":"2026-11-01T00:00:00Z",
+            "body":body,"html_url":"javascript:alert(1)","assets":[]})
+    }
+
+    fn note_versions(notes: &crate::UpdateReleaseNotes) -> Vec<&str> {
+        notes
+            .entries
+            .iter()
+            .map(|entry| entry.version.as_str())
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn update_release_notes_come_from_the_cached_release_list_without_requests() {
+        let page = serde_json::json!([
+            notes_release(
+                "v4",
+                false,
+                false,
+                "Four <!-- hidden -->\r\n<img src=x onerror=alert(1)>"
+            ),
+            notes_release("v3-rc1", false, true, "candidate"),
+            notes_release("v3.5", true, false, "draft"),
+            notes_release("v3", false, false, "Three"),
+            notes_release("v2", false, false, "installed"),
+        ])
+        .to_string();
+        let (api_root, requests, server) =
+            serve_http(vec![ok_json(&page, "ETag: \"releases\"\r\n")]);
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root.clone(), library.clone())
+                .unwrap();
+        let mut port = notes_port("owner/repo");
+        let windows = Platform::WindowsX86_64;
+
+        // Nothing cached: only the release list link is known.
+        let unknown = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
+            .unwrap();
+        assert!(unknown.entries.is_empty());
+        assert_eq!(
+            unknown.coverage,
+            crate::UpdateReleaseNotesCoverage::Unavailable
+        );
+        assert_eq!(
+            unknown.releases_url,
+            Some(format!("{api_root}/owner/repo/releases"))
+        );
+
+        // Release resolution persists the list; notes then read it offline.
+        provider
+            .releases(&format!("{api_root}/repos/owner/repo"))
+            .await
+            .unwrap();
+        server.join().unwrap();
+        assert_eq!(requests.try_iter().count(), 1);
+        let notes = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
+            .unwrap();
+        assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+        assert_eq!(note_versions(&notes), ["v4", "v3"]);
+        assert_eq!(notes.entries[0].notes, "Four\n<img src=x onerror=alert(1)>");
+        assert_eq!(notes.entries[0].title.as_deref(), Some("Release v4"));
+        let beta = provider
+            .cached_release_notes(&port, ReleaseChannel::Beta, windows, Some("v2"), "v4")
+            .unwrap();
+        assert_eq!(beta.entries.len(), 3);
+        let missing = provider
+            .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v5")
+            .unwrap();
+        assert!(missing.entries.is_empty());
+        port.release.provider = crate::ReleaseSource::Gitlab;
+        assert!(
+            provider
+                .cached_release_notes(&port, ReleaseChannel::Stable, windows, Some("v2"), "v4")
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn update_release_notes_skip_releases_outside_this_platform_stream() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let api_root = "https://api.example.test";
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root, library.clone()).unwrap();
+        let mut port = notes_port("owner/repo");
+        port.adapter = AdapterKind::NativePortable;
+        port.archive_data_compatibility_v1 = None;
+        port.release.curated.clear();
+        let with_assets = |tag: &str, asset: &str| {
+            let mut release = notes_release(tag, false, false, tag);
+            release["assets"] = serde_json::json!([{"id":1,"name":asset,
+                "browser_download_url":format!("https://example.test/{asset}"),"size":1,"digest":null}]);
+            release
+        };
+        let page = serde_json::json!([
+            with_assets("v4", "game-windows-x64.zip"),
+            with_assets("v3-linux", "game-linux-x86_64.tar.gz"),
+            with_assets("v3", "game-windows-x64.zip"),
+            with_assets("v2", "game-windows-x64.zip"),
+        ]);
+        let url = paginated_url(
+            &format!("{api_root}/repos/owner/repo"),
+            "releases",
+            1,
+            PROVIDER_PAGE_SIZE,
+        )
+        .unwrap();
+        library
+            .store_http_cache(&url, Some("\"page\""), None, &page.to_string())
+            .unwrap();
+        let notes = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v2"),
+                "v4",
+            )
+            .unwrap();
+        assert_eq!(note_versions(&notes), ["v4", "v3"]);
+        assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+    }
+
+    #[test]
+    fn update_release_notes_never_join_pages_from_different_observations() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let api_root = "https://api.example.test";
+        let provider =
+            GithubReleaseProvider::with_api_root_and_library(api_root, library.clone()).unwrap();
+        let port = notes_port("owner/repo");
+        let repository_url = format!("{api_root}/repos/owner/repo");
+        let page_url =
+            |page| paginated_url(&repository_url, "releases", page, PROVIDER_PAGE_SIZE).unwrap();
+        let first = (0..PROVIDER_PAGE_SIZE)
+            .map(|index| notes_release(&format!("v{}", 200 - index), false, false, ""))
+            .collect::<Vec<_>>();
+        // The stale second page repeats a tag and lacks the releases that moved.
+        let second = serde_json::json!([
+            notes_release("v101", false, false, "stale"),
+            notes_release("v50", false, false, "installed"),
+        ]);
+        library
+            .store_http_cache(
+                &page_url(1),
+                Some("\"1\""),
+                None,
+                &serde_json::json!(first).to_string(),
+            )
+            .unwrap();
+        library
+            .store_http_cache(&page_url(2), Some("\"2\""), None, &second.to_string())
+            .unwrap();
+        let request = |provider: &GithubReleaseProvider| {
+            provider
+                .cached_release_notes(
+                    &port,
+                    ReleaseChannel::Stable,
+                    Platform::WindowsX86_64,
+                    Some("v50"),
+                    "v200",
+                )
+                .unwrap()
+        };
+        // Pages confirmed together are one list; the bound applies.
+        let together = request(&provider);
+        assert_eq!(together.entries.len(), crate::release_notes::MAX_RELEASES);
+        assert_eq!(
+            together.coverage,
+            crate::UpdateReleaseNotesCoverage::Shortened
+        );
+        // A second page confirmed long before the first is not joined to it.
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE github_http_cache SET updated_at=updated_at-?1 WHERE url=?2",
+                rusqlite::params![crate::release_notes::PAGE_SKEW_SECONDS + 60, page_url(2)],
+            )
+            .unwrap();
+        let installed_older = provider
+            .cached_release_notes(
+                &port,
+                ReleaseChannel::Stable,
+                Platform::WindowsX86_64,
+                Some("v50"),
+                "v105",
+            )
+            .unwrap();
+        assert_eq!(
+            installed_older.coverage,
+            crate::UpdateReleaseNotesCoverage::InstalledNotListed
+        );
+        assert!(
+            installed_older
+                .entries
+                .iter()
+                .all(|entry| entry.notes != "stale")
+        );
+        assert_ne!(
+            request(&provider).coverage,
+            crate::UpdateReleaseNotesCoverage::Complete
+        );
+    }
+
     #[tokio::test]
     async fn persisted_http_cache_survives_provider_restarts_and_handles_304() {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -4536,6 +4975,8 @@ mod tests {
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let sidecar = GithubAsset {
             id: None,
@@ -4543,6 +4984,8 @@ mod tests {
             browser_download_url: format!("{download_root}/game.sha256"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let error = provider
             .checksum_from_sidecar(&[target.clone(), sidecar], &target)
@@ -4627,6 +5070,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/one.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -4634,6 +5079,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/two.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
@@ -4656,6 +5103,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let excluded = [
             asset("reflectionhle-macos-universal2-next.zip"),
@@ -4687,6 +5136,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for (platform, selected, other) in [
             (
@@ -4724,6 +5175,8 @@ mod tests {
             browser_download_url: "https://example.invalid/package.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for name in [
             "game-win32.zip",
@@ -4780,6 +5233,8 @@ mod tests {
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let aggregate = GithubAsset {
             id: None,
@@ -4787,6 +5242,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert!(
             provider
@@ -4801,6 +5258,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate-named"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -4815,6 +5274,8 @@ mod tests {
             browser_download_url: format!("{download_root}/exact"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -5040,6 +5501,8 @@ mod tests {
             browser_download_url: "https://example.invalid/game-windows.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let assets = names
             .iter()
@@ -5050,6 +5513,8 @@ mod tests {
                 browser_download_url: format!("{root}/{index}"),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             })
             .collect::<Vec<_>>();
         let result = provider.checksum_from_sidecar(&assets, &target).await;

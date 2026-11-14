@@ -66,6 +66,10 @@ impl PortabilityAuthority {
 /// Oldest reader contract that can carry this metadata without dropping state.
 fn exported_schema(metadata: &LibraryMetadata, base: u32) -> u32 {
     if metadata.artwork.as_ref().is_some_and(|artwork| {
+        !artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty()
+    }) {
+        10
+    } else if metadata.artwork.as_ref().is_some_and(|artwork| {
         artwork
             .choices
             .iter()
@@ -110,8 +114,8 @@ pub(crate) fn seal(
 pub(crate) fn verify(metadata: &LibraryMetadata, entries: Vec<PortabilityAdmission>) -> Result<()> {
     let entries = canonical_entries(entries)?;
     match (&metadata.portability_authority, entries.is_empty()) {
-        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=9) => return Ok(()),
-        (Some(authority), false) if matches!(metadata.schema_version, 4..=9) => {
+        (None, true) if matches!(metadata.schema_version, 1..=3 | 5..=10) => return Ok(()),
+        (Some(authority), false) if matches!(metadata.schema_version, 4..=10) => {
             if authority.format != 1 || authority.entries != entries {
                 return Err(PortcoveError::verification(
                     "portability authority does not match the retained installations",

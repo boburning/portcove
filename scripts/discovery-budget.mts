@@ -365,13 +365,22 @@ export function createDiscoveryTransport(
   token: string,
   worker = fileURLToPath(new URL("./discovery-http.mts", import.meta.url)),
 ) {
-  const request = async (method: string, url: string, body?: string, binary = false) => {
+  // `limit` lets one named bounded list read exceed the 2 MiB default, never 8 MiB.
+  const request = async (
+    method: string,
+    url: string,
+    body?: string,
+    binary = false,
+    limit = 2 * 1024 * 1024,
+  ) => {
     const target = new URL(url);
     if (method !== "GET" || body !== undefined)
       throw new GitHubApiError(
         "request_refused",
         "Discovery external/byte transport admits reads only",
       );
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 8 * 1024 * 1024)
+      throw new GitHubApiError("request_refused", "Discovery byte cap exceeds its bound");
     const github = target.origin === "https://api.github.com";
     if (
       github &&
@@ -384,7 +393,7 @@ export function createDiscoveryTransport(
     await budget.admit(1, 1);
     if (github) await budget.admitProvider("core", 1);
     const left = budget.remaining(),
-      cap = Math.min(2 * 1024 * 1024, left.bytes);
+      cap = Math.min(limit, left.bytes);
     const maxRequests = Math.min(5, left.requests),
       timeout = Math.min(20000, left.milliseconds);
     const response = spawnSync(process.execPath, [worker], {

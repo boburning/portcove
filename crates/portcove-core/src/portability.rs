@@ -81,6 +81,13 @@ pub struct LibraryMetadataFile {
 }
 
 impl PortcoveService {
+    /// Finishes removing artwork copies of withdrawn SteamGridDB images before
+    /// metadata is written anywhere, and stops with a next step when a copy
+    /// cannot be deleted, because a removed original must not travel.
+    pub fn finish_pending_artwork_removals(&self) -> Result<()> {
+        crate::artwork_eviction::prepare_transfer(self.library())
+    }
+
     pub fn export_library_metadata(&self) -> Result<LibraryMetadata> {
         self.library().metadata_snapshot()
     }
@@ -107,6 +114,9 @@ impl PortcoveService {
         let parent = destination
             .parent()
             .ok_or_else(|| PortcoveError::usage("metadata export needs a filename"))?;
+        // Removed originals must not travel; any removal still pending is
+        // finished now, or the export stops with the next step.
+        crate::artwork_eviction::prepare_transfer(self.library())?;
         let bytes = serde_json::to_vec_pretty(&self.export_library_metadata()?)?;
         let mut temporary = tempfile::NamedTempFile::new_in(parent)?;
         temporary.write_all(&bytes)?;

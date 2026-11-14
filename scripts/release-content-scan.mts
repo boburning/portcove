@@ -504,10 +504,8 @@ export async function scan(
         code,
         reason,
       });
-    if (clock() >= deadline) {
-      skip("time-budget", "time budget reached; scanned in a later run");
-      continue;
-    }
+    // Resolved skips, checkpoint reuse and remembered failures need no I/O, so they
+    // are reported as they are even after the deadline; only downloads stop there.
     if ("skip" in plan) {
       skip(plan.skip.code, plan.skip.reason);
       continue;
@@ -579,6 +577,16 @@ export async function scan(
         "asset-budget",
         `asset ${asset.name} exceeds the byte budget; retried when the budget allows`,
       );
+      continue;
+    }
+    if (clock() >= deadline) {
+      // A retry keeps its persistent code so its port stays a fact; a new package waits.
+      if (retry)
+        skip(
+          "unlistable",
+          `asset ${asset.name} was unlistable in an earlier run; re-checked in rotation in a later run`,
+        );
+      else skip("time-budget", "time budget reached; scanned in a later run");
       continue;
     }
     if (retry) retries.set(key, retryRun);
