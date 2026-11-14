@@ -4672,6 +4672,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/one.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
             GithubAsset {
                 id: None,
@@ -4679,6 +4681,8 @@ mod tests {
                 browser_download_url: "https://example.invalid/two.zip".into(),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             },
         ];
         let error = choose_asset(port, Platform::WindowsX86_64, &assets).unwrap_err();
@@ -4701,6 +4705,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let excluded = [
             asset("reflectionhle-macos-universal2-next.zip"),
@@ -4732,6 +4738,8 @@ mod tests {
             browser_download_url: format!("https://example.invalid/{name}"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for (platform, selected, other) in [
             (
@@ -4769,6 +4777,8 @@ mod tests {
             browser_download_url: "https://example.invalid/package.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         for name in [
             "game-win32.zip",
@@ -4825,6 +4835,8 @@ mod tests {
             browser_download_url: "https://downloads.example.invalid/game.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let aggregate = GithubAsset {
             id: None,
@@ -4832,6 +4844,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert!(
             provider
@@ -4846,6 +4860,8 @@ mod tests {
             browser_download_url: format!("{download_root}/aggregate-named"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -4860,6 +4876,8 @@ mod tests {
             browser_download_url: format!("{download_root}/exact"),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         assert_eq!(
             provider
@@ -5085,6 +5103,8 @@ mod tests {
             browser_download_url: "https://example.invalid/game-windows.zip".into(),
             size: 1,
             digest: None,
+            uploader: Default::default(),
+            created_at: None,
         };
         let assets = names
             .iter()
@@ -5095,6 +5115,8 @@ mod tests {
                 browser_download_url: format!("{root}/{index}"),
                 size: 1,
                 digest: None,
+                uploader: Default::default(),
+                created_at: None,
             })
             .collect::<Vec<_>>();
         let result = provider.checksum_from_sidecar(&assets, &target).await;

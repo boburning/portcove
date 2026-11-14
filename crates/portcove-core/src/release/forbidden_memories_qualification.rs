@@ -127,6 +127,7 @@ mod tests {
             GithubRepository {
                 id: Some(repository_id),
                 archived: false,
+                owner: None,
             },
             serde_json::from_value(value).unwrap(),
         )
