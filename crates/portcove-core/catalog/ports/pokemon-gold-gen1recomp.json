@@ -3,13 +3,13 @@
   "listing": {
     "id": "pokemon-gold-gen1recomp",
     "name": "Pokémon Gold (Gen1Recomp / G1R Deluxe)",
-    "summary": "An in-development Pokémon Gold route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Gold ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Gold remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+    "summary": "Import your own matching US English Pokémon Gold original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
     "original_game_title": "Pokémon Gold",
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "listed_at": "2026-10-25",
     "platforms": [],
-    "availability": "unknown",
-    "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+    "availability": "packages",
+    "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
     "artwork": {
       "game_id": 1558,
       "cover_id": 266338,
@@ -18,7 +18,40 @@
       "game_slug": "pokemon-gold-version",
       "match_kind": "underlying-game"
     },
-    "issue_number": 2868
+    "issue_number": 2868,
+    "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+    "recommended_download_channel": "stable",
+    "download_asset_hints": {
+      "windows-x86-64": [
+        "-windows.zip"
+      ]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the official player",
+          "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+        },
+        {
+          "title": "Import your original",
+          "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Gold ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+        },
+        {
+          "title": "Keep your game data",
+          "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+        }
+      ],
+      "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "warnings": [
+        "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+      ]
+    }
   },
   "upstream_lineage": {
     "format_version": 1,

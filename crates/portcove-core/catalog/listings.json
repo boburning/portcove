@@ -43523,6 +43523,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43539,6 +43543,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -43548,13 +43557,13 @@
     {
       "id": "pokemon-crystal-gen1recomp",
       "name": "Pokémon Crystal (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Crystal route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Crystal ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Crystal remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Crystal original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Crystal",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1514,
         "cover_id": 266349,
@@ -43563,7 +43572,40 @@
         "game_slug": "pokemon-crystal-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2870
+      "issue_number": 2870,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Crystal ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      }
     },
     {
       "id": "pokemon-emerald-emeraldrecomp",
@@ -43659,6 +43701,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43675,6 +43721,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -43778,6 +43829,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43794,6 +43849,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -43803,13 +43863,13 @@
     {
       "id": "pokemon-gold-gen1recomp",
       "name": "Pokémon Gold (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Gold route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Gold ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Gold remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Gold original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Gold",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1558,
         "cover_id": 266338,
@@ -43818,7 +43878,40 @@
         "game_slug": "pokemon-gold-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2868
+      "issue_number": 2868,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Gold ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      }
     },
     {
       "id": "pokemon-leafgreen-fireredleafgreenrecomp",
@@ -43917,6 +44010,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -43933,6 +44030,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -44096,6 +44198,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44112,6 +44218,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -44208,6 +44319,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44224,6 +44339,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
@@ -44287,13 +44407,13 @@
     {
       "id": "pokemon-silver-gen1recomp",
       "name": "Pokémon Silver (Gen1Recomp / G1R Deluxe)",
-      "summary": "An in-development Pokémon Silver route in Gen1Recomp/G1R Deluxe. Import your own canonical US English Silver ROM using the project’s instructions; its README lists accepted revisions and SHA-1 values. The shared engine documents Windows x64, Linux x64 and Intel/Apple Silicon macOS, but current package compatibility with Silver remains unconfirmed. Pokémon Red’s separate qualification does not establish support for this game or managed updates/saves. Portcove has not confirmed setup or gameplay.",
+      "summary": "Import your own matching US English Pokémon Silver original in the official Gen1Recomp player. Setup, Play, updates and saves stay with the upstream player.",
       "original_game_title": "Pokémon Silver",
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
-      "availability": "unknown",
-      "setup_url": "https://github.com/bryanthaboi/gen1recomp",
+      "availability": "packages",
+      "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
       "artwork": {
         "game_id": 1513,
         "cover_id": 266341,
@@ -44302,7 +44422,40 @@
         "game_slug": "pokemon-silver-version",
         "match_kind": "underlying-game"
       },
-      "issue_number": 2869
+      "issue_number": 2869,
+      "release_url": "https://github.com/bryanthaboi/gen1recomp/releases",
+      "recommended_download_channel": "stable",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "-windows.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the official player",
+            "instruction": "On Windows, extract the official Windows ZIP and open the player with its supplied companions. On Linux, open the executable AppImage for your CPU or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, use the official APK."
+          },
+          {
+            "title": "Import your original",
+            "instruction": "In Gen1Recomp, import your own canonical US English Pokémon Silver ROM. Follow the upstream README for accepted revisions. The importer checks the original and may start the game immediately. Use this title’s tab for later Play."
+          },
+          {
+            "title": "Keep your game data",
+            "instruction": "Use the upstream player for updates. Back up your actual saves, imports, settings and profile separately before changing versions."
+          }
+        ],
+        "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
+        "platforms": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "warnings": [
+          "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
+        ]
+      }
     },
     {
       "id": "pokemon-stadium-ss-anne-pokemonstadiumrecomp",
@@ -44400,6 +44553,10 @@
             "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper."
           },
           {
+            "title": "Set up on Linux, Mac or Android",
+            "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+          },
+          {
             "title": "Add the game and manage updates",
             "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
           }
@@ -44416,6 +44573,11 @@
             "title": "Preserve all actual player and game data",
             "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
           }
+        ],
+        "platforms": [
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
         ]
       },
       "platforms": [
