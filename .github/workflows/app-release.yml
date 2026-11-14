@@ -1,12 +1,15 @@
 # Tag-driven application release (owner decision on #534, 2026-11-13).
 # Push `vX.Y.Z` (Beta), `vX.Y.Z-preview.N` (Preview) or `v1.x.y` (Stable, needs owner
 # approval on the release-stable environment). Use `just release X.Y.Z`.
+# Tags pushed with GITHUB_TOKEN start no workflow, so nightly-preview.yml
+# dispatches this workflow on its preview tag; a dispatch on any other ref is refused.
 name: App release
 run-name: Release ${{ github.ref_name }}
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -17,6 +20,7 @@ concurrency:
 
 jobs:
   plan:
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -33,9 +37,16 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Classify the release tag
         id: plan
         run: node scripts/app-release.mts plan --tag "$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
@@ -158,9 +169,15 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: release-*
@@ -198,6 +215,9 @@ jobs:
           for attempt in 1 2 3 4; do
             git fetch --quiet origin gh-pages
             rm -rf site && git worktree add --quiet --force site origin/gh-pages
+            # withdraw-release.yml lists withdrawn versions; a re-run must not resurrect one.
+            withdrawn=$(node scripts/app-release.mts withdrawn --version "$VERSION" --file site/updates/withdrawn.json)
+            if [ "$withdrawn" = true ]; then echo "::warning::$VERSION is withdrawn; no feed is written."; exit 0; fi
             changed=false
             for channel in $FEEDS; do
               target="site/updates/$channel/latest.json"

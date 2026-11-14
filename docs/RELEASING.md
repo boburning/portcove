@@ -65,6 +65,41 @@ is used. If a publish step fails after the GitHub Release exists, re-run the
 failed jobs. The publish job continues only when the release's asset set is
 identical.
 
+**Nightly previews.** [`nightly-preview.yml`](../.github/workflows/nightly-preview.yml)
+runs daily at 05:37 UTC and can be started by hand. It does nothing when the
+`main` commit already carries a `v*` tag or its `CI` run has not succeeded.
+Otherwise it tags at most one preview with `GITHUB_TOKEN`. The version is a
+pre-release of the patch after the newest release, or of the `Cargo.toml`
+workspace version when that is higher or nothing has been released. N is one
+more than the highest existing preview of that version.
+`node scripts/app-release.mts next-preview` prints the version the nightly
+would use. The tag message lists the commits since the previous `v*` tag. A
+tag pushed with `GITHUB_TOKEN` does not start workflows, so the nightly
+dispatches `app-release.yml` on the tag. `app-release.yml` accepts a dispatch
+only on a `v*` tag ref. If the dispatch job fails, re-run that job. The next
+nightly skips a commit that is already tagged.
+
+**Withdrawing a release.** The owner runs
+[`withdraw-release.yml`](../.github/workflows/withdraw-release.yml) from `main`
+with a `version` such as `0.1.1` and an optional `replacement_note`. Runs by
+any other account are skipped. The workflow:
+
+1. Requires `v<version>` to be a published release.
+2. Adds the version to `updates/withdrawn.json` on `gh-pages`.
+3. Repoints each feed that serves a withdrawn version to the newest published,
+   non-withdrawn release that channel accepts (Preview: any; Beta: any
+   non-pre-release; Stable: 1.0.0 and later). If no release qualifies, it
+   deletes that feed.
+4. Prefixes the release notes with "⚠️ Withdrawn — do not install." and the
+   note. If the release was Latest, the newest non-withdrawn Beta or Stable
+   release becomes Latest.
+
+Tags, releases and assets are never deleted. `app-release.yml` never writes a
+feed for a withdrawn version, so re-running it cannot bring the version back.
+Re-running the withdrawal is safe. Installed clients only update to a version
+higher than their own. Clients already on a withdrawn version stay on it until
+a fix release with a higher version ships.
+
 **Updater key.** Minisign key ID `F92BD3EA87BB77B0` is held in the `release`
 and `release-stable` environments, and the owner keeps an offline backup. If
 the key is lost, installed clients cannot be updated. Never rotate it without a
