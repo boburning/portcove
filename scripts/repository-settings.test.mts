@@ -572,7 +572,7 @@ void test("release ruleset migration expands live coverage before retiring equiv
   assert.notEqual(planReleaseRulesets(revised, refs, ruleset).observation, original.observation);
   assert.equal(original.count, 75);
   const actions: string[] = [];
-  for (let stage = 0; stage < 8; stage++) {
+  for (let stage = 0; stage < 9; stage++) {
     const { next } = planReleaseRulesets(inventory, refs, ruleset);
     assert.ok(next);
     actions.push(next.action);
@@ -597,9 +597,10 @@ void test("release ruleset migration expands live coverage before retiring equiv
     "create",
     "delete",
     "create",
+    "create",
   ]);
   const final = planReleaseRulesets(inventory, refs, ruleset);
-  assert.equal(final.count, 8);
+  assert.equal(final.count, 9);
   assert.equal(final.next, null);
   assert.notEqual(final.observation, original.observation);
   assert.deepEqual(final.identities, original.identities);
@@ -611,6 +612,36 @@ void test("release ruleset migration expands live coverage before retiring equiv
   assert.deepEqual(final.stable.versionCreator?.conditions, {
     ref_name: { include: ["refs/tags/v*"], exclude: [] },
   });
+  // Nightly tags: creation stays open for GitHub Actions; only the owner moves or deletes one.
+  assert.deepEqual(final.stable.nightlyImmutable?.bypass_actors, [owner]);
+  assert.deepEqual(final.stable.nightlyImmutable?.conditions, {
+    ref_name: { include: ["refs/tags/nightly-*"], exclude: [] },
+  });
+  assert.deepEqual(final.stable.nightlyImmutable?.rules, [
+    { type: "update" },
+    { type: "deletion" },
+  ]);
+  const missingNightly = inventory.filter(
+    (row) => row.name !== "Portcove nightly tag immutability",
+  );
+  const nightlyStage = planReleaseRulesets(missingNightly, refs, ruleset).next;
+  assert.equal(nightlyStage?.action, "create");
+  assert.equal(
+    nightlyStage.action === "create" && nightlyStage.payload.name,
+    "Portcove nightly tag immutability",
+  );
+  for (const change of [
+    { bypass_actors: [] },
+    { rules: [{ type: "update" }, { type: "deletion" }, { type: "creation" }] },
+    { conditions: { ref_name: { include: ["refs/tags/*"], exclude: [] } } },
+  ]) {
+    const drifted = structuredClone(inventory);
+    Object.assign(
+      drifted.find((row) => row.name === "Portcove nightly tag immutability")!,
+      change,
+    );
+    assert.throws(() => planReleaseRulesets(drifted, refs, ruleset), /Unexpected drift/u);
+  }
   // The live 2026-11-13 policy excluded preview tags; it is widened in place.
   const narrow = structuredClone(inventory);
   const versions = narrow.find((row) => row.name === "Portcove release tag creation")!;

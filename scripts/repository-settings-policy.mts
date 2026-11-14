@@ -547,6 +547,16 @@ const releaseRulesets = {
     ["creation"],
     [releaseOwner],
   ),
+  // Nightly previews are published under `nightly-*` tags created by GitHub Actions,
+  // which cannot be a bypass actor on a user-owned repository, so creation stays
+  // open. Only the owner may move or delete one; a published release locks it too.
+  nightlyImmutable: releaseRuleset(
+    "Portcove nightly tag immutability",
+    "tag",
+    ["refs/tags/nightly-*"],
+    ["update", "deletion"],
+    [releaseOwner],
+  ),
 };
 
 function releaseRulesetContract(value: unknown) {
@@ -623,7 +633,8 @@ export function planReleaseRulesets(
       throw new Error(`Unexpected drift in ${desired.name}`);
     return matches[0];
   };
-  const { writer, retention, pause, immutable, creator, versionCreator } = releaseRulesets;
+  const { writer, retention, pause, immutable, creator, versionCreator, nightlyImmutable } =
+    releaseRulesets;
   // The 2026-11-13 policy excluded preview tags; it is widened in place to every v* tag.
   const versionRows = rows.filter((row) => row.name === versionCreator.name);
   const narrowVersionCreator =
@@ -641,6 +652,7 @@ export function planReleaseRulesets(
     immutable: find(immutable),
     creator: find(creator),
     versionCreator: narrowVersionCreator ? undefined : find(versionCreator),
+    nightlyImmutable: find(nightlyImmutable),
   };
   const main = details.filter((row) => row.name === "Protect main");
   const versionTags = find(
@@ -761,6 +773,7 @@ export function planReleaseRulesets(
   if (narrowVersionCreator)
     next ??= { action: "update", id: narrowVersionCreator.id, payload: versionCreator };
   else if (!stable.versionCreator) next ??= { action: "create", payload: versionCreator };
+  if (!stable.nightlyImmutable) next ??= { action: "create", payload: nightlyImmutable };
   if (next?.action === "create" && rows.length >= 75)
     throw new Error("No ruleset slot available after branch consolidation");
   return {

@@ -113,6 +113,7 @@ match the three flat tag prefixes `portcove-production-controller-*`,
 | Portcove release branch retention       | Deny creation, deletion and non-fast-forward updates on both state branches and `portcove-release-pause`, with no bypass. |
 | Portcove publication pause owner update | Allow updates to `portcove-release-pause` only to the existing repository owner.                                          |
 | Portcove release tag creation           | Allow creation of every `v*` tag, previews included, only to the repository owner.                                        |
+| Portcove nightly tag immutability       | Deny updates and deletion of `nightly-*` tags to everyone except the repository owner. Creation stays open.               |
 
 Protect main and Protect release tags continue as separate repository policies.
 Protect release tags still denies updating or deleting any `v*` tag, with no
@@ -122,7 +123,10 @@ acting through the owner's account share the owner's bypass. A `v*` tag run can
 reach the updater key in the `release` environment, so no other writer may create
 one. Nightly previews are signed from `main` and use `nightly-*` tags, which any
 writer can create but which grant no key access: the `release` environment admits
-only `v*` tags and `main`. `--apply-release-rulesets` widens the earlier
+only `v*` tags and `main`. Creation of `nightly-*` tags stays open because
+GitHub refuses the GitHub Actions app as a bypass actor on a user-owned
+repository, but only the owner can move or delete one, and publishing the
+immutable release locks it. `--apply-release-rulesets` widens the earlier
 policy, which excluded `v*-preview.*`, in place.
 Release observers still bind complete inventory and branch observations.
 Protected environments and controller admission still require exact appointments

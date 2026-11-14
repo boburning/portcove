@@ -79,8 +79,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          # The signing job restores no dependency cache that other workflows could write.
+          package-manager-cache: false
       - name: Refuse inputs that disagree with the version's channel
         shell: bash
         run: >-
@@ -188,6 +188,9 @@ jobs:
           notes=$(git for-each-ref "refs/tags/$TAG" --format='%(contents:subject)%0a%0a%(contents:body)')
           [ -n "$(echo "$notes" | tr -d '[:space:]')" ] || notes="Portcove $VERSION"
           printf '%s\n' "$notes" > notes.md
+      - name: Refuse a version another tag already names
+        # An owner tag and a nightly can race for one version; neither may publish twice.
+        run: node scripts/app-release.mts version-unclaimed --tag "$TAG" --version "$VERSION"
       - name: Publish the GitHub Release with all assets
         # Creates a draft with every asset, or completes an existing draft, and
         # continues an already published release only with an identical asset set.

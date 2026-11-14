@@ -63,9 +63,17 @@ because installed clients trust exactly one key. A run on a tag executes the
 workflow file at the tagged commit, so the environments admit only refs whose
 code is reviewed or owner-chosen. The `release` environment admits `v*` tags and
 `main`. `release-stable` admits `v*` tags and also needs the owner's approval.
+The `release` environment admits a run on `main` whatever event started it. So
+the workflow-shape test in `scripts/app-release.test.mts` refuses any workflow
+except `app-release-build.yml` that selects `release` or `release-stable`, any
+caller of `app-release-build.yml` except `app-release.yml` and
+`nightly-preview.yml`, and any external reusable workflow. It also requires the
+signing job to restore no package cache.
 Rulesets let only the owner create `v*` tags, and no one can move or delete one.
 Anyone with write access can create a `nightly-*` tag, but such a tag grants no
-key access. The `release-stable` approval guards Stable against anything that is
+key access. Only the owner can move or delete one, and only a `nightly-*` tag
+that names a preview version counts as an existing version, so a stray
+`nightly-9.9.9` cannot block releases. The `release-stable` approval guards Stable against anything that is
 not the owner or acting as the owner. It is not a boundary against the owner's
 own account, which agents use.
 
@@ -94,6 +102,9 @@ version.
   `nightly-*` tag. At signs are replaced so that subjects cannot mention anyone.
 - **Tag integrity:** the publish job refuses a `nightly-*` tag that no longer
   points at the built commit. Publishing the immutable release locks the tag.
+  Right before creating any release, the publish job refuses if another `v*` or
+  `nightly-*` tag on the remote already names the same version, for example an
+  owner tag pushed while a nightly was building.
 - **Failures:** if a build or publish job fails, re-run the failed jobs. A full
   re-run skips the already tagged commit, and the next nightly with new commits
   takes the next N.

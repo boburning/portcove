@@ -8,6 +8,7 @@ import { execFileSync } from "node:child_process";
 import {
   addWithdrawn,
   assertNewerThanTags,
+  assertVersionUnclaimed,
   buildFeed,
   classifyRelease,
   compareVersions,
@@ -159,6 +160,68 @@ void test("a release must be newer than every existing release tag, ignoring non
   assert.equal(tagVersion("nightly-0.1.0-preview.3"), "0.1.0-preview.3");
   assert.equal(tagVersion("v0.1.0"), "0.1.0");
   assert.equal(tagVersion("portcove-production-controller-r1"), null);
+  // Any writer can create nightly-* tags; only preview versions count, so a stray
+  // Beta- or Stable-looking nightly tag cannot block owner releases or nightlies.
+  for (const stray of [
+    "nightly-9.9.9",
+    "nightly-0.1.0",
+    "nightly-1.0.0-rc.1",
+    "nightly-0.2.0-alpha.1",
+  ])
+    assert.equal(tagVersion(stray), null, stray);
+  assertNewerThanTags("0.1.0", [...tags, "nightly-9.9.9", "nightly-0.1.0"]);
+  assert.equal(
+    nextPreviewVersion([...tags, "nightly-9.9.9", "nightly-0.1.0", "nightly-0.1.1"], "0.1.0"),
+    "0.1.0-preview.1",
+  );
+});
+
+void test("publishing refuses a version that another remote tag already names", () => {
+  const remote =
+    (refs: string[]): Runner =>
+    (_command, args) => {
+      assert.deepEqual(args, [
+        "ls-remote",
+        "--tags",
+        "origin",
+        "refs/tags/v*",
+        "refs/tags/nightly-*",
+      ]);
+      return refs.map((ref, i) => `${String(i).repeat(40)}\trefs/tags/${ref}`).join("\n");
+    };
+  assertVersionUnclaimed(
+    "0.1.0-preview.1",
+    "nightly-0.1.0-preview.1",
+    remote([
+      "v0.1.0-alpha.2",
+      "nightly-0.1.0-preview.1",
+      "nightly-0.1.0-preview.1^{}",
+      "nightly-0.1.0",
+    ]),
+  );
+  assertVersionUnclaimed("0.1.0", "v0.1.0", remote(["v0.1.0", "v0.1.0^{}", "nightly-0.1.0"]));
+  assert.throws(
+    () =>
+      assertVersionUnclaimed(
+        "0.1.0-preview.1",
+        "nightly-0.1.0-preview.1",
+        remote(["nightly-0.1.0-preview.1", "v0.1.0-preview.1"]),
+      ),
+    /v0\.1\.0-preview\.1 already names 0\.1\.0-preview\.1; nightly-0\.1\.0-preview\.1 is not published/u,
+  );
+  assert.throws(
+    () =>
+      assertVersionUnclaimed(
+        "0.1.0-preview.1",
+        "v0.1.0-preview.1",
+        remote(["v0.1.0-preview.1", "nightly-0.1.0-preview.1"]),
+      ),
+    /nightly-0\.1\.0-preview\.1 already names/u,
+  );
+  assert.throws(
+    () => assertVersionUnclaimed("0.1.0", "v0.1.0", remote([])),
+    /v0\.1\.0 is not on the remote/u,
+  );
 });
 
 void test("shared build inputs must match the version's channel, tag and signing environment", () => {
@@ -453,6 +516,12 @@ void test("the nightly preview tags a CI-green untagged main once and lists its 
     assert.match(skipped.skipped, reason);
     assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
   }
+  // A stray non-preview nightly-* tag on HEAD does not suppress the nightly.
+  const stray = nightlyRunner({ pointsAt: "nightly-9.9.9" });
+  assert.equal(
+    (nightlyPreview("0.1.0", () => "success", stray.run) as { tag: string }).tag,
+    "nightly-0.1.0-preview.1",
+  );
   const offMain: Runner = (_command, args) =>
     args[0] === "rev-parse" ? (args[1] === "HEAD" ? "a".repeat(40) : "b".repeat(40)) : "";
   assert.throws(() => nightlyPreview("0.1.0", () => "success", offMain), /origin\/main/u);
@@ -817,12 +886,19 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
   assert.deepEqual(result.feeds, { preview: "0.1.0", beta: "0.1.0" });
 });
 
-type WorkflowStep = { uses?: string; run?: string; with?: Record<string, unknown> };
+type WorkflowStep = {
+  name?: string;
+  uses?: string;
+  run?: string;
+  with?: Record<string, unknown>;
+  env?: Record<string, unknown>;
+};
 type WorkflowJob = {
   if?: string;
   uses?: string;
   with?: Record<string, unknown>;
-  environment?: string;
+  env?: Record<string, unknown>;
+  environment?: string | { name?: string; url?: string };
   permissions?: Record<string, string>;
   steps?: WorkflowStep[];
 };
@@ -874,6 +950,24 @@ void test("release workflows keep the signing key behind owner tags and main", a
   const sign = buildSteps.findIndex((step) => step.run?.includes("pnpm tauri build"));
   assert.ok(verify >= 0 && verify < sign);
   assert.equal(build.jobs.build!.permissions!.contents, "read");
+  // The signing job restores no package cache that another workflow on main could write.
+  const buildNode = buildSteps.find((step) => step.uses?.startsWith("actions/setup-node@"))!;
+  assert.equal(buildNode.with?.["package-manager-cache"], false);
+  assert.equal(buildNode.with?.cache, undefined);
+  // The updater key reaches only the signing step's environment, never a job or other step.
+  const signStep = buildSteps[sign]!;
+  assert.deepEqual(Object.keys(signStep.env ?? {}).sort(), [
+    "TAURI_SIGNING_PRIVATE_KEY",
+    "TAURI_SIGNING_PRIVATE_KEY_PASSWORD",
+  ]);
+  const withoutSigningEnv = structuredClone(build);
+  delete withoutSigningEnv.jobs.build!.steps![sign]!.env;
+  assert.doesNotMatch(JSON.stringify(withoutSigningEnv), /secrets\./u);
+  const buildSource = await readFile(
+    path.join(workflowsDirectory, "app-release-build.yml"),
+    "utf8",
+  );
+  assert.equal(buildSource.match(/secrets\.TAURI_SIGNING_/gu)?.length, 2);
 
   // Withdrawal is an owner process guard.
   assert.equal(
@@ -909,11 +1003,19 @@ void test("release workflows keep the signing key behind owner tags and main", a
 
   // Only the shared jobs select an updater-key environment, and only the two
   // release workflows call them.
-  const names = (await readdir(workflowsDirectory)).filter((name) => name.endsWith(".yml"));
+  // External reusable workflows are refused outright: their environment selection
+  // is not visible here, so every job-level `uses` must be a local workflow.
+  const names = (await readdir(workflowsDirectory)).filter((name) => /\.ya?ml$/u.test(name));
+  assert.ok(names.includes("app-release-build.yml"));
   for (const name of names) {
     const workflow = await readWorkflow(name);
     for (const [id, job] of Object.entries(workflow.jobs ?? {})) {
-      const environment = String(job.environment ?? "");
+      if (job.uses !== undefined)
+        assert.match(job.uses, /^\.\/\.github\/workflows\/[\w.-]+\.ya?ml$/u, `${name}:${id}`);
+      const environment =
+        typeof job.environment === "object" && job.environment !== null
+          ? String(job.environment.name ?? "")
+          : String(job.environment ?? "");
       if (name !== "app-release-build.yml")
         assert.ok(
           !/^(?:release|release-stable)$/u.test(environment) &&

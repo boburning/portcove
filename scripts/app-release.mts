@@ -148,14 +148,24 @@ const defaultRunner: Runner = (command, args) =>
 export const nightlyTagPrefix = "nightly-";
 const versionTagPatterns = ["v*", `${nightlyTagPrefix}*`];
 
-/** The version a `v*` or `nightly-*` tag names, or null for any other tag. */
+/**
+ * The version a `v*` tag or a preview `nightly-*` tag names, or null for any other
+ * tag. Any writer can create a `nightly-*` tag, so one naming a non-preview version
+ * (such as `nightly-9.9.9`) is ignored rather than blocking owner releases.
+ */
 export function tagVersion(tag: string) {
-  const version = tag.startsWith("v")
-    ? tag.slice(1)
-    : tag.startsWith(nightlyTagPrefix)
-      ? tag.slice(nightlyTagPrefix.length)
-      : null;
-  return version !== null && semver.test(version) ? version : null;
+  if (tag.startsWith("v")) {
+    const version = tag.slice(1);
+    return semver.test(version) ? version : null;
+  }
+  if (!tag.startsWith(nightlyTagPrefix)) return null;
+  const version = tag.slice(nightlyTagPrefix.length);
+  if (!semver.test(version)) return null;
+  try {
+    return classifyRelease(version).channel === "preview" ? version : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Every `v*` and `nightly-*` tag; both name versions that must never repeat. */
@@ -284,7 +294,7 @@ export function nightlyPreview(
     throw new Error("nightly previews are tagged only from the origin/main commit");
   const existing = git(["tag", "--points-at", head, "--list", ...versionTagPatterns])
     .split("\n")
-    .filter(Boolean);
+    .filter((tag) => tag.startsWith("v") || tagVersion(tag) !== null);
   if (existing.length > 0)
     return { skipped: `main ${head} is already tagged ${existing.join(", ")}` };
   const conclusion = ci(head);
@@ -329,6 +339,36 @@ export function nightlyPreview(
   git(["tag", "-a", "--cleanup=verbatim", tag, "-m", message, head]);
   git(["push", "origin", `refs/tags/${tag}`]);
   return { tag, version, commit: head };
+}
+
+/**
+ * Refuses to publish when another `v*` or `nightly-*` tag on the remote names the
+ * same version, for example an owner tag pushed while a nightly was building.
+ */
+export function assertVersionUnclaimed(
+  version: string,
+  ownTag: string,
+  run: Runner = defaultRunner,
+) {
+  const remote = run("git", [
+    "ls-remote",
+    "--tags",
+    "origin",
+    ...versionTagPatterns.map((pattern) => `refs/tags/${pattern}`),
+  ]);
+  const tags = new Set(
+    remote
+      .split("\n")
+      .map((line) => line.split("\t")[1] ?? "")
+      .filter((ref) => ref.startsWith("refs/tags/"))
+      .map((ref) => ref.slice("refs/tags/".length).replace(/\^\{\}$/u, "")),
+  );
+  if (!tags.has(ownTag)) throw new Error(`${ownTag} is not on the remote`);
+  const others = [...tags].filter((tag) => tag !== ownTag && tagVersion(tag) === version);
+  if (others.length > 0)
+    throw new Error(
+      `${others.join(", ")} already names ${version}; ${ownTag} is not published to avoid two releases of one version`,
+    );
 }
 
 /**
@@ -835,6 +875,9 @@ async function main(argv: string[]) {
       commit: flag("commit"),
     });
     console.log(`${flag("tag")} is a ${release.channel} release signed in ${release.environment}`);
+  } else if (command === "version-unclaimed") {
+    assertVersionUnclaimed(flag("version"), flag("tag"));
+    console.log(`no other tag names ${flag("version")}`);
   } else if (command === "stamp") stampVersion(process.cwd(), flag("version"));
   else if (command === "feed")
     console.log(
@@ -922,7 +965,7 @@ async function main(argv: string[]) {
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
   } else
     throw new Error(
-      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|withdraw|tag",
+      "usage: app-release.mts plan|stamp|feed|compare|ci-status|publish|download-signatures|withdrawn|next-preview|nightly-preview|verify-inputs|version-unclaimed|withdraw|tag",
     );
 }
 
