@@ -1662,6 +1662,30 @@ mod observation_metadata_tests {
         assert!(document.validate().is_err());
     }
     #[test]
+    fn a_directory_carrying_funding_links_is_projected_as_format_ten() {
+        let listing = |urls: &[&str]| -> PortListing {
+            serde_json::from_value(serde_json::json!({
+                "id": "fixture", "name": "Fixture", "summary": "Fixture",
+                "project_url": "https://example.com/fixture", "funding_urls": urls
+            }))
+            .unwrap()
+        };
+        let mut funded = CatalogListingDocument {
+            format_version: 6,
+            listings: vec![listing(&["https://ko-fi.com/example"])],
+        };
+        funded.promote_projected_format();
+        assert_eq!(funded.format_version, 10);
+        assert!(funded.validate().is_ok());
+        let mut unfunded = CatalogListingDocument {
+            format_version: 6,
+            listings: vec![listing(&[])],
+        };
+        unfunded.promote_projected_format();
+        assert_eq!(unfunded.format_version, 6, "no links keep the format");
+    }
+
+    #[test]
     fn a_directory_carrying_a_first_listed_date_is_projected_as_format_nine() {
         let listing = |date: Option<&str>| -> PortListing {
             let mut value = serde_json::json!({

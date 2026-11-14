@@ -585,18 +585,6 @@ mod tests {
             funded.export_format(10).unwrap().listings[0].funding_urls,
             urls
         );
-        let mut promoted = crate::CatalogListingDocument {
-            format_version: 6,
-            listings: vec![funded_listing(&urls)],
-        };
-        promoted.promote_projected_format();
-        assert_eq!(promoted.format_version, 10);
-        let mut unfunded = crate::CatalogListingDocument {
-            format_version: 6,
-            listings: vec![funded_listing(&[])],
-        };
-        unfunded.promote_projected_format();
-        assert_eq!(unfunded.format_version, 6, "no links keep the format");
     }
 
     #[test]
