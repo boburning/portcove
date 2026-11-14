@@ -16,7 +16,38 @@
       "game_slug": "dino-crisis-2",
       "match_kind": "underlying-game"
     },
-    "issue_number": 444
+    "issue_number": 444,
+    "availability": "packages",
+    "platforms": ["macos-x86-64", "macos-aarch64"],
+    "download_asset_hints": {
+      "macos-x86-64": ["dino-crisis-2-", "-macos-x64.zip"],
+      "macos-aarch64": ["dino-crisis-2-", "-macos-arm64.zip"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare the Mac toolchain and setup kit",
+          "instruction": "Install a C/C++ compiler, CMake, Ninja and Python 3 and make sure they are on PATH. Unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+        },
+        {
+          "title": "Supply your original files",
+          "instruction": "Use your own Dino Crisis 2 (USA) disc (SLUS-01279) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+        },
+        {
+          "title": "Build and add the prepared player",
+          "instruction": "Run Dino_Crisis_2_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_2_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+        }
+      ],
+      "warnings": [],
+      "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
+      "references": [
+        {
+          "title": "Updates and backups",
+          "instruction": "Keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

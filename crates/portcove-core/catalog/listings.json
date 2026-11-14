@@ -3527,11 +3527,48 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 445,
+      "availability": "packages",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "download_asset_hints": {
+        "macos-x86-64": [
+          "dino-crisis-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "dino-crisis-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the Mac toolchain and setup kit",
+            "instruction": "Install a C/C++ compiler, CMake, Ninja and Python 3 and make sure they are on PATH. Unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+          },
+          {
+            "title": "Supply your original files",
+            "instruction": "Use your own Dino Crisis (USA) (Rev 1) disc (SLUS-00922) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+          },
+          {
+            "title": "Build and add the prepared player",
+            "instruction": "Run Dino_Crisis_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+        "references": [
+          {
+            "title": "Updates and backups",
+            "instruction": "Keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+          }
+        ]
+      }
     },
     {
       "id": "alexbeav-dino-crisis-2-recomp",
@@ -3549,11 +3586,48 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 444,
+      "availability": "packages",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
       ],
-      "availability": "unknown"
+      "download_asset_hints": {
+        "macos-x86-64": [
+          "dino-crisis-2-",
+          "-macos-x64.zip"
+        ],
+        "macos-aarch64": [
+          "dino-crisis-2-",
+          "-macos-arm64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare the Mac toolchain and setup kit",
+            "instruction": "Install a C/C++ compiler, CMake, Ninja and Python 3 and make sure they are on PATH. Unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+          },
+          {
+            "title": "Supply your original files",
+            "instruction": "Use your own Dino Crisis 2 (USA) disc (SLUS-01279) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+          },
+          {
+            "title": "Build and add the prepared player",
+            "instruction": "Run Dino_Crisis_2_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_2_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
+        "references": [
+          {
+            "title": "Updates and backups",
+            "instruction": "Keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+          }
+        ]
+      }
     },
     {
       "id": "alexbeav-alien-resurrection-recomp",

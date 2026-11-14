@@ -37396,6 +37396,30 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis SLUS-00922 (USA Rev 1) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Dino Crisis",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install a C/C++ compiler, CMake, Ninja and Python 3 and make sure they are on PATH. Unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your own Dino Crisis (USA) (Rev 1) disc (SLUS-00922) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "Run Dino_Crisis_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3027,
           "cover_id": 237188,
@@ -37510,6 +37534,30 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own matching two-track CHD for Dino Crisis 2 SLUS-01279 (USA) and legally obtained retail SCPH-1001 BIOS. A copy built with the SCPH-5552 BIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Preserve both disc tracks. Portcove verifies the first data track and track count; the audio track digest and complete TOC are not independently authenticated. OpenBIOS is not an accepted substitute. Managed preparation uses the registered Python/build toolchain and Play skips the setup launcher. Generation, runtime, audio, saves, lifecycle and gameplay are untested. Preserve framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain and does not launch the packaged setup host. That standalone host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL; generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
         "original_game_title": "Dino Crisis 2",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the Mac toolchain and setup kit",
+              "instruction": "Install a C/C++ compiler, CMake, Ninja and Python 3 and make sure they are on PATH. Unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+            },
+            {
+              "title": "Supply your original files",
+              "instruction": "Use your own Dino Crisis 2 (USA) disc (SLUS-01279) with its CUE and both BIN tracks in order. The reviewed v0.1.3 Mac kit requires your own retail SCPH-1001 (USA) BIOS. Follow README-SETUP.txt for the requirements of the kit you downloaded."
+            },
+            {
+              "title": "Build and add the prepared player",
+              "instruction": "Run Dino_Crisis_2_Recompiled from the unpacked folder and follow the Generate & rebuild wizard. In Portcove, select build-release/Dino_Crisis_2_Recompiled and use build-release as the start folder. Leave arguments empty and choose Play after you review the registration."
+            }
+          ],
+          "warnings": [],
+          "help_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp#readme",
+          "references": [
+            {
+              "title": "Updates and backups",
+              "instruction": "Keep the complete working copy, original disc files, BIOS, saves and settings. Follow upstream instructions for replacement and keep a copy of the runtime that created your saves. Removing the Portcove registration preserves the external files."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4132,
           "cover_id": 407370,
