@@ -274,17 +274,29 @@ fn require_install_publication_authority(
     ) {
         return Ok(());
     }
-    if operation.kind == LifecycleOperationKind::Adopt {
-        crate::managed_runtime_policy::require_adoption_available(
-            service.catalog(),
-            &install.port_id,
-        )?;
-    }
-    let installer = Installer::new(service.library.clone())?;
     let destination = operation
         .install
         .as_ref()
         .ok_or_else(|| PortcoveError::state("publication has no final installation"))?;
+    if operation.kind == LifecycleOperationKind::Adopt {
+        let already_registered = service
+            .library
+            .status(&operation.port_id, install.channel)?
+            .active
+            .is_some_and(|active| {
+                active.id == destination.id
+                    && active.path == destination.path
+                    && active.manifest_sha256 == destination.manifest_sha256
+                    && active.artifact == destination.artifact
+            });
+        if !already_registered {
+            crate::managed_runtime_policy::require_adoption_available(
+                service.catalog(),
+                &install.port_id,
+            )?;
+        }
+    }
+    let installer = Installer::new(service.library.clone())?;
     installer.require_shared_preferences_for(install, &destination.path)?;
     installer.require_curated_operation(
         install,
