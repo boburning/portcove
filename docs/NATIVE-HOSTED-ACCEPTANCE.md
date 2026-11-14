@@ -255,7 +255,11 @@ transfer to start from 10 s to 60 s, and its wait for each update check's review
 outer budget is calibrated from 15 s to 60 s, because its own picker and close waits
 plus a cold `pwsh` start exceeded 15 s, and the selected-setup preparation completion
 wait from 15 s to 120 s, because a hosted preparation was still running at 15 s. A new
-preparation that ends failed or cancelled is reported at once rather than at the deadline. Its
+preparation that ends failed or cancelled is reported at once rather than at the deadline.
+The preparation scenario likewise calibrates its `get_statuses` script budget from 15 s
+to 60 s, because a full status read during Try launch exceeded 15 s, and its waits for
+primary navigation after a full reload from 15 s to 60 s, matching the existing Library
+reload wait, because the debug build's re-bootstrap exceeded 15 s. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

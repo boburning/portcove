@@ -21,6 +21,7 @@ import type {
 } from "../src/transport-types.generated.d.ts";
 import { transportValue, transportValues } from "./transport-values.mts";
 import { gameTitle, gameIdentityLabel } from "../src/port-identity.ts";
+
 export interface PreparationContext {
   browser: WebDriver;
   invoke: ScenarioInvoke;
@@ -155,6 +156,13 @@ import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
 import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
+
+// Calibrated from 15 s: a full reload re-bootstraps the hosted debug build. The
+// existing Library reload wait was already calibrated to 60 s for this; hosted
+// WebView2 157.0.4341.60 runs (job 132410024493) also left the post-seeding
+// reload on "Opening your Portcove library" past 15 s. The wait returns as soon
+// as primary navigation renders.
+const reloadBootstrapBudgetMs = 60_000;
 
 export function assertPreparationReviewSummary(text: string) {
   const normalized = text.replace(/\s+/gu, " ").trim();
@@ -1229,7 +1237,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
@@ -1291,8 +1299,19 @@ export async function preparationScenarios({
       "The readiness listbox must finish closing before workspace interaction",
     );
   }
+  // Timeout calibration (docs/QUALITY.md), as for the acquisition journey: on
+  // hosted Windows debug builds a full get_statuses read during Try launch
+  // exceeded the session's 15 s WebDriver script budget, which bounds the harness
+  // IPC bridge (script timeout at desktop-test.mts invoke, job 132410024452).
+  // Status reads use 60 s and restore 15 s; product deadlines are unchanged.
   async function status(portId: string) {
-    const result = await invoke("get_statuses");
+    await browser.manage().setTimeouts({ script: 60_000 });
+    let result;
+    try {
+      result = await invoke("get_statuses");
+    } finally {
+      await browser.manage().setTimeouts({ script: 15_000 });
+    }
     assert.equal(result.ok, true);
     return required(
       transportValues("status", result.value).find((item) => item.port_id === portId),
@@ -1955,7 +1974,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await dismissApplicationUpdateChoice();
     const originalWindow = await browser.manage().window().getRect();
@@ -2507,7 +2526,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await dismissApplicationUpdateChoice();
     await selectPrimaryNavigation(browser, "Library");
@@ -3641,7 +3660,7 @@ export async function preparationScenarios({
       await browser.navigate().refresh();
       await browser.wait(
         until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-        15_000,
+        reloadBootstrapBudgetMs,
       );
       assert.deepEqual(
         required((await activities()).find((item) => item.id === required(activity).id)).failure,
@@ -3803,7 +3822,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await selectPrimaryNavigation(browser, "Library");
     const card = By.xpath(`//button[@data-detail-game-id="${port.id}"]`);
@@ -4027,7 +4046,7 @@ export async function preparationScenarios({
     await browser.navigate().refresh();
     await browser.wait(
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
-      15_000,
+      reloadBootstrapBudgetMs,
     );
     await selectPrimaryNavigation(browser, "Discover");
     const restarted = await openCatalogPort("re-blue");
