@@ -580,7 +580,14 @@ fn backup_history(port_id: &str, inventory: &BackupInventory) -> String {
             vec![
                 backup.id.clone(),
                 utc_time(backup.created_at),
-                backup.file_count.to_string(),
+                if backup.unknown_file_count > 0 {
+                    format!(
+                        "{} (+{} unrecognized)",
+                        backup.file_count, backup.unknown_file_count
+                    )
+                } else {
+                    backup.file_count.to_string()
+                },
                 format_bytes(backup.size),
                 backup_kind(backup),
                 backup.path.display().to_string(),
@@ -4053,6 +4060,7 @@ mod tests {
                 file_count: 3,
                 size: 2048,
                 sha256: "a".repeat(64),
+                unknown_file_count: 0,
             },
             current_user_data_exists: true,
             safety_backup_will_be_created: true,
@@ -4201,6 +4209,7 @@ mod tests {
                         file_count: 3,
                         size: 2048,
                         sha256: "a".repeat(64),
+                        unknown_file_count: 0,
                     }],
                     problems: Vec::new(),
                 },

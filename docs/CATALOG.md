@@ -769,15 +769,17 @@ checksum, scanner or verification label is not Portcove admission or qualificati
 
 Native portable runtimes use complete immutable-file verification. Changed or
 missing package files, links, and undeclared programs, scripts or libraries block
-update, version switching, managed removal and backup with the current files
-preserved. The player can back up and relocate them or retain an external
+launch, update, version switching, managed removal and backup with the current
+files preserved. The player can back up and relocate them or retain an external
 installation. Other undeclared regular files, such as settings a game writes
 beside itself, are unknown player-side files ([#5359](https://github.com/boburning/portcove/issues/5359)).
-They do not block those operations. Verification lists them, backups keep a
-separate copy that restore does not put back, and removal backs them up first.
-They are not declared player data and are not collected or carried forward.
-Past the unknown-file caps the operation is held; see the
-[architecture contract](ARCHITECTURE.md#unknown-player-side-files). Updates extract into a new version, collect
+They do not block those operations, and new configuration beside the
+executable blocks only launch. Verification and the removal review list them,
+backups keep a separate copy that restore does not put back, and removal backs
+them up first. They are not declared player data and are not collected or
+carried forward. Past the unknown-file caps only a backup or removal is held;
+see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
+Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
 the staged version, revalidate, then activate through the existing journal.
 Obsolete package files stay in retained versions, rather than surviving in the

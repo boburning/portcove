@@ -1583,7 +1583,9 @@ and the actual checked-file count. Launch-critical checks are separate.
 programs, scripts, libraries or links. The report lists them apart from its
 findings; JSON reports them as `unknown_file_count` and up to 64
 `unknown_files` paths, and `valid` stays false while any remain
-([#5359](https://github.com/boburning/portcove/issues/5359)).
+([#5359](https://github.com/boburning/portcove/issues/5359)). The removal review lists them the
+same way before consent, and backup lists add them to the file count as
+`unrecognized`; JSON reports `unknown_file_count` on both.
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,

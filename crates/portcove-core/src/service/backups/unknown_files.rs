@@ -5,7 +5,10 @@
 //! beside itself. They do not hold managed operations. Backups copy them into
 //! a separate `unknown-files/<install-id>/` area with its own integrity
 //! record. Restore publishes only `data/`, so it never writes them into a
-//! declared path. Past a cap, the operation is held instead of truncating.
+//! declared path. The caps apply only where files are copied. Past a cap an
+//! explicit backup or a removal holds instead of truncating; an automatic
+//! snapshot before a version change or restore copies none and records how
+//! many it left in place, because those operations delete nothing.
 use super::*;
 
 pub(crate) const UNKNOWN_FILES_DIRECTORY: &str = "unknown-files";
@@ -32,12 +35,12 @@ pub(super) struct UnknownFilesArea {
     pub(super) sha256: String,
 }
 
-/// Measure the unknown files a verification reported and apply the caps.
+/// Measure the unknown files a verification reported. No cap applies here.
 pub(crate) fn measure(
     install: &InstallRecord,
     relatives: Vec<String>,
 ) -> Result<Vec<UnknownRuntimeFile>> {
-    let files = relatives
+    relatives
         .into_iter()
         .map(|relative| {
             let path = crate::install::manifest_member(&install.path, &relative)?;
@@ -55,9 +58,7 @@ pub(crate) fn measure(
                 size: metadata.len(),
             })
         })
-        .collect::<Result<Vec<_>>>()?;
-    require_within_caps(&files)?;
-    Ok(files)
+        .collect::<Result<Vec<_>>>()
 }
 
 /// Hold rather than back up only part of the unknown files.
@@ -147,7 +148,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
         scope: UnknownFileScope,
-    ) -> Result<Vec<UnknownRuntimeFile>> {
+    ) -> Result<UnknownFileSelection> {
         let mut all = self
             .library
             .all_installs()?
@@ -156,7 +157,7 @@ impl PortcoveService {
             .collect::<Vec<_>>();
         all.sort_by(|left, right| left.id.cmp(&right.id));
         let mut installs = Vec::new();
-        if scope == UnknownFileScope::Active
+        if scope != UnknownFileScope::Removal
             && let Some(active) = self.collectible_active_install(port_id)?
         {
             installs.push(active);
@@ -168,7 +169,7 @@ impl PortcoveService {
             {
                 continue;
             }
-            if scope == UnknownFileScope::AllVersions
+            if scope == UnknownFileScope::Removal
                 || self.installed_port(&install)?.adapter == crate::AdapterKind::GeneratedCache
             {
                 installs.push(install);
@@ -178,16 +179,37 @@ impl PortcoveService {
         for install in &installs {
             files.extend(self.portable_runtime_unknown_files(install)?);
         }
-        require_within_caps(&files)?;
-        Ok(files)
+        match (scope, require_within_caps(&files)) {
+            (_, Ok(())) => Ok(UnknownFileSelection {
+                files,
+                left_in_place: 0,
+            }),
+            (UnknownFileScope::Automatic, Err(_)) => Ok(UnknownFileSelection {
+                left_in_place: files.len() as u64,
+                files: Vec::new(),
+            }),
+            (_, Err(error)) => Err(error),
+        }
     }
 }
 
-/// Which versions' unknown files a backup copies.
+/// Which versions' unknown files a backup copies, and what a cap does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnknownFileScope {
-    Active,
-    AllVersions,
+    /// A backup the player asked for: the active version; past a cap, hold.
+    Explicit,
+    /// A safety snapshot before a version change, restore or import, which
+    /// deletes no unknown file: the active version; past a cap, copy none.
+    Automatic,
+    /// The safety backup before removal: every version; past a cap, hold.
+    Removal,
+}
+
+/// The unknown files a backup copies, and how many it left in place.
+#[derive(Debug, Default)]
+pub(crate) struct UnknownFileSelection {
+    pub(crate) files: Vec<UnknownRuntimeFile>,
+    pub(crate) left_in_place: u64,
 }
 
 #[cfg(test)]

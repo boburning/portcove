@@ -743,8 +743,28 @@ pub(crate) fn external_runtime(runtime: &ExternalRuntimeRecord, catalog: &Catalo
 }
 
 pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -> String {
+    let mut unknown = String::new();
+    if preview.unknown_file_count > 0 {
+        unknown.push_str(&format!(
+            "\nUnrecognized files: {}. Portcove didn't install these files. Removal copies them to a new backup first; restoring a backup doesn't put them back.",
+            preview.unknown_file_count
+        ));
+        for path in &preview.unknown_files {
+            unknown.push_str(&format!("\n  {}", clean(path)));
+        }
+        match preview
+            .unknown_file_count
+            .saturating_sub(preview.unknown_files.len() as u64)
+        {
+            0 => {}
+            1 => unknown.push_str("\n  1 more unrecognized file is not listed."),
+            more => unknown.push_str(&format!(
+                "\n  {more} more unrecognized files are not listed."
+            )),
+        }
+    }
     format!(
-        "Managed installation removal review\nPort: {}\nManaged locations to remove: {}\n{}\nSaves and settings: {}\nSaves and settings preserved: {}\nReview SHA-256: {}\nReview only; no installed versions were removed.\nNext step: Use remove with this port and --expected-preview {} to confirm this exact inventory.",
+        "Managed installation removal review\nPort: {}\nManaged locations to remove: {}\n{}\nSaves and settings: {}\nSaves and settings preserved: {}{}\nReview SHA-256: {}\nReview only; no installed versions were removed.\nNext step: Use remove with this port and --expected-preview {} to confirm this exact inventory.",
         port_name(catalog, &preview.port_id),
         preview.managed_paths.len(),
         preview
@@ -759,6 +779,7 @@ pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -
         } else {
             "No"
         },
+        unknown,
         clean(&preview.preview_sha256),
         clean(&preview.preview_sha256),
     )

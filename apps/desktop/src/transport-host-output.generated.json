@@ -1456,6 +1456,12 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
           }
         },
         "required": [
@@ -17659,6 +17665,12 @@
             "type": "string"
           },
           "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "unknown_file_count": {
+            "description": "Unknown player-side files kept in the backup's separate area (#5359).\nThey are not counted in `file_count`, and restore does not put them\nback. Omitted when zero.",
             "format": "uint64",
             "minimum": 0,
             "type": "integer"

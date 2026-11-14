@@ -267,7 +267,8 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
     let folder = folder.parent().unwrap();
     let relative = folder.strip_prefix(&first.path).unwrap().to_path_buf();
     fs::write(folder.join("config.yaml"), b"declared settings").unwrap();
-    fs::write(folder.join("easy-access.ini"), b"lives=9").unwrap();
+    fs::create_dir_all(folder.join("settings")).unwrap();
+    fs::write(folder.join("settings/easy-access.ini"), b"lives=9").unwrap();
     fs::create_dir_all(folder.join("logs")).unwrap();
     fs::write(folder.join("logs/replay.txt"), b"replay").unwrap();
 
@@ -278,14 +279,19 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
     let named = |name: &str| format!("{}/{name}", relative.display());
     assert_eq!(
         report.unknown_files,
-        [named("easy-access.ini"), named("logs/replay.txt")]
+        [named("logs/replay.txt"), named("settings/easy-access.ini")]
     );
-    // Launch trust is unchanged: it still requires an exact match.
-    assert!(service.prepare_launch(PORT, None).is_err());
+    // Unknown data does not hold launch either.
+    service.prepare_launch(PORT, None).unwrap();
 
     let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(backup.unknown_file_count, 2);
+    assert_eq!(backup.file_count, 1);
     let area = unknown_area(&backup, &first).join(&relative);
-    assert_eq!(fs::read(area.join("easy-access.ini")).unwrap(), b"lives=9");
+    assert_eq!(
+        fs::read(area.join("settings/easy-access.ini")).unwrap(),
+        b"lives=9"
+    );
     assert_eq!(fs::read(area.join("logs/replay.txt")).unwrap(), b"replay");
     assert_eq!(
         fs::read(backup.path.join("data/config.yaml")).unwrap(),
@@ -306,12 +312,12 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
     assert_ne!(second.id, first.id);
     // Tier 1 carries nothing: the unknown file stays in the old version.
     assert_eq!(
-        fs::read(folder.join("easy-access.ini")).unwrap(),
+        fs::read(folder.join("settings/easy-access.ini")).unwrap(),
         b"lives=9"
     );
     let second_folder = second.path.join(&second.selected_executable);
     let second_folder = second_folder.parent().unwrap();
-    assert!(!second_folder.join("easy-access.ini").exists());
+    assert!(!second_folder.join("settings/easy-access.ini").exists());
     assert_eq!(
         fs::read(second_folder.join("config.yaml")).unwrap(),
         b"declared settings"
@@ -335,15 +341,25 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         fs::read(folder.join("config.yaml")).unwrap(),
         b"declared settings"
     );
-    assert!(!library.user_dir(PORT).join("easy-access.ini").exists());
+    assert!(
+        !library
+            .user_dir(PORT)
+            .join("settings/easy-access.ini")
+            .exists()
+    );
     assert!(!library.user_dir(PORT).join("logs").exists());
     assert_eq!(
-        fs::read(folder.join("easy-access.ini")).unwrap(),
+        fs::read(folder.join("settings/easy-access.ini")).unwrap(),
         b"lives=9"
     );
 
     let before = service.list_backups(PORT).unwrap().backups;
     let preview = service.preview_removal(PORT).unwrap();
+    assert_eq!(preview.unknown_file_count, 2);
+    assert_eq!(
+        preview.unknown_files,
+        [named("logs/replay.txt"), named("settings/easy-access.ini")]
+    );
     let consent = service
         .authorize_removal(PORT, &preview.preview_sha256)
         .unwrap();
@@ -357,7 +373,10 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         .unwrap();
     assert!(safety.automatic.is_none());
     let area = unknown_area(safety, &first).join(&relative);
-    assert_eq!(fs::read(area.join("easy-access.ini")).unwrap(), b"lives=9");
+    assert_eq!(
+        fs::read(area.join("settings/easy-access.ini")).unwrap(),
+        b"lives=9"
+    );
     assert_eq!(fs::read(area.join("logs/replay.txt")).unwrap(), b"replay");
     assert!(!unknown_area(safety, &second).exists());
 }
@@ -450,8 +469,10 @@ async fn unknown_programs_libraries_links_and_changed_files_still_hold() {
     }
 }
 
+/// Launch keeps refusing new loader-relevant configuration beside the
+/// executable (PCV-REAUD-003), while maintenance treats it as unknown data.
 #[tokio::test]
-async fn unknown_files_past_a_cap_hold_instead_of_truncating() {
+async fn configuration_beside_the_program_holds_launch_but_not_maintenance() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let (first_release, first_server) = release("1.0.0");
@@ -460,6 +481,41 @@ async fn unknown_files_past_a_cap_hold_instead_of_truncating() {
     let first = install(&service).await;
     first_server.join().unwrap();
     service.prepare_launch(PORT, None).unwrap();
+    let program = first.path.join(&first.selected_executable);
+    let folder = program.parent().unwrap();
+    fs::write(folder.join("config.yaml"), b"declared settings").unwrap();
+    fs::write(folder.join("profile.json"), b"{}").unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    fs::write(folder.join("easy-access.ini"), b"lives=9").unwrap();
+    let error = service.prepare_launch(PORT, None).unwrap_err();
+    assert!(
+        error.details["failures"].contains("launch-sensitive file"),
+        "{error:?}"
+    );
+    assert_eq!(service.create_backup(PORT).unwrap().unknown_file_count, 2);
+    let (second_release, second_server) = release("2.0.0");
+    *provider.0.lock().unwrap() = second_release;
+    update(&service).await.unwrap();
+    second_server.join().unwrap();
+    assert_eq!(service.rollback(PORT).unwrap().id, first.id);
+    assert_eq!(service.preview_removal(PORT).unwrap().unknown_file_count, 2);
+}
+
+/// The caps bound only what is copied: an explicit backup and removal hold,
+/// while update and rollback, which delete nothing, are not held.
+#[tokio::test]
+async fn unknown_files_past_a_cap_hold_only_backup_and_removal() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first_release, first_server) = release("1.0.0");
+    let provider = Arc::new(Provider(Mutex::new(first_release)));
+    let service = service(library, provider.clone());
+    let first = install(&service).await;
+    first_server.join().unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    let folder = first.path.join(&first.selected_executable);
+    let folder = folder.parent().unwrap();
+    fs::write(folder.join("config.yaml"), b"declared settings").unwrap();
     // A sparse file reports its full length without using that disk space.
     let oversized = first.path.join("replay.dat");
     fs::File::create(&oversized)
@@ -469,15 +525,29 @@ async fn unknown_files_past_a_cap_hold_instead_of_truncating() {
     for error in [
         service.create_backup(PORT).unwrap_err(),
         service.preview_removal(PORT).unwrap_err(),
-        service
-            .collect_active_user_data_if_launched(PORT)
-            .unwrap_err(),
     ] {
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert_eq!(error.details["oversized_unknown_file"], "replay.dat");
     }
+    service.collect_active_user_data_if_launched(PORT).unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    // A safety snapshot (here the one restore takes) copies none past a cap
+    // and records what it left in place.
+    let snapshot = service.create_restore_safety_backup_locked(PORT).unwrap();
+    assert_eq!(snapshot.unknown_file_count, 0);
+    assert_eq!(snapshot.file_count, 1);
+    assert!(!snapshot.path.join("unknown-files").exists());
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(snapshot.path.join("backup.json")).unwrap()).unwrap();
+    assert_eq!(manifest["unknown_files_left_in_place_v1"], 1);
+    let (second_release, second_server) = release("2.0.0");
+    *provider.0.lock().unwrap() = second_release;
+    let second = update(&service).await.unwrap();
+    second_server.join().unwrap();
+    assert_ne!(second.id, first.id);
+    assert_eq!(service.rollback(PORT).unwrap().id, first.id);
     assert!(oversized.is_file());
     fs::remove_file(&oversized).unwrap();
     service.preview_removal(PORT).unwrap();
-    service.collect_active_user_data_if_launched(PORT).unwrap();
+    service.create_backup(PORT).unwrap();
 }

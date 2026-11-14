@@ -25,35 +25,47 @@ Tier 1 splits verification into two outcomes in one place,
   `sh`, `msi`, `jar`, `vbs`, `lnk`) plus `dll`, `so`, `so.*`, `dylib` and any
   executable mode bit.
 - **Other undeclared regular files are unknown player-side files.** They no
-  longer hold those operations. Verification reports them separately with a
-  count and up to 64 paths. Every backup copies them to
-  `unknown-files/<install-id>/`, which restore never reads. Removal backs them
-  up first. More than 1,024 files, 16 MiB in one file or 64 MiB in total holds
-  the operation instead of truncating.
+  longer hold those operations or launch. Verification and the removal review
+  report them separately with a count and up to 64 paths; `BackupRecord`
+  carries their count. Every backup copies them to `unknown-files/<install-id>/`,
+  which restore never reads. Removal backs them up first.
 
-The game-update acquisition precondition uses the same split. An update still
-leaves unknown files in the old version folder; Tier 2 carry-forward is not part
-of this phase. Declared persistence, retained-scope receipts and canonical
-collection are unchanged.
+On November 13, 2026 the owner also answered the launch question: "The end
+goal is to add as many games as possible. Our rules may be to stringent."
+Launch therefore uses the same split, with one retained exception. New
+configuration (`ini`, `cfg`, `toml`) beside the selected executable still holds
+launch, because audit finding PCV-REAUD-003 (fixed by #237 and stated in
+`SECURITY.md`) records that platform loaders and injectors can read such files
+before the game starts. That is a concrete executable-trust reason, so it was
+kept and reported rather than removed. The same file does not hold update,
+rollback, removal or backup.
+
+The caps (1,024 files, 16 MiB in one file, 64 MiB in total) bound only copying.
+Past a cap an explicit backup and removal hold instead of truncating. An
+automatic snapshot, the restore safety backup and the portable-save import
+snapshot copy none of the unknown files and record how many they left in place.
+Update, rollback, collection and launch are never held by a cap.
+
+An update still leaves unknown files in the old version folder. Tier 2
+carry-forward and restoring the unknown-file area are not part of this phase;
+restore of that area is deferred to Tier 2. Declared persistence, retained-scope
+receipts and canonical collection are unchanged.
 
 ## Fixture evidence
 
-| Fixture                                                                                | Observation                                                                                                                                                                       |
-| -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `native_tar_xz_tests::harmless_unknown_files_do_not_hold_and_are_backed_up_separately` | An undeclared `.ini` and log beside the OpenXW fixture program: verify, backup, update, rollback, restore and removal all succeed; backups hold them only under `unknown-files/`. |
-| `native_tar_xz_tests::unknown_programs_libraries_links_and_changed_files_still_hold`   | `.exe`, `.ps1`, `.dll`, `.so.1`, an executable bit, a link, a changed and a missing manifest file each still refuse rollback, removal, backup, collection and update.             |
-| `native_tar_xz_tests::unknown_files_past_a_cap_hold_instead_of_truncating`             | One sparse file past 16 MiB holds backup, removal and collection; removing it releases them.                                                                                      |
-| `native_tar_xz_tests::removal_without_unknown_files_takes_no_extra_backup`             | Removal adds no backup when there is nothing unknown to keep.                                                                                                                     |
-| `backups::unknown_files::tests`                                                        | Each cap admits its limit and holds one past it; the area copies exact bytes and refuses a changed file or unsafe identity.                                                       |
-| `generated_cache_tests`                                                                | Unclaimed programs still hold every pre-write data route; unclaimed data output is kept in place and in backups.                                                                  |
+| Fixture                                                                                  | Observation                                                                                                                                                                                                                               |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `native_tar_xz_tests::harmless_unknown_files_do_not_hold_and_are_backed_up_separately`   | An undeclared `.ini` in a subfolder and a log beside the OpenXW fixture program: verify, launch, backup, update, rollback, restore and removal all succeed; the removal review lists both; backups hold them only under `unknown-files/`. |
+| `native_tar_xz_tests::configuration_beside_the_program_holds_launch_but_not_maintenance` | A `.json` beside the program launches; a new `.ini` there holds launch but not backup, update, rollback or the removal review.                                                                                                            |
+| `native_tar_xz_tests::unknown_programs_libraries_links_and_changed_files_still_hold`     | `.exe`, `.ps1`, `.dll`, `.so.1`, an executable bit, a link, a changed and a missing manifest file each still refuse rollback, removal, backup, collection and update.                                                                     |
+| `native_tar_xz_tests::unknown_files_past_a_cap_hold_only_backup_and_removal`             | One sparse file past 16 MiB holds an explicit backup and the removal review; collection, launch, update and rollback proceed, and the automatic snapshot records one file left in place.                                                  |
+| `native_tar_xz_tests::removal_without_unknown_files_takes_no_extra_backup`               | Removal adds no backup when there is nothing unknown to keep.                                                                                                                                                                             |
+| `backups::unknown_files::tests`                                                          | Each cap admits its limit and holds one past it; the area copies exact bytes and refuses a changed file or unsafe identity.                                                                                                               |
+| `generated_cache_tests`                                                                  | Unclaimed programs still hold every pre-write data route; unclaimed data output is kept in place and in backups.                                                                                                                          |
 
 ## Open questions
 
-- Launch still requires an exact match for full-integrity routes, and
-  configuration beside the executable (`ini`, `cfg`, `toml`) stays
-  launch-sensitive. A game that writes its settings beside itself may still be
-  refused at its next launch. That launch-trust rule needs its own decision.
-- Restore does not offer the unknown-file area. A later phase must decide how a
-  player recovers those files and how a backup holding only unknown files
-  should be presented for restore.
-- The removal review does not yet list unknown files before consent.
+- Restoring the unknown-file area, and how to present a backup that holds only
+  unknown files, is deferred to Tier 2.
+- Whether configuration beside the executable should stay launch-sensitive
+  needs an explicit owner decision on PCV-REAUD-003.

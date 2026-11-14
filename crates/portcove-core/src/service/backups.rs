@@ -35,6 +35,7 @@ mod unknown_files;
 pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
 pub(super) use unknown_files::{
     UnknownFileScope, UnknownRuntimeFile, measure as measure_unknown_files,
+    require_within_caps as require_unknown_files_within_caps,
 };
 
 /// The newest this many automatic snapshots per game are kept.
@@ -490,6 +491,10 @@ struct BackupManifest {
     /// older reader that ignores it still restores exactly `data/`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     unknown_files_v1: Option<unknown_files::UnknownFilesArea>,
+    /// How many unknown files an automatic snapshot left in the game folder
+    /// because they exceeded the caps. Advisory, like `automatic_v1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unknown_files_left_in_place_v1: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -655,7 +660,16 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
-        self.create_backup_locked_labeled(port_id, None)
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Explicit)
+    }
+
+    /// The safety backup before a restore replaces canonical data. Restore
+    /// deletes no unknown file, so past a cap this copies none of them.
+    pub(super) fn create_restore_safety_backup_locked(
+        &self,
+        port_id: &str,
+    ) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Automatic)
     }
 
     /// Publish an ordinary snapshot of current canonical data with a reviewed
@@ -667,15 +681,15 @@ impl PortcoveService {
         port_id: &str,
         overlay: &SnapshotOverlay<'_>,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, None, Some(overlay), UnknownFileScope::Active)
+        self.create_backup_snapshot(port_id, None, Some(overlay), UnknownFileScope::Automatic)
     }
 
     fn create_backup_locked_labeled(
         &self,
         port_id: &str,
-        label: Option<crate::AutomaticSnapshotLabel>,
+        label: crate::AutomaticSnapshotLabel,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, label, None, UnknownFileScope::Active)
+        self.create_backup_snapshot(port_id, Some(label), None, UnknownFileScope::Automatic)
     }
 
     /// Before removal, keep the unknown player-side files of every version,
@@ -686,12 +700,13 @@ impl PortcoveService {
         port_id: &str,
     ) -> Result<Option<BackupRecord>> {
         if self
-            .backup_unknown_files(port_id, UnknownFileScope::AllVersions)?
+            .backup_unknown_files(port_id, UnknownFileScope::Removal)?
+            .files
             .is_empty()
         {
             return Ok(None);
         }
-        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::AllVersions)
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Removal)
             .map(Some)
     }
 
@@ -705,15 +720,18 @@ impl PortcoveService {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         let source_exists = source.is_dir();
-        let unknown = match self.backup_unknown_files(port_id, unknown_scope) {
-            Ok(unknown) => unknown,
+        let selection = match self.backup_unknown_files(port_id, unknown_scope) {
+            Ok(selection) => selection,
             // Without declared data, an ordinary backup keeps its historical
             // "nothing to back up" outcome rather than a new refusal.
-            Err(_) if !source_exists && unknown_scope == UnknownFileScope::Active => {
+            Err(_) if !source_exists && unknown_scope != UnknownFileScope::Removal => {
                 return Err(no_persistent_data(port_id));
             }
             Err(error) => return Err(error),
         };
+        let unknown = selection.files;
+        let unknown_files_left_in_place_v1 =
+            (selection.left_in_place > 0).then_some(selection.left_in_place);
         if !source_exists && unknown.is_empty() {
             return Err(no_persistent_data(port_id));
         }
@@ -815,6 +833,7 @@ impl PortcoveService {
                 automatic_v1: label,
                 guarded_archive_v1: producer.map(|p| p.archive_sha256),
                 unknown_files_v1,
+                unknown_files_left_in_place_v1,
             };
             let final_path = parent.join(&manifest.id);
             let manifest_path = staging_path.join("backup.json");
@@ -1577,7 +1596,7 @@ impl PortcoveService {
             let collected_canonical = self.canonical_data_review(port_id)?;
 
             let safety_backup = if user_root.exists() {
-                match self.create_backup_locked(port_id) {
+                match self.create_restore_safety_backup_locked(port_id) {
                     Ok(backup) => Some(backup),
                     Err(error) if error.code == crate::ErrorCode::NotFound => None,
                     Err(error) => return Err(error),
@@ -1850,7 +1869,7 @@ impl PortcoveService {
                 from_version: from_version.map(str::to_owned),
                 to_version: to_version.to_owned(),
             };
-            match self.create_backup_locked_labeled(port_id, Some(label)) {
+            match self.create_backup_locked_labeled(port_id, label) {
                 Ok(_) => {
                     let pruned = self.prune_automatic_snapshots(port_id);
                     Ok(SnapshotOutcome::Created { pruned })
@@ -2031,6 +2050,10 @@ fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
         file_count: manifest.file_count,
         size: manifest.size,
         sha256: manifest.sha256,
+        unknown_file_count: manifest
+            .unknown_files_v1
+            .as_ref()
+            .map_or(0, |area| area.file_count),
     }
 }
 

@@ -2458,6 +2458,10 @@ impl Installer {
         Ok(None)
     }
 
+    /// Executable trust before launch and pointer changes. A full-integrity
+    /// runtime holds only on hazards (#5359): unknown player-side files may
+    /// stay, except loader-relevant configuration beside the executable
+    /// (PCV-REAUD-003), which launch keeps rejecting.
     pub(crate) fn verify_critical(
         &self,
         install: &InstallRecord,
@@ -2467,9 +2471,8 @@ impl Installer {
     }
 
     /// The same check before a managed update or version switch away from or
-    /// back to this runtime (#5359 Tier 1). Unknown player-side files,
-    /// including configuration beside the executable, do not hold it; every
-    /// hazard still does. Launch keeps [`Self::verify_critical`].
+    /// back to this runtime (#5359 Tier 1). No process starts from it, so
+    /// configuration beside the executable does not hold it either.
     pub(crate) fn verify_critical_for_replacement(
         &self,
         install: &InstallRecord,
@@ -2496,7 +2499,8 @@ impl Installer {
         )?;
         let full_integrity =
             full_immutable_integrity(&manifest, install, qualification.strict_staged_source)?;
-        // Only a complete inventory can tell unknown files from hazards.
+        // Only a complete inventory can tell unknown files from hazards;
+        // otherwise launch-sensitive companions beside the executable hold.
         let check = if full_integrity {
             check
         } else {
@@ -2504,11 +2508,7 @@ impl Installer {
         };
         if full_integrity {
             let report = self.verify_managed(install, qualification)?;
-            let held = match check {
-                CriticalCheck::Launch => !report.valid,
-                CriticalCheck::Replacement => report.has_hazards(),
-            };
-            if held {
+            if report.has_hazards() {
                 return Err(PortcoveError::verification(format!(
                     "immutable install integrity failed for {}",
                     install.port_id,
@@ -6100,19 +6100,32 @@ mod tests {
         fs::create_dir_all(&mutable).unwrap();
         fs::write(mutable.join("player-save.bin"), b"player data").unwrap();
         installer.verify_critical(&install, &qualification).unwrap();
-        for name in ["unknown.exe", "unknown.dll", "unknown.txt"] {
+        for name in ["unknown.exe", "unknown.dll"] {
             let target = helpers.join(name);
             fs::write(&target, b"unadmitted").unwrap();
             assert!(installer.verify_critical(&install, &qualification).is_err());
-            if name != "unknown.txt" {
-                let mut broadened = qualification.clone();
-                broadened
-                    .runtime_mutable_paths
-                    .push("package/libexec".into());
-                assert!(installer.verify_critical(&install, &broadened).is_err());
-            }
+            let mut broadened = qualification.clone();
+            broadened
+                .runtime_mutable_paths
+                .push("package/libexec".into());
+            assert!(installer.verify_critical(&install, &broadened).is_err());
             fs::remove_file(target).unwrap();
         }
+        // Unknown data away from the selected executable no longer holds
+        // launch (#5359); it stays a reported unknown player-side file.
+        let note = helpers.join("unknown.txt");
+        fs::write(&note, b"unadmitted").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        let report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!report.has_hazards(), "{report:?}");
+        assert!(
+            report
+                .unknown_files
+                .iter()
+                .any(|path| path.ends_with("unknown.txt")),
+            "{report:?}"
+        );
+        fs::remove_file(note).unwrap();
         assert_eq!(
             fs::read(mutable.join("player-save.bin")).unwrap(),
             b"player data"
@@ -6367,8 +6380,14 @@ mod tests {
             assert!(installer.verify_critical(&install, &changed).is_err());
             fs::write(&target, b"reviewed").unwrap();
         }
+        // Away from the executable, new configuration is an unknown player-side
+        // file (#5359) and does not hold launch; a new library still does.
         let unexpected = target.parent().unwrap().join("unexpected.toml");
         fs::write(&unexpected, b"unreviewed selector").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        fs::remove_file(unexpected).unwrap();
+        let unexpected = target.parent().unwrap().join("unexpected.dll");
+        fs::write(&unexpected, b"unreviewed code").unwrap();
         assert!(installer.verify_critical(&install, &qualification).is_err());
         fs::remove_file(unexpected).unwrap();
         installer.verify_critical(&install, &qualification).unwrap();

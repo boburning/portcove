@@ -47,5 +47,7 @@
     "unavailablePort": "منفذ غير متاح ({{id}})"
   },
   "title": "إلغاء تثبيت {{identity}}؟",
-  "uninstallPort": "إلغاء تثبيت {{name}}"
+  "uninstallPort": "إلغاء تثبيت {{name}}",
+  "unknownFiles": "ملفات لم يثبّتها Portcove: {{total, number}}. ربما أنشأتها اللعبة، مثل الإعدادات. ينسخها Portcove إلى نسخة احتياطية جديدة قبل إلغاء التثبيت. لا تعيدها استعادة النسخة الاحتياطية.",
+  "unknownFilesUnlisted": "ملفات غير مدرجة هنا: {{total, number}}"
 }

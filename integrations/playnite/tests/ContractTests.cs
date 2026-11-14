@@ -806,6 +806,15 @@ internal static class ContractTests
         value["managed_paths"] = new object[] { @"C:\Portcove\versions\first", @"C:\Portcove\versions\second" };
         value["preview_sha256"] = "unbound";
         Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "unbound removal fingerprint rejected");
+        value["preview_sha256"] = new string('a', 64);
+        Check(!review.Confirmation("Shape A", @"C:\Portcove").Contains("didn't install"),
+            "managed removal without unrecognized files names none");
+        value["unknown_file_count"] = 2;
+        Check(ManagedRemovalReview.Read(value, "shape-a").Confirmation("Shape A", @"C:\Portcove")
+            .Contains("Files Portcove didn't install: 2."), "managed removal names unrecognized files before consent");
+        value["unknown_file_count"] = -1;
+        Reject(() => ManagedRemovalReview.Read(value, "shape-a"), "negative unrecognized-file count rejected");
+        value.Remove("unknown_file_count");
 
         var capabilities = Json.Object(Json.Parse(Json.Print(Capabilities())));
         capabilities["schema_version"] = 56;

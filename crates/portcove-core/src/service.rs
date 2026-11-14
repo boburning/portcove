@@ -295,6 +295,14 @@ pub struct PortRemovalPreview {
     pub managed_paths: Vec<PathBuf>,
     pub persistent_data_path: PathBuf,
     pub persistent_data_will_be_preserved: bool,
+    /// Unknown player-side files in the versions being removed (#5359).
+    /// Removal copies them to a new backup's separate area before it deletes
+    /// the version folders; restore does not put them back. Omitted when zero.
+    #[serde(default, skip_serializing_if = "crate::types::is_zero_count")]
+    pub unknown_file_count: u64,
+    /// The first unknown file paths, each relative to its version folder.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unknown_files: Vec<String>,
     pub preview_sha256: String,
 }
 
@@ -3474,7 +3482,8 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
-            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
+            Installer::new(self.library.clone())?
+                .verify_critical_for_replacement(&existing, &qualification)?;
             if activate
                 && let Some(active) = &status.active
                 && active.id != existing.id
@@ -4611,8 +4620,9 @@ impl PortcoveService {
                 "{port_id} is not installed"
             )));
         }
+        let mut unknown = Vec::new();
         for install in &installs {
-            self.require_portable_runtime_unchanged(install)?;
+            unknown.extend(self.portable_runtime_unknown_files(install)?);
             let paths = crate::output_root::removal_paths(
                 &self.library,
                 port_id,
@@ -4625,12 +4635,29 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&installs)?));
+        // Removal copies these before deleting the folders, so the caps apply.
+        backups::require_unknown_files_within_caps(&unknown)?;
+        let listed = unknown
+            .iter()
+            .map(|file| (file.install_id.as_str(), file.relative.as_str(), file.size))
+            .collect::<Vec<_>>();
+        let preview_sha256 = if listed.is_empty() {
+            hex::encode(Sha256::digest(serde_json::to_vec(&installs)?))
+        } else {
+            // Consent binds the unknown files the review showed.
+            hex::encode(Sha256::digest(serde_json::to_vec(&(&installs, &listed))?))
+        };
         Ok(PortRemovalPreview {
             port_id: port_id.to_owned(),
             managed_paths,
             persistent_data_path: self.library.user_dir(port_id),
             persistent_data_will_be_preserved: true,
+            unknown_file_count: unknown.len() as u64,
+            unknown_files: unknown
+                .iter()
+                .take(crate::install::REPORTED_UNKNOWN_FILES)
+                .map(|file| file.relative.clone())
+                .collect(),
             preview_sha256,
         })
     }
