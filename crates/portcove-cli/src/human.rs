@@ -3753,10 +3753,15 @@ mod tests {
         assert!(output.contains("Saves and settings: managed by Portcove"));
         assert!(output.contains("Upstream state: active"));
         assert!(!output.contains("libultraship-portable"));
-        let external = catalog_show(catalog.port("wave-race-64-recomp").unwrap());
-        assert!(external.contains("Preparation: Extract the official v1.0.2 Windows ZIP"));
-        assert!(external.contains("create an empty portable.txt"));
+        let external = catalog_show(catalog.port("dkc2-recomp").unwrap());
+        assert!(
+            external.contains("Preparation: Prepare the exact official v0.0.2 Windows runtime")
+        );
+        assert!(external.contains("omitting assets/img/boxart.tga"));
         assert!(external.contains("Saves and settings: user-owned"));
+        let managed = catalog_show(catalog.port("wave-race-64-recomp").unwrap());
+        assert!(managed.contains("creates portable.txt"));
+        assert!(managed.contains("Saves and settings: managed by Portcove"));
     }
 
     #[test]
@@ -4534,7 +4539,7 @@ mod catalog_detail_tests {
     fn external_port() -> PortDefinition {
         Catalog::embedded()
             .unwrap()
-            .port("wave-race-64-recomp")
+            .port("dkc2-recomp")
             .unwrap()
             .clone()
     }
@@ -4680,9 +4685,7 @@ mod catalog_detail_tests {
         )));
         assert!(output.contains(&format!("Package SHA-256: {}", runtime.archive_sha256)));
         assert!(output.contains(&format!("Executable: {}", runtime.executable)));
-        assert!(
-            output.contains("portcove external preview wave-race-64-recomp \"<extracted-folder>\"")
-        );
+        assert!(output.contains("portcove external preview dkc2-recomp \"<extracted-folder>\""));
         assert!(output.contains("matching platform"));
         assert!(output.contains(
             "Maintenance: user-owned; Portcove does not download or update this runtime"
@@ -4733,21 +4736,19 @@ mod catalog_detail_tests {
             .user_prepared
             .insert(Platform::LinuxX86_64, linux);
         let output = catalog_show(&port);
-        let windows_heading = "Accepted runtime (Windows (x64)): v1.0.2";
+        let windows_heading = "Accepted runtime (Windows (x64)): v0.0.2";
         let linux_heading = "Accepted runtime (Linux (x64)): v7.2.1";
         let windows_position = output.find(windows_heading).unwrap();
         let linux_position = output.find(linux_heading).unwrap();
         assert!(windows_position < linux_position);
         let windows = &output[windows_position..linux_position];
-        assert!(
-            windows.contains("WaveRace64Recomp-1.0.2-windows-x64.zip (16.6 MiB; 17397538 bytes)")
-        );
+        assert!(windows.contains("DKC2Recomp-windows-x64-v0.0.2.zip (8.1 MiB; 8488768 bytes)"));
         assert!(!windows.contains("fixture-linux-runtime"));
         let linux = &output[linux_position..];
         assert!(linux.contains("Package: fixture-linux-runtime.zip (321 B; 321 bytes)"));
         assert!(linux.contains(&format!("Package SHA-256: {}", "a".repeat(64))));
         assert!(linux.contains("Executable: bin/fixture-game"));
-        assert!(!linux.contains("WaveRace64Recomp.exe"));
+        assert!(!linux.contains("DKC2Recomp.exe"));
     }
 
     #[test]

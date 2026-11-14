@@ -108,11 +108,52 @@ impl CatalogDownloadCoverage {
     }
 }
 
+/// Why the upstream listing download is not this host's route. Each one leaves
+/// existing-installation registration and every installed copy unchanged.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum CatalogDownloadRefusal {
+    /// Portcove's managed integration offers Install for this host.
+    ManagedRoute,
+}
+
+impl CatalogDownloadRefusal {
+    pub fn message(self) -> &'static str {
+        match self {
+            Self::ManagedRoute => {
+                "Portcove installs and updates this game on your system. Use Install instead of downloading the upstream package."
+            }
+        }
+    }
+}
+
+/// Refuse the listing download only when Install is a usable next step: allowed,
+/// or waiting only for the player's game files. A held, not-offered or already
+/// registered Install keeps the download, so neither route is a dead end.
+pub(crate) fn managed_route_refusal(
+    port_actions: &[crate::PortActionAssessment],
+) -> Option<CatalogDownloadRefusal> {
+    port_actions
+        .iter()
+        .any(|assessment| {
+            assessment.action == PortAction::Install
+                && matches!(
+                    assessment.availability,
+                    crate::PortActionAvailability::Allowed | crate::PortActionAvailability::Waiting
+                )
+        })
+        .then_some(CatalogDownloadRefusal::ManagedRoute)
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CatalogDownloadCandidates {
     pub port_id: String,
     pub allowed: bool,
     pub reason: Option<String>,
+    /// Present when the listing download is refused because another route
+    /// serves this host; `reason` carries the same player explanation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refusal: Option<CatalogDownloadRefusal>,
     pub candidates: Vec<CatalogDownloadCandidate>,
     /// Absent when an availability or provider refusal prevented discovery.
     pub coverage: Option<CatalogDownloadCoverage>,
@@ -462,10 +503,36 @@ impl PortcoveService {
         Ok(())
     }
 
+    /// One fresh route per host: when this library's own Install assessment for
+    /// the host is allowed or waiting only for the player's game files, Install
+    /// replaces the upstream download. That assessment already folds in the
+    /// library's registrations and installations, acquisition holds, pending
+    /// setup and the definition's Install eligibility, and Desktop uses the same
+    /// test to prefer Install. Descriptive listing platforms never refuse a host.
+    pub(crate) fn listing_download_refusal(
+        &self,
+        port_id: &str,
+    ) -> Result<Option<CatalogDownloadRefusal>> {
+        self.catalog.listing(port_id)?;
+        if self.catalog.port(port_id).is_err() {
+            return Ok(None);
+        }
+        // An unreadable status offers no Install to point at, so it keeps the
+        // download; the download path repeats its own state checks.
+        let Ok(status) = self.status(port_id) else {
+            return Ok(None);
+        };
+        Ok(managed_route_refusal(&status.port_actions))
+    }
+
     fn require_download_available(&self, port_id: &str) -> Result<()> {
         crate::managed_runtime_policy::require_acquisition_available(&self.catalog, port_id)?;
         if let Some(reason) = &self.catalog.listing(port_id)?.download_block_reason {
             return Err(PortcoveError::unsupported(reason.clone()));
+        }
+        if let Some(refusal) = self.listing_download_refusal(port_id)? {
+            return Err(PortcoveError::unsupported(refusal.message())
+                .detail("refusal", enum_value(refusal)?));
         }
         self.require_no_pending_setup(port_id)?;
         let state = self.library.status(port_id, ReleaseChannel::Stable)?;
@@ -599,6 +666,7 @@ impl PortcoveService {
             port_id: port_id.into(),
             allowed: false,
             reason: None,
+            refusal: None,
             candidates: Vec::new(),
             coverage: None,
             default_destination_parent: None,
@@ -610,6 +678,9 @@ impl PortcoveService {
             recommendation_reason: String::new(),
         };
         if let Err(error) = self.require_download_available(port_id) {
+            result.refusal = error.details.get("refusal").and_then(|refusal| {
+                serde_json::from_value(serde_json::Value::String(refusal.clone())).ok()
+            });
             result.reason = Some(error.message);
             return Ok(result);
         }

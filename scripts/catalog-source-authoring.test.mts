@@ -302,9 +302,7 @@ void test("download restrictions project through the versioned directory without
     () => checkedAuthoredPort({ ...record, integration: { adapter: "native-portable" } }),
     /download restriction cannot coexist with a managed integration/,
   );
-  const prepared = source.records.find(
-    (candidate) => candidate.listing.id === "wave-race-64-recomp",
-  );
+  const prepared = source.records.find((candidate) => candidate.listing.id === "dkc2-recomp");
   assert.ok(prepared);
   const preparedWithHold = checkedAuthoredPort({
     ...prepared,

@@ -8165,6 +8165,16 @@
         ],
         "type": "object"
       },
+      "CatalogDownloadRefusal": {
+        "description": "Why the upstream listing download is not this host's route. Each one leaves\nexisting-installation registration and every installed copy unchanged.",
+        "oneOf": [
+          {
+            "const": "managed-route",
+            "description": "Portcove's managed integration offers Install for this host.",
+            "type": "string"
+          }
+        ]
+      },
       "CatalogDownloadRelease": {
         "properties": {
           "assets_complete": {
@@ -8341,6 +8351,17 @@
             "type": "null"
           }
         ]
+      },
+      "refusal": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/CatalogDownloadRefusal"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "Present when the listing download is refused because another route\nserves this host; `reason` carries the same player explanation."
       },
       "releases": {
         "items": {

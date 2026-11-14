@@ -197,6 +197,14 @@ the existing GitHub provider and archive checks. A download publishes into a new
 user-owned child folder outside the Library and managed outputs; it never runs
 an installer. Shared release/package suitability and bounded native executable
 discovery supply suggestions; explicit registration and launch revalidate them.
+Download availability offers one fresh route per host: Core refuses the listing
+download with a typed `CatalogDownloadRefusal` only when the library's own
+Install assessment for the host is allowed or waiting for game files, the same
+test Desktop uses to prefer Install. Held or already-registered Install keeps the
+download. Target inspection reports the refusal per target for a fresh library.
+Descriptive listing platforms never refuse a host.
+Registering an existing copy and installed copies are unaffected; Desktop and
+the CLI show the explanation instead of download choices.
 Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz,
 tar.xz and bounded 7z packages. TAR.XZ uses the pinned in-process LZMA decoder
 with a single verified worker. The reader bounds the raw index to 32 KiB before

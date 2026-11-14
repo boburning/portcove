@@ -143,7 +143,18 @@ upstream itself publishes and holds a package only for concrete reasons.
   `download_block_reason`. A listing hold applies to every platform of the
   port, so a port keeps its hold while one platform's route, such as an
   existing non-owning integration, still needs a separate decision. The owner
-  confirmed this on November 13, 2026.
+  confirmed this on November 13, 2026. Core enforces one fresh route per host:
+  it refuses the listing download (`managed-route`) only where this library's
+  own Install assessment for the host is allowed or waiting for the player's
+  game files. A held definition, an acquisition hold, pending setup or an
+  existing registration leaves Install unusable, so the download stays offered.
+  `catalog inspect-targets` reports the same refusal per target for a fresh
+  library. Descriptive listing platforms never refuse
+  a host, so a newly published upstream package stays reachable before the
+  listing names it; registration still requires a native program. A
+  `user-prepared` integration offers no Install, so its download stays
+  available for preparing the reviewed copy. Registering an existing
+  installation remains available either way.
 - **Availability.** Tier 3 never copies or retains a package for others. When
   the upstream release disappears, moves or is withdrawn, Portcove stops
   offering fresh acquisition through the existing release resolution and
@@ -1508,8 +1519,10 @@ Only catalog entries that declare and qualify this route offer it. [#1169](https
 owns the first real-port qualification and its remaining end-to-end evidence.
 An optional `presentation.manual_preparation` gives the exact player-created
 steps for a user-prepared runtime; the short port summary remains an outcome
-description. The Wave Race pilot requires an empty `portable.txt` beside its
-executable, in addition to the extracted upstream ZIP files.
+description. Wave Race registrations made under the retired pilot keep their
+requirement for an empty `portable.txt` beside the executable, in addition to
+the extracted upstream ZIP files; its current catalog installs the same package
+as a managed route ([record](qualification/wave-race-64-recomp-managed-acquisition-2026-11-13.md)).
 Optional `presentation.manual_setup` supplies authored `steps` (one to eight
 objects with nonempty `title` and `instruction`), up to eight essential `warnings`,
 and an optional HTTPS `help_url` without credentials. Include `warnings: []`

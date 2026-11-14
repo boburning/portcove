@@ -63,7 +63,8 @@ pub use adoption_batch::{
 };
 pub use catalog_download::{
     CatalogDownloadCandidate, CatalogDownloadCandidates, CatalogDownloadCoverage,
-    CatalogDownloadPreview, CatalogDownloadRequest, PendingSetupRecord, PendingSetupState,
+    CatalogDownloadPreview, CatalogDownloadRefusal, CatalogDownloadRequest, PendingSetupRecord,
+    PendingSetupState,
 };
 pub use launcher_library::{
     GITHUB_LAUNCHER_FORMAT_REVISION, LauncherAppsRootOrigin, LauncherEntryHints,

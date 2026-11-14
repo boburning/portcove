@@ -108,6 +108,11 @@ pub struct TargetRoutes {
     pub readiness: Unassessed,
     /// Recorded qualification matched to the artifact the catalog offers here.
     pub qualification: TargetQualification,
+    /// The upstream listing download a fresh library refuses on this target
+    /// because managed Install is offered here. A library's own registrations,
+    /// pending setup or definition hold can still keep the download.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub listing_download_refusal: Option<crate::CatalogDownloadRefusal>,
 }
 
 /// Recorded Portcove qualification for one target, matched to the artifact the
@@ -326,6 +331,10 @@ fn inspect_port(
                 })
                 .collect();
             let qualification = target_qualification(catalog, port, platform, &routes);
+            let listing_download_refusal = routes
+                .iter()
+                .any(|route| route.action == PortAction::Install && route.offered)
+                .then_some(crate::CatalogDownloadRefusal::ManagedRoute);
             TargetRoutes {
                 platform,
                 routes,
@@ -334,6 +343,7 @@ fn inspect_port(
                 definition_eligibility: Unassessed::Unknown,
                 readiness: Unassessed::Unknown,
                 qualification,
+                listing_download_refusal,
             }
         })
         .collect();
@@ -975,5 +985,51 @@ mod tests {
             .map(|i| format!("port-{i}"))
             .collect();
         assert!(inspect_targets(&catalog, &ids, &[]).is_err());
+    }
+
+    #[test]
+    fn each_target_reports_the_listing_download_a_managed_install_replaces() {
+        let catalog = Catalog::embedded().unwrap();
+        let report = inspect_targets(
+            &catalog,
+            &[
+                "wave-race-64-recomp".into(),
+                "dkc2-recomp".into(),
+                "open-nectar-pikmin".into(),
+            ],
+            &[Platform::WindowsX86_64, Platform::LinuxX86_64],
+        )
+        .unwrap();
+        let refusal = |port: &str, platform| {
+            report
+                .ports
+                .iter()
+                .find(|entry| entry.port_id == port)
+                .unwrap()
+                .targets
+                .iter()
+                .find(|target| target.platform == platform)
+                .unwrap()
+                .listing_download_refusal
+        };
+        let managed = Some(crate::CatalogDownloadRefusal::ManagedRoute);
+        assert_eq!(
+            refusal("wave-race-64-recomp", Platform::WindowsX86_64),
+            managed
+        );
+        assert_eq!(refusal("wave-race-64-recomp", Platform::LinuxX86_64), None);
+        // Prepared-player routes and held acquisition offer no Install to replace it.
+        assert_eq!(refusal("dkc2-recomp", Platform::WindowsX86_64), None);
+        assert_eq!(refusal("open-nectar-pikmin", Platform::WindowsX86_64), None);
+        let json = serde_json::to_value(&report).unwrap();
+        assert_eq!(
+            json["ports"][0]["targets"][0]["listing_download_refusal"],
+            "managed-route"
+        );
+        assert!(
+            json["ports"][0]["targets"][1]
+                .get("listing_download_refusal")
+                .is_none()
+        );
     }
 }
