@@ -129,7 +129,14 @@ async function installBackupReadProbe(browser: WebDriver) {
     runtime.__portcoveBackupReadProbe = probe;
     const original = window.fetch;
     window.fetch = function (input, ...args) {
-      const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : typeof input === "object" && input !== null && "url" in input
+              ? String(input.url)
+              : String(input);
       if (!url.startsWith(target)) return original.call(this, input, ...args);
       const read: { start: number; end?: number; ok?: boolean } = { start: performance.now() };
       probe.reads.push(read);
@@ -1671,6 +1678,8 @@ export async function installScenarios({
       const rollbackFrom = required(beforeRollback.active);
       const rollbackTo = required(beforeRollback.previous);
       const backupsBeforeRollback = new Set((await backups()).backups.map((item) => item.id));
+      // Observe every page backup read the rollback triggers, not only later ones.
+      await installBackupReadProbe(browser);
       const saveBeforeRollback = await readFile(save, "utf8");
       await openFixture(port, true);
       await revealDetailSection(browser, "Versions & updates");
@@ -1729,7 +1738,6 @@ export async function installScenarios({
         "Restore previous version keeps current saved data",
       );
       const rollbackHistoryText = `Automatic snapshot before restoring a previous version (${rollbackFrom.version} to ${rollbackTo.version})`;
-      await installBackupReadProbe(browser);
       await revealDetailSection(browser, "Saves & backups");
       let rollbackHistory: WebElement;
       try {
@@ -1744,21 +1752,28 @@ export async function installScenarios({
       } catch (error) {
         // Core already returned this snapshot to the harness; record whether the
         // page kept reading (and discarding) or one read never settled.
-        const diagnostic = path.join(output, "rollback-history-backup-reads.json");
-        await writeFile(
-          diagnostic,
-          JSON.stringify(
-            {
-              core_snapshot_id: rollbackSnapshot.id,
-              page: await backupReadDiagnostics(browser),
-              activities: await invoke("get_activities", { limit: 10 }),
-            },
-            null,
-            2,
-          ),
-          { flag: "wx" },
-        );
-        artifacts.push(diagnostic);
+        // Best effort: a diagnostic failure must not replace the original timeout.
+        try {
+          const diagnostic = path.join(output, "rollback-history-backup-reads.json");
+          await writeFile(
+            diagnostic,
+            JSON.stringify(
+              {
+                core_snapshot_id: rollbackSnapshot.id,
+                probe_scope:
+                  "page get_backups reads issued from just before Restore previous version",
+                page: await backupReadDiagnostics(browser),
+                activities: await invoke("get_activities"),
+              },
+              null,
+              2,
+            ),
+            { flag: "wx" },
+          );
+          artifacts.push(diagnostic);
+        } catch (diagnosticError) {
+          console.error(`Rollback history diagnostic unavailable: ${String(diagnosticError)}`);
+        }
         throw error;
       }
       await browser.wait(
