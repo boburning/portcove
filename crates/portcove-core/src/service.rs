@@ -18994,7 +18994,9 @@ fn main() {
         assert!(!report.valid);
         assert!(!report.has_hazards(), "{:?}", report.failures);
         assert_eq!(report.unknown_files, vec!["new-settings.ini".to_owned()]);
-        assert!(service.prepare_launch("zelda64-recomp", None).is_err());
+        // An ordinary settings file no longer holds launch (#5359); whatever the
+        // launch outcome, the unadmitted path is never adopted as player data.
+        let _ = service.prepare_launch("zelda64-recomp", None);
         assert!(
             !service
                 .library

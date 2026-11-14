@@ -469,10 +469,18 @@ async fn unknown_programs_libraries_links_and_changed_files_still_hold() {
     }
 }
 
-/// Launch keeps refusing new loader-relevant configuration beside the
-/// executable (PCV-REAUD-003), while maintenance treats it as unknown data.
+/// Launch refuses only the reviewed loader-read names beside the executable
+/// (PCV-REAUD-003, narrowed by owner decision for #5359). Ordinary settings
+/// there, and loader names elsewhere, launch; maintenance treats every one of
+/// them as unknown data.
 #[tokio::test]
-async fn configuration_beside_the_program_holds_launch_but_not_maintenance() {
+async fn configuration_beside_the_program_holds_launch_only_for_loader_names() {
+    const LOADER_NAMES: [&str; 4] = [
+        "dinput8.ini",
+        "ReShade.ini",
+        "dxvk.conf",
+        "OpenXW.exe.config",
+    ];
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let (first_release, first_server) = release("1.0.0");
@@ -484,21 +492,40 @@ async fn configuration_beside_the_program_holds_launch_but_not_maintenance() {
     let program = first.path.join(&first.selected_executable);
     let folder = program.parent().unwrap();
     fs::write(folder.join("config.yaml"), b"declared settings").unwrap();
-    fs::write(folder.join("profile.json"), b"{}").unwrap();
+    for name in ["settings.ini", "config.toml", "profile.json"] {
+        fs::write(folder.join(name), b"player settings").unwrap();
+    }
+    fs::create_dir_all(folder.join("mods")).unwrap();
+    for name in LOADER_NAMES {
+        fs::write(folder.join("mods").join(name), b"not beside the program").unwrap();
+    }
     service.prepare_launch(PORT, None).unwrap();
-    fs::write(folder.join("easy-access.ini"), b"lives=9").unwrap();
-    let error = service.prepare_launch(PORT, None).unwrap_err();
-    assert!(
-        error.details["failures"].contains("launch-sensitive file"),
-        "{error:?}"
-    );
-    assert_eq!(service.create_backup(PORT).unwrap().unknown_file_count, 2);
+    for name in LOADER_NAMES {
+        fs::write(folder.join(name), b"loader input").unwrap();
+        let error = service.prepare_launch(PORT, None).unwrap_err();
+        assert!(
+            error.details["failures"].contains(&format!("launch-sensitive file: {}", {
+                let relative = folder.strip_prefix(&first.path).unwrap();
+                format!("{}/{name}", relative.display())
+            })),
+            "{name}: {error:?}"
+        );
+        fs::remove_file(folder.join(name)).unwrap();
+    }
+    for name in LOADER_NAMES {
+        fs::write(folder.join(name), b"loader input").unwrap();
+    }
+    assert_eq!(service.create_backup(PORT).unwrap().unknown_file_count, 11);
     let (second_release, second_server) = release("2.0.0");
     *provider.0.lock().unwrap() = second_release;
     update(&service).await.unwrap();
     second_server.join().unwrap();
     assert_eq!(service.rollback(PORT).unwrap().id, first.id);
-    assert_eq!(service.preview_removal(PORT).unwrap().unknown_file_count, 2);
+    assert_eq!(
+        service.preview_removal(PORT).unwrap().unknown_file_count,
+        11
+    );
+    assert!(service.prepare_launch(PORT, None).is_err());
 }
 
 /// The caps bound only what is copied: an explicit backup and removal hold,

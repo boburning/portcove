@@ -2574,16 +2574,21 @@ impl Installer {
                 continue;
             }
             let file_type = entry.file_type()?;
-            let sensitive = file_type.is_file()
-                && match check {
-                    CriticalCheck::Launch => {
-                        is_critical_companion(&candidate, &executable, platform)?
-                    }
-                    CriticalCheck::Replacement => {
-                        is_executable_companion(&candidate, &executable, platform)?
-                            || crate::package_layout::is_unknown_file_hazard(&candidate)?
-                    }
-                };
+            let sensitive = match check {
+                // New programs and libraries beside the executable, and only the
+                // reviewed loader-read names (PCV-REAUD-003, narrowed #5359).
+                CriticalCheck::Launch => {
+                    (file_type.is_file()
+                        && is_executable_companion(&candidate, &executable, platform)?)
+                        || ((file_type.is_file() || file_type.is_dir())
+                            && is_loader_sensitive_name(&entry.file_name()))
+                }
+                CriticalCheck::Replacement => {
+                    file_type.is_file()
+                        && (is_executable_companion(&candidate, &executable, platform)?
+                            || crate::package_layout::is_unknown_file_hazard(&candidate)?)
+                }
+            };
             if file_type.is_symlink() || sensitive {
                 failures.push(format!("unexpected launch-sensitive file: {relative}"));
             }
@@ -4774,6 +4779,86 @@ fn is_executable_member(path: &Path, platform: Platform) -> Result<bool> {
     ) && crate::permissions::executable_intent(path)?)
 }
 
+/// Proxy DLL names whose loaders read a same-named `.ini` or `.cfg` beside the
+/// executable. Ultimate ASI Loader documents these proxy names and reads
+/// `<proxy>.ini` (github.com/ThirteenAG/Ultimate-ASI-Loader, "Usage" and
+/// "Configuration"); Special K reads `<proxy>.ini` for the same wrapper names
+/// (wiki.special-k.info, "Configuration files"); ENBSeries and other wrappers
+/// use the same convention.
+const LOADER_PROXY_STEMS: &[&str] = &[
+    "binkw32",
+    "d3d8",
+    "d3d9",
+    "d3d10",
+    "d3d11",
+    "d3d12",
+    "dbghelp",
+    "ddraw",
+    "dinput",
+    "dinput8",
+    "dsound",
+    "dxgi",
+    "msacm32",
+    "msvfw32",
+    "opengl32",
+    "version",
+    "vorbisfile",
+    "winhttp",
+    "wininet",
+    "winmm",
+    "xinput1_1",
+    "xinput1_2",
+    "xinput1_3",
+    "xinput1_4",
+    "xinput9_1_0",
+];
+
+/// Exact names a loader, injector or wrapper reads from the executable's folder
+/// before or while the game starts:
+/// - `reshade.ini`: ReShade's configuration beside the executable, which also
+///   names add-on and effect search paths (reshade.me, "Configuration").
+/// - `dxvk.conf`: read from the working/executable directory by DXVK
+///   (github.com/doitsujin/dxvk, "Configuration").
+/// - `enblocal.ini`: ENBSeries; its `[PROXY]` section loads another library
+///   (enbdev.com, enblocal.ini reference).
+/// - `debug.ini`: reviewed NES/SNES-recomp runtimes open a local TCP
+///   arbitrary-path developer interface when it exists beside the executable,
+///   even with developer UI off (docs/qualification/
+///   yoshi-nes-cycle-windows-2026-10-18.md and
+///   prepared-reuse-1-windows-2026-10-18.md).
+const LOADER_CONFIG_NAMES: &[&str] = &["reshade.ini", "dxvk.conf", "enblocal.ini", "debug.ini"];
+
+/// Whether a newly introduced name beside the selected executable is one a
+/// loader reads (PCV-REAUD-003 from #237, narrowed by owner decision on
+/// November 14, 2026 for #5359). Case-insensitive, by exact name or bounded
+/// suffix. Programs and libraries are classified separately and stay hazards
+/// everywhere; ordinary settings files are not on this list.
+/// - `<proxy>.ini` / `<proxy>.cfg` for [`LOADER_PROXY_STEMS`].
+/// - `*.exe.config`: .NET application configuration, which can redirect
+///   assembly binding and probing (learn.microsoft.com, "Configuring apps by
+///   using configuration files").
+/// - `*.exe.manifest`: an external side-by-side application manifest the
+///   Windows loader reads for DLL activation contexts (learn.microsoft.com,
+///   "Application manifests").
+/// - `*.exe.local`: DLL redirection file or folder (learn.microsoft.com,
+///   "Dynamic-link library redirection").
+pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
+    let name = name.to_string_lossy().to_ascii_lowercase();
+    if name.len() > 255 {
+        return false;
+    }
+    if LOADER_CONFIG_NAMES.contains(&name.as_str())
+        || [".exe.config", ".exe.manifest", ".exe.local"]
+            .iter()
+            .any(|suffix| name.len() > suffix.len() && name.ends_with(suffix))
+    {
+        return true;
+    }
+    name.rsplit_once('.').is_some_and(|(stem, extension)| {
+        matches!(extension, "ini" | "cfg") && LOADER_PROXY_STEMS.contains(&stem)
+    })
+}
+
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
     let extension = path
         .extension()
@@ -5958,14 +6043,18 @@ mod tests {
             fs::write(root.join(name), b"private user data fixture").unwrap();
         }
         installer.verify_critical(&install, &qualification).unwrap();
-        for name in ["debug.ini", "rom.cfg"] {
-            fs::write(root.join(name), b"undeclared control").unwrap();
-            let error = installer
-                .verify_critical(&install, &qualification)
-                .unwrap_err();
-            assert!(error.details["failures"].contains(name));
-            fs::remove_file(root.join(name)).unwrap();
-        }
+        // `debug.ini` opens a developer listener and stays on the reviewed
+        // loader-read list; an ordinary `rom.cfg` no longer holds launch
+        // (PCV-REAUD-003 narrowed for #5359).
+        fs::write(root.join("debug.ini"), b"undeclared control").unwrap();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
+        assert!(error.details["failures"].contains("debug.ini"));
+        fs::remove_file(root.join("debug.ini")).unwrap();
+        fs::write(root.join("rom.cfg"), b"undeclared control").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        fs::remove_file(root.join("rom.cfg")).unwrap();
         for name in [
             "game.nes",
             crate::cartridge_build::RECEIPT,
@@ -6721,9 +6810,19 @@ mod tests {
             "launch.cmd",
             "launch.ps1",
             "launch.sh",
-            "loader.toml",
-            "loader.ini",
-            "loader.cfg",
+            // Loader-read names (PCV-REAUD-003, narrowed for #5359).
+            "dinput8.ini",
+            "D3D9.cfg",
+            "dxgi.ini",
+            "version.ini",
+            "xinput1_3.ini",
+            "ReShade.ini",
+            "dxvk.conf",
+            "enblocal.ini",
+            "debug.ini",
+            "game.exe.config",
+            "Game.exe.manifest",
+            "game.exe.local",
         ] {
             let candidate = root.join(name);
             fs::write(&candidate, b"unmanifested").unwrap();
@@ -6735,12 +6834,55 @@ mod tests {
             fs::remove_file(candidate).unwrap();
         }
 
+        // A DLL redirection folder is loader-read as well.
+        fs::create_dir(root.join("game.exe.local")).unwrap();
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        fs::remove_dir(root.join("game.exe.local")).unwrap();
+
+        // Ordinary settings beside the executable, and loader names away from
+        // it, no longer hold launch.
         fs::write(root.join("notes.txt"), b"benign untracked note").unwrap();
+        fs::write(root.join("settings.ini"), b"player settings").unwrap();
+        fs::write(root.join("config.toml"), b"player settings").unwrap();
+        fs::write(root.join("loader.cfg"), b"player settings").unwrap();
         fs::write(root.join("saves/engine.dll"), b"explicit mutable data").unwrap();
+        fs::write(root.join("saves/dinput8.ini"), b"explicit mutable data").unwrap();
         assert_eq!(
             installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
+    }
+
+    #[test]
+    fn loader_sensitive_names_are_exact_or_bounded() {
+        for name in [
+            "dinput8.ini",
+            "DINPUT8.INI",
+            "d3d11.cfg",
+            "winmm.ini",
+            "reshade.ini",
+            "DXVK.conf",
+            "enblocal.ini",
+            "Game.exe.config",
+            "game.EXE.manifest",
+            "game.exe.local",
+        ] {
+            assert!(is_loader_sensitive_name(name.as_ref()), "{name}");
+        }
+        for name in [
+            "settings.ini",
+            "config.toml",
+            "dinput8.toml",
+            "mydinput8.ini",
+            "dinput8.ini.bak",
+            "reshadepreset.ini",
+            "dxvk.conf.txt",
+            ".exe.config",
+            "app.config",
+            "enbseries.ini",
+        ] {
+            assert!(!is_loader_sensitive_name(name.as_ref()), "{name}");
+        }
     }
 
     #[test]
