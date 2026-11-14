@@ -61139,7 +61139,7 @@
             }
           ],
           "warnings": [],
-          "help_url": "https://github.com/LeithSilver/mgsm/releases/tag/v0.1",
+          "help_url": "https://github.com/LeithSilver/mgsm#readme",
           "references": [
             {
               "title": "Keep the Android app data",
@@ -61154,6 +61154,17 @@
           "image_sha256": "4280169241e02c28231d327b6edd95b208e804235d166540fd28f574f9b5df4b",
           "game_slug": "metal-gear-solid-mobile",
           "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses",
+            "rom"
+          ],
+          "executables": [
+            "mgs_mobile.exe"
+          ]
         }
       }
     },
