@@ -8,7 +8,7 @@
     "issue_number": 721,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md",
+    "setup_url": "https://github.com/elliotttate/DKC1Recomp#readme",
     "artwork": {
       "game_id": 1090,
       "cover_id": 327551,
@@ -17,18 +17,23 @@
       "game_slug": "donkey-kong-country",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/elliotttate/DKC1Recomp/releases/tag/v0.0.17",
+    "release_url": "https://github.com/elliotttate/DKC1Recomp/releases",
     "manual_setup": {
       "steps": [
         {
           "title": "Select your original in the game",
           "instruction": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. Follow the included upstream license terms, including its framework’s noncommercial-use limit."
+        },
+        {
+          "title": "Set up the Apple Silicon preview",
+          "instruction": "Use the upstream Apple Silicon HD Preview ZIP on macOS 26 or later. Extract the complete app outside your Portcove library and select your own clean Donkey Kong Country USA v1.0 ROM. The HD option covers Jungle Hijinxs and its connected rooms. Keep your existing Mac saves before replacing the app."
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/elliotttate/DKC1Recomp/blob/v0.0.17/README.md"
+      "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
     },
-    "original_game_title": "Donkey Kong Country"
+    "original_game_title": "Donkey Kong Country",
+    "platforms": ["macos-aarch64"]
   },
   "integration": {
     "support_tier": "beta",
@@ -50,6 +55,12 @@
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
       "manual_preparation": "Choose Play, then select your own Donkey Kong Country USA v1.0 dump in the game’s picker. The published Windows player includes its optional Dixie companion and requires no compiler or separate installer. Follow the game’s own options for choosing that companion or an optional music pack. The Windows player selects and remembers the original path, then switches its writable working directory to AppData/Flat2VR/DKC1Recomp. Most settings, saves and ordinary generated data stay there. The Dixie preference is stored separately in the Windows registry under HKCU/Software/DKC1Recomp/Mods. Both stores are outside Portcove backup; no in-folder persistence is declared for this default. Optional music packs and custom DKC1_USER_DIR locations are separately owned. Keep that user folder and your originals recoverable. Portcove replaces the managed runtime; existing external copies keep their files and update owner. Runtime rollback carries current declared data rather than rewinding saves; older-runtime and mod compatibility is not guaranteed. The upstream framework permits noncommercial personal use under its included PolyForm Noncommercial 1.0.0 terms; review and follow those terms. Commercial use and rights to original game or optional mod content are not granted by this route."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["docs", "licenses"],
+        "executables": ["dkc1_dixie_desktop.exe", "dkc1recomp.exe"]
+      }
     }
   }
 }
