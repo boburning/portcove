@@ -2016,7 +2016,8 @@ impl Library {
     }
 
     /// The most recently finished launch session for a port, if any. Callers
-    /// decide whether its outcome is worth showing.
+    /// decide whether its outcome is worth showing. Insertion order breaks
+    /// ties because launches for a port are serialized and timestamps are seconds.
     pub fn latest_finished_launch_session(
         &self,
         port_id: &str,
@@ -2028,7 +2029,7 @@ impl Library {
                         supervisor_identity, child_pid, child_identity, phase, outcome,
                         exit_code, message, started_at, updated_at, finished_at, owner_kind
                  FROM launch_sessions WHERE port_id=?1 AND outcome IS NOT NULL
-                 ORDER BY finished_at DESC, started_at DESC, id DESC LIMIT 1",
+                 ORDER BY finished_at DESC, started_at DESC, rowid DESC LIMIT 1",
                 [port_id],
                 launch_session_row,
             )
@@ -4335,6 +4336,21 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(latest.id, "running");
+        assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
+
+        library
+            .create_launch_session(&session("z-failed", "alpha", 14))
+            .unwrap();
+        finish("z-failed", "failed", 7, 14);
+        library
+            .create_launch_session(&session("a-succeeded", "alpha", 14))
+            .unwrap();
+        finish("a-succeeded", "succeeded", 0, 14);
+        let latest = library
+            .latest_finished_launch_session("alpha")
+            .unwrap()
+            .unwrap();
+        assert_eq!(latest.id, "a-succeeded");
         assert_eq!(latest.outcome, Some(LaunchSessionOutcome::Succeeded));
     }
 
