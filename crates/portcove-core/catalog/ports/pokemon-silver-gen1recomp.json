@@ -7,7 +7,6 @@
     "original_game_title": "Pokémon Silver",
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "listed_at": "2026-10-25",
-    "platforms": [],
     "availability": "packages",
     "setup_url": "https://github.com/bryanthaboi/gen1recomp#readme",
     "artwork": {
@@ -42,16 +41,16 @@
         }
       ],
       "help_url": "https://github.com/bryanthaboi/gen1recomp#readme",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "warnings": [
         "Keep the original outside the player’s working data. Gen1Recomp owns the imported data and profile."
       ]
-    }
+    },
+    "platforms": [
+      "windows-x86-64",
+      "linux-x86-64",
+      "macos-x86-64",
+      "macos-aarch64"
+    ]
   },
   "upstream_lineage": {
     "format_version": 1,
