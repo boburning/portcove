@@ -149,30 +149,6 @@ export async function interruptedPreparationScenario({
   const command = recoveryCommand(commandRaw);
   await scenario("native-interrupted-preparation-recovery", async () => {
     browser = await restartApplication("interrupted-preparation-recovery");
-    const applicationUpdateChoice = By.xpath(
-      '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]',
-    );
-    const dismissApplicationUpdateChoice = async () => {
-      const preferences = await invoke("get_application_update_preferences");
-      assert.equal(preferences.ok, true);
-      if (
-        transportValue("desktop_application_update_preferences", preferences.value).choice !== null
-      )
-        return;
-      await browser.wait(until.elementLocated(applicationUpdateChoice), 15_000);
-      await browser
-        .findElement(
-          By.xpath(
-            '//section[@role="status" and .//strong[normalize-space(.)="Choose how Portcove updates"]]//button[normalize-space(.)="Not now"]',
-          ),
-        )
-        .click();
-      await browser.wait(
-        async () => (await browser.findElements(applicationUpdateChoice)).length === 0,
-        15_000,
-      );
-    };
-    await dismissApplicationUpdateChoice();
     assert.equal(path.resolve(library), path.resolve(output, "library"));
     const cliActivities = () => {
       const feed = command(["activity"]);
@@ -349,7 +325,6 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     const updatesNavigation = await browser.findElement(
       By.xpath('//nav//button[contains(., "Activity")]'),
     );
@@ -398,7 +373,6 @@ export async function interruptedPreparationScenario({
       until.elementLocated(By.css('nav[aria-label="Primary navigation"]')),
       15_000,
     );
-    await dismissApplicationUpdateChoice();
     const restartedNavigationStatus = await browser.wait(
       until.elementLocated(
         By.xpath('//nav//button[contains(., "Activity")]//*[contains(@class,"nav-status")]'),
@@ -705,7 +679,6 @@ export async function interruptedPreparationScenario({
     await access(required(privatePath));
     browser = await restartApplication("interrupted-preparation-recovery-after-cancel");
     controls = reviewControls(browser);
-    await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
 
     const recoveredReviewLocator = By.css(`[data-recovery-operation="${activity.id}"] > details`);
@@ -804,7 +777,6 @@ export async function interruptedPreparationScenario({
     assert.deepEqual(command(["status", before.port_id]).active, before.active);
     assert.deepEqual(command(["activity", "log", activity.id]), retained);
     controls = reviewControls(browser);
-    await dismissApplicationUpdateChoice();
     await browser.findElement(By.xpath('//nav//button[contains(., "Activity")]')).click();
     const journalOnlyReviewLocator = By.css(
       `[data-recovery-operation="${journalOnlyId}"] > details`,

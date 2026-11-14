@@ -726,8 +726,8 @@ pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
 `;
 const eventProducerSources = [
   `use crate::transport::emit_desktop_event;
-   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(&app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, notice);
-   emit_desktop_event::<ApplicationUpdateNoticeSnapshot>(app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, cleared);`,
+   emit_desktop_event::<ApplicationUpdateStatus>(&app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, notice);
+   emit_desktop_event::<ApplicationUpdateStatus>(app, DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE, cleared);`,
   `use crate::transport::emit_desktop_event;
    emit_desktop_event::<()>(&app, DESKTOP_EVENT_LIBRARY_CHANGED, ());
    emit_desktop_event::<portcove_core::OperationEvent>(app, DESKTOP_EVENT_OPERATION, event);`,
@@ -738,7 +738,7 @@ const eventProducerSources = [
 ];
 const eventExporterSource = `
 let events = serde_json::Map::from_iter([
-  (DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(), output::<ApplicationUpdateNoticeSnapshot>()),
+  (DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE.to_owned(), output::<ApplicationUpdateStatus>()),
   (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
   (DESKTOP_EVENT_OPERATION.to_owned(), output::<portcove_core::OperationEvent>()),
 ]);

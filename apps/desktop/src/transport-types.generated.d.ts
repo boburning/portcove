@@ -1027,32 +1027,22 @@ export type SteamGridDbCheckStop =
     };
 export type GameStore = "steam" | "gog" | "epic";
 export type OutputDesktopAdoptionBatchResult = AdoptionBatchResult | null;
-export type OutputDesktopApplicationUpdateCheckPhase = "checking" | "acquiring-and-verifying" | "staged" | "complete";
-export type ApplicationChannel = "preview" | "stable";
-export type ApplicationUpdateCheckResultKind =
-  | "consent-required"
-  | "paused"
-  | "manual-mode"
-  | "offline"
-  | "metered"
-  | "metered-state-unknown"
-  | "startup-delay"
-  | "cadence"
-  | "superseded"
-  | "current"
-  | "update-available"
-  | "held"
-  | "incompatible"
-  | "no-candidate";
-export type ApplicationUpdateMode = "automatic" | "notify-only" | "manual";
-export type ApplicationUpdateNativeLaunchSummary =
-  "starting" | "started" | "failed" | "installer-succeeded" | "installer-failed";
-export type ApplicationUpdateRequestedAction = "safe-exit" | "restart-to-apply";
-export type ApplicationUpdateObservedTermination =
-  "normal-exit" | "restart-to-apply" | "crash" | "os-shutdown" | "steam-stop";
-export type ApplicationUpdateInstallEligibility =
-  "eligible" | "package-managed-deb" | "package-managed-rpm" | "not-configured" | "unavailable";
-export type ApplicationUpdateRecoveryArea = "schedule" | "staging" | "apply";
+/**
+ * The application release feed a player follows. Beta is the default; Preview
+ * is an opt-in feed that receives builds before Beta.
+ */
+export type ApplicationUpdateChannel = "beta" | "preview";
+export type OutputDesktopApplicationUpdateProgress =
+  | {
+      downloaded_bytes: number;
+      phase: "downloading";
+      total_bytes: number | null;
+      [k: string]: unknown;
+    }
+  | {
+      phase: "installing";
+      [k: string]: unknown;
+    };
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
@@ -1331,13 +1321,8 @@ export interface TransportOutputs {
   upstream_observation_report: OutputUpstreamObservationReport;
   desktop_adoption_batch_preview: OutputAdoptionBatchPreview;
   desktop_adoption_batch_result: OutputDesktopAdoptionBatchResult;
-  desktop_application_update_check_phase: OutputDesktopApplicationUpdateCheckPhase;
-  desktop_application_update_check_result: ApplicationUpdateCheckResult;
-  desktop_application_update_manual_check_result: OutputDesktopApplicationUpdateManualCheckResult;
-  desktop_application_update_notice: OutputDesktopApplicationUpdateNotice;
-  desktop_application_update_preferences: ApplicationUpdatePreferences;
-  desktop_application_update_production_transition: ApplicationUpdateProductionTransition;
-  desktop_application_update_production_transition_result: OutputDesktopApplicationUpdateProductionTransitionResult;
+  desktop_application_update_preferences: OutputDesktopApplicationUpdatePreferences;
+  desktop_application_update_progress: OutputDesktopApplicationUpdateProgress;
   desktop_application_update_status: OutputDesktopApplicationUpdateStatus;
   desktop_automatic_snapshots_enabled: OutputDesktopAutomaticSnapshotsEnabled;
   desktop_backup_review: OutputDesktopBackupReview;
@@ -6187,80 +6172,33 @@ export interface ObservedResolution {
   release_id: number;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateCheckResult {
-  candidate: ApplicationUpdateCandidateSummary | null;
-  kind: ApplicationUpdateCheckResultKind;
-  reasons: string[];
-  staged: boolean;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateCandidateSummary {
-  bytes: number;
-  channel: ApplicationChannel;
-  version: string;
-}
-export interface OutputDesktopApplicationUpdateManualCheckResult {
-  checked_channel: ApplicationChannel;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateNotice {
-  notice: ApplicationUpdateNotice | null;
-  revision: number;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateNotice {
-  preference_revision: number;
-  result: ApplicationUpdateCheckResult;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdatePreferences {
+export interface OutputDesktopApplicationUpdatePreferences {
   /**
-   * `None` means the user has not completed the one-time choice.
+   * Check for updates at startup and periodically. A found update is only
+   * announced; installing always needs the player's click.
    */
-  choice: ApplicationUpdateChoice | null;
-  revision: number;
-  schema_version: number;
-}
-export interface ApplicationUpdateChoice {
-  channel: ApplicationChannel;
-  mode: ApplicationUpdateMode;
-  paused: boolean;
-}
-export interface ApplicationUpdateProductionTransition {
-  offer_required: boolean;
-  preference_revision: number;
-  schema_version: number;
-  [k: string]: unknown;
-}
-export interface OutputDesktopApplicationUpdateProductionTransitionResult {
-  preferences: ApplicationUpdatePreferences;
-  transition: ApplicationUpdateProductionTransition;
-  [k: string]: unknown;
+  automatic_checks: boolean;
+  channel: ApplicationUpdateChannel;
 }
 export interface OutputDesktopApplicationUpdateStatus {
-  apply: ApplicationUpdateApplySummary | null;
-  install_eligibility: ApplicationUpdateInstallEligibility;
-  recovery_required: ApplicationUpdateRecoveryNotice[];
-  schedule: ApplicationUpdateScheduleSummary | null;
-  staged: ApplicationUpdateCandidateSummary | null;
+  available: ApplicationUpdateAvailable | null;
+  checking: boolean;
+  current_version: string;
+  installing: boolean;
+  last_checked_unix_seconds: number | null;
   [k: string]: unknown;
 }
-export interface ApplicationUpdateApplySummary {
-  native_launch: ApplicationUpdateNativeLaunchSummary | null;
-  request: ApplicationUpdateRequestedAction;
-  revision: number;
-  termination: ApplicationUpdateObservedTermination | null;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateRecoveryNotice {
-  area: ApplicationUpdateRecoveryArea;
-  [k: string]: unknown;
-}
-export interface ApplicationUpdateScheduleSummary {
-  consecutive_failures: number;
-  last_success_unix_seconds: number | null;
-  next_automatic_check_unix_seconds: number | null;
+/**
+ * A newer signed release announced by the channel feed.
+ */
+export interface ApplicationUpdateAvailable {
+  channel: ApplicationUpdateChannel;
+  /**
+   * Publication date as written in the feed (RFC 3339).
+   */
+  date: string | null;
+  notes: string | null;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputDesktopBackupReview {

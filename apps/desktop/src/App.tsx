@@ -16,11 +16,7 @@ import { ActionRow, Notice } from "./components/ui/patterns";
 import { updateNoticeHidden } from "./features/organization/organization";
 import { useOrganization } from "./features/organization/use-organization";
 import { useFavorites } from "./features/favorites/use-favorites";
-import {
-  useApplicationUpdateChoice,
-  useApplicationUpdateNotice,
-  useApplicationUpdateProductionTransition,
-} from "./features/application-update/use-application-update";
+import { useApplicationUpdate } from "./features/application-update/use-application-update";
 import {
   useCallback,
   useDeferredValue,
@@ -67,7 +63,7 @@ import {
 } from "./features/game-file-discovery/setup-review-selection";
 import { useSetupSource } from "./features/app-shell/use-setup-source";
 import { useStartupPlayRequest } from "./features/app-shell/use-startup-play-request";
-import { focusApplicationUpdateRoute } from "./features/application-update/focus-application-update-route";
+import { focusApplicationUpdate } from "./features/application-update/focus-application-update";
 import {
   useLibrarySelectionLanding,
   useLibrarySelectionReturn,
@@ -457,8 +453,7 @@ function useWorkspace(props: WorkspaceProps) {
     preferenceFailure,
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
-  const { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition } =
-    useWorkspaceApplicationUpdates(operations.setError);
+  const applicationUpdate = useApplicationUpdate();
   const {
     request: sourceIntake,
     open: openSourceIntake,
@@ -681,24 +676,13 @@ function useWorkspace(props: WorkspaceProps) {
     recheck: async (toolId: string) => desktopApi.recheckHostTool(toolId),
     openOfficial: (toolId: string) => desktopApi.openHostToolOfficialSite(toolId),
   };
-  const reviewApplicationUpdate = (route: Parameters<typeof focusApplicationUpdateRoute>[0]) => {
+  const reviewApplicationUpdate = () => {
     ui.setSettingsCategory("updates");
     setPrimaryView("settings");
-    window.requestAnimationFrame(() => focusApplicationUpdateRoute(route));
+    window.requestAnimationFrame(() => focusApplicationUpdate());
   };
-  const dismissApplicationUpdateChoice = () => {
-    applicationUpdateChoice.dismiss();
-    window.requestAnimationFrame(() => focusRegion("workspace"));
-  };
-  const completeApplicationUpdateProductionTransition = async (
-    decision: "use-stable" | "keep-preview",
-  ) => {
-    if (await applicationUpdateProductionTransition.complete(decision)) {
-      window.requestAnimationFrame(() => focusRegion("workspace"));
-    }
-  };
-  const dismissApplicationUpdateProductionTransition = () => {
-    applicationUpdateProductionTransition.dismiss();
+  const dismissApplicationUpdateNotice = () => {
+    applicationUpdate.dismissNotice();
     window.requestAnimationFrame(() => focusRegion("workspace"));
   };
 
@@ -901,12 +885,10 @@ function useWorkspace(props: WorkspaceProps) {
         hostToolActions={hostToolActions}
         applicationUpdates={
           <ApplicationUpdateSettings
-            perform={operations.perform}
+            update={applicationUpdate}
             currentVersion={desktopPackage.version}
             generation={bootstrap.generation}
             disabled={Boolean(operations.busy)}
-            automaticNotice={applicationUpdate.notice}
-            preferencesState={applicationUpdateChoice}
           />
         }
         openPortDetails={openPortDetails}
@@ -944,8 +926,6 @@ function useWorkspace(props: WorkspaceProps) {
     ui,
     workspace,
     applicationUpdate,
-    applicationUpdateChoice,
-    applicationUpdateProductionTransition,
     openSourceIntake,
     model,
     openPortDetails,
@@ -956,9 +936,7 @@ function useWorkspace(props: WorkspaceProps) {
     commandSurface,
     controller,
     reviewApplicationUpdate,
-    dismissApplicationUpdateChoice,
-    completeApplicationUpdateProductionTransition,
-    dismissApplicationUpdateProductionTransition,
+    dismissApplicationUpdateNotice,
     renderPageHeader,
     renderPreferenceFailure,
     renderWorkspaceView,
@@ -1106,12 +1084,8 @@ type WorkspaceFeedbackModel = Pick<
   | "openPortDetails"
   | "setPrimaryView"
   | "applicationUpdate"
-  | "applicationUpdateChoice"
-  | "applicationUpdateProductionTransition"
   | "reviewApplicationUpdate"
-  | "dismissApplicationUpdateChoice"
-  | "completeApplicationUpdateProductionTransition"
-  | "dismissApplicationUpdateProductionTransition"
+  | "dismissApplicationUpdateNotice"
   | "renderPreferenceFailure"
 > & {
   ui: Pick<WorkspaceModel["ui"], "view" | "revealActivity">;
@@ -1155,18 +1129,9 @@ function WorkspaceFeedback({ model }: { model: WorkspaceFeedbackModel }) {
         busy={model.operations.busy}
         featureNotices={
           <ApplicationUpdateNotices
-            updateNotice={model.applicationUpdate.notice}
-            updateChoiceRequired={model.applicationUpdateChoice.choiceRequired}
-            productionTransitionRequired={model.applicationUpdateProductionTransition.offerRequired}
-            productionTransitionBusy={model.applicationUpdateProductionTransition.busy}
-            reviewUpdate={model.reviewApplicationUpdate}
-            dismissUpdate={model.applicationUpdate.dismiss}
-            dismissUpdateChoice={model.dismissApplicationUpdateChoice}
-            useStable={() => void model.completeApplicationUpdateProductionTransition("use-stable")}
-            keepPreview={() =>
-              void model.completeApplicationUpdateProductionTransition("keep-preview")
-            }
-            dismissProductionTransition={model.dismissApplicationUpdateProductionTransition}
+            version={model.applicationUpdate.noticeVersion}
+            review={model.reviewApplicationUpdate}
+            dismiss={model.dismissApplicationUpdateNotice}
           />
         }
       />
@@ -2155,18 +2120,6 @@ function usePendingHostToolFocus(
     setPendingToolId,
     view,
   ]);
-}
-
-function useWorkspaceApplicationUpdates(reportError: OperationState["setError"]) {
-  const applicationUpdate = useApplicationUpdateNotice(reportError);
-  const applicationUpdateChoice = useApplicationUpdateChoice(reportError);
-  const applicationUpdateProductionTransition = useApplicationUpdateProductionTransition({
-    preferences: applicationUpdateChoice.preferences,
-    acceptPreferences: applicationUpdateChoice.accept,
-    refreshPreferences: applicationUpdateChoice.refresh,
-    reportError: reportError,
-  });
-  return { applicationUpdate, applicationUpdateChoice, applicationUpdateProductionTransition };
 }
 
 function useWorkspaceLibrary({

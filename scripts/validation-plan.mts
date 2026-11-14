@@ -784,7 +784,7 @@ function classifyPath(file: string): PathOwnership {
     file.startsWith("release-metadata/") ||
     releaseSecurityFiles.has(file) ||
     file.startsWith("crates/portcove-release-tools/") ||
-    file.startsWith("apps/desktop/src-tauri/src/application_update_");
+    file.startsWith("apps/desktop/src-tauri/src/application_update");
   // Documentation captures are not consumed by the catalog or application.
   // Keep their documentation checks without interpreting a pictured topic as
   // executable catalog/source authority. Other formats and locations retain
@@ -1015,7 +1015,7 @@ function classifyAuditPath(file: string): PathOwnership {
     file.startsWith("release-metadata/") ||
     releaseSecurityFiles.has(file) ||
     file.startsWith("crates/portcove-release-tools/") ||
-    file.startsWith("apps/desktop/src-tauri/src/application_update_");
+    file.startsWith("apps/desktop/src-tauri/src/application_update");
   // Documentation captures are not consumed by the catalog or application.
   // Keep their documentation checks without interpreting a pictured topic as
   // executable catalog/source authority. Other formats and locations retain

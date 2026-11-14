@@ -6,7 +6,6 @@ export const nativeCompatibilitySourcePaths = Object.freeze([
   "crates/portcove-core/src/lib.rs",
   "crates/portcove-core/src/database.rs",
   "crates/portcove-core/catalog/catalog.json",
-  "apps/desktop/src-tauri/src/application_update_windows.rs",
 ] as const);
 
 export function nativeSourceDeclarationByteLimit(
@@ -85,18 +84,8 @@ export function inspectNativeCompatibilitySources(raw: unknown) {
     ![1, 2, 3].includes(catalog.schema_version)
   )
     throw new Error("native embedded catalog declaration is unsupported");
-  const windows = text(nativeCompatibilitySourcePaths[3]);
-  // Refuse an unfamiliar recipe. This is a source declaration, not an attempt
-  // to interpret arbitrary Rust or to infer runtime execution from a pattern.
-  for (const literal of [
-    "cli_protocol: portcove_core::API_SCHEMA_VERSION,",
-    "library_schema: portcove_core::MIN_LIBRARY_SCHEMA_VERSION,",
-    "library_write_schema: portcove_core::LIBRARY_SCHEMA_VERSION,",
-    "lock_protocol: portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.into(),",
-    "capabilities: BTreeSet::from([portcove_core::APPLICATION_UPDATE_LOCK_PROTOCOL.to_owned()]),",
-  ])
-    if (windows.split(literal).length !== 2)
-      throw new Error("maintained Windows context declaration changed");
+  // The retired application updater's Windows installed-context declaration was
+  // the fourth input; it was removed with that updater under the #534 decision.
   return Object.freeze({
     cli_protocol: Object.freeze({ min: api, max: api }),
     catalog_formats: Object.freeze([catalog.schema_version]),

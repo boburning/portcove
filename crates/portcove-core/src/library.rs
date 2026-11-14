@@ -702,8 +702,10 @@ impl Library {
     }
 
     /// Preflights the durable idle conditions required before the desktop
-    /// exits for an explicit application update. The post-exit helper still
-    /// acquires the exclusive library lease and repeats this check.
+    /// installs an explicit application update. This read alone proves nothing
+    /// lasting: the desktop then closes its own library, releases its shared
+    /// lease and acquires [`ApplicationUpdateQuiescenceGuard`], which repeats
+    /// this check under the exclusive library lease held across the install.
     pub fn require_application_update_idle(&self) -> Result<()> {
         require_current_application_update_library(&self.root)?;
         require_application_update_idle(&self.root)
