@@ -191,6 +191,12 @@ both require version 32. After validating the data directory, Core excludes an
 empty declared directory at the observed package root. Packaged data, aliases
 and links remain subject to the portable-data checks.
 
+Native portable version 33 checks reviewed OpenMoHAA Linux and macOS ZIP
+layouts after the existing staging preparation grants execute permission to the
+verified title launcher and engine. Fresh and retained entries with an OpenMoHAA
+Unix layout require version 33. The existing Windows layout and earlier
+unfingerprinted Unix entries use their existing capability rules.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

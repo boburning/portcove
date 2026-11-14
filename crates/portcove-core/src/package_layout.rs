@@ -22,9 +22,16 @@ pub(crate) const NATIVE_CAPABILITY: u32 = 18;
 pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
 pub(crate) const MACOS_LIBRARY_FILTER_CAPABILITY: u32 = 30;
 pub(crate) const PORTABLE_DATA_LAYOUT_CAPABILITY: u32 = 32;
+pub(crate) const OPENMOHAA_PREPARED_LAYOUT_CAPABILITY: u32 = 33;
 
 pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
-    if port.linux_portable_data_directory.is_some()
+    if port
+        .reviewed_package_layouts
+        .keys()
+        .any(|&platform| crate::native_external_profile::openmohaa::requires_zip(port, platform))
+    {
+        OPENMOHAA_PREPARED_LAYOUT_CAPABILITY
+    } else if port.linux_portable_data_directory.is_some()
         && port
             .reviewed_package_layouts
             .contains_key(&Platform::LinuxX86_64)

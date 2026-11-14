@@ -180,6 +180,34 @@ fn openmohaa_unix_entries_require_native13_for_fresh_and_retained_reads() {
 }
 
 #[test]
+fn openmohaa_prepared_unix_layout_requires_native33() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let id = "medal-of-honor-allied-assault-openmohaa";
+    let port = catalog.port(id).unwrap();
+    let mut entry = entry_for_port(port);
+    for minimum in [32, 33] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        entry["required_capabilities"][0]["maximum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, id).inspect_retained_entry("official", id, &bytes),
+        ] {
+            if minimum == 32 {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("capability version 33")
+                );
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}
+
+#[test]
 fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
     let catalog = crate::Catalog::embedded().unwrap();
     for id in ["quake-ironwail", "quake-vkquake"] {
