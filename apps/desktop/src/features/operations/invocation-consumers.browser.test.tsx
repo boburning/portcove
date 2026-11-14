@@ -7,7 +7,7 @@ import { clearMocks, mockIPC } from "@tauri-apps/api/mocks";
 import { detailActions } from "../game-details/detail-actions";
 import { installRecord } from "../../components/rendered-test-fixtures";
 import { StatusLayer } from "../../components/Chrome";
-import { portDefinition, sourceProfile } from "../../test-fixtures";
+import { failureReport, portDefinition, sourceProfile } from "../../test-fixtures";
 import { targetInvocationContext } from "./invocation-state";
 import { useOperationState } from "./use-operation-state";
 import { useInstallPlanning, useAdoptionPlanning } from "../installation/use-installation-planning";
@@ -646,20 +646,40 @@ it.each([false, true])(
       user_code: "TEST",
       verification_uri: "https://github.com/login/device",
     });
-    let fail!: (error: Error) => void;
+    let fail!: (error: unknown) => void;
     vi.spyOn(desktopApi, "pollGithubDeviceLogin").mockReturnValue(
       new Promise((_, reject) => {
         fail = reject;
       }),
     );
     await act(async () => auth.beginDeviceLogin());
+    expect(
+      [...state.invocations.values()].map(({ context, outcome }) => ({
+        action: context.action,
+        outcome,
+      })),
+    ).toContainEqual({ action: "Request sign-in code", outcome: "succeeded" });
     await act(async () => vi.advanceTimersByTimeAsync(1000));
     if (replace) await act(async () => root.render(<Fixture generation={8} />));
+    const base = failureReport();
+    const summary =
+      "The GitHub sign-in code expired. Choose Sign in with GitHub to get a new code.";
+    const report = {
+      ...base,
+      code: "network",
+      presentation: {
+        ...base.presentation,
+        presentation_key: "github_device_code_expired",
+        mutation_state: "no_changes",
+        summary,
+      },
+    };
     await act(async () => {
-      fail(new Error("Device login unavailable"));
+      fail(report);
       await Promise.resolve();
     });
     const failures = [...state.invocations.values()].filter((record) => record.failure);
+    expect(failures.map((record) => record.failure)).toEqual(replace ? [] : [report]);
     expect(failures.map((record) => record.context)).toEqual(
       replace
         ? []
@@ -673,8 +693,10 @@ it.each([false, true])(
           ],
     );
     expect(
-      [...host.querySelectorAll('[role="alert"]')].map((alert) =>
-        alert.textContent?.includes("Sign in · GitHub account"),
+      [...host.querySelectorAll('[role="alert"]')].map(
+        (alert) =>
+          alert.textContent?.includes("Sign in · GitHub account") &&
+          alert.textContent.includes(summary),
       ),
     ).toEqual(replace ? [] : [true]);
   },
