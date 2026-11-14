@@ -312,8 +312,8 @@ importers:
         specifier: 4.14.0
         version: 4.14.0
       i18next-cli:
-        specifier: 1.85.0
-        version: 1.85.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+        specifier: 1.88.0
+        version: 1.88.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2)
       json-schema-to-typescript:
         specifier: 16.0.0
         version: 16.0.0
@@ -2001,8 +2001,8 @@ packages:
     resolution: {integrity: sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==}
     engines: {node: '>= 20'}
 
-  i18next-cli@1.85.0:
-    resolution: {integrity: sha512-5FLiMip3JuOnFX+L5fXVJ02nhpBlWqFjXUt4hsDrEIWmHp4amSv8e8rf3l58bCk+ZmNIbqUxNsbfYUrFVir6Ag==}
+  i18next-cli@1.88.0:
+    resolution: {integrity: sha512-+2vM5VEWXkPqCocOQTPNp8VQfxmcHOF2RTvlp3u8E/rpNdTtXL4jbWKAIYEG/zdBGz/ljzCTJ89iOFpBJoeYWw==}
     engines: {node: '>=22'}
     hasBin: true
 
@@ -2012,6 +2012,15 @@ packages:
 
   i18next@26.7.2:
     resolution: {integrity: sha512-RsOY3BeaCDdkk52NeJSFAXELQ2rQXBO/tOub6L8ue2ICPfR/FRDWDOfEDg4xMPd1SqO5goVYQ6i72qWEUB/PPw==}
+    peerDependencies:
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      typescript:
+        optional: true
+
+  i18next@27.1.1:
+    resolution: {integrity: sha512-Qq3aJizS3RXQ30crhx9BKQLrHoa6GKpgrOJjVZ9vgj3EBxAddrmVfDNUrAMxSUimw5Jc+ld4SSZUAzf1q4nGyQ==}
+    engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
     peerDependenciesMeta:
@@ -2385,6 +2394,20 @@ packages:
       react-dom:
         optional: true
       react-native:
+        optional: true
+      typescript:
+        optional: true
+
+  react-i18next@18.0.1:
+    resolution: {integrity: sha512-kPWXI0E/lrPj3+/umcKNzYZVnWmEedLiamMzDIHfbs+5ANf6yzvlZsjKou8f7kaGkfMMDLIZBejV+4aSN1CyBw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      '@types/react': '*'
+      i18next: '>= 27.0.1'
+      react: '>= 18.0.0'
+      typescript: ^5 || ^6 || ^7
+    peerDependenciesMeta:
+      '@types/react':
         optional: true
       typescript:
         optional: true
@@ -3842,7 +3865,7 @@ snapshots:
       - kerberos
       - supports-color
 
-  i18next-cli@1.85.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2):
+  i18next-cli@1.88.0(patch_hash=8da9a1602bbf568841eb21285181683a4b930a72af20469cf43d1ccd8698c77f)(@types/node@26.6.6)(@types/react@19.3.0)(react@19.3.1)(typescript@7.0.2):
     dependencies:
       '@croct/json5-parser': 0.2.2
       '@formatjs/icu-messageformat-parser': 3.5.22
@@ -3854,7 +3877,7 @@ snapshots:
       chokidar: 5.0.0
       commander: 15.0.0
       glob: 14.0.3
-      i18next: 26.7.2(typescript@7.0.2)
+      i18next: 27.1.1(typescript@7.0.2)
       i18next-resources-for-ts: 2.1.2
       jiti: 2.7.0
       jsonc-parser: 3.3.1
@@ -3862,15 +3885,14 @@ snapshots:
       messageformat: 4.1.0
       minimatch: 11.0.4
       nano-spawn: 2.1.0
-      react-i18next: 17.1.13(i18next@26.7.2(typescript@7.0.2))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@7.0.2)
+      react-i18next: 18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2)
       yaml: 2.9.1
       yocto-spinner: 1.2.2
     transitivePeerDependencies:
       - '@swc/helpers'
       - '@types/node'
+      - '@types/react'
       - react
-      - react-dom
-      - react-native
       - typescript
 
   i18next-resources-for-ts@2.1.2:
@@ -3883,6 +3905,10 @@ snapshots:
       - '@swc/helpers'
 
   i18next@26.7.2(typescript@7.0.2):
+    optionalDependencies:
+      typescript: 7.0.2
+
+  i18next@27.1.1(typescript@7.0.2):
     optionalDependencies:
       typescript: 7.0.2
 
@@ -4221,6 +4247,15 @@ snapshots:
       use-sync-external-store: 1.7.0(react@19.3.1)
     optionalDependencies:
       react-dom: 19.3.1(react@19.3.1)
+      typescript: 7.0.2
+
+  react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2):
+    dependencies:
+      html-parse-stringify: 4.0.1
+      i18next: 27.1.1(typescript@7.0.2)
+      react: 19.3.1
+    optionalDependencies:
+      '@types/react': 19.3.0
       typescript: 7.0.2
 
   react-is@17.0.2: {}
