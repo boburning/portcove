@@ -1,9 +1,10 @@
-import { afterEach, beforeEach, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { cleanup, render } from "vitest-browser-react";
 import App from "../App";
 import { desktopApi } from "../api";
 import { initializeLocalization, LocalizationProvider } from "../localization";
+import { doctor } from "../dev-scenarios/interactive/scenarios";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { THEME_STORAGE_KEY, type ResolvedTheme } from "../theme";
 import { browserFixture } from "../../test/browser-fixture";
@@ -167,3 +168,36 @@ for (const theme of ["dark", "light"] as const) {
     );
   });
 }
+
+it("fits populated disc tools in the 240 CSS pixel Settings viewport", async () => {
+  await page.viewport(240, 640);
+  const report = vi.spyOn(desktopApi, "doctor").mockResolvedValue({
+    ...doctor,
+    catalog_port_count: 397,
+    host_tools: [
+      {
+        id: "dolphin-tool",
+        display_name: "DolphinTool",
+        state: "missing",
+        configuration_variable: "PORTCOVE_DOLPHIN_TOOL",
+        official_url: "https://dolphin-emu.org/",
+        path: null,
+        source: null,
+        purpose: "Check compressed discs",
+      },
+    ],
+  });
+  fixture.defer(() => {
+    report.mockRestore();
+  });
+  await mount("light");
+  await page.getByRole("button", { name: /^Settings(?:\s|$)/ }).click();
+  await page.getByRole("button", { name: "Game files", exact: true }).click();
+  await expect.element(page.getByText("DolphinTool", { exact: true })).toBeVisible();
+  const section = document.querySelector<HTMLElement>("#settings-game-files")!;
+  const tool = section.querySelector<HTMLElement>(".host-tool-row")!;
+  expect(tool.getBoundingClientRect().right).toBeLessThanOrEqual(
+    section.getBoundingClientRect().right + 1,
+  );
+  expectWorkspaceFit();
+});

@@ -57134,7 +57134,11 @@
           "steps": [
             {
               "title": "Set up a separate upstream copy",
-              "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library. The upstream launcher owns setup and updates for that copy."
+              "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library."
+            },
+            {
+              "title": "Carry your progress to a new upstream version",
+              "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
             }
           ],
           "warnings": [],
@@ -64895,6 +64899,10 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=blue. Do not select another game’s cache or a console/emulator/helper."
             },
             {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            },
+            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
@@ -65042,6 +65050,10 @@
             {
               "title": "Complete the upstream import and select this player",
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=emerald. Do not select another game’s cache or a console/emulator/helper."
+            },
+            {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
             },
             {
               "title": "Add the game and manage updates",
@@ -65214,6 +65226,10 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=firered. Do not select another game’s cache or a console/emulator/helper."
             },
             {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            },
+            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
@@ -65384,6 +65400,10 @@
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=leafgreen. Do not select another game’s cache or a console/emulator/helper."
             },
             {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
+            },
+            {
               "title": "Add the game and manage updates",
               "instruction": "The standalone upstream player owns its update checks and can mount an updated Lua payload from the OS profile. Let upstream own that complete installation and profile. This entry uses non-owning registration, explicit Play and registration-only removal; Managed Update, Backup, Rollback, migration and external deletion are unavailable. It does not use or alter Red’s separate Core-managed definition or its managed-package environment. The generated cache is private original-derived data; preserve your original outside it, and preserve any separately kept-ROM copy when offered. Use the importer’s explicit consent choices; no original is downloaded or supplied by Portcove."
             }
@@ -65458,6 +65478,10 @@
             {
               "title": "Complete the upstream import and select this player",
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=ruby. Do not select another game’s cache or a console/emulator/helper."
+            },
+            {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
             },
             {
               "title": "Add the game and manage updates",
@@ -65632,6 +65656,10 @@
             {
               "title": "Complete the upstream import and select this player",
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=sapphire. Do not select another game’s cache or a console/emulator/helper."
+            },
+            {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
             },
             {
               "title": "Add the game and manage updates",
@@ -65878,6 +65906,10 @@
             {
               "title": "Complete the upstream import and select this player",
               "instruction": "Use only the official bryanthaboi/gen1recomp release or gen1re.com distribution. Extract the complete Windows ZIP and keep gen1recomp.exe with its supplied companions. Run upstream setup deliberately, then select this game’s plain original .gb or .gba file in its importer. Completing import may start the game automatically; this is an explicit upstream launch, not a passive Portcove file check. Let import finish and verify this game’s tab before registration. Register gen1recomp.exe in gen1recomp-win64 with that containing directory as working directory and one literal argument, --game=yellow. Do not select another game’s cache or a console/emulator/helper."
+            },
+            {
+              "title": "Set up on Linux, Mac or Android",
+              "instruction": "On Linux, choose the official AppImage for your CPU, make it executable and open it, or follow the upstream Flatpak instructions. On Intel or Apple Silicon Mac, extract the official Mac ZIP and open the complete gen1recomp.app. On Android, install the official APK from the upstream release. In each player, import your own matching original and choose this game. Launch and update these copies through upstream, and back up their saves and profiles separately. The Portcove registration steps apply to Windows."
             },
             {
               "title": "Add the game and manage updates",

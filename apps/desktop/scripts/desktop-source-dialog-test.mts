@@ -737,9 +737,20 @@ export async function sourceDialogScenario({
       By.css('#source-profile-select[role="combobox"]'),
     );
     await selectTrigger.sendKeys(Key.ENTER);
-    const openSelect = By.css('[data-slot="select-content"][data-open]');
-    await browser.wait(until.elementLocated(openSelect), 5_000);
-    await selectTrigger.sendKeys(Key.ESCAPE);
+    const openSelectSelector = '[data-slot="select-content"][data-open]';
+    const openSelect = By.css(openSelectSelector);
+    await browser.wait(
+      () =>
+        executeBrowserScript(
+          browser,
+          (selector) => document.activeElement?.closest(selector) != null,
+          openSelectSelector,
+        ),
+      5_000,
+      "Keyboard focus did not enter the nested source-profile select",
+    );
+    // Element sendKeys would refocus the trigger before delivering Escape.
+    await browser.actions().sendKeys(Key.ESCAPE).perform();
     await browser.wait(
       async () => (await browser.findElements(openSelect)).length === 0,
       5_000,

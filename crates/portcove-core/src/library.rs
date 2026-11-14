@@ -291,7 +291,16 @@ enum LockMode {
     Shared,
 }
 
-/// Longest a writer waits for read-only views that hold a port lock.
+/// Longest a writer waits for read-only views that hold a port lock. A single
+/// settings view holds its shared lock across status, retained-catalog and
+/// critical-file verification reads, which took several seconds on the hosted
+/// Windows debug build while capability reads ran 12-16 s (#4879); two seconds
+/// refused uninstall as busy. Player writers show progress while they wait, so
+/// waiting is preferred to refusal, and the wait stays bounded.
+#[cfg(not(test))]
+const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(30);
+/// Unit tests exercise the same waiting and refusal paths on a short budget.
+#[cfg(test)]
 const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
 
 /// Port writers in this process currently waiting for read-only views, by lock
