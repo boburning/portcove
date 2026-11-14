@@ -7470,6 +7470,40 @@ mod tests {
                 "Snap64 persistence contract is missing {path}"
             );
         }
+        // v1.1.x writes Steam library art into Steam's own folder unless this
+        // switch is set; the remaining writers stay in the SNAP_DATA_DIR user
+        // folder, so no install-tree path is exempted from verification.
+        assert_eq!(
+            port.launch_environment
+                .get("SNAP_NO_STEAM_ART")
+                .map(String::as_str),
+            Some("1")
+        );
+        assert!(port.runtime_mutable_paths.is_empty());
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "snap64-recomp-game-source")
+            .unwrap();
+        // The qualified v1.0.5 package stays first; later reviewed packages
+        // are appended after it.
+        assert_eq!(contract.applicability[0].upstream_ref, "v1.0.5");
+        assert_eq!(
+            contract.applicability[0].artifact_sha256.as_deref(),
+            Some("e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7")
+        );
+        for sha256 in [
+            "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95",
+            "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d",
+            "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50",
+        ] {
+            assert!(contract.applicability.iter().any(|binding| {
+                binding.upstream_ref == "v1.1.7"
+                    && binding.artifact_sha256.as_deref() == Some(sha256)
+            }));
+        }
     }
 
     #[test]

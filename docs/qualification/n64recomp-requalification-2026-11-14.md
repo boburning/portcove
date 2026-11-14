@@ -2,10 +2,11 @@
 
 Dated evidence from November 14, 2026. A backlog survey found four managed
 `n64-recomp-portable` routes whose game-source contract still applied only to
-an older release than the newest upstream tag. Three routes now also apply to
+an older release than the newest upstream tag. All four now also apply to
 their newest release: Castlevania: Legacy of Darkness Recompiled, Golden
-Balloon and Road Rash 64 Recompiled. Snap64 Recomp stays on v1.0.5 because its
-newer player adds a writer outside the reviewed data contract (below).
+Balloon, Road Rash 64 Recompiled and Snap64 Recomp. Snap64 Recomp first
+needed an owner decision, because its newer player writes into Steam's folder
+(below).
 
 This is static evidence. No upstream program, script or build was executed.
 Archives were read with Python `zipfile` and `tarfile`. Text members, tagged
@@ -44,9 +45,9 @@ newest release were not examined individually, except where noted.
 |                                    |                   | macOS arm64       | 21,232,725 | `fdedea70286fff585ec67160…e1f8` | requalified |
 | `diddy-kong-racing-golden-balloon` | v1.7.0 → v1.8.0   | Windows x64       | 31,898,069 | `98ab31dd7108e478cc1469b3…b0e1` | requalified |
 | `road-rash-64-recompiled`          | v1.4.3 → v1.4.9   | Windows x64       | 47,342,604 | `74948ebc0dbfd37c95ce5468…1594` | requalified |
-| `snap64-recomp`                    | v1.0.5 → v1.1.7   | Windows x64       | 18,834,158 | `fcf7950f200c3006557aa4c5…0c95` | deferred    |
-|                                    |                   | Linux x86-64      | 9,821,880  | `d2ab64531be1b680c4bc995b…233d` | deferred    |
-|                                    |                   | macOS (universal) | 12,752,773 | `ad8c54692afbdc8b09d5860a…9f50` | deferred    |
+| `snap64-recomp`                    | v1.0.5 → v1.1.7   | Windows x64       | 18,834,158 | `fcf7950f200c3006557aa4c5…0c95` | requalified |
+|                                    |                   | Linux x86-64      | 9,821,880  | `d2ab64531be1b680c4bc995b…233d` | requalified |
+|                                    |                   | macOS (universal) | 12,752,773 | `ad8c54692afbdc8b09d5860a…9f50` | requalified |
 
 Every listed digest matched the publisher's checksum file. Every bound package
 was downloaded again, and its SHA-256 matched the existing applicability.
@@ -54,7 +55,8 @@ was downloaded again, and its SHA-256 matched the existing applicability.
 Each requalified contract keeps its existing applicability first and appends
 the exact newest artifact digests. Each requalified route has one new
 `upstream_support` evidence record. Source profiles, other source-contract fields, admission,
-definitions, platforms, support tiers and qualification records are unchanged.
+platforms, support tiers and qualification records are unchanged. Only the
+Snap64 Recomp definition changed, as described in its section.
 
 ### Castlevania: Legacy of Darkness Recompiled
 
@@ -133,7 +135,7 @@ already carries that difference. Historical v1.4.3 installations keep their
 wrapper-prefixed definition, and their held transition is unchanged. The new
 binding applies only to the exact v1.4.9 package.
 
-## Deferred: Snap64 Recomp
+## Snap64 Recomp
 
 The v1.1.7 tag resolves to `0525610a89fd3c960b5a3555fad63e20f0d97f64`. The
 original game file, layout and data folder are unchanged:
@@ -143,49 +145,85 @@ original game file, layout and data folder are unchanged:
 - **Layout:** `Snap64Recomp.exe` is still the only Windows program, at the same
   place. Windows adds the top-level `steam_art/` folder with four pictures and
   three more data files, against v1.0.5. Against v1.1.6, Linux adds only
-  `steam_art/` and the Mac app list is identical.
-- **Data folder:** `src/paths.cpp` still reads `SNAP_DATA_DIR` first, on
-  every platform.
+  `steam_art/` and the Mac app list is identical. The Windows and Linux
+  packages still ship `cache/rt64-seen-shaders.bin`.
+- **Data folder:** `src/paths.cpp` still uses an absolute `SNAP_DATA_DIR` first,
+  on every platform. Portcove sets it to the port's Portcove user folder, so
+  every file below that the player writes "in the data folder" lands there,
+  not in the installed package.
 
-The player adds new writers that the route's data contract does not cover:
+The player adds writers that v1.0.5 does not have:
 
-- **Steam artwork:** `src/steam_art.cpp`, which v1.0.5 does not have, runs at
-  every start on Windows and desktop Linux. When a Steam shortcut in
+- **Steam artwork:** `src/steam_art.cpp` runs at every start on Windows and
+  desktop Linux. When a Steam shortcut in
   `userdata/<account>/config/shortcuts.vdf` names this game or its executable,
   it copies the package's `steam_art/` pictures into that account's
-  `config/grid` folder. It never replaces an existing file. This writes
-  outside Portcove's data folder, into Steam's.
+  `config/grid` folder, which is in Steam's folder, not Portcove's. It never
+  replaces an existing file.
 - **Steam marker:** after writing a picture, it appends to
-  `steam_art_done.txt` in the data folder. The marker remembers pictures the
-  player deleted. The file is not among the route's persistent paths.
-- **Shader cache:** on Linux, when Steam's `MESA_SHADER_CACHE_DIR` cannot be
-  written, the player moves the shader cache to `XDG_CACHE_HOME` or a `cache`
-  folder in the data folder. That folder is also not declared.
+  `steam_art_done.txt` in the data folder.
+- **Session mark:** `src/mod_installer.cpp` keeps `snap64.running` in the data
+  folder from start to a normal end. If it is there at start, the player asks
+  whether to start with mods switched off.
+- **Graphics failure mark:** `src/rt64_render_context.cpp` writes
+  `snap64.gpu_failed` in the data folder when a graphics setting fails, so the
+  same card is not offered that setting again.
+- **Shader cache:** on Linux, `snap_mesa_shader_cache_dir()` (`src/main.cpp`
+  1652–1681, called at 1715) runs only when `MESA_SHADER_CACHE_DIR` is set and
+  cannot be written. It then points Mesa at `XDG_CACHE_HOME` when that can be
+  written, else at `cache` in the data folder. v1.0.5 already keeps RT64's
+  seen-shader list in that same `cache` folder.
 - **Mac:** the Mac player's strings have no `steam_art_done.txt`; its Steam
-  code is documented as Windows and Linux only.
+  code is built only for Windows and desktop Linux.
 
-`SNAP_NO_STEAM_ART=1` switches the Steam writer off. The Windows
-`CreateProcessW` restart was already in v1.0.5, so it is not a new difference;
-its handoff gap stays tracked on #281 and #2510.
+The Windows `CreateProcessW` restart was already in v1.0.5, so it is not a new
+difference; its handoff gap stays tracked on #281 and #2510.
 
-No generic Core rule lets this through. A rule that treats the whole
-`user_data_environment` folder as player data would cover the marker and cache
-folder. Nothing in Core can own writes into Steam's folder. Resuming needs a
-reviewed definition decision: set `SNAP_NO_STEAM_ART=1` through
-`launch_environment` (declaring the marker alone would leave the Steam-folder
-write) plus a decision on the Linux `cache` folder that
-`snap_mesa_shader_cache_dir()` creates, or an explicit acceptance of the
-external Steam write. That is a player-visible
-change for #281. The managed routes keep resolving v1.1.x as before. Only the
-source contract's applicability stays at v1.0.5.
+### Owner decision and definition change
+
+On November 14, 2026 the owner decided that Portcove owns every remaining
+write. The definition now sets `SNAP_NO_STEAM_ART=1` through
+`launch_environment`. It declares no `runtime_mutable_paths`.
+
+- **Steam writer off:** at the tag, `read_launch()` (`src/steam_art.cpp`
+  102–106) treats any value that is not empty and not `0` as off.
+  `do_the_art()` (431–436) then logs one line and returns. That is before
+  Steam's folder is looked up, before any `config/grid` write, and before
+  `steam_art_done.txt` is read or appended (504). The only caller is
+  `steam_art_start()` from `src/main.cpp` 1779.
+- **Data folder:** `cache/`, `snap64.running` and `snap64.gpu_failed` stay in
+  the Portcove user folder. For this route, backups copy that folder whole and
+  a restore replaces it whole, so these files are kept with the player's data.
+  `runtime_mutable_paths` applies to the installed package, so it could not
+  cover them. Declaring `cache` there would only have stopped Portcove checking
+  the shipped `cache/rt64-seen-shaders.bin`. It stays checked.
+- **Restore:** a backup taken after a crash can bring back `snap64.running`.
+  The only effect is the player's start-up question about mods.
+- **Outside Portcove:** the Linux shader-cache fallback can use
+  `XDG_CACHE_HOME`. That is a disposable Mesa shader cache that Portcove does
+  not own.
+
+Updating an installed v1.0.5 copy to v1.1.7 records today's definition, with
+the switch, for the new version. The installed v1.0.5 copy keeps the
+definition it was installed with. A v1.1.x copy installed before this change
+keeps that earlier definition, without the switch, until a newer version
+replaces it or it is removed and installed again.
+
+The source contract keeps its v1.0.5 binding first and appends the three exact
+v1.1.7 package digests. The new `snap64-recomp-1-1-7-source-contract` evidence
+record cites the tag commit. Player-facing setup text is unchanged: it covers
+upstream-managed packages, which keep upstream's Steam behavior.
 
 ## Not observed
 
 - **Execution:** native launch, gameplay, audio, input and saves on any
   platform, including the CVLoD normal-close failure.
 - **Provider data:** the release API's digests, asset IDs and prerelease flags.
-- **Provenance:** whether CVLoD's `ab942ba9` descends from the tag commit, and
-  Snap64's full source tree; only the named files were read.
+- **Provenance:** whether CVLoD's `ab942ba9` descends from the tag commit. For
+  Snap64 the `src/` folder at v1.0.5 and v1.1.7 was compared for data-folder,
+  home-folder and network writers; its `lib/` submodules were not read.
+- **Steam switch in use:** that the v1.1.7 log shows the switched-off Steam
+  line, and that no picture reaches a real Steam `config/grid` folder.
 - **Intermediate tags:** CVLoD v0.2.27 and v0.2.28, Golden Balloon releases
   between v1.7.0 and v1.8.0, Road Rash v1.4.4 to v1.4.7, and Snap64 v1.0.6 to
   v1.1.5. Road Rash v1.4.8 and the Snap64 v1.1.6 Linux and Mac packages were

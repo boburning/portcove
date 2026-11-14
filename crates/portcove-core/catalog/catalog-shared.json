@@ -152,6 +152,16 @@
         "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/README.md"
       },
       {
+        "id": "snap64-recomp-1-1-7-source-contract",
+        "role": "upstream_support",
+        "authority": "JackandBeans/Snap64Recomp",
+        "authority_ref": "0525610a89fd3c960b5a3555fad63e20f0d97f64",
+        "reviewed_at": "2026-11-14",
+        "claim": "Exact v1.1.7 Windows x64 (18834158 bytes, SHA-256 fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95), Linux x86-64 (9821880 bytes, SHA-256 d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d) and macOS universal (12752773 bytes, SHA-256 ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50) packages match their published .sha256 files; the provider release digest was not read. The README still names the US cartridge SHA-1 edc7c49cc568c045fe48be0d18011c30f393cbaf, Snap64Recomp stays the only program at the same place, and src/paths.cpp still uses an absolute SNAP_DATA_DIR first on every platform, so the data folder is the Portcove user folder. Under the owner decision of November 14, 2026 the route sets SNAP_NO_STEAM_ART=1: src/steam_art.cpp read_launch and do_the_art return before Steam discovery, any write into Steam's config/grid folder and any steam_art_done.txt read or append. The remaining new data-folder writers, snap64.running, snap64.gpu_failed and the Linux Mesa shader-cache fallback in cache, live in the user folder that backups capture whole; the fallback may instead use XDG_CACHE_HOME outside Portcove. Native execution, gameplay and saves remain unobserved for this release.",
+        "immutable_url": "https://github.com/JackandBeans/Snap64Recomp/blob/0525610a89fd3c960b5a3555fad63e20f0d97f64/src/steam_art.cpp",
+        "live_url": "https://github.com/JackandBeans/Snap64Recomp/blob/main/src/steam_art.cpp"
+      },
+      {
         "id": "ape-escape-recompiled-0-3-0-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ApeEscapeRecomp",
@@ -17965,7 +17975,8 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "snap64-recomp-1-0-5-source-contract"
+          "snap64-recomp-1-0-5-source-contract",
+          "snap64-recomp-1-1-7-source-contract"
         ],
         "authority_ref": "0b1a67eb4fd15ff3a87957110c428eb4905c36cc",
         "reviewed_at": "2026-09-13",
@@ -17976,6 +17987,18 @@
           {
             "upstream_ref": "v1.0.5",
             "artifact_sha256": "e3ab514df95d4a8133d2504ddc2ce43c12e376f5be74f076b3f90c09f8baf6b7"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "fcf7950f200c3006557aa4c5c54a117552ea194674da5f4d710e704e2ce60c95"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "d2ab64531be1b680c4bc995b7056c2e53914772ab0de2630ccf95513c6e5233d"
+          },
+          {
+            "upstream_ref": "v1.1.7",
+            "artifact_sha256": "ad8c54692afbdc8b09d5860afcd34fddf523b11a35f064af9192a1c0c8ed9f50"
           }
         ],
         "aliases": [],
