@@ -9,6 +9,7 @@
     "setup_url": "https://github.com/neuromancer/wc1-re",
     "issue_number": 2909,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/neuromancer"],
     "platforms": ["macos-x86-64"],
     "manual_setup": {
       "help_url": "https://github.com/neuromancer/wc1-re/tree/4462524b5ecb8a42f19b74ff141cc4240466ace8",

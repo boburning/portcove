@@ -1,5 +1,5 @@
 {
-  "format_version": 9,
+  "format_version": 10,
   "listings": [
     {
       "id": "shipwright",
@@ -1987,6 +1987,9 @@
       "summary": "Native port of The Legend of Dragoon.",
       "project_url": "https://github.com/Legend-of-Dragoon-Modding/Severed-Chains",
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/monoxide"
+      ],
       "original_game_title": "The Legend of Dragoon",
       "artwork": {
         "game_id": 3140,
@@ -4384,6 +4387,11 @@
       "summary": "An experimental port of 007: From Russia with Love. Set it up with your own original Xbox game files. The first start builds game code locally.",
       "project_url": "https://github.com/TGP482/007FRWL-XBERecomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/TGP482",
+        "https://www.patreon.com/TGP482",
+        "https://ko-fi.com/tgp482"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -5159,6 +5167,9 @@
       },
       "issue_number": 3284,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/caiuscodes"
+      ],
       "artwork": {
         "game_id": 2601,
         "cover_id": 310190,
@@ -12070,6 +12081,10 @@
       },
       "issue_number": 2625,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/Pyrdacor",
+        "https://www.patreon.com/Pyrdacor"
+      ],
       "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
       "manual_setup": {
         "help_url": "https://github.com/Pyrdacor/Ambermoon.net/tree/ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
@@ -12275,6 +12290,11 @@
       "original_game_title": "Animal Crossing: New Horizons",
       "project_url": "https://github.com/Nycolazs/ACNHRecomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/Nycolazs",
+        "https://ko-fi.com/nycolazs",
+        "https://buymeacoffee.com/nycolazs"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Nycolazs/ACNHRecomp",
@@ -12905,6 +12925,9 @@
       },
       "issue_number": 2876,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/ripleyxlr8"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -13000,6 +13023,11 @@
       "summary": "This early project generates code that can be linked into a Kameo player. Most Xbox system functions remain unfinished in src/hooks.cpp; startup and gameplay are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Azkali/KameoRecomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/azkali",
+        "https://ko-fi.com/azkali",
+        "https://azka.li/"
+      ],
       "platforms": [
         "linux-x86-64"
       ],
@@ -13956,6 +13984,11 @@
       "original_game_title": "BLACK (Xbox)",
       "project_url": "https://github.com/TGP482/BLACK-XBERecomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/TGP482",
+        "https://www.patreon.com/TGP482",
+        "https://ko-fi.com/tgp482"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/TGP482/BLACK-XBERecomp",
@@ -16518,6 +16551,9 @@
       "setup_url": "https://github.com/nxengine/nxengine-evo",
       "issue_number": 2647,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://paypal.me/sarcasticat"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/nxengine/nxengine-evo/tree/761d86db42439d0a37239858d2e024dbc80fe601",
         "steps": [
@@ -17589,6 +17625,9 @@
       "project_url": "https://github.com/psxrestore/Condemned2Recomp",
       "issue_number": 361,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/psxrestore"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -18631,6 +18670,9 @@
       "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
       "issue_number": 2559,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/saulob"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -18754,6 +18796,10 @@
       "project_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
       "issue_number": 385,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/V7V61GBYAX",
+        "https://wallfinch.com/"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
@@ -19469,6 +19515,9 @@
       "project_url": "https://github.com/florinp93/hells-gate-recomp",
       "issue_number": 367,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/zerkiller"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -20281,6 +20330,9 @@
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_West_Xenon_Recomp",
       "issue_number": 1122,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://github.com/sponsors/wivi514"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -20340,6 +20392,9 @@
       "project_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
       "issue_number": 1121,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://github.com/sponsors/wivi514"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/wivi514/Dead_Rising_2_Case_Zero_Xenon_Recomp",
@@ -21643,6 +21698,9 @@
       },
       "issue_number": 3347,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/phrostworks"
+      ],
       "artwork": {
         "game_id": 20654,
         "cover_id": 116369,
@@ -22132,6 +22190,9 @@
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2565,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/Inkub0"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases",
@@ -22244,6 +22305,9 @@
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2566,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/Inkub0"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/Inkub0/dude/blob/e703ab270064eef8ead6ae3abbb4b0762bddecd8/README.md",
       "release_url": "https://github.com/Inkub0/dude/releases",
@@ -22810,6 +22874,9 @@
       "project_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
       "issue_number": 366,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/novapowers"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/novapowers0/DBZ-Budokai-3-HD-Collection",
@@ -22893,6 +22960,9 @@
       },
       "issue_number": 2664,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/iexplosiverage"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/8faff03f1cc316e123339111c3f7364876e63ab8/README.md",
         "steps": [
@@ -22960,6 +23030,9 @@
       },
       "issue_number": 2880,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/saulob"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/saulob/dragons-crown-pro-pc/blob/1ec294a8cdcf84f29954f15e90dd7782290994ef/docs/LAUNCHER.md",
         "steps": [
@@ -24040,6 +24113,9 @@
       "project_url": "https://github.com/power-pudu/egg-of-time",
       "issue_number": 3740,
       "listed_at": "2026-11-09",
+      "funding_urls": [
+        "https://ko-fi.com/powerpudu"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -24259,6 +24335,9 @@
       "project_url": "https://github.com/clover-moe/lilium-voyager",
       "issue_number": 1918,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/zturtleman"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/clover-moe/lilium-voyager",
@@ -25381,6 +25460,9 @@
       },
       "issue_number": 2826,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/felipeprado0"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/FelipePrado0/SpartanPort/blob/a2299cd59bc363fb9d0dbfe11cac26c2a49e5aaa/README.md",
         "steps": [
@@ -26146,6 +26228,10 @@
       },
       "issue_number": 2576,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/arcanite24",
+        "https://ko-fi.com/nerijs"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/arcanite24/pinyon-shift/blob/9494adadef6a73b340d204f29cfa75d711b78c6a/README.md",
         "steps": [
@@ -27015,6 +27101,9 @@
       },
       "issue_number": 2577,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/saulob"
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -28080,6 +28169,9 @@
       },
       "issue_number": 2579,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/moesuito"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/moesuito/gt4-staticrecomp/blob/5d7a669bdecf5e60c0782ca449f48aacac3c7a32/README.md",
         "steps": [
@@ -28917,6 +29009,10 @@
       "project_url": "https://github.com/Gzh0821/pvzg_site",
       "issue_number": 1874,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://github.com/sponsors/Gzh0821",
+        "https://buymeacoffee.com/gaozih"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -29005,6 +29101,9 @@
       "setup_url": "https://github.com/FWGS/xash3d-fwgs",
       "issue_number": 2678,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/FWGS/xash3d-fwgs/blob/master/Documentation/donate.md"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
         "steps": [
@@ -29216,6 +29315,9 @@
       },
       "issue_number": 2581,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/saulob"
+      ],
       "manual_setup": {
         "steps": [
           {
@@ -29384,6 +29486,10 @@
       "setup_url": "https://github.com/HayatoG/iss_pc",
       "issue_number": 2788,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/HayatoG",
+        "https://buymeacoffee.com/hayatog"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/HayatoG/iss_pc/blob/372273780e2239b2e654229a3566d8f6bc642dcf/README.md",
         "steps": [
@@ -29438,6 +29544,10 @@
       },
       "issue_number": 2815,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/HayatoG",
+        "https://buymeacoffee.com/hayatog"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/HayatoG/tlg_pc/blob/4825a991c2ac8fd8865b3c340a18b2f54628c0f0/README.md",
         "steps": [
@@ -29672,6 +29782,10 @@
       },
       "issue_number": 2582,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/fheroes2",
+        "https://boosty.to/fheroes2"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/ihhub/fheroes2/tree/2685c2188b541660f1ce261b554c3e92f79b1775",
         "steps": [
@@ -30650,6 +30764,9 @@
       "project_url": "https://github.com/doc-haz/infinite-undiscovery-recomp",
       "issue_number": 1670,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/doc_haz"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
       "artwork": {
@@ -31724,6 +31841,9 @@
       "project_url": "https://github.com/JGRennison/OpenTTD-patches",
       "issue_number": 1859,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.openttd.org/donate.html"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/JGRennison/OpenTTD-patches/blob/jgrpp/installation.md",
       "artwork": {
@@ -31995,6 +32115,9 @@
       },
       "issue_number": 3121,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/jorjbarbosa"
+      ],
       "artwork": {
         "game_id": 7102,
         "cover_id": 85892,
@@ -33288,6 +33411,10 @@
       },
       "issue_number": 3622,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/abd_dbh",
+        "https://github.com/AbdelmoumenDeghbouche/knack_pc#donate"
+      ],
       "artwork": {
         "game_id": 2957,
         "cover_id": 214354,
@@ -33793,6 +33920,9 @@
       "project_url": "https://github.com/lethal-guitar/RigelEngine",
       "issue_number": 1877,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.paypal.com/donate?hosted_button_id=B3JBDMWJE6F4C"
+      ],
       "platforms": [
         "windows-x86-64",
         "macos-x86-64"
@@ -34169,6 +34299,10 @@
       "project_url": "https://github.com/freefrank/LostOdysseyRecomp",
       "issue_number": 744,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://ko-fi.com/dotslash",
+        "https://buymeacoffee.com/dotslash"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/freefrank/LostOdysseyRecomp",
@@ -34598,6 +34732,9 @@
       "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
       "issue_number": 2589,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/treellama"
+      ],
       "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
       "manual_setup": {
         "steps": [
@@ -34660,6 +34797,9 @@
       "setup_url": "https://github.com/Aleph-One-Marathon/alephone/tree/fc4c274359088614b58c91af5daa541504cb50cf",
       "issue_number": 2588,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/treellama"
+      ],
       "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
       "manual_setup": {
         "steps": [
@@ -34730,6 +34870,9 @@
       },
       "issue_number": 2591,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/treellama"
+      ],
       "release_url": "https://github.com/Aleph-One-Marathon/alephone/releases/tag/release-20260930",
       "manual_setup": {
         "steps": [
@@ -35265,6 +35408,9 @@
       "project_url": "https://github.com/nautilusbits/mdk-sdl",
       "issue_number": 1775,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://github.com/sponsors/nemo22"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/nautilusbits/mdk-sdl/blob/main/README.md",
       "artwork": {
@@ -37296,6 +37442,9 @@
       "project_url": "https://github.com/mr-finster/stunts-hd",
       "issue_number": 2862,
       "listed_at": "2026-10-26",
+      "funding_urls": [
+        "https://buymeacoffee.com/mrfinster"
+      ],
       "availability": "packages",
       "setup_url": "https://github.com/mr-finster/stunts-hd/blob/59b9e1a22c1ecf880a16b199a4a454489b20e59d/README.md",
       "manual_setup": {
@@ -37356,6 +37505,9 @@
       "setup_url": "https://github.com/mr-finster/vf1-recomp",
       "issue_number": 2863,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/mrfinster"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/mr-finster/vf1-recomp/blob/9586e1433366f8af6aa80659dc1f9f45291a086d/README.md",
         "steps": [
@@ -37410,6 +37562,9 @@
       "setup_url": "https://github.com/mr-finster/vf2-recomp",
       "issue_number": 2834,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/mrfinster"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/mr-finster/vf2-recomp/blob/5e8bb67fa5235e2c0df843c8651049e6a785a89e/README.md",
         "steps": [
@@ -37464,6 +37619,9 @@
       },
       "issue_number": 2754,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/mrfinster"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/mr-finster/vf3-recomp/blob/a3d609445d09644892ddd3d2bf8f65b3a8bbd540/README.md",
         "steps": [
@@ -38410,6 +38568,9 @@
       },
       "issue_number": 3243,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/wk2d"
+      ],
       "artwork": {
         "game_id": 7094,
         "cover_id": 128041,
@@ -38773,6 +38934,9 @@
       },
       "issue_number": 2695,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/jorjbarbosa"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/421bd5500059cf2d00f37276949d51db767f76b8/README.md",
         "steps": [
@@ -38832,6 +38996,9 @@
       },
       "issue_number": 3122,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/auremana666"
+      ],
       "artwork": {
         "game_id": 7102,
         "cover_id": 85892,
@@ -39736,6 +39903,10 @@
       },
       "issue_number": 2598,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/gamboozino",
+        "https://ko-fi.com/gamboozino"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
         "steps": [
@@ -41030,6 +41201,9 @@
       "project_url": "https://github.com/OpenRA/OpenRA",
       "issue_number": 1852,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.patreon.com/orahosting"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -41299,6 +41473,9 @@
       },
       "issue_number": 2990,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/fizlo"
+      ],
       "artwork": {
         "game_id": 21537,
         "cover_id": 265740,
@@ -41934,6 +42111,9 @@
       },
       "issue_number": 3566,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/kromossomoc"
+      ],
       "artwork": {
         "game_id": 42809,
         "cover_id": 115987,
@@ -42980,6 +43160,9 @@
       "setup_url": "https://github.com/dalerank/Akhenaten",
       "issue_number": 2891,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/imspinner"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/dalerank/Akhenaten/tree/3598ab90856b216a11aae35aa5ad6a519b97bd97",
         "steps": [
@@ -45411,6 +45594,9 @@
       "project_url": "https://github.com/LoreanXavier/pt-pc",
       "issue_number": 1639,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.patreon.com/loreanxavier"
+      ],
       "platforms": [
         "windows-x86-64"
       ],
@@ -45679,6 +45865,12 @@
       },
       "issue_number": 2701,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/nuclearmonster",
+        "https://ko-fi.com/mrnuclearmonster",
+        "https://www.patreon.com/icculus",
+        "https://www.patreon.com/SmileTheory"
+      ],
       "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
       "manual_setup": {
         "steps": [
@@ -45744,6 +45936,12 @@
       },
       "issue_number": 2702,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/nuclearmonster",
+        "https://ko-fi.com/mrnuclearmonster",
+        "https://www.patreon.com/icculus",
+        "https://www.patreon.com/SmileTheory"
+      ],
       "release_url": "https://github.com/ioquake/ioq3/actions/workflows/build.yml",
       "manual_setup": {
         "steps": [
@@ -45934,6 +46132,10 @@
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 122,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.patreon.com/alive",
+        "https://paypal.me/paulsapps"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -45978,6 +46180,10 @@
       "project_url": "https://github.com/AliveTeam/alive_reversing",
       "issue_number": 133,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.patreon.com/alive",
+        "https://paypal.me/paulsapps"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -46246,6 +46452,9 @@
       "summary": "The project reaches the intro, title screen and an incomplete menu. New Game is unfinished, and gameplay is unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/MASELKO-95/ratchet-and-clank-3-Ratchet-Clank-Up-Your-Arsenal-REcopile",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/MASELKO-95"
+      ],
       "platforms": [
         "linux-x86-64"
       ],
@@ -47880,6 +48089,10 @@
       },
       "issue_number": 2786,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/Roman215",
+        "https://ko-fi.com/roman215"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Roman215/Weltall/blob/1cb16a61505ca87088105325549f218b7d8cb8dd/README.md",
         "steps": [
@@ -48377,6 +48590,12 @@
       },
       "issue_number": 2707,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/OpenXRay",
+        "https://www.patreon.com/openxray",
+        "https://opencollective.com/openxray",
+        "https://boosty.to/openxray"
+      ],
       "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -48446,6 +48665,12 @@
       },
       "issue_number": 2708,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/OpenXRay",
+        "https://www.patreon.com/openxray",
+        "https://opencollective.com/openxray",
+        "https://boosty.to/openxray"
+      ],
       "release_url": "https://github.com/OpenXRay/xray-16/releases/tag/latest-nightly",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -49628,6 +49853,9 @@
       },
       "issue_number": 3136,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/nlwstein"
+      ],
       "artwork": {
         "game_id": 5472,
         "cover_id": 100400,
@@ -50914,6 +51142,9 @@
       },
       "issue_number": 2842,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/soyjack"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/soyjxck/dod3-recomp/blob/e229e8b66434916b5b025f0f06ee3fd06c10d3f4/README.md",
         "steps": [
@@ -51257,6 +51488,9 @@
       "summary": "The project reports frontend, story and System Link deathmatch play. Challenge and MapMaker have had little testing. System Link is Windows-only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/phobos665/split2-recomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/phobos665"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/phobos665/split2-recomp",
@@ -53698,6 +53932,9 @@
       },
       "issue_number": 2714,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/saulob"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/65de56121a8940ba98f0bc9e591d6abdaedeb5a3/README.md",
         "steps": [
@@ -53752,6 +53989,9 @@
       },
       "issue_number": 2814,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/mohmmadpodt"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/Supermedo/prince-of-persia-2-windows/blob/473fb98a2ab1b87228c1f1f3ec09622c8011e5fa/README.md",
         "steps": [
@@ -55041,6 +55281,12 @@
       "setup_url": "https://github.com/TGP482/SCDA-XBERecomp",
       "issue_number": 2832,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/TGP482",
+        "https://github.com/sponsors/Joshhhuaaa",
+        "https://ko-fi.com/tgp482",
+        "https://www.paypal.com/donate/?hosted_button_id=UB67N4GNTCEZ6"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/TGP482/SCDA-XBERecomp/blob/ee5b44027bb99cdc11692b466f01d7930912240d/README.md",
         "steps": [
@@ -55140,6 +55386,9 @@
       },
       "issue_number": 3009,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/yuki_visuals7"
+      ],
       "artwork": {
         "game_id": 7359,
         "cover_id": 271688,
@@ -55555,6 +55804,9 @@
       "setup_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
       "issue_number": 2615,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/invinceble55wq"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp/blob/661d493ccf64bb8b0a957986d9630171c19b38ea/README.md",
         "steps": [
@@ -56091,6 +56343,9 @@
       },
       "issue_number": 3335,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/mateusmeneses"
+      ],
       "artwork": {
         "game_id": 3048,
         "cover_id": 129138,
@@ -56455,6 +56710,9 @@
       },
       "issue_number": 2810,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/themuffinator"
+      ],
       "manual_setup": {
         "help_url": "https://github.com/themuffinator/openQ4/blob/fcdd56967135fbbdfb1688e2d25533f8f123b1c6/README.md",
         "steps": [
@@ -56950,6 +57208,9 @@
       "summary": "macOS boot through movies/menus and online play are reported; widescreen is unchecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/phobos665/Rainbow-six-three-recomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/phobos665"
+      ],
       "platforms": [
         "macos-aarch64"
       ],
@@ -57373,6 +57634,9 @@
       },
       "issue_number": 3273,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/yapel"
+      ],
       "artwork": {
         "game_id": 2480,
         "cover_id": 82643,
@@ -57708,6 +57972,9 @@
       },
       "issue_number": 2716,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.openttd.org/donate.html"
+      ],
       "manual_setup": {
         "help_url": "https://wiki.openttd.org/en/Manual/Installation",
         "steps": [
@@ -59189,6 +59456,10 @@
       "summary": "The project reports Windows Vulkan boot, menus and fights at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Thorhax/usf4-nx",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://www.patreon.com/thorhax",
+        "https://ko-fi.com/thorhax"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Thorhax/usf4-nx",
@@ -60751,6 +61022,9 @@
       "project_url": "https://github.com/SolarCookies/TiP-Recomp",
       "issue_number": 158,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://www.patreon.com/SolarCookies"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/SolarCookies/TiP-Recomp",
@@ -61486,6 +61760,9 @@
       "summary": "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/wk2d"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
@@ -61644,6 +61921,9 @@
       "setup_url": "https://github.com/neuromancer/wc1-re",
       "issue_number": 2909,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/neuromancer"
+      ],
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -61745,6 +62025,10 @@
       },
       "issue_number": 3464,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://ko-fi.com/abd_dbh",
+        "https://github.com/AbdelmoumenDeghbouche/wipeout_pc#donate"
+      ],
       "artwork": {
         "game_id": 26195,
         "cover_id": 117762,
@@ -63508,6 +63792,9 @@
       "original_game_title": "Yo-kai Watch 4++",
       "project_url": "https://github.com/ILFforever/YW4Recomp",
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://buymeacoffee.com/ilfforever"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/ILFforever/YW4Recomp",

@@ -7,6 +7,11 @@
     "summary": "This early project generates code that can be linked into a Kameo player. Most Xbox system functions remain unfinished in src/hooks.cpp; startup and gameplay are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Azkali/KameoRecomp",
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://www.patreon.com/azkali",
+      "https://ko-fi.com/azkali",
+      "https://azka.li/"
+    ],
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
     "setup_url": "https://github.com/Azkali/KameoRecomp",

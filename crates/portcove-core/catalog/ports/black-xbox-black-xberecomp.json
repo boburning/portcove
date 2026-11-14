@@ -7,6 +7,11 @@
     "original_game_title": "BLACK (Xbox)",
     "project_url": "https://github.com/TGP482/BLACK-XBERecomp",
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://github.com/sponsors/TGP482",
+      "https://www.patreon.com/TGP482",
+      "https://ko-fi.com/tgp482"
+    ],
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/TGP482/BLACK-XBERecomp",

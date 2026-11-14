@@ -72,6 +72,9 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
         // selection must preserve. Keeping it would put a field that earlier strict readers
         // do not know inside an envelope version they still accept.
         listing.listed_at = None;
+        // Funding links are directory descriptions for the same reason; the current
+        // directory supplies them again while it lists the project.
+        listing.funding_urls = None;
         return Ok(serde_json::to_string(&RetainedUserSelectedListing {
             format: USER_SELECTED_LISTING_FORMAT.into(),
             format_version: if listing.compatibility.is_some() {
@@ -3524,6 +3527,28 @@ mod tests {
                 .listing("dated-project")
                 .unwrap()
                 .listed_at
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn a_retained_selection_does_not_carry_directory_funding_links() {
+        let listing: crate::PortListing = serde_json::from_value(serde_json::json!({
+            "id":"funded-project", "name":"Funded project", "summary":"No operational integration.",
+            "project_url":"https://example.com/upstream",
+            "funding_urls":["https://github.com/sponsors/example"]
+        }))
+        .unwrap();
+        let catalog = Catalog::for_user_selected_listing(listing).unwrap();
+        let content = encode_external_catalog(&catalog, "funded-project").unwrap();
+        // An earlier strict reader must still be able to read the retained entry.
+        assert!(!content.contains("funding_urls"), "{content}");
+        let retained = decode_external_catalog(&content, "funded-project").unwrap();
+        assert!(
+            retained
+                .listing("funded-project")
+                .unwrap()
+                .funding_urls
                 .is_none()
         );
     }

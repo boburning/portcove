@@ -931,6 +931,10 @@ export default interface Resources {
       "heading": "Requirements"
     },
     "resources": {
+      "funding": {
+        "heading": "Help fund this project",
+        "note": "The project’s developers list these pages for people who want to fund their work. Each link opens in your browser; Portcove takes no part in any payment."
+      },
       "heading": "Project & support",
       "support": "Create support report",
       "supportNote": "Save and review a sanitized report locally before choosing to share it.",

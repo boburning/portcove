@@ -727,6 +727,7 @@ mod tests {
             .unwrap_or_else(|| expected_listing.clone());
         // The first-listed date is directory recency; a retained selection does not keep it.
         expected_retained_listing.listed_at = None;
+        expected_retained_listing.funding_urls = None;
         let initial = service.listing_status(id).unwrap();
         assert!(
             initial.actions.iter().any(|action| action.action

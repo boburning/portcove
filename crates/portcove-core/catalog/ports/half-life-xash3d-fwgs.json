@@ -11,6 +11,7 @@
     "setup_url": "https://github.com/FWGS/xash3d-fwgs",
     "issue_number": 2678,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/FWGS/xash3d-fwgs/blob/master/Documentation/donate.md"],
     "manual_setup": {
       "help_url": "https://github.com/FWGS/xash3d-fwgs/tree/a7becfdf8d134eb2ae5cd083a45c816e6b4e42fc",
       "steps": [

@@ -28,6 +28,10 @@
     },
     "issue_number": 3464,
     "listed_at": "2026-10-25",
+    "funding_urls": [
+      "https://ko-fi.com/abd_dbh",
+      "https://github.com/AbdelmoumenDeghbouche/wipeout_pc#donate"
+    ],
     "artwork": {
       "game_id": 26195,
       "cover_id": 117762,

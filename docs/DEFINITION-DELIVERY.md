@@ -1742,6 +1742,17 @@ IDs retain their shape, and older incapable readers refuse the directory while
 retaining their last-good selection. This is data compatibility, not a publisher
 grant or permission to acquire or execute a package.
 
+Listing formats 9 (first-listed dates) and 10 (funding links) follow the same rule.
+A delivered directory declares one format for the whole snapshot, so publishing at
+format 10 stops listing updates for every reader that understands at most format 9:
+such a reader refuses the new target and keeps its last accepted directory (or its
+bundled one) until its application is updated. A reader at format 10 accepts a
+format-9 snapshot; the snapshot replaces its own records by ID, so a record it
+delivers without links shows none, while bundled records it omits keep theirs.
+Which format a publication uses is a publication decision; this contract does not
+change it. `catalog listings --format-version 9` produces the same directory
+without funding links, which format-9 readers accept.
+
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed
 authority. `catalog listing-status` reports its selection. Tauri delegates the

@@ -3075,6 +3075,13 @@ export interface PortListing {
    * no execution, management or permission over an existing copy.
    */
   download_block_reason?: string | null;
+  /**
+   * Reviewed pages where the upstream developers accept funding, normally taken
+   * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+   * HTTPS links that grant nothing. Requires listing format 10; when present it
+   * is never empty, so an earlier strict reader never meets an inert empty key.
+   */
+  funding_urls?: string[] | null;
   id: string;
   issue_number?: number | null;
   /**

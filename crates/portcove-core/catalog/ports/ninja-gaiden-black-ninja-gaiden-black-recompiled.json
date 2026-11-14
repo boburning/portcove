@@ -19,6 +19,7 @@
     },
     "issue_number": 2598,
     "listed_at": "2026-10-25",
+    "funding_urls": ["https://github.com/sponsors/gamboozino", "https://ko-fi.com/gamboozino"],
     "manual_setup": {
       "help_url": "https://github.com/gamboozino/ngbrecomp/blob/10f25f0f8622ef387b46eb55edefca6ed2e2856b/README.md",
       "steps": [

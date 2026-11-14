@@ -1040,6 +1040,17 @@ pub struct CatalogDocument {
     pub ports: Vec<PortDefinition>,
 }
 
+/// A present `funding_urls` key must hold a list: an explicit `null` is refused
+/// rather than read as absent, because earlier strict readers refuse the key itself.
+fn present_funding_urls<'de, D>(
+    deserializer: D,
+) -> std::result::Result<Option<Vec<String>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    Vec::<String>::deserialize(deserializer).map(Some)
+}
+
 /// Descriptive project information. A listing never grants managed installation,
 /// executable selection, source access or ownership of an external directory.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -1074,6 +1085,16 @@ pub struct PortListing {
     /// Requires listing format 9.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub listed_at: Option<String>,
+    /// Reviewed pages where the upstream developers accept funding, normally taken
+    /// from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+    /// HTTPS links that grant nothing. Requires listing format 10; when present it
+    /// is never empty, so an earlier strict reader never meets an inert empty key.
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "present_funding_urls"
+    )]
+    pub funding_urls: Option<Vec<String>>,
     /// Empty means unknown; it is not an execution compatibility declaration.
     #[serde(default)]
     pub platforms: Vec<Platform>,
@@ -2473,7 +2494,7 @@ impl CapabilityDocument {
     pub fn current() -> Self {
         Self {
             schema_version: crate::API_SCHEMA_VERSION,
-            listing_formats: vec![5, 6, 7, 8, 9],
+            listing_formats: vec![5, 6, 7, 8, 9, 10],
             port_capability_schema: Some(1),
             artwork_handoff_schema: Some(crate::ARTWORK_HANDOFF_SCHEMA),
             operation_event_schema_version: crate::OPERATION_EVENT_SCHEMA_VERSION,

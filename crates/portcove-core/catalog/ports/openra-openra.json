@@ -7,6 +7,7 @@
     "project_url": "https://github.com/OpenRA/OpenRA",
     "issue_number": 1852,
     "listed_at": "2026-10-23",
+    "funding_urls": ["https://www.patreon.com/orahosting"],
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/OpenRA/OpenRA/blob/b4f3d8ae02b6bd6f4a3a5441e6d0daf7c5073787/README.md",
