@@ -87,8 +87,8 @@ fn portable_refusals_explain_recovery_without_rewriting_mutation_facts() {
 #[test]
 fn diverged_appended_settings_name_the_file_and_both_copies_before_details() {
     for (other_is_saved, label) in [(true, "Saved copy"), (false, "New version's copy")] {
-        let installed = std::path::PathBuf::from("C:/Games/Sonic/v0.8.3/sonic1-sound.ini");
-        let other = std::path::PathBuf::from("C:/Portcove/user/sonic1-sound.ini");
+        let installed = std::path::PathBuf::from("games/sonic/v0.8.3/sonic1-sound.ini");
+        let other = std::path::PathBuf::from("portcove/user/sonic1-sound.ini");
         let report = PortcoveError::conflict("original diagnostic")
             .with_known_cause(KnownFailureCause::AppendedSettingsDiverged {
                 file: "sonic1-sound.ini".into(),
@@ -117,7 +117,7 @@ fn diverged_appended_settings_name_the_file_and_both_copies_before_details() {
 
 #[test]
 fn a_blocked_appended_settings_path_names_the_location_and_the_next_step() {
-    let path = std::path::PathBuf::from("C:/Games/Sonic/v0.8.3/sonic1-sound.ini");
+    let path = std::path::PathBuf::from("games/sonic/v0.8.3/sonic1-sound.ini");
     let report = PortcoveError::conflict("original diagnostic")
         .with_known_cause(KnownFailureCause::AppendedSettingsPathBlocked { path: path.clone() })
         .report();
