@@ -292,6 +292,21 @@ async function checkReviewedExternal(
     presentation: null,
   });
   definition.executable_hints = { "windows-x86-64": ["game.exe"] };
+  // Drop the borrowed port's managed-install fields so later changes to its
+  // managed route cannot reach this user-prepared registration fixture.
+  for (const field of [
+    "portable_marker",
+    "persistent_paths",
+    "runtime_mutable_paths",
+    "runtime_source_filename",
+    "runtime_source_materialization",
+    "runtime_source_hashes",
+  ]) {
+    delete definition[field];
+  }
+  for (const field of Object.keys(definition)) {
+    if (field.startsWith("n64_")) delete definition[field];
+  }
   definition.release = {
     provider: "user-prepared",
     repository: object(definition.release).repository,
