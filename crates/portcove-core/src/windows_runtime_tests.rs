@@ -147,7 +147,7 @@ fn other_programs_are_not_windows_programs() {
     ]);
     let host = FakeHost::default();
     for name in ["game", "empty", "dos.exe"] {
-        let report = assess_program_with(&folder.path().join(name), &host);
+        let report = assess_program_with(&folder.path().join(name), None, &host);
         assert_eq!(
             report.inspection,
             RuntimeInspection::NotWindowsProgram,
@@ -187,53 +187,110 @@ fn malformed_programs_are_unreadable_within_bounds() {
         ("far header", far_header),
         ("header past end", past_end),
         ("truncated imports", truncated),
-        ("unterminated name", unterminated),
         ("section count", sections),
         ("optional magic", magic),
         ("name outside sections", outside),
-        ("path-like name", invalid_name),
-        ("long name", long_name),
         ("too many imports", too_many),
     ] {
         let folder = game(&[("game.exe", bytes)]);
-        let report = assess_program_with(&folder.path().join("game.exe"), &host);
+        let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
         assert_eq!(report.inspection, RuntimeInspection::Unreadable, "{label}");
+        assert!(report.requirements.is_empty(), "{label}");
+    }
+    for (label, bytes) in [
+        ("unterminated name", unterminated),
+        ("path-like name", invalid_name),
+        ("long name", long_name),
+    ] {
+        let folder = game(&[("game.exe", bytes)]);
+        let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
+        assert_eq!(report.inspection, RuntimeInspection::Partial, "{label}");
         assert!(report.requirements.is_empty(), "{label}");
     }
     let missing = tempfile::tempdir().unwrap();
     assert_eq!(
-        assess_program_with(&missing.path().join("absent.exe"), &host).inspection,
+        assess_program_with(&missing.path().join("absent.exe"), None, &host).inspection,
         RuntimeInspection::Unreadable
     );
 }
 
 #[cfg(unix)]
 #[test]
-fn symlinked_programs_and_dlls_are_not_followed() {
+fn symlinked_programs_and_dlls_are_not_followed_but_satisfy_imports() {
     let folder = game(&[
         ("real.exe", pe(X64, &["vcruntime140.dll"])),
         ("real.dll", pe(X64, &["d3dx9_43.dll"])),
-        ("game.exe", pe(X64, &["linked.dll"])),
+        ("runtime.dll", pe(X64, &["kernel32.dll"])),
+        ("game.exe", pe(X64, &["linked.dll", "vcruntime140.dll"])),
     ]);
-    std::os::unix::fs::symlink(
-        folder.path().join("real.exe"),
-        folder.path().join("link.exe"),
-    )
-    .unwrap();
-    std::os::unix::fs::symlink(
-        folder.path().join("real.dll"),
-        folder.path().join("linked.dll"),
-    )
-    .unwrap();
-    let host = FakeHost::default();
+    let link = |target: &str, name: &str| {
+        std::os::unix::fs::symlink(folder.path().join(target), folder.path().join(name)).unwrap()
+    };
+    link("real.exe", "link.exe");
+    link("real.dll", "linked.dll");
+    // A mod manager may link a shipped runtime DLL into the program folder.
+    link("runtime.dll", "vcruntime140.dll");
+    let host = FakeHost {
+        absent: [
+            (WindowsArchitecture::X64, "vcruntime140.dll"),
+            (WindowsArchitecture::X64, "d3dx9_43.dll"),
+        ]
+        .into(),
+        ..FakeHost::default()
+    };
     assert_eq!(
-        assess_program_with(&folder.path().join("link.exe"), &host).inspection,
+        assess_program_with(&folder.path().join("link.exe"), None, &host).inspection,
         RuntimeInspection::Unreadable
     );
-    // A symlinked DLL is not a shipped file, so its imports are not followed.
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
-    assert_eq!(report.inspection, RuntimeInspection::Complete);
-    assert!(report.requirements.is_empty());
+    // Linked files satisfy their imports but are never read, so nothing is
+    // missing and the inspection is partial.
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
+    assert_eq!(report.inspection, RuntimeInspection::Partial);
+    assert!(report.requirements.is_empty(), "{report:?}");
+}
+
+#[test]
+fn unusable_import_names_are_skipped_and_the_rest_still_count() {
+    let folder = game(&[("game.exe", pe(X64, &["bad/name.dll", "vcruntime140.dll"]))]);
+    let host = FakeHost {
+        absent: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
+        ..FakeHost::default()
+    };
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
+    assert_eq!(report.inspection, RuntimeInspection::Partial);
+    assert_eq!(report.requirements[0].presence, RuntimePresence::Missing);
+}
+
+#[test]
+fn runtime_dlls_in_a_possible_working_directory_are_not_missing() {
+    let root = tempfile::tempdir().unwrap();
+    let bin = root.path().join("bin");
+    fs::create_dir(&bin).unwrap();
+    fs::write(
+        bin.join("game.exe"),
+        pe(X64, &["vcruntime140.dll", "d3dx9_43.dll"]),
+    )
+    .unwrap();
+    fs::write(root.path().join("vcruntime140.dll"), b"").unwrap();
+    let host = FakeHost {
+        absent: [
+            (WindowsArchitecture::X64, "vcruntime140.dll"),
+            (WindowsArchitecture::X64, "d3dx9_43.dll"),
+        ]
+        .into(),
+        ..FakeHost::default()
+    };
+    let program = bin.join("game.exe");
+    let report = assess_program_with(&program, Some(root.path()), &host);
+    assert_eq!(report.inspection, RuntimeInspection::Partial);
+    let [directx] = report.requirements.as_slice() else {
+        panic!("unexpected requirements: {report:?}");
+    };
+    assert_eq!(directx.runtime, WindowsRuntime::DirectxJune2010);
+    assert_eq!(directx.presence, RuntimePresence::Missing);
+    // Folders outside the installation are never searched.
+    let report = assess_program_with(&program, Some(&bin), &host);
+    assert_eq!(report.requirements.len(), 2);
 }
 
 #[test]
@@ -309,7 +366,7 @@ fn presence_is_missing_only_when_the_host_reports_absence() {
         absent: [(WindowsArchitecture::X64, "d3dx9_43.dll")].into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
     assert_eq!(report.inspection, RuntimeInspection::Complete);
     assert_eq!(report.host, RuntimeHostCheck::Checked);
     let [visual_cpp, directx] = report.requirements.as_slice() else {
@@ -340,7 +397,7 @@ fn presence_is_missing_only_when_the_host_reports_absence() {
         present: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &partial_host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &partial_host);
     assert!(
         report
             .requirements
@@ -359,7 +416,7 @@ fn a_non_windows_host_or_unassessed_architecture_stays_unknown() {
         not_windows: true,
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
     assert_eq!(report.host, RuntimeHostCheck::NotWindows);
     assert_eq!(report.requirements[0].presence, RuntimePresence::Unknown);
     assert_eq!(report.missing().count(), 0);
@@ -368,7 +425,7 @@ fn a_non_windows_host_or_unassessed_architecture_stays_unknown() {
         absent: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("other.exe"), &windows);
+    let report = assess_program_with(&folder.path().join("other.exe"), None, &windows);
     assert_eq!(report.requirements[0].architecture, None);
     assert_eq!(report.requirements[0].presence, RuntimePresence::Unknown);
 }
@@ -395,7 +452,7 @@ fn shipped_dlls_satisfy_imports_and_their_own_imports_are_followed() {
         .into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
     assert_eq!(report.inspection, RuntimeInspection::Complete);
     let [directx] = report.requirements.as_slice() else {
         panic!("unexpected requirements: {report:?}");
@@ -416,7 +473,7 @@ fn unreadable_shipped_dlls_make_the_inspection_partial() {
         absent: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
     assert_eq!(report.inspection, RuntimeInspection::Partial);
     // The folder listing was complete, so the absent runtime is still missing.
     assert_eq!(report.requirements[0].presence, RuntimePresence::Missing);
@@ -432,7 +489,7 @@ fn an_incomplete_folder_listing_cannot_establish_a_missing_runtime() {
         absent: [(WindowsArchitecture::X64, "vcruntime140.dll")].into(),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&folder.path().join("game.exe"), &host);
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &host);
     assert_eq!(report.inspection, RuntimeInspection::Partial);
     assert_eq!(report.requirements[0].presence, RuntimePresence::Unknown);
     assert!(report.requirements[0].missing_files.is_empty());
@@ -456,7 +513,7 @@ fn the_shipped_dll_limit_is_bounded() {
     for (name, bytes) in &files {
         fs::write(folder.path().join(name), bytes).unwrap();
     }
-    let report = assess_program_with(&folder.path().join("game.exe"), &FakeHost::default());
+    let report = assess_program_with(&folder.path().join("game.exe"), None, &FakeHost::default());
     assert_eq!(report.inspection, RuntimeInspection::Partial);
 }
 
@@ -484,7 +541,7 @@ fn framework_dependent_programs_need_their_dotnet_frameworks() {
         ),
         ..FakeHost::default()
     };
-    let report = assess_program_with(&program, &installed(&[]));
+    let report = assess_program_with(&program, None, &installed(&[]));
     assert_eq!(report.inspection, RuntimeInspection::Complete);
     assert_eq!(report.requirements.len(), 2);
     let desktop = &report.requirements[1];
@@ -500,20 +557,47 @@ fn framework_dependent_programs_need_their_dotnet_frameworks() {
     );
     assert!(is_official_download_page(&desktop.download_page));
 
-    let report = assess_program_with(&program, &installed(&["6.0.30", "8.0.11", "9.0.0-rc.1"]));
+    let report = assess_program_with(
+        &program,
+        None,
+        &installed(&["6.0.30", "8.0.11", "9.0.0-rc.1"]),
+    );
     assert!(
         report
             .requirements
             .iter()
             .all(|requirement| requirement.presence == RuntimePresence::Present)
     );
-    let report = assess_program_with(&program, &FakeHost::default());
+    let report = assess_program_with(&program, None, &FakeHost::default());
     assert!(
         report
             .requirements
             .iter()
             .all(|requirement| requirement.presence == RuntimePresence::Unknown)
     );
+}
+
+#[test]
+fn unevaluated_roll_forward_settings_stay_unknown() {
+    let host = FakeHost {
+        dotnet: Some(Vec::new()),
+        ..FakeHost::default()
+    };
+    for json in [
+        r#"{"runtimeOptions":{"rollForwardOnNoCandidateFx":2,"framework":{"name":"Microsoft.NETCore.App","version":"8.0.0"}}}"#,
+        r#"{"runtimeOptions":{"applyPatches":false,"framework":{"name":"Microsoft.NETCore.App","version":"8.0.0"}}}"#,
+        r#"{"runtimeOptions":{"framework":{"name":"Microsoft.NETCore.App","version":"8.0.0","rollForward":"Major"}}}"#,
+        r#"{"runtimeOptions":{"framework":{"name":"Microsoft.NETCore.App","version":"8.0.0","applyPatches":true}}}"#,
+    ] {
+        let folder = runtime_config(json);
+        let report = assess_program_with(&folder.path().join("Game.exe"), None, &host);
+        assert_eq!(report.requirements.len(), 1, "{json}");
+        assert_eq!(
+            report.requirements[0].presence,
+            RuntimePresence::Unknown,
+            "{json}"
+        );
+    }
 }
 
 #[test]
@@ -525,7 +609,7 @@ fn self_contained_and_invalid_runtime_configurations() {
     let contained = runtime_config(
         r#"{"runtimeOptions":{"includedFrameworks":[{"name":"Microsoft.NETCore.App","version":"8.0.0"}]}}"#,
     );
-    let report = assess_program_with(&contained.path().join("Game.exe"), &host);
+    let report = assess_program_with(&contained.path().join("Game.exe"), None, &host);
     assert_eq!(report.inspection, RuntimeInspection::Complete);
     assert!(report.requirements.is_empty());
 
@@ -535,7 +619,7 @@ fn self_contained_and_invalid_runtime_configurations() {
         r#"{"runtimeOptions":{"framework":{"name":"Microsoft..App","version":"8.0.0"}}}"#,
     ] {
         let invalid = runtime_config(json);
-        let report = assess_program_with(&invalid.path().join("Game.exe"), &host);
+        let report = assess_program_with(&invalid.path().join("Game.exe"), None, &host);
         assert_eq!(report.inspection, RuntimeInspection::Partial, "{json}");
         assert!(report.requirements.is_empty(), "{json}");
     }
@@ -595,4 +679,79 @@ fn only_official_runtime_download_pages_are_recognized() {
         assert!(!is_official_download_page(url), "{url}");
     }
     assert_eq!(dotnet_download_page("weird"), DOTNET_DOWNLOAD_PAGE);
+}
+
+const PORT: &str = "cvlod-recomp";
+
+fn library_with_install() -> (tempfile::TempDir, crate::Library) {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let destination = library.versions_dir().join(PORT).join("1");
+    fs::create_dir_all(&destination).unwrap();
+    fs::write(destination.join("game.exe"), pe(X64, &["vcruntime140.dll"])).unwrap();
+    let install = crate::InstallRecord {
+        id: "current".into(),
+        port_id: PORT.into(),
+        version: "1".into(),
+        path: destination,
+        channel: crate::ReleaseChannel::Stable,
+        installed_at: 1,
+        verified: true,
+        staged: false,
+        artifact: Default::default(),
+        runtime: None,
+        manifest_sha256: "0".repeat(64),
+        selected_executable: "game.exe".into(),
+    };
+    library.register_install(&install, true).unwrap();
+    (temporary, library)
+}
+
+#[test]
+fn reports_follow_only_the_current_installation() {
+    let (_temporary, library) = library_with_install();
+    let current = library
+        .installation_runtime_prerequisites(PORT, "current")
+        .unwrap()
+        .unwrap();
+    assert_eq!(current.inspection, RuntimeInspection::Complete);
+    assert_eq!(
+        current.requirements[0].runtime,
+        WindowsRuntime::VisualCpp2015OrLater
+    );
+    assert_eq!(library.runtime_prerequisites(PORT).unwrap(), Some(current));
+    assert_eq!(
+        library
+            .installation_runtime_prerequisites(PORT, "replaced")
+            .unwrap(),
+        None
+    );
+    assert_eq!(library.runtime_prerequisites("other-port").unwrap(), None);
+}
+
+#[test]
+fn launch_views_carry_reports_only_for_missing_dll_exits_of_the_current_installation() {
+    let (_temporary, library) = library_with_install();
+    let view = |install_id: &str, exit_code: u32| {
+        let record: crate::LaunchSessionRecord = serde_json::from_value(serde_json::json!({
+            "id": "r", "port_id": PORT, "install_id": install_id, "install_root": "/i",
+            "supervisor_pid": 1, "phase": "running", "started_at": 0, "updated_at": 1,
+            "outcome": "failed", "exit_code": exit_code as i32,
+        }))
+        .unwrap();
+        crate::LaunchSessionView::new(record).with_runtime_prerequisites(&library)
+    };
+    for status in [0xC000_0135_u32, 0xC000_0142] {
+        assert!(
+            view("current", status).runtime_prerequisites.is_some(),
+            "{status:#x}"
+        );
+    }
+    assert!(view("current", 0xC000_0005).runtime_prerequisites.is_none());
+    assert!(view("current", 3).runtime_prerequisites.is_none());
+    assert!(
+        view("replaced", 0xC000_0135)
+            .runtime_prerequisites
+            .is_none()
+    );
 }

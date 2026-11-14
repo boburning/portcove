@@ -1726,27 +1726,47 @@ launch program, or the external registration's program, most likely needs, and
 whether this Windows host has them. It returns `null` when nothing is installed.
 Core reads the program's PE import table without running it, follows imports into
 DLLs shipped in the program's folder, and reads a framework-dependent
-`<program>.runtimeconfig.json`. A runtime DLL the game ships satisfies that import.
-Reads are bounded and never follow symlinks.
+`<program>.runtimeconfig.json`. Reads are bounded and never follow symlinks.
 
-`inspection` is `complete`, `partial` (something could not be read or a limit was
-reached, so the list may be incomplete), `not_windows_program` or `unreadable`.
-`host` is `checked` or `not_windows`. Each requirement names its `runtime`
-(`visual_cpp_2015_or_later`, `visual_cpp_2013`, `visual_cpp_2012`,
-`visual_cpp_2010`, `directx_june_2010` or `dotnet` with its `framework`), the
-program's `architecture`, `presence`, the runtime `files` the game imports but
-does not ship, any `missing_files`, and Microsoft's official `download_page`.
+A runtime DLL that the game ships satisfies its import. So does a symlink or
+junction in the program's folder, and any file in a folder between the program
+and the installation root, because a launch can use one of those as its working
+directory. Those files are not read, so the inspection becomes `partial`.
+
+`inspection` is `complete`, `partial` (something could not be read, an import
+name was unusable or a limit was reached, so the list may be incomplete),
+`not_windows_program` or `unreadable`. `host` is `checked` or `not_windows`.
+Each requirement names its `runtime` (`visual_cpp_2015_or_later`,
+`visual_cpp_2013`, `visual_cpp_2012`, `visual_cpp_2010`, `directx_june_2010` or
+`dotnet` with its `framework`), the program's `architecture`, `presence`, the
+runtime `files` the game imports but does not ship, any `missing_files`, and
+Microsoft's official `download_page`.
 
 `presence` is `missing` only when this Windows host reports the file or .NET
-framework absent and the program folder was listed completely. Anything Portcove
-cannot tell is `unknown`, including every requirement on another host or for an
-architecture it does not assess; `unknown` is not a failure. System DLLs are
-checked in the system folder Windows uses for the program's architecture, and
-.NET frameworks under the registered or default .NET location using the
-program's roll-forward policy. Runtime version freshness, side-by-side Visual
-C++ runtimes (2008 and earlier), `DOTNET_ROLL_FORWARD`, delay-loaded and
-dynamically loaded DLLs are not assessed. The report is advisory: it never
-blocks launch, and Portcove neither downloads nor runs Microsoft installers.
+framework absent and every searched folder was listed completely. Anything
+Portcove cannot tell is `unknown`; `unknown` is not a failure. That includes:
+
+- every requirement on another host, or on Windows that is not native x64 (such
+  as ARM64);
+- an architecture Portcove does not assess;
+- an unreadable .NET registration;
+- a framework whose runtime configuration uses `rollForwardOnNoCandidateFx`,
+  `applyPatches` or a per-framework `rollForward`.
+
+System DLLs are checked in the system folder Windows uses for the program's
+architecture. .NET frameworks are checked under the registered or default .NET
+location, using the program's top-level roll-forward policy.
+
+Not assessed:
+
+- whether an installed runtime is new enough;
+- side-by-side Visual C++ runtimes (2008 and earlier);
+- DLLs in the Windows folder or on `PATH`;
+- `DOTNET_ROLL_FORWARD` and `DOTNET_ROOT`;
+- delay-loaded and dynamically loaded DLLs.
+
+The report is advisory: it never blocks launch, and Portcove neither downloads
+nor runs Microsoft installers.
 
 ### Review and recover preparation
 

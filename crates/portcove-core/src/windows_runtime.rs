@@ -8,7 +8,7 @@
 //! hosts and unsupported architectures stay `unknown`. The report is advisory and
 //! never blocks launch.
 
-use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -35,6 +35,9 @@ const PE_HEADER_OFFSET_LIMIT: u32 = 1 << 24;
 const RUNTIME_CONFIG_LIMIT: u64 = 64 * 1024;
 const FRAMEWORK_LIMIT: usize = 8;
 const FRAMEWORK_VERSION_LIMIT: usize = 256;
+/// Folders between the program's folder and the installation root that a
+/// launch may use as its working directory.
+const WORKING_FOLDER_LIMIT: usize = 16;
 
 /// Microsoft's page for the supported Visual C++ Redistributable downloads,
 /// including the 2010, 2012 and 2013 releases.
@@ -200,7 +203,7 @@ impl crate::Library {
         port_id: &str,
     ) -> Result<Option<RuntimePrerequisiteReport>> {
         let status = self.status(port_id, crate::ReleaseChannel::Stable)?;
-        Ok(current_program(&status).map(|(_, program)| assess_program(program.as_deref())))
+        Ok(current_program(&status).map(|current| assess_program(&current)))
     }
 
     /// The same report for one exact installation, only while it is still the
@@ -212,29 +215,43 @@ impl crate::Library {
     ) -> Result<Option<RuntimePrerequisiteReport>> {
         let status = self.status(port_id, crate::ReleaseChannel::Stable)?;
         Ok(current_program(&status)
-            .filter(|(current, _)| *current == install_id)
-            .map(|(_, program)| assess_program(program.as_deref())))
+            .filter(|current| current.id == install_id)
+            .map(|current| assess_program(&current)))
     }
 }
 
-/// The current installation's identity and launch program, which is unknown
-/// for an installation recorded without one.
-fn current_program(status: &crate::PortStatus) -> Option<(&str, Option<PathBuf>)> {
+/// The current installation's identity, root and launch program. The program is
+/// unknown for an installation recorded without one.
+struct CurrentProgram<'a> {
+    id: &'a str,
+    root: &'a Path,
+    program: Option<PathBuf>,
+}
+
+fn current_program(status: &crate::PortStatus) -> Option<CurrentProgram<'_>> {
     if let Some(install) = &status.active {
         let program = (!install.selected_executable.as_os_str().is_empty())
             .then(|| install.path.join(&install.selected_executable));
-        return Some((install.id.as_str(), program));
+        return Some(CurrentProgram {
+            id: &install.id,
+            root: &install.path,
+            program,
+        });
     }
     status
         .external_runtime
         .as_ref()
-        .map(|record| (record.id.as_str(), Some(record.executable.clone())))
+        .map(|record| CurrentProgram {
+            id: &record.id,
+            root: &record.path,
+            program: Some(record.executable.clone()),
+        })
 }
 
 /// Assess the program Windows would start, using this host's facts.
-fn assess_program(program: Option<&Path>) -> RuntimePrerequisiteReport {
-    match program {
-        Some(program) => assess_program_with(program, &SystemRuntimeHost),
+fn assess_program(current: &CurrentProgram<'_>) -> RuntimePrerequisiteReport {
+    match &current.program {
+        Some(program) => assess_program_with(program, Some(current.root), &SystemRuntimeHost),
         None => RuntimePrerequisiteReport {
             inspection: RuntimeInspection::Unreadable,
             host: if SystemRuntimeHost.is_windows() {
@@ -247,8 +264,13 @@ fn assess_program(program: Option<&Path>) -> RuntimePrerequisiteReport {
     }
 }
 
+/// Assess `program`. `root` is the installation root: a launch's working
+/// directory is the program's folder or one of its ancestors up to the root, and
+/// Windows also loads DLLs from the working directory, so a runtime DLL in any of
+/// those folders is not reported missing.
 pub(crate) fn assess_program_with(
     program: &Path,
+    root: Option<&Path>,
     host: &dyn RuntimeHostFacts,
 ) -> RuntimePrerequisiteReport {
     let host_check = if host.is_windows() {
@@ -267,20 +289,48 @@ pub(crate) fn assess_program_with(
         Err(_) => return report(RuntimeInspection::Unreadable),
     };
     let architecture = image.architecture;
-    let (local, mut complete) = match program.parent().map(list_folder) {
-        Some(Ok((local, complete))) => (local, complete),
-        _ => (HashMap::new(), false),
+    let mut complete = image.complete;
+    let local = match program.parent().map(list_folder) {
+        Some(Ok(folder)) => folder,
+        _ => Folder::default(),
     };
-    // Without the whole folder, a runtime DLL the game ships may be unlisted, so
-    // an absent system copy cannot establish that the game lacks it.
-    let folder_complete = complete;
+    // Names in folders a launch may use as its working directory. Windows finds
+    // their DLLs, but they are not read here.
+    let mut working = HashSet::new();
+    let mut working_complete = true;
+    if let (Some(folder), Some(root)) = (program.parent(), root)
+        && folder.starts_with(root)
+    {
+        for ancestor in folder.ancestors().skip(1).take(WORKING_FOLDER_LIMIT) {
+            if !ancestor.starts_with(root) {
+                break;
+            }
+            match list_folder(ancestor) {
+                Ok(listed) => {
+                    working_complete &= listed.complete;
+                    working.extend(listed.files.into_keys().chain(listed.unread));
+                }
+                Err(_) => working_complete = false,
+            }
+            if ancestor == root {
+                break;
+            }
+        }
+    }
+    // Without every folder Windows would search, a runtime DLL the game ships may
+    // be unlisted, so an absent system copy cannot establish that the game lacks it.
+    let folders_complete = local.complete && working_complete;
+    complete &= folders_complete;
 
     let mut runtime_files = BTreeMap::<WindowsRuntime, BTreeSet<String>>::new();
     let mut visited = BTreeSet::new();
     let mut queue = VecDeque::from([image.imports]);
     while let Some(imports) = queue.pop_front() {
         for name in imports {
-            if let Some(path) = local.get(&name) {
+            if local.unread.contains(&name) || working.contains(&name) {
+                // Shipped but not read: a symlink, junction or working-directory copy.
+                complete = false;
+            } else if let Some(path) = local.files.get(&name) {
                 if !visited.insert(name) {
                     continue;
                 }
@@ -289,7 +339,10 @@ pub(crate) fn assess_program_with(
                     continue;
                 }
                 match read_program(path) {
-                    Ok(ProgramImage::Windows(dependency)) => queue.push_back(dependency.imports),
+                    Ok(ProgramImage::Windows(dependency)) => {
+                        complete &= dependency.complete;
+                        queue.push_back(dependency.imports);
+                    }
                     _ => complete = false,
                 }
             } else if let Some(runtime) = classify(&name) {
@@ -313,7 +366,7 @@ pub(crate) fn assess_program_with(
                 .map(|(file, _)| file.clone())
                 .collect::<Vec<_>>();
             let presence = if !missing_files.is_empty() {
-                if folder_complete {
+                if folders_complete {
                     RuntimePresence::Missing
                 } else {
                     RuntimePresence::Unknown
@@ -348,35 +401,44 @@ pub(crate) fn assess_program_with(
         .file_stem()
         .and_then(|stem| stem.to_str())
         .map(|stem| format!("{}.runtimeconfig.json", stem.to_ascii_lowercase()));
-    if let Some(config) = config_name.as_ref().and_then(|name| local.get(name)) {
+    if config_name
+        .as_ref()
+        .is_some_and(|name| local.unread.contains(name))
+    {
+        complete = false;
+    }
+    if let Some(config) = config_name.as_ref().and_then(|name| local.files.get(name)) {
         match read_frameworks(config) {
-            Ok(frameworks) => requirements.extend(frameworks.into_iter().map(|framework| {
-                let presence = architecture
-                    .and_then(|arch| host.dotnet_framework_versions(arch, &framework.name))
-                    .and_then(|installed| {
-                        framework_satisfied(
-                            &framework.version,
-                            framework.roll_forward.as_deref(),
-                            &installed,
-                        )
-                    })
-                    .map_or(RuntimePresence::Unknown, |satisfied| {
-                        if satisfied {
-                            RuntimePresence::Present
-                        } else {
-                            RuntimePresence::Missing
-                        }
-                    });
-                RuntimePrerequisite {
-                    runtime: WindowsRuntime::Dotnet,
-                    architecture,
-                    download_page: dotnet_download_page(&framework.version),
-                    framework: Some(framework),
-                    presence,
-                    files: Vec::new(),
-                    missing_files: Vec::new(),
-                }
-            })),
+            Ok(frameworks) => {
+                requirements.extend(frameworks.into_iter().map(|(framework, evaluable)| {
+                    let presence = architecture
+                        .filter(|_| evaluable)
+                        .and_then(|arch| host.dotnet_framework_versions(arch, &framework.name))
+                        .and_then(|installed| {
+                            framework_satisfied(
+                                &framework.version,
+                                framework.roll_forward.as_deref(),
+                                &installed,
+                            )
+                        })
+                        .map_or(RuntimePresence::Unknown, |satisfied| {
+                            if satisfied {
+                                RuntimePresence::Present
+                            } else {
+                                RuntimePresence::Missing
+                            }
+                        });
+                    RuntimePrerequisite {
+                        runtime: WindowsRuntime::Dotnet,
+                        architecture,
+                        download_page: dotnet_download_page(&framework.version),
+                        framework: Some(framework),
+                        presence,
+                        files: Vec::new(),
+                        missing_files: Vec::new(),
+                    }
+                }))
+            }
             Err(()) => complete = false,
         }
     }
@@ -465,10 +527,20 @@ fn dotnet_download_page(version: &str) -> String {
     }
 }
 
-/// Lowercase file name to path for regular files in `folder`, and whether the
-/// listing was complete.
-fn list_folder(folder: &Path) -> io::Result<(HashMap<String, PathBuf>, bool)> {
+/// One folder's listing by lowercase name.
+#[derive(Default)]
+struct Folder {
+    /// Regular files, which may be read.
+    files: HashMap<String, PathBuf>,
+    /// Symlinks, junctions and other non-directory entries. Windows may load
+    /// them, so they satisfy an import, but they are never followed or read.
+    unread: HashSet<String>,
+    complete: bool,
+}
+
+fn list_folder(folder: &Path) -> io::Result<Folder> {
     let mut files = HashMap::new();
+    let mut unread = HashSet::new();
     let mut complete = true;
     for (index, entry) in fs::read_dir(folder)?.enumerate() {
         if index == FOLDER_ENTRY_LIMIT {
@@ -483,21 +555,32 @@ fn list_folder(folder: &Path) -> io::Result<(HashMap<String, PathBuf>, bool)> {
             complete = false;
             continue;
         };
-        // Symlinks are neither followed nor treated as shipped files.
-        if !kind.is_file() {
+        if kind.is_dir() {
             continue;
         }
-        if let Some(name) = entry.file_name().to_str() {
-            files.insert(name.to_ascii_lowercase(), entry.path());
+        let Some(name) = entry.file_name().to_str().map(str::to_ascii_lowercase) else {
+            complete = false;
+            continue;
+        };
+        if kind.is_file() {
+            files.insert(name, entry.path());
+        } else {
+            unread.insert(name);
         }
     }
-    Ok((files, complete))
+    Ok(Folder {
+        files,
+        unread,
+        complete,
+    })
 }
 
 struct WindowsImage {
     architecture: Option<WindowsArchitecture>,
     /// Lowercase, deduplicated DLL names from the static import table.
     imports: BTreeSet<String>,
+    /// False when an unusable import name was skipped.
+    complete: bool,
 }
 
 enum ProgramImage {
@@ -568,6 +651,7 @@ fn u32_at(bytes: &[u8], offset: usize) -> io::Result<u32> {
 }
 
 struct Section {
+    virtual_size: u32,
     address: u32,
     raw_size: u32,
     raw_offset: u32,
@@ -616,6 +700,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
             imports,
+            complete: true,
         }));
     }
     let import_address = u32_at(&optional, directory_offset + 8)?;
@@ -623,6 +708,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         return Ok(ProgramImage::Windows(WindowsImage {
             architecture,
             imports,
+            complete: true,
         }));
     }
     let table = reader.read(
@@ -633,6 +719,7 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         .chunks_exact(40)
         .map(|section| {
             Ok(Section {
+                virtual_size: u32_at(section, 8)?,
                 address: u32_at(section, 12)?,
                 raw_size: u32_at(section, 16)?,
                 raw_offset: u32_at(section, 20)?,
@@ -646,11 +733,17 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
         sections
             .iter()
             .find(|section| {
-                address >= section.address && address - section.address < section.raw_size
+                // Bytes past a nonzero virtual size are file padding, not data.
+                let extent = match section.virtual_size {
+                    0 => section.raw_size,
+                    size => size.min(section.raw_size),
+                };
+                address >= section.address && address - section.address < extent
             })
             .map(|section| u64::from(section.raw_offset) + u64::from(address - section.address))
             .ok_or_else(|| malformed("address outside the file's sections"))
     };
+    let mut complete = true;
     for index in 0..=IMPORT_DESCRIPTOR_LIMIT {
         if index == IMPORT_DESCRIPTOR_LIMIT {
             return Err(malformed("too many imported DLLs"));
@@ -668,23 +761,28 @@ fn read_program(path: &Path) -> io::Result<ProgramImage> {
             .unwrap_or(usize::MAX)
             .min(IMPORT_NAME_LIMIT + 1);
         let bytes = reader.read(name_offset, available)?;
-        let name = bytes
+        // An unterminated, overlong or path-like name is skipped; the other
+        // imports still count, but the inspection is no longer complete.
+        match bytes
             .iter()
             .position(|byte| *byte == 0)
             .map(|end| &bytes[..end])
-            .ok_or_else(|| malformed("imported DLL name is too long"))?;
-        if name.is_empty()
-            || !name
-                .iter()
-                .all(|byte| byte.is_ascii_graphic() && !matches!(byte, b'/' | b'\\' | b':'))
         {
-            return Err(malformed("imported DLL name is invalid"));
+            Some(name)
+                if !name.is_empty()
+                    && name.iter().all(|byte| {
+                        byte.is_ascii_graphic() && !matches!(byte, b'/' | b'\\' | b':')
+                    }) =>
+            {
+                imports.insert(String::from_utf8_lossy(name).to_ascii_lowercase());
+            }
+            _ => complete = false,
         }
-        imports.insert(String::from_utf8_lossy(name).to_ascii_lowercase());
     }
     Ok(ProgramImage::Windows(WindowsImage {
         architecture,
         imports,
+        complete,
     }))
 }
 
@@ -701,22 +799,37 @@ struct RuntimeOptions {
     frameworks: Vec<ConfiguredFramework>,
     #[serde(rename = "rollForward")]
     roll_forward: Option<String>,
+    #[serde(rename = "rollForwardOnNoCandidateFx")]
+    legacy_roll_forward: Option<serde_json::Value>,
+    #[serde(rename = "applyPatches")]
+    apply_patches: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize)]
 struct ConfiguredFramework {
     name: String,
     version: String,
+    #[serde(rename = "rollForward")]
+    roll_forward: Option<serde_json::Value>,
+    #[serde(rename = "rollForwardOnNoCandidateFx")]
+    legacy_roll_forward: Option<serde_json::Value>,
+    #[serde(rename = "applyPatches")]
+    apply_patches: Option<serde_json::Value>,
 }
 
-/// Frameworks a framework-dependent program needs. A self-contained program
-/// lists `includedFrameworks` instead and needs none.
-fn read_frameworks(path: &Path) -> std::result::Result<Vec<DotnetFramework>, ()> {
+/// Frameworks a framework-dependent program needs, each with whether Portcove
+/// can evaluate its roll-forward. Legacy `rollForwardOnNoCandidateFx`,
+/// `applyPatches` and per-framework `rollForward` settings are not evaluated, so
+/// those frameworks stay unknown. A self-contained program lists
+/// `includedFrameworks` instead and needs none.
+fn read_frameworks(path: &Path) -> std::result::Result<Vec<(DotnetFramework, bool)>, ()> {
     let bytes = crate::path::read_bounded_regular(path, RUNTIME_CONFIG_LIMIT).map_err(|_| ())?;
     let config: RuntimeConfig = serde_json::from_slice(&bytes).map_err(|_| ())?;
     let Some(options) = config.runtime_options else {
         return Ok(Vec::new());
     };
+    let options_evaluable =
+        options.legacy_roll_forward.is_none() && options.apply_patches.is_none();
     let frameworks = options
         .framework
         .into_iter()
@@ -738,11 +851,18 @@ fn read_frameworks(path: &Path) -> std::result::Result<Vec<DotnetFramework>, ()>
             if !name_valid || framework.version.len() > 64 {
                 return Err(());
             }
-            Ok(DotnetFramework {
-                name: framework.name,
-                version: framework.version,
-                roll_forward: options.roll_forward.clone(),
-            })
+            let evaluable = options_evaluable
+                && framework.roll_forward.is_none()
+                && framework.legacy_roll_forward.is_none()
+                && framework.apply_patches.is_none();
+            Ok((
+                DotnetFramework {
+                    name: framework.name,
+                    version: framework.version,
+                    roll_forward: options.roll_forward.clone(),
+                },
+                evaluable,
+            ))
         })
         .collect()
 }
@@ -858,13 +978,15 @@ mod windows_host {
     use std::os::windows::ffi::{OsStrExt, OsStringExt};
     use std::path::PathBuf;
 
-    use windows_sys::Win32::Foundation::ERROR_SUCCESS;
+    use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS};
     use windows_sys::Win32::System::Registry::{
         HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ, RRF_SUBKEY_WOW6432KEY, RegGetValueW,
     };
     use windows_sys::Win32::System::SystemInformation::{
-        GetSystemDirectoryW, GetSystemWow64DirectoryW,
+        GetSystemDirectoryW, GetSystemWow64DirectoryW, IMAGE_FILE_MACHINE_AMD64,
+        IMAGE_FILE_MACHINE_I386,
     };
+    use windows_sys::Win32::System::Threading::{GetCurrentProcess, IsWow64Process2};
 
     use super::WindowsArchitecture;
 
@@ -876,9 +998,32 @@ mod windows_host {
             .then(|| PathBuf::from(OsString::from_wide(&buffer[..count])))
     }
 
+    /// The native machine. On ARM64 Windows an emulated x64 Portcove sees the
+    /// native folders, whose layout this assessment does not interpret.
+    fn native_machine() -> Option<u16> {
+        let (mut process, mut native) = (0, 0);
+        // SAFETY: the pseudo-handle is valid for this process and both outputs
+        // are writable.
+        (unsafe { IsWow64Process2(GetCurrentProcess(), &mut process, &mut native) } != 0)
+            .then_some(native)
+    }
+
+    /// Whether this host's folder layout is the one assessed here: native x64
+    /// Windows, or x86 Windows for a 32-bit build.
+    fn assessed_host() -> bool {
+        match native_machine() {
+            Some(IMAGE_FILE_MACHINE_AMD64) => true,
+            Some(IMAGE_FILE_MACHINE_I386) => cfg!(target_arch = "x86"),
+            _ => false,
+        }
+    }
+
     /// The folder Windows loads system DLLs from for programs of `architecture`,
     /// for the architectures this build can answer about.
     pub(super) fn system_folder(architecture: WindowsArchitecture) -> Option<PathBuf> {
+        if !assessed_host() {
+            return None;
+        }
         match architecture {
             #[cfg(target_arch = "x86_64")]
             WindowsArchitecture::X64 => folder(GetSystemDirectoryW),
@@ -893,13 +1038,18 @@ mod windows_host {
     /// Where the .NET host looks for shared frameworks of `architecture`: the
     /// registered install location, or the default one.
     pub(super) fn dotnet_root(architecture: WindowsArchitecture) -> Option<PathBuf> {
+        if !assessed_host() {
+            return None;
+        }
         let (key, default) = match architecture {
             #[cfg(target_arch = "x86_64")]
             WindowsArchitecture::X64 => ("x64", "ProgramW6432"),
             WindowsArchitecture::X86 => ("x86", "ProgramFiles(x86)"),
             _ => return None,
         };
-        if let Some(location) = registered_location(key) {
+        // Only an absent registration falls back to the default location; any
+        // other registry failure leaves the location unknown.
+        if let Some(location) = registered_location(key)? {
             return Some(location);
         }
         std::env::var_os(default).map(|programs| PathBuf::from(programs).join("dotnet"))
@@ -912,7 +1062,9 @@ mod windows_host {
             .collect()
     }
 
-    fn registered_location(architecture: &str) -> Option<PathBuf> {
+    /// `Some(None)` when nothing is registered, `None` when the registry could
+    /// not be read.
+    fn registered_location(architecture: &str) -> Option<Option<PathBuf>> {
         let key = wide(&format!(
             "SOFTWARE\\dotnet\\Setup\\InstalledVersions\\{architecture}"
         ));
@@ -932,6 +1084,9 @@ mod windows_host {
                 &mut bytes,
             )
         };
+        if status == ERROR_FILE_NOT_FOUND {
+            return Some(None);
+        }
         if status != ERROR_SUCCESS {
             return None;
         }
@@ -939,6 +1094,6 @@ mod windows_host {
         while let Some((&0, rest)) = value.split_last() {
             value = rest;
         }
-        (!value.is_empty()).then(|| PathBuf::from(OsString::from_wide(value)))
+        (!value.is_empty()).then(|| Some(PathBuf::from(OsString::from_wide(value))))
     }
 }

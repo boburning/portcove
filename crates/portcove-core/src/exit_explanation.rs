@@ -34,7 +34,7 @@ const ENTRIES: &[Entry] = &[
         status: 0xC000_0135,
         key: "dll_not_found",
         explanation: "A required DLL or runtime is most likely missing.",
-        next_action: "Install the runtime the game's page lists, then try again.",
+        next_action: "Check the game's page for a Microsoft runtime to install, then try again.",
     },
     Entry {
         status: 0xC000_007B,

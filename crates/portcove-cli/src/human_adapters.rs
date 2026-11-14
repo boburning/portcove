@@ -680,7 +680,15 @@ mod tests {
         .unwrap();
         let mut explained = view(&failed);
         explained.runtime_prerequisites = Some(report);
-        assert!(launch_record(Some(&explained), "r", None, false).contains("most likely missing"));
+        let text = launch_record(Some(&explained), "r", None, false);
+        assert!(
+            text.contains("DirectX End-User Runtime (June 2010), x86: most likely missing"),
+            "{text}"
+        );
+        assert!(
+            text.contains(portcove_core::DIRECTX_DOWNLOAD_PAGE),
+            "{text}"
+        );
         explained.runtime_prerequisites = Some(unknown);
         assert!(!launch_record(Some(&explained), "r", None, false).contains("Microsoft runtimes"));
         failed.exit_code = Some(3);

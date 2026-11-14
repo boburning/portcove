@@ -68,7 +68,7 @@ const notice = () => document.body.querySelector("[data-runtime-prerequisites]")
 it("names only the runtimes Core reports missing, with Microsoft's download page", async () => {
   const load = vi.fn().mockResolvedValue(report("missing"));
   await show(load, installed);
-  expect(load).toHaveBeenCalledWith("p", 1);
+  expect(load).toHaveBeenCalledWith("p", "i1", 1);
   const text = notice()?.textContent ?? "";
   expect(text).toContain("Windows is most likely missing something this game needs to start");
   expect(text).toContain("DirectX End-User Runtime (June 2010) (x86)");
@@ -106,6 +106,14 @@ it("reads nothing without a current installation and follows an external registr
   expect(notice()).toBeNull();
   await show(load, { external_runtime: { id: "e1" } } as unknown as PortStatus);
   expect(notice()).not.toBeNull();
+  expect(load).toHaveBeenLastCalledWith("p", "e1", 1);
+});
+
+it("does not re-read program files when only the status object refreshes", async () => {
+  const load = vi.fn().mockResolvedValue(report("missing"));
+  await show(load, { active: { id: "i1" } } as unknown as PortStatus);
+  await show(load, { active: { id: "i1" }, channel: "stable" } as unknown as PortStatus);
+  expect(load).toHaveBeenCalledOnce();
 });
 
 it("never shows a report for an installation that is no longer current", async () => {

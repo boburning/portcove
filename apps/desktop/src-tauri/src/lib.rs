@@ -1873,18 +1873,19 @@ async fn get_launch_failure(
     .await
 }
 
-/// Microsoft runtimes the port's current installation most likely needs, or
-/// `None` when nothing is installed. Read on request because it opens program files.
+/// Microsoft runtimes the given installation most likely needs, or `None` once it
+/// is no longer the port's current one. Read on request because it opens program files.
 #[tauri::command]
 async fn get_runtime_prerequisites(
     state: tauri::State<'_, DesktopState>,
     port_id: String,
+    install_id: String,
     generation: u64,
 ) -> DesktopResult<Option<portcove_core::RuntimePrerequisiteReport>> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let library = library_at_generation(&state, generation)?;
-        let report = library.runtime_prerequisites(&port_id)?;
+        let report = library.installation_runtime_prerequisites(&port_id, &install_id)?;
         require_library_generation(state_generation(&state), generation)?;
         Ok(report)
     })

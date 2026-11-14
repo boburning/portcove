@@ -22,10 +22,15 @@ export function RuntimePrerequisiteNotice({
   portId: string;
   generation: number;
   status?: PortStatus | undefined;
-  load?: (portId: string, generation: number) => Promise<RuntimePrerequisiteReport | null>;
+  load?: (
+    portId: string,
+    installId: string,
+    generation: number,
+  ) => Promise<RuntimePrerequisiteReport | null>;
 }) {
   // The report describes one installation; keying by it keeps a stale answer for
-  // another game, library generation or installation from being shown.
+  // another game, library generation or installation from being shown. Status
+  // refreshes do not re-read program files for the same installation.
   const currentInstall = status?.active?.id ?? status?.external_runtime?.id;
   const requestKey = `${portId}:${generation}:${currentInstall ?? ""}`;
   const [loaded, setLoaded] = useState<{
@@ -36,7 +41,7 @@ export function RuntimePrerequisiteNotice({
   useEffect(() => {
     if (currentInstall === undefined) return;
     let current = true;
-    load(portId, generation).then(
+    load(portId, currentInstall, generation).then(
       (report) => {
         if (current) setLoaded({ key: requestKey, report });
       },
@@ -48,7 +53,7 @@ export function RuntimePrerequisiteNotice({
     return () => {
       current = false;
     };
-  }, [portId, generation, currentInstall, requestKey, status, load]);
+  }, [portId, generation, currentInstall, requestKey, load]);
   const report = loaded?.key === requestKey ? loaded.report : null;
   const missing = report?.requirements.filter((requirement) => requirement.presence === "missing");
   if (currentInstall === undefined || !missing?.length) return null;

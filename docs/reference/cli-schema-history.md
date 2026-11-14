@@ -40,6 +40,14 @@ is not usable there; the rest of the catalog is unaffected.
 
 ## Documented API changes
 
+Within API91, the read-only `installation runtimes` command and its
+`runtime_prerequisite_report` result are additive and advertised in
+`capabilities`. The optional `runtime_prerequisites` field on `launch show` and
+`launch recover` results is also additive. No existing field changes meaning,
+and no Library, metadata or handoff schema changes, so `API_SCHEMA_VERSION`
+stays 91. Clients that ignore the field or never call the command see unchanged
+results.
+
 API91 adds the report-only `artwork steamgriddb check-listings` command and its
 `steamgriddb_listing_report` result: for each stored SteamGridDB image, whether a
 verified listing still includes it (`listed`, `not_listed` or `unknown` with a
