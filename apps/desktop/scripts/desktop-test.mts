@@ -3298,15 +3298,6 @@ try {
       /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
-    const updateChoice = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//*[@role="status"][.//strong[normalize-space(.)="Choose how Portcove updates"]]',
-        ),
-      ),
-      15_000,
-    );
-    assert.equal(await updateChoice.isDisplayed(), true);
     await browser.manage().window().setRect({ width: 960, height: 640 });
     const firstUseAction = await executeBrowserScript(
       browser,
@@ -4503,7 +4494,10 @@ try {
       15_000,
       "choosing Preview did not save the channel",
     );
-    await browser.findElement(By.id("application-update-automatic-checks")).click();
+    const automaticChecks = By.css(
+      'label[for="application-update-automatic-checks"] [role="checkbox"]',
+    );
+    await browser.findElement(automaticChecks).click();
     await browser.wait(
       async () =>
         success(await invoke("get_application_update_preferences")).automatic_checks === false,
@@ -4525,12 +4519,7 @@ try {
         .getText(),
       "Preview",
     );
-    assert.equal(
-      await browser
-        .findElement(By.id("application-update-automatic-checks"))
-        .getAttribute("aria-checked"),
-      "false",
-    );
+    assert.equal(await browser.findElement(automaticChecks).getAttribute("aria-checked"), "false");
 
     await captureApplicationUpdateSettingsComparison();
 

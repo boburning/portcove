@@ -22,7 +22,6 @@ import {
 const reviewedInstallAction = "taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b"; // v2.90.1
 const prepareHostedWebview = "./.github/actions/prepare-hosted-webview";
 
-
 void test("candidate consumer selects only existing selected, compiled and history jobs", () => {
   const jobs = workflowJobs(nativeDesignCompatibilityWorkflow);
   const consumers = Object.entries(jobs).filter(
@@ -324,7 +323,8 @@ void test("fixed native product groups preserve owned lifecycle coverage and iso
   assert.ok(Array.isArray(job.steps));
   const steps = job.steps.filter(isRecord);
   const bootstrap = steps.findIndex(
-    (step) => typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
+    (step) =>
+      typeof step.run === "string" && step.run.includes("bootstrap-quality-tools.ps1 -Desktop"),
   );
   const prepare = steps.findIndex((step) => step.uses === prepareHostedWebview);
   assert.ok(prepare >= 0 && prepare < bootstrap);
