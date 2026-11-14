@@ -3681,6 +3681,39 @@ managed runtime, or changing a source registration/channel through another
 client, never deletes these private archives; later Apply must freshly validate
 those changed facts and cannot resurrect a removed installation.
 
+### Update review release notes
+
+`GameUpdatePlan.release_notes` is informational. For GitHub and GitLab ports
+the provider reads the release-list pages it already persisted in the
+conditional HTTP cache while resolving the offered release; building the notes
+sends no request and spends no API budget, so a review works offline with
+whatever is cached. A later cached page is joined only when it was confirmed
+within five minutes of the first page, so the list is one observation and never
+has a silent gap. Entries run from the offered release (inclusive) to the
+installed version (exclusive), newest first, under the release-selection rules:
+drafts, upcoming releases, releases outside this platform's native stream and
+unrelated rolling tags are skipped, a stable channel skips prereleases, and
+repeated tags keep their first listing. A rolling channel lists only the offered
+tag. At most 20 releases and 4,000 characters per release are kept. `coverage`
+says whether the list is complete, shortened, missing the installed version,
+limited to the offered release because the installed version is newer, or
+limited to a rolling release's current notes. An already active release carries
+no notes.
+
+Notes, titles and versions are untrusted upstream text. Core removes complete
+HTML comments, control characters and bidirectional or invisible formatting
+characters (zero-width joiners stay), keeps at most one blank line in a row,
+bounds every value and drops malformed timestamps; Desktop renders the text
+escaped, with no Markdown, HTML or embedded links. The only link is the
+project's release list page, built by Core from the provider origin and
+repository and kept only when it passes the reviewed-link check that Desktop
+applies before opening any URL; if that check cannot complete, the link is
+dropped and the review continues. Per-release links would need a reviewed
+allowlist change. An uncached or unlisted offered release yields no entries;
+with no entries and no openable link the review carries no value, as do direct
+manifest and user-prepared ports. The notes are excluded from `plan_sha256`,
+so edited upstream text never invalidates a reviewed update.
+
 ## Cooperative operation cancellation
 
 Restart recovery retains a structured Core failure for an unrequested interrupted

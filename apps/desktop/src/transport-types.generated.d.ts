@@ -742,6 +742,11 @@ export type GameSettingChange =
   | {
       action: "reset";
     };
+/**
+ * How far `UpdateReleaseNotes::entries` reaches toward the installed version.
+ */
+export type UpdateReleaseNotesCoverage =
+  "complete" | "shortened" | "installed_not_listed" | "installed_newer" | "rolling_release" | "unavailable";
 export type GithubAuthSource = "anonymous" | "environment" | "credential_store";
 export type GithubDeviceLoginState = "pending" | "complete";
 export type HostToolProbeState =
@@ -4059,6 +4064,12 @@ export interface OutputGameUpdatePlan {
   data_transition?: ArchiveDataTransitionReview | null;
   plan: InstallPlan;
   plan_sha256: string;
+  /**
+   * Informational upstream notes for this review. Read from cached provider
+   * metadata only, excluded from `plan_sha256`, never authority. Absent when
+   * the provider has no hosted release page.
+   */
+  release_notes?: UpdateReleaseNotes | null;
   [k: string]: unknown;
 }
 /**
@@ -4079,6 +4090,40 @@ export interface ArchiveDataTransitionReview {
   producing_archive_sha256: string;
   retained_installations: number;
   temporary_space: InstallSpaceRequirement;
+  [k: string]: unknown;
+}
+/**
+ * Upstream releases between the installed version (exclusive) and the offered
+ * version (inclusive), newest first. Notes are untrusted plain text.
+ */
+export interface UpdateReleaseNotes {
+  coverage: UpdateReleaseNotesCoverage;
+  /**
+   * Empty when the notes are unknown: not cached, or the offered release is not listed.
+   */
+  entries: UpdateReleaseNotesEntry[];
+  /**
+   * The project's release list page. Present only when Desktop may open it: it is
+   * built by Portcove and passes the same reviewed-link check as other handoffs.
+   */
+  releases_url?: string | null;
+  [k: string]: unknown;
+}
+export interface UpdateReleaseNotesEntry {
+  /**
+   * Normalized plain text; may contain unrendered Markdown or HTML source.
+   */
+  notes: string;
+  notes_truncated: boolean;
+  /**
+   * Provider timestamp in RFC 3339 shape; absent when missing or malformed.
+   */
+  published_at?: string | null;
+  title?: string | null;
+  /**
+   * The release tag, normalized for display.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputGhostshipRecoveryPlan {

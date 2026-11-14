@@ -114,6 +114,7 @@ mod recomp_mod_list;
 mod recovery;
 mod relative_file_set;
 mod release;
+mod release_notes;
 mod retained_build;
 mod rom_patch;
 mod runtime;

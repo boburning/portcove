@@ -1690,7 +1690,9 @@ reviews the exact game release and stage/activate action before execution, and
 allows exact staged activation without contacting upstream. A stale release,
 source registration, destination, definition, retained state or chosen action
 requires a new review. The exported `game_update_plan` schema describes this
-core-owned review contract. The desktop's Install action activates the requested
+core-owned review contract. Its optional `release_notes` field is informational
+upstream text read from cached release lists, outside the review digest; see
+[update review release notes](ARCHITECTURE.md#update-review-release-notes). The desktop's Install action activates the requested
 installation; a saved Stage preference cannot silently turn that action into
 staging. These are game-update operations, separate from the signed Portcove
 application updater.
