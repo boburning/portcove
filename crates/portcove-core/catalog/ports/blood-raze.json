@@ -87,6 +87,12 @@
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
       "manual_preparation": "Choose Install, then Play. In Raze, choose the detected game and edition, or add the folder holding your own original game files. Keep your originals where they are. The managed Windows player keeps its configuration (raze_portable.ini), saves, screenshots and demos beside it; its normal-profile settings are not imported. Raze keeps some caches under your Windows local application data folder outside Portcove."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["soundfonts"],
+        "executables": ["raze.exe"]
+      }
     }
   }
 }

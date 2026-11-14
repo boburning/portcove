@@ -420,7 +420,7 @@ const confirm = nativeConfirmation({ application: 'C:\\owned.exe', getDriverPid:
 await assert.rejects(confirm('fixture', '__observe__', 'fixture', 'failed'), error => error.actual === 1 && error.message.includes('original failure'));
 assert.deepEqual(artifacts, [path.join(output, 'failed-helper-result.json')]);
 assert.equal(globalThis.calls.length, 1);
-assert.deepEqual(globalThis.calls[0][2], { encoding: 'utf8', windowsHide: true, timeout: 15_000 });
+assert.deepEqual(globalThis.calls[0][2], { encoding: 'utf8', windowsHide: true, timeout: 45_000 });
 `,
     );
     assert.equal(result.status, 0, result.stderr);

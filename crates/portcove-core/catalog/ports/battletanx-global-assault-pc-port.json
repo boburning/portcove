@@ -8,7 +8,7 @@
     "issue_number": 2003,
     "listed_at": "2026-10-23",
     "availability": "packages",
-    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md",
+    "setup_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme",
     "artwork": {
       "game_id": 47685,
       "cover_id": 110864,
@@ -17,7 +17,7 @@
       "game_slug": "battletanx-global-assault",
       "match_kind": "underlying-game"
     },
-    "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases/tag/v0.2.5",
+    "release_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/releases",
     "manual_setup": {
       "steps": [
         {
@@ -26,7 +26,7 @@
         }
       ],
       "warnings": [],
-      "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port/blob/v0.2.5/README.md"
+      "help_url": "https://github.com/TheGh0stShip/BattleTanx-Global-Assault-PC-Port#readme"
     },
     "original_game_title": "BattleTanx: Global Assault"
   },

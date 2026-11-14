@@ -374,14 +374,14 @@ async function progressiveScanNavigation({
               );
               return (
                 [...(row?.querySelectorAll("button") ?? [])].find(
-                  (item) => item.textContent.trim() === "Relink",
+                  (item) => item.textContent.trim() === "Update folder location",
                 ) ?? null
               );
             },
             root.path,
           ),
         5_000,
-        "The remounted saved-folder read must expose the owned root's Relink control",
+        "The remounted saved-folder read must expose the owned root's Update folder location control",
       );
       assert.ok(ownedRelink);
       assert.equal(await ownedRelink.isEnabled(), false);
@@ -1405,7 +1405,7 @@ async function preliminarySourceReviewScenario(context: SelectedSetupContext) {
       );
       assert.match(await row.getText(), /Validation has not run\./);
       const reviewButton = await row.findElement(
-        By.xpath('.//button[normalize-space(.)="Review preliminary selection"]'),
+        By.xpath('.//button[normalize-space(.)="Check these files"]'),
       );
       assert.equal(await reviewButton.isEnabled(), true);
       const resultScreenshot = path.join(output, "preliminary-selection.png");

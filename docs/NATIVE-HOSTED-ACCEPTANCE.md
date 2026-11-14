@@ -208,7 +208,10 @@ standard public Windows setup and native runner as `presentation`. A source-owne
 matrix contains fixed scenario arrays; no dispatch input supplies commands,
 scenario names or alternate source. Each group receives a fresh hosted machine
 and output/temp roots. At most four groups run concurrently, each with a finite
-60-minute outer allowance and unchanged native child deadlines.
+90-minute outer allowance (calibrated from 60 under #4879: about 23 minutes of
+checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
+the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
+at 60) and unchanged product deadlines.
 
 Six bounded groups retain the entire maintained `owned-lifecycle` selection and
 its dependency closure: ready/return/preferences, preparation recovery,
@@ -236,7 +239,10 @@ services WebView2 and before it publishes that driver, the exact match cannot be
 met (run 43338537697: runtime 157.0.4341.57, driver 404). The step after
 provisioning checks for that driver once a minute for at most 20 minutes, records
 `webview2-driver-availability.json` when it is available, and otherwise stops the
-group before bootstrap with the runtime version and a re-run instruction. On the elevated runner
+group before bootstrap with the runtime version and a re-run instruction. A check
+that gets no response or a server error is retried within the same bound (run
+43502064190 lost `staged-update` to one connection timeout); any other status stops
+the group at once. On the elevated runner
 WebView2 ignores the driver's `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, so the
 step also sets the WebView2 `AdditionalBrowserArguments` machine policy for
 `portcove-desktop.exe` to `--remote-debugging-port=0`; without it no session can

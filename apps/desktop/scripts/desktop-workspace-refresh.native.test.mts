@@ -283,6 +283,7 @@ async function sourceFormatContract(subject: Workspace) {
           source: "current",
           blockers: ["incompatible_source"],
           required_source_extension: "z64",
+          pending_setup: false,
         },
         port_actions: [
           { action: "launch", availability: "waiting", reason: "incompatible_source" },

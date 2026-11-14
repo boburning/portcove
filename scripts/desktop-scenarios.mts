@@ -1009,6 +1009,17 @@ export function desktopHarnessDeadlineMs(
       selection.setup_scenarios.includes("native-library-move-invalidates-prior-reviews")
       ? 300_000
       : 0,
+    // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
+    // 76 s and interrupted recovery was still in its native cleanup confirmations
+    // (up to 60 s each) after 87 s when the watchdog stopped it. Harness only.
+    selection.selected_scenarios.includes("native-interrupted-preparation-recovery") ? 420_000 : 0,
+    // Calibrated from 180 s (#4879): hosted Windows Steam reviews and confirmed writes
+    // stay pending past 15 s each (now bounded at 60 s), and the two journeys make
+    // seven such operations plus native consents. Harness only.
+    selection.selected_scenarios.includes("native-reviewed-steam-batch-add") ||
+      selection.selected_scenarios.includes("native-reviewed-steam-entry-add-and-remove")
+      ? 600_000
+      : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(
     "native-default-cover-cache-conditions",

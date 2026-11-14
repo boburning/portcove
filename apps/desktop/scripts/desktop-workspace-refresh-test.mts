@@ -89,7 +89,7 @@ import { ownedFixtureCommand } from "./desktop-scenario-state.mts";
 import assert from "node:assert/strict";
 import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
-import { By, until } from "selenium-webdriver";
+import { By, until, type WebElement } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
 
 export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
@@ -263,6 +263,13 @@ export const releaseReconciliationSupportGate = () => {
   probe.releaseSupport?.();
 };
 
+// The passive probe applies only on a full snapshot read. A visible, unchanged
+// workspace polls every 10 s but reads the full snapshot only once the previous
+// full read is 60 s old (use-workspace-data.ts canRefreshActivities). One full-read
+// cadence plus one poll and rendering margin; was 10 s, then 25 s, both of which
+// expired on hosted Windows before that read.
+const sourceFormatRefreshBudgetMs = 90_000;
+
 export const installSourceFormatProbe = (portId: string) => {
   const previous = window.fetch;
   const runtime = window as RefreshWindow;
@@ -316,6 +323,9 @@ export const installSourceFormatProbe = (portId: string) => {
               source: "current",
               blockers: ["incompatible_source"],
               required_source_extension: "z64",
+              // A coherent injected state: setup is complete, only the file format
+              // blocks launch. Pending setup would correctly take precedence.
+              pending_setup: false,
             },
             port_actions: assessments.map((assessment) =>
               assessment.action === "launch"
@@ -405,8 +415,21 @@ export async function workspaceRefreshScenario({
         flag: "wx",
       });
       artifacts.push(screenshot);
-      await retry.click();
-      await browser.wait(until.stalenessOf(retry), 10_000);
+      // The banner can re-render during the captures above; act on the current one.
+      // An automatic refresh can still be running ("Refreshing library…", disabled);
+      // wait for the settled, enabled retry action before acting on it.
+      const currentRetry = await browser.wait<WebElement>(
+        async () => {
+          const [candidate] = await browser.findElements(
+            By.xpath('//button[normalize-space(.)="Retry refresh"]'),
+          );
+          return candidate && (await candidate.isEnabled()) ? candidate : undefined;
+        },
+        30_000,
+        "Retry refresh did not become available after the failed refresh settled",
+      );
+      await currentRetry.click();
+      await browser.wait(until.stalenessOf(currentRetry), 10_000);
       await browser.wait(
         async () =>
           executeBrowserScript(
@@ -432,9 +455,12 @@ export async function workspaceRefreshScenario({
         }),
         1,
       );
-      assert.equal(
-        observations.commands.filter((command) => command === "get_workspace_snapshot").length,
-        2,
+      // The failed read and the retry read, plus any visible-idle poll (every 10 s,
+      // use-workspace-data.ts) or focus refetch in between. Every command stays
+      // read-only below, so a retry still never repeats a mutation.
+      assert.ok(
+        observations.commands.filter((command) => command === "get_workspace_snapshot").length >= 2,
+        JSON.stringify(observations.commands),
       );
       assert.equal(
         observations.commands.filter((command) => command === "discover_orphaned_operations")
@@ -673,10 +699,12 @@ export async function workspaceRefreshScenario({
         await executeBrowserScript(browser, installSourceFormatProbe, port.id);
         const expected =
           "This runtime requires an uncompressed .z64 game file. Select and validate that file before playing.";
+        // The probe rewrites only the next full snapshot read (see sourceFormatRefreshBudgetMs).
         await browser.wait(
           async () =>
             (await browser.findElement(By.css(".detail-panel")).getText()).includes(expected),
-          10_000,
+          sourceFormatRefreshBudgetMs,
+          "Injected source-format guidance did not render within one full-read cadence",
         );
         const launchControls = await browser.findElements(
           By.xpath(
@@ -725,7 +753,8 @@ export async function workspaceRefreshScenario({
           !(await browser.findElement(By.css(".detail-panel")).getText()).includes(
             "This runtime requires an uncompressed .z64 game file.",
           ),
-        10_000,
+        sourceFormatRefreshBudgetMs,
+        "Restored Core status did not replace the injected guidance within one full-read cadence",
       );
     } finally {
       const probe = await executeBrowserScript(browser, restoreExternalReconciliationProbe);

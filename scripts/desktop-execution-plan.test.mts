@@ -896,7 +896,8 @@ void test("Steam batch adds Windows custody without changing builds, setup or cl
       "keyboard-pointer",
       "native-dialog",
     ]);
-    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+    // Calibrated for hosted Steam review/apply operations (#4879).
+    assert.equal(desktopHarnessDeadlineMs(selection), 600000);
   }
   for (const [other, cleanupName] of [
     ["native-reviewed-backup-restore-and-delete", "backup-review"],
