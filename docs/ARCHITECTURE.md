@@ -1271,7 +1271,9 @@ Backup inventory probes the per-port lock to distinguish live staging from idle
 owned preparation without changing the lock owner payload. Read-only game-settings
 views hold a shared port lock: they admit each other, block writers only for the
 read, and never replace the owner record. A port writer refused only by shared
-readers retries for at most two seconds, then reports the port busy with
+readers retries for at most thirty seconds, because one settings view reads status,
+the retained catalog and critical files under its shared lock, then reports the
+port busy with
 `held_by: read_only_views`; a writer refused by another exclusive holder reports
 it at once with the last published writer's operation, which is advisory because
 inventory probes publish no record. Probes never wait. The detailed backup
@@ -1550,8 +1552,8 @@ whole operation. An in-process settings access lock, taken exclusively before th
 two-second drain makes a switch or transfer report the library as in use and restore
 the previous state. Within one process, Core admits no new shared port reader while a
 writer waits for existing readers, so overlapping read-only views cannot keep a player
-action refused as busy; every such wait stays within the writer's two-second yield
-budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
+action refused as busy; every such wait stays within the writer's thirty-second
+yield budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 
