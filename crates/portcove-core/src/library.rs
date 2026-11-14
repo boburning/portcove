@@ -291,6 +291,49 @@ enum LockMode {
 /// Longest a writer waits for read-only views that hold a port lock.
 const READER_YIELD_BUDGET: std::time::Duration = std::time::Duration::from_secs(2);
 
+/// Port writers in this process currently waiting for read-only views, by lock
+/// file. New shared readers in this process hold off while one waits, so a
+/// stream of overlapping reads cannot keep a player action refused as busy.
+/// Readers in other processes are not ordered; they still drain or refuse as
+/// before. Every wait remains bounded by [`READER_YIELD_BUDGET`].
+static WAITING_PORT_WRITERS: std::sync::LazyLock<
+    std::sync::Mutex<std::collections::HashMap<PathBuf, usize>>,
+> = std::sync::LazyLock::new(Default::default);
+
+fn waiting_port_writers()
+-> std::sync::MutexGuard<'static, std::collections::HashMap<PathBuf, usize>> {
+    // The map holds only counters, so a panicked holder leaves nothing to repair.
+    WAITING_PORT_WRITERS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Registers one waiting writer until dropped.
+struct WaitingPortWriter(PathBuf);
+
+impl WaitingPortWriter {
+    fn register(path: PathBuf) -> Self {
+        *waiting_port_writers().entry(path.clone()).or_default() += 1;
+        Self(path)
+    }
+}
+
+impl Drop for WaitingPortWriter {
+    fn drop(&mut self) {
+        let mut waiting = waiting_port_writers();
+        if let Some(count) = waiting.get_mut(&self.0) {
+            *count -= 1;
+            if *count == 0 {
+                waiting.remove(&self.0);
+            }
+        }
+    }
+}
+
+fn port_writer_waiting(path: &Path) -> bool {
+    waiting_port_writers().contains_key(path)
+}
+
 #[derive(Debug)]
 pub struct PortOperationGuard {
     file: File,
@@ -1197,6 +1240,16 @@ impl Library {
         let file = self.open_lock_file(key)?;
         let deadline = std::time::Instant::now() + READER_YIELD_BUDGET;
         let mut refused_by_readers = false;
+        let lock_path = self.locks_dir().join(format!("{key}.lock"));
+        if mode == LockMode::Shared {
+            // Let a waiting writer in this process acquire before admitting
+            // another reader. A reader nested inside one the writer waits for
+            // is delayed at most until that writer's own budget ends.
+            while port_writer_waiting(&lock_path) && std::time::Instant::now() < deadline {
+                std::thread::sleep(std::time::Duration::from_millis(10));
+            }
+        }
+        let mut waiting_writer = None;
         let attempt = loop {
             let attempt = match mode {
                 LockMode::Exclusive | LockMode::ExclusiveYieldingToReaders => file.try_lock(),
@@ -1209,12 +1262,15 @@ impl Library {
             {
                 refused_by_readers = self.lock_held_only_by_readers(key);
                 if refused_by_readers && std::time::Instant::now() < deadline {
+                    waiting_writer
+                        .get_or_insert_with(|| WaitingPortWriter::register(lock_path.clone()));
                     std::thread::sleep(std::time::Duration::from_millis(10));
                     continue;
                 }
             }
             break attempt;
         };
+        drop(waiting_writer);
         if let Err(error) = attempt {
             if matches!(error, std::fs::TryLockError::WouldBlock) {
                 let mut refusal = PortcoveError::conflict(format!(
@@ -4882,6 +4938,46 @@ mod tests {
         let refused = second.try_lock_port("lighthouse", "update").unwrap_err();
         assert!(!refused.details.contains_key("last_owner_operation"));
         drop(held);
+    }
+
+    #[test]
+    fn overlapping_in_process_reads_cannot_starve_a_waiting_writer() {
+        let temporary = tempdir().unwrap();
+        let library = Library::open(temporary.path()).unwrap();
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        // Two readers alternate so a shared lock is always held unless new
+        // readers hold off for the waiting writer.
+        let readers = (0..2)
+            .map(|offset| {
+                let library = library.clone();
+                let stop = stop.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(offset * 30));
+                    while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                        if let Ok(guard) =
+                            library.try_read_lock_port("lighthouse", "read-capabilities")
+                        {
+                            std::thread::sleep(std::time::Duration::from_millis(60));
+                            drop(guard);
+                        }
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        let result = library.try_lock_port("lighthouse", "remove");
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        drop(result.as_ref().ok());
+        for reader in readers {
+            reader.join().unwrap();
+        }
+        result.expect("a waiting writer must acquire between overlapping reads");
+        assert!(!port_writer_waiting(&temporary.path().join("locks").join(
+            format!(
+                "{}.lock",
+                hex::encode(Sha256::digest("lighthouse".as_bytes()))
+            )
+        )));
     }
 
     #[test]

@@ -1468,7 +1468,10 @@ lock, and reject a result whose generation changed meanwhile, so one slow read c
 queue every other command behind it. Applying a game setting keeps the lock for its
 whole operation. An in-process settings access lock, taken exclusively before the adapter lock by the apply and after releasing it by a setting review, and shared by those reads, keeps a read from meeting either one's exclusive port lock, which would refuse it. Like other reads, one still running after the
 two-second drain makes a switch or transfer report the library as in use and restore
-the previous state. Core still owns library leases, copy verification,
+the previous state. Within one process, Core admits no new shared port reader while a
+writer waits for existing readers, so overlapping read-only views cannot keep a player
+action refused as busy; every such wait stays within the writer's two-second yield
+budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 
