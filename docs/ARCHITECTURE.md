@@ -1072,10 +1072,9 @@ immutable manifest digest covers both the snapshot and admission record. Format 
 continues to retain canonical legacy catalog content. Format 2 remains readable as
 exact supplied successor content but does not acquire invented authentication.
 Pure decode caching is bounded to one exact format/content pair and never caches
-filesystem integrity, source admission or revocation decisions. The index keeps
-its 4 MiB bound and the entry and shared leaf each keep the 16 MiB content bound
-(4 MiB before writer protocol 60); the three retained components total at most
-36 MiB before JSON string encoding and decoding overhead.
+filesystem integrity, source admission or revocation decisions. Each content
+component keeps its existing 4 MiB bound; the three retained components total at
+most 12 MiB before JSON string encoding and decoding overhead.
 
 SQLite writer protocols 25 and 27 prevent older clients from discarding exact
 successor bytes and authenticated admission provenance respectively. They change

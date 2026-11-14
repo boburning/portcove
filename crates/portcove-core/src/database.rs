@@ -386,8 +386,8 @@ const MIGRATIONS: &[Migration] = &[
 ];
 
 fn migration_60(transaction: &Transaction<'_>) -> Result<()> {
-    // The signed catalog, retained format-1 catalog and definition content
-    // bounds rise from 4 MiB to 16 MiB. Older clients enforce 4 MiB and would
+    // The signed catalog and retained format-1 catalog bounds rise from 4 MiB
+    // to 16 MiB. Older clients enforce 4 MiB and would
     // refuse larger retained content they read, so the ledger is also the
     // writer protocol: they refuse this library as newer before reading or
     // replacing anything. The table rebuild only widens the BLOB checks.
@@ -3374,7 +3374,8 @@ mod tests {
 
     #[test]
     fn catalog_bound_migration_preserves_selection_and_raises_only_the_bound() {
-        use crate::signed_catalog::{LEGACY_MAX_CATALOG_BYTES, MAX_CATALOG_BYTES};
+        use crate::catalog_store::CATALOG_BOUND_V60;
+        use crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES;
         let temporary = tempdir().unwrap();
         let root = temporary.path();
         prepare_root(root);
@@ -3440,8 +3441,37 @@ mod tests {
             &connection,
             LEGACY_MAX_CATALOG_BYTES + 1
         ));
-        assert!(accepts_catalog_blob(&connection, MAX_CATALOG_BYTES));
-        assert!(!accepts_catalog_blob(&connection, MAX_CATALOG_BYTES + 1));
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60));
+        assert!(!accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+    }
+
+    #[test]
+    fn schema_60_verification_is_frozen_and_survives_a_later_wider_bound() {
+        use crate::catalog_store::{CATALOG_BOUND_V60, rebuild_catalog_state};
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 60).unwrap();
+        let mut connection = connect(root).unwrap();
+        // A future migration may widen the checks again. Re-verifying recorded
+        // migration 60 on open must still accept the library.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 * 2).unwrap();
+        transaction.commit().unwrap();
+        for migration in MIGRATIONS {
+            (migration.verify)(&connection).unwrap();
+        }
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+        connection
+            .execute("UPDATE catalog_state SET previous=NULL", [])
+            .unwrap();
+        // Narrower than schema 60 is a partially applied migration.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 - 1).unwrap();
+        transaction.commit().unwrap();
+        assert!(crate::catalog_store::verify_catalog_bound(&connection).is_err());
+        drop(connection);
+        assert!(migrate_to(root, CURRENT_SCHEMA_VERSION).is_err());
     }
 
     #[test]

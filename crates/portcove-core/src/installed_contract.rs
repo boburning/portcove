@@ -781,14 +781,10 @@ mod tests {
             crate::test_fixture::indexed_catalog(&Catalog::embedded().unwrap(), "zelda64-recomp");
         let contract = InstalledContract::capture(&catalog, "zelda64-recomp").unwrap();
         let original = serde_json::to_value(&contract).unwrap();
-        let content = crate::definition_index::MAX_CONTENT_BYTES as usize;
-        for (field, bound) in [
-            ("index_json", crate::definition_index::MAX_INDEX_BYTES),
-            ("entry_json", content),
-            ("contract_json", content),
-        ] {
+        for field in ["index_json", "entry_json", "contract_json"] {
             let mut changed = original.clone();
-            changed["definition"][field] = serde_json::json!(" ".repeat(bound + 1));
+            changed["definition"][field] =
+                serde_json::json!(" ".repeat(crate::definition_index::MAX_INDEX_BYTES + 1));
             let decoded: InstalledContract = serde_json::from_value(changed).unwrap();
             assert!(
                 decoded

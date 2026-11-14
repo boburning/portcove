@@ -108,18 +108,32 @@ Core's `MAX_CATALOG_BYTES` is 16 MiB (16777216 bytes). It bounds the signed
 envelope, the local or HTTPS catalog read (refused from the declared length or as
 the stream passes the bound), the stored active and previous envelopes, a retained
 format-1 installation catalog, the projected catalog and `catalog inspect-proposal`
-input. Content above it is refused whole; nothing is truncated to fit. Indexed
-definition content targets move with it, because one target can carry the
-complete catalog projection; the 4 MiB index bound is unchanged.
+input. Content above it is refused whole; nothing is truncated to fit.
+
+Other bounds stay smaller and are not raised by this change:
+
+- Indexed definition content targets, including a full catalog projection, keep
+  `definition_index::MAX_CONTENT_BYTES` (4 MiB), and the index keeps 4 MiB.
+  Selected-definition storage allows 16 MiB including JSON escaping.
+- Listing and artwork browsing read retained registration catalogs under an
+  8 MiB budget (`service/listings.rs`, `artwork.rs`), so their effective
+  per-entry ceiling is 8 MiB.
+- Independent 4 MiB consumers: the upstream health monitor's compact catalog
+  check (`scripts/upstream-health-monitor.mts`), and the definition repository
+  publisher's index, content leaf, definition-role target and TUF snapshot limits
+  (`portcove-release-tools`: `definition_repository/bundle.rs`,
+  `definition_repository/repository.rs`, `definition_repository.rs`).
+
+The size guard below keeps every catalog measure within those 4 MiB consumers.
 
 Library writer protocol 60 rebuilds the `catalog_state` table so its BLOB checks
 admit 16 MiB, copying the singleton selection, replay floor and both stored
 envelopes unchanged in the migration transaction. A failed rebuild rolls back to
 schema 59 with the 4 MiB table intact. Clients before schema 60 refuse a migrated
 library as newer before reading or writing it, and they still refuse a signed
-envelope, retained catalog or definition target above 4 MiB with their existing
+envelope or retained catalog above 4 MiB with their existing
 errors. They never accept or truncate larger content, but they would lose catalog
-updates and indexed definitions that outgrow 4 MiB.
+updates that outgrow 4 MiB.
 
 Until the owner retires those clients (#5894), the repository keeps the bytes
 they receive at most 85% of the 4 MiB floor (3565158 bytes).

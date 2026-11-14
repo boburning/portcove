@@ -306,7 +306,12 @@ void test("offline capacity diagnostics match the existing publisher envelope by
   assert.equal(report.representative_envelope_bytes, readFileSync(item.output).length);
 });
 
-void test("offline catalog signer accepts an envelope above the legacy 4 MiB floor", (t) => {
+void test("offline catalog signer accepts an envelope above the legacy 4 MiB floor", async (t) => {
+  const { capacityConstant } = await import("./catalog-capacity.mts");
+  const limit = capacityConstant(
+    readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
+    "MAX_CATALOG_BYTES",
+  );
   const item = fixture();
   t.after(() => rmSync(item.root, { recursive: true, force: true }));
   const catalog = JSON.stringify({ fixture: "x".repeat(4194304) });
@@ -315,7 +320,12 @@ void test("offline catalog signer accepts an envelope above the legacy 4 MiB flo
   assert.equal(result.status, 0, result.stderr);
   assert.ok(readFileSync(item.output).length > 4194304);
   const help = item.run(["--help"]);
-  assert.match(help.stdout, /16777216 bytes \(16 MiB\)/u);
+  assert.ok(help.stdout.includes(`at most ${limit} bytes (16 MiB)`));
+  assert.ok(help.stdout.includes(`fit within ${limit} bytes (16 MiB)`));
+  writeFileSync(item.catalog, Buffer.alloc(limit + 1, " "));
+  const refused = item.run(["--output", `${item.output}.over`]);
+  assert.notEqual(refused.status, 0);
+  assert.ok(refused.stderr.includes(`${limit}-byte read limit: received ${limit + 1} bytes`));
   assert.match(help.stdout, /catalog-capacity\.mts --check/u);
 });
 

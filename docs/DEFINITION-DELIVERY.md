@@ -940,8 +940,9 @@ The leaf has no outgoing target references. Additional graph fields, distinct
 role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
-existing byte and reference bounds. The projected catalog also keeps its existing
-4 MiB bound. Source-graph references are checked by the current catalog validators.
+existing byte and reference bounds. As one content target, the projected catalog
+keeps the 4 MiB content bound, inside the 16 MiB signed-catalog bound its decoded
+catalog shares ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure

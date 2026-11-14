@@ -3,8 +3,9 @@ import { createHash, createPrivateKey, createPublicKey, sign } from "node:crypto
 import { closeSync, fstatSync, lstatSync, openSync, readSync, writeFileSync } from "node:fs";
 import { parseArgs } from "node:util";
 
-// Core signed_catalog::MAX_CATALOG_BYTES. This utility runs without repository
-// imports, so its tests compare the refusal bound with Core's constant.
+// Must equal Core's signed_catalog::MAX_CATALOG_BYTES. This utility runs without
+// repository imports; sign-catalog.test.mts reads Core's constant and checks the
+// refusal limits this utility reports against it.
 const MAX_CATALOG_BYTES = 16 * 1024 * 1024;
 
 const { values } = parseArgs({

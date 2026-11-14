@@ -411,23 +411,50 @@ pub(crate) fn migrate(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
     Ok(())
 }
 
-/// Migration 60: rebuild `catalog_state` so its BLOB checks admit the current
-/// signed-catalog bound. SQLite cannot alter a CHECK in place. The singleton
-/// row is copied unchanged inside the migration transaction; a failure rolls
-/// the whole migration back and leaves the 4 MiB table in place.
-pub(crate) fn migrate_catalog_bound(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+/// The bound migration 60 wrote. Frozen: recorded migrations are re-verified on
+/// every open, so a later raise of `MAX_CATALOG_BYTES` must add its own rebuild
+/// migration instead of changing what schema 60 means.
+pub(crate) const CATALOG_BOUND_V60: usize = 16 * 1024 * 1024;
+// Stored envelopes must fit the table's checks; a larger runtime bound needs a
+// new rebuild migration first.
+const _: () = assert!(MAX_CATALOG_BYTES <= CATALOG_BOUND_V60);
+
+/// Rebuild `catalog_state` with BLOB checks at `bound`. SQLite cannot alter a
+/// CHECK in place. The singleton row is copied unchanged inside the caller's
+/// migration transaction; a failure rolls the whole migration back.
+pub(crate) fn rebuild_catalog_state(
+    transaction: &rusqlite::Transaction<'_>,
+    bound: usize,
+) -> Result<()> {
     transaction.execute_batch(&format!(
         "{}
          INSERT INTO catalog_state_rebuild(singleton,revision,highest_sequence,enabled,active,previous)
            SELECT singleton,revision,highest_sequence,enabled,active,previous FROM catalog_state;
          DROP TABLE catalog_state;
          ALTER TABLE catalog_state_rebuild RENAME TO catalog_state;",
-        catalog_state_table("catalog_state_rebuild", MAX_CATALOG_BYTES)
+        catalog_state_table("catalog_state_rebuild", bound)
     ))?;
+    Ok(())
+}
+
+/// Migration 60: widen the 4 MiB checks to the frozen schema-60 bound.
+pub(crate) fn migrate_catalog_bound(transaction: &rusqlite::Transaction<'_>) -> Result<()> {
+    rebuild_catalog_state(transaction, CATALOG_BOUND_V60)?;
     verify_catalog_bound(transaction)
 }
 
-/// The rebuilt table must keep exactly one singleton row and the current bound.
+fn stored_bound(schema: &str, column: &str) -> Option<usize> {
+    let prefix = format!("length({column})<=");
+    let start = schema.find(&prefix)? + prefix.len();
+    let digits: String = schema[start..]
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect();
+    digits.parse().ok()
+}
+
+/// Schema 60 holds while exactly one singleton row remains and both BLOB checks
+/// admit at least the schema-60 bound. A later migration may widen them again.
 pub(crate) fn verify_catalog_bound(connection: &Connection) -> Result<()> {
     let schema: String = connection.query_row(
         "SELECT sql FROM sqlite_master WHERE type='table' AND name='catalog_state'",
@@ -436,12 +463,11 @@ pub(crate) fn verify_catalog_bound(connection: &Connection) -> Result<()> {
     )?;
     let rows: i64 =
         connection.query_row("SELECT count(*) FROM catalog_state", [], |row| row.get(0))?;
-    if rows != 1
-        || !schema.contains(&format!("length(active)<={MAX_CATALOG_BYTES}"))
-        || !schema.contains(&format!("length(previous)<={MAX_CATALOG_BYTES}"))
-    {
+    let admits =
+        |column| stored_bound(&schema, column).is_some_and(|bound| bound >= CATALOG_BOUND_V60);
+    if rows != 1 || !admits("active") || !admits("previous") {
         return Err(PortcoveError::state(
-            "signed catalog state does not use the current catalog bound",
+            "signed catalog state does not admit the schema-60 catalog bound",
         ));
     }
     Ok(())
