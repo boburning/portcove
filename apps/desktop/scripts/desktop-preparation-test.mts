@@ -1998,7 +1998,18 @@ export async function preparationScenarios({
         await selectPrimaryNavigation(browser, "Library");
         await browser.wait(until.elementLocated(By.css(".collection-entry")), 15_000);
         const search = await browser.findElement(By.id("port-search"));
-        await search.clear();
+        // WebElement.clear() empties the DOM value without React's input event,
+        // so the controlled query kept "Jak" and the next pass typed "JakJak"
+        // (hosted run 43646110119). Clear through real key input instead.
+        await search.sendKeys(
+          Key.chord(process.platform === "darwin" ? Key.COMMAND : Key.CONTROL, "a"),
+          Key.BACK_SPACE,
+        );
+        await browser.wait(
+          async () => (await search.getAttribute("value")) === "",
+          15_000,
+          "Library search did not clear before the layout pass",
+        );
         await search.sendKeys("Jak");
         await browser.wait(
           () =>
