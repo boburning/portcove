@@ -7022,6 +7022,7 @@ mod tests {
                         id,
                         "gunstar-heroes-gunstars"
                             | "vyruz-destruction-of-the-untel-empire-openvyruz"
+                            | "kirby-letsgo-oracles-decomp"
                     ),
             );
             release.asset.name = asset_name.to_string();
