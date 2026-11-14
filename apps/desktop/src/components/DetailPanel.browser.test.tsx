@@ -758,3 +758,28 @@ it("opens actual Overview evidence and future-folder controls in a renderer fixt
     preview.mockRestore();
   }
 });
+
+it("keeps a setup-needed game's file details inside a 400% interface-size column", async () => {
+  // At 400% a 960 px window leaves the details column about 164 CSS px wide (#4879).
+  await page.viewport(240, 640);
+  const port = currentCatalogPort("opengoal-jak1");
+  const props = {
+    ...installedSourceDetail("opengoal-jak1", "not_checked", ["preparation_required"]),
+    source: undefined,
+    sourcePath: "",
+  };
+  props.status = {
+    ...props.status,
+    port_id: port.id,
+    readiness: { ...props.status.readiness, pending_setup: true },
+  };
+  await render(
+    <div data-testid="narrow-details-column" style={{ inlineSize: 164 }}>
+      <DetailPanel {...props} />
+    </div>,
+  );
+  await userEvent.click(page.getByRole("tab", { name: "Game files" }));
+  const column = page.getByTestId("narrow-details-column").element();
+  await expect.poll(() => column.querySelector(".requirements-disclosure") !== null).toBe(true);
+  expect(column.scrollWidth).toBeLessThanOrEqual(column.clientWidth);
+});

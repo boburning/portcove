@@ -1507,7 +1507,13 @@ export async function preparationScenarios({
     await browser.findElement(setupReviewButton()).click();
     await browser.wait(until.elementLocated(preparationDialog), 15_000);
     await browser.findElement(setupConfirmButton()).click();
-    await browser.wait(async () => required((await status(port.id)).readiness).launchable, 15_000);
+    // Calibrated from 15 s (#4879): hosted Windows debug builds were still
+    // "Publishing the verified prepared installation" at 17 s.
+    await browser.wait(
+      async () => required((await status(port.id)).readiness).launchable,
+      60_000,
+      "Reviewed setup did not finish and become launchable",
+    );
     const prepared = await status(port.id);
     assert.notEqual(required(prepared.active).id, install.id);
     assert.equal(required(prepared.previous).id, install.id);

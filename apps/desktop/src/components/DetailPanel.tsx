@@ -882,7 +882,7 @@ function StatusActionsGroupView({
 }
 
 const disclosureSummaryStyle =
-  "list-none [&::-webkit-details-marker]:hidden flex cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
+  "list-none [&::-webkit-details-marker]:hidden flex flex-wrap cursor-pointer list-none items-center justify-between gap-3 px-0.5 py-[15px] text-xs font-bold hover:text-[var(--color-interactive-text-strong)]";
 const disclosureMetaStyle = "ml-auto text-xs font-medium text-pc-muted-foreground";
 const disclosureBodyStyle = "pt-0.5 pb-[22px]";
 
