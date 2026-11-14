@@ -804,9 +804,12 @@ export class DiscoverySession {
     if (this.externalCollectionAttempted) return this.leadSummary().external;
     this.externalCollectionAttempted = true;
     const at = this.journal.started_at;
-    // Provider-wide refusals stop this run; every other outcome belongs to one hint.
+    // Provider-wide refusals stop this run. Only a typed GitHub answer about one
+    // repository path is recorded on that hint; anything unclassified stops too.
     const providerWide = (error: unknown) =>
-      error instanceof GitHubApiError &&
+      !(error instanceof GitHubApiError) ||
+      error.status === 401 ||
+      (error.status ?? 0) >= 500 ||
       [
         "budget_exhausted",
         "rate_limited",
@@ -815,6 +818,9 @@ export class DiscoverySession {
         "credential_unavailable",
         "invalid_configuration",
         "request_refused",
+        "quota_unknown",
+        "quota_stale",
+        "retry_exhausted",
       ].includes(error.code);
     for (const list of externalLeadLists) {
       if (!externalListDue(this.leads.external, list.id, at)) continue;
@@ -856,15 +862,21 @@ export class DiscoverySession {
           at,
         );
       } catch (error) {
-        this.leads = {
-          ...this.leads,
-          external: recordExternalListFailure(
-            this.leads.external,
-            list.id,
-            at,
-            errorMessage(error),
-          ),
-        };
+        // A list-specific failure waits before its next read; a budget or provider
+        // refusal leaves the list due for the next admitted run.
+        const budgetRefusal =
+          error instanceof GitHubApiError &&
+          ["budget_exhausted", "rate_limited", "quota_unknown", "quota_stale"].includes(error.code);
+        if (!budgetRefusal)
+          this.leads = {
+            ...this.leads,
+            external: recordExternalListFailure(
+              this.leads.external,
+              list.id,
+              at,
+              errorMessage(error),
+            ),
+          };
         this.journal.notes.push({
           phase: "external-list",
           source: list.id,
@@ -873,7 +885,7 @@ export class DiscoverySession {
           error: errorMessage(error),
           resume: "Retained hints and the last successful list clock are unchanged",
         });
-        if (providerWide(error)) {
+        if (budgetRefusal) {
           this.persist();
           break;
         }
@@ -902,7 +914,19 @@ export class DiscoverySession {
       const name = `external-resolution-${observationHash(pick.key).slice(0, 16)}`;
       let outcome: ExternalResolution;
       try {
+        // Admission failures are budget/quota state, never evidence about this hint.
         await this.budget.admit(1, 1);
+      } catch (error) {
+        this.journal.notes.push({
+          phase: "external-resolution",
+          status: "deferred",
+          next: pick.repository,
+          error: errorMessage(error),
+          resume: "Resolve remaining curated-list hints on a later admitted run",
+        });
+        break;
+      }
+      try {
         const response = await this.source.sdk.request({
           method: "GET",
           url: new URL(`repos/${repoName(pick.repository)}`, "https://api.github.com/").href,

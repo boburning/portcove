@@ -28,6 +28,7 @@ import {
 import type { ExternalLeadState } from "./discovery-external-lists.mts";
 import { DiscoverySession } from "./daily-discovery-session.mts";
 import { DiscoveryBudget } from "./discovery-budget.mts";
+import { GitHubApiError } from "./github-operation.mts";
 import { mkdtempSync, mkdirSync, rmSync, readFileSync, writeFileSync } from "node:fs";
 import type { RoadmapConfig } from "./roadmap.mts";
 import path from "node:path";
@@ -1050,7 +1051,32 @@ void test("hint resolution binds only the listed path's primary ID with per-hint
   assert.deepEqual(parseLeadState(JSON.parse(JSON.stringify(state))), state);
   const stale = JSON.parse(JSON.stringify(state)) as typeof state;
   delete stale.external!.hints["https://github.com/ports/gone"]!.resolution!.retry_at;
-  assert.throws(() => parseLeadState(stale), /hint resolution/u);
+  assert.ok(
+    selectExternalResolutions(parseLeadState(stale).external, new Set(), paths, now).some(
+      (p) => p.repository === "ports/gone",
+    ),
+    "an earlier resolution without a retry clock stays readable and is due",
+  );
+  assert.equal(
+    state.external?.hints["https://github.com/ports/flaky"]?.resolution?.status,
+    "failed",
+  );
+  assert.equal(
+    resolveExternalHint(
+      state,
+      "https://github.com/ports/old-name",
+      { status: "found", repository: { id: 5 } },
+      now,
+      "malformed.json",
+    ).external?.hints["https://github.com/ports/old-name"]?.resolution?.status,
+    "failed",
+    "malformed metadata retries on the short clock",
+  );
+  const counts = externalHintSummary(state.external, new Set(), paths, now);
+  assert.deepEqual(
+    [counts.failed, counts.unavailable, counts.conflict, counts.queued],
+    [1, 1, 1, 1],
+  );
   const retired = JSON.parse(JSON.stringify(state)) as typeof state;
   retired.external!.lists["retired-list"] = retired.external!.lists["decomp-buddy-finds"]!;
   retired.external!.hints["https://github.com/ports/new"]!.lists.push("retired-list");
@@ -1212,4 +1238,67 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
     "decomp-buddy-finds",
     "portsdr",
   ]);
+});
+
+void test("provider-wide refusals stop hint resolution without blaming any hint", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-stop-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const mode of ["quota_unknown", "plain", "401", "retry_exhausted"] as const) {
+    const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+    const budget = new DiscoveryBudget("ordinary");
+    let leads = parseLeadState(undefined);
+    leads.external = mergeExternalList(
+      undefined,
+      "decomp-buddy-finds",
+      parseFindsFeed(finds(["stop/a", "stop/b"])),
+      now,
+      "finds.json",
+    );
+    for (const list of ["portsdr", "alexbeav-psx"])
+      leads.external.attempts![list] = { attempted_at: now, outcome: "partial" };
+    leads = parseLeadState(JSON.parse(JSON.stringify(leads)));
+    const reads: string[] = [];
+    Object.assign(session, {
+      stateDir: root,
+      runDir: root,
+      journalFile: path.join(root, "journal.json"),
+      checkpoint: {},
+      checkpointPreimage: "fixture",
+      inventory: { issues: [] },
+      intakeRecords: [],
+      journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+      leads,
+      budget,
+      researchedLeads: new Set<number>(),
+    });
+    session.knownLeadUrls = () => new Set();
+    if (mode === "quota_unknown" || mode === "plain")
+      budget.admit = async () => {
+        throw mode === "plain"
+          ? new Error("Incomplete provider quota observation")
+          : new GitHubApiError("quota_unknown", "Provider quota is unknown");
+      };
+    Object.defineProperty(session, "source", {
+      configurable: true,
+      value: {
+        budget,
+        http: { request: async () => assert.fail("no list is due") },
+        sdk: await fixtureGitHub(({ endpoint }) => {
+          reads.push(endpoint);
+          return new Response(JSON.stringify({ message: "fixture" }), {
+            status: mode === "401" ? 401 : 503,
+            headers: { "content-type": "application/json" },
+          });
+        }),
+      },
+    });
+    await session.collectExternalLists();
+    assert.ok(reads.length <= (mode === "401" ? 1 : 3), mode);
+    for (const hint of Object.values(session.leads.external!.hints))
+      assert.equal(hint.resolution, undefined, `${mode} must not mark a hint`);
+    assert.ok(
+      session.journal.notes.some((n) => (n as { phase?: string }).phase === "external-resolution"),
+      mode,
+    );
+  }
 });

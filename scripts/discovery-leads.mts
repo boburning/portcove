@@ -321,7 +321,7 @@ export function linkExternalHints(state: LeadState, observedAt: string): LeadSta
 /** One primary metadata outcome for a curated-list hint. `unavailable` covers
  * not-found, gone, legally or access-blocked and redirected (renamed/transferred)
  * paths, which need manual research at their new location; `failed` is a
- * per-hint request failure retried on a short clock.
+ * per-hint read or metadata failure retried on a short clock.
  */
 export type ExternalResolution =
   | { status: "found"; repository: unknown }
@@ -342,7 +342,7 @@ export function resolveExternalHint(
   const hint = state.external?.hints[key];
   if (!hint || hint.host !== "github") throw new Error("Unknown external GitHub hint");
   if (!clock(observedAt)) throw new Error("Invalid external resolution clock");
-  const refuse = (status: "unavailable" | "conflict", reason: string, days: number) => {
+  const refuse = (status: "unavailable" | "conflict" | "failed", reason: string, days: number) => {
     const next = structuredClone(state);
     next.external!.hints[key]!.resolution = {
       status,
@@ -352,20 +352,14 @@ export function resolveExternalHint(
     };
     return boundLeadState(next);
   };
+  if (outcome.status === "failed")
+    return refuse("failed", outcome.reason, externalHintRetryDays.failed);
   if (outcome.status !== "found")
-    return refuse(
-      "unavailable",
-      outcome.reason,
-      outcome.status === "failed"
-        ? externalHintRetryDays.failed
-        : externalHintRetryDays.unavailable,
-    );
+    return refuse("unavailable", outcome.reason, externalHintRetryDays.unavailable);
   const row = outcome.repository;
-  if (
-    !isRecord(row) ||
-    typeof row.full_name !== "string" ||
-    row.full_name.toLowerCase() !== key.slice(19)
-  )
+  if (!isRecord(row) || typeof row.full_name !== "string")
+    return refuse("failed", "Malformed repository metadata", externalHintRetryDays.failed);
+  if (row.full_name.toLowerCase() !== key.slice(19))
     return refuse(
       "conflict",
       "Primary metadata named a different repository than the listed path",

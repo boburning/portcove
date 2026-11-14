@@ -430,13 +430,16 @@ search results. The discovery SDK refuses redirects, so a renamed or transferred
 path, HTTP 404/410 and HTTP 403/451 access blocks mark only that hint
 unavailable for thirty days for manual research at its new location. An answer
 for another path or a path owned by another retained ID marks it as a conflict
-for thirty days; any other per-hint read failure retries after one day. Budget,
-rate-limit, deadline and scope refusals stop resolution and keep remaining hints.
+for thirty days; malformed metadata or another typed client answer for that
+path is a failed read retried after one day. Admission, budget, quota,
+rate-limit, deadline, credential (HTTP 401), server (HTTP 5xx), retry-exhaustion
+and scope refusals, and any unclassified error, stop resolution and mark no hint.
+A list read refused for budget or quota stays due; other list failures wait.
 Resolved leads record `external_lists` provenance and then follow the unchanged
 ranking, research, disposition and intake guards. Non-GitHub hints remain manual
 research hints. The lead summary's `external` entry reports each list's last
 complete collection, last attempt and due state, and covered, queued, unresolved,
-unavailable, conflict and non-GitHub hints; without a validated inventory,
+unavailable, conflict, failed and non-GitHub hints; without a validated inventory,
 canonical overlap is unknown. List collection does not count toward
 quiet-rotation lead coverage. Hints live in `leads.json` and its recovery copy
 in the run journal, never in registry checkpoint sources.

@@ -63,11 +63,11 @@ export interface ExternalHint {
   first_observed_at: string;
   last_observed_at: string;
   resolution?: {
-    status: "queued" | "unavailable" | "conflict";
+    status: "queued" | "unavailable" | "conflict" | "failed";
     checked_at: string;
     id?: number;
     reason?: string;
-    /** Required for every status except queued. */
+    /** Set for every status except queued; a missing clock means the hint is due. */
     retry_at?: string;
   };
 }
@@ -286,11 +286,12 @@ export function parseExternalLeadState(value: unknown): ExternalLeadState | unde
     if (
       resolution !== undefined &&
       (!isRecord(resolution) ||
-        !["queued", "unavailable", "conflict"].includes(String(resolution.status)) ||
+        !["queued", "unavailable", "conflict", "failed"].includes(String(resolution.status)) ||
         !clock(resolution.checked_at) ||
         (resolution.status === "queued"
           ? !Number.isSafeInteger(resolution.id) || Number(resolution.id) <= 0
-          : typeof resolution.reason !== "string" || !clock(resolution.retry_at)))
+          : typeof resolution.reason !== "string" ||
+            (resolution.retry_at !== undefined && !clock(resolution.retry_at))))
     )
       throw new Error("Invalid retained external hint resolution");
   }
@@ -384,7 +385,8 @@ export type ExternalHintCoverage =
   | "non-github"
   | "unresolved"
   | "unavailable"
-  | "conflict";
+  | "conflict"
+  | "failed";
 export function externalHintCoverage(
   hint: ExternalHint,
   key: string,
@@ -439,6 +441,7 @@ export function externalHintSummary(
     unresolved: 0,
     unavailable: 0,
     conflict: 0,
+    failed: 0,
   };
   for (const [key, hint] of Object.entries(state?.hints ?? {}))
     counts[externalHintCoverage(hint, key, covered ?? new Set(), paths, now)]++;
