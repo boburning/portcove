@@ -2895,6 +2895,12 @@ export interface PortListing {
    * no execution, management or permission over an existing copy.
    */
   download_block_reason?: string | null;
+  /**
+   * Reviewed pages where the upstream developers accept support, normally taken
+   * from the project's `FUNDING.yml` at authoring time. Descriptive only: public
+   * HTTPS links that grant nothing. Requires listing format 10.
+   */
+  funding_urls?: string[];
   id: string;
   issue_number?: number | null;
   /**

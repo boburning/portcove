@@ -25,6 +25,7 @@ import type { PortDefinition, ReleaseChannel } from "../types";
 import { availablePlatforms, type CatalogEntry } from "../features/browsing/catalog-entry";
 import { Chip } from "./ui/chip";
 import { ExternalLink } from "./ExternalLink";
+import { FundingLinks } from "./FundingLinks";
 import { Icon } from "./ui";
 import { Button } from "./ui/button";
 import { controlFocus } from "./ui/control-style";
@@ -386,7 +387,7 @@ export function DetailLayout({
                       </p>
                     )}
                   </section>
-                  {(projectUrl || openSupport) && (
+                  {(projectUrl || openSupport || (port.listing?.funding_urls?.length ?? 0) > 0) && (
                     <section className="detail-resources" aria-label={t("resources.heading")}>
                       <h3 className="mb-3 text-base">{t("resources.heading")}</h3>
                       {projectUrl && (
@@ -417,6 +418,7 @@ export function DetailLayout({
                           {t("resources.supportNote")}
                         </p>
                       )}
+                      <FundingLinks urls={port.listing?.funding_urls} />
                     </section>
                   )}
                 </aside>

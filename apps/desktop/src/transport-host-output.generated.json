@@ -9312,6 +9312,14 @@
               "null"
             ]
           },
+          "funding_urls": {
+            "default": [],
+            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "id": {
             "type": "string"
           },
@@ -21295,6 +21303,14 @@
               "string",
               "null"
             ]
+          },
+          "funding_urls": {
+            "default": [],
+            "description": "Reviewed pages where the upstream developers accept support, normally taken\nfrom the project's `FUNDING.yml` at authoring time. Descriptive only: public\nHTTPS links that grant nothing. Requires listing format 10.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
           },
           "id": {
             "type": "string"

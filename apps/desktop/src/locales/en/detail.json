@@ -82,6 +82,10 @@
     "heading": "Requirements"
   },
   "resources": {
+    "funding": {
+      "heading": "Support the developers",
+      "note": "The project’s developers list these pages for anyone who wants to support their work. Payments happen on each site, not through Portcove."
+    },
     "heading": "Project & support",
     "support": "Create support report",
     "supportNote": "Save and review a sanitized report locally before choosing to share it.",
