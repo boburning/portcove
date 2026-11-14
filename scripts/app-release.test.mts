@@ -144,8 +144,6 @@ function fakeRunner(state: {
   const calls: string[][] = [];
   const run: Runner = (command, args) => {
     calls.push([command, ...args]);
-    if (command === "gh")
-      return JSON.stringify(state.ci ?? [{ status: "completed", conclusion: "success" }]);
     if (args[0] === "rev-parse")
       return args[1] === "HEAD" ? (state.head ?? "a".repeat(40)) : (state.main ?? "a".repeat(40));
     if (args[0] === "status") return state.dirty ?? "";

@@ -328,6 +328,9 @@ async function main(argv: string[]) {
     if (!value) throw new Error("GH_TOKEN is required");
     return value;
   };
+  // Locally an owner usually has `gh auth` rather than GH_TOKEN.
+  const localToken = () =>
+    process.env.GH_TOKEN || execFileSync("gh", ["auth", "token"], { encoding: "utf8" }).trim();
   const flag = (name: string) => {
     const index = rest.indexOf(`--${name}`);
     if (index < 0 || rest[index + 1] === undefined) throw new Error(`--${name} is required`);
@@ -385,9 +388,13 @@ async function main(argv: string[]) {
   } else if (command === "download-signatures")
     await downloadPublishedSignatures(token(), flag("tag"), flag("dir"));
   else if (command === "tag") {
+    // Resolve CI first; the guard itself stays synchronous and re-checks HEAD.
+    const head = defaultRunner("git", ["rev-parse", "HEAD"]);
+    const conclusion = await ciConclusion(localToken(), head);
     const result = tagRelease(
       flag("version"),
       process.env.PORTCOVE_RELEASE_NOTES_FILE || undefined,
+      (sha) => (sha === head ? conclusion : ""),
     );
     console.log(`tagged ${result.tag} (${result.channel}) at ${result.commit}`);
   } else
