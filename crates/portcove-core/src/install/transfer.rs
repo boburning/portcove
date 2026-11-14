@@ -91,7 +91,11 @@ fn decimal(value: &str) -> Option<u64> {
 
 /// Parses `bytes <first>-<last>/<complete>`; an unknown complete length is refused.
 fn content_range(value: &str) -> Option<(u64, u64, u64)> {
-    let (range, complete) = value.strip_prefix("bytes ")?.split_once('/')?;
+    let (unit, rest) = value.split_once(' ')?;
+    if !unit.eq_ignore_ascii_case("bytes") {
+        return None;
+    }
+    let (range, complete) = rest.split_once('/')?;
     let (first, last) = range.split_once('-')?;
     let (first, last, complete) = (decimal(first)?, decimal(last)?, decimal(complete)?);
     (first <= last && last < complete).then_some((first, last, complete))
@@ -105,12 +109,10 @@ fn continuation_problem(
     length: Option<u64>,
     declared: u64,
 ) -> Option<&'static str> {
-    if response
-        .headers()
-        .get(ETAG)
-        .is_some_and(|value| value != validator)
-    {
-        return Some("the server changed the file's validator");
+    // Require the same strong validator on the partial answer itself, so
+    // continuation never rests on a caller digest alone.
+    if response.headers().get(ETAG) != Some(validator) {
+        return Some("the partial response does not carry the original validator");
     }
     let Some((first, last, complete)) = response
         .headers()
@@ -142,17 +144,35 @@ struct Transfer<'a> {
 }
 
 impl Transfer<'_> {
+    /// Range continuation needs received bytes, a strong validator and an
+    /// expected digest the caller will verify; otherwise a retry starts over.
+    fn resumable(&self) -> bool {
+        self.completed > 0 && self.validator.is_some() && !self.asset.sha256.is_empty()
+    }
+
     /// Discards received bytes so a different representation is never spliced in.
-    async fn restart(&mut self) -> std::io::Result<()> {
+    async fn restart<F>(&mut self, operation: &OperationCoordinator, emit: &mut F) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
         if let Some(file) = &mut self.file {
             file.flush().await?;
             file.get_mut().set_len(0).await?;
             file.get_mut().seek(SeekFrom::Start(0)).await?;
         }
+        let shown = self.reported > 0;
         self.completed = 0;
         self.reported = 0;
         self.validator = None;
         self.length = None;
+        if shown {
+            emit(operation.progress_with_unit(
+                "download",
+                crate::ProgressUnit::Bytes,
+                0,
+                Some(self.asset.size).filter(|size| *size > 0),
+            ));
+        }
         Ok(())
     }
 
@@ -166,12 +186,16 @@ impl Transfer<'_> {
     where
         F: FnMut(OperationEvent),
     {
-        let range = match &self.validator {
-            Some(validator) if self.completed > 0 => Some((self.completed, validator.clone())),
-            _ => None,
-        };
+        let range = self
+            .resumable()
+            .then(|| {
+                self.validator
+                    .clone()
+                    .map(|validator| (self.completed, validator))
+            })
+            .flatten();
         if range.is_none() && self.completed > 0 {
-            self.restart().await?;
+            self.restart(operation, emit).await?;
         }
         let mut request = client.get(&self.asset.url);
         if let Some((offset, validator)) = &range {
@@ -191,7 +215,7 @@ impl Transfer<'_> {
         };
         let status = response.status();
         if range.is_some() && status == StatusCode::RANGE_NOT_SATISFIABLE {
-            self.restart().await?;
+            self.restart(operation, emit).await?;
             return Err(Step::Retry(
                 PortcoveError::network("the server could not continue the download")
                     .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
@@ -210,7 +234,7 @@ impl Transfer<'_> {
                     self.length,
                     self.asset.size,
                 ) {
-                    self.restart().await?;
+                    self.restart(operation, emit).await?;
                     return Err(Step::Retry(
                         PortcoveError::network("the server could not continue the download")
                             .detail("download_resume_refused", problem),
@@ -221,7 +245,7 @@ impl Transfer<'_> {
                 // A whole representation: the first answer, or the server
                 // ignored Range or reported that the file changed.
                 if self.completed > 0 {
-                    self.restart().await?;
+                    self.restart(operation, emit).await?;
                 }
                 self.validator = strong_validator(&response);
                 self.length = response.content_length();
@@ -278,6 +302,15 @@ impl Transfer<'_> {
             ));
             self.reported = self.completed;
         }
+        // A cleanly ended (for example chunked) body that stops short of the
+        // known complete length is an interruption, not a finished file.
+        if self.length.is_some_and(|length| self.completed < length) {
+            return Err(Step::Retry(
+                PortcoveError::network("the download ended before the complete file arrived")
+                    .detail("expected", self.length.unwrap_or_default().to_string())
+                    .detail("actual", self.completed.to_string()),
+            ));
+        }
         Ok(())
     }
 }
@@ -306,25 +339,40 @@ where
         length: None,
     };
     let mut resumes = 0_u32;
+    // Exhaustion reports the original interruption, so its upstream
+    // classification (and preserved-location failover) does not depend on
+    // which reconnect happened to fail last.
+    let mut interruption: Option<PortcoveError> = None;
     let transfer_result: Result<()> = loop {
         match transfer.attempt(client, operation, emit, resumes > 0).await {
             Ok(()) => break Ok(()),
-            Err(Step::Fatal(error)) => break Err(error),
-            Err(Step::Retry(error)) if resumes >= policy.attempts => {
+            Err(Step::Fatal(error)) if resumes > 0 => {
                 break Err(error.detail("download_resume_attempts", resumes.to_string()));
             }
-            Err(Step::Retry(_)) => {
+            Err(Step::Fatal(error)) => break Err(error),
+            Err(Step::Retry(error)) if resumes >= policy.attempts => {
+                let last = error.to_string();
+                break Err(interruption
+                    .take()
+                    .unwrap_or(error)
+                    .detail("download_resume_attempts", resumes.to_string())
+                    .detail("download_resume_last_error", last));
+            }
+            Err(Step::Retry(error)) => {
+                if interruption.is_none() {
+                    interruption = Some(error);
+                }
                 resumes += 1;
                 emit(operation.message(
                     "info",
-                    if transfer.completed > 0 && transfer.validator.is_some() {
+                    if transfer.resumable() {
                         format!(
-                            "The connection dropped. Continuing {} from where it stopped (attempt {resumes} of {}).",
+                            "The download of {} was interrupted. Continuing from the bytes already received (retry {resumes} of {}).",
                             asset.name, policy.attempts
                         )
                     } else {
                         format!(
-                            "The connection dropped. Downloading {} again from the start (attempt {resumes} of {}).",
+                            "The download of {} could not continue. Starting it again from the beginning (retry {resumes} of {}).",
                             asset.name, policy.attempts
                         )
                     },
@@ -373,6 +421,7 @@ mod tests {
         assert_eq!(content_range("bytes 9-4/10"), None);
         assert_eq!(content_range("bytes 4-10/10"), None);
         assert_eq!(content_range("items 4-9/10"), None);
+        assert_eq!(content_range("Bytes 4-9/10"), Some((4, 9, 10)));
         assert_eq!(content_range("bytes 4-9"), None);
     }
 
