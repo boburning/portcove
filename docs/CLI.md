@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 91 and event schema 3.
+and `listing_formats` independently from API schema 93 and event schema 3.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -594,6 +594,33 @@ Unix host to preserve executable modes. The Unix ZIP and TAR.GZ path uses the
 managed profile for a declared executable, which unwraps a lone inner archive.
 The command runs before opening a library and does not execute the package or
 establish release authority.
+
+### Package shape inspection
+
+Run `portcove --json catalog inspect-package-shape ARCHIVE --port PORT_ID --platform PLATFORM --size BYTES --sha256 SHA256`
+with the publisher's independently obtained size and digest. It verifies and
+extracts the bytes like `inspect-package-layout`, prepares them as the managed
+installer does for the embedded catalog's route, and returns
+`catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
+`shape_version`, the derived `shape`, its `provenance`, the
+`derivation_inputs_sha256` of the embedded catalog facts it derived with
+(absent for a route outside the embedded catalog) and a shadow `verdict`
+against the embedded generated table or explicit fingerprint
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict
+`status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
+`reason`). It runs before opening a library, executes nothing and establishes
+no review; `scripts/package-shape-baselines.mts --record` uses it.
+
+`portcove --library PATH --json installation package-shape PORT_ID` lists each
+registered installation of the port with `install_id`, `version`, `active`,
+`status` and, when `status` is `recorded`, the `record`: shape, derivation
+version, provenance and the shadow verdict computed at install. `status` is
+`recorded`, `not_recorded` (installations from before #5359), `unrecognized`
+(a record from another derivation version or a newer Portcove) or
+`manifest_unverifiable`, with the verification error in `detail`. It is
+read-only and takes no port lock. Human output of both commands says
+`compatible (unreviewed baseline)` when the matching baseline was never
+reviewed.
 
 ### Standalone package and focused build
 
@@ -1108,6 +1135,54 @@ saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
 replaced it, so pages never mix two scans. Older inline reports are paged from
 the report itself with a null `scan_id`.
 
+#### Games installed by Steam, GOG or Epic
+
+Engine remakes and source ports often need files from a PC original you
+installed through a game store. `source roots stores` lists the game folders
+those stores recorded on this computer so you can search one:
+
+```text
+portcove --library <path> --json source roots stores
+portcove --library <path> --json source discover --root "<store game folder>" --profile <profile-id>
+portcove --library <path> --json source roots add "<store game folder>"
+```
+
+Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
+the canonical existing folder `path` and `saved_root_id` when that exact folder
+is already a saved game-file folder. `checked_stores` names the stores whose
+metadata this system can read; a store missing from it was not checked, which
+is different from having no games installed. Steam libraries come from the Steam
+client's `steamapps/libraryfolders.vdf` and each library's
+`appmanifest_*.acf` (`name`, `installdir`) on Windows (registry and Program
+Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
+Flatpak client) and macOS. A linked `steamapps` folder is read as the folder it
+resolves to. GOG installs come from the Windows `GOG.com\Games` registry
+entries and Epic installs from the Epic Games Launcher's `Manifests\*.item`
+files on Windows, so on Linux and macOS only Steam is checked. Heroic, Lutris
+and other launchers are not read.
+
+The list is a suggestion only: it never saves a folder, registers files,
+records setup intent or changes anything in a store's folder, and the store's
+title is a label, not an identity. Exact source checks decide whether any file
+matches. Store metadata files are read up to 1 MiB each, at most 64 Steam
+libraries and 4,096 games are listed, and these are skipped and counted in
+`skipped_entries`: an `installdir` that is not a single folder name, a library
+listed by Steam or a game location that is relative or missing, unreadable
+metadata, and a folder that is a filesystem root, your home folder or contains
+this Portcove library. `limited` reports a reached bound. A store that cannot be
+read leaves the list shorter rather than failing.
+
+Files inside a game a store installed can be copied into Portcove or used where
+they are, but not moved. A Move import is refused with a `conflict` error naming
+the store when its original is inside a listed game folder or a Steam library's
+`steamapps` folder, when it is a folder that contains one of those (a folder Move
+removes the whole folder at the end), or when any folder on its path is named
+`steamapps`, because the store's game would lose the files. Protection otherwise
+depends on the stores' metadata: a GOG or Epic game whose registry entry or
+manifest can't be read, a Steam library beyond the 64-library bound outside a
+`steamapps` folder, or an unlisted folder that merely holds such a game, is not
+recognized, so choose Copy for files from a store's folder.
+
 ### Disc formats and optional tools
 
 `tool list` identifies each fixed tool's purpose, effective resolution and
@@ -1386,33 +1461,74 @@ and the destination handoff. An image no longer on the game's first listing page
 not-found, and a changed choice revision is a conflict; in both cases the current
 artwork is kept. The copy is library artwork like a local import: `reset` returns to
 the default and `remove-unused` deletes it once nothing selects it. Library exports
-that contain chosen SteamGridDB images use metadata schema 8.
+that contain chosen SteamGridDB images use metadata schema 8, and schema 10 once a
+check has confirmed a withdrawal.
 See [the provider client limits](ARCHITECTURE.md#local-artwork-ownership).
 
-`check-listings` reports, with your key, whether SteamGridDB still lists each
-SteamGridDB image in your library, and returns `steamgriddb_listing_report`. It only
-reports: every image, credit and choice is kept, nothing changes in Steam, and no
-artwork lock is held while it waits on the network. Each stored image is checked
-against its game's listing for the same role collection, stored size (when it is a
-size Portcove offers for the role) and format, with adult, humor and epilepsy flags
-set to `any`, so a re-tagged image or a later Portcove filter change never reads as
-missing. `listing` is `not_listed` only when every page echoes the requested `page`
-and `limit`, carries `data` and the same `total`, every entry has a readable ID, and
-the unique IDs seen equal `total`. Anything else is `unknown` with an
-`unknown_reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
-`game_not_found` (a 404 is never read as a withdrawal), `request_limit`,
-`check_stopped`, `unavailable` or `invalid_response`. Only a 404 for the first page
-is `game_not_found`; one for a later page is `incomplete_listing`. For `not_listed`
-and `game_not_found` images, `source` reports what the image server answers for the
-stored URL without your key: `served`, `gone` (404 or 410) or `unknown`. It is
-`not_checked` for listed images and for any image not probed before the check
-stopped. One check makes at most 120 SteamGridDB API requests and 60 image-server
-requests, spaced 250 ms apart. A rate limit, a rejected key, or two unreachable
-listings in a row end the check, reported in `stopped` as `rate_limited`,
-`key_rejected` or `unavailable`; results already read are kept and the rest are
-`check_stopped`. Groups are read in a fixed order, so a library with more than 120
-listings reports the same remainder as `request_limit` on every run. A library with no
-SteamGridDB images makes no request and needs no key.
+`check-listings` checks, with your key, whether SteamGridDB still lists each
+SteamGridDB image in your library, records what it finds beside each image's credit,
+and returns `steamgriddb_listing_report`. A check can remove Portcove's copy of an
+image SteamGridDB no longer lists, but only after a second signal confirms the first
+absence (see below); every choice and credit is kept, nothing changes in Steam, and
+no artwork lock is held while it waits on the network. Each stored image is checked against its game's listing for the same
+role collection, stored size (when it is a size Portcove offers for the role) and
+format, with adult, humor and epilepsy flags set to `any`, so a re-tagged image or a
+later Portcove filter change never reads as missing. An image seen on any listing page
+that echoes the request is `listed`. It is `not_listed` only when every page echoes
+the requested `page` and `limit`, carries `data` and the same `total`, every entry has
+a readable ID, and the unique IDs seen equal `total`. A narrowed listing with no images
+at all is checked again without the size and format filters; when that listing is
+also empty the result is `unknown` with `empty_listing`. Anything else is `unknown`
+with a `reason`: `incomplete_listing`, `too_many_images` (more than 1,000),
+`game_not_found` (only a first-page 404; never read as a withdrawal), `empty_listing`,
+`request_limit`, `check_stopped`, `unavailable` or `invalid_response`. For
+`not_listed`, `game_not_found` and `empty_listing` images, `source` reports what the
+image server answers for the stored URL without your key: `served`, `gone` (404 or 410) or `unknown`; it is `not_checked` otherwise. `attempted` says whether this run
+reached a conclusion for the image's listing, and `listing_total` is the `total`
+SteamGridDB reported.
+
+One check makes at most 120 SteamGridDB API requests and 60 image-server requests,
+spaced 250 ms apart, and stops after three minutes. It starts with the images checked
+longest ago, so a large library is covered across runs. A rate limit, a rejected key,
+two unreachable listings in a row, the time limit or cancellation end the check,
+reported in `stopped` as `rate_limited`, `key_rejected`, `unavailable`, `time_limit` or
+`cancelled`; results already read are kept and the rest are `check_stopped`. Only one
+check runs at a time in a library.
+
+Results for attempted images are recorded in one transaction. A choice or removal
+made while the check ran always wins, and choosing an image again marks it listed.
+`not_listed_since` is the first time a verified listing lacked the image; it is kept
+across later absences and unknown results and cleared only when the image is seen
+listed again. `recorded` is false when the check was cancelled or recording failed,
+in which case the results are shown but not kept. `artwork_state.provider_listing`
+shows the recorded evidence for the selected image. Library moves keep this evidence;
+library exports and imports do not carry it. A library with no SteamGridDB images
+makes no request and needs no key.
+
+A `not_listed` result is confirmed as a withdrawal when the image server answers
+`gone` in the same check, or when a later check at least 24 hours after the first
+absence still finds it `not_listed`, by both Portcove's clock and SteamGridDB's own
+`Date`. An `unknown` result, a `gone` answer from an earlier check, or a missing date
+never confirms one, and an image seen listed again clears it. When every SteamGridDB
+credit behind an image is confirmed and you never imported the same image yourself,
+Portcove removes its copy: the original and thumbnail are deleted, the slot shows the
+generated fallback with a reason, and the choice, its revision and the credit stay.
+`artwork_state.evicted_at` says when, and each `provider_listing` entry shows
+`withdrawn_at` and `withdrawal_signal`. Choosing the image again downloads it again and
+restores the copy. A copy you imported yourself is kept and only marked withdrawn.
+
+Each image's `effect` is what this check changed: `none`, `withdrawn` (confirmed,
+copy kept), `removed` (confirmed and the copy is removed) or `listed_again`. Its
+`withdrawn_at` and `evicted_at` show the library's state after the check, so an image
+confirmed or removed earlier reads as such. A check never confirms a withdrawal while
+the computer's clock reads before 2020 or after 2199. `skipped` counts results that
+could not be written and stay unrecorded. One check deletes at most 32 copies:
+`removed` counts deletions that finished, `removal_deferred` those left for the next
+check, export or move, and `removal_failed` those another program kept open. A
+removed copy is never shown or handed to Steam, even while its file waits for
+deletion. Library export and move finish any pending removals first, and stop with
+a next step if a removed copy still cannot be deleted. Exports record withdrawals
+and removed copies under metadata schema 10 and do not carry removed originals.
 
 ## Export and restore a library
 
@@ -1579,6 +1695,13 @@ Human task wording follows the [glossary](../GLOSSARY.md) and
 [content-design guidance](CONTENT-DESIGN.md). **Check installed files** (`verify`)
 compares the full recorded installation manifest; its report names that scope
 and the actual checked-file count. Launch-critical checks are separate.
+**Unrecognized files** are files the installation didn't ship that are not
+programs, scripts, libraries or links. The report lists them apart from its
+findings; JSON reports them as `unknown_file_count` and up to 64
+`unknown_files` paths, and `valid` stays false while any remain
+([#5359](https://github.com/boburning/portcove/issues/5359)). The removal review lists them the
+same way before consent, and backup lists add them to the file count as
+`unrecognized`; JSON reports `unknown_file_count` on both.
 **Update saved for later** names a retained staged version, and `activate` applies
 that version. A **saved-data backup** covers its declared player files, which can
 include more than progress saves; it is separate from original game files,
@@ -1662,6 +1785,8 @@ supported; game signals and post-exit save collection stay with the supervisor.
 Status objects include additive `readiness`, `last_launched_at`, `successful_launches`, and `last_update_check` fields. Readiness separates one-time upstream setup from the current game-source and BIOS states: `unregistered`, `current`, `missing`, `unreadable`, `changed`, or `not_checked`. Installed requirements are hashed against their registered storage baseline; uninstalled registrations use `not_checked` so catalog browsing does not imply a current-byte check. `current` means unchanged since registration, not that an informational or extension-only profile gained exact-revision evidence. Missing, unreadable, and changed requirements block launch and route Continue to setup. Install and launch still repeat the full catalog validation at their final use boundary. Launch history advances only after a child process exits successfully; a failed start, crash, or non-zero exit never becomes a Continue candidate. Both the CLI and desktop write the same SQLite record, so external frontends can use these fields without scraping GUI state.
 
 `last_update_check` contains the timestamped successful `UpdateCheck` most recently produced by `check`, `update`, or `reconcile`. It survives process and desktop restarts. Consumers should display it as current only when its channel equals the status channel and its `installed_version` equals the active version; Portcove's GUI applies both guards so activating a release or changing channels cannot leave a stale update badge. A failed network or release check does not overwrite the last successful snapshot, and its error remains available through the command result and applicable activity record.
+
+An additive optional `last_update_check.check.upstream_activity` carries the repository facts the GitHub provider reported while selecting that release: `repository` (the `owner/name` observed), `archived`, optional `last_change_at` (latest push, Unix seconds) and `observed_at`. Facts read before a later failure, such as an accepted release that is no longer published, stay with the preserved-location fallback. It is a maintenance observation, not a catalog declaration, and grants or revokes no update, install or catalog authority. A check that did not read the repository, such as applying a reviewed game update, keeps the previous observation and its original `observed_at` only while the port's catalog definition still names that GitHub repository; another repository or provider drops it, and Desktop applies the same rule. Absence means unknown, never active. Unlike the update badge, it describes the repository rather than the installed version, so it remains meaningful after the channel or active version changes. This additive output field keeps API schema 91.
 
 #### Read current and retained outcomes
 

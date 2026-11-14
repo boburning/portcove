@@ -174,9 +174,10 @@ impl PortcoveService {
                 source.as_ref().into()
             };
             self.validate_preparation_receipt(port, active, receipt_source)?;
-            if !Installer::new(self.library.clone())?
+            // Unknown player-side files do not hold launch (#5359).
+            if Installer::new(self.library.clone())?
                 .verify_managed(active, &qualification)?
-                .valid
+                .has_hazards()
             {
                 return Err(PortcoveError::verification(
                     "prepared game data changed; repair or prepare it again",

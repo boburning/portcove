@@ -247,7 +247,20 @@ fn retry_after_seconds(value: Option<&str>) -> Option<u64> {
 pub(crate) struct TransportResponse {
     pub status: u16,
     pub retry_after: Option<String>,
+    /// The response's HTTP `Date`, as sent.
+    pub date: Option<String>,
     pub body: Vec<u8>,
+}
+
+/// An HTTP `Date` (IMF-fixdate, which RFC 2822 parsing accepts) as Unix
+/// seconds; anything unreadable or before 2020 is ignored.
+pub(crate) fn server_date(value: Option<&str>) -> Option<i64> {
+    let parsed = time::OffsetDateTime::parse(
+        value?.trim(),
+        &time::format_description::well_known::Rfc2822,
+    )
+    .ok()?;
+    Some(parsed.unix_timestamp()).filter(|seconds| *seconds >= 1_577_836_800)
 }
 
 /// Stores the player's key; leading/trailing whitespace is removed.
@@ -543,6 +556,11 @@ impl SteamGridDbTransport for HttpTransport {
             .get(reqwest::header::RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
+        let date = response
+            .headers()
+            .get(reqwest::header::DATE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
         let mut body = Vec::new();
         use std::io::Read;
         response
@@ -552,6 +570,7 @@ impl SteamGridDbTransport for HttpTransport {
         Ok(TransportResponse {
             status,
             retry_after,
+            date,
             body,
         })
     }
@@ -584,6 +603,11 @@ impl HttpTransport {
             .get(reqwest::header::RETRY_AFTER)
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned);
+        let date = response
+            .headers()
+            .get(reqwest::header::DATE)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
         let mut body = Vec::new();
         use std::io::Read;
         // The cap is enforced while reading; one extra byte detects overflow.
@@ -594,6 +618,7 @@ impl HttpTransport {
         Ok(TransportResponse {
             status,
             retry_after,
+            date,
             body,
         })
     }
@@ -619,11 +644,13 @@ fn http_client() -> Result<&'static reqwest::blocking::Client> {
 
 #[path = "steamgriddb_check.rs"]
 mod check;
-pub use check::{
-    SteamGridDbCheckStop, SteamGridDbImageCheck, SteamGridDbListingReport,
-    SteamGridDbListingStatus, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+pub(crate) use check::{
+    CheckSubject, ListingRun, ServerDates, check_stored_listings, check_subjects,
 };
-pub(crate) use check::{check_stored_listings, check_subjects};
+pub use check::{
+    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbImageCheck, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+};
 
 #[cfg(test)]
 #[path = "steamgriddb_tests.rs"]

@@ -406,6 +406,12 @@ impl PortcoveService {
                     DestinationArtworkContent::Unavailable {
                         reason: DestinationArtworkUnavailableReason::SelectedImageNotWide,
                     }
+                } else if crate::artwork_store::evicted_at(&connection, id)?.is_some() {
+                    // The eviction marker decides before the file is read, so a
+                    // copy still waiting for deletion is never handed out.
+                    DestinationArtworkContent::Unavailable {
+                        reason: DestinationArtworkUnavailableReason::SelectedOriginalUnavailable,
+                    }
                 } else {
                     match original_bytes(self.library(), &asset).and_then(|bytes| {
                         validate_decoded(&bytes, &asset)?;

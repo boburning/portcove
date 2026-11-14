@@ -514,6 +514,7 @@ namespace Portcove.ReferenceClient
         internal string PortId { get; private set; }
         internal string[] ManagedPaths { get; private set; }
         internal string PersistentDataPath { get; private set; }
+        internal long UnknownFileCount { get; private set; }
         internal string PreviewSha256 { get; private set; }
 
         internal static ManagedRemovalReview Read(object value, string expectedPort)
@@ -534,9 +535,17 @@ namespace Portcove.ReferenceClient
             if (fingerprint.Length != 64 || fingerprint.Any(character =>
                 (character < '0' || character > '9') && (character < 'a' || character > 'f')))
                 throw new InvalidOperationException("The removal preview has an invalid fingerprint. Refresh before removing files.");
+            // Older Portcove versions omit the field; they refused removal instead.
+            object unknownField;
+            var unknown = Json.TryField(value, "unknown_file_count", out unknownField)
+                ? Json.Number(value, "unknown_file_count")
+                : 0;
+            if (unknown < 0)
+                throw new InvalidOperationException("The removal preview has an invalid unrecognized-file count. Refresh before removing files.");
             return new ManagedRemovalReview
             {
-                PortId = port, ManagedPaths = paths, PersistentDataPath = preserved, PreviewSha256 = fingerprint
+                PortId = port, ManagedPaths = paths, PersistentDataPath = preserved,
+                UnknownFileCount = unknown, PreviewSha256 = fingerprint
             };
         }
 
@@ -552,6 +561,10 @@ namespace Portcove.ReferenceClient
             "Remove Portcove's managed installed versions for " + name + "?" +
             "\n\nLibrary: " + library + "\nManaged folders to remove:\n" + string.Join("\n", ManagedPaths) +
             "\n\nSaved data kept at: " + PersistentDataPath +
+            (UnknownFileCount > 0
+                ? "\nFiles Portcove didn't install: " + UnknownFileCount +
+                  ". Portcove copies them to a new backup first; restoring a backup doesn't put them back."
+                : "") +
             "\nOriginal game files and backups are not in this managed-folder preview." +
             "\nSign-ins stored only inside installed versions are deleted with those versions." +
             "\n\nThis is game uninstallation. Hiding or removing a Playnite entry is a separate action.";
@@ -689,7 +702,7 @@ namespace Portcove.ReferenceClient
 
     internal sealed class ProtocolStream
     {
-        internal const int Schema = 91;
+        internal const int Schema = 93;
         internal static bool SupportsExternalRelink(object capabilities) =>
             Json.Number(capabilities, "schema_version") >= 72 &&
             Json.Number(capabilities, "schema_version") <= Schema &&
@@ -726,7 +739,7 @@ namespace Portcove.ReferenceClient
             if (type == null || (type as string) == "result")
             {
                 if (!SupportedSchema(Json.Number(record, "schema_version")) || Json.Text(record, "command") != command)
-                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 91; install a matching CLI/client pair.");
+                    throw new InvalidOperationException("Unsupported Portcove response. This client requires API schema 42 through 57, 60 through 63 or 65 through 93; install a matching CLI/client pair.");
                 Json.Boolean(record, "ok");
                 result = record;
                 return;
@@ -849,7 +862,7 @@ namespace Portcove.ReferenceClient
         {
             var schema = Json.Number(capabilities, "schema_version");
             if (!SupportedSchema(schema) || Json.Text(capabilities, "product") != "Portcove")
-                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 91. Select a compatible CLI or update the client.");
+                throw new InvalidOperationException("This reference client requires Portcove API schema 42 through 57, 60 through 63 or 65 through 93. Select a compatible CLI or update the client.");
             if (requiredCapabilities == null || requiredCapabilities.Length == 0)
                 throw new InvalidOperationException("Select at least one Portcove consumer capability before negotiation.");
             var commands = Json.Array(Json.Field(capabilities, "commands")).OfType<string>().ToArray();

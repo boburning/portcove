@@ -171,7 +171,8 @@ impl PortcoveService {
             managed_data: observed_path(self.library.user_dir(&port.id)),
             installations,
             problem,
-            latest_completed_backup: backups.iter().filter(|backup| backup.port_id == port.id)
+            // A backup holding only unknown player-side files protects no saves.
+            latest_completed_backup: backups.iter().filter(|backup| backup.port_id == port.id && backup.file_count > 0)
                 .max_by(|a, b| a.created_at.cmp(&b.created_at).then_with(|| a.id.cmp(&b.id)))
                 .cloned(),
             exclusions: vec![

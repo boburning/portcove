@@ -844,7 +844,7 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
 
 /// Whether `path` is the saved folder with this path key or inside it,
 /// compared as stored rows are (case-insensitively on Windows).
-fn key_inside(path: &Path, key: &str) -> bool {
+pub(crate) fn key_inside(path: &Path, key: &str) -> bool {
     let separator = std::path::MAIN_SEPARATOR;
     let path = path_key(&path.to_string_lossy());
     path == key || path.starts_with(&format!("{}{separator}", key.trim_end_matches(separator)))

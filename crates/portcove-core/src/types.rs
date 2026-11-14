@@ -322,6 +322,9 @@ pub enum RuntimeSourceMaterialization {
     XdvdfsDirectory,
     /// Unpack a PS2 or PSP disc image (ISO or CHD) into a verified runtime directory.
     Iso9660Directory,
+    /// Apply an exactly identified patch to an exactly identified original from a
+    /// file-set source and write the verified patched file; older engines reject this value.
+    RomPatch,
 }
 
 impl RuntimeSourceMaterialization {
@@ -369,6 +372,32 @@ pub struct StfsPackageProfile {
     pub title_ids: Vec<String>,
     /// Explicit bound on the selected package in bytes; at most 16 GiB.
     pub max_package_bytes: u64,
+}
+
+/// Patch file format applied by the `rom-patch` materialization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum RomPatchFormat {
+    Ips,
+    Bps,
+    Ups,
+}
+
+/// Port declaration for producing a patched runtime file from two members of the
+/// port's file-set source. Both inputs are pinned to one exact SHA-256 each; the
+/// output is pinned by the port's single `runtime_source_hashes` entry.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RomPatchProfile {
+    pub format: RomPatchFormat,
+    /// Accepted filenames of the file-set member holding the unmodified original.
+    pub original_filenames: Vec<String>,
+    /// The one original this patch applies to; also an accepted SHA-256 of its member.
+    pub original_sha256: String,
+    /// Accepted filenames of the file-set member holding the patch file.
+    pub patch_filenames: Vec<String>,
+    /// The one reviewed patch file; also an accepted SHA-256 of its member.
+    pub patch_sha256: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema, Default)]
@@ -916,6 +945,10 @@ pub struct PortDefinition {
     /// and content types and a size bound, checked before extraction.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub runtime_stfs_package: Option<StfsPackageProfile>,
+    /// Required by, and only valid with, the `rom-patch` materialization: the
+    /// patch format and the exact original and patch members it combines.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub runtime_rom_patch: Option<RomPatchProfile>,
     /// A disc-image source that is offered but not required: with none registered the
     /// game is not blocked and the runtime and its persistent files are left as they are;
     /// when one is registered it is unpacked as for a required source. Only valid with a
@@ -1888,6 +1921,15 @@ pub struct BackupRecord {
     pub file_count: u64,
     pub size: u64,
     pub sha256: String,
+    /// Unknown player-side files kept in the backup's separate area (#5359).
+    /// They are not counted in `file_count`, and restore does not put them
+    /// back. Omitted when zero.
+    #[serde(default, skip_serializing_if = "is_zero_count")]
+    pub unknown_file_count: u64,
+}
+
+pub(crate) fn is_zero_count(value: &u64) -> bool {
+    *value == 0
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
@@ -2273,6 +2315,44 @@ pub struct UpdateCheck {
     pub required_runtime: Option<RuntimeIdentity>,
     pub update_available: bool,
     pub release: ResolvedRelease,
+    /// Repository maintenance facts from the provider's most recent observation of
+    /// this port. Absent means unknown, never active. It may be older than
+    /// `checked_at` when this check did not read the repository itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upstream_activity: Option<UpstreamActivity>,
+}
+
+/// What the release provider reported about the upstream repository while Portcove
+/// was already reading it to select a release. A maintenance observation only: it
+/// grants or revokes no release, update, install or catalog authority, and it is
+/// not the catalog's reviewed `upstream_status` declaration.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UpstreamActivity {
+    /// The GitHub `owner/name` repository these facts describe. A port whose
+    /// catalog provider or repository differs no longer owns this observation.
+    /// Empty (an observation without a recorded repository) describes no port.
+    #[serde(default)]
+    pub repository: String,
+    /// Unix seconds when the provider reported these facts.
+    pub observed_at: i64,
+    /// The repository owner archived the repository (read-only upstream).
+    pub archived: bool,
+    /// Unix seconds of the latest push the provider reported, when it reported one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_change_at: Option<i64>,
+}
+
+impl UpstreamActivity {
+    /// Whether the port's current catalog definition still names this repository.
+    /// GitHub owner and repository names are case-insensitive.
+    pub fn describes(&self, port: &PortDefinition) -> bool {
+        port.release.provider == ReleaseSource::Github
+            && !self.repository.is_empty()
+            && port
+                .release
+                .repository
+                .eq_ignore_ascii_case(&self.repository)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -2472,6 +2552,7 @@ impl CapabilityDocument {
                 "source.roots.scan".into(),
                 "source.roots.matches".into(),
                 "source.roots.profiles".into(),
+                "source.roots.stores".into(),
                 "source.query".into(),
                 "tool".into(),
                 "status".into(),

@@ -223,7 +223,8 @@ export default interface Resources {
       "safetyBackup": "Portcove will back up the current saved data before replacing it. Restore that safety backup to return to the previous data.",
       "selectedBackup": "Selected backup",
       "summary_one": "{{count}} file · {{size}}",
-      "summary_other": "{{count}} files · {{size}}"
+      "summary_other": "{{count}} files · {{size}}",
+      "unknownFiles": "Also keeps {{total, number}} files Portcove didn't install. Restoring this backup doesn't put them back."
     },
     "ghostship": {
       "activates": "This activates a fresh derivative of the retained legacy installation and replaces canonical saved data with the selected snapshot.",
@@ -542,6 +543,12 @@ export default interface Resources {
       "discover": "Search Discover",
       "library": "Search your library",
       "placeholder": "Game or port name"
+    },
+    "upstreamActivity": {
+      "archived": "GitHub reported on {{checked}} that the project's authors archived it and no longer accept changes. New versions are unlikely.",
+      "label": "Upstream activity on GitHub",
+      "quiet": "GitHub reported on {{checked}} that the project had not changed since {{date}}. New versions are unlikely unless work resumes.",
+      "recent": "GitHub reported on {{checked}} that the project last changed in {{date}}."
     }
   },
   "catalogUpdates": {
@@ -1915,7 +1922,9 @@ export default interface Resources {
       "unavailablePort": "Unavailable port ({{id}})"
     },
     "title": "Uninstall {{identity}}?",
-    "uninstallPort": "Uninstall {{name}}"
+    "uninstallPort": "Uninstall {{name}}",
+    "unknownFiles": "Files Portcove didn't install: {{total, number}}. The game may have created them, for example as settings. Portcove copies them to a new backup before uninstalling. Restoring a backup doesn't put them back.",
+    "unknownFilesUnlisted": "Files not listed here: {{total, number}}"
   },
   "report": {
     "choice": {

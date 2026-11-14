@@ -103,7 +103,9 @@ pub use capabilities::{
 mod portable_save_folder;
 mod portable_saves;
 mod psx_mod_data;
+mod recent_play;
 pub(crate) use psx_mod_data::metadata_name as psx_data_metadata_name;
+pub use recent_play::{RECENTLY_PLAYED_LIMIT, RecentlyPlayedGame};
 mod removal;
 mod sources;
 pub(crate) use removal::{RemovalOperation, RemovalPhase};
@@ -295,6 +297,14 @@ pub struct PortRemovalPreview {
     pub managed_paths: Vec<PathBuf>,
     pub persistent_data_path: PathBuf,
     pub persistent_data_will_be_preserved: bool,
+    /// Unknown player-side files in the versions being removed (#5359).
+    /// Removal copies them to a new backup's separate area before it deletes
+    /// the version folders; restore does not put them back. Omitted when zero.
+    #[serde(default, skip_serializing_if = "crate::types::is_zero_count")]
+    pub unknown_file_count: u64,
+    /// The first unknown file paths, each relative to its version folder.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unknown_files: Vec<String>,
     pub preview_sha256: String,
 }
 
@@ -306,6 +316,7 @@ pub struct PortcoveService {
     pub(crate) library: Library,
     releases: Arc<dyn ReleaseProvider>,
     faults: Arc<dyn LifecycleFaultInjector>,
+    store_installs: Arc<dyn crate::StoreInstallHost>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -402,6 +413,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -429,7 +441,20 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: crate::store_install::default_host(),
         })
+    }
+
+    /// Use other host facts for store install detection (tests and adapters
+    /// that already know the stores' locations).
+    #[must_use]
+    pub fn with_store_install_host(mut self, host: Arc<dyn crate::StoreInstallHost>) -> Self {
+        self.store_installs = host;
+        self
+    }
+
+    pub(crate) fn store_install_host(&self) -> &dyn crate::StoreInstallHost {
+        self.store_installs.as_ref()
     }
 
     /// Explicitly discover and retry orphaned work under its existing locks.
@@ -455,6 +480,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -473,6 +499,7 @@ impl PortcoveService {
             library,
             releases,
             faults,
+            store_installs: crate::store_install::default_host(),
         })
     }
 
@@ -2921,7 +2948,12 @@ impl PortcoveService {
             let release = operation
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
-            self.record_update_check(port_id, &status, &release.release)
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )
         }
         .await;
         self.finish_activity(activity, result)
@@ -2994,6 +3026,7 @@ impl PortcoveService {
         port_id: &str,
         status: &PortStatus,
         release: &ResolvedRelease,
+        observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
         let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
         let installed_runtime = status
@@ -3014,6 +3047,7 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
+        let port = self.catalog.port(port_id)?;
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3023,6 +3057,21 @@ impl PortcoveService {
             required_runtime: runtime,
             update_available,
             release: release.clone(),
+            upstream_activity: match observed_activity {
+                Some(activity) => Some(activity.clone()),
+                // A check that did not read the repository keeps the earlier
+                // observation with its own time instead of erasing or re-dating it,
+                // but only while the port still names that GitHub repository.
+                None => self
+                    .library
+                    .update_snapshot(port_id)
+                    .unwrap_or_else(|error| {
+                        tracing::warn!(%error, port_id, "could not read the previous update check");
+                        None
+                    })
+                    .and_then(|snapshot| snapshot.check.upstream_activity)
+                    .filter(|activity| activity.describes(port)),
+            },
         };
         self.library.store_update_snapshot(&check)?;
         Ok(check)
@@ -3215,7 +3264,12 @@ impl PortcoveService {
                 .interruptible(self.resolve_release(port, status.channel, Platform::current()?))
                 .await?;
             operation.observe_release(&release.release.version, None);
-            self.record_update_check(port_id, &status, &release.release)?;
+            self.record_update_check(
+                port_id,
+                &status,
+                &release.release,
+                release.upstream_activity.as_ref(),
+            )?;
             let mut reporter = OperationReporter {
                 operation: &operation,
                 emit: &mut emit,
@@ -3474,7 +3528,8 @@ impl PortcoveService {
                 self.require_portable_target_transition(active, &existing)?;
             }
             let qualification = self.installed_mutability_qualification(&existing)?;
-            Installer::new(self.library.clone())?.verify_critical(&existing, &qualification)?;
+            Installer::new(self.library.clone())?
+                .verify_critical_for_replacement(&existing, &qualification)?;
             if activate
                 && let Some(active) = &status.active
                 && active.id != existing.id
@@ -3613,7 +3668,12 @@ impl PortcoveService {
                     )
                     .detail("port_id", port_id));
                 }
-                let check = self.record_update_check(port_id, &status, &release.release)?;
+                let check = self.record_update_check(
+                    port_id,
+                    &status,
+                    &release.release,
+                    release.upstream_activity.as_ref(),
+                )?;
                 if !check.update_available {
                     return Ok(ReconcileResult {
                         port_id: port_id.into(),
@@ -4003,7 +4063,8 @@ impl PortcoveService {
                 )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
-            Installer::new(self.library.clone())?.verify_critical(&previous, &qualification)?;
+            Installer::new(self.library.clone())?
+                .verify_critical_for_replacement(&previous, &qualification)?;
             self.library.rollback(port_id)
         })();
         self.finish_activity(activity, result)
@@ -4094,7 +4155,7 @@ impl PortcoveService {
             });
         }
         installer
-            .verify_critical(previous, &qualification)
+            .verify_critical_for_replacement(previous, &qualification)
             .map_err(invalid)?;
         Ok((port, qualification))
     }
@@ -4610,8 +4671,9 @@ impl PortcoveService {
                 "{port_id} is not installed"
             )));
         }
+        let mut unknown = Vec::new();
         for install in &installs {
-            self.require_portable_runtime_unchanged(install)?;
+            unknown.extend(self.portable_runtime_unknown_files(install)?);
             let paths = crate::output_root::removal_paths(
                 &self.library,
                 port_id,
@@ -4624,12 +4686,29 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        let preview_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&installs)?));
+        // Removal copies these before deleting the folders, so the caps apply.
+        backups::require_unknown_files_within_caps(&unknown)?;
+        let listed = unknown
+            .iter()
+            .map(|file| (file.install_id.as_str(), file.relative.as_str(), file.size))
+            .collect::<Vec<_>>();
+        let preview_sha256 = if listed.is_empty() {
+            hex::encode(Sha256::digest(serde_json::to_vec(&installs)?))
+        } else {
+            // Consent binds the unknown files the review showed.
+            hex::encode(Sha256::digest(serde_json::to_vec(&(&installs, &listed))?))
+        };
         Ok(PortRemovalPreview {
             port_id: port_id.to_owned(),
             managed_paths,
             persistent_data_path: self.library.user_dir(port_id),
             persistent_data_will_be_preserved: true,
+            unknown_file_count: unknown.len() as u64,
+            unknown_files: unknown
+                .iter()
+                .take(crate::install::REPORTED_UNKNOWN_FILES)
+                .map(|file| file.relative.clone())
+                .collect(),
             preview_sha256,
         })
     }
@@ -4673,6 +4752,10 @@ impl PortcoveService {
                 &locked_preview.preview_sha256,
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
+            // Removal deletes the version folders. Unknown player-side files
+            // (#5359) go to a separate area of a backup first; past a cap the
+            // removal holds instead of deleting what it could not keep.
+            self.create_removal_safety_backup_locked(port_id)?;
             let paths = self.library.port_install_paths(port_id)?;
             let removals = paths
                 .iter()
@@ -4701,7 +4784,7 @@ impl PortcoveService {
                 }
             }
             let mut removal = RemovalOperation::decode(&self.library, &lifecycle)?;
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             // Remember the explicit uninstall before the removal starts, so a
             // removal that later needs recovery is still never undone by
             // standing setup. Failing here changes nothing.
@@ -4719,7 +4802,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             self.library.remove_port(port_id)?;
             removal.advance(RemovalPhase::Committed, &mut lifecycle, &store)?;
             self.faults
@@ -4729,7 +4812,7 @@ impl PortcoveService {
             for paths in removal.paths(&self.library)? {
                 crate::managed_tfe::require_no_recovery_data(&paths.quarantined)?;
             }
-            removal.require_retained_outputs(self, &lifecycle)?;
+            removal.require_retained_outputs_after_safety_backup(self, &lifecycle)?;
             for cleanup_root in removal
                 .paths(&self.library)?
                 .iter()
@@ -7908,6 +7991,149 @@ mod tests {
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
+        );
+    }
+
+    /// Reports repository activity on its first resolution only, like a provider
+    /// that read the repository once and then took a route that did not.
+    struct ObservedOnceReleaseProvider {
+        inner: StaticReleaseProvider,
+        reported: AtomicBool,
+    }
+
+    #[async_trait::async_trait]
+    impl ReleaseProvider for ObservedOnceReleaseProvider {
+        async fn resolve(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+        ) -> Result<ResolvedRelease> {
+            self.inner.resolve(port, channel, platform).await
+        }
+
+        async fn resolve_scoped(
+            &self,
+            port: &PortDefinition,
+            channel: ReleaseChannel,
+            platform: Platform,
+            _scope: Option<&crate::DefinitionAcquisitionScope>,
+        ) -> Result<crate::ScopedResolvedRelease> {
+            let mut resolved = crate::ScopedResolvedRelease::legacy(
+                self.inner.resolve(port, channel, platform).await?,
+            )
+            .for_selection(port, platform, channel)?;
+            if !self.reported.swap(true, Ordering::SeqCst) {
+                resolved.upstream_activity = Some(crate::UpstreamActivity {
+                    repository: port.release.repository.clone(),
+                    observed_at: 1_000,
+                    archived: true,
+                    last_change_at: Some(900),
+                });
+            }
+            Ok(resolved)
+        }
+    }
+
+    #[tokio::test]
+    async fn update_checks_keep_the_last_upstream_activity_with_its_own_time() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let service = PortcoveService::with_provider(
+            library,
+            Arc::new(ObservedOnceReleaseProvider {
+                inner: StaticReleaseProvider {
+                    version: "v1".into(),
+                },
+                reported: AtomicBool::new(false),
+            }),
+        )
+        .unwrap();
+        let observed = crate::UpstreamActivity {
+            repository: service
+                .catalog()
+                .port("zelda64-recomp")
+                .unwrap()
+                .release
+                .repository
+                .clone(),
+            observed_at: 1_000,
+            archived: true,
+            last_change_at: Some(900),
+        };
+        let first = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(first.upstream_activity.as_ref(), Some(&observed));
+        let second = service.check_update("zelda64-recomp").await.unwrap();
+        assert_eq!(second.upstream_activity.as_ref(), Some(&observed));
+        let snapshot = service
+            .status("zelda64-recomp")
+            .unwrap()
+            .last_update_check
+            .unwrap();
+        assert!(snapshot.checked_at > observed.observed_at);
+        assert_eq!(snapshot.check.upstream_activity, Some(observed));
+    }
+
+    #[test]
+    fn upstream_activity_belongs_only_to_the_same_github_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("zelda64-recomp").unwrap();
+        assert_eq!(port.release.provider, crate::ReleaseSource::Github);
+        let activity = crate::UpstreamActivity {
+            repository: port.release.repository.clone(),
+            observed_at: 1_000,
+            archived: false,
+            last_change_at: None,
+        };
+        assert!(activity.describes(port));
+        let differently_cased = crate::UpstreamActivity {
+            repository: port.release.repository.to_ascii_uppercase(),
+            ..activity.clone()
+        };
+        assert!(differently_cased.describes(port));
+        // An observation stored without a repository loads, but describes no port.
+        let unbound: crate::UpstreamActivity = serde_json::from_value(serde_json::json!({
+            "observed_at": 1_000,
+            "archived": true
+        }))
+        .unwrap();
+        assert_eq!(unbound.repository, "");
+        assert!(!unbound.describes(port));
+        let mut moved = port.clone();
+        moved.release.repository = "Successor/zelda64-recomp".into();
+        assert!(!activity.describes(&moved));
+        for provider in [
+            crate::ReleaseSource::Gitlab,
+            crate::ReleaseSource::DirectManifest,
+            crate::ReleaseSource::UserPrepared,
+        ] {
+            let mut other = port.clone();
+            other.release.provider = provider;
+            assert!(!activity.describes(&other), "{provider:?}");
+        }
+    }
+
+    #[test]
+    fn update_checks_without_upstream_activity_keep_their_stored_shape() {
+        let check: UpdateCheck = serde_json::from_value(serde_json::json!({
+            "port_id": "zelda64-recomp",
+            "channel": "stable",
+            "installed_version": null,
+            "update_available": true,
+            "release": {
+                "version": "v1",
+                "channel": "stable",
+                "published_at": null,
+                "asset": {"name": "a.zip", "url": "https://invalid.example/a.zip", "size": 1, "sha256": "a".repeat(64)}
+            }
+        }))
+        .unwrap();
+        assert_eq!(check.upstream_activity, None);
+        assert!(
+            serde_json::to_value(&check)
+                .unwrap()
+                .get("upstream_activity")
+                .is_none()
         );
     }
 
@@ -18960,12 +19186,11 @@ fn main() {
         fs::write(active.join("new-settings.ini"), b"unadmitted preference").unwrap();
         let report = service.verify("zelda64-recomp").unwrap();
         assert!(!report.valid);
-        assert!(
-            report
-                .failures
-                .contains(&"unexpected: new-settings.ini".into())
-        );
-        assert!(service.prepare_launch("zelda64-recomp", None).is_err());
+        assert!(!report.has_hazards(), "{:?}", report.failures);
+        assert_eq!(report.unknown_files, vec!["new-settings.ini".to_owned()]);
+        // An ordinary settings file no longer holds launch (#5359); whatever the
+        // launch outcome, the unadmitted path is never adopted as player data.
+        let _ = service.prepare_launch("zelda64-recomp", None);
         assert!(
             !service
                 .library
@@ -19457,6 +19682,60 @@ fn main() {
         assert_eq!(
             fs::read(library.user_dir("zelda64-recomp").join("general.json")).unwrap(),
             b"recovered"
+        );
+    }
+
+    #[test]
+    fn a_launch_whose_supervisor_ended_is_reported_lost_only_while_it_is_unfinished() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_launch_probe(&library, "v1", true);
+        let request_id = Uuid::new_v4().to_string();
+        let service = launch_service_with_faults(
+            library.clone(),
+            Arc::new(FailLaunchAt(LifecycleFaultPoint::LaunchChildStarted)),
+        );
+        let arguments = vec![
+            temporary.path().join("started").display().to_string(),
+            "50".into(),
+            "recovered".into(),
+            "0".into(),
+        ];
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+        service
+            .supervise_launch_identified(
+                IdentifiedLaunchRequest {
+                    request_id: &request_id,
+                    port_id: "zelda64-recomp",
+                    source_override: None,
+                    arguments: &arguments,
+                    stdio: LaunchStdio::Null,
+                    disc: None,
+                },
+                |_| {},
+                |_| {},
+            )
+            .unwrap_err();
+        // The recorded supervisor is this very process, which is alive.
+        assert!(!library.launch_supervisor_lost(&request_id).unwrap());
+
+        library
+            .connection()
+            .unwrap()
+            .execute(
+                "UPDATE launch_sessions SET supervisor_pid=?2 WHERE id=?1",
+                rusqlite::params![request_id, u32::MAX],
+            )
+            .unwrap();
+        assert!(library.launch_supervisor_lost(&request_id).unwrap());
+
+        PortcoveService::new(library.clone())
+            .unwrap()
+            .recover_launch_session(&request_id)
+            .unwrap();
+        assert!(
+            !library.launch_supervisor_lost(&request_id).unwrap(),
+            "a recovered, finished launch is not lost"
         );
     }
 

@@ -5,6 +5,7 @@ mod archive;
 mod archive_data;
 mod archive_data_transition;
 mod artwork;
+mod artwork_eviction;
 mod artwork_image;
 mod artwork_ingestion;
 mod artwork_store;
@@ -75,6 +76,7 @@ mod operation;
 mod output_relocation;
 mod output_root;
 mod package_layout;
+mod package_shape;
 mod path;
 mod permissions;
 mod persistence;
@@ -113,6 +115,7 @@ mod recovery;
 mod relative_file_set;
 mod release;
 mod retained_build;
+mod rom_patch;
 mod runtime;
 mod runtime_data_policy;
 pub mod runtime_diagnostics;
@@ -133,6 +136,7 @@ mod source_report;
 mod source_reuse;
 mod source_zip;
 mod stfs;
+mod store_install;
 mod support_bundle;
 mod support_bundle_export;
 mod support_bundle_read;
@@ -157,16 +161,18 @@ pub use application_runtime::{ApplicationRuntimeGuard, ApplicationUpdateExclusiv
 pub use archive::fuzzing as archive_fuzzing;
 pub use artwork::{
     ARTWORK_HANDOFF_SCHEMA, ArtworkAttribution, ArtworkAvailability, ArtworkCacheClear,
-    ArtworkChoice, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider, ArtworkProviderRecord,
-    ArtworkResolvedSource, ArtworkSlot, ArtworkState, ArtworkThumbnail, DestinationArtworkBytes,
-    DestinationArtworkContent, DestinationArtworkHandoff, DestinationArtworkRole,
-    DestinationArtworkSource, DestinationArtworkUnavailableReason, GeneratedArtworkFallback,
-    IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
-    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate, SteamGridDbCheckStop,
-    SteamGridDbFailure, SteamGridDbGame, SteamGridDbImageCheck, SteamGridDbKeyStatus,
-    SteamGridDbListingReport, SteamGridDbListingStatus, SteamGridDbSourceStatus,
-    SteamGridDbUnknownReason, clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key,
-    steamgriddb_candidates, steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
+    ArtworkChoice, ArtworkEvictedAsset, ArtworkImageFormat, ArtworkMetadata, ArtworkProvider,
+    ArtworkProviderListing, ArtworkProviderRecord, ArtworkResolvedSource, ArtworkSlot,
+    ArtworkState, ArtworkThumbnail, ArtworkWithdrawalRecord, ArtworkWithdrawalSignal,
+    DestinationArtworkBytes, DestinationArtworkContent, DestinationArtworkHandoff,
+    DestinationArtworkRole, DestinationArtworkSource, DestinationArtworkUnavailableReason,
+    GeneratedArtworkFallback, IGDB_ARTWORK_WORK_LIMIT, LocalArtworkAsset, STEAMGRIDDB_API_ORIGIN,
+    STEAMGRIDDB_KEY_PREFERENCES_URL, SteamGridDbAuthor, SteamGridDbCandidate,
+    SteamGridDbCheckEffect, SteamGridDbCheckStop, SteamGridDbFailure, SteamGridDbGame,
+    SteamGridDbImageCheck, SteamGridDbKeyStatus, SteamGridDbListingReport,
+    SteamGridDbListingResult, SteamGridDbSourceStatus, SteamGridDbUnknownReason,
+    clear_steamgriddb_key, search_steamgriddb_games, set_steamgriddb_key, steamgriddb_candidates,
+    steamgriddb_credit_url, steamgriddb_key_status, steamgriddb_preview,
 };
 pub use auth::{
     GithubAuthSource, GithubAuthStatus, GithubDeviceLogin, GithubDeviceLoginResult,
@@ -298,6 +304,11 @@ pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
 pub use package_layout::{inspect_package_archive, inspect_package_archive_with_program_filter};
+pub use package_shape::{
+    InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
+    PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
+    ShapeUnknownReason, ShapeVerdict, inspect_package_shape_archive,
+};
 pub use port_recommendation::{
     PORT_RECOMMENDATION_POLICY, PortRecommendationAssessment, PortRecommendationInput,
     PortRecommendationStatus, RecommendationCandidate, RecommendationCandidateAssessment,
@@ -378,9 +389,9 @@ pub use service::{
     PortCapabilityRoute, PortIntent, PortIntentAssessment, PortIntentAssessments, PortIntentMode,
     PortIntentSource, PortMaintenance, PortReadiness, PortReadinessAcknowledgement,
     PortRemovalPreview, PortcoveService, ProtectionDeclaration, QUIVER_FORMAT_REVISION,
-    ROOT_SETUP_FORMAT_VERSION, RootSetupConsent, RootSetupEnrollment, RootSetupFailure,
-    RootSetupImplementation, RootSetupWaiting, SetupLaunchTarget, SetupLaunchTargets,
-    StandingSetupFailure, StandingSetupResult,
+    RECENTLY_PLAYED_LIMIT, ROOT_SETUP_FORMAT_VERSION, RecentlyPlayedGame, RootSetupConsent,
+    RootSetupEnrollment, RootSetupFailure, RootSetupImplementation, RootSetupWaiting,
+    SetupLaunchTarget, SetupLaunchTargets, StandingSetupFailure, StandingSetupResult,
 };
 pub use signed_catalog::{
     CatalogOrigin, CatalogProvenance, CatalogTrustKey, SignedCatalogEnvelope, SignedCatalogPayload,
@@ -415,6 +426,10 @@ pub use source_report::{
 pub use source_reuse::{
     SourceRegistrationReference, SourceReuseApplication, SourceReuseCompatibility,
     SourceReuseReview,
+};
+pub use store_install::{
+    GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
+    SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
@@ -458,7 +473,7 @@ pub use types::*;
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 91;
+pub const API_SCHEMA_VERSION: u32 = 93;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

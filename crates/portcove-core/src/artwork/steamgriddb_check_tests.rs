@@ -11,6 +11,8 @@ struct Scripted {
     image_statuses: RefCell<VecDeque<u16>>,
     paths: RefCell<Vec<String>>,
     images: RefCell<Vec<(String, u64)>>,
+    /// The `Date` every provider answer carries, in order; the last one repeats.
+    api_dates: RefCell<VecDeque<&'static str>>,
 }
 
 impl Scripted {
@@ -26,6 +28,7 @@ impl Scripted {
             image_statuses: RefCell::new(VecDeque::new()),
             paths: RefCell::new(Vec::new()),
             images: RefCell::new(Vec::new()),
+            api_dates: RefCell::new(VecDeque::new()),
         }
     }
 }
@@ -42,9 +45,18 @@ impl SteamGridDbTransport for Scripted {
         if status == 0 {
             return Err(SteamGridDbFailure::Unavailable.into());
         }
+        let date = {
+            let mut dates = self.api_dates.borrow_mut();
+            if dates.len() > 1 {
+                dates.pop_front()
+            } else {
+                dates.front().copied()
+            }
+        };
         Ok(TransportResponse {
             status,
             retry_after: retry_after.map(str::to_owned),
+            date: date.map(str::to_owned),
             body: body.into_bytes(),
         })
     }
@@ -62,6 +74,7 @@ impl SteamGridDbTransport for Scripted {
         Ok(TransportResponse {
             status,
             retry_after: None,
+            date: None,
             body: Vec::new(),
         })
     }
@@ -102,6 +115,7 @@ fn subject(
             fetched_at: 1,
         },
         image: Some((size.0, size.1, ArtworkImageFormat::Png)),
+        last_checked_at: None,
     }
 }
 
@@ -114,23 +128,39 @@ fn portrait(asset_id: u64, game_id: u64) -> CheckSubject {
     )
 }
 
+fn control(cancelled: &dyn Fn() -> bool) -> CheckControl<'_> {
+    CheckControl {
+        pace: Duration::ZERO,
+        deadline: None,
+        cancelled,
+    }
+}
+
 fn run(transport: &Scripted, subjects: Vec<CheckSubject>) -> SteamGridDbListingReport {
-    check_listings(transport, KEY, subjects, Duration::ZERO, 42)
+    check_listings(transport, KEY, subjects, control(&|| false), 42)
+}
+
+/// The listing outcome flattened for compact assertions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum L {
+    Listed,
+    NotListed,
+    Unknown,
 }
 
 fn outcome(
     report: &SteamGridDbListingReport,
     index: usize,
-) -> (
-    SteamGridDbListingStatus,
-    Option<SteamGridDbUnknownReason>,
-    SteamGridDbSourceStatus,
-) {
+) -> (L, Option<SteamGridDbUnknownReason>, SteamGridDbSourceStatus) {
     let image = &report.images[index];
-    (image.listing, image.unknown_reason, image.source)
+    let (listing, reason) = match image.listing {
+        SteamGridDbListingResult::Listed => (L::Listed, None),
+        SteamGridDbListingResult::NotListed => (L::NotListed, None),
+        SteamGridDbListingResult::Unknown { reason } => (L::Unknown, Some(reason)),
+    };
+    (listing, reason, image.source)
 }
 
-use SteamGridDbListingStatus as L;
 use SteamGridDbSourceStatus as S;
 use SteamGridDbUnknownReason as R;
 
@@ -294,7 +324,7 @@ fn a_rejected_key_stops_the_check() {
 
 #[test]
 fn an_image_server_rate_limit_also_stops_the_check() {
-    let transport = Scripted::new(vec![page(0, 0, &[]), page(0, 0, &[])], 429);
+    let transport = Scripted::new(vec![page(0, 1, &[999]), page(0, 1, &[999])], 429);
     let report = run(&transport, vec![portrait(2, 7), portrait(3, 8)]);
     assert!(matches!(
         report.stopped,
@@ -334,13 +364,16 @@ fn the_request_budget_bounds_a_whole_check() {
     assert!(
         report.images[..MAX_CHECK_API_REQUESTS as usize]
             .iter()
-            .all(|image| image.listing == L::Listed)
+            .all(|image| image.listing == SteamGridDbListingResult::Listed)
     );
     assert!(
         report.images[MAX_CHECK_API_REQUESTS as usize..]
             .iter()
             .all(|image| {
-                image.listing == L::Unknown && image.unknown_reason == Some(R::RequestLimit)
+                image.listing
+                    == SteamGridDbListingResult::Unknown {
+                        reason: R::RequestLimit,
+                    }
             })
     );
 }
@@ -353,7 +386,12 @@ fn roles_map_to_their_collection_and_undocumented_sizes_list_the_whole_collectio
     jpeg_hero.image = Some((1920, 620, ArtworkImageFormat::Jpeg));
     let odd_landscape = subject(2, 7, DestinationArtworkRole::LandscapeCover, (500, 250));
     let report = run(&transport, vec![jpeg_hero, odd_landscape]);
-    assert!(report.images.iter().all(|image| image.listing == L::Listed));
+    assert!(
+        report
+            .images
+            .iter()
+            .all(|image| image.listing == SteamGridDbListingResult::Listed)
+    );
     let paths = transport.paths.borrow();
     assert!(paths.contains(
         &"/heroes/game/7?dimensions=1920x620&mimes=image/jpeg&types=static&nsfw=any&humor=any&epilepsy=any&limit=50&page=0".to_owned()
@@ -365,13 +403,15 @@ fn roles_map_to_their_collection_and_undocumented_sizes_list_the_whole_collectio
 
 #[test]
 fn an_empty_library_needs_no_key_and_makes_no_request() {
-    let report = check_stored_listings(Vec::new(), 5).unwrap();
+    let run = check_stored_listings(Vec::new(), 5, &|| false).unwrap();
     assert_eq!(
-        report,
+        run.report,
         SteamGridDbListingReport {
             checked_at: 5,
             images: Vec::new(),
             stopped: None,
+            recorded: true,
+            ..SteamGridDbListingReport::default()
         }
     );
 }
@@ -471,26 +511,32 @@ fn consecutive_unreachable_listings_stop_the_check() {
 }
 
 #[test]
-fn a_budget_exhausted_mid_listing_discards_partial_pages() {
+fn a_budget_exhausted_mid_listing_keeps_only_ids_it_saw() {
     let ids: Vec<u64> = (1..=50).collect();
     let groups = MAX_CHECK_API_REQUESTS as u64 - 1;
     let mut responses: Vec<_> = (0..groups).map(|_| page(0, 1, &[1])).collect();
     responses.push(page(0, 100, &ids));
     let transport = Scripted::new(responses, 200);
     let mut subjects: Vec<_> = (0..groups).map(|game| portrait(1, game + 1)).collect();
-    // The last group's image is on its first page, but the listing never completes.
+    // The last group's listing never completes: an image seen on its first page
+    // is listed, one not seen is unknown, and neither counts as attempted.
     subjects.push(portrait(5, 10_000));
+    subjects.push(portrait(99, 10_000));
     let report = run(&transport, subjects);
+    let seen = groups as usize;
+    assert_eq!(outcome(&report, seen), (L::Listed, None, S::NotChecked));
     assert_eq!(
-        outcome(&report, groups as usize),
+        outcome(&report, seen + 1),
         (L::Unknown, Some(R::RequestLimit), S::NotChecked)
     );
+    assert!(!report.images[seen].attempted && !report.images[seen + 1].attempted);
+    assert!(report.images[0].attempted);
 }
 
 #[test]
 fn source_probes_classify_answers_and_respect_their_budget() {
     let probes = MAX_CHECK_SOURCE_PROBES as usize;
-    let transport = Scripted::new(vec![page(0, 0, &[])], 200);
+    let transport = Scripted::new(vec![page(0, 1, &[999])], 200);
     *transport.image_statuses.borrow_mut() = [410, 403, 503, 0, 200].into_iter().collect();
     let mut subjects: Vec<_> = (1..=probes as u64 + 2).map(|id| portrait(id, 7)).collect();
     subjects[0].attribution.source_url = "https://example.com/1.png".into();
@@ -514,6 +560,203 @@ fn source_probes_classify_answers_and_respect_their_budget() {
             .iter()
             .all(|(url, max)| url.starts_with("https://cdn2.steamgriddb.com/") && *max == 1)
     );
+}
+
+#[test]
+fn an_empty_narrowed_listing_is_corroborated_by_the_unfiltered_one() {
+    let narrowed = "/grids/game/7?dimensions=600x900&mimes=image/png&types=static&nsfw=any&humor=any&epilepsy=any&limit=50&page=0";
+    let unfiltered = "/grids/game/7?types=static&nsfw=any&humor=any&epilepsy=any&limit=50&page=0";
+    // The only image of its size and format is gone, and others remain listed.
+    let transport = Scripted::new(vec![page(0, 0, &[]), page(0, 2, &[3, 4])], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(outcome(&report, 0), (L::NotListed, None, S::Gone));
+    assert_eq!(*transport.paths.borrow(), [narrowed, unfiltered]);
+    // SteamGridDB lists nothing at all for the game and role: absence proves nothing.
+    let transport = Scripted::new(vec![page(0, 0, &[]), page(0, 0, &[])], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::EmptyListing), S::Gone)
+    );
+    // The unfiltered listing still shows it, so it is listed.
+    let transport = Scripted::new(vec![page(0, 0, &[]), page(0, 2, &[9, 4])], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(outcome(&report, 0), (L::Listed, None, S::NotChecked));
+    // An unverified corroboration keeps its own reason.
+    let transport = Scripted::new(vec![page(0, 0, &[]), (502, String::new())], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::Unavailable), S::NotChecked)
+    );
+}
+
+#[test]
+fn an_empty_unnarrowed_listing_is_unknown_without_a_second_request() {
+    let mut without_facts = portrait(9, 7);
+    without_facts.image = None;
+    let transport = Scripted::new(vec![page(0, 0, &[])], 404);
+    let report = run(&transport, vec![without_facts]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::EmptyListing), S::Gone)
+    );
+    assert_eq!(transport.paths.borrow().len(), 1);
+    assert_eq!(report.images[0].listing_total, Some(0));
+}
+
+#[test]
+fn ids_seen_on_unverified_listings_are_still_listed() {
+    let unreadable_entry = (
+        200,
+        serde_json::json!({"success": true, "page": 0, "total": 2, "limit": 50,
+            "data": [{"id": 1}, {"identifier": 2}]})
+        .to_string(),
+    );
+    let transport = Scripted::new(vec![unreadable_entry], 404);
+    let report = run(&transport, vec![portrait(1, 7), portrait(2, 7)]);
+    assert_eq!(outcome(&report, 0), (L::Listed, None, S::NotChecked));
+    assert_eq!(
+        outcome(&report, 1),
+        (L::Unknown, Some(R::IncompleteListing), S::NotChecked)
+    );
+    // Too many images to verify, but the first page still shows it.
+    let transport = Scripted::new(vec![page(0, 1001, &[5])], 404);
+    let report = run(&transport, vec![portrait(5, 7), portrait(6, 7)]);
+    assert_eq!(outcome(&report, 0), (L::Listed, None, S::NotChecked));
+    assert_eq!(
+        outcome(&report, 1),
+        (L::Unknown, Some(R::TooManyImages), S::NotChecked)
+    );
+    assert_eq!(report.images[0].listing_total, Some(1001));
+}
+
+#[test]
+fn attempted_marks_groups_this_run_concluded() {
+    // Game 7 is unreachable, game 8 rejects the key, game 9 is never reached.
+    let transport = Scripted::new(vec![(503, String::new()), (401, String::new())], 404);
+    let report = run(
+        &transport,
+        vec![portrait(1, 7), portrait(2, 8), portrait(3, 9)],
+    );
+    assert_eq!(report.stopped, Some(SteamGridDbCheckStop::KeyRejected));
+    assert_eq!(
+        report
+            .images
+            .iter()
+            .map(|image| image.attempted)
+            .collect::<Vec<_>>(),
+        [true, true, false]
+    );
+}
+
+#[test]
+fn the_stalest_groups_are_listed_and_probed_first() {
+    let mut recent = portrait(1, 1);
+    recent.last_checked_at = Some(100);
+    let mut older = portrait(2, 2);
+    older.last_checked_at = Some(50);
+    let never = portrait(3, 3);
+    let transport = Scripted::new(
+        vec![page(0, 1, &[99]), page(0, 1, &[99]), page(0, 1, &[99])],
+        404,
+    );
+    let report = run(&transport, vec![recent, older, never]);
+    let games: Vec<String> = transport
+        .paths
+        .borrow()
+        .iter()
+        .map(|path| path.split('?').next().unwrap().to_owned())
+        .collect();
+    assert_eq!(games, ["/grids/game/3", "/grids/game/2", "/grids/game/1"]);
+    let probed: Vec<String> = transport
+        .images
+        .borrow()
+        .iter()
+        .map(|(url, _)| url.clone())
+        .collect();
+    assert_eq!(
+        probed,
+        [3, 2, 1].map(|id| format!("https://cdn2.steamgriddb.com/grid/{id}.png"))
+    );
+    // Results stay in subject order.
+    assert_eq!(report.images[0].attribution.asset_id, 1);
+}
+
+#[test]
+fn cancellation_and_the_deadline_stop_before_the_next_request() {
+    let transport = Scripted::new(Vec::new(), 404);
+    let report = check_listings(&transport, KEY, vec![portrait(1, 7)], control(&|| true), 0);
+    assert_eq!(report.stopped, Some(SteamGridDbCheckStop::Cancelled));
+    assert!(transport.paths.borrow().is_empty());
+    assert!(!report.images[0].attempted);
+
+    let transport = Scripted::new(Vec::new(), 404);
+    let report = check_listings(
+        &transport,
+        KEY,
+        vec![portrait(1, 7)],
+        CheckControl {
+            pace: Duration::ZERO,
+            deadline: Some(Instant::now()),
+            cancelled: &|| false,
+        },
+        0,
+    );
+    assert_eq!(report.stopped, Some(SteamGridDbCheckStop::TimeLimit));
+    assert!(transport.paths.borrow().is_empty());
+
+    // A cancel between the listing and the probe stops before the probe.
+    let calls = std::cell::Cell::new(0);
+    let cancel_after_listing = || {
+        calls.set(calls.get() + 1);
+        calls.get() > 1
+    };
+    let transport = Scripted::new(vec![page(0, 1, &[99])], 404);
+    let report = check_listings(
+        &transport,
+        KEY,
+        vec![portrait(1, 7)],
+        control(&cancel_after_listing),
+        0,
+    );
+    assert_eq!(report.stopped, Some(SteamGridDbCheckStop::Cancelled));
+    assert_eq!(outcome(&report, 0), (L::NotListed, None, S::NotChecked));
+    assert!(transport.images.borrow().is_empty());
+}
+
+#[test]
+fn a_corroboration_cut_off_by_the_budget_is_not_an_empty_listing() {
+    let groups = MAX_CHECK_API_REQUESTS as u64 - 1;
+    let mut responses: Vec<_> = (0..groups).map(|_| page(0, 1, &[1])).collect();
+    // The last narrowed listing is empty and its corroboration has no budget left.
+    responses.push(page(0, 0, &[]));
+    let transport = Scripted::new(responses, 404);
+    let mut subjects: Vec<_> = (0..groups).map(|game| portrait(1, game + 1)).collect();
+    subjects.push(portrait(9, 10_000));
+    let report = run(&transport, subjects);
+    let last = groups as usize;
+    assert_eq!(
+        outcome(&report, last),
+        (L::Unknown, Some(R::RequestLimit), S::NotChecked)
+    );
+    assert!(!report.images[last].attempted);
+}
+
+#[test]
+fn a_total_beyond_what_the_library_stores_is_an_invalid_response() {
+    let huge = (
+        200,
+        serde_json::json!({"success": true, "page": 0, "total": u64::MAX, "limit": 50, "data": []})
+            .to_string(),
+    );
+    let transport = Scripted::new(vec![huge], 404);
+    let report = run(&transport, vec![portrait(9, 7)]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::InvalidResponse), S::NotChecked)
+    );
+    assert_eq!(report.images[0].listing_total, None);
 }
 
 /// Owner-authorized live exercise of the report-only check (#527, 2026-11-13):
@@ -553,14 +796,24 @@ fn steamgriddb_live_listing_check() {
     absent.attribution.source_url =
         "https://cdn2.steamgriddb.com/grid/00000000000000000000000000000000.png".into();
     subjects.push(absent);
-    let report = check_listings(&HttpTransport, key, subjects, CHECK_PACE, 0);
+    let report = check_listings(
+        &HttpTransport,
+        key,
+        subjects,
+        CheckControl {
+            pace: CHECK_PACE,
+            deadline: None,
+            cancelled: &|| false,
+        },
+        0,
+    );
     for image in &report.images {
         eprintln!(
             "live check: {} {:?} -> {:?} {:?} {:?}",
             image.attribution.asset_id,
             image.attribution.role,
             image.listing,
-            image.unknown_reason,
+            image.listing_total,
             image.source
         );
     }
@@ -568,4 +821,95 @@ fn steamgriddb_live_listing_check() {
     assert_eq!(outcome(&report, 0).0, L::Listed);
     assert_eq!(outcome(&report, 1).0, L::Listed);
     assert_eq!(outcome(&report, 2), (L::NotListed, None, S::Gone));
+}
+
+#[test]
+fn http_dates_are_read_strictly() {
+    assert_eq!(
+        server_date(Some("Sat, 14 Nov 2026 07:30:00 GMT")),
+        Some(1_794_641_400)
+    );
+    assert_eq!(server_date(Some("yesterday")), None);
+    assert_eq!(server_date(Some("Thu, 01 Jan 1970 00:00:00 GMT")), None);
+    assert_eq!(server_date(None), None);
+}
+
+#[test]
+fn each_image_carries_the_server_dates_of_its_own_listing() {
+    // Two pages answered at different times, then a second game's page.
+    let first: Vec<u64> = (1..=50).collect();
+    let transport = Scripted::new(
+        vec![
+            page(0, 52, &first),
+            page(1, 52, &[51, 52]),
+            page(0, 1, &[5]),
+        ],
+        200,
+    );
+    *transport.api_dates.borrow_mut() = VecDeque::from([
+        "Sat, 14 Nov 2026 07:30:00 GMT",
+        "Sat, 14 Nov 2026 07:30:02 GMT",
+        "Sat, 14 Nov 2026 07:31:00 GMT",
+    ]);
+    let run = check_listings_dated(
+        &transport,
+        KEY,
+        vec![portrait(99, 7), portrait(6, 8)],
+        control(&|| false),
+        42,
+    );
+    assert_eq!(
+        run.server_dates,
+        vec![
+            Some(ServerDates {
+                earliest: 1_794_641_400,
+                latest: 1_794_641_402
+            }),
+            Some(ServerDates {
+                earliest: 1_794_641_460,
+                latest: 1_794_641_460
+            }),
+        ]
+    );
+    // Without a readable date there is nothing to compare.
+    let transport = Scripted::new(vec![page(0, 1, &[5])], 200);
+    let run = check_listings_dated(
+        &transport,
+        KEY,
+        vec![portrait(6, 8)],
+        control(&|| false),
+        42,
+    );
+    assert_eq!(run.server_dates, vec![None]);
+}
+
+#[test]
+fn absences_are_probed_before_images_whose_listing_was_empty() {
+    // Game 7 lists nothing at all (empty, probed only to inform); game 8 lists
+    // another image, so image 6 is a verified absence and is probed first.
+    let empty = page(0, 0, &[]);
+    let transport = Scripted::new(vec![empty.clone(), empty, page(0, 1, &[5])], 404);
+    // The never-checked empty group is listed first, yet the absence that
+    // was checked before is probed first.
+    let mut stale = portrait(6, 8);
+    stale.last_checked_at = Some(1);
+    let report = run(&transport, vec![portrait(3, 7), stale]);
+    assert_eq!(
+        outcome(&report, 0),
+        (L::Unknown, Some(R::EmptyListing), S::Gone)
+    );
+    assert_eq!(outcome(&report, 1), (L::NotListed, None, S::Gone));
+    let probed: Vec<String> = transport
+        .images
+        .borrow()
+        .iter()
+        .map(|(url, _)| url.clone())
+        .collect();
+    assert_eq!(
+        probed,
+        [
+            "https://cdn2.steamgriddb.com/grid/6.png",
+            "https://cdn2.steamgriddb.com/grid/3.png"
+        ]
+    );
 }

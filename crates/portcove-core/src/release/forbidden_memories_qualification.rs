@@ -128,6 +128,7 @@ mod tests {
                 id: Some(repository_id),
                 archived: false,
                 owner: None,
+                pushed_at: None,
             },
             serde_json::from_value(value).unwrap(),
         )

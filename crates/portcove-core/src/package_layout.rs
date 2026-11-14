@@ -100,6 +100,29 @@ pub fn inspect_package_archive_with_program_filter(
             "the shared library filter requires macOS",
         ));
     }
+    let (_workspace, payload) =
+        extract_verified_archive(source, platform, expected_size, expected_sha256)?;
+    let layout = observe_root(
+        look_through_wrapper(&payload)?,
+        platform,
+        ignore_verified_macos_libraries,
+    )?;
+    if !valid_layout(&layout) {
+        return Err(PortcoveError::verification(
+            "package layout cannot be represented by a bounded reviewed declaration",
+        ));
+    }
+    Ok(layout)
+}
+
+/// Capture verified archive bytes in temporary storage and extract them with
+/// the managed readers. The returned directory owns the extracted payload.
+pub(crate) fn extract_verified_archive(
+    source: &Path,
+    platform: Platform,
+    expected_size: u64,
+    expected_sha256: &str,
+) -> Result<(tempfile::TempDir, PathBuf)> {
     let name = source
         .file_name()
         .and_then(|name| name.to_str())
@@ -161,17 +184,7 @@ pub fn inspect_package_archive_with_program_filter(
             &|| Ok(()),
         )?;
     }
-    let layout = observe_root(
-        look_through_wrapper(&payload)?,
-        platform,
-        ignore_verified_macos_libraries,
-    )?;
-    if !valid_layout(&layout) {
-        return Err(PortcoveError::verification(
-            "package layout cannot be represented by a bounded reviewed declaration",
-        ));
-    }
-    Ok(layout)
+    Ok((workspace, payload))
 }
 
 fn valid_layout(layout: &ReviewedPackageLayout) -> bool {
@@ -313,9 +326,19 @@ fn observe_root(
     })
 }
 
+/// Whether a regular file entry is a program or script by the reviewed
+/// layout classifier; shared with derived package shapes.
+pub(crate) fn is_program_entry(
+    entry: &fs::DirEntry,
+    platform: Platform,
+    ignore_verified_macos_libraries: bool,
+) -> Result<bool> {
+    is_executable(entry, platform, ignore_verified_macos_libraries)
+}
+
 /// One wrapper directory with nothing beside it is the package root's container,
 /// whatever its (often versioned) name.
-fn look_through_wrapper(root: &Path) -> Result<PathBuf> {
+pub(crate) fn look_through_wrapper(root: &Path) -> Result<PathBuf> {
     let mut entries = fs::read_dir(root)?;
     let (Some(first), None) = (entries.next(), entries.next()) else {
         return Ok(root.to_path_buf());
@@ -332,6 +355,78 @@ fn lowercase_name(name: &std::ffi::OsStr) -> String {
     name.to_string_lossy().to_ascii_lowercase()
 }
 
+/// Program and script names reviewed layouts record, by lowercase file name.
+fn is_program_name(name: &str) -> bool {
+    matches!(
+        Path::new(name)
+            .extension()
+            .and_then(|extension| extension.to_str()),
+        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh" | "msi" | "jar" | "vbs" | "lnk")
+    )
+}
+
+/// Extensions of files a runtime or its engine loads or runs as code, beyond
+/// [`is_program_name`] (#5359). Each entry is code by its format:
+/// - native libraries and plugins: `dll`, `so`, `dylib`, `asi` (ASI loader
+///   plugins), `node` (Node/Electron native addons), `ocx`, `cpl`, `sys`,
+///   `drv`;
+/// - Windows executables under other names: `com`, `scr`;
+/// - scripts: `js`, `mjs`, `cjs` (Node/Electron), `py`, `pyc`, `pyo`, `pyd`,
+///   `pth` (Python imports `.pth` lines at startup), `lua`, `luac`, `psm1`,
+///   `wsf`, `hta`, `jse`, `vbe`;
+/// - engine code packages: `gd`, `gdc` (Godot scripts), `pck` (Godot loads a
+///   pack beside the executable), `wasm`, `class` (Java bytecode).
+const CODE_EXTENSIONS: &[&str] = &[
+    "asi", "class", "cjs", "com", "cpl", "dll", "drv", "dylib", "gd", "gdc", "hta", "js", "jse",
+    "lua", "luac", "mjs", "node", "ocx", "pck", "psm1", "pth", "py", "pyc", "pyd", "pyo", "scr",
+    "so", "sys", "vbe", "wasm", "wsf",
+];
+
+/// Leading bytes of executable formats: PE (`MZ`), ELF, Mach-O (32/64-bit,
+/// either byte order), universal binaries and Java classes (`CAFEBABE`), and
+/// interpreter scripts (`#!`). A renamed library or extensionless binary is
+/// still code.
+fn has_executable_signature(path: &Path) -> Result<bool> {
+    let mut header = [0_u8; 4];
+    let mut file = fs::File::open(path)?;
+    let mut read = 0;
+    while read < header.len() {
+        match file.read(&mut header[read..])? {
+            0 => break,
+            count => read += count,
+        }
+    }
+    let header = &header[..read];
+    Ok(header.starts_with(b"MZ")
+        || header.starts_with(b"#!")
+        || header == b"\x7fELF"
+        || matches!(
+            header,
+            [0xfe, 0xed, 0xfa, 0xce | 0xcf]
+                | [0xce | 0xcf, 0xfa, 0xed, 0xfe]
+                | [0xca, 0xfe, 0xba, 0xbe]
+                | [0xbe, 0xba, 0xfe, 0xca]
+        ))
+}
+
+/// Whether an undeclared regular file in a managed runtime could run or be
+/// loaded as code (#5359 Tier 1): a reviewed-layout program name, a
+/// [`CODE_EXTENSIONS`] member (including `name.so.N`), any executable mode
+/// bit, or an executable signature in its first four bytes. Callers have
+/// already refused links and other non-regular entries.
+pub(crate) fn is_unknown_file_hazard(path: &Path) -> Result<bool> {
+    let name = path.file_name().map(lowercase_name).unwrap_or_default();
+    let code = Path::new(&name)
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| CODE_EXTENSIONS.contains(&extension))
+        || name.contains(".so.");
+    Ok(is_program_name(&name)
+        || code
+        || crate::permissions::executable_intent(path)?
+        || has_executable_signature(path)?)
+}
+
 fn is_executable(
     entry: &fs::DirEntry,
     platform: Platform,
@@ -341,10 +436,7 @@ fn is_executable(
     let extension = Path::new(&name)
         .extension()
         .and_then(|extension| extension.to_str());
-    if matches!(
-        extension,
-        Some("exe" | "appimage" | "bat" | "cmd" | "ps1" | "sh" | "msi" | "jar" | "vbs" | "lnk")
-    ) {
+    if is_program_name(&name) {
         return Ok(true);
     }
     if platform == Platform::WindowsX86_64 || !crate::permissions::executable_intent(&entry.path())?
@@ -578,6 +670,77 @@ mod tests {
     fn reviewed() -> ReviewedPackageLayout {
         let package = package(Some("game-1.0"), REVIEWED_FILES);
         observe(package.path(), Platform::WindowsX86_64).unwrap()
+    }
+
+    #[test]
+    fn unknown_file_hazards_are_programs_scripts_libraries_and_executable_bits() {
+        let temporary = tempfile::tempdir().unwrap();
+        for (name, hazard) in [
+            ("Helper.EXE", true),
+            ("tools.ps1", true),
+            ("start.sh", true),
+            ("launch.lnk", true),
+            ("plugin.dll", true),
+            ("libmod.so", true),
+            ("libmod.so.1", true),
+            ("engine.dylib", true),
+            ("main.js", true),
+            ("loader.mjs", true),
+            ("hook.cjs", true),
+            ("mod.py", true),
+            ("site.pth", true),
+            ("cache.pyc", true),
+            ("ext.pyd", true),
+            ("init.lua", true),
+            ("autoload.gd", true),
+            ("compiled.gdc", true),
+            ("game.pck", true),
+            ("plugin.asi", true),
+            ("addon.node", true),
+            ("old.com", true),
+            ("saver.scr", true),
+            ("panel.cpl", true),
+            ("control.ocx", true),
+            ("easy-access.ini", false),
+            ("settings.json", false),
+            ("replay.txt", false),
+            ("no-extension", false),
+            ("package.json", false),
+        ] {
+            let path = temporary.path().join(name);
+            fs::write(&path, b"bytes").unwrap();
+            assert_eq!(is_unknown_file_hazard(&path).unwrap(), hazard, "{name}");
+        }
+        // A renamed or extensionless binary is still code by its signature.
+        for (name, bytes) in [
+            ("renamed.bin", b"MZ\x90\x00rest".as_slice()),
+            ("settings.ini", b"#!/bin/sh\n".as_slice()),
+            ("elf-blob", b"\x7fELF\x02\x01".as_slice()),
+            ("macho-blob", &[0xcf, 0xfa, 0xed, 0xfe, 7]),
+            ("macho-be", &[0xfe, 0xed, 0xfa, 0xcf]),
+            ("universal", &[0xca, 0xfe, 0xba, 0xbe, 0]),
+        ] {
+            let path = temporary.path().join(name);
+            fs::write(&path, bytes).unwrap();
+            assert!(is_unknown_file_hazard(&path).unwrap(), "{name}");
+        }
+        for (name, bytes) in [
+            ("short.dat", b"M".as_slice()),
+            ("empty.dat", b"".as_slice()),
+            ("text.ini", b"[Settings]\nMZ=1".as_slice()),
+        ] {
+            let path = temporary.path().join(name);
+            fs::write(&path, bytes).unwrap();
+            assert!(!is_unknown_file_hazard(&path).unwrap(), "{name}");
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let path = temporary.path().join("run-me");
+            fs::write(&path, b"#!/bin/true").unwrap();
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
+            assert!(is_unknown_file_hazard(&path).unwrap());
+        }
     }
 
     #[cfg(unix)]

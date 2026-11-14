@@ -460,6 +460,7 @@ async fn changed_update_observation_refreshes_only_its_affected_implementation()
             required_runtime: None,
             update_available: true,
             release: f.provider.release.lock().unwrap().clone(),
+            upstream_activity: None,
         })
         .unwrap();
     f.request.refresh = false;

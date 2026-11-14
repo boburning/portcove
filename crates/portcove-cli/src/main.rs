@@ -326,6 +326,42 @@ async fn execute_with_qualification_environment(
 async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Result<ExitCode> {
     if let Commands::Catalog {
         command:
+            CatalogCommand::InspectPackageShape {
+                archive,
+                port,
+                platform,
+                size,
+                sha256,
+            },
+    } = &cli.command
+    {
+        let platform = serde_json::from_value(serde_json::Value::String(platform.clone()))
+            .map_err(|_| portcove_core::PortcoveError::usage("unknown package platform"))?;
+        let catalog = portcove_core::Catalog::embedded()?;
+        render_read_success(
+            mode,
+            "catalog.inspect-package-shape",
+            portcove_core::inspect_package_shape_archive(
+                archive,
+                catalog.port(port)?,
+                platform,
+                *size,
+                sha256,
+            )?,
+            |inspection| {
+                format!(
+                    "Package shape for {}: {} programs, {} configuration files; shadow verdict {}.",
+                    inspection.port_id,
+                    inspection.shape.programs.as_ref().map_or(0, Vec::len),
+                    inspection.shape.config_files.as_ref().map_or(0, Vec::len),
+                    shape_verdict_text(&inspection.verdict, inspection.provenance)
+                )
+            },
+        )?;
+        return Ok(ExitCode::SUCCESS);
+    }
+    if let Commands::Catalog {
+        command:
             CatalogCommand::InspectPackageLayout {
                 archive,
                 platform,
@@ -708,6 +744,41 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
             "installation.retained",
             service.retained_builds(&port_id)?,
             |value| retained_build_human::inventory(value, service.catalog()),
+        )?,
+        Commands::Installation {
+            command: InstallationCommand::PackageShape { port_id },
+        } => render_read_success(
+            mode,
+            "installation.package-shape",
+            service.installed_package_shapes(&port_id)?,
+            |installs| {
+                installs
+                    .iter()
+                    .map(|install| {
+                        use portcove_core::InstalledShapeStatus as Status;
+                        let state = match (install.status, &install.record) {
+                            (Status::Recorded, Some(record)) => {
+                                shape_verdict_text(&record.verdict, record.provenance)
+                            }
+                            (Status::Unrecognized, _) => {
+                                "package shape recorded in a format this version does not read"
+                                    .to_owned()
+                            }
+                            (Status::ManifestUnverifiable, _) => format!(
+                                "installation manifest could not be verified ({})",
+                                install.detail.as_deref().unwrap_or("no detail")
+                            ),
+                            _ => "no recorded package shape".to_owned(),
+                        };
+                        format!(
+                            "{}{}: {state}",
+                            install.version,
+                            if install.active { " (current)" } else { "" },
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            },
         )?,
         Commands::Installation {
             command: InstallationCommand::Reference { port_id, setup_id },
@@ -1339,6 +1410,12 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 "source.roots.profiles",
                 service.game_file_root_match_profiles(&root_id)?,
                 |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
+            )?,
+            GameFileRootCommand::Stores => render_read_success(
+                mode,
+                "source.roots.stores",
+                service.store_game_installs()?,
+                human::store_game_installs,
             )?,
             GameFileRootCommand::Add { path } => render_read_success(
                 mode,
@@ -3121,6 +3198,7 @@ fn execute_library(
                     human::library_metadata_file,
                 )?;
             } else {
+                service.finish_pending_artwork_removals()?;
                 render_read_success(
                     mode,
                     name,
@@ -3716,6 +3794,21 @@ fn exit_code(error: &PortcoveError) -> u8 {
     }
 }
 
+/// Human shadow verdict; a compatible verdict against an unreviewed baseline
+/// says so, because it is not evidence of review.
+fn shape_verdict_text(
+    verdict: &portcove_core::ShapeVerdict,
+    provenance: portcove_core::ShapeProvenance,
+) -> String {
+    match (verdict, provenance) {
+        (
+            portcove_core::ShapeVerdict::Compatible { .. },
+            portcove_core::ShapeProvenance::Unreviewed,
+        ) => "compatible (unreviewed baseline)".to_owned(),
+        _ => verdict.label().to_owned(),
+    }
+}
+
 fn command_name(command: &Commands) -> &'static str {
     match command {
         Commands::Setup { command } => command.name(),
@@ -3752,6 +3845,7 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
                 GameFileRootCommand::Matches(_) => "source.roots.matches",
                 GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
+                GameFileRootCommand::Stores => "source.roots.stores",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",
@@ -3822,6 +3916,7 @@ fn command_name(command: &Commands) -> &'static str {
         Commands::Plan { .. } => "plan",
         Commands::Installation { command } => match command {
             InstallationCommand::Retained { .. } => "installation.retained",
+            InstallationCommand::PackageShape { .. } => "installation.package-shape",
             InstallationCommand::Reference { .. } => "installation.reference",
             InstallationCommand::ReferencePlan { .. } => "installation.reference-plan",
             InstallationCommand::ReferenceBind { .. } => "installation.reference-bind",
@@ -5252,6 +5347,7 @@ mod tests {
             "source.roots.scan",
             "source.roots.matches",
             "source.roots.profiles",
+            "source.roots.stores",
         ] {
             assert!(capabilities.commands.iter().any(|command| command == name));
         }

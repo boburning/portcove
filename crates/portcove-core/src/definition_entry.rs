@@ -351,6 +351,18 @@ impl DefinitionContentIndex {
                 "an STFS package binding requires staged-source capability version 32",
             ));
         }
+        if (port.runtime_rom_patch.is_some()
+            || port.runtime_source_materialization
+                == Some(crate::RuntimeSourceMaterialization::RomPatch))
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= 33
+            })
+        {
+            return Err(PortcoveError::verification(
+                "ROM patching requires staged-source capability version 33",
+            ));
+        }
         if port.optional_game_source
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

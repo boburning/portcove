@@ -52,6 +52,7 @@ export type ArtworkThumbnail = Generated.TransportOutputs["artwork_thumbnail"];
 export type ArtworkSlot = ArtworkState["choice"]["slot"];
 export type ArtworkAttribution = ArtworkState["attribution"][number];
 export type SteamGridDbKeyStatus = Generated.TransportOutputs["steamgriddb_key_status"];
+export type SteamGridDbListingReport = Generated.TransportOutputs["steamgriddb_listing_report"];
 export type SteamGridDbGame = Generated.TransportOutputs["steamgriddb_games"][number];
 export type SteamGridDbCandidate = Generated.TransportOutputs["steamgriddb_candidates"][number];
 export type DestinationArtworkRole = SteamGridDbCandidate["role"];
@@ -167,6 +168,7 @@ export type GameFileScanSnapshot = NonNullable<
   Generated.TransportOutputs["game_file_scan_snapshot"]
 >;
 export type GameFileScanMatchPage = Generated.TransportOutputs["desktop_game_file_scan_match_page"];
+export type StoreGameInstalls = Generated.TransportOutputs["desktop_store_game_installs"];
 export type GameFileScanMatchQuery = Requests.TransportInputs["desktop_game_file_scan_match_query"];
 
 export type { ObservedSourceDigest } from "./transport-types.generated";
@@ -201,6 +203,7 @@ export type OutputRelocationStatus = Generated.TransportOutputs["output_relocati
 export type InstallPlan = Generated.TransportOutputs["install_plan"];
 
 export type { UpdateSnapshot } from "./transport-types.generated";
+export type { UpstreamActivity } from "./transport-types.generated";
 
 export type UpdateCheckOutcome = Generated.TransportOutputs["desktop_update_check_outcome"];
 

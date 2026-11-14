@@ -308,7 +308,7 @@ impl KnownFailureCause {
                 return (
                     "portable_runtime_modified",
                     format!(
-                        "Package files changed, went missing, or unrecognized files were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move unrecognized additions before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
+                        "Package files changed or went missing, or unrecognized programs, scripts or libraries were added. This operation stopped and preserved the current files. Back up your changes to a separate folder, then restore changed or missing package files from the accepted package and move the added programs, scripts or libraries before reviewing and trying again. Declared player data is handled separately. A preserved unknown file is not automatically safe to add to a replacement.\nInstallation: {}\nAffected package paths:\n{}{}",
                         directory.display(),
                         paths,
                         if remainder > 0 {

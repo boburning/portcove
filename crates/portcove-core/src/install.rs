@@ -25,6 +25,8 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+mod transfer;
+
 #[derive(Debug, Clone)]
 pub struct InstallRequest {
     pub port_id: String,
@@ -419,12 +421,61 @@ impl InstallQualification {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+/// Whether a critical check admits a launch or a managed replacement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum CriticalCheck {
+    Launch,
+    Replacement,
+}
+
+/// Most unknown player-side file paths a verification report lists.
+pub(crate) const REPORTED_UNKNOWN_FILES: usize = 64;
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct VerificationReport {
     pub install_id: String,
     pub checked_files: u64,
+    /// True only when the installation exactly matches its record: no
+    /// failures and no unknown player-side files.
     pub valid: bool,
+    /// Changed, missing or unsafe package files and unexpected programs,
+    /// scripts or libraries. These hold managed replacement, rollback,
+    /// removal and backup.
     pub failures: Vec<String>,
+    /// Undeclared regular files that are not programs, scripts, libraries or
+    /// links, such as settings a game wrote beside itself (#5359). They stay
+    /// in place, do not hold managed operations and are copied to backups in a
+    /// separate area.
+    #[serde(default)]
+    pub unknown_file_count: u64,
+    /// The first unknown player-side file paths, in sorted order.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unknown_files: Vec<String>,
+}
+
+impl VerificationReport {
+    /// Whether verification found a hazard rather than only unknown
+    /// player-side files.
+    pub fn has_hazards(&self) -> bool {
+        !self.failures.is_empty()
+    }
+
+    /// Failures and listed unknown files, for technical details.
+    pub(crate) fn findings(&self) -> Vec<String> {
+        let mut findings = self.failures.clone();
+        findings.extend(
+            self.unknown_files
+                .iter()
+                .map(|path| format!("unknown player-side file: {path}")),
+        );
+        let unlisted = self
+            .unknown_file_count
+            .saturating_sub(self.unknown_files.len() as u64);
+        if unlisted > 0 {
+            findings.push(format!("{unlisted} more unknown player-side files"));
+        }
+        findings
+    }
 }
 
 pub(crate) struct RetainedPersistenceMetadata {
@@ -459,6 +510,14 @@ struct InstallManifest {
     #[serde(default)]
     mutable_file_patterns: Vec<ManifestFilePattern>,
     files: Vec<ManifestFile>,
+    /// Derived package shape and shadow drift verdict (#5359). Optional and
+    /// additive; it never admits or refuses anything. It is kept as untyped
+    /// JSON so a record written by another Portcove version never makes this
+    /// manifest unreadable, and rewrites carry it verbatim.
+    /// `package_shape::stored_record` reads it; anything it does not
+    /// understand is no record.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    package_shape: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -1267,6 +1326,7 @@ impl Installer {
             )?;
         }
         normalize_standalone_appimage(&payload_root, &artifact, &request.qualification)?;
+        let mut package_shape = None;
         if let Some(contract) = &request.qualification.retained_contract {
             let catalog = contract.catalog(&request.port_id)?;
             let port = catalog.port(&request.port_id)?;
@@ -1308,6 +1368,14 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
+            // Shadow drift comparison (#5359 phase 1): derived after every
+            // grant and before any adapter adds content. It refuses nothing.
+            package_shape = Some(self.package_shape_record(
+                port,
+                &request.qualification,
+                &payload_root,
+                &artifact.sha256,
+            ));
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -1507,13 +1575,14 @@ impl Installer {
             })
             .await?;
         }
-        let (manifest_sha256, selected_executable, runtime) = write_manifest(
+        let (manifest_sha256, selected_executable, runtime) = write_manifest_with_shape(
             &operation_id,
             &request.port_id,
             &request.release.version,
             &artifact,
             &request.qualification,
             &payload_root,
+            package_shape,
         )?;
         let install = InstallRecord {
             id: operation_id,
@@ -1941,6 +2010,10 @@ impl Installer {
 
     /// Shared bounded byte transfer; callers supply a provider-constrained
     /// client and still own checksum verification and publication policy.
+    ///
+    /// Contract: a non-empty `asset.sha256` promises that the caller verifies
+    /// the complete file against it before use. Only then may a dropped body
+    /// continue with `Range`; an empty digest makes every retry start over.
     pub(crate) async fn download_with_client<F>(
         client: &reqwest::Client,
         asset: &ReleaseAsset,
@@ -1951,86 +2024,15 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        validate_download_progress(0, asset.size)?;
-        let response = operation
-            .interruptible(async {
-                let response = client.get(&asset.url).send().await.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let status = response.status();
-                response.error_for_status().map_err(|error| {
-                    PortcoveError::network(error.to_string()).with_upstream(Some(
-                        crate::failure::UpstreamObservation::Status(status.as_u16()),
-                    ))
-                })
-            })
-            .await?;
-        let total = response
-            .content_length()
-            .or(Some(asset.size))
-            .filter(|value| *value > 0);
-        let mut stream = response.bytes_stream();
-        // Network chunks are small; batch them so each write is not its own
-        // blocking-pool dispatch. `flush` below drains the buffer and the file.
-        let mut file = tokio::io::BufWriter::with_capacity(
-            1024 * 1024,
-            tokio::fs::File::create(destination).await?,
-        );
-        let mut completed = 0_u64;
-        let transfer_result: Result<()> = async {
-            let mut reported = 0_u64;
-            while let Some(chunk) = operation
-                .interruptible(async { Ok(stream.next().await) })
-                .await?
-            {
-                let chunk = chunk.map_err(|error| {
-                    PortcoveError::network(error.to_string())
-                        .with_upstream(crate::failure::UpstreamObservation::from_reqwest(&error))
-                })?;
-                let next = completed
-                    .checked_add(chunk.len() as u64)
-                    .ok_or_else(|| PortcoveError::verification("download byte count overflowed"))?;
-                validate_download_progress(next, asset.size)?;
-                file.write_all(&chunk).await?;
-                completed = next;
-                if total.is_some_and(|total| completed == total)
-                    || completed.saturating_sub(reported) >= 1024 * 1024
-                {
-                    emit(operation.progress_with_unit(
-                        "download",
-                        crate::ProgressUnit::Bytes,
-                        completed,
-                        total,
-                    ));
-                    reported = completed;
-                }
-            }
-            if completed != reported {
-                emit(operation.progress_with_unit(
-                    "download",
-                    crate::ProgressUnit::Bytes,
-                    completed,
-                    total,
-                ));
-            }
-            Ok(())
-        }
-        .await;
-        // Tokio write_all can return with a blocking file write still queued.
-        // Drain even on cancellation/network/size/write errors before callers
-        // may clean private staging or publish the terminal transfer result.
-        // This await is deliberately outside cooperative interruption.
-        let drain_result = file.flush().await;
-        if let Err(error) = transfer_result {
-            return Err(match drain_result {
-                Ok(()) => error,
-                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
-            });
-        }
-        drain_result?;
-        validate_download_size(completed, asset.size)?;
-        Ok(())
+        transfer::download(
+            client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+        )
+        .await
     }
 
     pub fn verify(&self, install: &InstallRecord) -> Result<VerificationReport> {
@@ -2084,7 +2086,17 @@ impl Installer {
         install: &InstallRecord,
         qualification: &InstallQualification,
     ) -> Result<VerificationReport> {
-        self.verify_with_metadata(
+        Ok(self.verify_managed_with_unknown(install, qualification)?.0)
+    }
+
+    /// Verification plus every unknown player-side file path, not only the
+    /// report's bounded list.
+    pub(crate) fn verify_managed_with_unknown(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<(VerificationReport, Vec<String>)> {
+        self.verify_with_unknown(
             install,
             &qualification.generated_metadata_paths(install)?,
             &qualification.current_mutable_paths(install)?,
@@ -2195,6 +2207,23 @@ impl Installer {
         current_mutable_paths: &[String],
         staged_fallback: bool,
     ) -> Result<VerificationReport> {
+        Ok(self
+            .verify_with_unknown(
+                install,
+                generated_metadata,
+                current_mutable_paths,
+                staged_fallback,
+            )?
+            .0)
+    }
+
+    fn verify_with_unknown(
+        &self,
+        install: &InstallRecord,
+        generated_metadata: &[String],
+        current_mutable_paths: &[String],
+        staged_fallback: bool,
+    ) -> Result<(VerificationReport, Vec<String>)> {
         let manifest = verified_manifest(install)?;
         let strict_staged = full_immutable_integrity(&manifest, install, staged_fallback)?;
         let graphics_exports = regaiden_graphics_exports(install, &manifest)?;
@@ -2214,6 +2243,7 @@ impl Installer {
             None
         };
         let mut failures = Vec::new();
+        let mut unknown = Vec::new();
         failures.extend(mutable_file_pattern_failures(&install.path, &manifest)?);
         for file in &manifest.files {
             let candidate = manifest_member(&install.path, &file.path)?;
@@ -2242,6 +2272,7 @@ impl Installer {
             Some(files) => files,
             None => walk_files(&install.path)?,
         };
+        let electron = electron_resources(&manifest);
         for candidate in candidates {
             let relative = manifest_relative(&install.path, &candidate)?;
             if relative == ".portcove-manifest.json"
@@ -2276,15 +2307,35 @@ impl Installer {
                 continue;
             }
             if !expected.contains(relative.as_str()) {
-                failures.push(format!("unexpected: {relative}"));
+                // Both inventories list only regular files: the strict walk
+                // refuses links and other objects, the legacy walk skips them.
+                if electron
+                    .as_deref()
+                    .is_some_and(|resources| relative_is_within(&relative, resources))
+                    || crate::package_layout::is_unknown_file_hazard(&candidate)?
+                {
+                    failures.push(format!("unexpected: {relative}"));
+                } else {
+                    unknown.push(relative);
+                }
             }
         }
-        Ok(VerificationReport {
-            install_id: install.id.clone(),
-            checked_files: manifest.files.len() as u64,
-            valid: failures.is_empty(),
-            failures,
-        })
+        unknown.sort();
+        Ok((
+            VerificationReport {
+                install_id: install.id.clone(),
+                checked_files: manifest.files.len() as u64,
+                valid: failures.is_empty() && unknown.is_empty(),
+                failures,
+                unknown_file_count: unknown.len() as u64,
+                unknown_files: unknown
+                    .iter()
+                    .take(REPORTED_UNKNOWN_FILES)
+                    .cloned()
+                    .collect(),
+            },
+            unknown,
+        ))
     }
 
     pub(crate) fn require_curated_operation(
@@ -2365,10 +2416,34 @@ impl Installer {
         Ok(None)
     }
 
+    /// Executable trust before launch and pointer changes. A full-integrity
+    /// runtime holds only on hazards (#5359): unknown player-side files may
+    /// stay, except loader-relevant configuration beside the executable
+    /// (PCV-REAUD-003), which launch keeps rejecting.
     pub(crate) fn verify_critical(
         &self,
         install: &InstallRecord,
         qualification: &InstallQualification,
+    ) -> Result<PathBuf> {
+        self.verify_critical_for(install, qualification, CriticalCheck::Launch)
+    }
+
+    /// The same check before a managed update or version switch away from or
+    /// back to this runtime (#5359 Tier 1). No process starts from it, so
+    /// configuration beside the executable does not hold it either.
+    pub(crate) fn verify_critical_for_replacement(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<PathBuf> {
+        self.verify_critical_for(install, qualification, CriticalCheck::Replacement)
+    }
+
+    fn verify_critical_for(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+        check: CriticalCheck,
     ) -> Result<PathBuf> {
         check_retained_runtime_paths(install, &install.path)?;
         let manifest = verified_manifest(install)?;
@@ -2382,15 +2457,22 @@ impl Installer {
         )?;
         let full_integrity =
             full_immutable_integrity(&manifest, install, qualification.strict_staged_source)?;
+        // Only a complete inventory can tell unknown files from hazards;
+        // otherwise launch-sensitive companions beside the executable hold.
+        let check = if full_integrity {
+            check
+        } else {
+            CriticalCheck::Launch
+        };
         if full_integrity {
             let report = self.verify_managed(install, qualification)?;
-            if !report.valid {
+            if report.has_hazards() {
                 return Err(PortcoveError::verification(format!(
                     "immutable install integrity failed for {}",
                     install.port_id,
                 ))
                 .detail("install_id", &install.id)
-                .detail("failures", report.failures.join(", ")));
+                .detail("failures", report.findings().join(", ")));
             }
         }
         let mut current_mutable = qualification.current_mutable_paths(install)?;
@@ -2450,10 +2532,23 @@ impl Installer {
                 continue;
             }
             let file_type = entry.file_type()?;
-            if file_type.is_symlink()
-                || (file_type.is_file()
-                    && is_critical_companion(&candidate, &executable, platform)?)
-            {
+            let sensitive = match check {
+                // New programs and libraries beside the executable, and only the
+                // reviewed loader-read names (PCV-REAUD-003, narrowed #5359).
+                CriticalCheck::Launch => {
+                    (file_type.is_file()
+                        && (is_executable_companion(&candidate, &executable, platform)?
+                            || crate::package_layout::is_unknown_file_hazard(&candidate)?))
+                        || ((file_type.is_file() || file_type.is_dir())
+                            && is_loader_sensitive_name(&entry.file_name()))
+                }
+                CriticalCheck::Replacement => {
+                    file_type.is_file()
+                        && (is_executable_companion(&candidate, &executable, platform)?
+                            || crate::package_layout::is_unknown_file_hazard(&candidate)?)
+                }
+            };
+            if file_type.is_symlink() || sensitive {
                 failures.push(format!("unexpected launch-sensitive file: {relative}"));
             }
         }
@@ -3214,6 +3309,7 @@ mod legacy_dkr_tests {
                 executable: schema >= 5
                     && crate::permissions::platform_requires_executable(artifact.platform),
             }],
+            package_shape: None,
         };
         let bytes = serde_json::to_vec(&manifest).unwrap();
         fs::write(root.join(".portcove-manifest.json"), &bytes).unwrap();
@@ -3466,6 +3562,96 @@ pub(crate) fn portability_catalog_for_install(
     Ok(retained)
 }
 
+impl Installer {
+    /// Derive the shape of a new install's extracted package and its shadow
+    /// verdict. Baseline and observation failures become `unknown`; this
+    /// never refuses the installation.
+    fn package_shape_record(
+        &self,
+        port: &PortDefinition,
+        qualification: &InstallQualification,
+        payload_root: &Path,
+        sha256: &str,
+    ) -> crate::package_shape::PackageShapeRecord {
+        let local = self
+            .local_shape_baseline(&port.id, qualification.platform)
+            .ok()
+            .flatten();
+        crate::package_shape::record_for_install(
+            port,
+            qualification,
+            qualification.platform,
+            payload_root,
+            sha256,
+            local.as_ref(),
+        )
+    }
+
+    /// The active installation's recorded shape on the same platform.
+    fn local_shape_baseline(
+        &self,
+        port_id: &str,
+        platform: Platform,
+    ) -> Result<Option<crate::package_shape::LocalBaseline>> {
+        let connection = self.library.connection()?;
+        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let Some(install) = Library::install_by_id(&connection, active.as_deref())? else {
+            return Ok(None);
+        };
+        let manifest = verified_manifest(&install)?;
+        if manifest.platform != Some(platform) {
+            return Ok(None);
+        }
+        Ok(manifest
+            .package_shape
+            .as_ref()
+            .and_then(crate::package_shape::stored_record)
+            .map(|record| crate::package_shape::LocalBaseline {
+                install_id: install.id.clone(),
+                version: install.version.clone(),
+                sha256: install.artifact.sha256.clone(),
+                record,
+            }))
+    }
+
+    /// Recorded package shapes and shadow verdicts of a port's installations,
+    /// for read-only diagnostics.
+    pub fn installed_package_shapes(
+        &self,
+        port_id: &str,
+    ) -> Result<Vec<crate::package_shape::InstalledPackageShape>> {
+        let connection = self.library.connection()?;
+        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let mut installs = Library::installs_from(&connection)?
+            .into_iter()
+            .filter(|install| install.port_id == port_id)
+            .map(|install| {
+                use crate::package_shape::InstalledShapeStatus as Status;
+                let (status, record, detail) = match verified_manifest(&install) {
+                    Err(error) => (Status::ManifestUnverifiable, None, Some(error.message)),
+                    Ok(manifest) => match manifest.package_shape {
+                        None => (Status::NotRecorded, None, None),
+                        Some(value) => match crate::package_shape::stored_record(&value) {
+                            Some(record) => (Status::Recorded, Some(record), None),
+                            None => (Status::Unrecognized, None, None),
+                        },
+                    },
+                };
+                crate::package_shape::InstalledPackageShape {
+                    active: active.as_deref() == Some(install.id.as_str()),
+                    status,
+                    record,
+                    detail,
+                    install_id: install.id,
+                    version: install.version,
+                }
+            })
+            .collect::<Vec<_>>();
+        installs.sort_by(|left, right| left.install_id.cmp(&right.install_id));
+        Ok(installs)
+    }
+}
+
 fn write_manifest(
     install_id: &str,
     port_id: &str,
@@ -3473,6 +3659,27 @@ fn write_manifest(
     artifact: &ArtifactIdentity,
     qualification: &InstallQualification,
     root: &Path,
+) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
+    write_manifest_with_shape(
+        install_id,
+        port_id,
+        version,
+        artifact,
+        qualification,
+        root,
+        None,
+    )
+}
+
+/// Write the manifest, recording the derived package shape of a new install.
+fn write_manifest_with_shape(
+    install_id: &str,
+    port_id: &str,
+    version: &str,
+    artifact: &ArtifactIdentity,
+    qualification: &InstallQualification,
+    root: &Path,
+    package_shape: Option<crate::package_shape::PackageShapeRecord>,
 ) -> Result<(String, PathBuf, Option<RuntimeIdentity>)> {
     let retained_contract = qualification.retained_contract.as_ref().ok_or_else(|| {
         PortcoveError::verification("manifest publication requires the exact catalog contract")
@@ -3584,6 +3791,9 @@ fn write_manifest(
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
         files,
+        package_shape: package_shape
+            .as_ref()
+            .and_then(crate::package_shape::stored_value),
     };
     let bytes = serde_json::to_vec_pretty(&manifest)?;
     let manifest_sha256 = hex::encode(Sha256::digest(&bytes));
@@ -4141,7 +4351,7 @@ fn validate_runtime_manifest(manifest: &InstallManifest) -> Result<()> {
     Ok(())
 }
 
-fn manifest_member(root: &Path, relative: &str) -> Result<PathBuf> {
+pub(crate) fn manifest_member(root: &Path, relative: &str) -> Result<PathBuf> {
     use std::path::Component;
 
     let path = Path::new(relative);
@@ -4285,7 +4495,10 @@ fn resolve_executable_hints_with_wrapper(
 
 /// Grant execution to the declared program of a package whose archive carries no executable
 /// bit, only when the file verifies as a binary for the platform.
-fn grant_declared_executable(root: &Path, qualification: &InstallQualification) -> Result<()> {
+pub(crate) fn grant_declared_executable(
+    root: &Path,
+    qualification: &InstallQualification,
+) -> Result<()> {
     let search_root = qualification
         .runtime_subdirectory
         .as_deref()
@@ -4643,6 +4856,176 @@ fn is_executable_member(path: &Path, platform: Platform) -> Result<bool> {
     ) && crate::permissions::executable_intent(path)?)
 }
 
+/// Proxy DLL names whose loaders read a same-named `.ini` or `.cfg` beside the
+/// executable. Ultimate ASI Loader documents these proxy names and reads
+/// `<proxy>.ini` (github.com/ThirteenAG/Ultimate-ASI-Loader, "Usage" and
+/// "Configuration"); Special K reads `<proxy>.ini` for the same wrapper names
+/// (wiki.special-k.info, "Configuration files"); ENBSeries and other wrappers
+/// use the same convention.
+const LOADER_PROXY_STEMS: &[&str] = &[
+    "bink2w64",
+    "binkw32",
+    "binkw64",
+    "d3d8",
+    "d3d9",
+    "d3d10",
+    "d3d11",
+    "d3d12",
+    "dbghelp",
+    "ddraw",
+    "dinput",
+    "dinput8",
+    "dsound",
+    "dxgi",
+    "msacm32",
+    "msvfw32",
+    "opengl32",
+    "version",
+    "vorbisfile",
+    "winhttp",
+    "wininet",
+    "winmm",
+    "x3daudio1_7",
+    "xinput1_1",
+    "xinput1_2",
+    "xinput1_3",
+    "xinput1_4",
+    "xinput9_1_0",
+    "xinputuap",
+];
+
+/// Proxy families with a numbered suffix, matched as `<prefix><1-3 digits>`:
+/// `xaudio2_7`, `xaudio2_9`, `d3dcompiler_43`, `d3dcompiler_47` and so on.
+const LOADER_PROXY_NUMBERED_PREFIXES: &[&str] = &["xaudio2_", "d3dcompiler_"];
+
+/// Undeclared portable markers that redirect an engine's saves and settings
+/// into its own folder, where Portcove never collects them: `portable.txt`
+/// (N64 recomp, Ship of Harkinian-family and other portable-marker engines)
+/// and every catalog `portable_marker_file` (ZDoom-family
+/// `<engine>_portable.ini`, matched as a bounded pattern). A declared marker
+/// is a persistent path and never reaches this check.
+const PORTABLE_MARKER_NAMES: &[&str] = &["portable.txt"];
+
+/// Exact names a loader, injector or wrapper reads from the executable's folder
+/// before or while the game starts:
+/// - `reshade.ini`: ReShade's configuration beside the executable, which also
+///   names add-on and effect search paths (reshade.me, "Configuration").
+/// - `dxvk.conf`: read from the working/executable directory by DXVK
+///   (github.com/doitsujin/dxvk, "Configuration").
+/// - `enblocal.ini`: ENBSeries; its `[PROXY]` section loads another library
+///   (enbdev.com, enblocal.ini reference).
+/// - `debug.ini`: reviewed NES/SNES-recomp runtimes open a local TCP
+///   arbitrary-path developer interface when it exists beside the executable,
+///   even with developer UI off (docs/qualification/
+///   yoshi-nes-cycle-windows-2026-10-18.md and
+///   prepared-reuse-1-windows-2026-10-18.md).
+/// - `override.cfg`: Godot reads it beside the executable and lets it replace
+///   project settings, including autoloaded scripts and scenes
+///   (docs.godotengine.org, "ProjectSettings", override.cfg).
+/// - `pyvenv.cfg`: CPython reads it beside the interpreter to choose its
+///   `home` and site-packages (docs.python.org, "venv" and "sys.path
+///   initialization").
+const LOADER_CONFIG_NAMES: &[&str] = &[
+    "reshade.ini",
+    "dxvk.conf",
+    "enblocal.ini",
+    "debug.ini",
+    "override.cfg",
+    "pyvenv.cfg",
+];
+
+/// Whether a newly introduced name beside the selected executable is one a
+/// loader reads (PCV-REAUD-003 from #237, narrowed by owner decision on
+/// November 14, 2026 for #5359). Case-insensitive, by exact name or bounded
+/// suffix. Programs and libraries are classified separately and stay hazards
+/// everywhere; ordinary settings files are not on this list.
+/// - `<proxy>.ini` / `<proxy>.cfg` for [`LOADER_PROXY_STEMS`].
+/// - `*.exe.config`: .NET application configuration, which can redirect
+///   assembly binding and probing (learn.microsoft.com, "Configuring apps by
+///   using configuration files").
+/// - `*.exe.manifest`: an external side-by-side application manifest the
+///   Windows loader reads for DLL activation contexts (learn.microsoft.com,
+///   "Application manifests").
+/// - `*.exe.local`: DLL redirection file or folder (learn.microsoft.com,
+///   "Dynamic-link library redirection").
+/// - `*.runtimeconfig.dev.json`: .NET additional probing paths for the host
+///   (github.com/dotnet/runtime, "host probing").
+/// - `*._pth`: the embeddable CPython path file that replaces `sys.path`
+///   (docs.python.org, "sys.path initialization").
+/// - [`PORTABLE_MARKER_NAMES`] and `<engine>_portable.ini`.
+pub(crate) fn is_loader_sensitive_name(name: &std::ffi::OsStr) -> bool {
+    let name = name.to_string_lossy().to_ascii_lowercase();
+    if name.len() > 255 {
+        return false;
+    }
+    if LOADER_CONFIG_NAMES.contains(&name.as_str())
+        || PORTABLE_MARKER_NAMES.contains(&name.as_str())
+        || [
+            ".exe.config",
+            ".exe.manifest",
+            ".exe.local",
+            ".runtimeconfig.dev.json",
+            "._pth",
+        ]
+        .iter()
+        .any(|suffix| name.len() > suffix.len() && name.ends_with(suffix))
+    {
+        return true;
+    }
+    if let Some(engine) = name.strip_suffix("_portable.ini")
+        && (1..=32).contains(&engine.len())
+        && engine
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    {
+        return true;
+    }
+    name.rsplit_once('.').is_some_and(|(stem, extension)| {
+        matches!(extension, "ini" | "cfg")
+            && (LOADER_PROXY_STEMS.contains(&stem)
+                || LOADER_PROXY_NUMBERED_PREFIXES.iter().any(|prefix| {
+                    stem.strip_prefix(prefix).is_some_and(|digits| {
+                        (1..=3).contains(&digits.len())
+                            && digits.bytes().all(|byte| byte.is_ascii_digit())
+                    })
+                }))
+    })
+}
+
+/// The `resources` folder beside the selected executable when the package is
+/// Electron-shaped: its manifest ships `resources/app.asar`,
+/// `resources/default_app.asar` or `resources/electron.asar`. Electron loads
+/// the first of `resources/app`, `resources/app.asar` and
+/// `resources/default_app.asar` it finds (electronjs.org, "Application
+/// Packaging" and "Application Distribution"), so any new entry under that
+/// folder can replace the reviewed main process and is a hazard.
+fn electron_resources(manifest: &InstallManifest) -> Option<String> {
+    let parent = Path::new(&manifest.selected_executable)
+        .parent()
+        .map(|parent| parent.to_string_lossy().replace('\\', "/"))
+        .unwrap_or_default();
+    let resources = if parent.is_empty() {
+        "resources".to_owned()
+    } else {
+        format!("{parent}/resources")
+    };
+    manifest
+        .files
+        .iter()
+        .any(|file| {
+            file.path
+                .strip_prefix(&resources)
+                .and_then(|rest| rest.strip_prefix('/'))
+                .is_some_and(|rest| {
+                    matches!(
+                        rest.to_ascii_lowercase().as_str(),
+                        "app.asar" | "default_app.asar" | "electron.asar"
+                    )
+                })
+        })
+        .then_some(resources)
+}
+
 fn is_critical_companion_name(path: &Path, platform: Platform) -> bool {
     let extension = path
         .extension()
@@ -4790,6 +5173,8 @@ mod tests {
     mod dynamic_policy;
     mod native_paths;
     mod network_download;
+    mod package_shape;
+    mod resumable_download;
     use std::{
         fs::File,
         sync::{
@@ -5827,14 +6212,18 @@ mod tests {
             fs::write(root.join(name), b"private user data fixture").unwrap();
         }
         installer.verify_critical(&install, &qualification).unwrap();
-        for name in ["debug.ini", "rom.cfg"] {
-            fs::write(root.join(name), b"undeclared control").unwrap();
-            let error = installer
-                .verify_critical(&install, &qualification)
-                .unwrap_err();
-            assert!(error.details["failures"].contains(name));
-            fs::remove_file(root.join(name)).unwrap();
-        }
+        // `debug.ini` opens a developer listener and stays on the reviewed
+        // loader-read list; an ordinary `rom.cfg` no longer holds launch
+        // (PCV-REAUD-003 narrowed for #5359).
+        fs::write(root.join("debug.ini"), b"undeclared control").unwrap();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
+        assert!(error.details["failures"].contains("debug.ini"));
+        fs::remove_file(root.join("debug.ini")).unwrap();
+        fs::write(root.join("rom.cfg"), b"undeclared control").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        fs::remove_file(root.join("rom.cfg")).unwrap();
         for name in [
             "game.nes",
             crate::cartridge_build::RECEIPT,
@@ -5969,19 +6358,32 @@ mod tests {
         fs::create_dir_all(&mutable).unwrap();
         fs::write(mutable.join("player-save.bin"), b"player data").unwrap();
         installer.verify_critical(&install, &qualification).unwrap();
-        for name in ["unknown.exe", "unknown.dll", "unknown.txt"] {
+        for name in ["unknown.exe", "unknown.dll"] {
             let target = helpers.join(name);
             fs::write(&target, b"unadmitted").unwrap();
             assert!(installer.verify_critical(&install, &qualification).is_err());
-            if name != "unknown.txt" {
-                let mut broadened = qualification.clone();
-                broadened
-                    .runtime_mutable_paths
-                    .push("package/libexec".into());
-                assert!(installer.verify_critical(&install, &broadened).is_err());
-            }
+            let mut broadened = qualification.clone();
+            broadened
+                .runtime_mutable_paths
+                .push("package/libexec".into());
+            assert!(installer.verify_critical(&install, &broadened).is_err());
             fs::remove_file(target).unwrap();
         }
+        // Unknown data away from the selected executable no longer holds
+        // launch (#5359); it stays a reported unknown player-side file.
+        let note = helpers.join("unknown.txt");
+        fs::write(&note, b"unadmitted").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        let report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!report.has_hazards(), "{report:?}");
+        assert!(
+            report
+                .unknown_files
+                .iter()
+                .any(|path| path.ends_with("unknown.txt")),
+            "{report:?}"
+        );
+        fs::remove_file(note).unwrap();
         assert_eq!(
             fs::read(mutable.join("player-save.bin")).unwrap(),
             b"player data"
@@ -6236,8 +6638,14 @@ mod tests {
             assert!(installer.verify_critical(&install, &changed).is_err());
             fs::write(&target, b"reviewed").unwrap();
         }
+        // Away from the executable, new configuration is an unknown player-side
+        // file (#5359) and does not hold launch; a new library still does.
         let unexpected = target.parent().unwrap().join("unexpected.toml");
         fs::write(&unexpected, b"unreviewed selector").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        fs::remove_file(unexpected).unwrap();
+        let unexpected = target.parent().unwrap().join("unexpected.dll");
+        fs::write(&unexpected, b"unreviewed code").unwrap();
         assert!(installer.verify_critical(&install, &qualification).is_err());
         fs::remove_file(unexpected).unwrap();
         installer.verify_critical(&install, &qualification).unwrap();
@@ -6571,9 +6979,19 @@ mod tests {
             "launch.cmd",
             "launch.ps1",
             "launch.sh",
-            "loader.toml",
-            "loader.ini",
-            "loader.cfg",
+            // Loader-read names (PCV-REAUD-003, narrowed for #5359).
+            "dinput8.ini",
+            "D3D9.cfg",
+            "dxgi.ini",
+            "version.ini",
+            "xinput1_3.ini",
+            "ReShade.ini",
+            "dxvk.conf",
+            "enblocal.ini",
+            "debug.ini",
+            "game.exe.config",
+            "Game.exe.manifest",
+            "game.exe.local",
         ] {
             let candidate = root.join(name);
             fs::write(&candidate, b"unmanifested").unwrap();
@@ -6585,12 +7003,217 @@ mod tests {
             fs::remove_file(candidate).unwrap();
         }
 
+        // A DLL redirection folder is loader-read as well.
+        fs::create_dir(root.join("game.exe.local")).unwrap();
+        assert!(installer.verify_critical(&install, &qualification).is_err());
+        fs::remove_dir(root.join("game.exe.local")).unwrap();
+
+        // Ordinary settings beside the executable, and loader names away from
+        // it, no longer hold launch.
         fs::write(root.join("notes.txt"), b"benign untracked note").unwrap();
+        fs::write(root.join("settings.ini"), b"player settings").unwrap();
+        fs::write(root.join("config.toml"), b"player settings").unwrap();
+        fs::write(root.join("loader.cfg"), b"player settings").unwrap();
         fs::write(root.join("saves/engine.dll"), b"explicit mutable data").unwrap();
+        fs::write(root.join("saves/dinput8.ini"), b"explicit mutable data").unwrap();
         assert_eq!(
             installer.verify_critical(&install, &qualification).unwrap(),
             root.join("game.exe")
         );
+    }
+
+    #[test]
+    fn loader_sensitive_names_are_exact_or_bounded() {
+        for name in [
+            "dinput8.ini",
+            "DINPUT8.INI",
+            "d3d11.cfg",
+            "winmm.ini",
+            "reshade.ini",
+            "DXVK.conf",
+            "enblocal.ini",
+            "Game.exe.config",
+            "game.EXE.manifest",
+            "game.exe.local",
+            "override.cfg",
+            "pyvenv.cfg",
+            "bink2w64.ini",
+            "binkw64.ini",
+            "x3daudio1_7.ini",
+            "xinputuap.cfg",
+            "xaudio2_9.ini",
+            "D3DCompiler_47.ini",
+            "game.runtimeconfig.dev.json",
+            "python311._pth",
+            "portable.txt",
+            "gzdoom_portable.ini",
+            "Raze_portable.ini",
+        ] {
+            assert!(is_loader_sensitive_name(name.as_ref()), "{name}");
+        }
+        for name in [
+            "settings.ini",
+            "config.toml",
+            "dinput8.toml",
+            "mydinput8.ini",
+            "dinput8.ini.bak",
+            "reshadepreset.ini",
+            "dxvk.conf.txt",
+            ".exe.config",
+            "app.config",
+            "enbseries.ini",
+            "xaudio2_.ini",
+            "xaudio2_1234.ini",
+            "d3dcompiler_x.ini",
+            "_portable.ini",
+            "my portable.ini",
+            "portable.txt.bak",
+            "runtimeconfig.json",
+        ] {
+            assert!(!is_loader_sensitive_name(name.as_ref()), "{name}");
+        }
+    }
+
+    /// Every catalog-declared portable marker is launch-sensitive when it is
+    /// undeclared for a version: it would redirect saves into the version
+    /// folder, where they are never collected.
+    #[test]
+    fn every_catalog_portable_marker_is_launch_sensitive() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut markers = 0;
+        for port in &catalog.document().ports {
+            if let Some(name) = &port.portable_marker_file {
+                markers += 1;
+                assert!(
+                    is_loader_sensitive_name(name.as_ref()),
+                    "{}: {name}",
+                    port.id
+                );
+            }
+        }
+        assert!(markers > 0);
+    }
+
+    /// Fixture with a nested library so every check takes the full-integrity
+    /// inventory path.
+    fn full_integrity_fixture(
+        files: &[&str],
+    ) -> (
+        tempfile::TempDir,
+        Installer,
+        InstallRecord,
+        InstallQualification,
+        PathBuf,
+    ) {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        fs::create_dir_all(root.join("lib")).unwrap();
+        fs::write(root.join("game.exe"), b"trusted executable").unwrap();
+        fs::write(root.join("lib/engine.dll"), b"reviewed library").unwrap();
+        for file in files {
+            let path = root.join(file);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(path, b"reviewed package file").unwrap();
+        }
+        let qualification = InstallQualification::test("game.exe");
+        let (installer, install) = create_test_install(&root, &qualification);
+        let manifest = verified_manifest(&install).unwrap();
+        assert!(full_immutable_integrity(&manifest, &install, false).unwrap());
+        (temporary, installer, install, qualification, root)
+    }
+
+    /// mr-finster-stunts-hd class (Electron): a new `resources/app` or
+    /// `app.asar` variant would run instead of the reviewed `app.asar`.
+    #[test]
+    fn electron_resources_additions_are_hazards() {
+        let (_temporary, installer, install, qualification, root) =
+            full_integrity_fixture(&["resources/app.asar", "resources/electron.asar"]);
+        installer.verify_critical(&install, &qualification).unwrap();
+        for added in [
+            "resources/app/package.json",
+            "resources/app/main.json",
+            "resources/default_app.asar",
+            "resources/app.asar.unpacked/settings.json",
+            "resources/notes.txt",
+        ] {
+            let path = root.join(added);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, b"{\"main\": \"main.js\"}").unwrap();
+            let report = installer.verify_managed(&install, &qualification).unwrap();
+            assert!(
+                report.failures.contains(&format!("unexpected: {added}")),
+                "{added}: {report:?}"
+            );
+            assert!(
+                installer.verify_critical(&install, &qualification).is_err(),
+                "{added}"
+            );
+            assert!(
+                installer
+                    .verify_critical_for_replacement(&install, &qualification)
+                    .is_err(),
+                "{added}"
+            );
+            fs::remove_file(&path).unwrap();
+        }
+        // Data outside `resources/` stays an unknown player-side file.
+        fs::write(root.join("settings.json"), b"{}").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        // A package without Electron's archives has no such rule.
+        let (_other, installer, install, qualification, root) =
+            full_integrity_fixture(&["resources/data.pak"]);
+        fs::write(root.join("resources/notes.txt"), b"notes").unwrap();
+        let report = installer.verify_managed(&install, &qualification).unwrap();
+        assert!(!report.has_hazards(), "{report:?}");
+    }
+
+    /// brawmario-infinite-mario-64-ever class (Godot): a new `override.cfg`
+    /// beside the executable can autoload scripts; a script or pack anywhere
+    /// is code.
+    #[test]
+    fn godot_override_and_scripts_hold_launch() {
+        let (_temporary, installer, install, qualification, root) =
+            full_integrity_fixture(&["game.pck"]);
+        fs::write(
+            root.join("override.cfg"),
+            b"[autoload]\nInjected=\"*res://x.gd\"",
+        )
+        .unwrap();
+        let error = installer
+            .verify_critical(&install, &qualification)
+            .unwrap_err();
+        assert!(
+            error.details["failures"].contains("override.cfg"),
+            "{error:?}"
+        );
+        installer
+            .verify_critical_for_replacement(&install, &qualification)
+            .unwrap();
+        fs::remove_file(root.join("override.cfg")).unwrap();
+        fs::create_dir_all(root.join("mods")).unwrap();
+        fs::write(root.join("mods/override.cfg"), b"not beside the program").unwrap();
+        installer.verify_critical(&install, &qualification).unwrap();
+        for added in ["mods/injected.gd", "mods/injected.pck", "renamed.dat"] {
+            let bytes: &[u8] = if added == "renamed.dat" {
+                b"MZ\x90\x00"
+            } else {
+                b"code"
+            };
+            fs::write(root.join(added), bytes).unwrap();
+            assert!(
+                installer.verify_critical(&install, &qualification).is_err(),
+                "{added}"
+            );
+            assert!(
+                installer
+                    .verify_managed(&install, &qualification)
+                    .unwrap()
+                    .has_hazards(),
+                "{added}"
+            );
+            fs::remove_file(root.join(added)).unwrap();
+        }
+        installer.verify_critical(&install, &qualification).unwrap();
     }
 
     #[test]

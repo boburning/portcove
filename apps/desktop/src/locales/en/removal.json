@@ -39,5 +39,7 @@
     "unavailablePort": "Unavailable port ({{id}})"
   },
   "title": "Uninstall {{identity}}?",
-  "uninstallPort": "Uninstall {{name}}"
+  "uninstallPort": "Uninstall {{name}}",
+  "unknownFiles": "Files Portcove didn't install: {{total, number}}. The game may have created them, for example as settings. Portcove copies them to a new backup before uninstalling. Restoring a backup doesn't put them back.",
+  "unknownFilesUnlisted": "Files not listed here: {{total, number}}"
 }
