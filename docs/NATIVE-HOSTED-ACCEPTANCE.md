@@ -288,7 +288,12 @@ capability reads ran. The update-acquisition journey's wait for an action to sto
 being busy is calibrated from 15 s to 60 s: the same run kept Play busy past 15 s after
 rollback while a 14 s workspace snapshot, a 6 s follow-up and 13-15 s capability reads
 settled. The wait is shared by every click in that journey, and its report records
-`slowest_actionable_ms`. The
+`slowest_actionable_ms`. The waits for Prepare for later to open the game update
+review are calibrated from 5 s to 60 s: run 43707489255 still showed "Checking
+preparation…" after 5 s while the debug build planned the update. The selected-setup
+wait for explicit BIOS registration to expose the Core-eligible selection is calibrated
+from 15 s to 60 s: in the same run the import finished at 23.5 s but the selection
+waits for a fresh ~14 s workspace snapshot. The
 preparation journey's
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
