@@ -53790,9 +53790,9 @@
       "listed_at": "2026-11-14",
       "platforms": [
         "linux-x86-64",
-        "windows-x86-64",
         "macos-x86-64",
-        "macos-aarch64"
+        "macos-aarch64",
+        "windows-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/darkuni/starwars-arcade-recomp/tree/df540960302ba42df26b2432986b6df92af97c6a#running",
@@ -63431,12 +63431,6 @@
       "summary": "Run Vyruz in Vurus using your own original disc image or extracted game resources.",
       "issue_number": 6120,
       "listed_at": "2026-11-14",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64",
-        "macos-x86-64",
-        "macos-aarch64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
       "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
@@ -63468,7 +63462,13 @@
         "warnings": [
           "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
