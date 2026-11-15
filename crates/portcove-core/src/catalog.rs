@@ -123,7 +123,12 @@ impl Catalog {
         repository_authoring: bool,
     ) -> Result<CatalogProposalInspection> {
         use sha2::{Digest, Sha256};
-        let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+        // A proposal can be the complete generated catalog, so it shares the
+        // catalog read bound rather than a smaller fixed one.
+        let bytes = crate::path::read_bounded_regular(
+            path,
+            crate::signed_catalog::MAX_CATALOG_BYTES as u64,
+        )?;
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
         let value = std::str::from_utf8(&bytes)
             .map_err(|_| PortcoveError::usage("catalog proposal must be valid UTF-8"))?;
@@ -2783,6 +2788,22 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             assert!(Catalog::inspect_proposal(&path).is_err());
         }
+        // Past the catalog read bound the file is refused before it is read
+        // whole, never truncated to a parsable prefix.
+        let padded = |length: usize| {
+            let mut bytes = EMBEDDED_CATALOG.to_owned();
+            bytes.push_str(&" ".repeat(length - bytes.len()));
+            bytes
+        };
+        std::fs::write(
+            &path,
+            padded(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1),
+        )
+        .unwrap();
+        Catalog::inspect_proposal(&path).unwrap();
+        std::fs::write(&path, padded(crate::signed_catalog::MAX_CATALOG_BYTES + 1)).unwrap();
+        let error = Catalog::inspect_proposal(&path).unwrap_err();
+        assert!(error.message.contains("bounded regular file"), "{error:?}");
     }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =

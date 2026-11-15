@@ -492,7 +492,7 @@ The compiled-binary machine contract is exercised on both Windows and Linux CI. 
 ### Catalog proposal inspection
 
 Maintainer proposal checks use `portcove --json catalog inspect-proposal FILE`.
-This inert command reads at most 4 MiB and uses core's existing catalog/schema,
+This inert command reads at most 16 MiB, the signed-catalog bound, and uses core's existing catalog/schema,
 source-reference and declared path/contract validators. Its separate format-1
 receipt binds the exact input bytes and canonical typed per-port declaration
 hashes. It runs before host preferences or a library are opened. It does not
@@ -2261,7 +2261,7 @@ catalog operations report the resulting active catalog and fallback state;
 they do not install or update game files. Definition refresh keeps policy and
 launch-assessment changes separate from selection and eligibility.
 
-Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 4 MiB and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
+Local-file review does not write library domain state. Explicit HTTPS delivery is anonymous, bounded to 16 MiB (4 MiB before library writer protocol 60) and 20 seconds, and rejects redirects, userinfo, fragments, and non-HTTPS URLs. Catalog application supports cross-process cancellation and CLI Ctrl-C/SIGTERM until publication admission; SQLite activation, replay advancement, and the terminal activity outcome commit together. A service command uses the catalog snapshot it opened with; subsequent commands see the new selection. See [SIGNED-CATALOG.md](SIGNED-CATALOG.md) for the exact signing contract and offline publisher utility.
 
 ## Local profiles and mod packages
 

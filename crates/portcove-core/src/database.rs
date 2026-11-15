@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 59;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 60;
 
 struct Migration {
     version: i64,
@@ -377,7 +377,22 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_59,
         verify: verify_migration_59,
     },
+    Migration {
+        version: 60,
+        name: "larger signed catalog bound writer protocol",
+        apply: migration_60,
+        verify: crate::catalog_store::verify_catalog_bound,
+    },
 ];
+
+fn migration_60(transaction: &Transaction<'_>) -> Result<()> {
+    // The signed catalog and retained format-1 catalog bounds rise from 4 MiB
+    // to 16 MiB. Older clients enforce 4 MiB and would
+    // refuse larger retained content they read, so the ledger is also the
+    // writer protocol: they refuse this library as newer before reading or
+    // replacing anything. The table rebuild only widens the BLOB checks.
+    crate::catalog_store::migrate_catalog_bound(transaction)
+}
 
 fn migration_59(transaction: &Transaction<'_>) -> Result<()> {
     // Withdrawal and eviction records beside the provider records. Adding them
@@ -3337,6 +3352,164 @@ mod tests {
         );
     }
 
+    fn catalog_state_row(connection: &Connection) -> (i64, i64, bool, Vec<u8>, Vec<u8>) {
+        connection
+            .query_row(
+                "SELECT revision,highest_sequence,enabled,active,previous FROM catalog_state WHERE singleton=1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?)),
+            )
+            .unwrap()
+    }
+
+    fn accepts_catalog_blob(connection: &Connection, bytes: usize) -> bool {
+        // zeroblob keeps the probe in SQLite instead of allocating it in Rust.
+        connection
+            .execute(
+                "UPDATE catalog_state SET previous=zeroblob(?1) WHERE singleton=1",
+                [bytes as i64],
+            )
+            .is_ok()
+    }
+
+    #[test]
+    fn catalog_bound_migration_preserves_selection_and_raises_only_the_bound() {
+        use crate::catalog_store::CATALOG_BOUND_V60;
+        use crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES;
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "INSERT INTO catalog_trust VALUES('key-a','public-a');
+                 UPDATE catalog_state SET revision=7,highest_sequence=3,enabled=1,
+                   active=x'0102',previous=x'0304' WHERE singleton=1;",
+            )
+            .unwrap();
+        // Schema 59 is what every released client created: 4 MiB is its ceiling.
+        assert!(crate::catalog_store::verify_catalog_bound(&connection).is_err());
+        assert!(accepts_catalog_blob(&connection, LEGACY_MAX_CATALOG_BYTES));
+        assert!(!accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+        connection
+            .execute("UPDATE catalog_state SET previous=x'0304'", [])
+            .unwrap();
+        drop(connection);
+
+        migrate_to(root, 60).unwrap();
+        let connection = connect(root).unwrap();
+        assert_eq!(
+            recorded_versions(&connection).unwrap(),
+            (1..=60).collect::<Vec<_>>()
+        );
+        crate::catalog_store::verify_catalog_bound(&connection).unwrap();
+        verify_migration_11(&connection).unwrap();
+        assert_eq!(
+            catalog_state_row(&connection),
+            (7, 3, true, vec![1, 2], vec![3, 4])
+        );
+        let key: (String, String) = connection
+            .query_row("SELECT key_id,public_key FROM catalog_trust", [], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })
+            .unwrap();
+        assert_eq!(key, ("key-a".into(), "public-a".into()));
+        let rebuild_left: bool = connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE name='catalog_state_rebuild')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert!(!rebuild_left);
+        // The singleton and other checks survive the rebuild unchanged.
+        assert!(
+            connection
+                .execute("INSERT INTO catalog_state VALUES(2,0,0,0,NULL,NULL)", [])
+                .is_err()
+        );
+        assert!(
+            connection
+                .execute("UPDATE catalog_state SET enabled=2", [])
+                .is_err()
+        );
+        assert!(accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60));
+        assert!(!accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+    }
+
+    #[test]
+    fn schema_60_verification_is_frozen_and_survives_a_later_wider_bound() {
+        use crate::catalog_store::{CATALOG_BOUND_V60, rebuild_catalog_state};
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 60).unwrap();
+        let mut connection = connect(root).unwrap();
+        // A future migration may widen the checks again. Re-verifying recorded
+        // migration 60 on open must still accept the library.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 * 2).unwrap();
+        transaction.commit().unwrap();
+        for migration in MIGRATIONS {
+            (migration.verify)(&connection).unwrap();
+        }
+        assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
+        connection
+            .execute("UPDATE catalog_state SET previous=NULL", [])
+            .unwrap();
+        // Narrower than schema 60 is a partially applied migration.
+        let transaction = connection.transaction().unwrap();
+        rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 - 1).unwrap();
+        transaction.commit().unwrap();
+        assert!(crate::catalog_store::verify_catalog_bound(&connection).is_err());
+        drop(connection);
+        assert!(migrate_to(root, CURRENT_SCHEMA_VERSION).is_err());
+    }
+
+    #[test]
+    fn interrupted_catalog_bound_migration_rolls_back_to_schema_59() {
+        use crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES;
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 59).unwrap();
+        let connection = connect(root).unwrap();
+        connection
+            .execute_batch(
+                "UPDATE catalog_state SET revision=4,highest_sequence=2,enabled=1,
+                   active=x'0a',previous=NULL WHERE singleton=1;
+                 CREATE TABLE catalog_state_rebuild (blocker INTEGER);",
+            )
+            .unwrap();
+        drop(connection);
+        assert!(migrate_to(root, 60).is_err());
+        let connection = connect(root).unwrap();
+        assert_eq!(recorded_versions(&connection).unwrap().last(), Some(&59));
+        let (revision, sequence, enabled, active): (i64, i64, bool, Vec<u8>) = connection
+            .query_row(
+                "SELECT revision,highest_sequence,enabled,active FROM catalog_state",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            (revision, sequence, enabled, active),
+            (4, 2, true, vec![10])
+        );
+        assert!(!accepts_catalog_blob(
+            &connection,
+            LEGACY_MAX_CATALOG_BYTES + 1
+        ));
+    }
+
     #[test]
     fn withdrawals_verification_rejects_a_weakened_definition() {
         let temporary = tempdir().unwrap();
@@ -3734,6 +3907,7 @@ mod tests {
         schema_56: 56,
         schema_57: 57,
         schema_58: 58,
+        schema_59: 59,
     }
 
     #[test]
