@@ -49564,7 +49564,7 @@
           },
           {
             "title": "Set up the upstream Linux player",
-            "instruction": "Use glibc 2.38 or later and install SDL2 and SDL2_mixer through your distribution. Supply a General MIDI soundfont as userdata/barrett.sf2 or use a system soundfont path listed by Barrett. If Play stops during userdata setup, keep your original files and existing userdata while checking the reported error."
+            "instruction": "On Linux, use glibc 2.38 or later, install SDL2 and SDL2_mixer through your distribution, and supply a General MIDI soundfont. Put it at userdata/barrett.sf2 or use a system soundfont path listed by Barrett. If Play stops during userdata setup, keep your original files and existing userdata while checking the reported error."
           },
           {
             "title": "Keep the Windows or Mac dependencies",
