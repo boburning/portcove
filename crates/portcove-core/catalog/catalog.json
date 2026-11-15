@@ -35855,7 +35855,7 @@
         "manual_preparation": "Supply your own matching Road Rash 64 USA v1.0 original. Core verifies it and prepares the canonical ROM beside the Windows portable player. This route preserves declared settings, saves, mods, custom music and local imported race packs, including importer logs and previous-pack backups beneath race-packs. Close the game and any importer before updates or backups. Custom external pack paths, including RR64_PRIVATE_COURSE_PACK, remain outside managed backups. Runtime rollback carries current declared data; it does not rewind progress or establish old-reader compatibility. Historical v1.4.3 installations retain their wrapper-prefixed contract: a changed data-coordinate transition remains held until supported, so keep the working copy and its data.",
         "original_game_title": "Road Rash 64",
         "manual_setup": {
-          "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/a789926d38f17c9a683a7826d74536a1ff2200b5/docs/PLAYER_PACKAGE.md",
+          "help_url": "https://github.com/linkssy2/RoadRash64Recompiled/blob/v1.5.0/docs/PLAYER_PACKAGE.md",
           "warnings": [
             "Close the game and importer before replacing a runtime. Preserve the complete local race-packs folder, including import jobs and previous-pack backups; custom external course-pack folders require a separate backup.",
             "A historical managed v1.4.3 copy retains its accepted definition and data locations. Keep it usable while a supported transition is unavailable.",
@@ -35868,7 +35868,7 @@
             },
             {
               "title": "Run a permitted experimental Linux copy",
-              "instruction": "For an already permitted v1.4.9 Linux x64 copy, keep the official AppImage in a writable folder and make it executable. Use a Vulkan driver, glibc 2.35 or newer, and libstdc++ with GLIBCXX_3.4.30. Open the AppImage and choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game. Follow the included Linux help if your system needs a FUSE fallback."
+              "instruction": "For a permitted v1.5.0 experimental Linux x64 copy, extract the complete ZIP to a writable folder and make the AppImage executable. Use an AVX-capable CPU, a Vulkan driver, glibc 2.35 or later and libstdc++ with GLIBCXX_3.4.30. Open the AppImage, choose Select Game ROM with your own Road Rash 64 USA v1.0 original, then Start Game."
             },
             {
               "title": "Keep optional setup with the game",
@@ -35886,7 +35886,7 @@
             },
             {
               "title": "Back up the Linux profile and adjacent files",
-              "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove."
+              "instruction": "Close the game and importer. Keep ~/.config/RoadRash64Recompiled or the profile you selected through APP_FOLDER_PATH, plus music and race-packs beside the writable AppImage. For an already working normal AppImage launch, select the AppImage and its containing folder when adding it to Portcove. If FUSE is unavailable, upstream provides APPIMAGE_EXTRACT_AND_RUN=1 for manual launch."
             },
             {
               "title": "Keep your current copy while changing routes",
