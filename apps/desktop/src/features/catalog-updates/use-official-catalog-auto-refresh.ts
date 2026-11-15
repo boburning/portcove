@@ -30,7 +30,9 @@ function subscribe(listener: () => void) {
 
 /** The latest scheduled check, for the catalog update settings. */
 export function useLastAutomaticCatalogCheck(): AutomaticCatalogCheck | undefined {
-  return useSyncExternalStore(subscribe, () => lastCheck);
+  const read = () => lastCheck;
+  // Server rendering (and its tests) reads the same in-memory snapshot.
+  return useSyncExternalStore(subscribe, read, read);
 }
 
 /** Ask for a scheduled check soon, for example after the player turns updates on. */
