@@ -252,6 +252,120 @@ fn unknown_area(backup: &crate::BackupRecord, install: &InstallRecord) -> std::p
     backup.path.join("unknown-files").join(&install.id)
 }
 
+/// #5359 Tier 2: an edit made in the newer version comes back on rollback,
+/// while a file edited in both versions is kept in each.
+#[tokio::test]
+async fn carried_files_follow_edits_back_and_forth_and_keep_both_when_both_changed() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first_release, first_server) = release("1.0.0");
+    let provider = Arc::new(Provider(Mutex::new(first_release)));
+    let service = service(library.clone(), provider.clone());
+    let first = install(&service).await;
+    first_server.join().unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    let folder = |install: &InstallRecord| {
+        install
+            .path
+            .join(&install.selected_executable)
+            .parent()
+            .unwrap()
+            .to_path_buf()
+    };
+    fs::write(folder(&first).join("settings.ini"), b"one").unwrap();
+    fs::write(folder(&first).join("notes.txt"), b"first notes").unwrap();
+
+    let (second_release, second_server) = release("2.0.0");
+    *provider.0.lock().unwrap() = second_release;
+    let second = update(&service).await.unwrap();
+    second_server.join().unwrap();
+    assert_eq!(
+        fs::read(folder(&second).join("settings.ini")).unwrap(),
+        b"one"
+    );
+
+    // Played in 2.0.0: the settings changed there. Both versions edit notes.
+    fs::write(folder(&second).join("settings.ini"), b"two").unwrap();
+    fs::write(folder(&second).join("notes.txt"), b"second notes").unwrap();
+    fs::write(folder(&first).join("notes.txt"), b"first notes, edited").unwrap();
+    assert_eq!(service.rollback(PORT).unwrap().id, first.id);
+    // The edit came back: 1.0.0 held Portcove's recorded earlier copy.
+    assert_eq!(
+        fs::read(folder(&first).join("settings.ini")).unwrap(),
+        b"two"
+    );
+    // Both changed notes: each version keeps its own.
+    assert_eq!(
+        fs::read(folder(&first).join("notes.txt")).unwrap(),
+        b"first notes, edited"
+    );
+    assert_eq!(
+        fs::read(folder(&second).join("notes.txt")).unwrap(),
+        b"second notes"
+    );
+    let connection = library.connection().unwrap();
+    let (from, to, outcome) = crate::carry_ledger::outcome(&connection, PORT)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (from.as_str(), to.as_str()),
+        (second.id.as_str(), first.id.as_str())
+    );
+    let named = |value: &serde_json::Value| {
+        value
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|path| path.as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+    };
+    assert!(
+        named(&outcome["carried"])
+            .iter()
+            .any(|path| path.ends_with("settings.ini"))
+    );
+    assert!(
+        named(&outcome["kept_separately"])
+            .iter()
+            .any(|path| path.ends_with("notes.txt"))
+    );
+    // No staging is left behind.
+    for install in [&first, &second] {
+        assert_eq!(crate::carry_step::sweep(&install.path).unwrap(), 0);
+    }
+}
+
+/// #5359 Tier 2: a modified active version carries nothing and never holds
+/// the switch away from it (design L5).
+#[tokio::test]
+async fn a_modified_active_version_carries_nothing_and_does_not_hold() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first_release, first_server) = release("1.0.0");
+    let provider = Arc::new(Provider(Mutex::new(first_release)));
+    let service = service(library.clone(), provider.clone());
+    let first = install(&service).await;
+    first_server.join().unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    let (second_release, second_server) = release("2.0.0");
+    *provider.0.lock().unwrap() = second_release;
+    let second = update(&service).await.unwrap();
+    second_server.join().unwrap();
+    let folder = second.path.join(&second.selected_executable);
+    let folder = folder.parent().unwrap();
+    fs::write(folder.join("settings.ini"), b"two").unwrap();
+    fs::write(folder.join("helper.exe"), b"MZ unrecognized program").unwrap();
+    let outcome = service
+        .carry_unknown_files(&second, &first)
+        .unwrap()
+        .unwrap();
+    assert!(outcome.source_modified);
+    assert!(outcome.carried.is_empty());
+    let first_folder = first.path.join(&first.selected_executable);
+    assert!(!first_folder.parent().unwrap().join("settings.ini").exists());
+    assert!(!first_folder.parent().unwrap().join("helper.exe").exists());
+}
+
 /// #5359 Tier 1: a settings file the game writes beside itself no longer
 /// holds update, rollback, removal or backup, and backups keep it apart.
 #[tokio::test]
@@ -311,14 +425,22 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
     let second = update(&service).await.unwrap();
     second_server.join().unwrap();
     assert_ne!(second.id, first.id);
-    // Tier 1 carries nothing: the unknown file stays in the old version.
+    // Tier 2 carries the harmless files to the new version and leaves the
+    // old version's copies in place (#5359).
     assert_eq!(
         fs::read(folder.join("settings/easy-access.ini")).unwrap(),
         b"lives=9"
     );
     let second_folder = second.path.join(&second.selected_executable);
     let second_folder = second_folder.parent().unwrap();
-    assert!(!second_folder.join("settings/easy-access.ini").exists());
+    assert_eq!(
+        fs::read(second_folder.join("settings/easy-access.ini")).unwrap(),
+        b"lives=9"
+    );
+    assert_eq!(
+        fs::read(second_folder.join("logs/replay.txt")).unwrap(),
+        b"replay"
+    );
     assert_eq!(
         fs::read(second_folder.join("config.yaml")).unwrap(),
         b"declared settings"
@@ -572,12 +694,26 @@ async fn configuration_beside_the_program_holds_launch_only_for_loader_names() {
     assert_eq!(service.create_backup(PORT).unwrap().unknown_file_count, 11);
     let (second_release, second_server) = release("2.0.0");
     *provider.0.lock().unwrap() = second_release;
-    update(&service).await.unwrap();
+    let second = update(&service).await.unwrap();
     second_server.join().unwrap();
+    // The three ordinary settings files carry; loader-read names never do.
+    let second_folder = second.path.join(&second.selected_executable);
+    let second_folder = second_folder.parent().unwrap();
+    for name in ["settings.ini", "config.toml", "profile.json"] {
+        assert_eq!(
+            fs::read(second_folder.join(name)).unwrap(),
+            b"player settings",
+            "{name}"
+        );
+    }
+    for name in LOADER_NAMES {
+        assert!(!second_folder.join(name).exists(), "{name}");
+        assert!(!second_folder.join("mods").join(name).exists(), "{name}");
+    }
     assert_eq!(service.rollback(PORT).unwrap().id, first.id);
     assert_eq!(
         service.preview_removal(PORT).unwrap().unknown_file_count,
-        11
+        14
     );
     assert!(service.prepare_launch(PORT, None).is_err());
 }

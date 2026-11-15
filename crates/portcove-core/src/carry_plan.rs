@@ -55,7 +55,7 @@ impl CarryRow {
 
     /// The row's lineage, bounded and ending with its own bytes, whatever was
     /// read back from storage (L5).
-    fn checked_lineage(&self) -> Vec<String> {
+    pub(crate) fn checked_lineage(&self) -> Vec<String> {
         let mut lineage = self.lineage.clone();
         if lineage.last() != Some(&self.sha256) {
             lineage.push(self.sha256.clone());
@@ -99,6 +99,10 @@ pub(crate) struct PathInput {
     pub(crate) source_row: Option<CarryRow>,
     pub(crate) target: TargetCopy,
     pub(crate) target_row: Option<CarryRow>,
+    /// For a pending target row, the present row it displaced. A switch
+    /// interrupted before publishing re-plans against that recorded copy, so a
+    /// planned replacement doesn't turn into "keep both" (T2-1 review N1).
+    pub(crate) target_replaces: Option<CarryRow>,
 }
 
 /// Paths and names a carry must never touch, all relative to the persistence
@@ -171,6 +175,11 @@ pub(crate) struct PlannedPath {
     pub(crate) target_row: RowChange,
     /// The departing source's row, written in the same transaction (L6).
     pub(crate) source_row: RowChange,
+    /// The source bytes the plan approved copying, for Copy and Replace.
+    pub(crate) approved_source: Option<String>,
+    /// The target bytes the plan approved replacing or removing. The carry
+    /// step stages and verifies against these, never against a later look.
+    pub(crate) approved_target: Option<String>,
 }
 
 /// Plan a switch to the target for every candidate path.
@@ -199,6 +208,8 @@ pub(crate) fn plan(
                     action: CarryAction::Excluded(reason),
                     target_row: RowChange::Untouched,
                     source_row: RowChange::Untouched,
+                    approved_source: None,
+                    approved_target: None,
                 },
                 None => decide(path, input, source_install_id),
             }
@@ -368,12 +379,19 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
                 && matches!(&row.state, RowState::Pending { source_install_id: source } if source == source_install_id)
         })
     };
-    let recorded_unchanged = |bytes: &str| {
-        input
-            .target_row
-            .as_ref()
-            .is_some_and(|row| row.sha256 == bytes && row.state == RowState::Present)
+    // The present record of T's current bytes: T's row itself, or the row a
+    // pending placement displaced when T still holds those bytes.
+    let recorded = |bytes: &str| -> Option<&CarryRow> {
+        match &input.target_row {
+            Some(row) if row.state == RowState::Present => (row.sha256 == bytes).then_some(row),
+            Some(_) => input
+                .target_replaces
+                .as_ref()
+                .filter(|row| row.state == RowState::Present && row.sha256 == bytes),
+            None => None,
+        }
     };
+    let recorded_unchanged = |bytes: &str| recorded(bytes).is_some();
     // T's copy may be replaced or removed only when it is a recorded ancestor
     // left unchanged, or Portcove's own interrupted placement from this source.
     let stale =
@@ -384,11 +402,9 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         RowChange::Set(CarryRow::present(a, next))
     };
     let kept = |t: &str| {
-        RowChange::Set(match &input.target_row {
-            Some(row) if row.sha256 == t && row.state == RowState::Present => {
-                CarryRow::present(t, row.checked_lineage())
-            }
-            _ => CarryRow::present(t, vec![t.to_owned()]),
+        RowChange::Set(match recorded(t) {
+            Some(row) => CarryRow::present(t, row.checked_lineage()),
+            None => CarryRow::present(t, vec![t.to_owned()]),
         })
     };
     let source_row = match &input.source {
@@ -434,11 +450,25 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         | CarryAction::TargetUnreadable => RowChange::Untouched,
         _ => source_row,
     };
+    let approved_source = match (&action, &input.source) {
+        (CarryAction::Copy | CarryAction::Replace, SourceCopy::File { sha256 }) => {
+            Some(sha256.clone())
+        }
+        _ => None,
+    };
+    let approved_target = match (&action, &input.target) {
+        (CarryAction::Replace | CarryAction::Remove, TargetCopy::File { sha256 }) => {
+            Some(sha256.clone())
+        }
+        _ => None,
+    };
     PlannedPath {
         path: path.to_owned(),
         action,
         target_row,
         source_row,
+        approved_source,
+        approved_target,
     }
 }
 
