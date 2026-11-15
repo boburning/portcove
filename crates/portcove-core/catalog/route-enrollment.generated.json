@@ -261,7 +261,7 @@
           "the existing snprecomp profile or the application folder when portable.txt is present"
         ]
       },
-      "managed_native": false
+      "managed_native": true
     },
     {
       "port_id": "tekrantgaming-muppet-racemania-recompiled",

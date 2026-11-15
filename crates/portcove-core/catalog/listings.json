@@ -51363,14 +51363,14 @@
       "original_game_title": "Sin and Punishment",
       "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
       "project_url": "https://github.com/wootbeer/snprecomp",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/wootbeer/snprecomp",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Set up the managed copy on first Play",
+            "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM. The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
+          },
           {
             "title": "Check the required game files",
             "instruction": "Use your own Japanese ROM with SHA-1 581297b9d5c3a4c33169ae0aae218c742cd9cbcf, or an English variant with SHA-1 5945ff3935d9d9531bbb5cfcabed7c198e2b2f41 or e3906c919236dac6eba020b4b8c1df91fd725c5d. This guide has not confirmed other translations; check the project’s requirements before using one."
@@ -51380,24 +51380,17 @@
             "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
           },
           {
-            "title": "Use the prepared Linux copy",
-            "instruction": "After completing upstream setup, select the SnPRecompiled binary as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
-          },
-          {
             "title": "Select the prepared player",
             "instruction": "Select SnPRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
           }
         ],
         "warnings": [
           "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay.",
-          "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer."
+          "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer.",
+          "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Do not use Add to Steam from the managed copy: the shortcut points at one version folder and starts the game outside Portcove. The Linux x86-64 player needs glibc 2.38 or later, Vulkan, X11, FreeType and D-Bus; upstream marks Linux untested."
         ],
         "help_url": "https://github.com/wootbeer/snprecomp",
         "references": [
-          {
-            "title": "Keep the right saves",
-            "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
-          },
           {
             "title": "Set up the separate Android ARM64 app",
             "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
@@ -51409,6 +51402,10 @@
           {
             "title": "Player-data ownership",
             "instruction": "You and upstream own the external copy's data: the existing snprecomp profile or the application folder when portable.txt is present. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
       },
@@ -51425,7 +51422,11 @@
           "-linux-x86_64.tar.gz"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "socom-native-blvckburn-socom-u-s-navy-seals",

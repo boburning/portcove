@@ -13,6 +13,7 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "quake-ironwail",
     "quake-vkquake",
     "rustmania-racing-ray-m-w-muppet-racemania",
+    "snprecomp-wootbeer-sin-and-punishment",
     "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
     "troyedwardsjr-z2rs",
 ];
@@ -75,6 +76,11 @@ async fn managed_native_declared_quake_vkquake() {
 #[tokio::test]
 async fn managed_native_declared_rustmania_racing_ray_m_w_muppet_racemania() {
     assert_declarative_managed_native_route("rustmania-racing-ray-m-w-muppet-racemania").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_snprecomp_wootbeer_sin_and_punishment() {
+    assert_declarative_managed_native_route("snprecomp-wootbeer-sin-and-punishment").await;
 }
 
 #[tokio::test]
