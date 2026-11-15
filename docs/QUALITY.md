@@ -527,6 +527,17 @@ earlier run; its Intel override is now 240 seconds (5s × 48), below the
 120-second default after passing in 119.4 seconds earlier; Intel now has the
 same exact 180-second override as Windows.
 
+The Playnite reference-client lifecycle check runs its first `definition-state`
+Cargo action (`select`) against a cold fixture-enabled Core test build on
+Windows. Scheduled Qualification 43715629646 (job 132822315937) was the first
+run to reach that phase and stopped `select` at its 20-minute child budget; the
+check buffered Cargo's output and discarded it on timeout, so it now keeps the
+output tail in the timeout error. The same run's cold Core-inclusive
+`qualification-core-archive` test build took about 34 minutes, so `select` now
+has 40 minutes. `install` and `revoke` reuse that build and keep 20 minutes,
+which keeps the phase inside the job's 120-minute limit; other Playnite Cargo
+children keep ten minutes.
+
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and
