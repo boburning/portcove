@@ -1548,8 +1548,8 @@ the operating system's single-instance channel and exits. The running window
 parses them with the same exact-form check, replaces any request the frontend has
 not taken, announces `portcove://play-request` and comes to the front; the
 frontend takes the request and routes it as at startup, in the library that window
-already has open. Development, fixture, portable and isolated native runs never
-register the plugin, so they keep starting independent instances; such a run
+already has open. Development, fixture, portable and isolated runs of a
+non-installed executable never register the plugin, so they keep starting independent instances; such a run
 started from an entry opens its own window, holds its own shared
 application-runtime lease and opens the saved library selection. The plugin keys
 its single-instance channel by the bundle identifier only, so an isolated run of the
