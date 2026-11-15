@@ -1061,7 +1061,8 @@ Nintendo's boot logo bytes; Nintendo 64 and iNES ROM headers, ISO 9660 (cooked
 or raw sectors), XEX and Xenia shader storage by content; and PlayStation BIOS
 images that are not OpenBIOS. Fonts, icons, launcher art and code are not
 signals. Homebrew ROMs and similar legitimate files can also match; a finding
-is review evidence, so a person confirms it and sets the listing's
+is review evidence, so a person confirms it and, unless the material falls
+under a rights-basis owner exception, sets the listing's
 `download_block_reason` in a reviewed change.
 
 Each scanned asset is remembered in a cached checkpoint by rules version,

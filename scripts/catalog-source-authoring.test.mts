@@ -1063,3 +1063,22 @@ void test("funding links are authored per listing, validated, and select listing
     listingDeclarationHash({ ...listing, funding_urls: urls }),
   );
 });
+
+void test("the reviewed legacy additions fixture must stay in ascending order", async () => {
+  const { reviewCompatibilityFixture } = await import("./catalog-authoring.mts");
+  const legacy = { source_profiles: [{ id: "frozen-profile" }], ports: [{ id: "frozen-port" }] };
+  const catalog = {
+    source_catalog: { identities: [{ id: "frozen-profile" }, { id: "added-profile" }] },
+    ports: [{ id: "frozen-port" }, { id: "alpha-port" }, { id: "beta-port" }],
+  } as unknown as Parameters<typeof reviewCompatibilityFixture>[0];
+  const fixture = (portIds: string[]) =>
+    Buffer.from(JSON.stringify({ source_profile_ids: ["added-profile"], port_ids: portIds }));
+  assert.equal(
+    reviewCompatibilityFixture(catalog, legacy, fixture(["alpha-port", "beta-port"])).status,
+    "matched",
+  );
+  assert.throws(
+    () => reviewCompatibilityFixture(catalog, legacy, fixture(["beta-port", "alpha-port"])),
+    /port_ids: keep IDs in ascending order/,
+  );
+});

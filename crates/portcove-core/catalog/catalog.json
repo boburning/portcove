@@ -56739,6 +56739,85 @@
       }
     },
     {
+      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+      "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
+      "summary": "Native Beetle Adventure Racing! for Windows, using your own USA cartridge dump on first Play.",
+      "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "beetle-adventure-racing-recomp-",
+            "windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "beetle-adventure-racing-recomp.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose Load ROM and select your own USA Beetle Adventure Racing cartridge dump. The player checks it and keeps a copy in its profile at %LOCALAPPDATA%\\beetle-adventure-racing-recomp, together with Controller Pak saves, settings, bindings and cheats; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Beetle Adventure Racing!",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Load your original game on first Play",
+              "instruction": "Choose Play, then Load ROM in the player and select your own USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and keeps its own copy of the selected game in its profile, so keep your original separately. The released player needs no decompilation build or separate game-generation step."
+            },
+            {
+              "title": "Keep a complete Windows player",
+              "instruction": "For a copy you manage yourself, extract the whole Windows x64 alpha ZIP and keep beetle-adventure-racing-recomp.exe with its assets and DLLs; debug-symbols ZIPs are not player packages. To add that copy to Portcove, select the player and its folder."
+            }
+          ],
+          "warnings": [
+            "The package includes a modified RecompFrontend copy that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "This alpha has upstream limitations, and Portcove has not observed native setup, gameplay or saves. Linux is not offered."
+          ],
+          "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+          "references": [
+            {
+              "title": "Preserve the current copy and Controller Pak data",
+              "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2715,
+          "cover_id": 104718,
+          "image_id": "co28su",
+          "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
+          "game_slug": "beetle-adventure-racing",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "beetle-adventure-racing-recomp.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "darkuni-chocobo-dungeon-recomp",
       "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
       "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
@@ -61766,6 +61845,104 @@
             "ja2-launcher.exe",
             "ja2-resource-pack.exe",
             "ja2.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "james2doyle-ffta-recomp",
+      "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
+      "summary": "Final Fantasy Tactics Advance recompiled for Windows and Linux, using your own USA GBA ROM.",
+      "project_url": "https://github.com/james2doyle/ffta-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "james2doyle/ffta-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "FFTARecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "FFTARecomp.exe"
+        ]
+      },
+      "launch_environment": {
+        "GBARECOMP_SELFHEAL_RECOMPILE": "0"
+      },
+      "persistent_paths": [
+        "saves",
+        "rom.cfg",
+        "bios.cfg",
+        "skip_launcher_on_boot",
+        "config.ini",
+        "keybinds.ini",
+        "mods/packages",
+        "mods/state.toml",
+        "hang_dump.log",
+        "hang_fp_tail.csv",
+        "hang_trace.csv",
+        "recomp_coverage_AFXE.json",
+        "recomp_master_misses_AFXE.toml.frag"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM in the player's file picker; the player rejects other files and remembers the path in rom.cfg, so keep the ROM where it is. Portcove keeps the battery save in saves, the launcher and input settings (rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini), imported mods in mods/packages with mods/state.toml, and the diagnostic files it writes beside itself (hang_dump.log, hang_fp_tail.csv, hang_trace.csv and its recompilation coverage reports) across updates, backups and rollback. Save-state slots are written beside your ROM, outside the managed copy, and are not backed up or rewound by Portcove. Portcove starts the player with its runtime self-heal compiler turned off, so it never compiles or loads extra code inside the managed copy; the game falls back to its built-in interpreter for any uncompiled code. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed.",
+        "original_game_title": "Final Fantasy Tactics Advance",
+        "manual_setup": {
+          "help_url": "https://github.com/james2doyle/ffta-recomp",
+          "steps": [
+            {
+              "title": "Use your own supported USA original",
+              "instruction": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM (AFXE, SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9) in the player's file picker. The player rejects other files after selection and remembers the path in rom.cfg, so keep the ROM where it is. Save-state slots are written beside that ROM with .stateN names. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed."
+            },
+            {
+              "title": "Run a copy you manage yourself",
+              "instruction": "Keep the complete package for your system together. Start FFTARecomp.exe on Windows, or the FFTARecomp AppImage on Linux, from its own folder; the launch screen and game run in one process. To add that copy to Portcove, select the player and its folder with no extra arguments, then choose Play."
+            }
+          ],
+          "warnings": [
+            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package also includes retail box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "This upstream preview is experimental. Portcove has not observed native setup, gameplay or saves, and no compatibility of saves or save states across versions is claimed."
+          ],
+          "references": [
+            {
+              "title": "Keep saves, settings and external states",
+              "instruction": "The battery save is saves/ffta_us.sav beside the player unless --save or --save-path points elsewhere. rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini and keybinds.ini also sit beside the player, and imported mods go to mods/packages with mods/state.toml. Save-state slots live beside your ROM, or in the --state-dir folder. Back up all of these before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 414,
+          "cover_id": 524147,
+          "image_id": "cob8fn",
+          "image_sha256": "0f5ee5a926888d3a7adce4e37f40a14c8123e354844dbf0e3832e0aa048e1f00",
+          "game_slug": "final-fantasy-tactics-advance",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "bios",
+            "licenses",
+            "mods"
+          ],
+          "executables": [
+            "fftarecomp.exe"
           ]
         }
       }
@@ -69001,6 +69178,110 @@
       }
     },
     {
+      "id": "snowboard-kids",
+      "name": "Snowboard Kids (SnowboardKids-Recomp)",
+      "summary": "A native Snowboard Kids port for Windows and Linux. Select your own USA cartridge dump on first Play.",
+      "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "HikariLucy/SnowboardKids-Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SnowboardKidsRecompiled-",
+            "-Windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "SnowboardKidsRecompiled-",
+            "-Linux-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsEngine.exe"
+        ],
+        "linux-x86-64": [
+          "SnowboardKidsEngine"
+        ]
+      },
+      "launch_environment": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser; the player remembers its location and may keep its own copy in the profile, so keep the original where you selected it. Settings, Controller Pak saves, save states, logs and any user game modules go to the player's profile: %APPDATA%\\SnowboardKids on Windows, or $XDG_DATA_HOME/SnowboardKids, usually ~/.local/share/SnowboardKids, on Linux. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. A game module in the profile's modules folder takes precedence over the packaged one, so remove an old one after an update. Portcove replaces the player; you own the original and the profile. If no compatible game module loads, the player can run its bundled Python module builder; Portcove starts it without writing Python bytecode into the managed copy.",
+        "original_game_title": "Snowboard Kids",
+        "manual_setup": {
+          "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
+          "steps": [
+            {
+              "title": "Select your own supported original on Play",
+              "instruction": "Choose Play, then select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and the supported N64 byte orders. The player remembers where your ROM is, so keep the original where you selected it."
+            },
+            {
+              "title": "Keep the complete package for your system",
+              "instruction": "For a copy you manage yourself, keep the whole package together: SnowboardKidsEngine.exe on Windows or SnowboardKidsEngine on Linux, the matching modules/snowboardkids-us game module, assets and runtime libraries. The published beta includes a precompiled module, so normal players compile nothing. To add that copy to Portcove, select the engine and its folder."
+            }
+          ],
+          "warnings": [
+            "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files. Source and first-party checks do not confirm gameplay, real saves or installed behavior.",
+            "This is an upstream beta. Portcove has not observed native setup, gameplay or saves. A game module left in the profile's modules folder overrides the packaged one."
+          ],
+          "references": [
+            {
+              "title": "Preserve the actual profile and active module",
+              "instruction": "Back up the player's profile before changing versions: normally %APPDATA%\\SnowboardKids on Windows or ~/.local/share/SnowboardKids on Linux, unless SBK_USER_DATA_DIR selects another folder in a copy you manage yourself. It holds settings, the remembered ROM location, Controller Pak .mpk saves, .sbks save states, logs and any user game modules. Loading a save state does not rewind Controller Pak storage. A game module in that folder, or one named by --module or SBK_GAME_MODULE, takes priority over the packaged module, so remove an old one after updating. Close the player before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3342,
+          "cover_id": 104128,
+          "image_id": "co28cg",
+          "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
+          "game_slug": "snowboard-kids",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "modules",
+            "scripts"
+          ],
+          "executables": [
+            "snowboardkidsengine.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "modules",
+            "scripts"
+          ],
+          "executables": [
+            "scripts/build-game-module.py",
+            "snowboardkidsengine"
+          ]
+        }
+      }
+    },
+    {
       "id": "snprecomp-wootbeer-sin-and-punishment",
       "name": "Sin and Punishment — snprecomp (wootbeer)",
       "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
@@ -71385,6 +71666,78 @@
           "image_sha256": "0d5d4199eba537b4cdafcc66ad790c2070a7c249996e1235fbb7cfea3f977c04",
           "game_slug": "super-mario-world",
           "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "tdrrmk2-uhexen2-tweaked",
+      "name": "Hexen II / uHexen2 Tweaked",
+      "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
+      "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "TDRRmk2/uhexen2-tweaked",
+        "asset_hints": {
+          "windows-x86-64": [
+            "H2HoT-Tweaked-",
+            "-win32.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "glh2.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "data1",
+        "debug_h2.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into data1 in the managed player's folder, and keep your original installation separately. Portcove does not check these files and nothing patches them; the engine refuses older or mixed versions. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log when startup logging is enabled, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading.",
+        "original_game_title": "Hexen II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Copy your original game data before Play",
+              "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into the data1 folder of the game folder you will play from, and keep your original installation separately. The engine refuses older or mixed pak versions; nothing patches them for you, and the package contains no game data or patching tools."
+            },
+            {
+              "title": "Use a copy you manage yourself",
+              "instruction": "Extract the complete Windows test ZIP into a separate working Hexen II folder that already holds data1. Select glh2.exe with that folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+            }
+          ],
+          "warnings": [
+            "The test package bundles ten third-party codec and runtime DLLs without their licence notices. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+            "Portal of Praevus, HexenWorld and mods are not part of this route; they need other programs, folders or arguments in a copy you manage yourself. Portal of Praevus needs portals/pak3.pak and the -portals argument."
+          ],
+          "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+          "references": [
+            {
+              "title": "Keep the game folder's saves and settings",
+              "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "glh2.exe"
+          ]
         }
       }
     },

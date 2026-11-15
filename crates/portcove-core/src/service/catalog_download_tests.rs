@@ -2195,8 +2195,8 @@ async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_
         "danielgomesvieira2000-beetle-adventure-racing-recomp",
         "v0.4.2-alpha",
         "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2224,8 +2224,8 @@ async fn snowboard_kids_upstream_release_download_1354() {
         "snowboard-kids",
         "v0.9.0-beta.1",
         "SnowboardKidsRecompiled-0.9.0-beta.1-Windows-x86_64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2458,8 +2458,8 @@ async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
         "james2doyle-ffta-recomp",
         "v2.1",
         "FFTARecomp-v2.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

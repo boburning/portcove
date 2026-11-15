@@ -137,17 +137,18 @@ the same day the owner made tier 3 the default for upstream-hosted packages,
 following the model of launchers such as Quiver: Portcove fetches what the
 upstream itself publishes and holds a package only for concrete reasons.
 
-| Tier | Route                                                                                                                                                                    | Rights basis needed                                                                                                                            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Discovery listing: name, summary and the upstream project link, with no download or install route                                                                        | An attributable public project; no package rights decision                                                                                     |
-| 2    | Existing installation: the player obtains the package from upstream; Portcove registers it, verifies declared facts where bound, launches it and preserves external data | The player's own copy; Portcove neither hosts nor fetches the package                                                                          |
-| 3    | Managed acquisition from the official upstream release: Portcove downloads the publisher's own release asset on the player's request, verifies it and installs it        | The package must come from the upstream's own release location, verified against its accepted identity, and must not bundle original game data |
-| 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                    |
+| Tier | Route                                                                                                                                                                    | Rights basis needed                                                                                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Discovery listing: name, summary and the upstream project link, with no download or install route                                                                        | An attributable public project; no package rights decision                                                                                                                       |
+| 2    | Existing installation: the player obtains the package from upstream; Portcove registers it, verifies declared facts where bound, launches it and preserves external data | The player's own copy; Portcove neither hosts nor fetches the package                                                                                                            |
+| 3    | Managed acquisition from the official upstream release: Portcove downloads the publisher's own release asset on the player's request, verifies it and installs it        | The package must come from the upstream's own release location, verified against its accepted identity, and must not bundle original game data beyond the owner exceptions below |
+| 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                                                      |
 
 - **Recorded notes, not holds.** Recompiled, translated or inherited game
   program code without a grant, bundled fonts of any licence that are not extracted from the game, icons, launcher
   art such as box art and logos, unlicensed helper code, forks or launchers,
-  and an unlicensed own layer are recorded as known limitations in the
+  third-party library binaries shipped without their licence notices, and an
+  unlicensed own layer are recorded as known limitations in the
   listing's warning. Portcove never re-hosts them; the upstream that
   publishes them answers for their terms.
 - **Explicit prohibitions stay held.** An upstream that forbids redistribution
@@ -162,6 +163,19 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
+- **Owner exceptions to the game-data hold.** On November 15, 2026 the owner
+  made two narrow kinds of bundled game material recorded notes instead of
+  holds. First, launcher or menu art that only the upstream's own front end
+  shows when it is captured or derived from the game, such as posters made
+  from screenshots or menu art made from a community texture pack. Images,
+  textures, fonts or audio extracted unmodified from the game stay held, and
+  so does art the recompiled game itself uses. Second, game data that its
+  rights holder released for free redistribution, such as a freeware release
+  or an official demo, when the package bundles it unmodified. Shareware
+  episodes are not decided by this exception. Neither exception lifts an
+  explicit prohibition in the material's own licence or the upstream's terms.
+  Each listing names the material in its warning, and the player still
+  supplies any full game separately.
 - **Confirmed false positives.** When a person confirms that a
   [release-content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)
   finding is not game data, such as a homebrew test ROM, a reviewed entry in
@@ -174,7 +188,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Later releases stay offered
-  unless one bundles game data or a verified
+  unless one bundles game data outside the owner exceptions or a verified
   rights-holder request arrives; either restores the listing's
   `download_block_reason`. A listing hold applies to every platform of the
   port, so a port keeps its hold while one platform's route, such as an
@@ -1407,7 +1421,9 @@ refuse an identity mismatch before replacing embedded bytes. This cheap check
 does not establish full source-contract equality: Rust still compares complete
 frozen legacy projections and retains its qualification and negative assertions.
 Add independently reviewed additive IDs to this fixture once instead of updating
-the expected count and three exclusion lists separately. Do not regenerate the
+the expected count and three exclusion lists separately. Insert each ID in ascending
+order; the generator and the Rust catalog tests refuse an unsorted list, so
+concurrent additions usually merge instead of colliding at the end. Do not regenerate the
 fixture from the catalog or derive expected identities from a proposal.
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
