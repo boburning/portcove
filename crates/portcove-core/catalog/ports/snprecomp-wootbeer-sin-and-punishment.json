@@ -16,7 +16,7 @@
         },
         {
           "title": "Follow upstream setup",
-          "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
+          "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game. To register a Linux copy, select the SnPRecompiled program, not SnPRecompiled.sh."
         }
       ],
       "warnings": [
@@ -65,10 +65,10 @@
     "managed_native": {
       "preparation": {
         "title": "Set up the managed copy on first Play",
-        "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM. The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
+        "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
       },
       "warnings": [
-        "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Do not use Add to Steam from the managed copy: the shortcut points at one version folder and starts the game outside Portcove. The Linux x86-64 player needs glibc 2.38 or later, Vulkan, X11, FreeType and D-Bus; upstream marks Linux untested."
+        "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Use a separate upstream copy for portable.txt mode. Do not use Add to Steam from the managed copy: the shortcut points at one version folder, starts the game outside Portcove and stays in Steam after removal. The Linux x86-64 player needs glibc 2.38 or later and system SDL2, Vulkan, X11, FreeType and D-Bus libraries; Load ROM uses the desktop file-chooser portal."
       ]
     }
   },
