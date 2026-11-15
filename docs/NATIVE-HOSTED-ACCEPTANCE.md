@@ -335,8 +335,11 @@ failed run is never acceptance.
 The Windows job reuses the shared hosted WebView2 preparation, the pinned
 `native-drivers` bootstrap (tauri-driver and the signature-checked matching
 EdgeDriver) and the installed-update harness helpers for driver startup,
-connection, hashing and Settings navigation. The scenario in
-`apps/desktop/scripts/desktop-hosted-installed-update.mts`:
+connection, hashing and Settings navigation. The job points
+`PORTCOVE_SHARED_TOOL_CACHE` into its work directory, because the shared tool
+cache otherwise defaults to `%LOCALAPPDATA%\Portcove\tool-cache`, a default
+Portcove location the scenario requires to be absent before it starts. The
+scenario in `apps/desktop/scripts/desktop-hosted-installed-update.mts`:
 
 1. Downloads the from-version installer and CLI ZIP and verifies both against
    that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a

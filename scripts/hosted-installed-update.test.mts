@@ -346,6 +346,9 @@ void test("the workflow is manual, read-only and secret-free", () => {
   const windows = workflow.jobs.windows;
   assert.ok(isRecord(windows) && Array.isArray(windows.steps));
   assert.equal(windows["runs-on"], "windows-2022");
+  // Tooling must not create a default Portcove location before the fresh-machine check.
+  assert.ok(isRecord(windows.env));
+  assert.equal(windows.env.PORTCOVE_SHARED_TOOL_CACHE, "${{ github.workspace }}/work/tool-cache");
   assert.equal(windows.if, "needs.feed.outputs.outcome == 'offered'");
   const uses = windows.steps.filter(isRecord).map((step) => step.uses);
   assert.ok(uses.includes("./.github/actions/prepare-hosted-webview"));
