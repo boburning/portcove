@@ -1899,6 +1899,12 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    prepared_player_case!(
+        openlf2_local_installer_route_5830,
+        "little-fighter-2-openlf2",
+        ["--installer", "original LF2 v2.0a.exe", "--config-dir", "player profile"]
+    );
+
     prepared_player_case!(render96_selected_native_route_519, "render96ex");
 
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
