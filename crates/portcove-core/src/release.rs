@@ -5088,7 +5088,12 @@ mod tests {
             release("v202610242327-beta", false, &desktop),
             release("v0.1.7", false, &desktop),
         ];
-        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosX86_64,
+            Platform::MacosAarch64,
+        ] {
             let selected = select_channel_candidate(
                 &releases,
                 ReleaseChannel::Beta,
