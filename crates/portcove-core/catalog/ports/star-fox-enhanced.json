@@ -17,7 +17,29 @@
       "game_slug": "star-fox",
       "match_kind": "underlying-game"
     },
-    "issue_number": 124
+    "issue_number": 124,
+    "manual_setup": {
+      "help_url": "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
+      "warnings": [
+        "The older managed Windows download is unavailable upstream. Keep any working Portcove copy and its data. Use these steps for a separate v0.0.8.8.3 copy you have permission to use."
+      ],
+      "steps": [
+        {
+          "title": "Set up a separate Windows or Linux copy",
+          "instruction": "Extract the complete package to a writable folder. Put your own supported .sfc or .smc original beside starfox_pc.exe on Windows or starfox_pc on Linux, then start the player. It validates the original and builds Starfox-Assets.BIN on first run."
+        },
+        {
+          "title": "Set up a separate Mac or Android copy",
+          "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+        }
+      ],
+      "references": [
+        {
+          "title": "Keep progress with your separate copy",
+          "instruction": "Keep the Windows or Linux data beside the player, including starfox-ex.srm, states/ and your settings. Back up those files before applying an update in the game. On Mac, keep the app’s StarFoxEnhanced application data when replacing the bundle. On Android, use the normal package upgrade for the same app and retain its app data."
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",
