@@ -19,7 +19,7 @@
       "game_slug": "tekken-6--3",
       "match_kind": "underlying-game"
     },
-    "availability_override_reason": "GitHub has disabled access to the upstream repository for legal reasons (HTTP 451 when rechecked on November 14, 2026; still unavailable on November 15). Portcove keeps this listing so its history and your existing copy stay identifiable, but offers no setup or download."
+    "availability_override_reason": "GitHub has blocked access to this project's repository for legal reasons (checked November 15, 2026). Portcove keeps this listing for reference and offers no setup or download. If the project becomes available again, Portcove can review it again."
   },
   "upstream_lineage": {
     "format_version": 1,

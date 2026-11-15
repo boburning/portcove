@@ -3,7 +3,7 @@
   "listing": {
     "id": "darkuni-poker-smash-recomp",
     "name": "Poker Smash (darkuni Recomp)",
-    "summary": "Windows player for Poker Smash using its own Xbox 360 package.",
+    "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/poker-smash-recomp",
     "original_game_title": "Poker Smash",
     "issue_number": 4122,
@@ -59,7 +59,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "Before first Play, copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C) into the managed Poker Smash folder as the complete 5841089C console export folder (5841089C/000D0000/<package>), and keep your original separately. Poker Smash always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, Poker Smash finds the package and extracts the game into assets beside poker_smash.exe; without a package it explains what it needs and closes. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841089C folder, assets and poker_smash.toml across updates and backups. Saves and the shader cache are in Documents\\poker_smash, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if Poker Smash does not start. Portcove replaces the program; upstream owns package import and save formats."
+      "manual_preparation": "Before first Play, copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) into the managed Poker Smash folder as the complete 5841089C console export folder (5841089C/000D0000/<package>), and keep your original separately. Poker Smash always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, Poker Smash finds the package and extracts the game into assets beside poker_smash.exe; without a package it explains what it needs and closes. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841089C folder, assets and poker_smash.toml across updates and backups. Once the game has started, you can delete the copied 5841089C folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\poker_smash, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if Poker Smash does not start. Portcove replaces the program; upstream owns package import and save formats."
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {
