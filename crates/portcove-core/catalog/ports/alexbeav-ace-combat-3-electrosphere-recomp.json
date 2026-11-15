@@ -127,6 +127,19 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply both Japanese discs and the BIOS",
+            "instruction": "Choose the folder with your two original Japanese CHDs and your retail SCPH-5500 BIOS. Name the CHDs so Disc 1 sorts before Disc 2. Portcove checks both discs and builds the game on this computer."
+          },
+          {
+            "title": "Choose the disc before Play",
+            "instruction": "If the game asks for the other disc, close it and choose that disc beside Play before starting it again."
+          }
+        ],
+        "warnings": []
+      },
       "manual_preparation": "Provide your own matching single-track CHDs in Disc 1 SLPS-02020 then Disc 2 SLPS-02021 order and legally obtained retail SCPH-5500 (Japan) BIOS. A copy built with the SCPH-1001 BIOS keeps it until you update; the update needs your SCPH-5500 BIOS. This route uses Portcove’s registered Python/build toolchain and skips the upstream setup launcher when playing. To play Disc 2, choose it in the disc choice beside Play; the kit cannot swap discs during play, so quit and choose Play again when the game asks for the next disc. Generation, runtime, disc switching, lifecycle, minimum-host compatibility and gameplay are untested on both declared platforms. Preserve GPL-3.0-only project, PolyForm Noncommercial framework and MIT UI notices; no rights to retail game data or generated retail content are inferred."
     },
     "bios_source_profile": "psx-scph-5500-bios",
