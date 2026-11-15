@@ -2600,7 +2600,7 @@ mod tests {
                 }],
             })
         };
-        let repository = || response(serde_json::json!({"id": 1}));
+        let repository = || response(serde_json::json!({"id": 1, "archived": false}));
         let reviewed = release(45, "0.4.5", "a");
         let excluded = release(46, "0.4.6", "b");
         let unreviewed = release(44, "0.4.4", "c");

@@ -369,7 +369,11 @@ mod tests {
         let other = document
             .ports
             .iter()
-            .find(|port| port.id != held && port.managed_acquisition_hold.is_none())
+            .find(|port| {
+                port.adapter == crate::AdapterKind::StagedSourcePortable
+                    && port.release.provider == crate::ReleaseSource::Github
+                    && port.managed_acquisition_hold.is_none()
+            })
             .unwrap()
             .id
             .clone();
