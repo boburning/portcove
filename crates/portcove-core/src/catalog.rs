@@ -2389,7 +2389,8 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 "goldeneye-007-n64-pc-port",
-                "monster-hunter-portable-3rd-hd-yakumo"
+                "monster-hunter-portable-3rd-hd-yakumo",
+                "snap64-recomp"
             ]
         );
         let parse = |edit: &dyn Fn(&mut PortDefinition)| {

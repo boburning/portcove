@@ -13,6 +13,44 @@ use crate::{
     PortcoveError, PortcoveService, Result,
 };
 
+/// Match the previously offered Windows policy before verifying a retained
+/// embedded install. This comparison leaves the actual retained contract in use.
+fn validate_retained_embedded_port(
+    retained: &crate::PortDefinition,
+    embedded: &crate::PortDefinition,
+) -> Result<()> {
+    let historical_shipwright =
+        embedded.windows_shipwright_persistence && !retained.windows_shipwright_persistence;
+    let historical_snap = embedded.id == "snap64-recomp"
+        && embedded.windows_tracked_handoff
+        && !retained.windows_tracked_handoff;
+    if historical_shipwright || historical_snap {
+        let mut historical = embedded.clone();
+        if historical_shipwright {
+            historical.windows_shipwright_persistence = false;
+        }
+        if historical_snap {
+            historical.windows_tracked_handoff = false;
+        }
+        return crate::signed_catalog::validate_installed_port_contract(retained, &historical);
+    }
+    crate::signed_catalog::validate_installed_port_contract(retained, embedded)
+}
+
+#[cfg(test)]
+#[test]
+fn historical_snap64_embedded_import_preserves_its_launch_policy() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let embedded = catalog.port("snap64-recomp").unwrap();
+    assert!(embedded.windows_tracked_handoff);
+    let mut retained = embedded.clone();
+    retained.windows_tracked_handoff = false;
+    validate_retained_embedded_port(&retained, embedded).unwrap();
+    assert!(!retained.windows_tracked_handoff);
+    retained.persistent_paths.push("unexpected".into());
+    assert!(validate_retained_embedded_port(&retained, embedded).is_err());
+}
+
 pub(crate) struct PortabilityCatalogs {
     embedded: Catalog,
     installs: BTreeMap<String, Catalog>,
@@ -85,23 +123,7 @@ impl PortabilityCatalogs {
                     } else {
                         let retained_port = catalog.port(&install.port_id)?;
                         let embedded_port = embedded.port(&install.port_id)?;
-                        if embedded_port.windows_shipwright_persistence
-                            && !retained_port.windows_shipwright_persistence
-                        {
-                            // Compare the historical contract against the old
-                            // operational shape, leaving the retained bytes intact.
-                            let mut historical = embedded_port.clone();
-                            historical.windows_shipwright_persistence = false;
-                            crate::signed_catalog::validate_installed_port_contract(
-                                retained_port,
-                                &historical,
-                            )?;
-                        } else {
-                            crate::signed_catalog::validate_installed_port_contract(
-                                retained_port,
-                                embedded_port,
-                            )?;
-                        }
+                        validate_retained_embedded_port(retained_port, embedded_port)?;
                     }
                     catalog
                 }

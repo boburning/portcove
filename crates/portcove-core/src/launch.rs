@@ -19,6 +19,16 @@ pub use keeper::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 /// dropping the field.
 pub(crate) const TRACKED_HANDOFF_NATIVE_CAPABILITY: u32 = 28;
 
+pub(crate) const LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY: u32 = 35;
+
+pub(crate) fn tracked_handoff_native_capability(port: &crate::PortDefinition) -> u32 {
+    if port.id == "snap64-recomp" {
+        LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY
+    } else {
+        TRACKED_HANDOFF_NATIVE_CAPABILITY
+    }
+}
+
 /// Windows `CREATE_NEW_PROCESS_GROUP`: every supervised game leads its own
 /// console process group so a forwarded console break reaches only it.
 #[cfg(windows)]

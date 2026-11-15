@@ -790,6 +790,47 @@ fn windows_tracked_handoff_requires_native_version_28_in_fresh_and_retained_read
 }
 
 #[test]
+fn snap64_tracked_handoff_requires_a_keeper_in_fresh_and_retained_readers() {
+    let mut port = fixture_catalog().ports()[0].clone();
+    port.id = "snap64-recomp".into();
+    port.platforms.push(crate::Platform::WindowsX86_64);
+    port.executable_hints
+        .insert(crate::Platform::WindowsX86_64, vec!["game.exe".into()]);
+    port.windows_tracked_handoff = true;
+    let mut entry = entry_for_port(&port);
+    let native = entry["required_capabilities"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|requirement| requirement["template"] == "native-portable")
+        .unwrap();
+    assert_eq!(native["minimum_version"], 35);
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    assert!(
+        index(&bytes, &port.id)
+            .inspect_retained_entry("official", &port.id, &bytes)
+            .unwrap()
+            .capabilities()
+            .compatible
+    );
+
+    for requirement in entry["required_capabilities"].as_array_mut().unwrap() {
+        if requirement["template"] == "native-portable" {
+            requirement["minimum_version"] = json!(28);
+            requirement["maximum_version"] = json!(34);
+        }
+    }
+    let bytes = serde_json::to_vec(&entry).unwrap();
+    for result in [
+        inspect(&entry),
+        index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+    ] {
+        assert!(result.unwrap_err().message.contains("version 35"));
+    }
+}
+
+#[test]
 fn native_portable_windows_tracked_handoff_raises_its_own_requirement_to_28() {
     let mut port = fixture_catalog().ports()[0].clone();
     port.adapter = crate::AdapterKind::NativePortable;
