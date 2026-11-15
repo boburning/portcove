@@ -169,6 +169,22 @@ it.each(
   });
 });
 
+it("explains a rollback held for an unconfirmed uploader", () => {
+  expect(
+    portActionPresentation(
+      {
+        ...portStatus(),
+        port_actions: [{ action: "rollback", availability: "held", reason: "review_required" }],
+      },
+      "rollback",
+    ),
+  ).toEqual({
+    blocked: true,
+    reason:
+      "Restore previous version is on hold because Portcove can’t confirm who uploaded that version.",
+  });
+});
+
 it.each(["install", "launch"] as const)(
   "projects allowed %s without granting execution",
   (action) => {

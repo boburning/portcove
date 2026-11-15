@@ -299,7 +299,6 @@ pub struct ScopedResolvedRelease {
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
     pub(crate) fallback_reason: Option<String>,
-    uploader_continuity: None,
 }
 
 impl ScopedResolvedRelease {

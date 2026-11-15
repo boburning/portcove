@@ -196,6 +196,12 @@ function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
       reason:
         "Portcove could not verify the previous version. Restore previous version is on hold.",
     };
+  if (availability === "held" && reason === "review_required")
+    return {
+      blocked: true,
+      reason:
+        "Restore previous version is on hold because Portcove can’t confirm who uploaded that version.",
+    };
   return unavailable("rollback");
 }
 

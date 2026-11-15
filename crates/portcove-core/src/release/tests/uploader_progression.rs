@@ -239,16 +239,26 @@ async fn a_held_update_check_leaves_the_installed_copy_active() {
 
 /// Rewrites a registered build's manifest as a version before #6209 wrote it,
 /// without the marker that acquisition facts are recorded.
-fn as_unrecorded(library: &Library, install: &InstallRecord) -> InstallRecord {
+fn as_unrecorded(library: &Library, install: &crate::InstallRecord) -> crate::InstallRecord {
+    rewrite_manifest(library, install, |manifest| {
+        assert_eq!(manifest["acquisition_facts_recorded"], true);
+        manifest
+            .as_object_mut()
+            .unwrap()
+            .remove("acquisition_facts_recorded");
+    })
+}
+
+fn rewrite_manifest(
+    library: &Library,
+    install: &crate::InstallRecord,
+    change: impl FnOnce(&mut serde_json::Value),
+) -> crate::InstallRecord {
     use sha2::Digest as _;
     let path = install.path.join(".portcove-manifest.json");
     let mut manifest: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(manifest["acquisition_facts_recorded"], true);
-    manifest
-        .as_object_mut()
-        .unwrap()
-        .remove("acquisition_facts_recorded");
+    change(&mut manifest);
     let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
     std::fs::write(&path, &bytes).unwrap();
     let mut rewritten = install.clone();
@@ -303,7 +313,7 @@ fn a_build_staged_without_recorded_uploader_facts_needs_a_fresh_resolution() {
     // Installed before the baseline: unchanged behavior.
     service
         .require_activation_uploader_continuity(
-            &InstallRecord {
+            &crate::InstallRecord {
                 installed_at: 1,
                 ..unrecorded
             },
@@ -333,13 +343,52 @@ fn rollback_to_a_build_without_recorded_uploader_facts_is_held() {
         .find(|assessment| assessment.action == crate::PortAction::Rollback)
         .unwrap();
     assert_eq!(assessment.availability, crate::PortActionAvailability::Held);
-    assert_eq!(
-        assessment.reason,
-        crate::PortActionReason::InvalidInstallation
-    );
+    assert_eq!(assessment.reason, crate::PortActionReason::ReviewRequired);
     assert_unconfirmed(&service.rollback("starship").unwrap_err());
     assert_eq!(
         service.status("starship").unwrap().active.unwrap().id,
         second.id
     );
+}
+
+#[test]
+fn a_staged_build_from_an_uploader_no_longer_accepted_is_held() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = crate::retained_build::tests::install(&library, "active", b"active runtime", true);
+    let staged =
+        crate::retained_build::tests::install(&library, "staged", b"staged runtime", false);
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    assert!(
+        service
+            .catalog()
+            .port("starship")
+            .unwrap()
+            .release
+            .accepted_uploaders
+            .iter()
+            .all(|account| account.id != FOREIGN)
+    );
+    // Staged while the catalog accepted this uploader; the catalog no longer does.
+    let accepted = rewrite_manifest(&library, &staged, |manifest| {
+        manifest["uploader_continuity"] = serde_json::json!({
+            "basis": "accepted", "uploader_id": FOREIGN, "uploaded_at": AFTER
+        });
+    });
+    let error = service.activate_staged("starship").unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error:?}");
+    assert_eq!(error.details["reason"], "provider_uploader_not_continuous");
+    assert_eq!(error.details["uploader_id"], FOREIGN.to_string());
+    let status = service.status("starship").unwrap();
+    assert_eq!(status.active.unwrap().id, active.id);
+    assert_eq!(status.staged.unwrap().id, accepted.id);
+    // Any other recorded basis stands.
+    let established = rewrite_manifest(&library, &accepted, |manifest| {
+        manifest["uploader_continuity"] = serde_json::json!({
+            "basis": "established", "uploader_id": REGULAR, "uploaded_at": AFTER
+        });
+    });
+    service
+        .require_activation_gates(&established, None)
+        .unwrap();
 }

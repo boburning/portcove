@@ -4133,7 +4133,19 @@ impl PortcoveService {
         let port = self.installed_port(previous).map_err(invalid)?;
         crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
         self.require_activation_uploader_continuity(previous, None)
-            .map_err(invalid)?;
+            .map_err(|error| RollbackTargetFailure {
+                reason: if error
+                    .details
+                    .get("reason")
+                    .is_some_and(|reason| reason.starts_with("provider_uploader_"))
+                {
+                    PortActionReason::ReviewRequired
+                } else {
+                    PortActionReason::InvalidInstallation
+                },
+                error,
+                definition: None,
+            })?;
         self.require_portable_runtime_unchanged(previous)
             .map_err(invalid)?;
         if let Some(active) = active {
@@ -4243,11 +4255,7 @@ impl PortcoveService {
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        crate::managed_runtime_policy::require_managed_activation_available(
-            &self.catalog,
-            &staged,
-        )?;
-        self.require_activation_uploader_continuity(&staged, fresh_continuity)?;
+        self.require_activation_gates(&staged, fresh_continuity)?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -6399,6 +6407,21 @@ impl PortcoveService {
 
     fn managed_install_root(&self, port_id: &str, install_root: &Path) -> Result<PathBuf> {
         crate::output_root::validate_install_path(&self.library, port_id, install_root)
+    }
+
+    /// Every catalog gate a build must pass before it becomes active from stored
+    /// facts: staged activation and its recovery, and publication recovery all
+    /// apply this one check.
+    pub(crate) fn require_activation_gates(
+        &self,
+        install: &InstallRecord,
+        fresh: Option<&crate::UploaderContinuityRecord>,
+    ) -> Result<()> {
+        crate::managed_runtime_policy::require_managed_activation_available(
+            &self.catalog,
+            install,
+        )?;
+        self.require_activation_uploader_continuity(install, fresh)
     }
 
     /// Uploader continuity for a build about to become active from stored facts

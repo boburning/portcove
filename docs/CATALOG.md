@@ -2126,10 +2126,14 @@ applies that recorded decision again:
   finds the build already staged. Restoring such a previous version is held,
   which the rollback assessment shows before the action is chosen.
 
-Other providers, curated, direct, user-prepared, managed-build and adopted-tree
-builds are not upstream progression and are unaffected, as is the active build.
-A manifest rewrite or prepared derivative carries the original's recorded facts
-and never adds a marker the original lacked.
+Other providers and curated, direct, user-prepared and managed-build routes are
+not upstream progression and are unaffected, as is the active build. A build
+this version adopts from local files records the marker; an adopted tree with a
+separately recorded runtime is also recognized. A manifest rewrite or prepared
+derivative carries the original's recorded facts and install time and never
+adds a marker the original lacked, so a derivative of a pre-baseline build stays
+pre-baseline. Rolling back to a held build reports `review_required`. A held
+recovery keeps its journal for review, as an acquisition hold does.
 
 To accept a new uploader, review the account and the held release on the
 canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`

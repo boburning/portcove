@@ -513,6 +513,10 @@ struct InstallManifest {
     /// a GitHub resolution applied it; absent on earlier manifests (#6209).
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     acquisition_facts_recorded: bool,
+    /// When a derived build's original artifact was installed; a derivative keeps
+    /// the original's install time for the uploader-continuity baseline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    acquired_at: Option<i64>,
     #[serde(default)]
     runtime: Option<RuntimeIdentity>,
     #[serde(default)]
@@ -3064,6 +3068,7 @@ impl Installer {
             facts_recorded: manifest.acquisition_facts_recorded,
             uploader_continuity: manifest.uploader_continuity,
             adopted_tree: false,
+            acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
         });
         Ok(qualification)
     }
@@ -3341,6 +3346,7 @@ mod legacy_dkr_tests {
             github_artifact_identity: None,
             uploader_continuity: None,
             acquisition_facts_recorded: false,
+            acquired_at: None,
             runtime: None,
             runtime_root: None,
             selected_executable: artifact.executable.clone(),
@@ -3847,6 +3853,10 @@ fn write_manifest_with_shape(
             .retained_acquisition
             .as_ref()
             .is_none_or(|retained| retained.facts_recorded),
+        acquired_at: qualification
+            .retained_acquisition
+            .as_ref()
+            .and_then(|retained| retained.acquired_at),
         selected_executable: selected_relative.clone(),
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
@@ -4092,6 +4102,7 @@ pub(crate) fn recorded_acquisition(
     Ok(crate::release::RecordedAcquisition {
         facts_recorded: manifest.acquisition_facts_recorded,
         uploader_continuity: manifest.uploader_continuity,
+        acquired_at: manifest.acquired_at,
         adopted_tree: install
             .runtime
             .as_ref()

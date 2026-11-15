@@ -459,6 +459,7 @@ async fn assert_install_cancellation_boundary(point: LifecycleFaultPoint, accept
                         url: format!("http://{address}/synthetic.zip"),
                         ..asset
                     },
+                    uploader_continuity: None,
                 },
                 activate: true,
                 managed: None,

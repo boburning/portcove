@@ -230,6 +230,9 @@ pub(crate) struct RecordedAcquisition {
     pub(crate) uploader_continuity: Option<crate::UploaderContinuityRecord>,
     /// The player adopted an existing local tree; no provider upload was followed.
     pub(crate) adopted_tree: bool,
+    /// For a derived build (a refreshed manifest or a prepared copy), when its
+    /// original artifact was installed; the baseline applies to that time.
+    pub(crate) acquired_at: Option<i64>,
 }
 
 const RECORDED_HOLD_SUFFIX: &str =
@@ -275,7 +278,8 @@ pub(crate) fn require_recorded(
         return Ok(());
     }
     let Some(record) = fresh.or(recorded.uploader_continuity.as_ref()) else {
-        if recorded.facts_recorded || install.installed_at < BASELINE_UNIX_SECONDS {
+        let acquired_at = recorded.acquired_at.unwrap_or(install.installed_at);
+        if recorded.facts_recorded || acquired_at < BASELINE_UNIX_SECONDS {
             return Ok(());
         }
         return Err(recorded_hold(
@@ -524,6 +528,7 @@ mod tests {
                 uploaded_at: Some("2026-12-01T00:00:00Z".into()),
             }),
             adopted_tree: false,
+            acquired_at: None,
         };
         let check = |install: &crate::InstallRecord,
                      recorded: &RecordedAcquisition,
@@ -541,6 +546,18 @@ mod tests {
             ..RecordedAcquisition::default()
         };
         check(&after, &recorded_without_decision, None, None).unwrap();
+        // A copy derived after the baseline from a build installed before it
+        // keeps the original's install time.
+        let derived_from_earlier = RecordedAcquisition {
+            acquired_at: Some(BASELINE_UNIX_SECONDS - 1),
+            ..RecordedAcquisition::default()
+        };
+        check(&after, &derived_from_earlier, None, None).unwrap();
+        let derived_from_later = RecordedAcquisition {
+            acquired_at: Some(BASELINE_UNIX_SECONDS + 1),
+            ..RecordedAcquisition::default()
+        };
+        check(&before, &derived_from_later, None, None).unwrap_err();
         // A later build from a version that did not record facts is held, unless
         // a fresh resolution of the same artifact confirms it.
         let held = check(&after, &none, None, None).unwrap_err();
