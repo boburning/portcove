@@ -291,6 +291,8 @@ pub use host_tools::{
 pub use import_execution::LibraryImportResult;
 pub use install::{InstallQualification, InstallRequest, Installer, VerificationReport};
 pub use launch::forward_launch_signal;
+#[cfg(windows)]
+pub use launch::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 pub use library::{
     ApplicationUpdateQuiescenceGuard, Library, LibraryChangeObserver, PortOperationGuard,
 };

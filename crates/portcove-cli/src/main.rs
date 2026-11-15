@@ -140,6 +140,31 @@ fn command_is_observation(command: &Commands) -> bool {
 #[tokio::main]
 async fn run() -> ExitCode {
     let raw_args = std::env::args_os().collect::<Vec<_>>();
+    #[cfg(windows)]
+    if let [_, mode, library, session, supervisor] = raw_args.as_slice()
+        && mode == portcove_core::LAUNCH_JOB_KEEPER_MODE
+    {
+        let (Some(session), Some(supervisor)) = (
+            session.to_str(),
+            supervisor
+                .to_str()
+                .and_then(|value| value.parse::<u32>().ok()),
+        ) else {
+            return ExitCode::FAILURE;
+        };
+        let result = (|| {
+            let _runtime = ApplicationRuntimeGuard::acquire(
+                &HostPreferenceStore::application_runtime_lock_path()?,
+            )?;
+            let library = portcove_core::Library::open(std::path::PathBuf::from(library))?;
+            portcove_core::run_launch_job_keeper(library, session, supervisor)
+        })();
+        return if result.is_ok() {
+            ExitCode::SUCCESS
+        } else {
+            ExitCode::FAILURE
+        };
+    }
     let requested_mode = requested_output_mode(&raw_args);
     // Parsing is in-memory only. Start the host session before handling its
     // result or opening preferences, the runtime lease, or any library.

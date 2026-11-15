@@ -311,15 +311,15 @@ original exits while any job process whose program lies inside the
 installation (the managed install or the registered external folder) still
 runs. The session record names those programs; Desktop does not show them
 yet, and `launch show --technical-details` does. Delivered definitions must
-require [native capability 28](DEFINITION-DELIVERY.md). A successor the game
+require [native capability 28](DEFINITION-DELIVERY.md), or 35 for Snap64. A successor the game
 starts from its own process tree, such as a `_wexecv` restart from a menu action, is tracked. A browser, Steam client,
 editor or other program outside the installation never holds the session, even
 when the game started it. A child created with explicit job breakaway, or a
 program started outside the tree through the shell, a service, a scheduled task
-or an already running instance, is not tracked. Recovery after the supervisor
-itself exits has narrower coverage: it can only reach the job while a tracked
-process still holds the handle Core shares with it, so a successor that
-started without that handle can be missed. Qualify a route whose successor
+or an already running instance, is not tracked. A separate Portcove process holds a query handle for the session's job. If
+the supervisor exits, the keeper waits for the same in-install processes and
+recovers the session after they exit. A missing job or ambiguous spawning
+record requires manual review. Qualify a route whose successor
 escapes these rules as non-owning, or require the original process to stay
 alive. On Linux and macOS an exec-based restart keeps the process ID, but a
 launcher that spawns a successor and exits is untracked there, so such a route
