@@ -855,21 +855,16 @@ async function verifySettingsRows() {
                   fits: element.scrollWidth <= element.clientWidth + 1,
                 };
               };
-              const groups = [group];
+              const content = document.querySelector(
+                `[data-settings-group="${group}"] .settings-section-content`,
+              );
+              if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
+              const children = [...content.children];
+              if (!children.every((child) => child.classList.contains("settings-row")))
+                throw new Error(`${group} contains an unmigrated Settings card`);
               return {
                 viewportWidth: window.innerWidth,
-                groups: Object.fromEntries(
-                  groups.map((group) => {
-                    const content = document.querySelector(
-                      `[data-settings-group="${group}"] .settings-section-content`,
-                    );
-                    if (!(content instanceof HTMLElement)) throw new Error(`Missing ${group}`);
-                    const children = [...content.children];
-                    if (!children.every((child) => child.classList.contains("settings-row")))
-                      throw new Error(`${group} contains an unmigrated Settings card`);
-                    return [group, { content: rect(content), rows: children.map(rect) }];
-                  }),
-                ),
+                groups: { [group]: { content: rect(content), rows: children.map(rect) } },
                 bundlePathFits:
                   group !== "advanced" ||
                   (() => {
@@ -880,33 +875,32 @@ async function verifySettingsRows() {
                       throw new Error("Saved bundle path is missing");
                     return path.scrollWidth <= path.clientWidth + 1;
                   })(),
-                recommendationFits:
+                updatePreferencesFit:
                   group !== "updates" ||
                   (() => {
-                    const modes = document.querySelector('[aria-label="Application update mode"]');
-                    const label = modes?.querySelector("button small");
-                    const button = label?.closest("button");
-                    if (!label) {
-                      // A build that cannot update itself disables Automatic with a stated
-                      // reason and no Recommended tag (#5147). That state has no tag to fit.
-                      const automatic = modes?.querySelector("button");
-                      const reason = document.getElementById(
-                        "application-update-automatic-unavailable",
-                      );
-                      if (
-                        automatic instanceof HTMLButtonElement &&
-                        automatic.disabled &&
-                        reason instanceof HTMLElement &&
-                        reason.textContent?.trim()
-                      )
-                        return true;
-                    }
-                    if (!(label instanceof HTMLElement) || !(button instanceof HTMLElement))
-                      throw new Error("Recommended update-mode label is missing");
-                    return (
-                      label.getBoundingClientRect().bottom <=
-                      button.getBoundingClientRect().bottom - 2
+                    const channelGroup = content.querySelector(
+                      '[role="group"][aria-labelledby="application-update-channel-label"]',
                     );
+                    const channels = [...(channelGroup?.querySelectorAll("button") ?? [])];
+                    const description = content.querySelector(
+                      "#application-update-automatic-checks-description",
+                    );
+                    if (channels.length !== 2 || !(description instanceof HTMLElement)) {
+                      throw new Error(
+                        "Expected the update channel controls and automatic-check description",
+                      );
+                    }
+                    return [...channels, description].every((element) => {
+                      const bounds = element.getBoundingClientRect();
+                      const parentBounds = element.parentElement!.getBoundingClientRect();
+                      return (
+                        bounds.width > 0 &&
+                        bounds.left >= parentBounds.left - 1 &&
+                        bounds.right <= parentBounds.right + 1 &&
+                        element.scrollWidth <= element.clientWidth + 1 &&
+                        element.scrollHeight <= element.clientHeight + 1
+                      );
+                    });
                   })(),
               };
             },
@@ -971,7 +965,7 @@ interface SettingsRows {
   viewportWidth: number;
   groups: Record<string, { content: SettingsRect; rows: SettingsRect[] }>;
   bundlePathFits: boolean;
-  recommendationFits: boolean;
+  updatePreferencesFit: boolean;
 }
 function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; height: number }) {
   const expectedRows: Record<string, number> = {
@@ -979,7 +973,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     "library-storage": 4,
     "game-files": 3,
     updates: 3,
-    integrations: 2,
+    integrations: 3,
     controls: 2,
     advanced: 4,
   };
@@ -999,7 +993,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
   }
   assert.ok(rows.viewportWidth <= size.width);
   assert.equal(rows.bundlePathFits, true, "saved bundle path is clipped");
-  assert.equal(rows.recommendationFits, true, "recommended update mode label is clipped");
+  assert.equal(rows.updatePreferencesFit, true, "update preferences are clipped");
 }
 
 async function verifyLongTitleCatalogDetail(theme: string) {
@@ -3298,15 +3292,6 @@ try {
       /Your library is empty[\s\S]*copy a supported installation without changing its original folder/,
     );
     await captureScenarioScreenshot("empty-library-shared-controls");
-    const updateChoice = await browser.wait(
-      until.elementLocated(
-        By.xpath(
-          '//*[@role="status"][.//strong[normalize-space(.)="Choose how Portcove updates"]]',
-        ),
-      ),
-      15_000,
-    );
-    assert.equal(await updateChoice.isDisplayed(), true);
     await browser.manage().window().setRect({ width: 960, height: 640 });
     const firstUseAction = await executeBrowserScript(
       browser,
@@ -4503,7 +4488,10 @@ try {
       15_000,
       "choosing Preview did not save the channel",
     );
-    await browser.findElement(By.id("application-update-automatic-checks")).click();
+    const automaticChecks = By.css(
+      'label[for="application-update-automatic-checks"] [role="checkbox"]',
+    );
+    await browser.findElement(automaticChecks).click();
     await browser.wait(
       async () =>
         success(await invoke("get_application_update_preferences")).automatic_checks === false,
@@ -4525,12 +4513,7 @@ try {
         .getText(),
       "Preview",
     );
-    assert.equal(
-      await browser
-        .findElement(By.id("application-update-automatic-checks"))
-        .getAttribute("aria-checked"),
-      "false",
-    );
+    assert.equal(await browser.findElement(automaticChecks).getAttribute("aria-checked"), "false");
 
     await captureApplicationUpdateSettingsComparison();
 

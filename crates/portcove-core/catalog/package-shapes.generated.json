@@ -189,11 +189,11 @@
     {
       "port_id": "sonic-the-hedgehog-recomp",
       "platform": "windows-x86-64",
-      "version": "v0.7.3",
-      "sha256": "082cfb48e1d35a5ae05f054ad663e4eee46b21e5d920ec7e7d6628bce32a3fc8",
-      "derivation_inputs_sha256": "54f68930573b7d037990572bdae8e1ff6ba1b803375468fd3b63c4e9d4696564",
-      "size": 4750567,
-      "asset_name": "SonicTheHedgehogRecomp-windows-x64-v0.7.3.zip",
+      "version": "v1.2.0",
+      "sha256": "fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2",
+      "derivation_inputs_sha256": "ebb4fc7d73375b66fd47c6899dbf8c59e3a2913eef163b93efcd894ebad460c9",
+      "size": 5562704,
+      "asset_name": "SonicTheHedgehogRecomp-windows-x64-v1.2.0.zip",
       "reviewed_by": "applicability:sonic-the-hedgehog-recomp-game-source",
       "shape": {
         "programs": [
@@ -201,7 +201,8 @@
         ],
         "top_directories": [
           "assets",
-          "licenses"
+          "docs",
+          "tools"
         ],
         "persistent_parent_children": [],
         "persistent_overlap": [],
@@ -240,6 +241,46 @@
           "mods/packages/super-mario-world.enhancement.msu1/1.0.0/manifest.toml",
           "mods/packages/super-mario-world.enhancement.widescreen/1.0.0/manifest.toml",
           "mods/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "super-mario-world-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.15.9",
+      "sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+      "derivation_inputs_sha256": "0235e195a34b892dad2c54e4f6efbbcdac5f6ec0c3c8ac9228bf668f5ef4e120",
+      "size": 26746609,
+      "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.15.9.zip",
+      "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape": {
+        "programs": [
+          "collect-controller-diagnostics.cmd",
+          "collect-controller-diagnostics.ps1",
+          "smw-controller-report.exe",
+          "smw-falcon-cache.exe",
+          "supermarioworldsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "falcon-cache-licenses",
+          "lua",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-mario-world.developer.diagnostics/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.msu1/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.gameplay.native-coop/0.1.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
         ],
         "missing_persistent_parents": []
       }
@@ -310,7 +351,36 @@
         ],
         "missing_persistent_parents": []
       }
+    },
+    {
+      "port_id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.6.6",
+      "sha256": "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
+      "derivation_inputs_sha256": "611d2bffbde12364825636de73251f6ab7e63543f29ddfc38b72547e37a6ffe2",
+      "size": 12990200,
+      "asset_name": "ZeldaALttPSNESRecomp-windows-x64-v0.6.6.zip",
+      "reviewed_by": "applicability:the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
+      "shape": {
+        "programs": [
+          "zeldaalttpsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "mods"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded"
+        ],
+        "persistent_overlap": [],
+        "config_files": [
+          "mods/preloaded/packages/zelda-alttp.enhancement.msu1/1.0.0/manifest.toml",
+          "mods/preloaded/packages/zelda-alttp.enhancement.widescreen/1.0.0/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      }
     }
   ],
-  "entries_sha256": "f15e90e317de8fbd90fd5b7f1504f7023699b888998ddec81dfa903b3f147bb5"
+  "entries_sha256": "aceec3e5643570a04b98790756f467514c5fae20fc5030d29a7bcd73d9192bb3"
 }

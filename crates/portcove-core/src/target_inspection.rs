@@ -309,7 +309,7 @@ fn inspect_port(
             port_id,
         };
     };
-    let held = crate::managed_runtime_policy::acquisition_hold(catalog, &port_id).is_some();
+    let held = crate::managed_runtime_policy::acquisition_hold_reason(catalog, &port_id).is_some();
     let targets = platforms
         .iter()
         .map(|&platform| {
@@ -623,7 +623,7 @@ mod tests {
     }
 
     #[test]
-    fn provider_ports_qualify_only_through_their_reviewed_release_bindings() {
+    fn provider_qualification_distinguishes_offered_routes_and_retained_evidence() {
         let catalog = Catalog::embedded().unwrap();
         let report = inspect_targets(
             &catalog,
@@ -633,17 +633,9 @@ mod tests {
         .unwrap();
         assert_eq!(report.format_version, 2);
         let fzero = windows_qualification(&report, "f-zero-snes-recomp");
-        assert_eq!(
-            fzero.offered_artifact,
-            OfferedArtifact::ProviderResolved {
-                route: PortAction::Install
-            }
-        );
-        assert_eq!(
-            fzero.state,
-            TargetQualificationState::ReviewedBindingQualified
-        );
-        assert_eq!(fzero.qualified_refs, ["v1.8.3"]);
+        assert_eq!(fzero.offered_artifact, OfferedArtifact::NoneOffered);
+        assert_eq!(fzero.state, TargetQualificationState::HistoricalOnly);
+        assert!(fzero.qualified_refs.is_empty());
         // The evidence never says which route produced it.
         assert_eq!(fzero.evidence_route, EvidenceRoute::Unrecorded);
         assert!(!fzero.known_failure);
@@ -656,16 +648,22 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 (
-                    ScopeApplicability::ReviewedReleaseBinding,
+                    ScopeApplicability::RouteNotOffered,
                     "fzero-managed-path-policy-startup-persistence-v2"
                 ),
                 (
-                    ScopeApplicability::ReviewedReleaseBinding,
+                    ScopeApplicability::RouteNotOffered,
                     "fzero-managed-startup-persistence-v1"
                 ),
             ]
         );
         let dkc3 = windows_qualification(&report, "dkc3-recomp");
+        assert_eq!(
+            dkc3.offered_artifact,
+            OfferedArtifact::ProviderResolved {
+                route: PortAction::Install
+            }
+        );
         assert_eq!(
             dkc3.state,
             TargetQualificationState::ReviewedBindingQualified
@@ -927,11 +925,9 @@ mod tests {
     #[test]
     fn a_catalog_acquisition_hold_withdraws_install_as_in_the_library() {
         let catalog = Catalog::embedded().unwrap();
-        let Some(port) = catalog
-            .ports()
-            .iter()
-            .find(|port| port.managed_acquisition_hold.is_some())
-        else {
+        let Some(port) = catalog.ports().iter().find(|port| {
+            crate::managed_runtime_policy::acquisition_hold_reason(&catalog, &port.id).is_some()
+        }) else {
             return;
         };
         let report = inspect_targets(&catalog, std::slice::from_ref(&port.id), &[]).unwrap();

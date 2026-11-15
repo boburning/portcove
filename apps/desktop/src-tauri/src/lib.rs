@@ -11,6 +11,7 @@ mod bug_report;
 mod catalog;
 mod catalog_download;
 mod cli_context;
+mod dat_commands;
 #[doc(hidden)]
 pub mod desktop_contract;
 mod diagnostics;
@@ -815,8 +816,13 @@ async fn inspect_source(
     profile_id: String,
 ) -> DesktopResult<SourceInspectionReport> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_with_service(&service, &profile_id)
+        let mut report = inspect_source_with_service(&service, &profile_id)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_report(preferences, &mut report);
+        }
+        Ok(report)
     })
     .await
 }
@@ -841,8 +847,13 @@ async fn inspect_source_intake(
     paths: Vec<PathBuf>,
 ) -> DesktopResult<SourceIntakeInspection> {
     let state = state.inner().clone();
+    let preferences = state.preferences.clone();
     blocking_service(state, move |service| {
-        inspect_source_intake_with_service(&service, &profile_id, &paths)
+        let mut intake = inspect_source_intake_with_service(&service, &profile_id, &paths)?;
+        if let Ok(preferences) = &preferences {
+            portcove_core::identify_source_intake(preferences, &mut intake);
+        }
+        Ok(intake)
     })
     .await
 }
@@ -1919,6 +1930,25 @@ async fn get_launch_failure(
     .await
 }
 
+/// Microsoft runtimes the given installation most likely needs, or `None` once it
+/// is no longer the port's current one. Read on request because it opens program files.
+#[tauri::command]
+async fn get_runtime_prerequisites(
+    state: tauri::State<'_, DesktopState>,
+    port_id: String,
+    install_id: String,
+    generation: u64,
+) -> DesktopResult<Option<portcove_core::RuntimePrerequisiteReport>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let library = library_at_generation(&state, generation)?;
+        let report = library.installation_runtime_prerequisites(&port_id, &install_id)?;
+        require_library_generation(state_generation(&state), generation)?;
+        Ok(report)
+    })
+    .await
+}
+
 /// Launch failures surface within seconds, so observe quickly at first and then
 /// back off while a game keeps running instead of reading SQLite four times a
 /// second for the whole play session.
@@ -2913,6 +2943,9 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::apply_provider_install,
             mod_setup_commands::discard_provider_install,
             mod_setup_commands::review_mod_package_code,
+            dat_commands::get_dat_references,
+            dat_commands::add_dat_reference,
+            dat_commands::remove_dat_reference,
             favorite_commands::get_favorite_ports,
             favorite_commands::set_port_favorite,
             organization_commands::get_library_organization,
@@ -3093,6 +3126,7 @@ pub fn run() -> std::process::ExitCode {
             bug_report::open_bug_report,
             bug_report::submit_report,
             get_launch_failure,
+            get_runtime_prerequisites,
             get_doctor_report,
             set_host_tool_path,
             clear_host_tool_path,

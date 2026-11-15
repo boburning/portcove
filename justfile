@@ -240,6 +240,7 @@ repository-tools:
     {{storage}} node scripts/qualification-coverage.mts
     {{storage}} node scripts/check-retcomm-upstreams.mts --offline
     {{storage}} node scripts/package-shape-baselines.mts --check
+    {{storage}} node scripts/catalog-capacity.mts --check
     {{storage}} node scripts/quality-tools.mts --validate
     {{storage}} node scripts/aqua-integrity.mts --check
     {{storage}} node scripts/repository-settings.mts --validate

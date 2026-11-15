@@ -606,6 +606,12 @@ require staged-source minimum version 33, so an older reader, which cannot apply
 refuses it instead of copying an unpatched file. The version adds no source, download,
 installation or publisher authority and does not change versions 2–32.
 
+Staged-source version 35 admits exact release exclusions in a managed
+acquisition hold. Indexed and retained definitions with `excluded_artifacts`
+must declare a staged-source minimum version of 35. Earlier readers reject
+the capability. Holds that omit this field keep their existing behavior and
+capability requirements. The new field grants no additional acquisition authority.
+
 ## Decision and threat model
 
 Use a catalog-specific TUF repository with maintained Rust `tough`, consistent
@@ -940,8 +946,9 @@ The leaf has no outgoing target references. Additional graph fields, distinct
 role leaves or record types require a separately implemented versioned contract;
 they are rejected rather than silently ignored or traversed. Thus this supported
 target graph is exactly one edge deep with one distinct leaf, within the index's
-existing byte and reference bounds. The projected catalog also keeps its existing
-4 MiB bound. Source-graph references are checked by the current catalog validators.
+existing byte and reference bounds. As one content target, the projected catalog
+keeps the 4 MiB content bound, inside the 16 MiB signed-catalog bound its decoded
+catalog shares ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)). Source-graph references are checked by the current catalog validators.
 
 All catalog semantics must validate, the selected port must exactly match the
 entry, and its installed template requirements must be supported. A failure

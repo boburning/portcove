@@ -362,6 +362,25 @@ return if the older runtime has created a changed path. Existing collection,
 backup/restore, interruption recovery and historical transfer authority remain in
 place; this grants no populated migration or save-format compatibility.
 
+An archive data-policy successor that only appends shared conventional files
+is a separate, structural exception to the empty-path proof. `archive_data`
+derives every predecessor from the current contract by removing a trailing run
+present in both the persistent and shared path lists, keeps the namespace the
+first policy established, and refuses every other policy difference. The update,
+activation and rollback guards accept that lineage (rollback in either direction
+only toward a retained copy). The forward guard also requires the predecessor's
+package manifest to permit the appended paths and its runtime and canonical
+copies of each appended file to agree. After the successor copy's ordinary
+restore, `prepare_retained_install_data` and rollback copy an appended file from
+the active predecessor runtime into that copy only when canonical data lacks it,
+so canonical data changes only through later collection; a retry keeps an
+identical earlier copy. Rollback records the predecessor copy's appended-file
+digests as a baseline, and a forward switch lets canonical data win silently
+for files still matching it. Restoring a snapshot
+framed by a strict predecessor policy keeps current appended files the snapshot
+lacks. Backup framing, fresh-beside and historical transition admission use
+the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).
+
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each
 installation's retained scope, immutable identity and independent admission.
@@ -1093,8 +1112,13 @@ manifests include the port identity and complete referenced source graph, covere
 by the existing immutable manifest digest. Keeping the complete bounded catalog
 avoids a second mutable database or a missing sidecar during moves and exports.
 This trades repeated catalog bytes per version for a single atomic payload and
-an independently readable contract. The retained catalog uses the existing 4 MiB
-catalog limit and rejects unknown or discarded semantics.
+an independently readable contract. The retained catalog uses the 16 MiB signed
+catalog limit and rejects unknown or discarded semantics. SQLite writer protocol
+60 raised that limit from 4 MiB: it rebuilds `catalog_state` with the larger BLOB
+checks and makes older clients, which refuse retained content above 4 MiB, refuse
+the library before they read or rewrite a manifest. A Core test and the CI size
+guard keep the catalog, its projection and the escaped retained copy below 85% of
+the 4 MiB floor ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
 Core memoizes pure decoding of the most recently validated exact content string,
 bounded to one catalog. Each read still verifies the current manifest bytes and
 digest; the cache contains no filesystem, source-admission, or revocation decision.
@@ -1419,6 +1443,18 @@ Exhausting the folder frontier does not erase skipped files or imply gameplay
 support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
+
+Core `windows_runtime` owns the advisory Microsoft runtime prerequisite report.
+It reads the current installation's launch program and shipped DLLs with fixed
+bounds and without execution, then asks a host-facts seam whether each runtime is
+present; only the Windows host answers, so other hosts and unreadable or limited
+inputs stay unknown rather than missing. `Library::runtime_prerequisites` is an
+on-demand read for one port and stays out of the all-ports status read, which
+would otherwise open program files on every refresh. Launch-session views attach
+the same report to `dll_not_found` and `dll_init_failed` explanations while the
+session's installation is current. CLI and Desktop only present it; the report
+never blocks launch, and Core recognizes the official Microsoft download pages it
+names as reviewed links. Running Microsoft installers is outside this boundary.
 
 API schema 51 exposes one core-owned activity feed. Core reads every current,
 failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite

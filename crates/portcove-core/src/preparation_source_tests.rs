@@ -96,11 +96,6 @@ impl Fixture {
                 target.destination = format!("originals/{}", target.destination);
                 target.materialization = RuntimeSourceMaterialization::Copy;
             }
-            if wrapped {
-                for hint in port.executable_hints.values_mut().flatten() {
-                    *hint = format!("publisher/{hint}");
-                }
-            }
             if siblings {
                 for (platform, executable) in [
                     (Platform::WindowsX86_64, "publisher/game.exe"),
@@ -119,6 +114,13 @@ impl Fixture {
                 port.windows_temp_directory = Some("profile".into());
                 port.windows_runtime_path_policy =
                     Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath);
+            }
+        }
+        if wrapped {
+            for hint in port.executable_hints.values_mut().flatten() {
+                if !hint.contains('/') {
+                    *hint = format!("publisher/{hint}");
+                }
             }
         }
         let mut profile_id = port.source_profile.clone().unwrap();
@@ -490,6 +492,61 @@ async fn source_only_zip_install_survives_two_launches_and_full_verify() {
 }
 
 #[tokio::test]
+async fn source_only_install_seals_originals_beside_nested_executable() {
+    let fixture = Fixture::with_route(PORT, false, false, true, false);
+    let install = fixture.install(true).await;
+    let executable = install.path.join(&install.selected_executable);
+    let working = executable.parent().unwrap();
+    assert_ne!(working, install.path);
+    for (name, bytes) in FILES {
+        assert_eq!(fs::read(working.join(name)).unwrap(), bytes);
+        assert!(!install.path.join(name).exists());
+    }
+    assert!(fixture.service.verify(PORT).unwrap().valid);
+    assert!(fixture.service.prepare_launch(PORT, None).is_ok());
+    fs::write(working.join(FILES[0].0), b"modified sealed original").unwrap();
+    assert!(!fixture.service.verify(PORT).unwrap().valid);
+    assert!(fixture.service.prepare_launch(PORT, None).is_err());
+}
+
+#[test]
+fn nested_source_only_preparation_preserves_publisher_files() {
+    let fixture = Fixture::with_route(PORT, false, false, true, false);
+    let catalog = fixture.service.catalog();
+    let port = catalog.port(PORT).unwrap();
+    let host = Platform::current().unwrap();
+    let inputs = plan(catalog, port, &fixture.source, host).unwrap();
+    let payload = fixture._temporary.path().join("wrapped-package");
+    let executable = payload.join(&port.executable_hints[&host][0]);
+    let working = executable.parent().unwrap();
+    fs::create_dir_all(working).unwrap();
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let occupied = working.join(FILES[0].0);
+    fs::write(&occupied, b"publisher member").unwrap();
+
+    let error = materialize(
+        catalog,
+        port,
+        &inputs,
+        MaterializationRoot {
+            payload: &payload,
+            working,
+            replace_prepared: false,
+        },
+        &|| Ok(()),
+        &Cell::new(true),
+    )
+    .unwrap_err();
+
+    assert_eq!(
+        error.message,
+        "publisher package occupies an original output or receipt"
+    );
+    assert_eq!(fs::read(occupied).unwrap(), b"publisher member");
+    assert!(!payload.join(RECEIPT).exists());
+}
+
+#[tokio::test]
 async fn source_only_review_repairs_historical_extras_but_refuses_unrelated_changes() {
     let fixture = Fixture::new(false);
     let original = fixture.install(false).await;
@@ -637,10 +694,13 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     let fixture = Fixture::new(false);
     let catalog = fixture.service.catalog();
     let port = catalog.port(PORT).unwrap();
-    let inputs = plan(catalog, port, &fixture.source, Platform::current().unwrap()).unwrap();
+    let host = Platform::current().unwrap();
+    let inputs = plan(catalog, port, &fixture.source, host).unwrap();
     let payload = fixture._temporary.path().join("cancelled-payload");
     fs::create_dir(&payload).unwrap();
-    fs::write(payload.join("owned-runtime"), b"preserved runtime").unwrap();
+    let executable = payload.join(&port.executable_hints[&host][0]);
+    fs::copy(&fixture.probe, &executable).unwrap();
+    let executable_bytes = fs::read(&executable).unwrap();
     let cancelled = Cell::new(false);
     let result = materialize(
         catalog,
@@ -665,7 +725,7 @@ fn source_only_materialization_checkpoint_retains_private_payload_on_cancellatio
     );
     assert_eq!(result.unwrap_err().code, crate::ErrorCode::Cancelled);
     assert!(cancelled.get());
-    assert!(payload.join("owned-runtime").is_file());
+    assert_eq!(fs::read(executable).unwrap(), executable_bytes);
     assert!(!payload.join(RECEIPT).exists());
     assert_eq!(
         fs::read(fixture.source.path.join(FILES[0].0)).unwrap(),

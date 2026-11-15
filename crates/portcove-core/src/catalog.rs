@@ -123,7 +123,12 @@ impl Catalog {
         repository_authoring: bool,
     ) -> Result<CatalogProposalInspection> {
         use sha2::{Digest, Sha256};
-        let bytes = crate::path::read_bounded_regular(path, 4 * 1024 * 1024)?;
+        // A proposal can be the complete generated catalog, so it shares the
+        // catalog read bound rather than a smaller fixed one.
+        let bytes = crate::path::read_bounded_regular(
+            path,
+            crate::signed_catalog::MAX_CATALOG_BYTES as u64,
+        )?;
         let _: crate::definition_entry::strict_json::UniqueValue = serde_json::from_slice(&bytes)?;
         let value = std::str::from_utf8(&bytes)
             .map_err(|_| PortcoveError::usage("catalog proposal must be valid UTF-8"))?;
@@ -616,6 +621,7 @@ impl Catalog {
             }
         }
         for port in &self.document.ports {
+            crate::managed_runtime_policy::validate_exact_exclusions(port)?;
             crate::archive_data::validate(port)?;
             crate::native_temp::validate(port)?;
             validate_portable_marker_file(port)?;
@@ -2783,6 +2789,22 @@ mod tests {
             std::fs::write(&path, bytes).unwrap();
             assert!(Catalog::inspect_proposal(&path).is_err());
         }
+        // Past the catalog read bound the file is refused before it is read
+        // whole, never truncated to a parsable prefix.
+        let padded = |length: usize| {
+            let mut bytes = EMBEDDED_CATALOG.to_owned();
+            bytes.push_str(&" ".repeat(length - bytes.len()));
+            bytes
+        };
+        std::fs::write(
+            &path,
+            padded(crate::signed_catalog::LEGACY_MAX_CATALOG_BYTES + 1),
+        )
+        .unwrap();
+        Catalog::inspect_proposal(&path).unwrap();
+        std::fs::write(&path, padded(crate::signed_catalog::MAX_CATALOG_BYTES + 1)).unwrap();
+        let error = Catalog::inspect_proposal(&path).unwrap_err();
+        assert!(error.message.contains("bounded regular file"), "{error:?}");
     }
 
     const SCHEMA_1_ADMISSION_BASELINE: &str =
@@ -3034,6 +3056,64 @@ mod tests {
     }
 
     #[test]
+    fn sonic1_v120_settings_files_are_an_additive_data_policy_successor() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("sonic-the-hedgehog-recomp").unwrap();
+        let added = [
+            "sonic1-sound.ini",
+            "sonic1-bug-fixes.ini",
+            "sonic1-easy-access.ini",
+        ];
+        // The settings files are appended, so existing installations keep
+        // their namespace and adopt the files from their active runtime.
+        let predecessor = crate::archive_data::lineage_member_with_paths(
+            port,
+            &port.persistent_paths[..port.persistent_paths.len() - added.len()],
+        )
+        .unwrap();
+        assert_eq!(
+            crate::archive_data::added_paths(&predecessor, port)
+                .unwrap()
+                .unwrap(),
+            added
+        );
+        assert_eq!(
+            predecessor
+                .archive_data_compatibility_v1
+                .as_ref()
+                .unwrap()
+                .shared_paths,
+            ["game.bin", "settings.ini", "rom-Sonic1.cfg"]
+        );
+        // The reviewed packages stay first; v1.2.0 is appended.
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.id == "sonic-the-hedgehog-recomp-game-source")
+            .unwrap();
+        assert_eq!(
+            contract
+                .applicability
+                .iter()
+                .map(|binding| binding.upstream_ref.as_str())
+                .collect::<Vec<_>>(),
+            ["v0.6.0", "v0.7.3", "v0.8.3", "v1.2.0"]
+        );
+        assert_eq!(
+            contract.applicability[3].artifact_sha256.as_deref(),
+            Some("fa01c42f2e04251e8fbce5c4bd2ec7ff75c2c8b8f3e01df1cf265b08c6c6c3c2")
+        );
+        assert!(
+            contract
+                .evidence_ids
+                .iter()
+                .any(|id| id == "sonic-the-hedgehog-recomp-1-2-0-source-contract")
+        );
+    }
+
+    #[test]
     fn managed_snes_genesis_routes_pin_source_copies_without_inheriting_gameplay() {
         let catalog = Catalog::embedded().unwrap();
         for (id, filename, original_sha256) in [
@@ -3201,7 +3281,7 @@ mod tests {
     }
 
     #[test]
-    fn mstan_snes_bindings_add_only_super_metroid_v0_4_5_under_its_hold() {
+    fn mstan_snes_bindings_append_newest_releases_without_the_preloaded_mod_state() {
         let catalog = Catalog::embedded().unwrap();
         let sources = catalog.source_catalog().unwrap();
         let bindings = |id: &str| {
@@ -3221,25 +3301,47 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
-        // mod selection to mods/preloaded. Adding that path to an installed
-        // receipt scope is not yet a supported transition, so both routes keep
-        // their reviewed binding and persistence until that rule exists.
-        for (id, contract, row) in [
+        // mod selection to mods/preloaded/state.toml. Declaring it would widen
+        // the persistence scope in every existing ready-archive receipt, and
+        // managed play skips the launcher, so it never changes the selection
+        // from the package default. The newest packages are appended after the
+        // reviewed ones and the pair is declared as disposable runtime output.
+        for (id, contract, rows, evidence) in [
             (
                 "super-mario-world-recomp",
                 "super-mario-world-recomp-game-source",
-                (
-                    "v0.12.0",
-                    "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-                ),
+                [
+                    (
+                        "v0.12.0",
+                        "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                    ),
+                    (
+                        "v0.15.9",
+                        "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+                    ),
+                ],
+                [
+                    "super-mario-world-recomp-0-12-0-source-contract",
+                    "super-mario-world-recomp-0-15-9-source-contract",
+                ],
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
-                (
-                    "v0.6.1",
-                    "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-                ),
+                [
+                    (
+                        "v0.6.1",
+                        "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                    ),
+                    (
+                        "v0.6.6",
+                        "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
+                    ),
+                ],
+                [
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
+                ],
             ),
         ] {
             let port = catalog.port(id).unwrap();
@@ -3250,8 +3352,27 @@ mod tests {
                     .any(|path| path.starts_with("mods/preloaded")),
                 "{id}"
             );
+            for path in ["mods/state.toml", "mods/state.toml.tmp"] {
+                assert!(
+                    port.persistent_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            for path in ["mods/preloaded/state.toml", "mods/preloaded/state.toml.tmp"] {
+                assert!(
+                    port.runtime_mutable_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            assert!(port.archive_data_compatibility_v1.is_none(), "{id}");
             assert!(port.managed_acquisition_hold.is_none(), "{id}");
-            assert_eq!(bindings(contract), [row], "{id}");
+            assert_eq!(bindings(contract), rows, "{id}");
+            let contract = sources
+                .contracts
+                .iter()
+                .find(|candidate| candidate.id == contract)
+                .unwrap();
+            assert_eq!(contract.evidence_ids, evidence, "{id}");
         }
         // Super Metroid v0.4.5 keeps the v0.4.2 writer set and is appended after
         // the reviewed packages; its partitioned data policy is unchanged.
@@ -3274,9 +3395,15 @@ mod tests {
                 ),
             ]
         );
-        // v0.4.6 relaunches the game in an untracked successor process, so the
-        // route is held and only the reviewed Windows packages may activate.
+        // The v0.4.6 artifacts are excluded because relaunch can create an
+        // untracked successor process.
         let hold = metroid.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.excluded_artifacts.len(), 4);
+        assert!(
+            hold.excluded_artifacts
+                .iter()
+                .all(|artifact| artifact.version == "v0.4.6")
+        );
         // The Windows packages plus each release's published Linux and Mac
         // siblings, all matching their release SHA256SUMS.
         assert_eq!(
@@ -3381,7 +3508,24 @@ mod tests {
             port.executable_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp.exe"]
         );
-        assert!(port.presentation.as_ref().unwrap().manual_setup.is_none());
+        let guide = port
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            guide.help_url.as_deref(),
+            Some("https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3")
+        );
+        let hold = port.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.reviewed_artifacts.len(), 1);
+        assert_eq!(hold.reviewed_artifacts[0].version, "v1.8.3");
+        assert_eq!(
+            hold.reviewed_artifacts[0].sha256,
+            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
         assert_eq!(
@@ -3410,10 +3554,7 @@ mod tests {
         assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
         assert!(port.release.direct.is_empty());
-        assert_eq!(
-            port.release.repository,
-            "RetroPortingToolKit/FZeroSNESRecomp"
-        );
+        assert_eq!(port.release.repository, "RetroPortingToolKit/F-ZeroForever");
         assert_eq!(
             port.release.asset_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp-", "-windows-x64.zip"]

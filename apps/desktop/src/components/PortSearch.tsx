@@ -1,4 +1,4 @@
-import { useRef, type Dispatch, type SetStateAction } from "react";
+import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "./ui/button";
 import { Icon, Shortcut } from "./ui";
@@ -16,6 +16,9 @@ export function PortSearch({
   library?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
+  const [searchReset, setSearchReset] = useState<"requested" | "cleared" | null>(null);
+  if (searchReset === "requested" && !query) setSearchReset("cleared");
+  if (searchReset === "cleared" && query) setSearchReset(null);
   const { t } = useAppTranslation("browsing");
   const label = library ? t("search.library") : t("search.discover");
   return (
@@ -41,6 +44,7 @@ export function PortSearch({
           onClick={() => {
             setQuery("");
             input.current?.focus();
+            setSearchReset("requested");
           }}
         >
           <X aria-hidden="true" />
@@ -48,6 +52,9 @@ export function PortSearch({
       ) : (
         <Shortcut className="ms-auto shrink-0">{commandShortcut("F")}</Shortcut>
       )}
+      <span className="sr-only" aria-live="polite">
+        {searchReset === "cleared" ? t("search.cleared") : ""}
+      </span>
     </div>
   );
 }

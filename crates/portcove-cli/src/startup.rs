@@ -191,6 +191,7 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
         },
         Commands::Installation { command } => match command {
             InstallationCommand::Plan { .. }
+            | InstallationCommand::Runtimes { .. }
             | InstallationCommand::Retained { .. }
             | InstallationCommand::PackageShape { .. }
             | InstallationCommand::Reference { .. }
@@ -260,6 +261,9 @@ pub(super) fn startup_mode(command: &Commands) -> StartupMode {
             ToolCommand::List | ToolCommand::SetPath { .. } | ToolCommand::ClearPath { .. } => {
                 Recovering
             }
+        },
+        Commands::Dat { command } => match command {
+            DatCommand::List | DatCommand::Add { .. } | DatCommand::Remove { .. } => Recovering,
         },
         Commands::Schema { command } => match command {
             SchemaCommand::Export { .. } => Recovering,
@@ -337,6 +341,7 @@ mod tests {
     fn retained_build_reads_preserve_recovery_and_writes_require_a_review_digest() {
         for arguments in [
             "installation retained port",
+            "installation runtimes port",
             "installation package-shape port",
             "installation reference port setup",
             "installation reference-plan port setup install",
@@ -512,6 +517,9 @@ mod tests {
             "tool list",
             "tool set-path tool file",
             "tool clear-path tool",
+            "dat list",
+            "dat add file",
+            "dat remove id",
             "cancel op",
             "about",
             "schema export",

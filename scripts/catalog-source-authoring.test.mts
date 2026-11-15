@@ -96,6 +96,41 @@ for (const [label, version] of [
   });
 }
 
+void test("ordinary authoring rejects direct guides beyond Core's combined entry limit", () => {
+  const source = readCatalogSource(catalogRoot);
+  const record = structuredClone(
+    requiredFixture(
+      source.records.find(({ listing }) => listing.id === "openjkdf2-jedi-knight-dark-forces-ii"),
+    ),
+  );
+  const guide = fixtureRecord(record.listing.manual_setup);
+  const steps = fixtureRecords(guide.steps);
+  const references = fixtureRecords(guide.references).slice(0, 8 - steps.length);
+  guide.references = references;
+  assert.equal(steps.length + references.length, 8);
+  assert.doesNotThrow(() => checkedAuthoredPort(record));
+
+  const extra = { title: "Extra reference", instruction: "Keep the current profile." };
+  references.push(extra);
+  assert.throws(
+    () => checkedAuthoredPort(record),
+    /openjkdf2.*listing.manual_setup.*eight steps and references combined/,
+  );
+
+  const catalog = structuredClone(schema3Fixture);
+  const port = requiredFixture(
+    fixtureRecords(catalog.ports).find(({ id }) => id === record.listing.id),
+  );
+  const presentation = fixtureRecord(port.presentation);
+  presentation.manual_setup = { ...guide, references: references.slice(0, -1) };
+  assert.doesNotThrow(() => checkedCurrentCatalog(catalog));
+  presentation.manual_setup = { ...guide, references };
+  assert.throws(
+    () => checkedCurrentCatalog(catalog),
+    /openjkdf2.*presentation.manual_setup.*eight steps and references combined/,
+  );
+});
+
 void test("current authored operational routes remain valid read-only health inventory inputs", () => {
   // Core-readable prepared routes still need canonical explicit repository
   // names. Validate the whole authored inventory without fetching or waiting
@@ -744,8 +779,30 @@ void test("authored setup guides require the arrays consumed by Core", () => {
   });
   for (const guide of [{ steps }, { warnings: [] }, { steps, warnings: "" }])
     assert.throws(() => checkedAuthoredPort(authored(guide)), /requires steps and warnings arrays/);
-  const guide = { steps, warnings: [] };
+  const guide = { steps, warnings: [], help_url: "https://example.org/setup" };
   assert.deepEqual(checkedAuthoredPort(authored(guide)).listing.manual_setup, guide);
+  assert.throws(
+    () =>
+      checkedAuthoredPort(
+        authored({
+          ...guide,
+          references: [{ title: "Upstream reference", url: "https://example.org/unsupported" }],
+        }),
+      ),
+    /setup-fixture listing.manual_setup.references\[0\].*unknown field: "url"/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, "": true })),
+    /setup-fixture listing.manual_setup.*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ ...steps[0], "": true }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ title: "Use the upstream guide" }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*requires a title and instruction/,
+  );
 });
 
 void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {

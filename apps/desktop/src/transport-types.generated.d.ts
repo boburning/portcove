@@ -597,6 +597,7 @@ export type CatalogUpdateSource =
       value: string;
       [k: string]: unknown;
     };
+export type DatReferenceState = ("missing" | "unreadable") | "ready" | "changed";
 export type DefinitionCapabilityOutcome = "supported" | "unsupported_template" | "unsupported_version";
 export type DefinitionRefreshDisposition = "revoked" | "selected" | "ineligible";
 export type DestinationArtworkContent =
@@ -762,6 +763,15 @@ export type HostToolProbeState =
 export type OutputLaunchRequest = LaunchSessionView | null;
 export type LaunchSessionOutcome = "succeeded" | "failed" | "cancelled";
 export type LaunchSessionPhase = "preparing" | "spawning" | "running" | "collecting" | "recovering";
+export type RuntimeHostCheck = "checked" | "not_windows";
+export type RuntimeInspection = "complete" | "partial" | "not_windows_program" | "unreadable";
+export type WindowsArchitecture = "x86" | "x64" | "arm64";
+export type RuntimePresence = "present" | "missing" | "unknown";
+export type WindowsRuntime =
+  | ("visual_cpp_2013" | "visual_cpp_2012" | "visual_cpp_2010")
+  | "visual_cpp_2015_or_later"
+  | "directx_june_2010"
+  | "dotnet";
 export type LauncherAppsRootOrigin = "settings" | "default" | "override" | "unresolved";
 export type LauncherEntryStatus =
   | "ready-to-review"
@@ -988,6 +998,7 @@ export type MaintenanceOutcome =
   | "demonstrated-regression-handling"
   | "demonstrated-continuity-and-succession";
 export type ReconcileAction = "up_to_date" | "notify" | "staged" | "activated";
+export type OutputRuntimePrerequisiteReport = RuntimePrerequisiteReport | null;
 /**
  * What the player can usefully do next with a selected save folder.
  */
@@ -1044,6 +1055,7 @@ export type OutputDesktopApplicationUpdateProgress =
       [k: string]: unknown;
     };
 export type OutputDesktopAutomaticSnapshotsEnabled = boolean;
+export type OutputDesktopDatReferenceStatuses = DatReferenceStatus[];
 export type InstallBatchItemState = ("queued" | "running" | "failed" | "cancelled") | "ready" | "held" | "interrupted";
 export type OutputDesktopInstallBatches = InstallBatchRecord[];
 export type LibraryMembershipOutcomeKind = "added" | "already_saved" | "already_in_library";
@@ -1198,6 +1210,7 @@ export interface TransportOutputs {
   catalog_update_plan: OutputCatalogUpdatePlan;
   catalog_update_source: CatalogUpdateSource;
   check_batch_outcome: OutputCheckBatchOutcome;
+  dat_reference_status: DatReferenceStatus;
   definition_authority_provisioning: OutputDefinitionAuthorityProvisioning;
   definition_authority_review: DefinitionAuthorityReview;
   definition_capability_report: OutputDefinitionCapabilityReport;
@@ -1288,6 +1301,7 @@ export interface TransportOutputs {
   retained_build_removal_preview: OutputRetainedBuildRemovalPreview;
   retained_build_resolution: RetainedBuildResolution;
   retained_build_retirement_preview: OutputRetainedBuildRetirementPreview;
+  runtime_prerequisite_report: OutputRuntimePrerequisiteReport;
   save_folder_push_result: OutputSaveFolderPushResult;
   save_folder_status: OutputSaveFolderStatus;
   setup_launch_targets: OutputSetupLaunchTargets;
@@ -1337,6 +1351,8 @@ export interface TransportOutputs {
   desktop_catalog_download_candidates: OutputCatalogDownloadCandidates;
   desktop_catalog_download_preview: OutputCatalogDownloadPreview;
   desktop_cli_command_context: OutputDesktopCliCommandContext;
+  desktop_dat_reference_status: DatReferenceStatus;
+  desktop_dat_reference_statuses: OutputDesktopDatReferenceStatuses;
   desktop_desktop_error: FailureReport;
   desktop_external_runtime_preview: ExternalRuntimePreview;
   desktop_external_runtime_record: ExternalRuntimeRecord;
@@ -2466,6 +2482,11 @@ export interface ManagedAcquisitionHold {
    */
   activation_reason: string;
   /**
+   * Exact artifacts unavailable for acquisition or staged activation. An
+   * empty list preserves the route-wide acquisition hold.
+   */
+  excluded_artifacts?: ReviewedHoldArtifact[];
+  /**
    * Player-facing explanation for refused Install and Update.
    */
   reason: string;
@@ -3219,6 +3240,20 @@ export interface OutputCheckBatchOutcome {
   ok: boolean;
   port_id: string;
   result: UpdateCheck | null;
+  [k: string]: unknown;
+}
+export interface DatReferenceStatus {
+  entry_count: number;
+  file_count: number;
+  id: string;
+  message: string;
+  /**
+   * Sanitized name from the DAT header, for example `Sony - PlayStation`.
+   */
+  name: string;
+  path: string;
+  state: DatReferenceState;
+  version?: string | null;
   [k: string]: unknown;
 }
 export interface OutputDefinitionAuthorityProvisioning {
@@ -4213,6 +4248,12 @@ export interface LaunchSessionView {
   owner_kind: "managed" | "external";
   phase: LaunchSessionPhase;
   port_id: string;
+  /**
+   * Microsoft runtimes the installation that ran most likely needs, present
+   * only for an exit most likely caused by a missing DLL and only while that
+   * installation is still the current one. Derived on read, never stored.
+   */
+  runtime_prerequisites?: RuntimePrerequisiteReport | null;
   started_at: number;
   supervisor_identity: string | null;
   supervisor_pid: number;
@@ -4231,6 +4272,54 @@ export interface ExitExplanation {
    */
   raw_code: string;
   table_version: number;
+  [k: string]: unknown;
+}
+/**
+ * Microsoft runtimes the active installation's launch program most likely
+ * needs. Derived on request; nothing is stored.
+ */
+export interface RuntimePrerequisiteReport {
+  host: RuntimeHostCheck;
+  inspection: RuntimeInspection;
+  requirements: RuntimePrerequisite[];
+  [k: string]: unknown;
+}
+export interface RuntimePrerequisite {
+  /**
+   * Architecture of the launch program; absent for an architecture Portcove
+   * does not assess.
+   */
+  architecture?: WindowsArchitecture | null;
+  /**
+   * Microsoft's official download page for this runtime.
+   */
+  download_page: string;
+  /**
+   * Lowercase runtime DLL names the game imports and does not ship.
+   */
+  files?: string[];
+  framework?: DotnetFramework | null;
+  /**
+   * The part of `files` this host reports absent.
+   */
+  missing_files?: string[];
+  presence: RuntimePresence;
+  runtime: WindowsRuntime;
+  [k: string]: unknown;
+}
+export interface DotnetFramework {
+  /**
+   * Shared framework name, e.g. `Microsoft.WindowsDesktop.App`.
+   */
+  name: string;
+  /**
+   * The program's declared roll-forward policy; absent means `Minor`.
+   */
+  roll_forward?: string | null;
+  /**
+   * Version the program was built against.
+   */
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputLauncherLibraryInventory {
@@ -5257,6 +5346,11 @@ export interface PreparationTool {
  */
 export interface SourceInspectionReport {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;
@@ -5300,6 +5394,71 @@ export interface SourceReleaseApplicability {
    * `integration_contract_bound`, or `not_rebound`.
    */
   state_code: string;
+  [k: string]: unknown;
+}
+/**
+ * Informational naming of selected bytes against the player's DAT files.
+ */
+export interface DumpIdentification {
+  checked_reference_count: number;
+  /**
+   * Fixed statement of the admission boundary shown with every result.
+   */
+  limitation: string;
+  /**
+   * Total matching entries; `matches` holds at most the first sixteen.
+   */
+  match_count: number;
+  matches: DumpMatch[];
+  /**
+   * Open code: `identified`, `partially_identified`, `not_listed`,
+   * `not_checked` or `references_unavailable`.
+   */
+  state_code: string;
+  summary: string;
+  unavailable_references: DatReferenceStatus[];
+  [k: string]: unknown;
+}
+export interface DumpMatch {
+  /**
+   * True when every required file of the entry matched.
+   */
+  complete: boolean;
+  /**
+   * Required files: those with a SHA-1 or SHA-256 that aren't cue or gdi
+   * descriptors. CRC32- or MD5-only files can't be compared and don't count.
+   */
+  entry_file_count: number;
+  /**
+   * Sanitized DAT entry name, for example `Final Fantasy VII (USA) (Disc 1)`.
+   */
+  entry_name: string;
+  matched_files: DumpMatchedFile[];
+  reference_id: string;
+  reference_name: string;
+  [k: string]: unknown;
+}
+export interface DumpMatchedFile {
+  algorithm: SourceDigestAlgorithm;
+  /**
+   * The observed component (for example `disc-1`) when the match was not the
+   * whole selection.
+   */
+  component_id?: string | null;
+  file_name: string;
+  /**
+   * The observed byte scope that matched, for example `canonical-n64-big-endian`.
+   */
+  scope:
+    | "original-file"
+    | "original-container"
+    | "normalized-content"
+    | "canonical-n64-big-endian"
+    | "archive-member"
+    | "gamecube-normalized-iso"
+    | "psx-normalized-track-set"
+    | "file-set-member"
+    | "disc-set-member";
   [k: string]: unknown;
 }
 export interface SourceEvidenceLink {
@@ -5841,6 +6000,11 @@ export interface SourceVerification {
  */
 export interface SourceInspectionReport1 {
   applications: SourceApplicationInspection[];
+  /**
+   * Informational naming from the player's DAT files. It never affects
+   * `inspection.assessment`; present only when DAT files are saved.
+   */
+  dump_identification?: DumpIdentification | null;
   evidence: SourceEvidenceLink[];
   expected_identity?: SourceIdentityProfile | null;
   health: SourceHealth;

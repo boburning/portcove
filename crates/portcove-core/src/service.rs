@@ -1466,10 +1466,12 @@ impl PortcoveService {
         if port.release.managed_build.contains_key(&platform) {
             return Err(crate::cartridge_build::retired_creation());
         }
-        let release = self
+        let resolution = self
             .resolve_release(port, selected_channel, platform)
-            .await?
-            .release;
+            .await?;
+        let release = resolution.release;
+        let mut preservation_notices = port.preservation_notices();
+        preservation_notices.extend(resolution.fallback_reason);
         let action = self.install_plan_action(&status, &release)?;
         let bundled_runtime = port.bundled_runtime.get(&platform).cloned();
         let auxiliary_downloads: Vec<crate::ReleaseAsset> = Vec::new();
@@ -1527,7 +1529,7 @@ impl PortcoveService {
             temporary_space,
             storage: self.library.storage_summary()?,
             output_location,
-            preservation_notices: port.preservation_notices(),
+            preservation_notices,
             shared_preferences,
         })
     }
@@ -2720,7 +2722,8 @@ impl PortcoveService {
             remove_external,
             update,
         ];
-        if crate::managed_runtime_policy::acquisition_hold(&self.catalog, &status.port_id).is_some()
+        if crate::managed_runtime_policy::acquisition_hold_reason(&self.catalog, &status.port_id)
+            .is_some()
         {
             for assessment in &mut status.port_actions {
                 if crate::managed_runtime_policy::hold_withdraws(assessment.action) {
@@ -2821,6 +2824,7 @@ impl PortcoveService {
         port: &PortDefinition,
     ) -> Result<()> {
         Self::refuse_shipwright_adoption(port)?;
+        crate::managed_runtime_policy::require_adoption_available(catalog, &port.id)?;
         if port.archive_data_compatibility_v1.is_some() {
             return Err(PortcoveError::unsupported(
                 "partitioned managed data requires the official provider-selected installation; registering an external copy grants no replacement or migration rights",
@@ -3390,6 +3394,19 @@ impl PortcoveService {
             &output_location.effective_output_directory,
         )?;
         let release = resolution.release.clone();
+        crate::managed_runtime_policy::require_artifact_available(
+            &self.catalog,
+            &port.id,
+            &release.version,
+            &release.asset.sha256,
+        )?;
+        if let Some(reason) = &resolution.fallback_reason {
+            (reporter.emit)(
+                reporter
+                    .operation
+                    .message("info", format!("Selected {}. {reason}", release.version)),
+            );
+        }
         crate::installed_mutability::require_shipwright_release(
             port,
             Platform::current()?,
@@ -4028,7 +4045,7 @@ impl PortcoveService {
                 .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
             let qualification = self.installed_mutability_qualification(&active)?;
             self.managed_install_root(port_id, &active.path)?;
-            Installer::new(self.library.clone())?.verify_managed(&active, &qualification)
+            Installer::new(self.library.clone())?.verify_player_install(&active, &qualification)
         })();
         self.finish_activity(activity, result)
     }
@@ -4063,6 +4080,10 @@ impl PortcoveService {
                 )?;
             }
             self.restore_user_data_to(&port, &previous.path)?;
+            if let Some(active) = &status.active {
+                self.adopt_additive_archive_data(active, &previous)?;
+                self.record_additive_rollback_baseline(active, &previous)?;
+            }
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&previous, &qualification)?;
             self.library.rollback(port_id)
@@ -6727,6 +6748,9 @@ impl PortcoveService {
                     &persistent_root,
                     &user_root,
                 )?;
+                // A snapshot framed by a predecessor policy does not cover its
+                // successor's appended files: keep the current ones.
+                let uncovered = crate::archive_data::uncovered_added_paths(port, &user_root)?;
                 crate::archive_data::initialize(port, &user_root)?;
                 for entry in entries {
                     let relative = entry.relative;
@@ -6750,7 +6774,7 @@ impl PortcoveService {
                         )?;
                     } else if source.exists() {
                         sync_entry(&source, &destination)?;
-                    } else if destination.exists() {
+                    } else if destination.exists() && !uncovered.contains(&relative) {
                         remove_managed_entry(&destination)?;
                     }
                 }
@@ -8033,6 +8057,70 @@ mod tests {
             }
             Ok(resolved)
         }
+    }
+
+    #[test]
+    fn update_check_offers_reviewed_release_to_an_active_excluded_install() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let port_id = "super-metroid-recomp";
+        let service = PortcoveService::new(library.clone()).unwrap();
+        let hold = service
+            .catalog
+            .port(port_id)
+            .unwrap()
+            .managed_acquisition_hold
+            .as_ref()
+            .unwrap();
+        let excluded = &hold.excluded_artifacts[0];
+        let install = InstallRecord {
+            id: "excluded-install".into(),
+            port_id: port_id.into(),
+            version: excluded.version.clone(),
+            path: library
+                .versions_dir()
+                .join(port_id)
+                .join("excluded-install"),
+            channel: ReleaseChannel::Stable,
+            installed_at: 1,
+            verified: true,
+            staged: false,
+            artifact: ArtifactIdentity {
+                asset_name: "supermetroid-v0.4.6.zip".into(),
+                sha256: excluded.sha256.clone(),
+                size: 42,
+            },
+            manifest_sha256: String::new(),
+            selected_executable: PathBuf::new(),
+            runtime: None,
+        };
+        let reviewed = hold
+            .reviewed_artifacts
+            .iter()
+            .find(|artifact| artifact.version == "v0.4.5")
+            .unwrap();
+        let release = ResolvedRelease {
+            version: reviewed.version.clone(),
+            channel: ReleaseChannel::Stable,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "supermetroid-v0.4.5.zip".into(),
+                url: "https://invalid.example/reviewed.zip".into(),
+                sha256: reviewed.sha256.clone(),
+                size: 42,
+            },
+        };
+        library.register_install(&install, true).unwrap();
+        let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+        let check = service
+            .record_update_check(port_id, &status, &release, None)
+            .unwrap();
+        assert!(check.update_available);
+        assert_eq!(check.installed_version.as_deref(), Some("v0.4.6"));
+        assert_eq!(check.release.version, "v0.4.5");
+        let after = library.status(port_id, ReleaseChannel::Stable).unwrap();
+        assert_eq!(after.active.unwrap().id, install.id);
+        assert!(after.staged.is_none());
     }
 
     #[tokio::test]
@@ -19316,6 +19404,135 @@ fn main() {
         assert!(!user.join("logs").exists());
         let backup = service.create_backup(ID).unwrap();
         assert!(!backup.path.join("data/logs").exists());
+    }
+
+    #[tokio::test]
+    async fn mstan_snes_installations_update_with_the_disposable_preloaded_mod_state() {
+        const STATE: &str = "mods/preloaded/state.toml";
+        for (id, old_version, new_version) in [
+            ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "v0.6.1",
+                "v0.6.6",
+            ),
+        ] {
+            let mut document = Catalog::embedded().unwrap().authoritative_document();
+            let declared = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            if !cfg!(windows) {
+                // The Windows-only coordinate envelope cannot describe a host
+                // fixture; persistence ownership is independent of it.
+                declared.windows_runtime_path_policy = None;
+            }
+            crate::test_fixture::declare_host_platform(declared);
+            let current = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            let port = current.port(id).unwrap().clone();
+            // Ready-archive installations carry a restore receipt, so the
+            // definition must keep their recorded persistence scope.
+            assert!(crate::persistence::requires_restore_receipt(&port), "{id}");
+            assert!(!port.persistent_paths.iter().any(|path| path == STATE));
+            assert!(port.runtime_mutable_paths.iter().any(|path| path == STATE));
+            // Installations created before this change recorded the definition
+            // without the disposable mod-state paths.
+            let mut earlier = port.clone();
+            earlier
+                .runtime_mutable_paths
+                .retain(|path| !path.starts_with("mods/preloaded/"));
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let old = register_forward_install(
+                &library,
+                &earlier,
+                old_version,
+                true,
+                &[
+                    ("config.ini", b"player settings"),
+                    ("saves/slot1.srm", b"player progress"),
+                    ("mods/state.toml", b"old selection"),
+                    (LAUNCH_MARKER, b"1"),
+                ],
+            );
+            let new = register_forward_install(&library, &port, new_version, false, &[]);
+            let mut service = service_with_release(library.clone(), new_version);
+            service.replace_catalog_for_test(current);
+            // The newer runtime commits its package-default selection here on
+            // every start; managed play skips the launcher, so nothing a
+            // player chose lives in it.
+            fs::create_dir_all(old.path.join("mods/preloaded")).unwrap();
+            fs::write(old.path.join(STATE), b"package default").unwrap();
+            fs::write(old.path.join(format!("{STATE}.tmp")), b"partial").unwrap();
+
+            let contract = service.persistence_contract_for_install(&old).unwrap();
+            assert_eq!(contract.port.persistent_paths, port.persistent_paths);
+            let report = service.verify(id).unwrap();
+            assert!(!report.has_hazards(), "{id}: {:?}", report.failures);
+            assert!(
+                !report
+                    .unknown_files
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded/")),
+                "{id}: {:?}",
+                report.unknown_files
+            );
+            service.collect_active_user_data_if_launched(id).unwrap();
+            let user = library.user_dir(id);
+            assert_eq!(
+                fs::read(user.join("saves/slot1.srm")).unwrap(),
+                b"player progress"
+            );
+            assert!(!user.join(STATE).exists(), "{id}");
+            let backup = service.create_backup(id).unwrap();
+            assert_eq!(
+                fs::read(backup.path.join("data/config.ini")).unwrap(),
+                b"player settings"
+            );
+            assert!(!backup.path.join("data").join(STATE).exists(), "{id}");
+            assert!(
+                !backup
+                    .path
+                    .join("unknown-files")
+                    .join(&old.id)
+                    .join(STATE)
+                    .exists(),
+                "{id}"
+            );
+
+            let updated = service.update(id, None, None, true, |_| {}).await.unwrap();
+            assert_eq!(updated.id, new.id, "{id}");
+            for (relative, bytes) in [
+                ("config.ini", b"player settings".as_slice()),
+                ("saves/slot1.srm", b"player progress"),
+                ("mods/state.toml", b"old selection"),
+            ] {
+                assert_eq!(
+                    fs::read(new.path.join(relative)).unwrap(),
+                    bytes,
+                    "{id}: {relative}"
+                );
+            }
+            // Disposable runtime output is not carried; the new runtime rewrites it.
+            assert!(!new.path.join(STATE).exists(), "{id}");
+
+            fs::create_dir_all(new.path.join("mods/preloaded")).unwrap();
+            fs::write(new.path.join(STATE), b"package default").unwrap();
+            fs::write(new.path.join("saves/slot1.srm"), b"newer progress").unwrap();
+            fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+            service.collect_active_user_data_if_launched(id).unwrap();
+            assert!(!user.join(STATE).exists(), "{id}");
+            service.create_backup(id).unwrap();
+            // Rollback is not held by the leftover file and keeps the progress.
+            let rolled_back = service.rollback(id).unwrap();
+            assert_eq!(rolled_back.id, old.id, "{id}");
+            assert_eq!(
+                fs::read(old.path.join("saves/slot1.srm")).unwrap(),
+                b"newer progress",
+                "{id}"
+            );
+        }
     }
 
     #[tokio::test]

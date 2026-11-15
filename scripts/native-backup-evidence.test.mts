@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 
 import { readFile, readdir, mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import test from "node:test";
@@ -8,6 +9,7 @@ import path from "node:path";
 import {
   encodeBackupEvidence,
   encodeHostedEvidence,
+  recoverBackupEvidence,
   recoverHostedEvidence,
 } from "./native-backup-evidence.mts";
 
@@ -144,4 +146,17 @@ void test("an oversized evidence file is refused by name and size", async (t) =>
     encodeBackupEvidence(root),
     /Non-regular or excessive evidence: desktop-verify\/run\/native\/oversized\.log \(12582913 bytes; limit 12582912 bytes\)/u,
   );
+});
+
+void test("large screenshot evidence round-trips within the raw-byte bound", async (t) => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "portcove-large-evidence-"));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const relative = "desktop-verify/run/native/capture.png";
+  await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+  const screenshot = randomBytes(10 * 1024 * 1024);
+  await writeFile(path.join(root, relative), screenshot);
+  const log = await encodeBackupEvidence(root);
+  const recovered = path.join(root, "recovered");
+  await recoverBackupEvidence(log, recovered);
+  assert.deepEqual(await readFile(path.join(recovered, relative)), screenshot);
 });

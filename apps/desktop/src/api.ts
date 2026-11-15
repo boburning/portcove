@@ -26,6 +26,7 @@ import type {
   InstallInput,
   LaunchResult,
   LaunchSessionView,
+  RuntimePrerequisiteReport,
 } from "./types";
 import type {
   GameUpdateAcquisition,
@@ -108,6 +109,7 @@ import type {
   StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
+  DatReferenceStatus,
   HostToolProbeResult,
   HostToolStatus,
   InstallPlan,
@@ -1004,6 +1006,9 @@ export const desktopApi = {
       expectedPreview,
       generation,
     }),
+  datReferences: () => invoke<DatReferenceStatus[]>("get_dat_references"),
+  addDatReference: (path: string) => invoke<DatReferenceStatus>("add_dat_reference", { path }),
+  removeDatReference: (datId: string) => invoke<void>("remove_dat_reference", { datId }),
   setHostToolPath: (toolId: string, path: string) =>
     invoke<HostToolProbeResult>("set_host_tool_path", { toolId, path }),
   clearHostToolPath: (toolId: string) => invoke<HostToolStatus>("clear_host_tool_path", { toolId }),
@@ -1237,6 +1242,13 @@ export const desktopApi = {
     invoke<SubmittedReport>("submit_report", { fields, kind }),
   launchFailure: (portId: string, generation: number) =>
     invoke<LaunchSessionView | null>("get_launch_failure", { portId, generation }),
+  /** Microsoft runtimes one current installation most likely needs; read on request. */
+  runtimePrerequisites: (portId: string, installId: string, generation: number) =>
+    invoke<RuntimePrerequisiteReport | null>("get_runtime_prerequisites", {
+      portId,
+      installId,
+      generation,
+    }),
   previewAdoption: (path: string, generation: number, portId?: string) =>
     invoke<AdoptionPreview>("preview_adoption", {
       path,

@@ -576,6 +576,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "dat_reference_status",
+                serde_json::json!(schema_for_contract::<portcove_core::DatReferenceStatus>(
+                    contract
+                )),
+            ),
+            (
                 "host_tool_probe_result",
                 serde_json::json!(schema_for_contract::<portcove_core::HostToolProbeResult>(
                     contract
@@ -757,6 +763,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 "retained_build_removal_preview",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::RetainedBuildRemovalPreview,
+                >(contract)),
+            ),
+            (
+                "runtime_prerequisite_report",
+                serde_json::json!(schema_for_contract::<
+                    Option<portcove_core::RuntimePrerequisiteReport>,
                 >(contract)),
             ),
             (

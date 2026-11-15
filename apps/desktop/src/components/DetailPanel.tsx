@@ -111,6 +111,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } f
 import { Input } from "./ui/input";
 import { SourceIdentityPanel } from "./SourceIdentity";
 import { LaunchFailureNotice } from "./LaunchFailureNotice";
+import { RuntimePrerequisiteNotice } from "./RuntimePrerequisiteNotice";
 import { ReportProblem } from "./ReportProblem";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
@@ -154,6 +155,7 @@ interface DetailPanelProps {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  finishedLaunchActivityId?: string | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
   perform?: Perform | undefined;
@@ -339,6 +341,7 @@ export function DetailPanel(props: DetailPanelProps) {
       opening={props.opening}
       extraFiles={props.extraFiles}
       openActivity={props.openActivity}
+      finishedLaunchActivityId={props.finishedLaunchActivityId}
       openSupport={props.openSupport}
       organization={props.organization}
       cancellations={renderCancellations()}
@@ -467,6 +470,7 @@ function DetailBody(model: {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  finishedLaunchActivityId?: string | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
   cancellations: ReactNode;
@@ -601,6 +605,14 @@ function DetailBody(model: {
               busy={model.busy}
               rollback={model.actions.rollback}
               openActivity={model.openActivity}
+              finishedLaunchActivityId={model.finishedLaunchActivityId}
+            />
+          )}
+          {model.installed && (
+            <RuntimePrerequisiteNotice
+              portId={model.port.id}
+              generation={model.libraryGeneration}
+              status={model.status}
             />
           )}
           <DetailAttention model={model} setupRoutes={setupRoutes} reveal={reveal} />

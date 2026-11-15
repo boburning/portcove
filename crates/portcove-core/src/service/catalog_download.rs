@@ -827,6 +827,14 @@ impl PortcoveService {
                 "upstream digest conflicts with this exact artifact's known checksum; self-service cannot bypass that failure",
             ));
         }
+        if let Some(digest) = artifact.sha256.as_deref().or(expected.as_deref()) {
+            crate::managed_runtime_policy::require_artifact_available(
+                &self.catalog,
+                &request.port_id,
+                &artifact.release_tag,
+                digest,
+            )?;
+        }
         let preview_sha256 = crate::signed_catalog::digest(&serde_json::to_vec(&(
             1_u32,
             request,
@@ -1067,6 +1075,12 @@ impl PortcoveService {
                         .detail("actual", &archive_sha256));
                     }
                 }
+                crate::managed_runtime_policy::require_artifact_available(
+                    &self.catalog,
+                    &request.port_id,
+                    &record.artifact.release_tag,
+                    &archive_sha256,
+                )?;
                 record.archive_sha256 = archive_sha256;
                 record.downloaded_at = time::OffsetDateTime::now_utc()
                     .format(&time::format_description::well_known::Rfc3339)

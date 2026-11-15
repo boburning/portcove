@@ -173,6 +173,20 @@ pub(crate) enum KnownFailureCause {
         failures: Vec<String>,
     },
     PortableDataContractChanged,
+    /// Two copies of a settings file a newer version newly carries differ, so
+    /// Core cannot tell which to keep. `other` is the saved copy, or the new
+    /// version's copy when `other_is_saved` is false.
+    AppendedSettingsDiverged {
+        file: String,
+        installed: std::path::PathBuf,
+        other: std::path::PathBuf,
+        other_is_saved: bool,
+    },
+    /// Something other than an ordinary settings file of at most 16 MiB is at
+    /// a newly declared settings file path.
+    AppendedSettingsPathBlocked {
+        path: std::path::PathBuf,
+    },
     ManagedRouteCommitted {
         version: String,
         previous_path: std::path::PathBuf,
@@ -211,6 +225,8 @@ pub(crate) enum KnownFailureCause {
         volume: String,
     },
     DeviceLoginUnavailable,
+    GithubDeviceCodeExpired,
+    GithubDeviceAuthorizationDenied,
     ProviderRequest {
         provider: FailureProvider,
         status: u16,
@@ -323,6 +339,35 @@ impl KnownFailureCause {
                 "portable_data_contract_changed",
                 "This package changes where player data is stored or how it is located. Portcove stopped the transition and kept the current installation and files. Keep using the current version; use upstream instructions until a compatible package or supported data migration is available.",
             ),
+            Self::AppendedSettingsDiverged {
+                file,
+                installed,
+                other,
+                other_is_saved,
+            } => {
+                let (where_other, other_label) = if *other_is_saved {
+                    ("your saved settings", "Saved copy")
+                } else {
+                    ("the new version", "New version's copy")
+                };
+                return (
+                    "appended_settings_diverged",
+                    format!(
+                        "The settings file {file} is different in the version you're using now and in {where_other}, so Portcove can't tell which one to keep. Both copies were kept. Delete the copy you don't want, then try again.\nCopy in the version you're using now: {}\n{other_label}: {}",
+                        installed.display(),
+                        other.display()
+                    ),
+                );
+            }
+            Self::AppendedSettingsPathBlocked { path } => {
+                return (
+                    "appended_settings_path_blocked",
+                    format!(
+                        "Portcove can't carry over this game's settings because the item at this settings file location is not an ordinary settings file, or is larger than 16 MB. Nothing there was changed. Move that item out of the folder, then try again.\nLocation: {}",
+                        path.display()
+                    ),
+                );
+            }
             Self::ManagedRouteCommitted {
                 version,
                 previous_path,
@@ -427,6 +472,14 @@ impl KnownFailureCause {
             Self::DeviceLoginUnavailable => (
                 "device_login_unavailable",
                 "GitHub device sign-in is unavailable in this build. Use the offered token sign-in, or continue anonymously where supported.",
+            ),
+            Self::GithubDeviceCodeExpired => (
+                "github_device_code_expired",
+                "The GitHub sign-in code expired. Choose Sign in with GitHub to get a new code.",
+            ),
+            Self::GithubDeviceAuthorizationDenied => (
+                "github_device_authorization_denied",
+                "GitHub sign-in was cancelled. Choose Sign in with GitHub to try again.",
             ),
             Self::ProviderRequest {
                 provider,

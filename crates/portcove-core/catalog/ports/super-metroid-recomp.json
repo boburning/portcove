@@ -56,8 +56,26 @@
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "adapter": "staged-source-portable",
     "managed_acquisition_hold": {
-      "reason": "Super Metroid Recompiled installs and updates are paused because version 0.4.6 can restart the game in a new window that Portcove can't follow. If you're playing 0.4.6, leave the game with Exit, not Quit to launcher, or roll back to an earlier version if you have one. Your saves and settings stay as they are.",
-      "activation_reason": "This prepared Super Metroid Recompiled version hasn't been checked for restarting the game in a new window. Keep playing your current version.",
+      "reason": "Portcove skips Super Metroid Recompiled 0.4.6 because Quit to launcher can start a game process it can't follow. If you're already playing 0.4.6, use Exit, not Quit to launcher.",
+      "activation_reason": "Portcove can't activate this Super Metroid Recompiled 0.4.6 package because Quit to launcher can start a new window it can't follow.",
+      "excluded_artifacts": [
+        {
+          "version": "v0.4.6",
+          "sha256": "026848df0ec061cea67ac18114aa873163edcb13247f162474197363b29db0f5"
+        },
+        {
+          "version": "v0.4.6",
+          "sha256": "36cb4e79bf4a424ac88409fc31e47c542650ccf974746b7d503ebfa350315023"
+        },
+        {
+          "version": "v0.4.6",
+          "sha256": "484c039c7ec1c095dbe37d2bee6ce5d457e8c363e1c8892a3b630293f7c3e600"
+        },
+        {
+          "version": "v0.4.6",
+          "sha256": "9a765fdc4ce80ac9cf6147f776f98220b7013ed36210e71f4053463496ec8429"
+        }
+      ],
       "reviewed_artifacts": [
         {
           "version": "v0.4.2",

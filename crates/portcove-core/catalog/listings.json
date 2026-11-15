@@ -2343,6 +2343,28 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 124,
+      "manual_setup": {
+        "help_url": "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
+        "warnings": [
+          "The older managed Windows download is unavailable upstream. Keep any working Portcove copy and its data. Use these steps for a separate v0.0.8.8.3 copy you have permission to use."
+        ],
+        "steps": [
+          {
+            "title": "Set up a separate Windows or Linux copy",
+            "instruction": "Extract the complete package to a writable folder. Put your own supported .sfc or .smc original beside starfox_pc.exe on Windows or starfox_pc on Linux, then start the player. It validates the original and builds Starfox-Assets.BIN on first run."
+          },
+          {
+            "title": "Set up a separate Mac or Android copy",
+            "instruction": "On Intel or Apple Silicon Mac, open StarFoxEnhanced.app and follow the upstream ROM setup instructions. On Android ARM64, install the upstream APK and select your own original in the first-run picker. Each app keeps its data in its writable user or app storage."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep progress with your separate copy",
+            "instruction": "Keep the Windows or Linux data beside the player, including starfox-ex.srm, states/ and your settings. Back up those files before applying an update in the game. On Mac, keep the app’s StarFoxEnhanced application data when replacing the bundle. On Android, use the normal package upgrade for the same app and retain its app data."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -2461,7 +2483,8 @@
       "listed_at": "2026-10-23",
       "platforms": [
         "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "macos-aarch64"
       ],
       "manual_setup": {
         "steps": [
@@ -2471,11 +2494,7 @@
           },
           {
             "title": "Linux x64 upstream launcher",
-            "instruction": "For an already permitted 1.1.1 Linux x64 copy, use its nectar-launcher or the x64 AppImage. The bundled README lists glibc 2.29, OpenGL 3.3 and zenity or kdialog for graphical file selection."
-          },
-          {
-            "title": "Prepare your original on Linux",
-            "instruction": "Choose Install under Pikmin, provide your own Pikmin USA Rev. 1 or Europe ISO or GCM, and select a separate writable installation directory. Upstream can use Dolphin Tool for RVZ, WIA and GCZ. Keep disc verification enabled."
+            "instruction": "For a permitted 1.1.1 Linux x64 copy, use nectar-launcher or the x64 AppImage. You need glibc 2.29, OpenGL 3.3 and zenity or kdialog for the file picker. Choose Install under Pikmin, select your own USA Rev. 1 or Europe ISO or GCM and a separate writable folder. The launcher can use Dolphin Tool for RVZ, WIA and GCZ. Keep disc verification enabled."
           },
           {
             "title": "Android ARM64 upstream launcher",
@@ -2486,7 +2505,11 @@
             "instruction": "For an already permitted 1.2 copy, use Android 10 or newer and OpenGL ES 3.0. On Android 10 grant the storage permission. On Android 11 or newer use Allow access to all files. Confirm the writable OpenNectar data folder, then choose Install under Pikmin and select your own matching ISO or GCM in the system picker."
           },
           {
-            "title": "Build an already permitted Mac copy",
+            "title": "Set up a separate Apple Silicon copy",
+            "instruction": "For a permitted Open Nectar 1.3 copy, extract nectar-macos.tar.gz on Apple Silicon with macOS 11 or newer. Follow the bundled README.txt for first launch, then open nectar-launcher. Choose Install under Pikmin and supply your own matching USA Rev. 1 or Europe disc and a writable installation folder. Use the launcher in that installation for later Play and updates."
+          },
+          {
+            "title": "Build a separate Intel Mac copy",
             "instruction": "With an already permitted 1.2 source checkout, use Xcode Command Line Tools, CMake and a Mac with OpenGL 4.1. Follow scripts/build-macos.sh. It builds both Pikmin regions and also builds a separate Pikmin 2 player. Start build/pikmin1/bin/nectar-launcher, choose Install under Pikmin and select your matching disc and a writable destination."
           },
           {
@@ -2498,7 +2521,7 @@
           "Use only a copy and bundled components you are already permitted to use. The upstream CC0 notice excludes Nintendo and other third-party material, and the package includes a separate Pikmin 2 runtime. An attributable grant for that bundled game code or a separately qualified package is needed before fresh acquisition can be offered.",
           "Keep the player-managed folder outside Portcove's managed installation. Preserve the creating installation and profile. The existing managed Windows acquisition hold remains in place."
         ],
-        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/f4633bf50099789047a3c70e62c86caf3cbaf38c/README.md",
+        "help_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/releases/tag/1.3",
         "references": [
           {
             "title": "Keep the Mac and Android data you actually use",
@@ -2593,7 +2616,7 @@
       "id": "f-zero-snes-recomp",
       "name": "F-Zero SNES Recomp",
       "summary": "Native F-Zero recompilation.",
-      "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+      "project_url": "https://github.com/RetroPortingToolKit/F-ZeroForever",
       "listed_at": "2026-10-23",
       "original_game_title": "F-Zero",
       "variant_label": "SNES",
@@ -2606,6 +2629,24 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 1114,
+      "manual_setup": {
+        "help_url": "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+        "warnings": [
+          "F-Zero Forever 2.x is a separate package. Keep its runtime and profile outside your existing Portcove installation."
+        ],
+        "steps": [
+          {
+            "title": "Use a separate reviewed Windows v1.8.3 copy",
+            "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "Keep the original game file separately. Preserve saves/ and config.ini, fzero-video.ini, keybinds.ini and rom.cfg beside the executable when moving your external Windows copy."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -2734,7 +2775,7 @@
       "id": "alexbeav-ape-escape-recomp",
       "name": "Ape Escape / Alexbeav PSXRecomp",
       "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
-      "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp",
       "original_game_title": "Ape Escape",
       "artwork": {
         "game_id": 3762,
@@ -2805,7 +2846,7 @@
       "id": "alexbeav-alundra-recomp",
       "name": "Alundra / Alexbeav PSXRecomp",
       "summary": "Build and play Alundra on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
-      "project_url": "https://github.com/Alexbeav/alundra-recomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp",
       "original_game_title": "Alundra",
       "artwork": {
         "game_id": 1175,
@@ -4627,6 +4668,48 @@
           }
         ]
       }
+    },
+    {
+      "id": "40-winks-faderz48",
+      "project_url": "https://github.com/Faderz48/40-Winks-PC-Port",
+      "name": "40 Winks / Faderz48",
+      "summary": "Build and play 40 Winks on Windows or Linux with upstream’s setup tools and your own clean USA Nintendo 64 ROM.",
+      "issue_number": 6006,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Faderz48/40-Winks-PC-Port/tree/v0.1.7-alpha#readme",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the upstream setup for your platform",
+            "instruction": "Open the v0.1.7-alpha release linked below and pick the Windows x64 setup EXE or Linux x86-64 AppImage. Check the file against its SHA-256 sidecar before opening it. Both paths need a clean big-endian USA .z64 from your own game. Setup checks SHA-256 057232ef7618e25f5645df50d3cd45f08cb5a2cccb3e2fdf48faa8755c4ddb1a. Keep that original available for later launches."
+          },
+          {
+            "title": "Build the playable copy once",
+            "instruction": "On Windows, open the upstream setup, select the matching ROM and choose a folder for the generated player. On Linux, install the development dependencies from the build guide, then open the upstream self-building AppImage, select the ROM and choose where to save the playable AppImage. First setup needs Internet access and builds locally. On later Windows launches open 40-Winks-PC-Port.exe from the output folder. On Linux reopen the original AppImage to start the locally built player."
+          }
+        ],
+        "warnings": [
+          "The Windows setup is unsigned. Follow your usual executable trust settings.",
+          "Keep the original outside the build and player folders. Replacement builds and player data are managed through upstream."
+        ],
+        "help_url": "https://github.com/Faderz48/40-Winks-PC-Port/releases/tag/v0.1.7-alpha",
+        "references": [
+          {
+            "title": "Keep Windows settings and Controller Pak saves",
+            "instruction": "Preserve %LOCALAPPDATA%\\40-winks-pc-port when changing the player. The separate %LOCALAPPDATA%\\40WinksBuild stores build tools and generated files."
+          },
+          {
+            "title": "Linux build requirements and launcher paths",
+            "instruction": "Follow the tagged build guide for Git, Python, CMake, a C++20 compiler, SDL2 development files, Vulkan and the runtime dependencies. The builder tracks the selected ROM and playable AppImage under the 40-winks-pc-port directory in XDG_CONFIG_HOME. The first-run launcher suggests ~/Applications/40-Winks-Recompiled-x86_64.AppImage for the playable copy. Its build cache is under XDG_CACHE_HOME. Preserve the game data under XDG_DATA_HOME/40-winks-pc-port (normally ~/.local/share/40-winks-pc-port), or the data directory you explicitly chose."
+          }
+        ]
+      },
+      "recommended_download_channel": "beta"
     },
     {
       "id": "abilliontokens-bustinout-recomp",
@@ -12711,6 +12794,49 @@
       "issue_number": 2956
     },
     {
+      "id": "astromenace-viewizard",
+      "name": "AstroMenace",
+      "summary": "Fly a customizable fighter through a 3D space shooter from Viewizard.",
+      "project_url": "https://github.com/viewizard/astromenace",
+      "issue_number": 6131,
+      "listed_at": "2026-11-14",
+      "original_game_title": "AstroMenace",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",
+      "release_url": "https://github.com/viewizard/astromenace/releases/tag/v1.4.3",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "astromenace-win-",
+          ".exe"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md",
+        "steps": [
+          {
+            "title": "Set up the Windows release",
+            "instruction": "Run the publisher’s v1.4.3 installer and open AstroMenace when setup completes. On Windows x64 it installs the native x64 player and its matching libraries. The standalone game is included."
+          },
+          {
+            "title": "Use your Linux package or build on Mac",
+            "instruction": "Install astromenace through your Linux distribution, or use the community Flatpak for x64 or ARM64 from the upstream guide. On Mac, follow the source-build instructions for the required Xcode and Homebrew tools."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your pilots and settings",
+            "instruction": "Preserve config.xml and the versioned PilotProfiles_*.data file in the active profile. Windows and Mac use the Viewizard/AstroMenace user folder. On native Linux keep astromenace under XDG_CONFIG_HOME or ~/.config. If you use Flatpak, keep its separate app profile."
+          }
+        ]
+      }
+    },
+    {
       "id": "asuka100-recomp-elprogramadorloco-arch-asuka-120-final",
       "name": "Asuka 120% Final — asuka100-recomp (elprogramadorloco-arch)",
       "original_game_title": "Asuka 120% Final",
@@ -15887,6 +16013,42 @@
       }
     },
     {
+      "id": "buzz-aldrins-race-into-space-native",
+      "name": "Buzz Aldrin’s Race Into Space",
+      "summary": "Direct the American or Soviet space program in the updated strategy game.",
+      "project_url": "https://github.com/raceintospace/raceintospace",
+      "issue_number": 6133,
+      "listed_at": "2026-11-14",
+      "original_game_title": "Buzz Aldrin’s Race Into Space",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "download_block_reason": "Portcove downloads are on hold because the Windows installer and Linux archive include music from the project’s nonfree soundtrack repository. The setup guide covers copies you have permission to use.",
+      "manual_setup": {
+        "help_url": "https://github.com/raceintospace/raceintospace/releases/tag/v2.0.0",
+        "steps": [
+          {
+            "title": "Use the Windows or Linux upstream setup",
+            "instruction": "For a permitted v2.0.0 Windows copy, use the publisher’s Win32 installer and open Race Into Space after setup. On Linux x64, extract the complete portable archive and run run.sh from its folder. Keep the share/raceintospace data beside the player."
+          },
+          {
+            "title": "Open the Apple Silicon Mac package",
+            "instruction": "On Apple Silicon with macOS 15 or newer, open the v2.0.0 Darwin disk image, copy raceintospace.app to Applications and open it. The publisher’s Mac package omits music."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your campaign and configuration",
+            "instruction": "Keep the .raceintospace folder in your home directory when changing versions. If you set BARIS_SAVE, preserve that folder instead. The same location stores the game’s config file."
+          }
+        ]
+      }
+    },
+    {
       "id": "bvschaik-julius",
       "name": "Caesar III / Julius (bvschaik)",
       "summary": "Explore Caesar III / Julius (bvschaik) and follow the upstream project for requirements, downloads and setup.",
@@ -16798,6 +16960,62 @@
           {
             "title": "Keep Flatpak data alongside the actual profile",
             "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+          }
+        ]
+      }
+    },
+    {
+      "id": "celeste-64-fragments-of-the-mountain",
+      "name": "Celeste 64: Fragments of the Mountain",
+      "summary": "Explore a 3D mountain in a short standalone game from the Celeste developers.",
+      "project_url": "https://github.com/EXOK/Celeste64",
+      "issue_number": 6126,
+      "listed_at": "2026-11-14",
+      "original_game_title": "Celeste 64: Fragments of the Mountain",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Celeste64-",
+          "-Windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "Celeste64-",
+          "-Linux-x64.zip"
+        ],
+        "macos-x86-64": [
+          "Celeste64-",
+          "-macOS-x64.zip"
+        ],
+        "macos-aarch64": [
+          "Celeste64-",
+          "-macOS-arm64.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/EXOK/Celeste64/releases/tag/v1.1.1",
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Choose the package for your computer",
+            "instruction": "The release supports Windows 10 or later on x64, Linux x64 with glibc 2.35 or later, and macOS Monterey or later on Intel or Apple Silicon. The same upstream release has separate Linux ARM64 and ARM32 builds."
+          },
+          {
+            "title": "Extract the complete folder and start Celeste 64",
+            "instruction": "Run Celeste64.exe on Windows or Celeste64 on Linux and Mac, with its containing folder as the start folder. Keep Content/ and the adjacent libraries with the player. The official package includes the game and needs no separate Celeste installation."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your progress when replacing a copy",
+            "instruction": "Keep the Celeste64 user data folder in Roaming AppData on Windows, in XDG_DATA_HOME or ~/.local/share on Linux, or in Library/Application Support on Mac. Preserve save.json and the other settings files there when replacing the extracted game folder."
           }
         ]
       }
@@ -19217,6 +19435,41 @@
         "image_sha256": "a0c002e75c63afbf240e32ed01e20932fec97ff5568c5ffde1b06ac40b0b4770",
         "game_slug": "crystal-defenders",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "crownpark-xbox360-native-ports-collection",
+      "project_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports",
+      "name": "CrownPark Xbox 360 Native Ports Collection",
+      "summary": "Get a title-specific Windows or Linux launcher from CrownPark and import your own Xbox 360 game files.",
+      "issue_number": 6005,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports#using-a-release-launcher",
+      "download_block_reason": "Portcove downloads are on hold for this collection while we verify the shader cache described in the Split/Second release notes. You can use the guide with a launcher you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your game’s launcher",
+            "instruction": "Find the release for your game in the upstream project and read that release’s source and testing notes. Extract its Windows x86-64 ZIP or Linux x86-64 .tar.zst to a separate folder for that game. Both platforms need a Vulkan-capable driver. On Linux, follow the upstream guide for gamescope, Python 3 and archive tools."
+          },
+          {
+            "title": "Import your original files and play",
+            "instruction": "On Windows, open Launcher.bat and choose Import game files. For a disc title, use the matching disc image or extracted files. For an XBLA title, use an extracted game folder containing default.xex. On Linux, run ./run.sh, select the matching title and follow its import prompt for the disc or XBLA package. Use the edition and region in the bundle’s content/SOURCE.txt. Resolve any checksum warning before playing."
+          },
+          {
+            "title": "Keep each game’s saves and settings",
+            "instruction": "Keep the user-data folder beside each launcher. Back it up before replacing or removing that game’s extracted folder. Keep your original disc image or XBLA package outside the launcher folder."
+          }
+        ],
+        "warnings": [
+          "Upstream testing varies by title and platform. Check the notes for the package you choose."
+        ],
+        "help_url": "https://github.com/CrownParkComputing/Xbox360-Native-Ports/releases"
       }
     },
     {
@@ -24647,6 +24900,57 @@
       "availability": "unknown"
     },
     {
+      "id": "empty-epsilon-native",
+      "name": "EmptyEpsilon",
+      "summary": "Run a spaceship bridge with friends, with separate crew roles, scenarios, and a Game Master mode.",
+      "project_url": "https://github.com/daid/EmptyEpsilon",
+      "issue_number": 6130,
+      "listed_at": "2026-11-14",
+      "original_game_title": "EmptyEpsilon",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/daid/EmptyEpsilon/wiki/Build#define-the-version-number",
+      "release_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Win32_EmptyEpsilon_",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "Linux_EmptyEpsilon_",
+          ".deb"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+        "steps": [
+          {
+            "title": "Start the Windows or Linux player",
+            "instruction": "On Windows x64, extract the full Win32 ZIP and open EmptyEpsilon.exe from its own folder. On Debian-compatible Linux x64, install the publisher’s .deb with your system package manager and open EmptyEpsilon. The Linux package depends on SDL2 and FreeType."
+          },
+          {
+            "title": "Use the upstream Android or Mac setup",
+            "instruction": "Choose the publisher’s ARM64 or ARM32 Android APK for your device. For Intel or Apple Silicon Mac, follow the community source-build instructions. The release includes the standalone game and its scenarios."
+          },
+          {
+            "title": "Match the crew’s release",
+            "instruction": "Use the same EmptyEpsilon version on the host and every device. If you build from source, set the version to match the host using the upstream build guide. Use Tutorials to try the local controls."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your settings and custom scenarios",
+            "instruction": "Keep options.ini and keybindings.json in the directory set by EE_CONF_DIR, or in the .emptyepsilon folder in your home directory by default. If the game uses its start folder for settings, preserve them there. Keep custom scripts, resources and packs in the locations where you added them."
+          }
+        ]
+      }
+    },
+    {
       "id": "enchantedarmspc-iandrewjj-enchanted-arms",
       "name": "Enchanted Arms — EnchantedArmsPC (IAndrewJJ)",
       "original_game_title": "Enchanted Arms",
@@ -24739,6 +25043,47 @@
           {
             "title": "Retain optional-content and runtime ownership",
             "instruction": "Original US DLC packs and optional external HD texture packs are separate player-supplied material, not a prerequisite or a grant supplied by this registration. Preserve their actual original/mod/profile roots; do not convert European/Japanese packs or fetch the third-party HD pack through this guide. Project GPL2-or-later, PortableKit MIT, FFmpeg LGPL and other component notices apply separately from Sony/game/art rights. Upstream/user owns all preparation, runtime replacement and recovery. Close actual sessions, keep the old working copy and data, then review/relink changed selected bytes. Removing registration preserves all external files; no external update, backup, rollback, migration or deletion is offered."
+          }
+        ]
+      }
+    },
+    {
+      "id": "espn-nfl-2k5-remade",
+      "name": "ESPN NFL 2K5 Native PC",
+      "summary": "Play ESPN NFL 2K5 on Windows using upstream setup and your own original Xbox game.",
+      "project_url": "https://github.com/BeyondTomrrow/2K5Remade",
+      "issue_number": 6003,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/BeyondTomrrow/2K5Remade/blob/991cd02a30cfe451bcb678ff00128af6f3c4f9ce/README.md#install-and-play",
+      "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled in-game broadcast graphics reuse art from the original Xbox game. Use the upstream setup guide with a copy you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your Xbox game",
+            "instruction": "Use an ISO or XISO from your own original retail Xbox disc, or an extracted disc folder that contains default.xbe and vc_53450030. Keep the original in a separate folder you control."
+          },
+          {
+            "title": "Run upstream setup on Windows",
+            "instruction": "Use NFL2K5-PC-Setup.exe from the linked v0.6.1-hotfix release on 64-bit Windows 10 or 11. Choose a folder you can write to and select your extracted disc folder or an ISO/XISO and separate extraction destination. Setup links the extracted game folder through original/disc. Skip optional mod installation for a base-game setup."
+          },
+          {
+            "title": "Start the installed game",
+            "instruction": "After setup, use the ESPN NFL 2K5 Native PC Start menu shortcut, or start NFL2K5.exe from its installation folder. Leave the linked Xbox game data in place."
+          }
+        ],
+        "warnings": [
+          "Keep a separate copy of your saves before changing releases or importing a save. PS2 save conversion is experimental.",
+          "The upstream build contains recompiled game code. Distribution permission for that code is unverified."
+        ],
+        "help_url": "https://github.com/BeyondTomrrow/2K5Remade/releases/tag/v0.6.1-hotfix",
+        "references": [
+          {
+            "title": "Keep the active player profile",
+            "instruction": "Preserve saves, mods and Music in your installation folder. Settings, caches and logs default to %LOCALAPPDATA%\\NFL2K5-PC. If you deliberately use portable.txt beside NFL2K5.exe, keep the settings in that writable installation folder too. Back up your files before changing the installation."
           }
         ]
       }
@@ -27685,7 +28030,8 @@
       "manual_setup": {
         "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",
         "warnings": [
-          "The upstream importer has 99 backup names and can overwrite its last slot when full."
+          "The upstream importer has 99 backup names and can overwrite its last slot when full.",
+          "On Linux v0.5.0, the in-game settings restart starts a new process that Portcove cannot track. Quit the game and choose Play again to keep the whole session visible in Portcove. If you already used the restart, close the new game window before changing the runtime or copying its data."
         ],
         "steps": [
           {
@@ -32666,6 +33012,45 @@
       ]
     },
     {
+      "id": "kens-labyrinth-sacredbanana-lab3d-sdl",
+      "project_url": "https://github.com/sacredbanana/lab3d-sdl",
+      "name": "Ken’s Labyrinth / LAB3D/SDL",
+      "original_game_title": "Ken’s Labyrinth",
+      "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
+      "issue_number": 6129,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md#installation",
+      "release_url": "https://github.com/sacredbanana/lab3d-sdl/releases/tag/4.4.0",
+      "download_block_reason": "The publisher packages include game data from several original releases. Use the setup guide for a copy you already have. Portcove can offer downloads after the bundled game data is cleared for these packages.",
+      "manual_setup": {
+        "help_url": "https://github.com/sacredbanana/lab3d-sdl/blob/4.4.0/README.md",
+        "steps": [
+          {
+            "title": "Open the Windows or Linux player",
+            "instruction": "Extract the archive to a writable folder. Keep gamedata next to the player. On Windows 10 or later, open Kens-Labyrinth.exe from the extracted folder. The publisher offers separate ARM64 and 32-bit Windows builds. On Linux, install the SDL2, SDL2_image and GLU libraries listed in the upstream guide, then run ./ken from the extracted folder. The publisher also offers Linux ARM64 and other architectures."
+          },
+          {
+            "title": "Set up the universal Mac app",
+            "instruction": "On macOS 12.4 or later, copy Kens-Labyrinth.app from the disk image to an Applications folder you can write to, then open the copied app. The same app runs on Intel and Apple Silicon and already contains the game data and libraries."
+          },
+          {
+            "title": "Choose a game and keep its progress",
+            "instruction": "Choose Ken’s Labyrinth 2.1 for the full Epic release. Walken is the separate 1992 prerelease and uses its own save slots. Before replacing a copy, keep settings.ini. On Linux, also preserve ~/.config/ken/settings.ini if you use it. Keep the save slots and high scores from each game’s own gamedata subfolder. The Mac copy keeps these files under Contents/Resources/kenfiles inside the app."
+          }
+        ],
+        "warnings": [
+          "The Linux system package can place gamedata in a system-owned directory. Use the writable portable copy for saving game progress."
+        ]
+      }
+    },
+    {
       "id": "keriew-augustus",
       "name": "Caesar III / Augustus (Keriew)",
       "summary": "Play Caesar III with Augustus’s roadblocks, city improvements and expanded building tools.",
@@ -34425,7 +34810,7 @@
           },
           {
             "title": "Intel and Apple Silicon Mac setup",
-            "instruction": "Mount the universal Mac DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
+            "instruction": "The universal TRX 1.12 Mac package requires macOS 14 or later on Intel and Apple Silicon. Mount the DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
           }
         ],
         "warnings": [
@@ -34437,6 +34822,10 @@
           {
             "title": "Preserve the TRX game data and profiles",
             "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
+          },
+          {
+            "title": "Try the bundled Tomb Raider I PC Demo",
+            "instruction": "The TRX 1.12 Linux ZIP and universal Mac DMG include the PC Demo. Choose Tomb Raider I PC Demo in the game selector, or launch the Linux player with --mod tr1-demo-pc. The full game still needs files from your own copy."
           },
           {
             "title": "Keep a working copy before updating",
@@ -40202,6 +40591,48 @@
       }
     },
     {
+      "id": "nocturne-nearlytrex",
+      "project_url": "https://github.com/NearlyTRex/NocturneDecomp",
+      "name": "Nocturne / NocturneDecomp",
+      "original_game_title": "Nocturne",
+      "summary": "Use NocturneDecomp with a complete installation from your own copy of Nocturne.",
+      "issue_number": 6002,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose an engine and keep the original install",
+            "instruction": "Use the v0.1.11 engine for your system and keep the full original Nocturne installation, including its POD files. Choose Vanilla for the original settings and behavior or Enhanced for the added features. If you use the in-place setup from the release notes, make a separate working copy before unpacking the engine."
+          },
+          {
+            "title": "Set up Windows or Linux with separate saves",
+            "instruction": "Keep the executable and bundled libraries together. Open nocturne.exe on Windows or ./nocturne on Linux from a terminal with --data-dir pointing to the complete game installation and --user-dir pointing to a folder for that engine’s saves, settings and logs. Use separate user folders for Vanilla and Enhanced. Linux packages are available for x86-64 and ARM64."
+          },
+          {
+            "title": "Prepare the Mac app and its shared data folder",
+            "instruction": "Choose the Intel or Apple Silicon app that matches your Mac. Follow the upstream first-launch instructions, then copy the complete original installation into NocturneDecomp under ~/Library/Application Support. Both Mac apps use that folder and share its saves by default. Back up the folder before switching editions or replacing files."
+          },
+          {
+            "title": "Make the original movies available",
+            "instruction": "For cutscenes, use a working copy of the game files as your --data-dir on Windows or Linux, or as the Application Support copy on Mac. In that copy, create a video folder and copy the original .AVI files there from the AVI folder."
+          }
+        ],
+        "warnings": [
+          "Upstream reports limited testing on Macs and ARM64 Linux. The Mac apps lack a developer signature.",
+          "Upstream’s 0BSD license covers its original work. The release includes reconstructed game code that this license does not cover."
+        ],
+        "help_url": "https://github.com/NearlyTRex/NocturneDecomp/releases/tag/v0.1.11"
+      }
+    },
+    {
       "id": "novapowers0-bloody-roar-ii-recomp",
       "name": "Bloody Roar II Recompiled / novapowers0",
       "summary": "Register your permitted noncommercial prepared Bloody Roar II Windows player with your own USA original and preserved external data.",
@@ -41137,8 +41568,8 @@
         "help_url": "https://github.com/shinyquagsire23/OpenJKDF2/blob/814b684c0d06bbfc6e1121941fc8a9e88e3aede7/README.md",
         "references": [
           {
-            "title": "Keep updates and data with the working copy",
-            "instruction": "You or upstream manage runtime updates, original files, saves and settings. Keep the current working copy until another version is ready."
+            "title": "Build and run upstream on Linux",
+            "instruction": "For Linux x86-64 or ARM64, follow the 64-bit Linux/SDL2 section of the v0.9.9 build guide at https://github.com/shinyquagsire23/OpenJKDF2/blob/v0.9.9/BUILDING.md. Check out tag v0.9.9 before initializing the submodules. Use the guide’s Clang setup and launch the built player from the checkout as documented so it can find its libraries. Copy the Resource and Episode folders from your own matching Jedi Knight installation into the working folder as lowercase resource/ and episode/. Linux filenames can be case-sensitive. Keep the working copy and actual profile when rebuilding. You build, launch and update this Linux copy through upstream."
           },
           {
             "title": "Preserve imported Jedi Knight data and profiles",
@@ -41146,7 +41577,7 @@
           },
           {
             "title": "Keep external ownership and all player data",
-            "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
+            "instruction": "You and upstream own this external runtime, original files, saves, settings and profiles. Preserve the complete working copy and every actual data/profile location with the game closed before upstream replacement. Registration-only removal preserves all external files; managed Install, Update, Backup, Rollback, migration and external deletion are unavailable. Keep the current working copy until another version is ready."
           }
         ]
       },
@@ -52149,6 +52580,59 @@
       }
     },
     {
+      "id": "star-wars-atari-darkuni",
+      "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
+      "name": "Star Wars (Atari arcade) / darkuni",
+      "original_game_title": "Star Wars (Atari arcade)",
+      "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
+      "issue_number": 6000,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/darkuni/starwars-arcade-recomp/tree/df540960302ba42df26b2432986b6df92af97c6a#running",
+      "release_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "starwars.exe"
+        ],
+        "linux-x86-64": [
+          "StarWars-linux.tar.gz"
+        ],
+        "macos-x86-64": [
+          "StarWars-mac.zip"
+        ],
+        "macos-aarch64": [
+          "StarWars-mac.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own Star Wars arcade ROM set",
+            "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+          },
+          {
+            "title": "Start the player for your operating system",
+            "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe. On Linux x64, unpack StarWars-linux.tar.gz and open ./starwars. Put the ZIP beside the executable for either of those platforms. On Intel Mac or Apple Silicon, extract the universal Star Wars.app, place starwars.zip in your home folder and open the app. Keep a separate copy of your original ZIP."
+          },
+          {
+            "title": "Keep your high scores and settings",
+            "instruction": "Back up nvram.bin and settings.json from the starwars folder under your user configuration directory. This is normally %APPDATA% on Windows, ~/.config or XDG_CONFIG_HOME on Linux and ~/Library/Application Support on Mac."
+          }
+        ],
+        "warnings": [
+          "The Linux x64 binary requires glibc 2.38 or later, X11 and ALSA libraries.",
+          "The publisher does not provide a license for its project code."
+        ],
+        "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+      }
+    },
+    {
       "id": "star-wars-episode-iii-revenge-of-the-sith",
       "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
       "summary": "Attach the complete SWROTS-PC Windows player after your own Xbox USA disc setup. Keep swrots.exe with core.dll and all actual data; upstream reboot successors remain outside the selected session.",
@@ -56579,6 +57063,55 @@
       }
     },
     {
+      "id": "the-settlers-freeserf",
+      "project_url": "https://github.com/freeserf/freeserf",
+      "name": "The Settlers / FreeSerf",
+      "original_game_title": "The Settlers",
+      "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
+      "issue_number": 6122,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md#play",
+      "release_url": "https://github.com/freeserf/freeserf/releases/tag/v0.5",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "FreeSerf-x64-Release.exe"
+        ],
+        "linux-x86-64": [
+          "FreeSerf-0.5.0-Linux.tar.gz"
+        ],
+        "macos-aarch64": [
+          "FreeSerf.dmg"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+        "steps": [
+          {
+            "title": "Install or extract the upstream release",
+            "instruction": "On Windows x64, use the Release installer. On Linux x64, extract the tar.gz. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+          },
+          {
+            "title": "Choose data from your original game",
+            "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Keep your originals separate. On Linux or Mac, you can use ~/.local/share/freeserf. On Windows, use the freeserf folder under %LOCALAPPDATA%. When launching from a terminal, -g takes the directory containing your data."
+          },
+          {
+            "title": "Keep the files you save",
+            "instruction": "Start FreeSerf from a working directory you can write to. Ctrl+Z writes a save to the current working directory. Keep your saves and active freeserf.ini before replacing the player. Use -l with a saved game file to reopen it."
+          }
+        ],
+        "warnings": [
+          "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
+        ]
+      }
+    },
+    {
       "id": "the-simpsons-arcade-static-recompilation-sp00nznet-the-simpsons-arcade-xbox-live-arcade",
       "name": "The Simpsons Arcade (Xbox Live Arcade) — The Simpsons Arcade - Static Recompilation (sp00nznet)",
       "original_game_title": "The Simpsons Arcade (Xbox Live Arcade)",
@@ -57324,6 +57857,41 @@
         "help_url": "https://github.com/dotGrx/TNA-IMPACT-Recomp"
       },
       "issue_number": 3267
+    },
+    {
+      "id": "tobal-2-tobal2recomp",
+      "project_url": "https://github.com/MatheusLeffa/Tobal2Recomp",
+      "name": "Tobal 2 Recompiled",
+      "summary": "Build Tobal 2 from your Japanese PlayStation disc using upstream’s Windows, Linux or Mac setup kit.",
+      "issue_number": 6008,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/MatheusLeffa/Tobal2Recomp/tree/d73623e3d2631a9d944d394cad0556fd815e7529#playing",
+      "download_block_reason": "Portcove downloads are on hold while the contents and provenance of the bundled English disc overlay are reviewed. You can use this guide with a setup kit you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your disc and matching setup kit",
+            "instruction": "Use an unmodified Tobal 2 Japan v1.1 disc (SLPM-86033). Keep its single-track BIN and paired CUE together. The BIN SHA-256 is 04e79535b4616963e045957b4f9b87126753e94b01d35d32c60214df04bf5a5a. Extract the v0.2.6 kit for Windows x64, Linux x64, Intel Mac or Apple Silicon into a writable folder."
+          },
+          {
+            "title": "Build the game on your computer",
+            "instruction": "Open Tobal_2_Recompiled from the extracted kit (Tobal_2_Recompiled.exe on Windows). On Mac install Apple’s Command Line Tools first. Select your CUE, choose Generate & rebuild and allow Internet access for first-run tools. After the build, choose English or Japanese and press PLAY in the upstream launcher."
+          },
+          {
+            "title": "Keep your memory cards before changing kits",
+            "instruction": "Preserve the extracted kit and its saves and build-release/saves folders wherever they exist. Keep the original disc files separately. Upstream reports that memory cards have yet to be verified in every mode."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/MatheusLeffa/Tobal2Recomp/releases/tag/v0.2.6"
+      }
     },
     {
       "id": "tokisaki-port-yyozcan-killzone-2",
@@ -62089,6 +62657,48 @@
       }
     },
     {
+      "id": "wii-play-tanks-rebirth",
+      "project_url": "https://github.com/RighteousRyan1/TanksRebirth",
+      "name": "Tanks Rebirth",
+      "summary": "A standalone recreation of Wii Play’s Tanks mode with upstream packages for Windows, Linux and Intel Mac.",
+      "issue_number": 6004,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/RighteousRyan1/TanksRebirth/tree/59a29ec272275ed655b70fc85d078f0b0a8aee02",
+      "download_block_reason": "Portcove downloads are on hold pending review of whether the bundled music and sound effects include original Wii Play assets. You can use the setup guide with a copy you have permission to use.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the release package for your computer",
+            "instruction": "The v1.9.2 release has Windows x64, Linux x64 and Intel Mac ZIPs. On Windows choose the ZIP without DEBUG in its name. Extract the entire archive into a folder you control, keeping Content beside the player. Base setup requires no Wii disc or ROM. Install the x64 .NET 8 Runtime for your operating system before opening the player."
+          },
+          {
+            "title": "Create the Mods folder before first Play",
+            "instruction": "Under your Documents folder, create My Games/Tanks Rebirth/Mods if it is missing. On Linux use the configured XDG Documents location, or ~/Documents when there is no override. Create the Documents folder too if it is missing. This release writes TanksRebirth.targets in Mods during startup, before it creates that directory. No mod files are needed."
+          },
+          {
+            "title": "Start the player from its folder",
+            "instruction": "On Windows, open TanksRebirth.exe in the extracted folder. On Linux or Intel Mac, open a terminal in that folder, run chmod +x TanksRebirth, then run ./TanksRebirth. The player looks for Content relative to its working directory."
+          }
+        ],
+        "warnings": [
+          "The separate Original Campaign mod is outside this setup."
+        ],
+        "help_url": "https://github.com/RighteousRyan1/TanksRebirth/releases/tag/1.9.2-alpha",
+        "references": [
+          {
+            "title": "Keep your saves and mods",
+            "instruction": "Close the game and preserve My Games/Tanks Rebirth under the Documents folder used by .NET. This is where the player stores its saves, campaigns, mods and resource packs. Keep a known-working package to return to when trying another release."
+          }
+        ]
+      }
+    },
+    {
       "id": "wild-9-wild9recomp",
       "name": "Wild 9 (Wild9Recomp)",
       "summary": "A Wild 9 portable player for your own NTSC-U/USA SLUS-00425 PlayStation CUE and all referenced BIN tracks, including boot executable SLUS_004.25 and the remaining disc files. OpenBIOS is included; your own Sony SCPH BIOS is optional. Official Windows x86-64 ZIP, Linux x86-64 ZIP/AppImage and macOS x86-64/ARM64 ZIP packages need no compiler, Python or MSVC; Linux needs glibc 2.28+. Recent packages include checksum sidecars. Follow the project’s original-file setup; Portcove has not confirmed setup or gameplay.",
@@ -62183,6 +62793,45 @@
         ]
       },
       "availability": "unknown"
+    },
+    {
+      "id": "wing-commander-privateer-openprivateer",
+      "project_url": "https://github.com/schlangz/openprivateer-project",
+      "name": "Wing Commander: Privateer / OpenPrivateer",
+      "original_game_title": "Wing Commander: Privateer",
+      "summary": "Fly the Privateer campaign or Righteous Fire in OpenPrivateer using your original game files.",
+      "issue_number": 6119,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://openprivateer.org/",
+      "release_url": "https://github.com/schlangz/openprivateer-project/releases/tag/build_20261113_0111",
+      "download_block_reason": "The publisher reports Windows security alerts, and its linked scan does not match the Windows executable in this release. Portcove can offer downloads after the Windows package is cleared. Linux and Mac packages remain available from upstream.",
+      "manual_setup": {
+        "help_url": "https://raw.githubusercontent.com/schlangz/openprivateer-project/build_20261113_0111/manual.pdf",
+        "steps": [
+          {
+            "title": "Choose the upstream desktop player",
+            "instruction": "On Linux, choose the x64 or ARM64 archive matching your computer. On Mac, choose Intel, Apple Silicon, or the universal archive. Extract it and open openprivateer with its bundled SDL3 library alongside it. See the upstream manual for Mac first launch. The publisher lists a separate Windows x64 package."
+          },
+          {
+            "title": "Point OpenPrivateer at your original game files",
+            "instruction": "In Game Data, use Add Folder to use your own PRIV.TRE and INITCFG.PAK in place. Righteous Fire uses RF.TRE and INITRF.PAK. For the GOG or Steam edition, use Extract from GOG/Steam and choose GAME.GOG or GAME.bin. The launcher copies the needed files and leaves the original installation intact."
+          },
+          {
+            "title": "Keep the active user-data folder",
+            "instruction": "Use Files and Diagnostics to find and back up the active data folder, including openprivateer.ini, savegame and any custom content. Portable mode keeps those files beside the player. Keep your backup separate before replacing the program folder or using the launcher’s removal options."
+          }
+        ],
+        "warnings": [
+          "These are upstream alpha builds. Linux and Windows require Vulkan. Mac requires Metal. Open the client named openprivateer for play. The separate openprivateer_server hosts multiplayer."
+        ]
+      }
     },
     {
       "id": "wipeout-3-special-edition-recomp",

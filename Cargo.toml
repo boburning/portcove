@@ -30,6 +30,8 @@ filetime = "0.2.29"
 futures-util = "0.3.34"
 fs4 = { version = "1.1.0", default-features = false }
 hex = "0.4.3"
+# Non-expanding XML events for player-supplied DAT files; already resolved via plist.
+quick-xml = "0.42.0"
 icu_casemap = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
 icu_properties = { version = "2.4.0", default-features = false, features = ["compiled_data"] }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }

@@ -177,9 +177,10 @@ The fixed manual `presentation` operation in `native-design-compatibility.yml`
 uses two isolated standard public `windows-2022` jobs: the maintained
 `presentation` profile and the standalone `native-interface-size` scenario.
 The latter cannot share a selection/library with the profile. Each job records
-its exact source and hosted session before setup, uses the repository-pinned
-quality/native bootstrap and the normal `desktop-verify` plan/build/run owner,
-and retains existing resource, signature, process-identity and cleanup guards.
+its exact source and hosted session before setup, uses the shared hosted Windows
+WebView2 preparation before the repository-pinned quality/native bootstrap and
+the normal `desktop-verify` plan/build/run owner, and retains existing resource,
+signature, process-identity and cleanup guards.
 The 60-minute job allocation leaves setup/build headroom without changing child
 or product deadlines. A failure in one selection does not cancel the other.
 
@@ -227,6 +228,7 @@ acquisition, staged update composition, inert external-runtime registration,
 artwork picking, appearance restart/refresh recovery, and each of the three
 standalone startup-preferences/startup-library/library-switch recovery journeys.
 This preserves the planner's standalone and incompatible-fixture refusals.
+The shared hosted Windows preparation also serves the presentation jobs.
 Public `windows-2022` registers WebView2 below the application's floor, so the
 application correctly refuses to start there. With owner approval (#4879: runtime
 provisioning 2026-11-12; the debugging-port policy and process auditing below
@@ -277,7 +279,9 @@ run 43616138586 measured debug-build capability reads at 12-15 s, update plans a
 about 10 s and workspace snapshots at 6-15 s. The game update review's release and
 keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission waits
 from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
-300 s and 180 s to 600 s. Its
+300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
+review is calibrated from 5 s to 60 s: the review closes after the outcome's
+workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. Its
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture

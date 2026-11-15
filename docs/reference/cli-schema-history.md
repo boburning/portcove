@@ -50,6 +50,14 @@ capability 33, so an older reader refuses it rather than copying an unpatched fi
 
 ## Documented API changes
 
+Within API93, the read-only `installation runtimes` command and its
+`runtime_prerequisite_report` result are additive and advertised in
+`capabilities`. The optional `runtime_prerequisites` field on `launch show` and
+`launch recover` results is also additive. No existing field changes meaning,
+and no Library, metadata or handoff schema changes, so `API_SCHEMA_VERSION`
+stays 93. Clients that ignore the field or never call the command see unchanged
+results.
+
 API93 lets `artwork steamgriddb check-listings` confirm a withdrawal and remove
 Portcove's copy. A verified absence is confirmed by a `gone` answer from the image
 server in the same check, or by a second verified absence at least 24 hours later by

@@ -851,6 +851,18 @@ owns these conclusions; a filename or descriptive label cannot supply them.
 The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
+Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
+host preference. Core compares the SHA-1 or SHA-256 and size it already
+observed for the selected files with the DAT entries and reports the matching
+entry name beside the catalog result, for example to say a rejected file is the
+Europe dump. A DAT file must list a size to match. An entry is complete only
+when every file that has a SHA-1 or SHA-256 and isn't a cue or gdi descriptor
+matches; CRC32- or MD5-only files can't be compared and don't count. A disc
+whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
+admission, registration or a contract result, and a catalog identity does not
+depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
+network request, and ignores a DAT file that changed after it was added.
+
 ### Saved-data behavior
 
 Explain how updates preserve saves and settings for the offered route. Declare
@@ -1956,17 +1968,26 @@ rule change; existing transition and recovery guards still apply.
 
 When an upstream release still matches a managed route's selector but changes
 reviewed setup, replacement or data behavior, contain it with the integration's
-`managed_acquisition_hold` instead of port-specific Core code. Its `reason`
-refuses fresh Install, Update, catalog download and managed adoption before any
-provider contact. Its `activation_reason` refuses activation and recovery of a
-staged or interrupted package unless that package's version and SHA-256 match one
-of the `reviewed_artifacts`. Installed copies keep their retained definition and
-existing Play, backup and removal checks. Remove the hold only after reviewing
-the changed upstream behavior on the canonical port issue. A selected independent
-definition may reword or narrow an existing hold but cannot remove it or add a
-reviewed artifact. Because the catalog is currently embedded, the hold reaches
-players with the next application release; independent delivery to unchanged
-clients remains with #246.
+`managed_acquisition_hold` instead of port-specific Core code. A hold without
+`excluded_artifacts` refuses fresh Install, Update, catalog download and managed
+adoption before provider contact. Its `activation_reason` refuses activation and
+recovery of a staged or interrupted package unless its version and SHA-256 match
+one of the `reviewed_artifacts`.
+
+A hold with `excluded_artifacts` identifies excluded packages by version and
+SHA-256. If the selected platform's package matches an exclusion, Core looks for
+a `reviewed_artifacts` match on that platform and channel and includes the hold
+reason in the install plan. The fallback must match the reviewed digest using
+GitHub asset metadata or the publisher's checksum sidecar. Other releases go through ordinary selection and trust
+checks. An excluded package cannot be activated from staging or recovery.
+Installed copies retain their existing Play, backup and removal checks. A player
+can choose the reviewed fallback through Update when the installed artifact
+differs from the selected fallback.
+
+Review changes to the hold on the canonical port issue. A selected independent
+definition may preserve or strengthen the embedded restrictions. It cannot drop
+an exclusion or add a reviewed fallback. Embedded catalog changes reach players
+with an application release. Independent delivery remains with #246.
 
 An integration may also record `reviewed_package_layouts`, one bounded fingerprint
 per platform, so a release that matches the selector but changes shape is held
@@ -2173,14 +2194,16 @@ are not pinned by it; a change there still requires the version bump. After a bu
 of the older version, and `--prune` empties the table until entries are
 re-derived.
 
-Known limits of the shadow phase: the table is checked against the embedded
-catalog, so a later signed definition delivery that changes a route's
-derivation inputs is not detected at run time and can show drift that is only
-a definition change; runtime behavior, such as files a release writes at first
-launch, is not part of a package shape; an exact-name classifier counts a
-renamed program as one removed and one added; and only the bootstrapped routes
-have a generated baseline, so the rest fall back to the explicit fingerprint,
-the local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
+Core compares the active definition's shape inputs with the embedded
+definition that supplied the generated baseline. Changed inputs produce an
+unknown verdict and preserve the observed shape, even for a reviewed artifact.
+An unrelated definition edit leaves the comparison available.
+
+Known limits of the shadow phase include runtime behavior, such as files a
+release writes at first launch, which package inspection cannot observe. An
+exact-name classifier counts a renamed program as one removal and one addition.
+Routes without a generated baseline fall back to the explicit fingerprint, the
+local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
 for the six known-drift routes are in
 [release-drift-shadow-2026-11-14](qualification/release-drift-shadow-2026-11-14.md).
 
@@ -2710,6 +2733,68 @@ and restored only to that archive under its retained contract. Mixed directories
 can keep conventional SRAM shared while isolating host snapshots and unknown
 sidecars. Changing the policy, source identity or persistence coordinates holds
 replacement; historical installed definitions do not acquire the new policy.
+
+One change is a reviewed successor rather than a migration: appending the same
+run of new conventional files to the end of both `persistent_paths` and
+`shared_paths`, in the same order, with every other hashed coordinate unchanged
+(port, `contract_id`, progress paths, source profile and original identity,
+and every existing path in order). Core derives the predecessor from the
+contract itself by removing that trailing run; no catalog record names it. At
+most 63 files can be appended across a lineage, because one of at most 64 shared
+paths must remain. Each appended path must be a file name with an extension,
+must not be an executable companion name (`.dll`, `.so`, `.dylib`, `.bat`,
+`.cmd`, `.ps1`, `.sh`, or `.exe` on Windows) on any declared platform, cannot be
+the verified original, and must not equal, contain or sit inside an existing
+persistent, shared or progress path. Removed, renamed, reordered, inserted or
+re-scoped paths, directories, an appended path that is not shared, and any other
+policy change remain refused migrations. Indexed definitions that append to a
+policy require staged-source capability 34, so an older reader refuses the
+entry instead of holding existing installations.
+
+Archive data stays under the namespace its first policy established, so a
+successor reads the predecessor's `<policy-sha256>` directory and older readers
+keep their coordinates; a fresh successor library creates its own namespace,
+which the predecessor does not read. Update, activation and reuse of a copy
+beside an existing predecessor accept the successor after two read-only checks
+against the active predecessor copy: its recorded package members and
+executable companions must not cover an appended path, and any appended file
+present both in its runtime and in canonical data must have identical bytes.
+Differing copies hold the update with the `appended_settings_diverged`
+failure, whose summary names the file and the installed and saved copies'
+exact paths so the player can delete the one they do not want.
+After the successor copy's ordinary data restore, an appended file the
+predecessor runtime already wrote and canonical data lacks is copied into the
+successor copy only. Canonical data gains it through that copy's later
+collection, so an activation that fails afterwards leaves no canonical change,
+and a retry keeps an identical earlier copy (different bytes hold). A non-file
+object at an appended path, or a file larger than 16 MiB there, holds with the
+`appended_settings_path_blocked` failure, which names the location. A successor package that itself ships a file
+at an appended path holds the same way when the predecessor runtime also has
+that file with different bytes. Rollback to a retained predecessor copy is
+accepted: the predecessor maps only its own paths, and the successor's files
+stay canonical and in the successor copy. Before the pointer moves, Core
+records `.portcove-archive-data-baseline.json` in the predecessor copy with the
+digests of its own files at the appended paths. A later forward switch treats
+files still matching that baseline as stale: canonical data wins without a hold
+and nothing is adopted. Only a file the predecessor changed after rollback can
+hold.
+
+Backups framed with a predecessor policy restore under any successor in its
+lineage. A backup's framing is its namespace coordinate, and a successor keeps
+the predecessor's namespace, so backups taken while the successor is active
+carry the predecessor framing too. An appended file absent from such a restored
+snapshot is therefore treated as outside its coverage: restore synchronization
+leaves that file in place in every installed copy whose contract declares it,
+instead of deleting it, and canonical data gains it again when the active
+successor copy is next collected. Appended files the snapshot does contain are
+restored normally. Before a
+successor owns them, files at appended paths are unknown runtime files of the
+predecessor copy: verification reports them and backups include them in their
+unknown-file area, but collection and restore do not move them. A historical
+`archive_data_transition_v1` predecessor first enters the lineage member whose
+scope matches its creating contract, then follows the same successor rule.
+Persistent file patterns are not available on partitioned routes, so only
+exact files can be appended.
 
 Common installation notices explain preservation, retained Versions and rollback.
 When build-specific progress exists, automatic maintenance stages the candidate

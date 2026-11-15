@@ -116,7 +116,11 @@ impl PortcoveService {
         for install in installs {
             let port = self.effective_archive_data_port(&install)?;
             if port.archive_data_compatibility_v1.is_some() {
-                if partitioned_policy != Some(crate::archive_data::policy_sha256(&port)?.as_str()) {
+                // A predecessor's framing stays readable by its additive successor.
+                if !match partitioned_policy {
+                    Some(policy) => crate::archive_data::accepts_policy(&port, policy)?,
+                    None => false,
+                } {
                     return Err(held(&port));
                 }
                 self.require_portable_runtime_unchanged(&install)?;
@@ -163,11 +167,9 @@ impl PortcoveService {
         if retained.archive_data_compatibility_v1.is_some()
             || to.archive_data_compatibility_v1.is_some()
         {
-            if retained.archive_data_compatibility_v1.is_none()
-                || to.archive_data_compatibility_v1.is_none()
-                || crate::archive_data::policy_sha256(&retained)?
-                    != crate::archive_data::policy_sha256(to)?
-            {
+            // Direction and the remaining coordinates are guarded by the
+            // portable transition; here both policies share one lineage.
+            if !crate::archive_data::same_lineage(&retained, to)? {
                 return Err(held(to));
             }
             self.require_portable_runtime_unchanged(from)?;
@@ -236,10 +238,9 @@ impl PortcoveService {
             }
             for install in installs {
                 let retained = self.effective_archive_data_port(&install)?;
-                if retained.archive_data_compatibility_v1.is_none()
-                    || crate::archive_data::policy_sha256(&retained)?
-                        != crate::archive_data::policy_sha256(port)?
-                {
+                // A fresh successor beside a retained predecessor shares its
+                // established namespace; any other policy is a migration.
+                if !crate::archive_data::same_or_successor(&retained, port)? {
                     return Err(held(port));
                 }
             }

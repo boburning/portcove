@@ -16,6 +16,7 @@ mod authorization;
 mod browsing_context;
 mod bug_report;
 mod cancellation;
+mod carry_plan;
 mod cartridge_build;
 mod catalog;
 mod catalog_media;
@@ -37,6 +38,7 @@ mod definition_policy_tests;
 mod definition_projection;
 mod definition_publication;
 mod definition_repository;
+mod dump_dat;
 mod durability;
 mod error;
 mod exit_explanation;
@@ -151,6 +153,7 @@ mod tool_process;
 mod transfer_copy;
 mod transfer_journal;
 mod types;
+mod windows_runtime;
 mod zip_read;
 
 pub use activity_diagnostics::{ActivityDiagnostic, DiagnosticStream};
@@ -233,6 +236,11 @@ pub use definition_repository::{
         acquire_definition_launch_assessment, acquire_definition_publisher_policy,
         inspect_official_definition_delivery,
     },
+};
+pub use dump_dat::{
+    DatReferenceState, DatReferenceStatus, DumpIdentification, DumpMatch, DumpMatchedFile,
+    add_dat_reference, dat_reference_statuses, identify_source_intake, identify_source_report,
+    remove_dat_reference,
 };
 pub use error::{ErrorCode, PortcoveError, Result};
 pub use exit_explanation::{
@@ -447,6 +455,11 @@ pub use target_inspection::{
 };
 pub use thunderstore::ThunderstoreClient;
 pub use types::*;
+pub use windows_runtime::{
+    DIRECTX_DOWNLOAD_PAGE, DotnetFramework, RuntimeHostCheck, RuntimeInspection,
+    RuntimePrerequisite, RuntimePrerequisiteReport, RuntimePresence, VISUAL_CPP_DOWNLOAD_PAGE,
+    WindowsArchitecture, WindowsRuntime, is_official_download_page,
+};
 
 // Private parked 58/59/64 contracts remain unclaimed. Public 65 adds game-file queries.
 // Public 66 adds reviewed update assessments while retaining both delivered scopes.

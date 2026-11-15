@@ -402,14 +402,35 @@ pub(crate) fn embedded_derivation_inputs_sha256(
     port_id: &str,
     platform: Platform,
 ) -> Option<String> {
-    let document: serde_json::Value =
-        serde_json::from_str(crate::catalog::EMBEDDED_CATALOG).ok()?;
-    let port = document["ports"]
-        .as_array()?
-        .iter()
-        .find(|port| port["id"] == port_id)?;
+    let port = embedded_raw_port(port_id)?;
     let platform = serde_json::to_value(platform).ok()?;
-    derivation_inputs_sha256(port, platform.as_str()?).ok()
+    derivation_inputs_sha256(&port, platform.as_str()?).ok()
+}
+
+fn embedded_raw_port(port_id: &str) -> Option<serde_json::Value> {
+    let mut document: serde_json::Value =
+        serde_json::from_str(crate::catalog::EMBEDDED_CATALOG).ok()?;
+    document["ports"]
+        .as_array_mut()?
+        .iter_mut()
+        .find(|port| port["id"] == port_id)
+        .map(serde_json::Value::take)
+}
+
+/// Compare the same typed representation on both sides so absent fields and
+/// their deserialized defaults cannot look like different derivation inputs.
+fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> Option<bool> {
+    let platform_value = serde_json::to_value(entry.platform).ok()?;
+    let platform = platform_value.as_str()?;
+    let raw = embedded_raw_port(&entry.port_id)?;
+    if derivation_inputs_sha256(&raw, platform).ok()? != entry.derivation_inputs_sha256 {
+        return Some(false);
+    }
+    let embedded: PortDefinition = serde_json::from_value(raw).ok()?;
+    let embedded =
+        derivation_inputs_sha256(&serde_json::to_value(embedded).ok()?, platform).ok()?;
+    let active = derivation_inputs_sha256(&serde_json::to_value(port).ok()?, platform).ok()?;
+    Some(embedded == active)
 }
 
 /// Inputs that locate declared persistent paths in an extracted package.
@@ -669,9 +690,50 @@ pub(crate) fn evaluate(
     observed: &PackageShape,
     local: Option<&LocalBaseline>,
 ) -> (ShapeVerdict, ShapeProvenance) {
-    evaluate_with_table(generated_table(), port, platform, sha256, observed, local)
+    let entry = preferred_generated_entry(generated_table(), &port.id, platform, sha256);
+    if let Some(entry) = entry
+        && generated_inputs_match(entry, port) != Some(true)
+    {
+        return (
+            ShapeVerdict::Unknown {
+                baseline: Some(generated_baseline(entry, sha256)),
+                reason: ShapeUnknownReason::IncompleteComparison,
+                unknown: ShapeComponent::ALL.to_vec(),
+                detail: Some(
+                    "The active port definition's package shape inputs could not be matched to the generated baseline."
+                        .into(),
+                ),
+            },
+            ShapeProvenance::Unreviewed,
+        );
+    }
+    evaluate_with_generated_entry(entry, port, platform, sha256, observed, local)
 }
 
+fn preferred_generated_entry<'a>(
+    table: &'a [GeneratedEntry],
+    port_id: &str,
+    platform: Platform,
+    sha256: &str,
+) -> Option<&'a GeneratedEntry> {
+    let mut route = table
+        .iter()
+        .filter(|entry| entry.port_id == port_id && entry.platform == platform);
+    route
+        .clone()
+        .find(|entry| entry.sha256.eq_ignore_ascii_case(sha256))
+        .or_else(|| route.next_back())
+}
+
+fn generated_baseline(entry: &GeneratedEntry, sha256: &str) -> ShapeBaseline {
+    ShapeBaseline::Generated {
+        version: entry.version.clone(),
+        sha256: entry.sha256.clone(),
+        exact: entry.sha256.eq_ignore_ascii_case(sha256),
+    }
+}
+
+#[cfg(test)]
 fn evaluate_with_table(
     table: &[GeneratedEntry],
     port: &PortDefinition,
@@ -680,21 +742,23 @@ fn evaluate_with_table(
     observed: &PackageShape,
     local: Option<&LocalBaseline>,
 ) -> (ShapeVerdict, ShapeProvenance) {
-    let route = table
-        .iter()
-        .filter(|entry| entry.port_id == port.id && entry.platform == platform)
-        .collect::<Vec<_>>();
-    let exact = route
-        .iter()
-        .find(|entry| entry.sha256.eq_ignore_ascii_case(sha256));
-    if let Some(entry) = exact.or(route.last()) {
-        let baseline = ShapeBaseline::Generated {
-            version: entry.version.clone(),
-            sha256: entry.sha256.clone(),
-            exact: exact.is_some(),
-        };
+    let entry = preferred_generated_entry(table, &port.id, platform, sha256);
+    evaluate_with_generated_entry(entry, port, platform, sha256, observed, local)
+}
+
+fn evaluate_with_generated_entry(
+    entry: Option<&GeneratedEntry>,
+    port: &PortDefinition,
+    platform: Platform,
+    sha256: &str,
+    observed: &PackageShape,
+    local: Option<&LocalBaseline>,
+) -> (ShapeVerdict, ShapeProvenance) {
+    if let Some(entry) = entry {
+        let exact = entry.sha256.eq_ignore_ascii_case(sha256);
+        let baseline = generated_baseline(entry, sha256);
         let verdict = compare(baseline, &entry.shape, observed);
-        let provenance = match (&verdict, exact.is_some()) {
+        let provenance = match (&verdict, exact) {
             (ShapeVerdict::Compatible { .. }, true) => ShapeProvenance::Reviewed,
             (ShapeVerdict::Compatible { .. }, false) => ShapeProvenance::Inherited,
             _ => ShapeProvenance::Unreviewed,
