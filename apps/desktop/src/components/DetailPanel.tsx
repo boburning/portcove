@@ -155,6 +155,7 @@ interface DetailPanelProps {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  finishedLaunchActivityId?: string | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
   perform?: Perform | undefined;
@@ -340,6 +341,7 @@ export function DetailPanel(props: DetailPanelProps) {
       opening={props.opening}
       extraFiles={props.extraFiles}
       openActivity={props.openActivity}
+      finishedLaunchActivityId={props.finishedLaunchActivityId}
       openSupport={props.openSupport}
       organization={props.organization}
       cancellations={renderCancellations()}
@@ -468,6 +470,7 @@ function DetailBody(model: {
   opening?: DetailOpening | undefined;
   extraFiles?: ReactNode;
   openActivity?: (() => void) | undefined;
+  finishedLaunchActivityId?: string | undefined;
   openSupport?: (() => void) | undefined;
   organization?: DetailOrganization | undefined;
   cancellations: ReactNode;
@@ -602,6 +605,7 @@ function DetailBody(model: {
               busy={model.busy}
               rollback={model.actions.rollback}
               openActivity={model.openActivity}
+              finishedLaunchActivityId={model.finishedLaunchActivityId}
             />
           )}
           {model.installed && (
