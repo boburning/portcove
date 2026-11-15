@@ -318,6 +318,16 @@ starts a successor and exits can end Core's supervision while the game still
 uses its files. Keep that upstream-owned route non-owning until its full lifetime
 can be tracked; bypassing useful setup or settings is not a management fix.
 
+An upstream player with its own updater can take a managed route only when
+upstream provides a switch that removes every update path, meaning the startup
+check, manual checks and installing a download, and the route passes that
+switch through `launch_arguments` or `launch_environment`. Record source
+evidence that the switch reaches each update entry point. A switch that only
+skips the startup check, such as an offline flag that leaves a manual check or
+an install button available, does not qualify; the route stays non-owning.
+MediEvilRecomp's `--disable-updated`, which upstream provides for an external
+manager, is the first such route.
+
 The supported tracked handoff is a reviewed Windows opt-in. A definition that
 declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
 launch; batch launchers are refused. Without it, the original process is the
