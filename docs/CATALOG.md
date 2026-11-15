@@ -371,6 +371,11 @@ start, choosing the other region's ROM relaunches the same executable with
 `CreateProcessW`, and its in-install crashpad handler exits with the game.
 [Snowboard Kids qualification](qualification/snowboardkids-cdlewis-tracked-handoff-2026-11-15.md).
 
+The Mercenaries 2 native beta opts in on Windows. Quitting to the main menu or
+loading a save starts the same executable again with Rust's `Command::spawn`
+and closes the original.
+[Mercenaries 2 qualification](qualification/mercenaries2-tracked-handoff-2026-11-15.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
