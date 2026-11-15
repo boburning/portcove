@@ -22,7 +22,7 @@
       "steps": [
         {
           "title": "Prepare a separate Cave Story folder",
-          "instruction": "Keep your current game and store installation. For the original freeware edition, put the official Windows or Linux player beside a copy of your Doukutsu.exe and data folder. First launch reads Doukutsu.exe to extract the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. Keep the older supported Steam data away from the 2026 remaster and its saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
+          "instruction": "Keep your current game and store installation. For the original freeware edition, put the official Windows or Linux player beside a copy of your Doukutsu.exe and data folder. First launch reads Doukutsu.exe to extract the additional original resources. For supported Cave Story+ editions, use your own data folder as described by upstream. Use Steam legacy-branch data in a separate copy. The 2026 Steam release uses incompatible data and saves. If an Epic copy contains the stray opengl32.dll described upstream, apply its fix only to your separate prepared copy."
         },
         {
           "title": "Register the prepared Windows player",
@@ -30,7 +30,7 @@
         },
         {
           "title": "Start doukutsu-rs on Linux",
-          "instruction": "On x86-64, make the official Linux ELF executable and start it in your prepared game folder. Flathub also provides io.github.doukutsu_rs.doukutsu-rs for x86-64 and ARM64. Place your permitted prepared data folder under ~/.var/app/io.github.doukutsu_rs.doukutsu-rs/data/doukutsu-rs for the Flatpak. Open and update that copy through Flatpak."
+          "instruction": "On x86-64, make the official Linux ELF executable and start it in your prepared game folder. The v1.0.0 ELF needs glibc 2.39 or newer and the ALSA library libasound.so.2. Flathub provides io.github.doukutsu_rs.doukutsu-rs for x86-64 and ARM64. Place your permitted prepared data folder under ~/.var/app/io.github.doukutsu_rs.doukutsu-rs/data/doukutsu-rs for the Flatpak. Open and update that copy through Flatpak."
         },
         {
           "title": "Use the Intel or Apple Silicon Mac app",
