@@ -150,6 +150,37 @@ and `release-stable` environments, and the owner keeps an offline backup. If
 the key is lost, installed clients cannot be updated. Never rotate it without a
 transition release signed by the old key.
 
+**Catalog publication.** [`catalog-publish.yml`](../.github/workflows/catalog-publish.yml)
+signs the official catalog bundle in `release/catalog-publication/bundle` and
+publishes the complete catalog TUF repository to `gh-pages/catalog/`. Installed
+clients verify it against the root compiled into the app
+(`crates/portcove-core/catalog/official-definition-root.json`). The owner
+decided this on 2026-11-15 (#534), and there is no review gate.
+
+- **Triggers:**
+  - A green `CI` push run on `main` publishes when the bundle differs from the
+    published catalog. Otherwise nothing is built.
+  - The schedule (05:13 and 17:13 UTC) and a manual run re-sign the newest
+    CI-green `main` commit. This renews the timestamp, which lasts 1 day, and the
+    snapshot, definitions and policy roles, which last 7 days.
+- **Signing:**
+  - `prepare` builds the CLI and release tools, inspects the bundle with Core,
+    reads the published catalog and plans the next version of every online role.
+    A first publication starts every role at 1.
+  - Each of the definitions, policy, snapshot and timestamp roles is signed by
+    [`catalog-sign-role.yml`](../.github/workflows/catalog-sign-role.yml).
+    It runs in the role's own `production-catalog-*` environment, which admits
+    only `main`, and the role's key reaches only one step.
+  - `portcove-release-tools` re-verifies every input and refuses a key that is
+    not the role's appointed key.
+- **Publishing:** assembly uses no keys. The `publish` job refuses to push if
+  `gh-pages/catalog/` changed since `prepare` read it, then reads the timestamp
+  back from Pages.
+- **Offline keys:** the root and Targets keys stay offline with the owner. The
+  offline Targets (`release/bootstrap-public-inputs/catalog/offline-targets.json`)
+  expire on 2027-01-30 and must be re-signed offline before then. Root v1
+  expires on 2027-10-30.
+
 ## Retired unattended release engine
 
 Everything below describes the replaced engine: the coordinator journal,

@@ -1607,6 +1607,11 @@ sole Pages writer. The site's 6,000-file / 256 MiB bound remains independent of
 producer and historical-repository bounds. Protected configuration, admission,
 source/producer binding and the live controller integration remain required.
 
+Since 2026-11-15 the bundle below is published by
+[`catalog-publish.yml`](../.github/workflows/catalog-publish.yml), described in
+[Catalog publication](RELEASING.md#current-release-process). The coordinator,
+review and journal steps described in the rest of this section are retired.
+
 The automatic catalog authoring boundary is the fixed inert source subtree
 `release/catalog-publication/`: strict `request.json` plus `bundle/` containing
 the managed index, checksum-addressed definitions and official policy/launch
