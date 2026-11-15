@@ -71566,13 +71566,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II 1.11 installation into data1 in the managed player's folder, and keep your original installation separately. The player does not check or patch these files. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading.",
+        "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into data1 in the managed player's folder, and keep your original installation separately. Portcove does not check these files and nothing patches them; the engine refuses older or mixed versions. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log when startup logging is enabled, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading.",
         "original_game_title": "Hexen II",
         "manual_setup": {
           "steps": [
             {
               "title": "Copy your original game data before Play",
-              "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II 1.11 installation into the player's data1 folder before Play, and keep your original installation separately. The player does not check or patch these files, and the package contains no game data or patching tools."
+              "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into the data1 folder of the game folder you will play from, and keep your original installation separately. The engine refuses older or mixed pak versions; nothing patches them for you, and the package contains no game data or patching tools."
             },
             {
               "title": "Use a copy you manage yourself",
@@ -71581,7 +71581,7 @@
           ],
           "warnings": [
             "The test package bundles ten third-party codec and runtime DLLs without their licence notices. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
-            "Portal of Praevus, HexenWorld and mods are not part of this route; they need their own folders and arguments in a copy you manage yourself."
+            "Portal of Praevus, HexenWorld and mods are not part of this route; they need other programs, folders or arguments in a copy you manage yourself. Portal of Praevus needs portals/pak3.pak and the -portals argument."
           ],
           "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
           "references": [
