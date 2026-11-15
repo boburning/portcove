@@ -1408,8 +1408,8 @@ does not establish full source-contract equality: Rust still compares complete
 frozen legacy projections and retains its qualification and negative assertions.
 Add independently reviewed additive IDs to this fixture once instead of updating
 the expected count and three exclusion lists separately. Insert each ID in ascending
-order; the generator and Rust refuse an unsorted list, so concurrent additions
-merge instead of colliding at the end. Do not regenerate the
+order; the generator and the Rust catalog tests refuse an unsorted list, so
+concurrent additions usually merge instead of colliding at the end. Do not regenerate the
 fixture from the catalog or derive expected identities from a proposal.
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
