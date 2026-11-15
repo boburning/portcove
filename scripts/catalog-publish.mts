@@ -230,6 +230,17 @@ export function sameTargets(a: Record<string, string>, b: Record<string, string>
   return keys.join("\n") === Object.keys(b).sort().join("\n") && keys.every((k) => a[k] === b[k]);
 }
 
+/** True when the published timestamp is absent or expires within `hours`. */
+export function renewalDue(site: string | null, now: Date, hours: number) {
+  if (!site || !existsSync(path.join(site, "metadata", "timestamp.json"))) return true;
+  const timestamp = readJson(path.join(site, "metadata", "timestamp.json"));
+  const expires =
+    isRecord(timestamp) && isRecord(timestamp.signed) ? timestamp.signed.expires : undefined;
+  const at = typeof expires === "string" ? Date.parse(expires) : Number.NaN;
+  if (!Number.isFinite(at)) throw new Error("prior catalog timestamp expiry is malformed");
+  return at - now.getTime() < hours * 60 * 60 * 1000;
+}
+
 /** The newest first-parent `main` commit whose newest `CI` push run succeeded. */
 export function newestGreen(history: readonly string[], conclusions: ReadonlyMap<string, string>) {
   return history.find((sha) => conclusions.get(sha) === "success") ?? null;
@@ -285,6 +296,8 @@ async function main(argv: string[]) {
     const work = path.resolve(flag(args, "work"));
     const role = flag(args, "role") as OnlineRole;
     if (!onlineRoles.includes(role)) throw new Error(`unknown catalog role ${role}`);
+    // Artifacts drop empty directories, so the first signers recreate roles/.
+    mkdirSync(path.join(work, "roles"), { recursive: true });
     write(path.join(work, "context.json"), contextConfig(work, new Date()));
     write(path.join(work, `sign-${role}.json`), signConfig(role, path.resolve(flag(args, "key"))));
   } else if (command === "assembly-config") {
@@ -296,6 +309,11 @@ async function main(argv: string[]) {
     const site = flag(args, "prior");
     const published = site === "none" || !existsSync(site) ? {} : publishedTargets(site);
     console.log(String(sameTargets(bundleTargets(flag(args, "bundle")), published)));
+  } else if (command === "renewal-due") {
+    const site = flag(args, "prior");
+    console.log(
+      String(renewalDue(site === "none" ? null : site, new Date(), Number(flag(args, "hours")))),
+    );
   } else if (command === "write-key") {
     // The role secret becomes a private key file readable only by this job's user.
     const raw = process.env[flag(args, "env")];
@@ -307,7 +325,7 @@ async function main(argv: string[]) {
     console.log(treeDigest(path.resolve(flag(args, "dir"))));
   } else {
     throw new Error(
-      "usage: catalog-publish.mts green-main|prepare|unchanged|sign-config|write-key|assembly-config|tree-digest",
+      "usage: catalog-publish.mts green-main|prepare|unchanged|renewal-due|sign-config|write-key|assembly-config|tree-digest",
     );
   }
 }

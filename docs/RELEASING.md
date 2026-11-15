@@ -159,10 +159,18 @@ decided this on 2026-11-15 (#534), and there is no review gate.
 
 - **Triggers:**
   - A green `CI` push run on `main` publishes when the bundle differs from the
-    published catalog. Otherwise nothing is built.
-  - The schedule (05:13 and 17:13 UTC) and a manual run re-sign the newest
-    CI-green `main` commit. This renews the timestamp, which lasts 1 day, and the
-    snapshot, definitions and policy roles, which last 7 days.
+    published catalog, or when the published timestamp expires within 12 hours.
+    Otherwise nothing is built.
+  - The schedule (05:13 and 17:13 UTC) and a manual run always re-sign. This
+    renews the timestamp, which lasts 1 day, and the snapshot, definitions and
+    policy roles, which last 7 days.
+  - Every trigger publishes the newest CI-green first-parent `main` commit, so
+    re-running an older CI run cannot publish an older bundle.
+- **Recovery:** if renewals stop and the published timestamp expires, clients
+  keep their last verified catalog. The next successful run publishes again,
+  because the expired catalog is still read as authenticated history: its
+  signatures, version floors and unchanging published files are checked, but its
+  expiry is not. No manual step is needed.
 - **Signing:**
   - `prepare` builds the CLI and release tools, inspects the bundle with Core,
     reads the published catalog and plans the next version of every online role.
@@ -170,7 +178,8 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   - Each of the definitions, policy, snapshot and timestamp roles is signed by
     [`catalog-sign-role.yml`](../.github/workflows/catalog-sign-role.yml).
     It runs in the role's own `production-catalog-*` environment, which admits
-    only `main`, and the role's key reaches only one step.
+    only `main`, and the role's key reaches only one step. Before reading any
+    key, it refuses a commit that is not on `main`.
   - `portcove-release-tools` re-verifies every input and refuses a key that is
     not the role's appointed key.
 - **Publishing:** assembly uses no keys. The `publish` job refuses to push if

@@ -4,7 +4,8 @@
 # `gh-pages/catalog/`, which installed clients verify against the compiled root.
 #
 # - A green `CI` push run on `main` publishes when the bundle differs from the
-#   published catalog; nothing is built otherwise.
+#   published catalog or its timestamp expires within 12 hours; nothing is built
+#   otherwise. Every trigger publishes the newest CI-green `main` commit.
 # - The schedule renews the 1-day timestamp and 7-day roles twice a day from the
 #   newest CI-green `main` commit. A manual run does the same.
 #
@@ -53,26 +54,21 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: github.event_name != 'workflow_run'
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .node-version
           package-manager-cache: false
-      - name: Select the CI-green main commit
+      # The GitHub client loads @octokit/core from the locked dependencies.
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Select the newest CI-green main commit
         id: commit
-        env:
-          RUN_COMMIT: ${{ github.event.workflow_run.head_sha }}
         run: |
           set -euo pipefail
-          if [ "$GITHUB_EVENT_NAME" = workflow_run ]; then
-            commit="$RUN_COMMIT"
-          else
-            # The GitHub client loads @octokit/core from the locked dependencies.
-            pnpm install --frozen-lockfile --ignore-scripts
-            commit=$(node scripts/catalog-publish.mts green-main | sed -n 's/^commit=//p')
-          fi
+          # Every trigger publishes the newest CI-green first-parent commit, so a
+          # re-run of an older CI run cannot publish an older bundle.
+          commit=$(node scripts/catalog-publish.mts green-main | sed -n 's/^commit=//p')
           [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::no commit selected"; exit 1; }
           git merge-base --is-ancestor "$commit" origin/main || { echo "::error::$commit is not on main"; exit 1; }
           git checkout --quiet --detach "$commit"
@@ -80,16 +76,19 @@ jobs:
       - name: Read the published catalog
         run: |
           set -euo pipefail
-          if git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages; then
+          # Fail closed: only a missing branch means nothing is published yet.
+          if git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
+            git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             git worktree add --quiet --detach site refs/remotes/origin/gh-pages
           fi
-          [ -d site/catalog ] && echo "PRIOR=site/catalog" >> "$GITHUB_ENV" || echo "PRIOR=none" >> "$GITHUB_ENV"
+          if [ -d site/catalog ]; then echo "PRIOR=site/catalog" >> "$GITHUB_ENV"; else echo "PRIOR=none" >> "$GITHUB_ENV"; fi
       - name: Decide whether to publish
         id: decide
         run: |
           set -euo pipefail
           unchanged=$(node scripts/catalog-publish.mts unchanged --bundle release/catalog-publication/bundle --prior "$PRIOR")
-          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$unchanged" = true ]; then
+          due=$(node scripts/catalog-publish.mts renewal-due --prior "$PRIOR" --hours 12)
+          if [ "$GITHUB_EVENT_NAME" = workflow_run ] && [ "$unchanged" = true ] && [ "$due" = false ]; then
             echo "The published catalog already serves this bundle."; echo "publish=false" >> "$GITHUB_OUTPUT"
           else
             echo "publish=true" >> "$GITHUB_OUTPUT"

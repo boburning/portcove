@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -14,6 +15,7 @@ import {
   planPublication,
   priorVersions,
   publishedTargets,
+  renewalDue,
   sameTargets,
   signConfig,
   treeDigest,
@@ -134,6 +136,47 @@ void test("configs bind one plan, a fresh generation time and only the role's ow
     signed_roles: "roles",
     output: "repository",
   });
+});
+
+void test("a CI-triggered run also renews a timestamp that expires within the window", (t) => {
+  const dir = temp(t);
+  const now = new Date("2026-11-15T12:00:00.000Z");
+  assert.equal(renewalDue(null, now, 12), true);
+  assert.equal(renewalDue(path.join(dir, "absent"), now, 12), true);
+  put(dir, "metadata/timestamp.json", { signed: { expires: "2026-11-16T00:30:00Z" } });
+  assert.equal(renewalDue(dir, now, 12), false);
+  put(dir, "metadata/timestamp.json", { signed: { expires: "2026-11-15T23:30:00Z" } });
+  assert.equal(renewalDue(dir, now, 12), true);
+  put(dir, "metadata/timestamp.json", { signed: { expires: "2026-11-14T00:00:00Z" } });
+  assert.equal(renewalDue(dir, now, 12), true);
+  put(dir, "metadata/timestamp.json", { signed: {} });
+  assert.throws(() => renewalDue(dir, now, 12), /expiry is malformed/u);
+});
+
+void test("signing recreates roles/, which artifact uploads drop when empty", (t) => {
+  const work = temp(t);
+  for (const name of ["root.json", "offline-targets.json", "inspection.json"])
+    put(work, name, name);
+  put(work, "plan.json", planPublication(null, new Date()));
+  assert.ok(!existsSync(path.join(work, "roles")));
+  execFileSync(process.execPath, [
+    path.join(root, "scripts", "catalog-publish.mts"),
+    "sign-config",
+    "--work",
+    work,
+    "--role",
+    "official-definitions",
+    "--key",
+    path.join(work, "..", "key.pk8"),
+  ]);
+  assert.ok(existsSync(path.join(work, "roles")));
+  const readRecord = (name: string) =>
+    JSON.parse(readFileSync(path.join(work, name), "utf8")) as Record<string, unknown>;
+  assert.equal(
+    readRecord("sign-official-definitions.json").output,
+    "roles/official-definitions.json",
+  );
+  assert.equal(readRecord("context.json").previous_repository, null);
 });
 
 void test("inspection keeps only a successful Core report", () => {
@@ -294,6 +337,18 @@ void test("catalog keys reach only one signing step per role, from main", async 
       assert.equal(step.with?.["persist-credentials"], false);
   }
   assert.match(signing[0]!.run!, /trap 'rm -rf "\$RUNNER_TEMP\/role-key"' EXIT/u);
+  // The signer refuses a commit that is not on main before any key is read.
+  const ancestry = steps.findIndex((step) => step.run?.includes("git merge-base --is-ancestor"));
+  assert.ok(ancestry >= 0 && ancestry < steps.indexOf(signing[0]!));
+  assert.equal(
+    steps.find((step) => step.uses?.startsWith("actions/checkout@"))!.with?.["fetch-depth"],
+    0,
+  );
+  // Every trigger publishes the newest CI-green main commit, never the triggering run's commit.
+  assert.doesNotMatch(
+    readFileSync(path.join(workflows, "catalog-publish.yml"), "utf8"),
+    /workflow_run\.head_sha/u,
+  );
 
   // No other workflow may name a catalog signing environment, except the retired
   // controller workflow, which admits only its controller tag until it is removed.
