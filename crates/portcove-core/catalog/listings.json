@@ -2756,7 +2756,7 @@
       "id": "alexbeav-ape-escape-recomp",
       "name": "Ape Escape / Alexbeav PSXRecomp",
       "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
-      "project_url": "https://github.com/Alexbeav/ape-escape-recomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp",
       "original_game_title": "Ape Escape",
       "artwork": {
         "game_id": 3762,
@@ -2827,7 +2827,7 @@
       "id": "alexbeav-alundra-recomp",
       "name": "Alundra / Alexbeav PSXRecomp",
       "summary": "Build and play Alundra on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
-      "project_url": "https://github.com/Alexbeav/alundra-recomp",
+      "project_url": "https://github.com/alexbeavs-ps1-ports/alundra-recomp",
       "original_game_title": "Alundra",
       "artwork": {
         "game_id": 1175,
