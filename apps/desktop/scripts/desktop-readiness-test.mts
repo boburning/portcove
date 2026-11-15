@@ -639,14 +639,14 @@ export async function readinessScenario({
       until.elementLocated(By.css(".detail-panel .primary-actions button")),
       READINESS_REFRESH_MS,
     );
-    await browser.wait(
-      async () => (await primaryActionState(browser))?.text === "Try launch",
-      READINESS_REFRESH_MS,
-    );
-    assert.equal(
-      await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
-      true,
-    );
+    let readyAction: Awaited<ReturnType<typeof primaryActionState>>;
+    await browser.wait(async () => {
+      readyAction = await primaryActionState(browser);
+      return readyAction?.text === "Try launch";
+    }, READINESS_REFRESH_MS);
+    // Assert the state the wait observed rather than re-locating a button a
+    // late refresh could replace.
+    assert.equal(required(readyAction).enabled, true);
     const readyImage = path.join(output, "native-ready-next-action.png");
     await writeFile(readyImage, await browser.takeScreenshot(), {
       encoding: "base64",
