@@ -2167,6 +2167,7 @@ fn copy_launch_preparation_environment(
         "PORTCOVE_CHDMAN",
         "PORTCOVE_DOLPHIN_TOOL",
         "PORTCOVE_TEMP_DIR",
+        "DOLPHIN_HOME",
         "MAME_HOME",
         "RETROBAT_ROOT",
     ];
@@ -3911,6 +3912,7 @@ mod tests {
             ("PORTCOVE_CHDMAN", "chdman"),
             ("PORTCOVE_DOLPHIN_TOOL", "DolphinTool"),
             ("PORTCOVE_TEMP_DIR", "isolated-temp"),
+            ("DOLPHIN_HOME", "custom-dolphin"),
             ("MAME_HOME", "custom-mame"),
             ("RETROBAT_ROOT", "custom-retrobat"),
         ];
