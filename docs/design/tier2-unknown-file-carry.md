@@ -127,29 +127,12 @@ and the baseline that `record_additive_rollback_baseline` records
 valid. The archive-data namespace lives under `user/`, never in a runtime
 folder.
 
-**Super Mario World and A Link to the Past.** They don't need Tier 2. Tier 2
-only adds carrying through rollback.
-
-- **Why declaring the file fails.** The #5881 conflict comes from adding
-  `mods/preloaded/state.toml` to `persistent_paths`. That widens the
-  receipt-governed scope, which leads to `PortableDataContractChanged`.
-- **What the definitions declare.** Both declare `mods/state.toml` and its
-  `.tmp`, but not `mods` or `mods/preloaded`
-  (`crates/portcove-core/catalog/ports/super-mario-world-recomp.json`,
-  `crates/portcove-core/catalog/ports/the-legend-of-zelda-a-link-to-the-past-snes-recomp.json`).
-- **Undeclared, the file is harmless today.** It is not a hazard and not a
-  loader name. If it is also not a package member, it is a Tier 1 harmless
-  file, and a binding row changes no persistence coordinate.
-- **Under Tier 2 it is also carried,** if no file of the package sits directly
-  in `mods/preloaded` (rule 8).
-- **The cost.** The selection is in the backup's unknown-file area only. Managed
-  play already uses the package default
-  (`docs/qualification/mstan-snes-forward-2026-11-14.md`).
-
-Recommendation (D8): bind both routes with the file undeclared through their own
-port PRs. Each PR must first confirm from the exact packages that
-`mods/preloaded/state.toml` and its `.tmp` are not package members. It must
-also record whether `mods/preloaded` itself ships a file, which decides rule 8.
+**Super Mario World and A Link to the Past (D8).** PR #6177 binds both with
+their new `mods/preloaded/state.toml` pair declared in `runtime_mutable_paths`
+as disposable runtime output, as Sonic 2 does for `logs`. Declaring the pair
+persistent would have widened the receipt-governed scope (#5881). Because the
+pair is declared, rule 9 excludes it and Tier 2 never carries it. Managed play
+never changes the selection from the package default.
 
 ## 2. Ledger
 
@@ -213,17 +196,36 @@ taking 60.
 1. Plan read-only (section 4).
 2. One transaction writes T's rows for each planned copy as `pending`, with
    `source_install_id` = A.
-3. Sweep leftover `.portcove-carry-*` files in T. Then, for each planned copy:
-   1. write a `.portcove-carry-*` temporary file beside the destination;
-   2. hash it and compare with the plan;
-   3. re-hash T's destination (M4) and compare with the planned T state
-      (absent, or the digest the plan approved replacing);
-   4. publish with the durability helper's replacing rename.
+3. Sweep leftover `.portcove-carry-*` files in T, then run the free-space
+   check (section 7) against what is still needed. The copy then runs in two
+   phases (N1), so T never ends up with only part of A's files:
+   1. **Stage.** For each planned copy, write a `.portcove-carry-*` temporary
+      file beside the destination and hash it against the plan. Nothing at a
+      destination path changes in this phase.
+   2. **Verify.** Re-hash every source and every destination (M4) and compare
+      with the plan (absent, or the digest the plan approved replacing).
+   3. **Publish.** Only after every file is staged and verified, run the
+      durability helper's replacing renames and the planned removals. This
+      phase needs no new space. A fault point `CarryStaged` sits between
+      verify and publish.
 
-   For a planned removal, re-hash and compare the same way, then remove. A
-   mismatch on the source raises `carried_file_changed`. A mismatch on T
-   re-plans that path as "keep separately", and that switch writes nothing at
-   the path.
+   A failure in stage or verify deletes every temporary file and changes
+   nothing in T:
+   - out of space (the check is a snapshot; another writer can fill the disk):
+     record `insufficient_space`, carry nothing, and the switch goes ahead;
+   - a source changed during the copy: `carried_file_changed`, which holds;
+   - a source locked by another program (a Windows sharing violation):
+     `carried_file_unreadable`, which holds and is retryable; it is the only
+     unreadable case that holds;
+   - a source that can't be read for any other reason, such as a lasting
+     permission error: that path is kept separately with a report, and the rest
+     carry (N5);
+   - a T mismatch: that path is re-planned as "keep separately", and the switch
+     writes nothing at it.
+
+   A failure during publish can only be an interruption. Recovery repeats
+   publish from the staged files, or sweeps them and re-plans if any staged
+   file no longer matches.
 
 4. One transaction:
    - marks T's rows `present`;
@@ -263,6 +265,21 @@ for a stage-only reuse and for recovery's `register_install(&install, false)`.
 Placing the step after it puts declared data and additive adoption
 (`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
 final `verify_critical` after the carry.
+
+**Time under the port lock (N4).** Planning hashes the eligible files in A and
+T, and staging hashes each copy again, so a large tree adds time to every
+switch. The carry step:
+
+- reports progress through the existing operation reporter, including on
+  rollback, which gains a reporter for this step;
+- checks for cancellation between files (`hash_stable_regular` already takes a
+  checkpoint). Cancelling during stage or verify sweeps the temporary files
+  and leaves the switch undone; this is the existing retryable state;
+- may use a recorded (size, mtime) match to skip re-hashing an unchanged file
+  at plan time only. It never authorizes a replacement or removal without a
+  fresh hash.
+
+Startup recovery runs the same step, with the same progress and cancellation.
 
 **The new package ships a file at the path.** Rules 7 and 8 exclude the path,
 so it is not carried and A keeps its copy. The outcome reports it as "the new
@@ -405,11 +422,16 @@ backup doesn't put them back."
   is no count or size limit on what Tier 2 carries. A fixed per-file limit
   would leave an undeclared save larger than it behind, which works against
   keeping player data.
-- **Free-space check instead.** Before copying, Portcove sums the bytes of the
-  files actually to be copied (the "copy" and "replace" rows; removals and
-  unchanged paths don't count) and reuses Core's existing margin,
-  `disc_filesystem::required_free_bytes` (`disc_filesystem.rs:996-998`), against
-  `fs4::available_space` on the target version's volume.
+- **Free-space check instead (N2).** Before staging, Portcove estimates the
+  space the files actually to be copied need (the "copy" and "replace" rows;
+  removals and unchanged paths don't count). Each file is rounded up to the
+  volume's cluster size, or 4 KiB when that can't be read, plus a per-file
+  allowance for directory and file-table overhead. The check requires that
+  estimate **plus** a reserve left free afterwards of max(1 GiB, 2% of the
+  volume), measured with `fs4::available_space` on the target version's
+  volume. The reserve keeps room for the next session's saves, collection and
+  Portcove's own backups, so an automatic copy never leaves the drive nearly
+  full.
 - **Not enough room.** Portcove copies nothing and removes nothing, records
   `insufficient_space`, and the switch goes ahead. Nothing is held and nothing is
   truncated: all files stay in the version they came from.
@@ -423,10 +445,10 @@ backup doesn't put them back."
 **New holds.** Both are transient, retryable and leave A active and T's
 approved state intact (L2):
 
-| Cause                                                      | Code                      | When                                                                                                       |
-| ---------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `CarriedFileChanged { file, from_version, to_version }`    | `carried_file_changed`    | A source file's bytes differ from the plan during copying                                                  |
-| `CarriedFileUnreadable { file, from_version, to_version }` | `carried_file_unreadable` | A source or destination can't be opened or read, such as a Windows sharing violation or a permission error |
+| Cause                                                      | Code                      | When                                                                                                                                    |
+| ---------------------------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `CarriedFileChanged { file, from_version, to_version }`    | `carried_file_changed`    | A source file's bytes differ from the plan during copying                                                                               |
+| `CarriedFileUnreadable { file, from_version, to_version }` | `carried_file_unreadable` | A source or destination is locked by another program (a Windows sharing violation); other read failures keep that path separate instead |
 
 Player copy, written per
 [CONTENT-DESIGN](../CONTENT-DESIGN.md#results-cancellation-and-errors). Paths
@@ -443,18 +465,18 @@ and byte counts go in details.
 - Outcome `kept_separately` (count-aware): "{count} files Portcove didn't install
   are different in version {from} and version {to}, so each version keeps its
   own copy. To use one copy in both versions, delete the copy you don't want,
-  then switch versions again." Details list both paths for up to 64 files.
+  then switch to version {from} and back to version {to}." Details list both paths for up to 64 files.
 - Outcome `new_version_ships_file`: "Version {to} comes with its own {file}, so
   your copy stayed in version {from}."
 - Outcome `insufficient_space`: "Portcove didn't bring {count} files it didn't
   install to version {to}, because the drive doesn't have enough free space to
   copy them. They're still in the version {from} folder. Free up space, then
-  switch versions again." Details give both folders, the bytes needed and the
+  switch to version {from} and back to version {to}." Details give both folders, the bytes needed and the
   bytes available.
 - Outcome `source_modified`: "Portcove didn't bring files it didn't install to
   version {to}, because version {from} has changed or added program files.
   They're still in the version {from} folder."
-- Outcome `carried`: no notice. Technical details state the count.
+- Outcome `carried`: no notice for small carries. When the carried bytes are large (over 256 MiB), the version's status says how much was carried, so per-version storage stays visible (N3). Technical details state the count and bytes.
 
 The outcomes are a read model, `PortStatus.carried_files`, sourced from
 `carried_file_outcomes`. They are not failures.
@@ -507,9 +529,18 @@ lines 257-534):
 11. Restore writes no carried file. A removal backup with three identical
     copies stores the bytes once and stays within the caps (B3).
 12. Removal cascades the rows.
-13. Receipt route with an SMW-shaped fixture (`mods/preloaded/state.toml`):
-    update, launch restore, backup and rollback succeed without
-    `PortableDataContractChanged`.
+13. Receipt route with an SMW-shaped fixture: a path declared in
+    `runtime_mutable_paths` (`mods/preloaded/state.toml`) is never carried,
+    while an undeclared sibling is; update, launch restore, backup and rollback
+    succeed without `PortableDataContractChanged`.
+14. Two-phase copy (N1): a simulated out-of-space error during staging leaves T
+    unchanged, sweeps every temporary file, records `insufficient_space` and
+    still switches; interruption at `CarryStaged` resumes or re-plans cleanly.
+15. Free-space estimate (N2): cluster rounding and the reserve make a tree of
+    many small files need more than its byte count; a stubbed volume just
+    below the requirement carries nothing.
+16. A source that stays unreadable for a non-sharing reason is kept separately
+    and the rest carry; a sharing violation holds (N5).
 
 **Windows** (`service/native_portable.rs` Windows module and
 `native_portable_transition_tests.rs`):
@@ -547,6 +578,14 @@ tests for every outcome and both causes.
   duplicated per version. The reviewed lever is to declare it
   `runtime_mutable_paths`. When the drive is short of space, nothing is carried
   (`insufficient_space`, which is visible).
+- **Removal backups can still be held past Tier 1's caps (N3).** Deduplication
+  collapses identical bytes only; a large undeclared file with different bytes
+  in several versions can still exceed the 64 MiB / 1,024-file removal-backup
+  caps. Owner follow-up: decide whether removal-backup caps also move to a
+  free-space check under the same "no fixed caps" policy.
+- **Disk use grows with retained versions.** Each switch can leave another copy
+  in a retained version, and nothing prunes retained versions; large carries
+  are shown on the version's status (section 7).
 - **Windows alias rules.** They are proven only on hosted Windows.
 
 **Decisions** (critical reviewer's recommendation recorded; owner confirms):
