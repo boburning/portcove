@@ -293,7 +293,10 @@ review are calibrated from 5 s to 60 s: run 43707489255 still showed "Checking
 preparation…" after 5 s while the debug build planned the update. The selected-setup
 wait for explicit BIOS registration to expose the Core-eligible selection is calibrated
 from 15 s to 60 s: in the same run the import finished at 23.5 s but the selection
-waits for a fresh ~14 s workspace snapshot. The
+waits for a fresh ~14 s workspace snapshot. The source-removal wait for the removed
+location's row to leave Game files is calibrated from 15 s to 60 s: run 43725858503
+removed the source, but a snapshot already in flight returned no data after 11 s and
+its retry was still running at 15 s. The
 preparation journey's
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
