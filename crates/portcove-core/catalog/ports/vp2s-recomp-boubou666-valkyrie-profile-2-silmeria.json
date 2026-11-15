@@ -5,10 +5,10 @@
     "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
     "original_game_title": "Valkyrie Profile 2: Silmeria",
     "summary": "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/boubou666/VP2S_Recomp",
+    "project_url": "https://github.com/TheBozos/VP2S_Recomp",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/boubou666/VP2S_Recomp",
+    "setup_url": "https://github.com/TheBozos/VP2S_Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/boubou666/VP2S_Recomp"
+      "help_url": "https://github.com/TheBozos/VP2S_Recomp"
     },
     "issue_number": 3056,
     "listed_at": "2026-10-25",
@@ -47,6 +47,48 @@
         "id": "1429599038"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/boubou666/VP2S_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429599038"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/TheBozos/VP2S_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1429599038"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from boubou666 to TheBozos. GitHub only lets an administrator of the original repository transfer it, and boubou666 remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1429599038",
+            "note": "Repository ID 1429599038, recorded when this port was listed, resolves to TheBozos/VP2S_Recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/TheBozos/VP2S_Recomp/contributors",
+            "note": "boubou666 is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/boubou666/VP2S_Recomp",
+            "note": "The listed path resolves to TheBozos/VP2S_Recomp, repository ID 1429599038."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "599218fdb0e15683b677b497b21f1e312c78cb249202f8a9f1a5e91a96c5e554"
+        }
+      }
+    ]
   }
 }

@@ -5,11 +5,11 @@
     "name": "Super Smash Bros. Ultimate (ssbu-arena)",
     "summary": "An independently maintained OpenSmash fork for competitive Super Smash Bros. Ultimate 1v1, using AArch64-to-C translation and a Windows Vulkan player with its own relay/rollback. Network-impairment and rollback tests used two windows on one PC; ranked play, Elo and replays are planned. The README describes local source installation and says no prebuilt player, but the reviewed v0.2.7 release includes SSBU-Arena.exe, a player ZIP and manifest; that discrepancy remains. Windows 10/11 x64 is primary. Linux/macOS guide links do not establish exact CPU or gameplay support. Use your own 13.0.4 or 13.0.5 dump, keys and owned updates/DLC. Separate firmware requirements are unclear. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
-    "project_url": "https://github.com/Acid236/ssbu-arena",
+    "project_url": "https://github.com/SSBUArena/ssbu-arena",
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/Acid236/ssbu-arena",
+    "setup_url": "https://github.com/SSBUArena/ssbu-arena",
     "artwork": {
       "game_id": 90101,
       "cover_id": 96089,
@@ -30,6 +30,48 @@
         "id": "1428182133"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Acid236/ssbu-arena",
+          "repository": {
+            "host": "github.com",
+            "id": "1428182133"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/SSBUArena/ssbu-arena",
+          "repository": {
+            "host": "github.com",
+            "id": "1428182133"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from Acid236 to SSBUArena. GitHub only lets an administrator of the original repository transfer it, and Acid236 remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1428182133",
+            "note": "Repository ID 1428182133, recorded when this port was listed, resolves to SSBUArena/ssbu-arena."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/SSBUArena/ssbu-arena/contributors",
+            "note": "Acid236 is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Acid236/ssbu-arena",
+            "note": "The listed path resolves to SSBUArena/ssbu-arena, repository ID 1428182133."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "4e33a65a921cf114d0aa0728ce1996dbadd319348c2ac04a8072aef4d5730699"
+        }
+      }
+    ]
   }
 }

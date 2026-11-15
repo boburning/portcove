@@ -4,12 +4,12 @@
     "id": "dead-or-alive-xtreme-beach-volleyball",
     "name": "Dead or Alive Xtreme Beach Volleyball (doaxbv-re)",
     "summary": "Explore Dead or Alive Xtreme Beach Volleyball (doaxbv-re) and follow the upstream project for requirements, downloads and setup.",
-    "project_url": "https://github.com/NoRain211/doaxbv-re",
+    "project_url": "https://github.com/NoRain211/doaxvb-re",
     "issue_number": 1355,
     "listed_at": "2026-10-23",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/NoRain211/doaxbv-re",
+    "setup_url": "https://github.com/NoRain211/doaxvb-re",
     "artwork": {
       "game_id": 1390,
       "cover_id": 402248,
@@ -46,5 +46,46 @@
         "Add only the completed Launcher.exe with its full prepared root and supplied launcher script. Keep every disc root’s .recomp-storage, pending recovery journal and private build/configuration files; the release ZIP is not a prebuilt game."
       ]
     }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "dead-or-alive-xtreme-beach-volleyball",
+    "origin": {
+      "project_url": "https://github.com/NoRain211/doaxbv-re"
+    },
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/NoRain211/doaxbv-re"
+        },
+        "to": {
+          "project_url": "https://github.com/NoRain211/doaxvb-re",
+          "repository": {
+            "host": "github.com",
+            "id": "1335797829"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner NoRain211 renamed the repository it listed; the same repository answers at NoRain211/doaxvb-re. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://github.com/NoRain211/doaxvb-re/commit/1503f1574914e3d8a39aa01086ada0b058923da8",
+            "note": "The commit this listing's setup guide pins is present in the current repository, authored by NoRain211."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/NoRain211/doaxbv-re",
+            "note": "The listed path resolves to NoRain211/doaxvb-re, repository ID 1335797829."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "363c1c51b98c52d7e8aa51f412439713ab850da9aea336868d44d397b6f660ea"
+        }
+      }
+    ]
   }
 }

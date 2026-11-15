@@ -5,10 +5,10 @@
     "name": "Twisted Metal: Black — TMB_Recomp (boubou666)",
     "original_game_title": "Twisted Metal: Black",
     "summary": "This native build reaches boot and language selection. It is explicitly not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-    "project_url": "https://github.com/boubou666/TMB_Recomp",
+    "project_url": "https://github.com/TheBozos/TMB_Recomp",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/boubou666/TMB_Recomp",
+    "setup_url": "https://github.com/TheBozos/TMB_Recomp",
     "manual_setup": {
       "steps": [
         {
@@ -24,7 +24,7 @@
         "This native build reaches boot and language selection. It is explicitly not playable.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/boubou666/TMB_Recomp"
+      "help_url": "https://github.com/TheBozos/TMB_Recomp"
     },
     "issue_number": 3038,
     "listed_at": "2026-10-25",
@@ -47,6 +47,48 @@
         "id": "1430294447"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/boubou666/TMB_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1430294447"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/TheBozos/TMB_Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1430294447"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The repository moved from boubou666 to TheBozos. GitHub only lets an administrator of the original repository transfer it, and boubou666 remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1430294447",
+            "note": "Repository ID 1430294447, recorded when this port was listed, resolves to TheBozos/TMB_Recomp."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/TheBozos/TMB_Recomp/contributors",
+            "note": "boubou666 is listed among the current repository's contributors."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/boubou666/TMB_Recomp",
+            "note": "The listed path resolves to TheBozos/TMB_Recomp, repository ID 1430294447."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "b5832a83a556048fe4f4fe3c7d32f3855d598d3f68e67d11871532b005463463"
+        }
+      }
+    ]
   }
 }

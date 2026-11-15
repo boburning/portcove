@@ -5,13 +5,13 @@
     "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
     "original_game_title": "TimeSplitters 2",
     "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
-    "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+    "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
     "issue_number": 4759,
     "listed_at": "2026-11-09",
     "platforms": ["linux-x86-64"],
     "availability": "packages",
-    "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
-    "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
+    "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v0.9.9",
+    "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
     "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
     "manual_setup": {
       "steps": [
@@ -42,7 +42,7 @@
           "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
         }
       ],
-      "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+      "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
     }
   },
   "upstream_lineage": {
@@ -55,6 +55,43 @@
         "id": "1449120748"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1449120748"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
+          "repository": {
+            "host": "github.com",
+            "id": "1449120748"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner Destinity13 renamed the repository it listed; the same repository answers at Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1449120748",
+            "note": "Repository ID 1449120748, recorded when this port was listed, resolves to Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+            "note": "The listed path resolves to Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck, repository ID 1449120748."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "23ff8a01c59649fcf8f14804d24161a9a7a7d198cf3234a1aabc562c0007fa9f"
+        }
+      }
+    ]
   }
 }
