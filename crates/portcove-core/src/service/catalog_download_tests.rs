@@ -2628,8 +2628,8 @@ async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
         "darkuni-mylifedarklord-recomp",
         "v0.2",
         "MyLifeAsADarklord-v0.2-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2639,8 +2639,8 @@ async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
         "darkuni-mylifeking-recomp",
         "v0.5",
         "MyLifeAsAKing-v0.5-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

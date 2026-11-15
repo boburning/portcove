@@ -56614,6 +56614,150 @@
       }
     },
     {
+      "id": "darkuni-mylifedarklord-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
+      "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifedarklord-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsADarklord-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifedarklord.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifedarklord.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat is an upstream sound-capture helper. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a Darklord base WAD (WF2E) beside mylifedarklord.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
+            },
+            {
+              "title": "Keep any optional King save import separate",
+              "instruction": "The upstream instructions describe reading a copied King save at nand/title/00010001/57464345/data/ARCH.SAV. Close both games, preserve the original King profile, and follow the upstream copy instructions only if you want the optional import."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifedarklord.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-mylifeking-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
+      "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifeking-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifeking-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsAKing-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifeking.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifeking.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a King base WAD (WFCE), and the matching add-on content WAD if you have it, into the managed folder beside mylifeking.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans. Portcove preserves game, nand (saves) and mylifeking.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat is an upstream sound-capture helper. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a King base WAD (WFCE) beside mylifeking.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifeking.ini and the generated game folder with the program."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifeking.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
       "id": "darkuni-poker-smash-recomp",
       "name": "Poker Smash (darkuni Recomp)",
       "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",

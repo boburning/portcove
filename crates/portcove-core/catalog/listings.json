@@ -20194,28 +20194,25 @@
     {
       "id": "darkuni-mylifedarklord-recomp",
       "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
-      "summary": "Player-managed My Life as a Darklord setup using its own WiiWare WAD.",
+      "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
       "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
       "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
       "issue_number": 4121,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare the WiiWare originals",
-            "instruction": "Keep the Windows x64 runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a Darklord base WAD (WF2E) there. Add the matching optional DLC WAD only if you have it."
+            "instruction": "Copy your own NTSC-U My Life as a Darklord base WAD (WF2E) beside mylifedarklord.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
           },
           {
-            "title": "Let the upstream player import the WADs",
-            "instruction": "Run mylifedarklord.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+            "title": "Let the game import the WADs",
+            "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
           },
           {
-            "title": "Preserve the upstream profile",
-            "instruction": "Keep nand, mylifedarklord.ini, the generated game folder and the creating runtime together."
+            "title": "Keep saves and settings",
+            "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
           },
           {
             "title": "Keep any optional King save import separate",
@@ -20223,8 +20220,8 @@
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
       },
@@ -20235,38 +20232,38 @@
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "darkuni-mylifeking-recomp",
       "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
-      "summary": "Player-managed My Life as a King setup using its own WiiWare WAD.",
+      "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
       "project_url": "https://github.com/darkuni/mylifeking-recomp",
       "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
       "issue_number": 4120,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare the WiiWare originals",
-            "instruction": "Keep the Windows x64 runtime and its DLLs together in a writable folder. Put your own NTSC-U My Life as a King base WAD (WFCE) there. Add the matching optional DLC WAD only if you have it."
+            "instruction": "Copy your own NTSC-U My Life as a King base WAD (WFCE) beside mylifeking.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
           },
           {
-            "title": "Let the upstream player import the WADs",
-            "instruction": "Run mylifeking.exe from the upstream folder. The first launch populates game and, with matching DLC, game/dlc. Keep both original WADs separately from the generated files."
+            "title": "Let the game import the WADs",
+            "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
           },
           {
-            "title": "Preserve the upstream profile",
-            "instruction": "Keep nand, mylifeking.ini, the generated game folder and the creating runtime together."
+            "title": "Keep saves and settings",
+            "instruction": "Keep nand, mylifeking.ini and the generated game folder with the program."
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
       },
@@ -20277,7 +20274,10 @@
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "darkuni-outrun-arcade-recomp",
