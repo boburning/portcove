@@ -791,6 +791,9 @@ export function reviewCompatibilityFixture(
   ] as const) {
     checkedIds(baseline, `frozen ${name}`);
     const reviewed = checkedIds(additions[name], name);
+    // Ascending order lets concurrent additions merge instead of colliding at the end.
+    if (reviewed.some((id, index) => index > 0 && reviewed[index - 1]! >= id))
+      throw new Error(`Malformed compatibility fixture ${name}: keep IDs in ascending order.`);
     if (reviewed.some((id) => baseline.includes(id)))
       throw new Error(`Malformed compatibility fixture ${name}: overlaps frozen legacy IDs.`);
     const expected = new Set([...baseline, ...reviewed]);

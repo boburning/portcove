@@ -2902,6 +2902,11 @@ mod tests {
         ] {
             assert!(!ids.is_empty());
             assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            // Ascending order lets concurrent additions merge instead of colliding at the end.
+            assert!(
+                ids.windows(2).all(|pair| pair[0] < pair[1]),
+                "keep reviewed legacy addition IDs in ascending order"
+            );
             for id in ids {
                 assert!(
                     id.split('-').all(|part| !part.is_empty()
