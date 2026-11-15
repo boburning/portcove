@@ -861,7 +861,11 @@ matches; CRC32- or MD5-only files can't be compared and don't count. A disc
 whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
 admission, registration or a contract result, and a catalog identity does not
 depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
-network request, and ignores a DAT file that changed after it was added.
+network request, and ignores a DAT file that changed after it was added. A
+parsed DAT file is kept in memory for later inspections while its path, size,
+modification time and fingerprint are unchanged, so each one is read, hashed
+and parsed once rather than on every inspection; an edit that keeps both size
+and modification time is noticed only after one of them changes.
 
 ### Saved-data behavior
 

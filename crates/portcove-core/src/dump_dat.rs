@@ -7,6 +7,8 @@
 use std::{
     collections::{BTreeMap, HashMap},
     path::{Path, PathBuf},
+    sync::{Arc, Mutex},
+    time::SystemTime,
 };
 
 use quick_xml::{XmlVersion, events::Event};
@@ -561,6 +563,91 @@ fn check(saved: &SavedDatReference) -> Result<(DatReferenceState, Option<Vec<u8>
     })
 }
 
+/// Parsed DAT files kept for later inspections. An entry is reused only while
+/// the file keeps the path, size, modification time and fingerprint it had
+/// when it was hashed and parsed; any difference falls back to [`check`], so
+/// an edited file is still reported as changed. A rewrite that preserves both
+/// size and modification time is not detected until it changes one of them;
+/// identification is informational and never affects admission. The cache is
+/// bounded by the total number of listed files and evicts the least recently
+/// used document.
+const MAX_CACHED_DAT_FILES: u64 = 1_000_000;
+
+struct CachedDat {
+    path: PathBuf,
+    size: u64,
+    modified: SystemTime,
+    sha256: String,
+    document: Arc<DatDocument>,
+}
+
+static DAT_CACHE: Mutex<Vec<CachedDat>> = Mutex::new(Vec::new());
+
+/// Parses per DAT path, so tests can observe reuse without racing each other.
+#[cfg(test)]
+pub(crate) static DAT_PARSES: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+
+/// The parsed document for a ready reference, or the state and problem that
+/// make it unavailable.
+fn ready_document(
+    saved: &SavedDatReference,
+) -> std::result::Result<Arc<DatDocument>, (DatReferenceState, Option<String>)> {
+    let metadata = std::fs::symlink_metadata(&saved.path).ok();
+    let modified = metadata
+        .as_ref()
+        .filter(|metadata| metadata.is_file() && metadata.len() == saved.size)
+        .and_then(|metadata| metadata.modified().ok());
+    if let Some(modified) = modified
+        && let Ok(mut cache) = DAT_CACHE.lock()
+        && let Some(index) = cache.iter().position(|cached| {
+            cached.path == saved.path
+                && cached.size == saved.size
+                && cached.modified == modified
+                && cached.sha256 == saved.sha256
+        })
+    {
+        let cached = cache.remove(index);
+        let document = cached.document.clone();
+        cache.push(cached);
+        return Ok(document);
+    }
+    let bytes = match check(saved) {
+        Ok((DatReferenceState::Ready, Some(bytes))) => bytes,
+        Ok((state, _)) => return Err((state, None)),
+        Err(error) => return Err((DatReferenceState::Unreadable, Some(error.message))),
+    };
+    #[cfg(test)]
+    if let Ok(mut parses) = DAT_PARSES.lock() {
+        parses.push(saved.path.clone());
+    }
+    let document = Arc::new(
+        parse_dat(&bytes).map_err(|error| (DatReferenceState::Unreadable, Some(error.message)))?,
+    );
+    if let Some(modified) = modified
+        && let Ok(mut cache) = DAT_CACHE.lock()
+    {
+        cache.retain(|cached| cached.path != saved.path);
+        cache.push(CachedDat {
+            path: saved.path.clone(),
+            size: saved.size,
+            modified,
+            sha256: saved.sha256.clone(),
+            document: document.clone(),
+        });
+        let mut total: u64 = cache
+            .iter()
+            .map(|cached| cached.document.file_count())
+            .sum();
+        while total > MAX_CACHED_DAT_FILES && cache.len() > 1 {
+            total -= cache.remove(0).document.file_count();
+        }
+        if total > MAX_CACHED_DAT_FILES {
+            cache.clear();
+        }
+    }
+    Ok(document)
+}
+
 fn status(
     saved: &SavedDatReference,
     state: DatReferenceState,
@@ -637,28 +724,10 @@ pub(crate) fn identify_with_references(
     let mut matches = Vec::new();
     let mut checked = 0_u32;
     for saved in references {
-        let document = match check(saved) {
-            Ok((DatReferenceState::Ready, Some(bytes))) => match parse_dat(&bytes) {
-                Ok(document) => document,
-                Err(error) => {
-                    unavailable.push(status(
-                        saved,
-                        DatReferenceState::Unreadable,
-                        Some(error.message),
-                    ));
-                    continue;
-                }
-            },
-            Ok((state, _)) => {
-                unavailable.push(status(saved, state, None));
-                continue;
-            }
-            Err(error) => {
-                unavailable.push(status(
-                    saved,
-                    DatReferenceState::Unreadable,
-                    Some(error.message),
-                ));
+        let document = match ready_document(saved) {
+            Ok(document) => document,
+            Err((state, problem)) => {
+                unavailable.push(status(saved, state, problem));
                 continue;
             }
         };

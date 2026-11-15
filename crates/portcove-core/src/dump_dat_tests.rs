@@ -679,3 +679,48 @@ fn identification_never_changes_the_catalog_assessment() {
         SourceAdmission::Rejected { .. }
     ));
 }
+
+#[test]
+fn an_unchanged_dat_is_parsed_once_and_an_edited_one_is_reported_changed() {
+    let temporary = tempfile::tempdir().unwrap();
+    let saved = saved_reference(temporary.path());
+    let references = [saved.clone()];
+    let selected = inspection(
+        vec![digest(SourceDigestAlgorithm::Sha1, SHA1_EUROPE, 4)],
+        Vec::new(),
+    );
+    let parses = || {
+        DAT_PARSES
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|path| **path == saved.path)
+            .count()
+    };
+    for _ in 0..3 {
+        let result = identify_with_references(&selected, &references);
+        assert_eq!(result.state_code, "identified");
+    }
+    assert_eq!(parses(), 1, "later inspections reuse the parsed document");
+
+    // Same size, different bytes and a new modification time: the reuse key no
+    // longer matches, the fingerprint check runs and reports the edit.
+    let mut edited = std::fs::read(&saved.path).unwrap();
+    let position = edited.iter().position(|byte| *byte == b'E').unwrap();
+    edited[position] = b'F';
+    std::fs::write(&saved.path, &edited).unwrap();
+    let file = std::fs::OpenOptions::new()
+        .write(true)
+        .open(&saved.path)
+        .unwrap();
+    file.set_modified(std::time::SystemTime::now() + std::time::Duration::from_secs(5))
+        .unwrap();
+    drop(file);
+    let changed = identify_with_references(&selected, &references);
+    assert_eq!(changed.state_code, "references_unavailable");
+    assert_eq!(
+        changed.unavailable_references[0].state,
+        DatReferenceState::Changed
+    );
+    assert_eq!(parses(), 1, "a changed file is never parsed");
+}
