@@ -2118,6 +2118,7 @@ fn request_supervised_launch(
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    copy_launch_preparation_environment(&mut command, std::env::vars_os());
     command
         .arg("--portcove-supervise")
         .arg(&request_path)
@@ -2153,6 +2154,34 @@ fn request_supervised_launch(
         let _ = fs::remove_file(&request_path);
     }
     result
+}
+
+fn copy_launch_preparation_environment(
+    command: &mut std::process::Command,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) {
+    // This is the trusted Portcove supervisor, which prepares game files
+    // before spawning the game under the separate child-process policy.
+    const PREPARATION_VARIABLES: &[&str] = &[
+        "PORTCOVE_PREFERENCES",
+        "PORTCOVE_CHDMAN",
+        "PORTCOVE_DOLPHIN_TOOL",
+        "PORTCOVE_TEMP_DIR",
+        "DOLPHIN_HOME",
+        "MAME_HOME",
+        "RETROBAT_ROOT",
+    ];
+    command.envs(environment.into_iter().filter(|(name, _)| {
+        name.to_str().is_some_and(|name| {
+            PREPARATION_VARIABLES.iter().any(|variable| {
+                if cfg!(windows) {
+                    name.eq_ignore_ascii_case(variable)
+                } else {
+                    name == *variable
+                }
+            })
+        })
+    }));
 }
 
 fn wait_for_launch_acceptance<R, S, W>(
@@ -3873,6 +3902,47 @@ mod tests {
             )
             .unwrap();
         assert_eq!(retained, 0);
+    }
+
+    #[test]
+    fn launch_supervisor_receives_disc_tool_configuration_without_credentials() {
+        let mut command = std::process::Command::new("portcove-desktop");
+        let session = [
+            ("PORTCOVE_PREFERENCES", "isolated-preferences.json"),
+            ("PORTCOVE_CHDMAN", "chdman"),
+            ("PORTCOVE_DOLPHIN_TOOL", "DolphinTool"),
+            ("PORTCOVE_TEMP_DIR", "isolated-temp"),
+            ("DOLPHIN_HOME", "custom-dolphin"),
+            ("MAME_HOME", "custom-mame"),
+            ("RETROBAT_ROOT", "custom-retrobat"),
+        ];
+        let environment = session
+            .into_iter()
+            .chain([
+                ("GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_APPLICATION_UPDATE_METADATA_URL", "unrelated"),
+                ("SDL_DYNAMIC_API", "unrelated"),
+            ])
+            .map(|(key, value)| (key.into(), value.into()));
+        copy_launch_preparation_environment(&mut command, environment);
+
+        let copied = command
+            .get_envs()
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(copied.len(), session.len());
+        for (key, value) in session {
+            assert_eq!(
+                copied.get(std::ffi::OsStr::new(key)),
+                Some(&Some(std::ffi::OsStr::new(value))),
+            );
+        }
+        let mut lowercase = std::process::Command::new("portcove-desktop");
+        copy_launch_preparation_environment(
+            &mut lowercase,
+            [("portcove_chdman".into(), "lowercase".into())],
+        );
+        assert_eq!(lowercase.get_envs().count(), usize::from(cfg!(windows)));
     }
 
     #[test]
