@@ -7453,6 +7453,13 @@ mod tests {
             2,
         );
         let foreign = root.join("imgui.ini");
+        fs::write(&foreign, b"same name in another folder").unwrap();
+        let wrong_directory = installer
+            .verify_player_install(&install, &qualification)
+            .unwrap();
+        assert!(!wrong_directory.valid);
+        assert_eq!(wrong_directory.unknown_files, ["imgui.ini"]);
+        fs::remove_file(&foreign).unwrap();
         fs::hard_link(&layout, &foreign).unwrap();
         let with_alias = installer
             .verify_player_install(&install, &qualification)
