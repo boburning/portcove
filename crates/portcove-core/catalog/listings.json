@@ -43664,7 +43664,7 @@
     {
       "id": "pilotwings-64-dgv-recomp",
       "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
-      "summary": "Player-managed Pilotwings 64 setup on Windows and Linux using an original USA cartridge image.",
+      "summary": "Prepare Pilotwings 64 with your original USA cartridge image, then add the working Windows or Linux copy to Portcove.",
       "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
       "issue_number": 1275,
       "listed_at": "2026-10-23",
@@ -43692,13 +43692,17 @@
             "instruction": "On Windows open Pilotwings64Recomp.exe. On Linux use Pilotwings64Recomp.sh from the extracted folder with system SDL2, GTK 3, FreeType and a working Vulkan driver. The inspected Linux executable requires glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
           },
           {
+            "title": "Add the working copy to Portcove",
+            "instruction": "Finish original-file setup in the upstream launcher first. In Portcove, select Pilotwings64Recomp.exe on Windows or the Pilotwings64Recomp binary on Linux. Use its containing folder as the working directory and leave arguments empty. Review the selected launch details, then choose Play separately."
+          },
+          {
             "title": "Preserve the actual profile",
             "instruction": "Keep the selected profile and creating runtime. The default profile is LOCALAPPDATA/Pilotwings64Recomp on Windows and XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A portable.txt beside the executable keeps the profile alongside it."
           }
         ],
         "warnings": [
           "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          "Keep the upstream folder outside the Portcove library. Removing its registration leaves your files in place. You manage updates and backups. Close the game before replacing it and review the changed executable before playing again."
         ],
         "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
       },
