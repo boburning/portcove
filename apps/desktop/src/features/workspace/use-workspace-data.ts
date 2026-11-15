@@ -26,6 +26,7 @@ import {
   LatestRequestGeneration,
 } from "../../shared/concurrency-state";
 import { startManagedSubscription } from "../../shared/subscription-lifecycle";
+import { isRetryableStaleSnapshot } from "../../view-model";
 
 export function emptyActivityFeed(terminalHistoryLimit = 50): ActivityFeed {
   return {
@@ -316,10 +317,20 @@ export function usePortcoveData(libraryGeneration = 0) {
       // Offer the catalog digest this generation already holds; an unchanged
       // catalog (about 7 MB) is then omitted and reused by reference.
       const held = previous?.snapshot;
-      const transport = await desktopApi.workspaceSnapshot(
-        libraryGeneration,
-        held?.catalog_digest ?? null,
-      );
+      const readSnapshot = () =>
+        desktopApi.workspaceSnapshot(libraryGeneration, held?.catalog_digest ?? null);
+      let transport;
+      try {
+        transport = await readSnapshot();
+      } catch (error) {
+        // A read that overlapped the player's own change is refused rather than
+        // returned inconsistent. Read once more before reporting it: the change
+        // succeeded, so a warning now would ask for nothing. A second refusal
+        // still surfaces as the refresh failure.
+        if (!isRetryableStaleSnapshot(error)) throw error;
+        signal.throwIfAborted();
+        transport = await readSnapshot();
+      }
       signal.throwIfAborted();
       const snapshot = restoreUnchangedCatalog(transport, held);
       return {
