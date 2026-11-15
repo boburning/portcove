@@ -3105,6 +3105,9 @@ archive during managed preparation and puts it in the kit's declared
 `third_party` folder before starting the builder. The existing builder network
 restrictions still apply. Kits that already include the archive keep their
 existing file and verification path.
+On Windows the admitted managed builder retains up to 2,048 exact process
+lifetimes. The supervisor waits on those exact handles and reconciles the
+complete job process count before it publishes or cleans up staging.
 PSXRecomp `d5cae379` differs from `7192402` only in GPU rendering fixes and
 test-only build files, so the same builder rules apply to kits that pin it.
 [d5cae379 requalification](qualification/psxrecomp-d5cae379-requalification-2026-11-13.md).

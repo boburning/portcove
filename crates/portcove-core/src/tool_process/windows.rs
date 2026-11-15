@@ -72,6 +72,19 @@ use windows_sys::Win32::{
 };
 
 const MEMBER_LIMIT: usize = 512;
+const MANAGED_BUILDER_MEMBER_LIMIT: usize = 2_048;
+
+impl NativeToolEventBudget {
+    fn member_limit(self) -> usize {
+        match self {
+            Self::Ordinary => MEMBER_LIMIT,
+            // The admitted PSX builder's CMake/Clang jobs retain every exact
+            // lifetime through closure. A real generated-player build reached
+            // 513 even with the pinned compiler frontend running in-process.
+            Self::ManagedBuilder => MANAGED_BUILDER_MEMBER_LIMIT,
+        }
+    }
+}
 const CLOSURE_BOUND: Duration = Duration::from_secs(2);
 
 #[derive(Default, Clone)]
@@ -253,6 +266,10 @@ fn with_control_proof(control: &Control, mut error: PortcoveError) -> PortcoveEr
         .detail(
             "process_tree_event_limit",
             proof.event_budget.limit().to_string(),
+        )
+        .detail(
+            "process_tree_member_limit",
+            proof.event_budget.member_limit().to_string(),
         )
         .detail("process_tree_retained_members", proof.retained.to_string())
         .detail(
@@ -839,6 +856,7 @@ fn positive_root_exit_status(
 
 struct Controller {
     job: OwnedHandle,
+    member_limit: usize,
     root: Option<Identity>,
     primary_thread: Option<OwnedHandle>,
     members: BTreeMap<Identity, Member>,
@@ -960,6 +978,7 @@ impl Controller {
             })?;
         let mut controller = Self {
             job,
+            member_limit: launch.event_budget.member_limit(),
             root: None,
             primary_thread: Some(primary_thread),
             members: BTreeMap::new(),
@@ -1184,7 +1203,7 @@ impl Controller {
             }
             return Ok(key);
         }
-        if self.slots() >= MEMBER_LIMIT {
+        if self.slots() >= self.member_limit {
             self.fail("retained_handle_capacity", None);
             #[cfg(test)]
             if let Some(observation) = &self.options.refused_member {
@@ -1215,7 +1234,7 @@ impl Controller {
         // Descendants that themselves become debuggers do not inherit our debug
         // port. Retain any observed exact Job identity in the SAME store. Missing
         // short lifetimes still fail the terminal total=retained equality.
-        let ids = match membership_snapshot(self.job.as_raw_handle()) {
+        let ids = match membership_snapshot(self.job.as_raw_handle(), self.member_limit) {
             Ok(ids) => ids,
             Err((reason, code)) => {
                 self.fail(reason, code);
@@ -1701,12 +1720,12 @@ impl Controller {
 struct JobProcessIds {
     assigned: u32,
     returned: u32,
-    ids: [usize; MEMBER_LIMIT],
+    ids: [usize; MANAGED_BUILDER_MEMBER_LIMIT],
 }
 
 impl JobProcessIds {
-    fn observed_ids(&self) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
-        if self.assigned as usize > MEMBER_LIMIT || self.returned as usize > MEMBER_LIMIT {
+    fn observed_ids(&self, limit: usize) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+        if self.assigned as usize > limit || self.returned as usize > limit {
             return Err(("membership_capacity", None));
         }
         if self.returned > self.assigned {
@@ -1723,25 +1742,26 @@ impl JobProcessIds {
     }
 }
 
-fn membership_snapshot(job: HANDLE) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
+fn membership_snapshot(job: HANDLE, limit: usize) -> Result<Vec<u32>, (&'static str, Option<u32>)> {
     let mut buffer = JobProcessIds {
         assigned: 0,
         returned: 0,
-        ids: [0; MEMBER_LIMIT],
+        ids: [0; MANAGED_BUILDER_MEMBER_LIMIT],
     };
+    let bytes = std::mem::offset_of!(JobProcessIds, ids) + limit * std::mem::size_of::<usize>();
     if unsafe {
         QueryInformationJobObject(
             job,
             JobObjectBasicProcessIdList,
             (&raw mut buffer).cast(),
-            std::mem::size_of_val(&buffer) as u32,
+            bytes as u32,
             std::ptr::null_mut(),
         )
     } == 0
     {
         return Err(("membership_query", Some(unsafe { GetLastError() })));
     }
-    buffer.observed_ids()
+    buffer.observed_ids(limit)
 }
 
 fn system_directory() -> io::Result<PathBuf> {
@@ -3214,15 +3234,18 @@ mod proof_tests {
         let mut snapshot = JobProcessIds {
             assigned: 2,
             returned: 1,
-            ids: [0; MEMBER_LIMIT],
+            ids: [0; MANAGED_BUILDER_MEMBER_LIMIT],
         };
         snapshot.ids[0] = 42;
         snapshot.ids[1] = usize::MAX;
-        assert_eq!(snapshot.observed_ids().unwrap(), vec![42]);
+        assert_eq!(snapshot.observed_ids(MEMBER_LIMIT).unwrap(), vec![42]);
         snapshot.returned = 0;
-        assert!(snapshot.observed_ids().unwrap().is_empty());
+        assert!(snapshot.observed_ids(MEMBER_LIMIT).unwrap().is_empty());
         snapshot.returned = 2;
-        assert_eq!(snapshot.observed_ids().unwrap_err().0, "member_id_range");
+        assert_eq!(
+            snapshot.observed_ids(MEMBER_LIMIT).unwrap_err().0,
+            "member_id_range"
+        );
     }
 
     #[test]
@@ -3236,16 +3259,80 @@ mod proof_tests {
             let snapshot = JobProcessIds {
                 assigned,
                 returned,
-                ids: [0; MEMBER_LIMIT],
+                ids: [0; MANAGED_BUILDER_MEMBER_LIMIT],
             };
-            assert_eq!(snapshot.observed_ids().unwrap_err().0, reason);
+            assert_eq!(snapshot.observed_ids(MEMBER_LIMIT).unwrap_err().0, reason);
         }
     }
 
     #[test]
+    fn managed_builder_retains_more_than_512_exact_process_lifetimes() {
+        let native = tempfile::tempdir().unwrap();
+        let program = crate::test_fixture::build_probe(native.path());
+        let mut spec =
+            ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, &program)
+                .unwrap();
+        spec.arg("--managed-builder-handle-burst")
+            .current_dir(native.path());
+        let (mut child, group) = spawn_with_options(&spec, TestOptions::default())
+            .map_err(|failure| failure.error)
+            .unwrap();
+        let deadline = Instant::now() + Duration::from_secs(75);
+        let status = loop {
+            match child.try_wait() {
+                Ok(Some(status)) => break status,
+                Ok(None) if Instant::now() < deadline => {
+                    thread::sleep(Duration::from_millis(10));
+                }
+                other => panic!("managed builder fixture did not exit naturally: {other:?}"),
+            }
+        };
+        assert!(status.success());
+        assert!(group.proves_tree_quiescence());
+        let proof = group.control.lock();
+        assert_eq!(proof.accounting, Some((0, 521)));
+        assert_eq!(proof.retained, 521);
+        assert_eq!(proof.identities.len(), 521);
+        assert_eq!(proof.all_retained_signaled, Some(true));
+        assert_eq!(
+            proof.event_budget.member_limit(),
+            MANAGED_BUILDER_MEMBER_LIMIT
+        );
+        assert!(proof.first_failure.is_none());
+    }
+
+    #[test]
+    fn membership_snapshot_enforces_the_selected_finite_limit() {
+        let mut snapshot = JobProcessIds {
+            assigned: 513,
+            returned: 1,
+            ids: [1; MANAGED_BUILDER_MEMBER_LIMIT],
+        };
+        assert_eq!(
+            snapshot.observed_ids(MEMBER_LIMIT).unwrap_err().0,
+            "membership_capacity"
+        );
+        assert_eq!(
+            snapshot.observed_ids(MANAGED_BUILDER_MEMBER_LIMIT).unwrap(),
+            vec![1],
+        );
+        snapshot.assigned = MANAGED_BUILDER_MEMBER_LIMIT as u32 + 1;
+        assert_eq!(
+            snapshot
+                .observed_ids(MANAGED_BUILDER_MEMBER_LIMIT)
+                .unwrap_err()
+                .0,
+            "membership_capacity",
+        );
+    }
+
+    #[test]
     fn invalid_job_observation_never_grants_cleanup_proof() {
-        let failure =
-            membership_snapshot(windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE).unwrap_err();
+        let failure = membership_snapshot(
+            windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE,
+            MEMBER_LIMIT,
+        )
+        .unwrap_err();
         assert_eq!(failure.0, "membership_query");
         assert!(failure.1.is_some());
         let mut proof = Proof {
