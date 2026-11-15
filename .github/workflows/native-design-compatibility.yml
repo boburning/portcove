@@ -74,10 +74,7 @@ jobs:
       matrix:
         include:
           - purpose: shipwright-profile
-            revision: 1e5071a052d99f3ed59b15dae8b6cc65ea5dd097
-            executable: portcove
-          - purpose: mmx4-core
-            revision: 98620937c0243a432569d331d6586b30856a5cad
+            revision: 3e962852d5870afc86f7d6df7d499480307aa4ea
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
@@ -108,9 +105,6 @@ jobs:
           cargo build --locked -p portcove-cli --bin portcove
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --locked -p portcove-desktop --features tauri/custom-protocol
-      - name: Build the private Core qualification CLI
-        if: matrix.purpose == 'mmx4-core'
-        run: cargo build --locked -p portcove-cli --bin portcove --features qualification-fixtures
       - name: Bind the executable to its exact source checkout
         shell: pwsh
         env:
