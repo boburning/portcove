@@ -31,6 +31,12 @@ Source at the tag, `crates/m2-alpha/src/main.rs`:
   `Command` uses `CreateProcessW` without job breakaway and without the shell,
   and the working directory is inherited. The successor is the managed
   executable, so the tracked handoff keeps the session until it exits.
+- `crates/m2-alpha/src/movie.rs` decodes the game's Bink movies with an
+  `ffmpeg` child process found through `M2_FFMPEG`, beside the executable, or
+  on `PATH`, and kills it when the movie is dropped. A copy on `PATH` sits
+  outside the installation. An `ffmpeg.exe` placed in the managed folder would
+  be an unmanaged program inside the installation that update replaces, so the
+  managed copy points players to `PATH` or `M2_FFMPEG` instead.
 - No updater or download code was found. Networking is the co-op invite path;
   a plain launch joins an invite found on the clipboard, which the listing
   warns about.

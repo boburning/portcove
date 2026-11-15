@@ -15587,10 +15587,11 @@
           }
         ],
         "warnings": [
-          "The project publishes no licence, and the package includes no licence notices. Portcove downloads it only from the project’s own releases. You need your own installed PC game.",
+          "The project publishes no licence, and the program bundles third-party libraries without their licence notices. Portcove downloads it only from the project’s own releases. You need your own installed PC game.",
           "A plain launch can join a Mercenaries 2 invitation on your clipboard. For solo play, remove any old game invite from the clipboard before opening the beta.",
           "The initial town and gameplay systems are part of the upstream beta. The publisher describes the rebuild as still in development.",
-          "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps."
+          "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps.",
+          "Movies play only when FFmpeg is installed on your PATH or named by the M2_FFMPEG environment variable."
         ]
       },
       "platforms": [
@@ -18305,11 +18306,11 @@
         "steps": [
           {
             "title": "Add your own Warcraft III files",
-            "instruction": "Put the top-level MPQ files from your own classic Warcraft III installation, war3.mpq plus the War3x MPQ files for The Frozen Throne, and any loose Maps folder in a data folder beside the OpenRealm executable. On Windows the alpha can instead find a classic installation in a Warcraft III folder on any drive."
+            "instruction": "Copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq for The Frozen Throne, and any loose Maps folder from your own classic Warcraft III installation into a data folder beside the OpenRealm executable. Keep your original installation separately."
           },
           {
             "title": "Use a copy you manage yourself",
-            "instruction": "Extract the upstream alpha and keep its libraries and share directory. Start openwarcraft3.exe on Windows, or bin/openwarcraft3 on Linux and Intel Mac with -data followed by the quoted path to your Warcraft III files. Add -roc for Reign of Chaos or -tft for The Frozen Throne. Linux needs SDL2, glibc 2.38 or later and your distribution’s OpenGL, VA-API, VDPAU and OpenCL loader libraries. The Intel Mac executable needs macOS 15 or later and SDL2 compatibility libraries under /usr/local/opt/sdl2-compat."
+            "instruction": "Extract the upstream alpha and keep its libraries and share directory. Start openwarcraft3.exe on Windows or bin/openwarcraft3 on Linux and Intel Mac with -data followed by the quoted path to your Warcraft III files, then -tft for The Frozen Throne or -roc for Reign of Chaos. Linux needs SDL2, glibc 2.38 or later and your distribution’s OpenGL, VA-API, VDPAU and OpenCL loader libraries. The Intel Mac executable needs macOS 15 or later and SDL2 compatibility libraries under /usr/local/opt/sdl2-compat."
           },
           {
             "title": "Use the publisher’s x86-64 Flatpak",
@@ -18318,7 +18319,7 @@
         ],
         "warnings": [
           "This guide covers Warcraft III. The alpha package also includes development resources for other Blizzard games.",
-          "The Windows alpha includes SDL2, libepoxy and zlib libraries without their licence notices."
+          "The Windows alpha includes SDL2, libepoxy and zlib libraries without their licence notices, and the Epic Online Services SDK with the publisher’s online-service configuration for optional online play."
         ],
         "references": [
           {
@@ -59886,6 +59887,7 @@
           }
         ],
         "warnings": [
+          "The player contains program code reconstructed from the original game, which the project’s MIT licence does not cover. Portcove downloads it only from the project’s own releases. You need your own game image, font and sound ROM.",
           "The upstream preview offers an assisted mode with its own save directory. Use the ordinary player for regular play and keep both profiles separately."
         ],
         "references": [

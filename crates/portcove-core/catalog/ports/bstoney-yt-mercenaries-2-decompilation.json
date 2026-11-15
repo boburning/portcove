@@ -28,10 +28,11 @@
         }
       ],
       "warnings": [
-        "The project publishes no licence, and the package includes no licence notices. Portcove downloads it only from the project’s own releases. You need your own installed PC game.",
+        "The project publishes no licence, and the program bundles third-party libraries without their licence notices. Portcove downloads it only from the project’s own releases. You need your own installed PC game.",
         "A plain launch can join a Mercenaries 2 invitation on your clipboard. For solo play, remove any old game invite from the clipboard before opening the beta.",
         "The initial town and gameplay systems are part of the upstream beta. The publisher describes the rebuild as still in development.",
-        "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps."
+        "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps.",
+        "Movies play only when FFmpeg is installed on your PATH or named by the M2_FFMPEG environment variable."
       ]
     }
   },
@@ -65,7 +66,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Keep your own installed PC copy of Mercenaries 2: World in Flames; the beta finds an EA app, Origin or EA Games installation and reads its data folder in place. If it cannot, add an install line with the quoted path to that folder to m2-alpha.toml in the managed game folder. Settings, saves, the autosave, the catalogue cache and the beta's logs stay beside m2-beta.exe and Portcove keeps them across updates, backups and rollback. Quitting to the main menu or loading a save restarts the beta, and Portcove keeps tracking the restarted game. The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime."
+      "manual_preparation": "Keep your own installed PC copy of Mercenaries 2: World in Flames; the beta finds an EA app, Origin or EA Games installation and reads its data folder in place. If it cannot, add an install line with the quoted path to that folder to m2-alpha.toml in the managed game folder. Settings, saves, the autosave, the catalogue cache and the beta's logs stay beside m2-beta.exe and Portcove keeps them across updates, backups and rollback. Quitting to the main menu or loading a save restarts the beta, and Portcove keeps tracking the restarted game. The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime. Install FFmpeg on your PATH for movies; do not put ffmpeg.exe in the game folder, because Portcove replaces that folder's programs on update."
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {

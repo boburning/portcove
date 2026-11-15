@@ -32,6 +32,7 @@
         }
       ],
       "warnings": [
+        "The player contains program code reconstructed from the original game, which the project’s MIT licence does not cover. Portcove downloads it only from the project’s own releases. You need your own game image, font and sound ROM.",
         "The upstream preview offers an assisted mode with its own save directory. Use the ordinary player for regular play and keep both profiles separately."
       ],
       "references": [
