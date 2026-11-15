@@ -362,6 +362,25 @@ return if the older runtime has created a changed path. Existing collection,
 backup/restore, interruption recovery and historical transfer authority remain in
 place; this grants no populated migration or save-format compatibility.
 
+An archive data-policy successor that only appends shared conventional files
+is a separate, structural exception to the empty-path proof. `archive_data`
+derives every predecessor from the current contract by removing a trailing run
+present in both the persistent and shared path lists, keeps the namespace the
+first policy established, and refuses every other policy difference. The update,
+activation and rollback guards accept that lineage (rollback in either direction
+only toward a retained copy). The forward guard also requires the predecessor's
+package manifest to permit the appended paths and its runtime and canonical
+copies of each appended file to agree. After the successor copy's ordinary
+restore, `prepare_retained_install_data` and rollback copy an appended file from
+the active predecessor runtime into that copy only when canonical data lacks it,
+so canonical data changes only through later collection; a retry keeps an
+identical earlier copy. Rollback records the predecessor copy's appended-file
+digests as a baseline, and a forward switch lets canonical data win silently
+for files still matching it. Restoring a snapshot
+framed by a strict predecessor policy keeps current appended files the snapshot
+lacks. Backup framing, fresh-beside and historical transition admission use
+the same lineage. See [CATALOG](CATALOG.md#adding-or-changing-a-port).
+
 Trusted verification projections keep the same exact root receipt-metadata
 exclusions as catalog-captured qualifications. Import still verifies each
 installation's retained scope, immutable identity and independent admission.
@@ -1271,7 +1290,9 @@ Backup inventory probes the per-port lock to distinguish live staging from idle
 owned preparation without changing the lock owner payload. Read-only game-settings
 views hold a shared port lock: they admit each other, block writers only for the
 read, and never replace the owner record. A port writer refused only by shared
-readers retries for at most two seconds, then reports the port busy with
+readers retries for at most thirty seconds, because one settings view reads status,
+the retained catalog and critical files under its shared lock, then reports the
+port busy with
 `held_by: read_only_views`; a writer refused by another exclusive holder reports
 it at once with the last published writer's operation, which is advisory because
 inventory probes publish no record. Probes never wait. The detailed backup
@@ -1418,6 +1439,18 @@ support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
 from API schema and validates candidate fields without changing lifecycle state.
 
+Core `windows_runtime` owns the advisory Microsoft runtime prerequisite report.
+It reads the current installation's launch program and shipped DLLs with fixed
+bounds and without execution, then asks a host-facts seam whether each runtime is
+present; only the Windows host answers, so other hosts and unreadable or limited
+inputs stay unknown rather than missing. `Library::runtime_prerequisites` is an
+on-demand read for one port and stays out of the all-ports status read, which
+would otherwise open program files on every refresh. Launch-session views attach
+the same report to `dll_not_found` and `dll_init_failed` explanations while the
+session's installation is current. CLI and Desktop only present it; the report
+never blocks launch, and Core recognizes the official Microsoft download pages it
+names as reviewed links. Running Microsoft installers is outside this boundary.
+
 API schema 51 exposes one core-owned activity feed. Core reads every current,
 failed-needs-attention, and lifecycle-recovery-owned row from the same SQLite
 snapshot as a bounded newest-first terminal window, deduplicates by durable
@@ -1545,13 +1578,12 @@ Reviews from the previous generation must be requested again. Read-only adapter
 commands never hold that lock while Core works: game setting, setting review,
 capability and mod setup reads resolve the service at their generation, release the
 lock, and reject a result whose generation changed meanwhile, so one slow read cannot
-queue every other command behind it. Applying a game setting keeps the lock for its
-whole operation. An in-process settings access lock, taken exclusively before the adapter lock by the apply and after releasing it by a setting review, and shared by those reads, keeps a read from meeting either one's exclusive port lock, which would refuse it. Like other reads, one still running after the
+queue every other command behind it. Applying a game setting binds the same way without the afterward check, so a committed change is never reported as refused; a switch cannot redirect it while its service holds the library lease, and waiting on the port lock never stalls other commands. An in-process settings access lock, taken exclusively by an apply or a setting review after releasing the adapter lock, and shared by those reads, keeps a read from meeting either one's exclusive port lock, which would refuse it. Like other reads, one still running after the
 two-second drain makes a switch or transfer report the library as in use and restore
 the previous state. Within one process, Core admits no new shared port reader while a
 writer waits for existing readers, so overlapping read-only views cannot keep a player
-action refused as busy; every such wait stays within the writer's two-second yield
-budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
+action refused as busy; every such wait stays within the writer's thirty-second
+yield budget, and readers in other processes are not ordered. Core still owns library leases, copy verification,
 persistence, transfer journals and durable library selection; this is host-state
 coordination, not another domain authority.
 

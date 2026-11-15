@@ -760,6 +760,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "runtime_prerequisite_report",
+                serde_json::json!(schema_for_contract::<
+                    Option<portcove_core::RuntimePrerequisiteReport>,
+                >(contract)),
+            ),
+            (
                 "retained_build_retirement_preview",
                 serde_json::json!(schema_for_contract::<
                     portcove_core::RetainedBuildRetirementPreview,

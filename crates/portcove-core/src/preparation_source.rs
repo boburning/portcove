@@ -315,7 +315,7 @@ fn require_vacant_outputs(
                     && !Path::new(&path).starts_with(&directory))
         }) {
             return Err(PortcoveError::verification(
-                "publisher package occupies a native original output or receipt",
+                "publisher package occupies an original output or receipt",
             ));
         }
     }
@@ -547,20 +547,28 @@ pub(crate) fn materialize(
         &inputs.source,
         checkpoint,
     )?;
-    if native(port) {
-        let qualification =
-            crate::InstallQualification::from_catalog(catalog, &port.id, inputs.host)?;
-        let selected = crate::install::resolve_declared_executable(payload, &qualification)?;
-        let expected =
-            crate::adapter::launch_working_directory(port, payload, &selected, inputs.host)?;
-        if working != expected {
-            return Err(PortcoveError::verification(
-                "native originals differ from the selected executable coordinates",
-            ));
-        }
-    } else if working != payload {
-        return Err(PortcoveError::unsupported(
-            "source-only preparation requires install-root output ownership",
+    let qualification = crate::InstallQualification::from_catalog(catalog, &port.id, inputs.host)?;
+    let selected = crate::install::resolve_declared_executable(payload, &qualification)?;
+    let expected = crate::adapter::launch_working_directory(port, payload, &selected, inputs.host)?;
+    if working != expected || !working.starts_with(payload) {
+        return Err(PortcoveError::verification(
+            "runtime originals differ from the selected executable coordinates",
+        ));
+    }
+    let source_outputs = outputs(port);
+    let generated_metadata = crate::adapter::generated_metadata(port)?;
+    if source_outputs
+        .iter()
+        .chain(&generated_metadata)
+        .any(|relative| {
+            crate::runtime::overlaps(
+                &working.join(relative).to_string_lossy(),
+                &selected.to_string_lossy(),
+            )
+        })
+    {
+        return Err(PortcoveError::verification(
+            "runtime original output overlaps the selected executable",
         ));
     }
     let before = crate::library_transfer::reviewed_tree(payload)?;
@@ -594,7 +602,7 @@ pub(crate) fn materialize(
     } else {
         None
     };
-    if native(port) && !replace_prepared {
+    if !replace_prepared && (native(port) || working != payload) {
         require_vacant_outputs(port, payload, working, &before)?;
     }
     if let Some(tool) = &inputs.conversion_tool
@@ -604,10 +612,10 @@ pub(crate) fn materialize(
             "runtime source conversion tool changed",
         ));
     }
-    for relative in outputs(port) {
+    for relative in &source_outputs {
         checkpoint()?;
-        crate::archive::validate_relative_path(&relative, true)?;
-        let target = working.join(&relative);
+        crate::archive::validate_relative_path(relative, true)?;
+        let target = working.join(relative);
         if !target.starts_with(payload) {
             return Err(PortcoveError::verification(
                 "runtime source escaped private staging",
@@ -693,9 +701,9 @@ pub(crate) fn materialize(
         true,
     )?;
     let mut owned = port.clone();
-    owned.setup_output_paths = outputs(port)
+    owned.setup_output_paths = source_outputs
         .into_iter()
-        .chain(crate::adapter::generated_metadata(port)?)
+        .chain(generated_metadata)
         .map(|relative| {
             working
                 .join(relative)

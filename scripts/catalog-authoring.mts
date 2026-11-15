@@ -162,18 +162,44 @@ function checkPlayerCopy(id: string, field: string, text: unknown) {
     );
 }
 
-function checkPlayerGuideCopy(id: string, field: string, value: unknown) {
+function checkSetupGuideCounts(id: string, field: string, value: unknown, allowEmptySteps = false) {
   if (value == null) return;
-  if (!isRecord(value) || !Array.isArray(value.steps) || !Array.isArray(value.warnings))
-    throw new Error(`${id} ${field} requires steps and warnings arrays.`);
+  if (
+    !isRecord(value) ||
+    !Array.isArray(value.steps) ||
+    !Array.isArray(value.warnings) ||
+    (value.references !== undefined && !Array.isArray(value.references))
+  )
+    throw new Error(
+      `${id} ${field} requires steps and warnings arrays and an optional references array.`,
+    );
+  if (
+    (!allowEmptySteps && value.steps.length === 0) ||
+    value.steps.length + (value.references?.length ?? 0) > 8
+  )
+    throw new Error(
+      `${id} ${field} requires at least one step and at most eight steps and references combined.`,
+    );
+  if (value.warnings.length > 8) throw new Error(`${id} ${field} permits at most eight warnings.`);
+  return { steps: value.steps, warnings: value.warnings };
+}
+
+function checkPlayerGuideCopy(
+  id: string,
+  field: string,
+  value: unknown,
+  expandsRouteFacts: boolean,
+) {
+  const guide = checkSetupGuideCounts(id, field, value, expandsRouteFacts);
+  if (!guide) return;
   // References carry optional exact terms and evidence. Primary actions and
   // warnings are shown directly to players in Desktop and Playnite.
-  for (const [index, step] of value.steps.entries()) {
+  for (const [index, step] of guide.steps.entries()) {
     if (!isRecord(step)) continue;
     checkPlayerCopy(id, `${field}.steps[${index}].title`, step.title);
     checkPlayerCopy(id, `${field}.steps[${index}].instruction`, step.instruction);
   }
-  for (const [index, warning] of value.warnings.entries())
+  for (const [index, warning] of guide.warnings.entries())
     checkPlayerCopy(id, `${field}.warnings[${index}]`, warning);
 }
 
@@ -260,7 +286,12 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
   }
   checkPlayerCopy(listing.id, "listing.summary", listing.summary);
-  checkPlayerGuideCopy(listing.id, "listing.manual_setup", listing.manual_setup);
+  checkPlayerGuideCopy(
+    listing.id,
+    "listing.manual_setup",
+    listing.manual_setup,
+    value.route_facts_v1 !== undefined,
+  );
   publicUrl(listing.project_url, "project_url");
   for (const field of ["release_url", "setup_url"] as const)
     if (listing[field] !== undefined) publicUrl(listing[field], field);
@@ -784,6 +815,12 @@ export function validateCurrentCatalog(catalog: unknown): asserts catalog is Cur
       !isRecord(port.presentation)
     )
       throw new Error("port presentation must be an object or null");
+    if (isRecord(port.presentation))
+      checkSetupGuideCounts(
+        String(port.id),
+        "presentation.manual_setup",
+        port.presentation.manual_setup,
+      );
   }
   for (const name of ["identities", "contracts", "evidence"] as const)
     namedRecords(source[name], `source_catalog.${name}`);

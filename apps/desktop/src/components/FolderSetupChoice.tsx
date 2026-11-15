@@ -147,12 +147,9 @@ export function FolderSetupChoice({
       {choices
         .map((value) => ({ value, ...choiceCopy(t, value) }))
         .map((choice) => (
-          <label
-            key={choice.value}
-            className="flex cursor-pointer items-start gap-3"
-            aria-label={choice.label}
-          >
+          <label key={choice.value} className="flex cursor-pointer items-start gap-3">
             <input
+              aria-label={choice.label}
               aria-describedby={`${name}-${choice.value}`}
               type="radio"
               name={name}
@@ -178,11 +175,9 @@ export function FolderSetupChoice({
           </label>
         ))}
       {consent && (
-        <label
-          className="flex cursor-pointer items-start gap-3"
-          aria-label={t("folderSetup.keepLocalCopy.label")}
-        >
+        <label className="flex cursor-pointer items-start gap-3">
           <input
+            aria-label={t("folderSetup.keepLocalCopy.label")}
             type="checkbox"
             aria-describedby={`${name}-copy`}
             checked={consent.keep_local_copy ?? false}

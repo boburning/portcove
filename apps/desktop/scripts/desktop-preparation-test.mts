@@ -869,9 +869,11 @@ async function assertReviewedUpdateOutcomes({
           5_000,
         );
         assert.equal(await outcome.getAttribute("role"), cancelled ? "status" : "alert");
+        // A committed outcome states its consequence only in the banner ("Your
+        // change was saved."); details then omit the duplicate mutation summary.
         const consequence =
           mutation === "committed"
-            ? "The change was saved"
+            ? "change was saved"
             : mutation === "unknown"
               ? "couldn't confirm whether anything changed"
               : "No files were changed";

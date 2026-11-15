@@ -1344,22 +1344,22 @@ fn staged_sibling_packages_require_version_29_in_fresh_and_retained_readers() {
 }
 
 #[test]
-fn exact_exclusions_require_version_34_in_fresh_and_retained_readers() {
+fn exact_exclusions_require_version_35_in_fresh_and_retained_readers() {
     let catalog = crate::Catalog::embedded().unwrap();
     let port = catalog.port("super-metroid-recomp").unwrap();
     let mut entry = entry_for_port(port);
-    entry["required_capabilities"][0]["minimum_version"] = json!(33);
-    entry["required_capabilities"][0]["maximum_version"] = json!(34);
+    entry["required_capabilities"][0]["minimum_version"] = json!(34);
+    entry["required_capabilities"][0]["maximum_version"] = json!(35);
     let bytes = serde_json::to_vec(&entry).unwrap();
-    assert!(inspect(&entry).unwrap_err().message.contains("version 34"));
+    assert!(inspect(&entry).unwrap_err().message.contains("version 35"));
     assert!(
         index(&bytes, &port.id)
             .inspect_retained_entry("official", &port.id, &bytes)
             .unwrap_err()
             .message
-            .contains("version 34")
+            .contains("version 35")
     );
-    entry["required_capabilities"][0]["minimum_version"] = json!(34);
+    entry["required_capabilities"][0]["minimum_version"] = json!(35);
     assert!(inspect(&entry).unwrap().capabilities().compatible);
 }
 

@@ -2,7 +2,7 @@
 //! provider. Offline checks bind the hashed manifest to its registered artifact.
 use crate::{ArtifactIdentity, Platform, PortDefinition, PortcoveError, Result};
 
-pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 34;
+pub(crate) const EXACT_EXCLUSION_STAGED_CAPABILITY: u32 = 35;
 
 pub(crate) fn has_exact_exclusions(port: &PortDefinition) -> bool {
     port.managed_acquisition_hold

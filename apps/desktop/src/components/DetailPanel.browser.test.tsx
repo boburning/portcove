@@ -89,7 +89,7 @@ it("shows why the last launch failed on an installed game's details page, with O
       key: "dll_not_found",
       raw_code: "0xC0000135",
       explanation: "A required DLL or runtime is most likely missing.",
-      next_action: "Install the runtime the game's page lists, then try again.",
+      next_action: "Check the game's page for a Microsoft runtime to install, then try again.",
     },
   } as never);
   const openActivity = vi.fn();
@@ -100,6 +100,38 @@ it("shows why the last launch failed on an installed game's details page, with O
   expect(desktopApi.launchFailure).toHaveBeenCalledWith(props.port.id, 3);
   await page.getByRole("button", { name: "Open Activity", exact: true }).first().click();
   expect(openActivity).toHaveBeenCalled();
+});
+
+it("refreshes the explanation when a launch finishes on the open details page", async () => {
+  const props = installedSourceDetail("road-rash-64-recompiled", "not_checked");
+  const load = vi.spyOn(desktopApi, "launchFailure").mockResolvedValue(null);
+  const view = await render(<DetailPanel {...props} libraryGeneration={3} />);
+  await expect.poll(() => load.mock.calls.length).toBeGreaterThan(0);
+  expect(document.querySelector("[data-launch-failure]")).toBeNull();
+
+  load.mockResolvedValue({
+    id: "launch-7",
+    install_id: props.status.active.id,
+    exit_code: 7,
+    outcome: "failed",
+    exit_explanation: {
+      table_version: 1,
+      key: "unexplained_exit",
+      raw_code: "7",
+      explanation: "The game closed with an error.",
+      next_action: "Try launching again.",
+    },
+  } as never);
+  await view.rerender(
+    <DetailPanel {...props} libraryGeneration={3} finishedLaunchActivityId="activity-7" />,
+  );
+  await expect.element(page.getByText("The game closed with an error.")).toBeVisible();
+
+  load.mockResolvedValue(null);
+  await view.rerender(
+    <DetailPanel {...props} libraryGeneration={3} finishedLaunchActivityId="activity-8" />,
+  );
+  await expect.element(page.getByText("The game closed with an error.")).not.toBeInTheDocument();
 });
 
 it("keeps the saved disc by default and starts an explicitly chosen disc", async () => {

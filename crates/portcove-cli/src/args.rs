@@ -401,6 +401,11 @@ pub(crate) enum InstallationCommand {
         #[arg(long)]
         yes: bool,
     },
+    /// Check which Microsoft runtimes the installed game's program needs and whether Windows has them.
+    Runtimes {
+        /// Catalog port ID of the installed or registered game.
+        port_id: String,
+    },
     /// Show each installation's recorded package shape and shadow release-drift verdict.
     PackageShape {
         /// Catalog port ID whose installations should be shown.

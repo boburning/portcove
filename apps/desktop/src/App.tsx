@@ -1881,6 +1881,14 @@ function SelectedPortPanel({
       cancellableActivities={activities.filter(
         (activity) => activity.target_id === model.port?.id && activity.cancellation,
       )}
+      finishedLaunchActivityId={
+        activities.find(
+          (activity) =>
+            activity.target_id === model.port.id &&
+            activity.operation === "launch" &&
+            activity.finished_at != null,
+        )?.id
+      }
       libraryGeneration={libraryGeneration}
       gameFileQueryContext={model.gameFileQueryContext}
       gameFileFilterContext={model.gameFileQuery?.context}

@@ -176,9 +176,10 @@ impl DefinitionContentIndex {
                         >= crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
             })
         {
-            return Err(PortcoveError::verification(
-                "exact release exclusions require staged-source capability version 34",
-            ));
+            return Err(PortcoveError::verification(format!(
+                "exact release exclusions require staged-source capability version {}",
+                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+            )));
         }
         if (!retained && !port.reviewed_package_layouts.is_empty())
             || crate::package_layout::layout_capability(&port)
