@@ -533,6 +533,40 @@ fn the_embedded_generated_table_is_current_and_bound_to_reviewed_catalog_artifac
     }
 }
 
+#[test]
+fn generated_baseline_compares_against_active_definition_inputs() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    for entry in generated_table() {
+        let mut port = catalog.port(&entry.port_id).unwrap().clone();
+        port.summary = "A revised player-facing summary.".into();
+        let (verdict, provenance) =
+            evaluate(&port, entry.platform, &entry.sha256, &entry.shape, None);
+        assert!(
+            matches!(verdict, ShapeVerdict::Compatible { .. }),
+            "{}",
+            entry.port_id
+        );
+        assert_eq!(provenance, ShapeProvenance::Reviewed);
+
+        port.persistent_paths.push("new-save-root".into());
+        let (verdict, provenance) =
+            evaluate(&port, entry.platform, &entry.sha256, &entry.shape, None);
+        assert!(
+            matches!(
+                verdict,
+                ShapeVerdict::Unknown {
+                    baseline: Some(ShapeBaseline::Generated { exact: true, .. }),
+                    reason: ShapeUnknownReason::IncompleteComparison,
+                    ..
+                }
+            ),
+            "{}",
+            entry.port_id
+        );
+        assert_eq!(provenance, ShapeProvenance::Unreviewed);
+    }
+}
+
 /// The derivation version these golden shapes belong to. Any change to the
 /// classifier, `CONFIG_EXTENSIONS`, the parts or their anchoring changes the
 /// expected shape below: bump `SHAPE_VERSION` in the same change and update

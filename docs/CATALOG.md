@@ -2194,14 +2194,16 @@ are not pinned by it; a change there still requires the version bump. After a bu
 of the older version, and `--prune` empties the table until entries are
 re-derived.
 
-Known limits of the shadow phase: the table is checked against the embedded
-catalog, so a later signed definition delivery that changes a route's
-derivation inputs is not detected at run time and can show drift that is only
-a definition change; runtime behavior, such as files a release writes at first
-launch, is not part of a package shape; an exact-name classifier counts a
-renamed program as one removed and one added; and only the bootstrapped routes
-have a generated baseline, so the rest fall back to the explicit fingerprint,
-the local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
+Core compares the active definition's shape inputs with the embedded
+definition that supplied the generated baseline. Changed inputs produce an
+unknown verdict and preserve the observed shape, even for a reviewed artifact.
+An unrelated definition edit leaves the comparison available.
+
+Known limits of the shadow phase include runtime behavior, such as files a
+release writes at first launch, which package inspection cannot observe. An
+exact-name classifier counts a renamed program as one removal and one addition.
+Routes without a generated baseline fall back to the explicit fingerprint, the
+local installation or `unknown`. The 2026-11-14 bootstrap and its verdicts
 for the six known-drift routes are in
 [release-drift-shadow-2026-11-14](qualification/release-drift-shadow-2026-11-14.md).
 
