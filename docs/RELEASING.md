@@ -106,7 +106,8 @@ version.
   chosen commit's `Cargo.toml` workspace version when that is higher or nothing has been
   released. N is one more than the highest existing `v*` or `nightly-*` preview
   of that version. `node scripts/app-release.mts next-preview` prints the
-  version the nightly would use.
+  version for the checked-out workspace, which is the nightly's version unless the
+  chosen commit predates a workspace version bump.
 - **Notes:** the tag message lists the commits since the previous `v*` or
   `nightly-*` tag. At signs are replaced so that subjects cannot mention anyone.
 - **Tag integrity:** the publish job refuses a `nightly-*` tag that no longer

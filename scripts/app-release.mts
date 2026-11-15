@@ -477,20 +477,27 @@ export async function ciConclusion(token: string, sha: string) {
 
 /**
  * Conclusion of the newest completed `CI` push run per commit, from the latest
- * 100 completed `CI` push runs on `main` in one read. The nightly looks up its
+ * `nightlyLookback` completed `ci.yml` push runs on `main` in one read. The nightly looks up its
  * candidate commits here instead of reading each commit's runs.
  */
 export async function mainCiConclusions(token: string) {
   const api = await client(token);
-  const response = await api.request("GET /repos/{owner}/{repo}/actions/runs", {
-    owner: "boburning",
-    repo: "portcove",
-    branch: "main",
-    event: "push",
-    status: "completed",
-    per_page: 100,
-    ...read(),
-  });
+  // Scoped to ci.yml: the repository-wide list mixes every push workflow, which
+  // would cover far fewer than `nightlyLookback` commits. Replaced pending runs
+  // complete as cancelled, so 100 completed runs span about 100 main commits.
+  const response = await api.request(
+    "GET /repos/{owner}/{repo}/actions/workflows/{workflow_id}/runs",
+    {
+      owner: "boburning",
+      repo: "portcove",
+      workflow_id: "ci.yml",
+      branch: "main",
+      event: "push",
+      status: "completed",
+      per_page: nightlyLookback,
+      ...read(),
+    },
+  );
   return newestConclusions(
     (
       response.data as {
