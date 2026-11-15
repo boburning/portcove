@@ -3098,6 +3098,13 @@ and finishes the build, and the player interprets overlays. A build that still
 leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
 before anything is installed or changed.
 [Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
+
+Some PSXRecomp kits declare the pinned libwebp source archive without
+including it. For the reviewed pin, Portcove downloads and verifies that
+archive during managed preparation and puts it in the kit's declared
+`third_party` folder before starting the builder. The existing builder network
+restrictions still apply. Kits that already include the archive keep their
+existing file and verification path.
 PSXRecomp `d5cae379` differs from `7192402` only in GPU rendering fixes and
 test-only build files, so the same builder rules apply to kits that pin it.
 [d5cae379 requalification](qualification/psxrecomp-d5cae379-requalification-2026-11-13.md).
