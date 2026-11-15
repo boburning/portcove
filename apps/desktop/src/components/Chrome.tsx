@@ -1115,6 +1115,7 @@ type SourceInspectionReadback = {
 };
 
 function SourceHealth({
+  active,
   generation,
   ports,
   sources,
@@ -1131,6 +1132,7 @@ function SourceHealth({
   onAdded,
   openEvidence,
 }: {
+  active: boolean;
   generation: number;
   ports: PortDefinition[];
   sources: SourceRecord[];
@@ -1147,6 +1149,38 @@ function SourceHealth({
   onAdded?: (() => Promise<unknown>) | undefined;
   openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
+  const sourceHeading = useRef<HTMLHeadingElement>(null);
+  const activeSection = useRef(active);
+  const pendingRemoval = useRef<{ generation: number; profileId: string } | undefined>(undefined);
+  useLayoutEffect(() => {
+    activeSection.current = active;
+    const removal = pendingRemoval.current;
+    if (!removal) return;
+    if (!active || removal.generation !== generation) {
+      pendingRemoval.current = undefined;
+      return;
+    }
+    if (
+      requirementsState !== "available" ||
+      sources.some((source) => source.profile_id === removal.profileId)
+    ) {
+      return;
+    }
+    pendingRemoval.current = undefined;
+    if (document.activeElement === document.body) sourceHeading.current?.focus();
+  }, [active, generation, requirementsState, sources]);
+
+  const refreshAfterRemoval = async (profileId: string) => {
+    const removal = { generation, profileId };
+    if (activeSection.current) pendingRemoval.current = removal;
+    try {
+      await onAdded?.();
+    } catch (error) {
+      if (pendingRemoval.current === removal) pendingRemoval.current = undefined;
+      throw error;
+    }
+  };
+
   const inspection =
     "reports" in inspectionInput
       ? inspectionInput
@@ -1160,7 +1194,9 @@ function SourceHealth({
   return (
     <SettingsRow className="source-health col-span-full min-h-0 grid-cols-1" data-focus-group>
       <div className="settings-title flex flex-wrap items-center justify-between gap-[12px]">
-        <h2 className="m-0 flex items-center gap-2">Game files and BIOS</h2>
+        <h2 ref={sourceHeading} tabIndex={-1} className="m-0 flex items-center gap-2">
+          Game files and BIOS
+        </h2>
         <Button
           data-focusable
           variant="outline"
@@ -1200,7 +1236,7 @@ function SourceHealth({
                 profile={profilesById.get(source.profile_id)}
                 generation={generation}
                 ports={ports}
-                onRemoved={onAdded}
+                onRemoved={onAdded ? () => refreshAfterRemoval(source.profile_id) : undefined}
                 report={inspection.reports.get(source.profile_id)}
                 inspectionRead={inspection.reads.get(source.profile_id)}
                 retryInspection={inspection.retry}
@@ -1835,6 +1871,7 @@ export function SettingsView(props: SettingsViewProps) {
         setSetupSource={setSetupSource}
       />
       <SourceHealth
+        active={selectedCategory === "game-files"}
         generation={generation}
         ports={ports}
         sources={sources}

@@ -1,11 +1,12 @@
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../api";
-import { portDefinition } from "../test-fixtures";
+import { portDefinition, sourceProfile } from "../test-fixtures";
 import type { SourceRemovalPreview } from "../types";
 import { SourceRemovalControl, SourceRemovalReview } from "./SourceRemoval";
+import { SettingsView } from "./Chrome";
 import "../styles/index.css";
 
 const ports = [
@@ -324,3 +325,64 @@ it("never commits an old source preview under a new identity", async () => {
     ),
   ).toBe(false);
 });
+
+it.each(["lost focus", "another control", "left and returned"] as const)(
+  "settles a saved location removal after %s",
+  async (scenario) => {
+    vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
+    vi.spyOn(desktopApi, "removeSource").mockResolvedValue(preview);
+    let releaseRefresh!: () => void;
+    const refreshReady = new Promise<void>((resolve) => {
+      releaseRefresh = resolve;
+    });
+
+    let selectCategory!: (category: "appearance" | "game-files") => void;
+    function Settings() {
+      const [category, setCategory] = useState<"appearance" | "game-files">("game-files");
+      useLayoutEffect(() => {
+        selectCategory = setCategory;
+      }, []);
+      const [sources, setSources] = useState([preview.source]);
+      return (
+        <SettingsView
+          category={category}
+          generation={3}
+          sources={sources}
+          sourceProfiles={[sourceProfile()]}
+          sourceRequirementsState="available"
+          onSourceAdded={async () => {
+            await refreshReady;
+            setSources([]);
+          }}
+        />
+      );
+    }
+
+    await root.rerender(<Settings />);
+    await click("Review saved location removal");
+    await click("Remove saved location…");
+    const discovery = button("Find required files");
+    if (scenario === "another control") {
+      discovery.focus();
+    } else {
+      if (scenario === "left and returned") {
+        await act(async () => selectCategory("appearance"));
+        await act(async () => selectCategory("game-files"));
+      }
+      if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+    }
+
+    await act(async () => releaseRefresh());
+    expect(container.querySelector("[data-source-profile]")).toBeNull();
+    const heading = [...container.querySelectorAll("h2")].find(
+      (element) => element.textContent === "Game files and BIOS",
+    );
+    const target =
+      scenario === "lost focus"
+        ? heading
+        : scenario === "another control"
+          ? discovery
+          : document.body;
+    expect(document.activeElement).toBe(target);
+  },
+);
