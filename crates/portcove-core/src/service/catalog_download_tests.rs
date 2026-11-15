@@ -2375,8 +2375,8 @@ async fn pilotwings_64_dgv_recomp_upstream_release_download_1275() {
         "pilotwings-64-dgv-recomp",
         "v0.1.1",
         "Pilotwings64Recomp-0.1.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
