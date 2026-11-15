@@ -24844,9 +24844,6 @@
       "setup_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/README.md#quick-start",
       "release_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/releases",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "elfbowl-windows-x64.zip"
-        ],
         "linux-x86-64": [
           "ElfBowling-x86_64.AppImage"
         ]
@@ -24856,12 +24853,12 @@
         "help_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
         "steps": [
           {
-            "title": "Choose the upstream player",
-            "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries."
+            "title": "Select the unmodified original",
+            "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release, and keep your original separately. On first start the player asks you to choose it, checks its SHA-256 and keeps a copy in its app profile."
           },
           {
-            "title": "Select the unmodified original",
-            "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release. Pick it on first run, put it next to the player, or point ELFBOWL_EXE to it on desktop. The upstream player checks SHA-256 and keeps a copy in its app profile. Keep your original separately."
+            "title": "Choose the upstream player",
+            "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries. In a copy you manage yourself, you can also put the original next to the player or point ELFBOWL_EXE to it."
           },
           {
             "title": "Use the separate Android or Mac setup",
@@ -39686,16 +39683,17 @@
       "listed_at": "2026-11-05",
       "original_game_title": "Rayman 2: The Great Escape",
       "availability": "packages",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "setup_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
       "manual_setup": {
         "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
         "steps": [
           {
+            "title": "Set up the managed copy on first Play",
+            "instruction": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions."
+          },
+          {
             "title": "Prepare the game",
-            "instruction": "Keep the complete Windows x64 package together. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open Rayman2Recompiled.exe, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). Choose Start Game."
+            "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
           },
           {
             "title": "Select the prepared player",
@@ -39704,12 +39702,13 @@
         ],
         "warnings": [
           "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
-          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy."
         ],
         "references": [
           {
-            "title": "Setup instructions for the inspected release",
-            "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
+            "title": "Upstream releases and their setup notes",
+            "instruction": "https://github.com/n64hub/rayman-2-recomp/releases"
           },
           {
             "title": "Registration ownership and removal",
@@ -39718,6 +39717,10 @@
           {
             "title": "Player-data ownership",
             "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
       },
@@ -39728,7 +39731,10 @@
           "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "n64hub-rush-2049-recomp",
@@ -39825,16 +39831,17 @@
       "listed_at": "2026-11-05",
       "original_game_title": "Super Smash Bros.",
       "availability": "packages",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "setup_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
       "manual_setup": {
         "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
         "steps": [
           {
+            "title": "Set up the managed copy on first Play",
+            "instruction": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions."
+          },
+          {
             "title": "Prepare the game",
-            "instruction": "Keep the complete Windows x64 package together. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. Open SmashBrosRecompiled.exe, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). Choose Start Game."
+            "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
           },
           {
             "title": "Select the prepared player",
@@ -39843,12 +39850,13 @@
         ],
         "warnings": [
           "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
-          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy."
         ],
         "references": [
           {
-            "title": "Setup instructions for the inspected release",
-            "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+            "title": "Upstream releases and their setup notes",
+            "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases"
           },
           {
             "title": "Registration ownership and removal",
@@ -39857,6 +39865,10 @@
           {
             "title": "Player-data ownership",
             "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
       },
@@ -39867,7 +39879,10 @@
           "-windows-x64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
@@ -51503,25 +51518,21 @@
       "original_game_title": "Sin and Punishment",
       "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
       "project_url": "https://github.com/wootbeer/snprecomp",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/wootbeer/snprecomp",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Set up the managed copy on first Play",
+            "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
+          },
           {
             "title": "Check the required game files",
             "instruction": "Use your own Japanese ROM with SHA-1 581297b9d5c3a4c33169ae0aae218c742cd9cbcf, or an English variant with SHA-1 5945ff3935d9d9531bbb5cfcabed7c198e2b2f41 or e3906c919236dac6eba020b4b8c1df91fd725c5d. This guide has not confirmed other translations; check the project’s requirements before using one."
           },
           {
             "title": "Follow upstream setup",
-            "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game."
-          },
-          {
-            "title": "Use the prepared Linux copy",
-            "instruction": "After completing upstream setup, select the SnPRecompiled binary as the executable and its containing folder as the working directory. Choose Play when you want to start that external copy. The .exe in the next step is for Windows."
+            "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game. To register a Linux copy, select the SnPRecompiled program, not SnPRecompiled.sh."
           },
           {
             "title": "Select the prepared player",
@@ -51530,14 +51541,11 @@
         ],
         "warnings": [
           "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay.",
-          "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer."
+          "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer.",
+          "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Use a separate upstream copy for portable.txt mode. Do not use Add to Steam from the managed copy: the shortcut points at one version folder, starts the game outside Portcove and stays in Steam after removal. The Linux x86-64 player needs glibc 2.38 or later and system SDL2, Vulkan, X11, FreeType and D-Bus libraries; Load ROM uses the desktop file-chooser portal."
         ],
         "help_url": "https://github.com/wootbeer/snprecomp",
         "references": [
-          {
-            "title": "Keep the right saves",
-            "instruction": "Keep the installed snprecomp profile and your original files before replacing the package. On Linux, the default profile is ~/.config/snprecomp. The portable.txt mode stores data with the application. Japanese and English profiles have separate saves."
-          },
           {
             "title": "Set up the separate Android ARM64 app",
             "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
@@ -51549,6 +51557,10 @@
           {
             "title": "Player-data ownership",
             "instruction": "You and upstream own the external copy's data: the existing snprecomp profile or the application folder when portable.txt is present. Back up these locations separately; registration does not migrate or certify their compatibility."
+          },
+          {
+            "title": "Managed runtime ownership",
+            "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
           }
         ]
       },
@@ -51565,7 +51577,11 @@
           "-linux-x86_64.tar.gz"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "socom-native-blvckburn-socom-u-s-navy-seals",
@@ -53399,8 +53415,8 @@
       "issue_number": 6000,
       "listed_at": "2026-11-14",
       "platforms": [
-        "windows-x86-64",
         "linux-x86-64",
+        "windows-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ],
@@ -53410,9 +53426,6 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "starwars.exe"
-        ],
-        "linux-x86-64": [
-          "StarWars-linux.tar.gz"
         ],
         "macos-x86-64": [
           "StarWars-mac.zip"
@@ -53425,11 +53438,11 @@
         "steps": [
           {
             "title": "Prepare your own Star Wars arcade ROM set",
-            "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+            "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip (%USERPROFILE% on Windows); each Windows, Linux and Mac build finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
           },
           {
-            "title": "Start the player for your operating system",
-            "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe. On Linux x64, unpack StarWars-linux.tar.gz and open ./starwars. Put the ZIP beside the executable for either of those platforms. On Intel Mac or Apple Silicon, extract the universal Star Wars.app, place starwars.zip in your home folder and open the app. Keep a separate copy of your original ZIP."
+            "title": "Start the Windows or Mac player",
+            "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe; it also finds the ZIP beside it. On Intel Mac or Apple Silicon, extract the universal Star Wars.app and open it."
           },
           {
             "title": "Keep your high scores and settings",
@@ -57918,8 +57931,8 @@
       "issue_number": 6122,
       "listed_at": "2026-11-14",
       "platforms": [
-        "windows-x86-64",
         "linux-x86-64",
+        "windows-x86-64",
         "macos-aarch64"
       ],
       "availability": "packages",
@@ -57928,9 +57941,6 @@
       "download_asset_hints": {
         "windows-x86-64": [
           "FreeSerf-x64-Release.exe"
-        ],
-        "linux-x86-64": [
-          "FreeSerf-0.5.0-Linux.tar.gz"
         ],
         "macos-aarch64": [
           "FreeSerf.dmg"
@@ -57941,16 +57951,16 @@
         "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
         "steps": [
           {
-            "title": "Install or extract the upstream release",
-            "instruction": "On Windows x64, use the Release installer. On Linux x64, extract the tar.gz. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
-          },
-          {
             "title": "Choose data from your original game",
-            "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Keep your originals separate. On Linux or Mac, you can use ~/.local/share/freeserf. On Windows, use the freeserf folder under %LOCALAPPDATA%. When launching from a terminal, -g takes the directory containing your data."
+            "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Copy them to ~/.local/share/freeserf on Linux or Mac, or to the freeserf folder under %LOCALAPPDATA% on Windows, and keep your originals separate. When launching from a terminal, -g takes the directory containing your data."
           },
           {
-            "title": "Keep the files you save",
-            "instruction": "Start FreeSerf from a working directory you can write to. Ctrl+Z writes a save to the current working directory. Keep your saves and active freeserf.ini before replacing the player. Use -l with a saved game file to reopen it."
+            "title": "Install the Windows or Mac release",
+            "instruction": "On Windows x64, use the Release installer. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME on Linux, or in ~/freeserf/saves when XDG_DATA_HOME is unset. On Windows it uses the freeserf folder in your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini: in ~/.local/share/freeserf or under XDG_DATA_HOME on Linux, in %APPDATA%\\freeserf on Windows, and in Library/Application Support/freeserf on Mac. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
           }
         ],
         "warnings": [

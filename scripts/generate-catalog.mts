@@ -26,6 +26,10 @@ import {
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
 import type { ImageValidator } from "./inspect-igdb-artwork.mts";
+import {
+  prepareCoverArtworkInOperations,
+  prepareGameMediaInOperations,
+} from "./artwork-operations.mts";
 import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
@@ -499,21 +503,34 @@ async function prepareArtworkProposal(fullProposal = false) {
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
-  const covers = await prepareCatalogArtwork(input, {
-    ...inspector,
-    acceptedCatalog: acceptedArtwork,
-    identities,
+  const covers = await prepareCoverArtworkInOperations(
+    input,
+    selectedPortIds,
     refreshPortIds,
-    ...(selectedPortIds ? { selectedPortIds } : {}),
-  });
+    (ids, refresh, gone) =>
+      prepareCatalogArtwork(input, {
+        ...inspector,
+        acceptedCatalog: acceptedArtwork,
+        identities,
+        refreshPortIds: refresh,
+        ...(ids ? { selectedPortIds: ids } : {}),
+        ...(gone.length ? { knownGoneImageIds: gone } : {}),
+      }),
+  );
   const gameMedia =
     heroMedia === "igdb"
-      ? await prepareCatalogGameMedia(covers.catalog, {
-          inspector,
-          identities,
-          knownGoneImageIds: covers.gone_image_ids,
-          ...(selectedPortIds ? { selectedPortIds } : {}),
-        })
+      ? await prepareGameMediaInOperations(
+          covers.catalog,
+          selectedPortIds,
+          covers.gone_image_ids,
+          (ids, catalog, gone) =>
+            prepareCatalogGameMedia(catalog, {
+              inspector,
+              identities,
+              knownGoneImageIds: gone,
+              ...(ids ? { selectedPortIds: ids } : {}),
+            }),
+        )
       : undefined;
   if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };
