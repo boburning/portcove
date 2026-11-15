@@ -99,6 +99,10 @@ pub(crate) struct PathInput {
     pub(crate) source_row: Option<CarryRow>,
     pub(crate) target: TargetCopy,
     pub(crate) target_row: Option<CarryRow>,
+    /// For a pending target row, the present row it displaced. A switch
+    /// interrupted before publishing re-plans against that recorded copy, so a
+    /// planned replacement doesn't turn into "keep both" (T2-1 review N1).
+    pub(crate) target_replaces: Option<CarryRow>,
 }
 
 /// Paths and names a carry must never touch, all relative to the persistence
@@ -368,12 +372,19 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
                 && matches!(&row.state, RowState::Pending { source_install_id: source } if source == source_install_id)
         })
     };
-    let recorded_unchanged = |bytes: &str| {
-        input
-            .target_row
-            .as_ref()
-            .is_some_and(|row| row.sha256 == bytes && row.state == RowState::Present)
+    // The present record of T's current bytes: T's row itself, or the row a
+    // pending placement displaced when T still holds those bytes.
+    let recorded = |bytes: &str| -> Option<&CarryRow> {
+        match &input.target_row {
+            Some(row) if row.state == RowState::Present => (row.sha256 == bytes).then_some(row),
+            Some(_) => input
+                .target_replaces
+                .as_ref()
+                .filter(|row| row.state == RowState::Present && row.sha256 == bytes),
+            None => None,
+        }
     };
+    let recorded_unchanged = |bytes: &str| recorded(bytes).is_some();
     // T's copy may be replaced or removed only when it is a recorded ancestor
     // left unchanged, or Portcove's own interrupted placement from this source.
     let stale =
@@ -384,11 +395,9 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         RowChange::Set(CarryRow::present(a, next))
     };
     let kept = |t: &str| {
-        RowChange::Set(match &input.target_row {
-            Some(row) if row.sha256 == t && row.state == RowState::Present => {
-                CarryRow::present(t, row.checked_lineage())
-            }
-            _ => CarryRow::present(t, vec![t.to_owned()]),
+        RowChange::Set(match recorded(t) {
+            Some(row) => CarryRow::present(t, row.checked_lineage()),
+            None => CarryRow::present(t, vec![t.to_owned()]),
         })
     };
     let source_row = match &input.source {
