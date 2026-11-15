@@ -1,0 +1,23 @@
+{
+  "version": "0.1.0-preview.2",
+  "notes": "Portcove 0.1.0-preview.2\n\nFirst preview of the 0.1.0 beta, published through the new release pipeline. It is for testing installation, built-in updates and save protection before 0.1.0.\n\n## Platforms\n\n- **Windows x86-64:** per-user installer (`Portcove_0.1.0-preview.2_x64-setup.exe`) and the standalone CLI ZIP. These builds are not Authenticode-signed yet, so Windows SmartScreen may say \"Windows protected your PC\". Choose **More info**, then **Run anyway**.\n- **Linux x86-64:** AppImage. Make it executable and run it.\n- **macOS (experimental):** universal app. It is not notarized, so macOS blocks the first launch. Open **System Settings → Privacy & Security** and choose **Open Anyway**. macOS has not been tested on physical hardware yet; please report how the first launch goes.\n\n## Updates\n\nPortcove checks for updates itself and installs them only when you choose. Updates are signed, and an update never installs while a game, an install or a backup is running. Portcove follows the **Beta** channel by default, so it moves to 0.1.0 when that is released. To keep receiving previews, choose **Preview** in Settings.\n\nVerify downloads against `SHA256SUMS` in this release.",
+  "pub_date": "2026-11-15T02:33:48Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTd2Q3dUg2dE1yK2R3YnBaT3gwQk9LTVdrbmpFanhmQVVUSTdZbFpXNzFXMUtOeEhBaUVPTzRjU3FUdnYwQjVwN0pnRnhzRzN4VnlRRGVFNVlQNmRvbkdrZ0F6WDdvYWc4PQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzA5NDM3CWZpbGU6UG9ydGNvdmVfMC4xLjAtcHJldmlldy4yX3g2NC1zZXR1cC5leGUJdmVyc2lvbjowLjEuMC1wcmV2aWV3LjIKa3B2YXh1WVdnRUVIS0F2UzZpL3Ntay83RzhhRXNSMDFIMndmTjhGRUJXRFNTWTAzcXhrNHhUblVrQnpjb3A0d3dra3NqTC9RU3JCYk16RHFYOXU0QUE9PQo=",
+      "url": "https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_x64-setup.exe"
+    },
+    "linux-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTd2Q3dUg2dE1yK1ltaEtKelVrR1RwdTc1djlnMlJHemJINDUyWHZTT0FNakh3OFk3MmZ3NTZYeDl5UWJJTFZUUE02d1dBQ3BOUzk5bFpiLzhBdlBLaFFPZzhOWUFVYmdZPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzA4NTI2CWZpbGU6UG9ydGNvdmVfMC4xLjAtcHJldmlldy4yX2FtZDY0LkFwcEltYWdlCXZlcnNpb246MC4xLjAtcHJldmlldy4yCjRSdEdJVDdNU0xnRVRHSkVvU2tZdU1pdXhwakVpb3BDRUo4ZDF5djhaYUtBWlBFVTFWKzRvclo5b2dQdGtnZEgrd3JtZU9TZU9hTkllL0ptSUZ4aEFBPT0K",
+      "url": "https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_amd64.AppImage"
+    },
+    "darwin-aarch64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTd2Q3dUg2dE1yK2NzM0FNU3JuaVNFd296Mm11bEtILzlKamdWazd0Ri8ycGlyK2piQ2JIZ2V3QTNQdnY5T2VsYXEyRzc0a3luK21jNXEwWi9XMjc5dlh3MFRmdWR3NXdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzA5MzEwCWZpbGU6UG9ydGNvdmUuYXBwLnRhci5negl2ZXJzaW9uOjAuMS4wLXByZXZpZXcuMgpvWXJiQVZnZmZHT2pnUUdQbzgwY3drYlduUngvaE5oVWg2SjN2RWtKS1JXRzRKTjFJUXErQU9XVm5HWmhmQndNTGRURnZseEJENHhvZjM4OGJ4TXhDQT09Cg==",
+      "url": "https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_universal.app.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVTd2Q3dUg2dE1yK2NzM0FNU3JuaVNFd296Mm11bEtILzlKamdWazd0Ri8ycGlyK2piQ2JIZ2V3QTNQdnY5T2VsYXEyRzc0a3luK21jNXEwWi9XMjc5dlh3MFRmdWR3NXdvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzk0NzA5MzEwCWZpbGU6UG9ydGNvdmUuYXBwLnRhci5negl2ZXJzaW9uOjAuMS4wLXByZXZpZXcuMgpvWXJiQVZnZmZHT2pnUUdQbzgwY3drYlduUngvaE5oVWg2SjN2RWtKS1JXRzRKTjFJUXErQU9XVm5HWmhmQndNTGRURnZseEJENHhvZjM4OGJ4TXhDQT09Cg==",
+      "url": "https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_universal.app.tar.gz"
+    }
+  }
+}
