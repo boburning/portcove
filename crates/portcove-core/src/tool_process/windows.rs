@@ -3269,9 +3269,11 @@ mod proof_tests {
     fn managed_builder_retains_more_than_512_exact_process_lifetimes() {
         let native = tempfile::tempdir().unwrap();
         let program = crate::test_fixture::build_probe(native.path());
-        let mut spec =
-            ChildProcessPolicy::native_tool_spec(ChildProcessClass::ManagedBuilder, &program)
-                .unwrap();
+        let mut spec = crate::ChildProcessPolicy::native_tool_spec(
+            crate::ChildProcessClass::ManagedBuilder,
+            &program,
+        )
+        .unwrap();
         spec.arg("--managed-builder-handle-burst")
             .current_dir(native.path());
         let (mut child, group) = spawn_with_options(&spec, TestOptions::default())
