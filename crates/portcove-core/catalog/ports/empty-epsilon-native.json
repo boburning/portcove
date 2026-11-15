@@ -36,7 +36,7 @@
       "references": [
         {
           "title": "Keep your settings and custom scenarios",
-          "instruction": "Preserve options.ini, keybindings.json and your custom scripts, resources and packs in the .emptyepsilon folder in your home directory, or in the launcher folder if that is the configuration location you use. Keep the directory you selected if you set EE_CONF_DIR."
+          "instruction": "Keep options.ini and keybindings.json in the directory set by EE_CONF_DIR, or in the .emptyepsilon folder in your home directory by default. If the game uses its start folder for settings, preserve them there. Keep custom scripts, resources and packs in the locations where you added them."
         }
       ]
     }
