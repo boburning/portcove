@@ -631,7 +631,7 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 beta: is_beta_tag(&release.tag_name),
             })
             .collect::<Vec<_>>();
-        let mut notes = crate::release_notes::between(
+        Some(crate::release_notes::between(
             &listed,
             &crate::release_notes::NotesRequest {
                 channel,
@@ -640,9 +640,8 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 offered,
             },
             releases_url,
-        );
-        crate::release_notes::link_entries(&mut notes, None);
-        Some(notes)
+            crate::release_notes::ReleasePage::GitlabRelease,
+        ))
     }
 }
 
@@ -1572,6 +1571,11 @@ mod tests {
             [("v1.2", "Fixes audio"), ("v1.1", "Adds widescreen")]
         );
         assert_eq!(notes.entries[0].title, None);
+        // GitLab release pages sit directly under the release list.
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://gitlab.example.test/group/project/-/releases/v1.2")
+        );
     }
 
     fn generic_test_port() -> PortDefinition {

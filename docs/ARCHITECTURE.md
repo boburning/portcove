@@ -3474,8 +3474,9 @@ project's release list page and each release's page, built by Core from the
 provider origin and repository and kept only when they pass the reviewed-link
 check that Desktop applies before opening any URL; if that check cannot complete,
 the link is dropped and the review continues. A release page is offered only for
-a plain tag (ASCII letters, digits, `-`, `_`, `.`, `+`), and only while the release
-list itself is openable. The reviewed-link check accepts exactly
+a plain tag (ASCII letters, digits, `-`, `_`, `.`, `+`) shown exactly as published,
+only while the release list itself is openable, and only for the reviewed port's
+own release repository. The reviewed-link check accepts exactly
 `https://github.com/<repository>/releases/tag/<tag>` or
 `https://gitlab.com/<repository>/-/releases/<tag>` for a cataloged port's own
 release repository and such a tag; any other path, host, query, fragment or

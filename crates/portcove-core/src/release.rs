@@ -1412,7 +1412,7 @@ impl ReleaseProvider for GithubReleaseProvider {
                 beta: is_beta_release(release),
             })
             .collect::<Vec<_>>();
-        let mut notes = crate::release_notes::between(
+        Some(crate::release_notes::between(
             &listed,
             &crate::release_notes::NotesRequest {
                 channel,
@@ -1421,9 +1421,8 @@ impl ReleaseProvider for GithubReleaseProvider {
                 offered,
             },
             releases_url,
-        );
-        crate::release_notes::link_entries(&mut notes, Some("tag"));
-        Some(notes)
+            crate::release_notes::ReleasePage::GithubTag,
+        ))
     }
 }
 
@@ -4969,6 +4968,11 @@ mod tests {
         assert_eq!(note_versions(&notes), ["v4", "v3"]);
         assert_eq!(notes.entries[0].notes, "Four\n<img src=x onerror=alert(1)>");
         assert_eq!(notes.entries[0].title.as_deref(), Some("Release v4"));
+        // GitHub release pages sit under the list's `tag/` path.
+        assert_eq!(
+            notes.entries[0].url,
+            Some(format!("{api_root}/owner/repo/releases/tag/v4"))
+        );
         let beta = provider
             .cached_release_notes(&port, ReleaseChannel::Beta, windows, Some("v2"), "v4")
             .unwrap();

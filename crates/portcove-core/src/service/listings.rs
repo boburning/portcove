@@ -362,6 +362,26 @@ fn listing_resource_url(listing: &crate::PortListing, url: &str) -> bool {
         })
 }
 
+/// A single release page of the port's own GitHub or GitLab release repository on
+/// its public web host, named by a plain tag. Any other path, host, query,
+/// fragment or encoded tag is refused.
+pub(crate) fn release_page_url(port: &crate::PortDefinition, url: &str) -> bool {
+    let Some(segments) = crate::release_notes::repository_segments(&port.release.repository) else {
+        return false;
+    };
+    let prefix = match port.release.provider {
+        crate::ReleaseSource::Github => {
+            format!("https://github.com/{}/releases/tag/", segments.join("/"))
+        }
+        crate::ReleaseSource::Gitlab => {
+            format!("https://gitlab.com/{}/-/releases/", segments.join("/"))
+        }
+        _ => return false,
+    };
+    url.strip_prefix(&prefix)
+        .is_some_and(crate::release_notes::linkable_tag)
+}
+
 /// A single navigation destination derived from a reviewed repository identity.
 /// This does not authorize repository descendants, acquisition or execution.
 fn repository_updates_url(value: &str) -> Option<String> {
@@ -425,6 +445,26 @@ fn repository_updates_url(value: &str) -> Option<String> {
 mod resource_url_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn release_pages_follow_each_provider_layout_for_the_port_repository() {
+        let catalog = Catalog::embedded().unwrap();
+        let gitlab = catalog.port("extreme-g-recompiled").unwrap();
+        assert!(release_page_url(
+            gitlab,
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0"
+        ));
+        for refused in [
+            "https://github.com/sonicdcer/ExtremeGRecomp/releases/tag/v1.0.0",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0/",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1/../x",
+            "https://GITLAB.com/sonicdcer/ExtremeGRecomp/-/releases/v1.0.0",
+            "https://gitlab.com/sonicdcer/ExtremeGRecomp/-/releases/v1\\x",
+            "https://gitlab.com/other/ExtremeGRecomp/-/releases/v1.0.0",
+        ] {
+            assert!(!release_page_url(gitlab, refused), "{refused}");
+        }
+    }
 
     #[test]
     fn reviewed_funding_links_open_only_exactly() {
@@ -593,24 +633,4 @@ mod resource_url_tests {
             assert!(!service.is_reviewed_resource_url(url).unwrap(), "{url}");
         }
     }
-}
-
-/// A single release page of the port's own GitHub or GitLab release repository on
-/// its public web host, named by a plain tag. Any other path, host, query,
-/// fragment or encoded tag is refused.
-fn release_page_url(port: &crate::PortDefinition, url: &str) -> bool {
-    let Some(segments) = crate::release_notes::repository_segments(&port.release.repository) else {
-        return false;
-    };
-    let prefix = match port.release.provider {
-        crate::ReleaseSource::Github => {
-            format!("https://github.com/{}/releases/tag/", segments.join("/"))
-        }
-        crate::ReleaseSource::Gitlab => {
-            format!("https://gitlab.com/{}/-/releases/", segments.join("/"))
-        }
-        _ => return false,
-    };
-    url.strip_prefix(&prefix)
-        .is_some_and(crate::release_notes::linkable_tag)
 }

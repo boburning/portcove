@@ -82,7 +82,8 @@ impl PortcoveService {
     }
 
     /// The release list link is kept only when Desktop's reviewed-link check would
-    /// open it; nothing else in the notes is a link.
+    /// open it. Each entry's release page is kept only with that list and only when
+    /// it is a plain-tag release page of this port's own release repository.
     fn update_release_notes(
         &self,
         port_id: &str,
@@ -92,8 +93,9 @@ impl PortcoveService {
         if plan.action == crate::InstallPlanAction::AlreadyActive {
             return Ok(None);
         }
+        let port = self.catalog.port(port_id)?;
         let Some(mut notes) = self.releases.cached_release_notes(
-            self.catalog.port(port_id)?,
+            port,
             plan.channel,
             plan.platform,
             status.active.as_ref().map(|active| active.version.as_str()),
@@ -105,20 +107,17 @@ impl PortcoveService {
             let reviewed = self.is_reviewed_resource_url(url);
             keep_reviewed_link(&mut notes, reviewed);
         }
-        // Each release page is checked on its own; without an openable list, no
-        // release page is offered either.
+        // Without an openable list, no release page is offered either. The page
+        // check is the port-bound part of Desktop's reviewed-link check.
+        let list_kept = notes.releases_url.is_some();
         for entry in &mut notes.entries {
-            let reviewed = match (&notes.releases_url, &entry.url) {
-                (Some(_), Some(url)) => self.is_reviewed_resource_url(url),
-                _ => Ok(false),
-            };
-            match reviewed {
-                Ok(true) => {}
-                Ok(false) => entry.url = None,
-                Err(error) => {
-                    tracing::warn!(%error, "could not check a release page link; omitting it");
-                    entry.url = None;
-                }
+            if !(list_kept
+                && entry
+                    .url
+                    .as_deref()
+                    .is_some_and(|url| super::listings::release_page_url(port, url)))
+            {
+                entry.url = None;
             }
         }
         Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
@@ -533,17 +532,29 @@ mod tests {
                 .repository
                 .as_deref()
                 .unwrap_or(&port.release.repository);
-            let mut notes = crate::UpdateReleaseNotes {
-                releases_url: Some(format!("https://github.com/{repository}/releases")),
+            let list = format!("https://github.com/{repository}/releases");
+            let entries = self
+                .entries
+                .iter()
+                .cloned()
+                .map(|mut entry| {
+                    entry.url = crate::release_notes::release_page(
+                        &list,
+                        crate::release_notes::ReleasePage::GithubTag,
+                        &entry.version,
+                    );
+                    entry
+                })
+                .collect::<Vec<_>>();
+            Some(crate::UpdateReleaseNotes {
+                releases_url: Some(list),
                 coverage: if self.entries.is_empty() {
                     crate::UpdateReleaseNotesCoverage::Unavailable
                 } else {
                     crate::UpdateReleaseNotesCoverage::Complete
                 },
-                entries: self.entries.clone(),
-            };
-            crate::release_notes::link_entries(&mut notes, Some("tag"));
-            Some(notes)
+                entries,
+            })
         }
     }
 
@@ -578,7 +589,10 @@ mod tests {
         let with = noted.plan_game_update(PORT, true).await.unwrap();
         assert_eq!(
             with.release_notes.as_ref().unwrap().entries,
-            [notes_entry()]
+            [crate::UpdateReleaseNotesEntry {
+                url: Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2".into()),
+                ..notes_entry()
+            }]
         );
         assert_eq!(with.plan_sha256, without.plan_sha256);
         assert_eq!(
