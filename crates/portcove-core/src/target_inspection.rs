@@ -992,6 +992,7 @@ mod tests {
                 "wave-race-64-recomp".into(),
                 "dkc2-recomp".into(),
                 "open-nectar-pikmin".into(),
+                "goldeneye-007-n64-pc-port".into(),
             ],
             &[Platform::WindowsX86_64, Platform::LinuxX86_64],
         )
@@ -1013,7 +1014,19 @@ mod tests {
             refusal("wave-race-64-recomp", Platform::WindowsX86_64),
             managed
         );
-        assert_eq!(refusal("wave-race-64-recomp", Platform::LinuxX86_64), None);
+        assert_eq!(
+            refusal("wave-race-64-recomp", Platform::LinuxX86_64),
+            managed
+        );
+        // GoldenEye keeps an upstream Linux listing alongside managed Windows.
+        assert_eq!(
+            refusal("goldeneye-007-n64-pc-port", Platform::WindowsX86_64),
+            managed
+        );
+        assert_eq!(
+            refusal("goldeneye-007-n64-pc-port", Platform::LinuxX86_64),
+            None
+        );
         // Prepared-player routes and held acquisition offer no Install to replace it.
         assert_eq!(refusal("dkc2-recomp", Platform::WindowsX86_64), None);
         assert_eq!(refusal("open-nectar-pikmin", Platform::WindowsX86_64), None);
@@ -1022,8 +1035,16 @@ mod tests {
             json["ports"][0]["targets"][0]["listing_download_refusal"],
             "managed-route"
         );
+        assert_eq!(
+            json["ports"][0]["targets"][1]["listing_download_refusal"],
+            "managed-route"
+        );
+        assert_eq!(
+            json["ports"][3]["targets"][0]["listing_download_refusal"],
+            "managed-route"
+        );
         assert!(
-            json["ports"][0]["targets"][1]
+            json["ports"][3]["targets"][1]
                 .get("listing_download_refusal")
                 .is_none()
         );
