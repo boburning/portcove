@@ -37323,28 +37323,12 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac tools and setup kit",
-              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
-            },
-            {
-              "title": "Supply your matching disc and BIOS",
-              "instruction": "Use your own European Diablo disc (SLES-01156) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
-            },
-            {
-              "title": "Build and add the player on Mac",
-              "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
+              "title": "Supply your Diablo disc and BIOS",
+              "instruction": "Portcove checks your own single-track Diablo (Europe) CHD and retail SCPH-5552 BIOS, then builds the game on this computer."
             }
           ],
           "warnings": [
-            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
-            "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
-          "references": [
-            {
-              "title": "Updates and backups",
-              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
-            }
+            "Save states may stop working after an update. Make a normal in-game save before updating."
           ]
         },
         "artwork": {
