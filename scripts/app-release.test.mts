@@ -888,6 +888,7 @@ void test("withdraw retries a rejected gh-pages push on top of the newer branch"
 
 type WorkflowStep = {
   name?: string;
+  if?: string;
   uses?: string;
   run?: string;
   with?: Record<string, unknown>;
@@ -895,6 +896,7 @@ type WorkflowStep = {
 };
 type WorkflowJob = {
   if?: string;
+  strategy?: { matrix?: { include?: Array<{ label: string; os: string }> } };
   uses?: string;
   secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
@@ -908,6 +910,26 @@ type Workflow = { on: Record<string, unknown>; jobs: Record<string, WorkflowJob>
 const workflowsDirectory = path.join(import.meta.dirname, "..", ".github", "workflows");
 const readWorkflow = async (name: string) =>
   parse(await readFile(path.join(workflowsDirectory, name), "utf8")) as Workflow;
+
+void test("the Linux AppImage build checks its WebKitGTK floor before bundling", async () => {
+  const workflow = await readWorkflow("app-release-build.yml");
+  const build = workflow.jobs.build!;
+  assert.equal(
+    build.strategy?.matrix?.include?.find(({ label }) => label === "linux-x86_64")?.os,
+    "ubuntu-24.04",
+  );
+  const steps = build.steps!;
+  const prerequisites = steps.findIndex(
+    (step) => step.name === "Install Linux desktop prerequisites",
+  );
+  const bundle = steps.findIndex((step) => step.run?.includes("pnpm tauri build"));
+  assert.ok(prerequisites >= 0 && prerequisites < bundle);
+  assert.equal(steps[prerequisites]?.if, "runner.os == 'Linux'");
+  assert.match(
+    steps[prerequisites]?.run ?? "",
+    /pkg-config --atleast-version=2\.52\.6 webkit2gtk-4\.1/u,
+  );
+});
 
 void test("release workflows keep the signing key behind owner tags and main", async () => {
   const release = await readWorkflow("app-release.yml");
