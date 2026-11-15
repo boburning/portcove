@@ -12766,13 +12766,20 @@
       ],
       "availability": "packages",
       "setup_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",
-      "download_block_reason": "Portcove downloads are on hold until the contents of the Windows installer can be checked. You can use the upstream setup guide with a copy you have permission to use.",
+      "release_url": "https://github.com/viewizard/astromenace/releases/tag/v1.4.3",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "astromenace-win-",
+          ".exe"
+        ]
+      },
+      "recommended_download_channel": "stable",
       "manual_setup": {
         "help_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md",
         "steps": [
           {
             "title": "Set up the Windows release",
-            "instruction": "Use the publisher’s v1.4.3 installer and open AstroMenace when setup completes. The installer includes the standalone game."
+            "instruction": "Run the publisher’s v1.4.3 installer and open AstroMenace when setup completes. On Windows x64 it installs the native x64 player and its matching libraries. The standalone game is included."
           },
           {
             "title": "Use your Linux package or build on Mac",
