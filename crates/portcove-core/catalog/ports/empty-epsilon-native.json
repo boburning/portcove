@@ -10,6 +10,7 @@
     "original_game_title": "EmptyEpsilon",
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
+    "setup_url": "https://github.com/daid/EmptyEpsilon/wiki/Build#define-the-version-number",
     "release_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
     "download_asset_hints": {
       "windows-x86-64": ["Win32_EmptyEpsilon_", ".zip"],
@@ -25,11 +26,11 @@
         },
         {
           "title": "Use the upstream Android or Mac setup",
-          "instruction": "Choose the publisher’s ARM64 or ARM32 Android APK for your device. For Intel or Apple Silicon Mac, use the upstream source-build instructions. The release includes the standalone game and its scenarios."
+          "instruction": "Choose the publisher’s ARM64 or ARM32 Android APK for your device. For Intel or Apple Silicon Mac, follow the community source-build instructions. The release includes the standalone game and its scenarios."
         },
         {
           "title": "Match the crew’s release",
-          "instruction": "Use the same EmptyEpsilon version on the host and on every player’s device before starting or joining a session. Use Tutorials to try the local controls."
+          "instruction": "Use the same EmptyEpsilon version on the host and every device. If you build from source, set the version to match the host using the upstream build guide. Use Tutorials to try the local controls."
         }
       ],
       "warnings": [],
