@@ -779,8 +779,30 @@ void test("authored setup guides require the arrays consumed by Core", () => {
   });
   for (const guide of [{ steps }, { warnings: [] }, { steps, warnings: "" }])
     assert.throws(() => checkedAuthoredPort(authored(guide)), /requires steps and warnings arrays/);
-  const guide = { steps, warnings: [] };
+  const guide = { steps, warnings: [], help_url: "https://example.org/setup" };
   assert.deepEqual(checkedAuthoredPort(authored(guide)).listing.manual_setup, guide);
+  assert.throws(
+    () =>
+      checkedAuthoredPort(
+        authored({
+          ...guide,
+          references: [{ title: "Upstream reference", url: "https://example.org/unsupported" }],
+        }),
+      ),
+    /setup-fixture listing.manual_setup.references\[0\].*unknown field: "url"/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, "": true })),
+    /setup-fixture listing.manual_setup.*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ ...steps[0], "": true }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*unknown field: ""/,
+  );
+  assert.throws(
+    () => checkedAuthoredPort(authored({ ...guide, steps: [{ title: "Use the upstream guide" }] })),
+    /setup-fixture listing.manual_setup.steps\[0\].*requires a title and instruction/,
+  );
 });
 
 void test("Second Hunt keeps its version-scoped cleanup warning in the pre-action warnings", () => {
