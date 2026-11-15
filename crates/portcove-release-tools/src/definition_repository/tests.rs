@@ -663,6 +663,47 @@ fn catalog_role_parser_rejects_application_roles_and_public_paths_refuse_travers
 }
 
 #[tokio::test]
+async fn expired_published_prior_still_advances_with_fresh_metadata() {
+    // A lapsed public timestamp must not strand the publisher: the prior is read as
+    // authenticated history, while the new repository is verified with expiry.
+    let mut fixture = Fixture::new().await;
+    let mut context = fixture.context_value();
+    let soon = Timestamp::now()
+        .checked_add(Duration::from_secs(20))
+        .unwrap()
+        .to_string();
+    context["expires"]["timestamp"] = json!(soon);
+    fixture.set_context(context.clone());
+    fixture.sign_all().await;
+    assemble_definition_repository(&fixture.assembly("lapsing"))
+        .await
+        .unwrap();
+    // Wait until the published timestamp has lapsed.
+    let lapse = soon.parse::<Timestamp>().unwrap();
+    while Timestamp::now() <= lapse {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
+    let expires = Timestamp::now()
+        .checked_add(Duration::from_secs(3600))
+        .unwrap()
+        .to_string();
+    context["generated_at"] = json!(Timestamp::now().to_string());
+    context["previous_repository"] = json!("lapsing");
+    for role in ["definitions", "policy", "snapshot", "timestamp"] {
+        context["versions"][role] = json!(2);
+        context["expires"][role] = json!(expires);
+    }
+    fixture.set_context(context);
+    fixture.roles = fixture.root().join("roles-renewed");
+    fs::create_dir(&fixture.roles).unwrap();
+    fixture.sign_all().await;
+    let renewed = assemble_definition_repository(&fixture.assembly("renewed"))
+        .await
+        .unwrap();
+    assert_eq!(renewed.versions["timestamp"], "2");
+}
+
+#[tokio::test]
 async fn authenticated_catalog_prior_advances_without_erasing_immutable_history() {
     let mut fixture = Fixture::new().await;
     fixture.sign_all().await;
