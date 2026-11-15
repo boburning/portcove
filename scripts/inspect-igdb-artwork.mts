@@ -44,7 +44,9 @@ interface PreparedArtworkCatalog extends ArtworkCatalog {
   ports: PreparedArtworkPort[];
 }
 
-function assertPreparedArtwork(catalog: ArtworkCatalog): asserts catalog is PreparedArtworkCatalog {
+export function assertPreparedArtwork(
+  catalog: ArtworkCatalog,
+): asserts catalog is PreparedArtworkCatalog {
   for (const port of catalog.ports) {
     const artwork = port.presentation?.artwork;
     if (artwork !== undefined && !validArtworkMapping(artwork))
