@@ -67,6 +67,8 @@ export type AdoptionBatchItemOutcome = "copied" | "changed" | "failed";
  */
 export type GameUpdateAcquisitionPhase = "acquiring" | "verifying" | "acquired" | "attention_required";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
+export type UploaderContinuityBasis =
+  "predates-baseline" | "repository-owner" | "project-automation" | "established" | "accepted" | "not-observed";
 export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
@@ -460,7 +462,8 @@ export type RuntimeSourceMaterialization =
   | "regaiden-gbc"
   | "xdvdfs-directory"
   | "iso9660-directory"
-  | "rom-patch";
+  | "rom-patch"
+  | "snes-headerless";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -486,6 +489,11 @@ export type SourceRepresentation1 =
   | {
       identities: DigestIdentity[];
       kind: "canonical-n64";
+      [k: string]: unknown;
+    }
+  | {
+      identities: DigestIdentity[];
+      kind: "snes-copier-header-optional";
       [k: string]: unknown;
     }
   | {
@@ -555,6 +563,7 @@ export type DigestScope =
   | "original-container"
   | "normalized-content"
   | "canonical-n64-big-endian"
+  | "snes-headerless-content"
   | "archive-member"
   | "gamecube-normalized-iso"
   | "psx-normalized-track-set"
@@ -1654,6 +1663,7 @@ export interface ResolvedRelease {
   asset: ReleaseAsset;
   channel: ReleaseChannel;
   published_at: string | null;
+  uploader_continuity?: UploaderContinuityRecord | null;
   version: string;
   [k: string]: unknown;
 }
@@ -1662,6 +1672,12 @@ export interface ReleaseAsset {
   sha256: string;
   size: number;
   url: string;
+  [k: string]: unknown;
+}
+export interface UploaderContinuityRecord {
+  basis: UploaderContinuityBasis;
+  uploaded_at?: string | null;
+  uploader_id?: number | null;
   [k: string]: unknown;
 }
 /**
@@ -5465,6 +5481,7 @@ export interface DumpMatchedFile {
     | "original-container"
     | "normalized-content"
     | "canonical-n64-big-endian"
+    | "snes-headerless-content"
     | "archive-member"
     | "gamecube-normalized-iso"
     | "psx-normalized-track-set"

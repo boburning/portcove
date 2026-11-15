@@ -77,6 +77,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import {
   acquireHeavyRustTestLock,
   heavyRustOwnerActivity,
+  passiveProcessIdentityReader,
   readHeavyRustLockOwner,
   readProcessIdentity,
   releaseHeavyRustLock,
@@ -237,16 +238,25 @@ async function legacyBridge(
   }
 }
 
-export async function observeCapacity(options: { root?: string } = {}) {
+export async function observeCapacity(options: { root?: string; passive?: boolean } = {}) {
   const root = options.root ?? resourceDomainRoot();
   const config = await resourceConfiguration(root);
   const files = (await missingAllowed(() => readdir(root))) ?? [];
+  const inspectProcessIdentity = options.passive
+    ? passiveProcessIdentityReader()
+    : readProcessIdentity;
   const running = [];
   for (const file of files.filter((name) => /^slot-\d+$/u.test(name))) {
     const owner = await missingAllowed(() => readHeavyRustLockOwner(path.join(root, file)));
-    if (owner) running.push({ slot: file, ...owner, activity: heavyRustOwnerActivity(owner) });
+    if (owner) {
+      running.push({
+        slot: file,
+        ...owner,
+        activity: heavyRustOwnerActivity(owner, { inspectProcessIdentity }),
+      });
+    }
   }
-  const queued = await queueOwners(root, false);
+  const queued = await queueOwners(root, false, inspectProcessIdentity);
   return {
     root,
     config,

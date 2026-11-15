@@ -515,6 +515,7 @@ fn project_channel(
                 size: asset.size,
                 sha256,
             },
+            uploader_continuity: None,
         },
     });
     output

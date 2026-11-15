@@ -318,6 +318,7 @@ impl Fixture {
                             sha256: digest,
                             size,
                         },
+                        uploader_continuity: None,
                     },
                     activate,
                     managed: None,
@@ -1615,6 +1616,7 @@ fn native_fixture_release(
                 sha256,
                 size,
             },
+            uploader_continuity: None,
         },
         server,
     )

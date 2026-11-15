@@ -51,7 +51,9 @@ pub(crate) fn package_platform_match(name: &str, platform: Platform) -> PackageP
         || versioned_macos
         || name.ends_with(".dmg")
         || name.ends_with(".pkg");
-    let foreign = has(&["android", "switch", "vita", "wii", "ios"]) || name.ends_with(".apk");
+    // PortMaster packages target handheld Linux firmware, not desktop systems.
+    let foreign =
+        has(&["android", "switch", "vita", "wii", "ios", "portmaster"]) || name.ends_with(".apk");
     match [windows, linux, mac, foreign]
         .into_iter()
         .filter(|named| *named)
@@ -857,6 +859,24 @@ mod tests {
         assert_eq!(
             recommend_packages(&assets, Platform::LinuxX86_64, &["i686.zip".into()], true).1,
             None
+        );
+    }
+
+    #[test]
+    fn portmaster_packages_belong_to_no_desktop_platform() {
+        for platform in [
+            Platform::WindowsX86_64,
+            Platform::LinuxX86_64,
+            Platform::MacosAarch64,
+        ] {
+            assert_eq!(
+                package_platform_match("vurus-portmaster.zip", platform),
+                PackagePlatformMatch::Other
+            );
+        }
+        assert_eq!(
+            package_platform_match("game-linux-portmaster.zip", Platform::LinuxX86_64),
+            PackagePlatformMatch::Ambiguous
         );
     }
 

@@ -14,6 +14,14 @@ pub(crate) mod listings;
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
+/// How a port's source profile uses copier-header-optional SNES identities.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum SnesCopierHeaderUse {
+    None,
+    All,
+    Mixed,
+}
+
 /// SHA-256 of the catalog compiled into this binary, before any listing merge.
 pub(crate) fn embedded_catalog_sha256() -> String {
     use sha2::Digest;
@@ -432,6 +440,36 @@ impl Catalog {
                 _ => None,
             })
             .collect()
+    }
+
+    /// Whether the port's source profile identifies SNES dumps that may carry a
+    /// copier header. Every active representation must then be of that kind, so
+    /// one materialization fits every admitted file.
+    pub(crate) fn snes_copier_header_profile(&self, port: &PortDefinition) -> SnesCopierHeaderUse {
+        use crate::source_catalog::SourceRepresentationKind as Kind;
+        let Some(profile_id) = port.source_profile.as_deref() else {
+            return SnesCopierHeaderUse::None;
+        };
+        let representations = self
+            .source_catalog()
+            .into_iter()
+            .flat_map(|catalog| &catalog.identities)
+            .filter(|identity| identity.id == profile_id)
+            .flat_map(|identity| &identity.variants)
+            .filter(|variant| !variant.legacy_projection_only)
+            .flat_map(|variant| &variant.representations)
+            .collect::<Vec<_>>();
+        let optional = representations
+            .iter()
+            .filter(|representation| {
+                matches!(representation.kind, Kind::SnesCopierHeaderOptional { .. })
+            })
+            .count();
+        match optional {
+            0 => SnesCopierHeaderUse::None,
+            count if count == representations.len() => SnesCopierHeaderUse::All,
+            _ => SnesCopierHeaderUse::Mixed,
+        }
     }
 
     /// A managed PS1 disc set with an audio track needs a reader that keeps
@@ -1425,6 +1463,11 @@ impl Catalog {
                                 || crate::preparation::managed(port)
                                 || port.runtime_data_policy.is_some())
                     }
+                    RuntimeSourceMaterialization::SnesHeaderless => {
+                        port.adapter == AdapterKind::StagedSourcePortable
+                            && source_is_persistent
+                            && self.snes_copier_header_profile(port) == SnesCopierHeaderUse::All
+                    }
                     RuntimeSourceMaterialization::RegaidenGbc => {
                         port.adapter == AdapterKind::StagedSourcePortable
                             && source_is_persistent
@@ -1633,6 +1676,17 @@ impl Catalog {
                     port.id
                 )));
             }
+            // A header-optional source is only ever written without its header;
+            // copying it whole would hand the runtime a different file.
+            if self.snes_copier_header_profile(port) != SnesCopierHeaderUse::None
+                && port.runtime_source_materialization
+                    != Some(RuntimeSourceMaterialization::SnesHeaderless)
+            {
+                return Err(PortcoveError::usage(format!(
+                    "{} identifies copier-header-optional SNES sources without the snes-headerless materialization",
+                    port.id
+                )));
+            }
             if port.runtime_rom_patch.is_some()
                 && port.runtime_source_materialization
                     != Some(RuntimeSourceMaterialization::RomPatch)
@@ -1713,6 +1767,7 @@ impl Catalog {
                             | RuntimeSourceMaterialization::RegaidenGbc
                             | RuntimeSourceMaterialization::GamecubeIso
                             | RuntimeSourceMaterialization::Ps2Iso
+                            | RuntimeSourceMaterialization::SnesHeaderless
                     ) && port
                         .runtime_source_filename
                         .as_ref()
@@ -3163,11 +3218,13 @@ mod tests {
                 Some(filename),
                 "{id}"
             );
-            assert_eq!(
-                port.runtime_source_materialization,
-                Some(RuntimeSourceMaterialization::Copy),
-                "{id}"
-            );
+            // SNES dumps may carry a copier header; the runtime gets the content.
+            let expected = if filename.ends_with(".sfc") {
+                RuntimeSourceMaterialization::SnesHeaderless
+            } else {
+                RuntimeSourceMaterialization::Copy
+            };
+            assert_eq!(port.runtime_source_materialization, Some(expected), "{id}");
             assert!(
                 port.persistent_paths.iter().any(|path| path == filename),
                 "{id}"
@@ -3544,7 +3601,7 @@ mod tests {
         assert_eq!(port.runtime_source_filename.as_deref(), Some("fzero.sfc"));
         assert_eq!(
             port.runtime_source_materialization,
-            Some(RuntimeSourceMaterialization::Copy)
+            Some(RuntimeSourceMaterialization::SnesHeaderless)
         );
         assert_eq!(
             port.runtime_source_hashes["fzero.sfc"],
@@ -3631,7 +3688,7 @@ mod tests {
             crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
-        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(profile.accepted_extensions, ["sfc", "smc"]);
         assert_eq!(
             profile.accepted_sha1,
             ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
@@ -3762,7 +3819,7 @@ mod tests {
             crate::QualificationEvidenceState::Missing
         );
         let profile = catalog.source_profile("f-zero-snes-usa").unwrap();
-        assert_eq!(profile.accepted_extensions, ["sfc"]);
+        assert_eq!(profile.accepted_extensions, ["sfc", "smc"]);
         assert_eq!(
             profile.accepted_sha1,
             ["d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4"]
@@ -3774,7 +3831,7 @@ mod tests {
     }
 
     #[test]
-    fn f_zero_snes_recomp_source_binding_admits_only_exact_raw_sfc() {
+    fn f_zero_snes_recomp_admits_its_content_with_or_without_a_copier_header() {
         let mut document = Catalog::embedded().unwrap().authoritative_document();
         let profile = document
             .source_catalog
@@ -3784,26 +3841,44 @@ mod tests {
             .iter_mut()
             .find(|profile| profile.id == "f-zero-snes-usa")
             .unwrap();
-        let crate::SourceRepresentationKind::RawFile { identities } =
+        let crate::SourceRepresentationKind::SnesCopierHeaderOptional { identities } =
             &mut profile.variants[0].representations[0].kind
         else {
-            panic!("F-Zero uses an exact original file, not N64 normalization")
+            panic!("F-Zero identifies its SNES content with an optional copier header")
         };
-        // Exercise this binding with redistributable bytes, never a game ROM.
-        let bytes = b"synthetic headerless source fixture";
-        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(bytes)));
-        identities[0].sha256 = Some(hex::encode(Sha256::digest(bytes)));
+        // Exercise this binding with redistributable bytes, never a game ROM. The
+        // content is a whole number of KiB, like a cartridge dump.
+        let content = (0..2048_u32).map(|index| index as u8).collect::<Vec<_>>();
+        identities[0].sha1 = Some(hex::encode(sha1::Sha1::digest(&content)));
+        identities[0].sha256 = Some(hex::encode(Sha256::digest(&content)));
         let catalog = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
         let temporary = tempfile::tempdir().unwrap();
-        let source = temporary.path().join("owned.sfc");
-        std::fs::write(&source, bytes).unwrap();
-        let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
-            .unwrap()
-            .require_admitted_record()
-            .unwrap();
-        assert_eq!(admitted.size, bytes.len() as u64);
+        for (name, bytes) in [
+            ("owned.sfc", content.clone()),
+            ("owned.smc", [vec![0xA5_u8; 512], content.clone()].concat()),
+        ] {
+            let source = temporary.path().join(name);
+            std::fs::write(&source, &bytes).unwrap();
+            let admitted = crate::source_inspection::inspect(&catalog, "f-zero-snes-usa", &source)
+                .unwrap()
+                .require_admitted_record()
+                .unwrap();
+            // The record keeps the file's own identity; only matching ignores the header.
+            assert_eq!(admitted.size, bytes.len() as u64, "{name}");
+            assert_eq!(
+                admitted.sha256,
+                hex::encode(Sha256::digest(&bytes)),
+                "{name}"
+            );
+        }
+        let source = temporary.path().join("changed.sfc");
         for changed in [
-            [vec![0_u8; 512], bytes.to_vec()].concat(),
+            // Not 512 more than a multiple of 1024, so no header is recognized.
+            [vec![0_u8; 511], content.clone()].concat(),
+            [vec![0_u8; 1024], content.clone()].concat(),
+            // Two headers are not one header.
+            [vec![0_u8; 1536], content.clone()].concat(),
+            [content.clone(), vec![0_u8; 512]].concat(),
             b"synthetic changed source fixture".to_vec(),
         ] {
             std::fs::write(&source, changed).unwrap();
@@ -3814,6 +3889,40 @@ mod tests {
                     .is_err()
             );
         }
+    }
+
+    #[test]
+    fn copier_header_profiles_require_the_headerless_materialization() {
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let port = document
+            .ports
+            .iter_mut()
+            .find(|port| port.id == "f-zero-snes-recomp")
+            .unwrap();
+        port.runtime_source_materialization = Some(RuntimeSourceMaterialization::Copy);
+        let error = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap_err();
+        assert!(
+            error.message.contains("snes-headerless"),
+            "{}",
+            error.message
+        );
+        // Any other scope would identify whole files under the optional-header kind.
+        let mut document = Catalog::embedded().unwrap().authoritative_document();
+        let profile = document
+            .source_catalog
+            .as_mut()
+            .unwrap()
+            .identities
+            .iter_mut()
+            .find(|profile| profile.id == "f-zero-snes-usa")
+            .unwrap();
+        let crate::SourceRepresentationKind::SnesCopierHeaderOptional { identities } =
+            &mut profile.variants[0].representations[0].kind
+        else {
+            panic!("F-Zero identifies its SNES content with an optional copier header")
+        };
+        identities[0].scope = crate::DigestScope::OriginalFile;
+        assert!(Catalog::from_json(&serde_json::to_string(&document).unwrap()).is_err());
     }
 
     #[cfg(feature = "qualification-fixtures")]

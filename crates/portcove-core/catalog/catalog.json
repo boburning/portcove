@@ -8357,7 +8357,7 @@
       },
       {
         "id": "f-zero-snes-usa",
-        "label": "F-Zero (USA) headerless SNES source",
+        "label": "F-Zero (USA) SNES source",
         "kind": "file",
         "variants": [
           {
@@ -8370,12 +8370,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": "d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4",
                     "sha256": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2",
                     "crc32": null
@@ -8439,7 +8440,7 @@
       },
       {
         "id": "dkc3-na-en-fr",
-        "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+        "label": "Donkey Kong Country 3 (North America, En/Fr) SNES source",
         "kind": "file",
         "variants": [
           {
@@ -8452,12 +8453,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
                     "crc32": null
@@ -9223,7 +9225,7 @@
       },
       {
         "id": "super-mario-world-snes-usa",
-        "label": "Super Mario World (USA) stock headerless SNES source",
+        "label": "Super Mario World (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -9236,12 +9238,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
                     "crc32": null
@@ -9263,7 +9266,7 @@
       },
       {
         "id": "a-link-to-the-past-snes-usa",
-        "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+        "label": "The Legend of Zelda: A Link to the Past (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -9276,12 +9279,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
                     "crc32": null
@@ -10155,7 +10159,7 @@
       },
       {
         "id": "super-bomberman-snes-usa",
-        "label": "Super Bomberman (USA) stock headerless SNES source",
+        "label": "Super Bomberman (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -10168,12 +10172,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f",
                     "crc32": null
@@ -35693,12 +35698,12 @@
           {
             "role": "game",
             "profile_id": "f-zero-snes-usa",
-            "label": "F-Zero (USA) headerless SNES source",
+            "label": "F-Zero (USA) SNES source",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Existing managed Windows v1.8.3 installations keep their saves and settings separately from external copies. Fresh managed acquisition is paused while the successor package is reviewed. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location.",
+        "manual_preparation": "Provide your own F-Zero (USA) .sfc or .smc file, with or without a copier header. Existing managed Windows v1.8.3 installations keep their saves and settings separately from external copies. Fresh managed acquisition is paused while the successor package is reviewed. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location.",
         "original_game_title": "F-Zero",
         "variant_label": "SNES",
         "manual_setup": {
@@ -35729,7 +35734,7 @@
         }
       },
       "runtime_source_filename": "fzero.sfc",
-      "runtime_source_materialization": "copy",
+      "runtime_source_materialization": "snes-headerless",
       "runtime_source_hashes": {
         "fzero.sfc": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
       },
@@ -35951,12 +35956,12 @@
           {
             "role": "game",
             "profile_id": "dkc3-na-en-fr",
-            "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+            "label": "Donkey Kong Country 3 (North America, En/Fr) SNES source",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own headerless North American English/French DKC3 .sfc. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
+        "manual_preparation": "Select your own North American English/French DKC3 .sfc or .smc, with or without a copier header. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "manual_setup": {
           "steps": [
@@ -36000,7 +36005,7 @@
         "SNESRECOMP_NO_LAUNCHER": "1"
       },
       "runtime_source_filename": "dkc3.sfc",
-      "runtime_source_materialization": "copy",
+      "runtime_source_materialization": "snes-headerless",
       "runtime_source_hashes": {
         "dkc3.sfc": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b"
       },
@@ -38083,12 +38088,12 @@
           {
             "role": "game",
             "profile_id": "super-mario-world-snes-usa",
-            "label": "Super Mario World (USA) stock headerless SNES source",
+            "label": "Super Mario World (USA) stock SNES source",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own Super Mario World (USA) stock headerless SNES ROM. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
+        "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
         "original_game_title": "Super Mario World",
         "artwork": {
           "game_id": 1070,
@@ -38106,7 +38111,7 @@
         "SNESRECOMP_NO_LAUNCHER": "1"
       },
       "runtime_source_filename": "smw.sfc",
-      "runtime_source_materialization": "copy",
+      "runtime_source_materialization": "snes-headerless",
       "runtime_source_hashes": {
         "smw.sfc": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b"
       },
@@ -38174,12 +38179,12 @@
           {
             "role": "game",
             "profile_id": "a-link-to-the-past-snes-usa",
-            "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+            "label": "The Legend of Zelda: A Link to the Past (USA) stock SNES source",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES ROM. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
+        "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
         "original_game_title": "The Legend of Zelda: A Link to the Past",
         "artwork": {
           "game_id": 1026,
@@ -38197,7 +38202,7 @@
         "SNESRECOMP_NO_LAUNCHER": "1"
       },
       "runtime_source_filename": "zelda.sfc",
-      "runtime_source_materialization": "copy",
+      "runtime_source_materialization": "snes-headerless",
       "runtime_source_hashes": {
         "zelda.sfc": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb"
       },
@@ -39996,12 +40001,12 @@
           {
             "role": "game",
             "profile_id": "super-bomberman-snes-usa",
-            "label": "Super Bomberman (USA) stock headerless SNES source",
+            "label": "Super Bomberman (USA) stock SNES source",
             "verification": "catalog-identity"
           }
         ],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Select your own stock headerless Super Bomberman (USA) ROM. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Headered inputs, gameplay completion and in-game save/load remain outside this selected route.",
+        "manual_preparation": "Select your own stock Super Bomberman (USA) ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its local saves separately from existing copies. Use a short installation path with basic Latin characters; the original can stay where it is. Gameplay completion and in-game save/load remain outside this selected route.",
         "original_game_title": "Super Bomberman",
         "artwork": {
           "game_id": 3450,
@@ -40017,7 +40022,7 @@
       ],
       "launch_environment": {},
       "runtime_source_filename": "game.sfc",
-      "runtime_source_materialization": "copy",
+      "runtime_source_materialization": "snes-headerless",
       "runtime_source_hashes": {
         "game.sfc": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f"
       },
@@ -53052,7 +53057,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+              "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
               "title": "Keep the actual original and player data",
@@ -53060,11 +53065,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
             },
             {
               "title": "Add the game and manage your files",
@@ -53131,7 +53136,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+              "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
               "title": "Keep the actual original and player data",
@@ -53139,11 +53144,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
             },
             {
               "title": "Add the game and manage your files",
@@ -59077,13 +59082,17 @@
               "instruction": "The official Windows package includes the game. Choose Play after installation."
             },
             {
+              "title": "Install the Linux distribution package",
+              "instruction": "On Ubuntu x86-64 or ARM64, install sopwith from Universe, then open Sopwith or run sopwith. Other distributions may package it separately. No original game files are needed. Before moving to another system, keep sopwith.cfg and any personal hiscores.txt from your SDL Sopwith data folder (usually ~/.local/share/SDL Sopwith). A distribution can use a writable shared high-score file instead, such as /var/games/sopwith/hiscores.txt on Ubuntu."
+            },
+            {
               "title": "Install the upstream Mac app",
               "instruction": "Choose the ZIP for your Mac processor, extract its DMG and copy SDL Sopwith.app into Applications. The inspected Intel build needs macOS 13 and the Apple silicon build needs macOS 15. Keep your SDL Sopwith settings and high scores before replacing the Mac app."
             }
           ],
           "warnings": [
             "This project has not been verified for play through Portcove.",
-            "You and upstream own the Mac setup, updates and preference files."
+            "Your Linux distribution manages package updates. Keep your Linux preferences and scores separately. You and upstream own setup, updates and preference files on Mac."
           ],
           "help_url": "https://fragglet.github.io/sdl-sopwith/"
         },
@@ -60254,7 +60263,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+              "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
               "title": "Keep the actual original and player data",
@@ -60262,11 +60271,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
             },
             {
               "title": "Add the game and manage your files",
@@ -60341,7 +60350,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+              "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
               "title": "Keep the actual original and player data",
@@ -60349,11 +60358,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
             },
             {
               "title": "Add the game and manage your files",
@@ -64979,7 +64988,7 @@
             },
             {
               "title": "Prepare upstream and select the real player",
-              "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+              "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
             },
             {
               "title": "Keep your originals and game data",
@@ -64987,11 +64996,11 @@
             },
             {
               "title": "Choose the upstream Linux build",
-              "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+              "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
             },
             {
               "title": "Choose the upstream Mac build",
-              "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+              "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
             },
             {
               "title": "Add the game and manage your files",
@@ -72022,6 +72031,97 @@
           "directories": [],
           "executables": [
             "vyruz"
+          ]
+        }
+      }
+    },
+    {
+      "id": "vyruz-destruction-of-the-untel-empire-vurus",
+      "name": "Vyruz: Destruction of the Untel Empire / Vurus",
+      "summary": "Run Vyruz in Vurus using your own original disc image or extracted game resources.",
+      "project_url": "https://github.com/rzrbld/vurus",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "rzrbld/vurus",
+        "asset_hints": {
+          "windows-x86-64": [
+            "vurus-windows-amd64.zip"
+          ],
+          "linux-x86-64": [
+            "vurus-linux.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "vurus.exe"
+        ],
+        "linux-x86-64": [
+          "vurus"
+        ]
+      },
+      "persistent_paths": [
+        "data",
+        "saves",
+        "slot1.vzs",
+        "options.cfg",
+        "vz.sco",
+        "benchmark-results"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own Vyruz ISO, or a single-BIN CUE with its BIN, into the managed Vurus folder beside the player. Keep the CUE and BIN together to import CD music, and keep your original separately. On Linux, if the copied image is marked executable, clear that mark first; Portcove holds launch for an undeclared executable file. On first Play, Vurus shows its own setup screen, imports the disc into data/ beside the player and records the selected import in data/current.txt. Later starts reuse that import, so delete the copied image once the game has started. Without an image or import the game shows Game files not ready. The package is the clean-room engine only and contains no game data. The Linux x86-64 player needs glibc 2.35 or later, libstdc++ from GCC 12 or later, system SDL2 and OpenGL; Portcove starts the vurus program directly rather than launch.sh, which runs the same program with its own folder as the data source. Core preserves data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ across updates and backups. Imports from older builds in the home folder are not moved. Paths chosen with --data, VURUS_DATA_DIR (legacy VYRUZ_DATA_DIR), --save-file or --options-file are outside Core backup and removal. Older builds may not read saves written by this build, so rollback keeps current data without rewinding progress or guaranteeing compatibility. Core owns engine replacement; upstream owns disc import, settings and save formats.",
+        "original_game_title": "Vyruz: Destruction of the Untel Empire",
+        "manual_setup": {
+          "help_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
+          "steps": [
+            {
+              "title": "Prepare your original game files",
+              "instruction": "Copy your owned Vyruz ISO, or a single-BIN CUE with its BIN, beside the Vurus player, then start it. Keep the CUE and BIN together to import CD music, and keep your original separately. On first start Vurus imports the disc into data/ beside the player and reuses that import later, so you can then delete the copied image. To import a different image after a previous import, use --data with its path."
+            },
+            {
+              "title": "Use the Mac release",
+              "instruction": "On macOS 15 or later, pick desktop release v202610242327-beta, extract the Intel or Apple Silicon archive matching your Mac into a writable folder, and run vurus from a terminal. The Mac builds are unsigned."
+            },
+            {
+              "title": "Keep imports and progress",
+              "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep your own copy, such as on a Mac, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
+            }
+          ],
+          "warnings": [
+            "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "vurus-bench.exe",
+            "vurus.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "licenses",
+            "third_party"
+          ],
+          "executables": [
+            "launch.sh",
+            "vurus",
+            "vurus-bench"
           ]
         }
       }

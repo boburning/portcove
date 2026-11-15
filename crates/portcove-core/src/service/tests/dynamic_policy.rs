@@ -35,6 +35,7 @@ async fn unscoped_dynamic_policy_review_rechecks_provider_before_installation() 
             sha256: "ab".repeat(32),
             size: 42,
         },
+        uploader_continuity: None,
     };
     let provider = Arc::new(Provider {
         release: observed.clone(),

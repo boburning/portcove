@@ -1468,6 +1468,7 @@ mod tests {
                 size: 1,
                 sha256: "2".repeat(64),
             },
+            uploader_continuity: None,
         };
         let active = status.active.clone().unwrap();
         let check = |installed_version: &str, release: crate::ResolvedRelease| crate::UpdateCheck {

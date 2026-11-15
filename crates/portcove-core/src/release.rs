@@ -34,6 +34,9 @@ pub use observation::{
     ChannelObservation as UpstreamChannelObservation, ObservationEvidence, ObservedReleaseIdentity,
     ObservedResolution, UpstreamObservationReport, inspect_upstream_observation,
 };
+pub(crate) use uploader_continuity::{
+    RecordedAcquisition, require_recorded as require_recorded_uploader_continuity,
+};
 
 #[async_trait]
 pub trait ReleaseProvider: Send + Sync {
@@ -1626,6 +1629,8 @@ impl GithubReleaseProvider {
         })?;
         let mut observed_digest = None;
         let mut fallback_reason = None;
+        // The continuity decision for the asset finally selected, kept with the build.
+        let mut continuity = None;
         let require_continuing_uploader = |release: &GithubRelease, asset: &GithubAsset| {
             uploader_continuity::require(
                 port,
@@ -1640,7 +1645,8 @@ impl GithubReleaseProvider {
             && !hold.excluded_artifacts.is_empty()
         {
             let latest_asset = choose_asset(port, platform, &latest.assets)?;
-            require_continuing_uploader(latest, latest_asset)?;
+            let latest_continuity =
+                require_continuing_uploader(latest, latest_asset)?.record(latest_asset);
             let digest = self
                 .observed_asset_digest(port, latest, latest_asset, scope)
                 .await?;
@@ -1661,7 +1667,8 @@ impl GithubReleaseProvider {
                     })
                     .ok_or_else(|| PortcoveError::unsupported(hold.reason.clone()))?;
                     let asset = choose_asset(port, platform, &fallback.assets)?;
-                    require_continuing_uploader(fallback, asset)?;
+                    let fallback_continuity =
+                        require_continuing_uploader(fallback, asset)?.record(asset);
                     let digest = self
                         .observed_asset_digest(port, fallback, asset, scope)
                         .await?;
@@ -1669,12 +1676,14 @@ impl GithubReleaseProvider {
                         && hold.reviewed(&fallback.tag_name, &digest)
                     {
                         observed_digest = Some(digest);
+                        continuity = Some(fallback_continuity);
                         break fallback;
                     }
                     checked.push(fallback);
                 }
             } else {
                 observed_digest = Some(digest);
+                continuity = Some(latest_continuity);
                 latest
             }
         } else {
@@ -1689,7 +1698,7 @@ impl GithubReleaseProvider {
         // every other selection follows upstream and must continue its uploaders.
         // Refuse before any checksum request or caching.
         if curated.is_none() && observed_digest.is_none() {
-            require_continuing_uploader(release, asset)?;
+            continuity = Some(require_continuing_uploader(release, asset)?.record(asset));
         }
         let sha256 = if let Some(record) = curated {
             let scope = scope.ok_or_else(|| PortcoveError::unsupported("curated scope missing"))?;
@@ -1760,6 +1769,7 @@ impl GithubReleaseProvider {
                 size: asset.size,
                 sha256,
             },
+            uploader_continuity: continuity,
         };
         let identity = match (repository.id, release.id, asset.id) {
             (Some(repository_id), Some(release_id), Some(asset_id)) => {
@@ -1841,6 +1851,7 @@ fn preserved_resolution(
                 size: record.size,
                 sha256: record.sha256.clone(),
             },
+            uploader_continuity: None,
         },
         identity: Some(identity),
         activity: None,
@@ -3341,6 +3352,7 @@ mod tests {
                 size: 1,
                 sha256: "a".repeat(64),
             },
+            uploader_continuity: None,
         };
         let oldest_key = ReleaseSelectionCacheKey {
             adapter: AdapterKind::NativePortable,
@@ -4662,6 +4674,7 @@ mod tests {
                 size: 1,
                 sha256: "a".repeat(64),
             },
+            uploader_continuity: None,
         };
 
         provider.store_release(key.clone(), release).await;
@@ -5009,6 +5022,7 @@ mod tests {
         let page = serde_json::json!([
             with_assets("v4", "game-windows-x64.zip"),
             with_assets("v3-linux", "game-linux-x86_64.tar.gz"),
+            with_assets("portmaster-v3", "game-portmaster.zip"),
             with_assets("v3", "game-windows-x64.zip"),
             with_assets("v2", "game-windows-x64.zip"),
         ]);
@@ -5033,6 +5047,61 @@ mod tests {
             .unwrap();
         assert_eq!(note_versions(&notes), ["v4", "v3"]);
         assert_eq!(notes.coverage, crate::UpdateReleaseNotesCoverage::Complete);
+    }
+
+    #[test]
+    fn preview_skips_a_newer_portmaster_only_prerelease_for_the_desktop_release() {
+        // Vurus publishes PortMaster-only prereleases after its desktop build;
+        // the desktop -beta tag is not flagged as a provider prerelease.
+        let port = crate::Catalog::embedded()
+            .unwrap()
+            .port("vyruz-destruction-of-the-untel-empire-vurus")
+            .unwrap()
+            .clone();
+        let release = |tag: &str, prerelease: bool, names: &[&str]| -> GithubRelease {
+            let assets = names
+                .iter()
+                .enumerate()
+                .map(|(index, name)| {
+                    serde_json::json!({"id": index, "name": name, "size": 1, "digest": null,
+                        "browser_download_url": format!("https://example.test/{tag}/{name}")})
+                })
+                .collect::<Vec<_>>();
+            serde_json::from_value(serde_json::json!({"id": 1, "tag_name": tag,
+                "draft": false, "prerelease": prerelease,
+                "published_at": "2026-11-01T00:00:00Z", "assets": assets}))
+            .unwrap()
+        };
+        let desktop = [
+            "vurus-windows-amd64.zip",
+            "vurus-linux.tar.gz",
+            "vurus-darwin-arm64.zip",
+            "vurus-darwin-x86_64.zip",
+            "SHA256SUMS.txt",
+        ];
+        let releases = [
+            release(
+                "portmaster-v202611071731-beta",
+                true,
+                &["vurus-portmaster.zip", "SHA256SUMS.txt"],
+            ),
+            release("v202610242327-beta", false, &desktop),
+            release("v0.1.7", false, &desktop),
+        ];
+        for platform in [Platform::WindowsX86_64, Platform::LinuxX86_64] {
+            let selected = select_channel_candidate(
+                &releases,
+                ReleaseChannel::Beta,
+                None,
+                |release| {
+                    !release.draft && native_release_applies_to_platform(&port, platform, release)
+                },
+                is_beta_release,
+                |release| release.tag_name.as_str(),
+            )
+            .unwrap();
+            assert_eq!(selected.tag_name, "v202610242327-beta", "{platform:?}");
+        }
     }
 
     #[test]

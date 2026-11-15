@@ -613,7 +613,10 @@ async function main() {
   else if (action === "--status") {
     const { collectHostObservation } = await import("./resource-observations.mts");
     console.log(
-      JSON.stringify({ capacity: await observeCapacity(), host: collectHostObservation() }),
+      JSON.stringify({
+        capacity: await observeCapacity({ passive: true }),
+        host: collectHostObservation(),
+      }),
     );
   } else {
     if (!encoded || encoded.length > wireLimit) throw new Error("Bounded bridge request required");

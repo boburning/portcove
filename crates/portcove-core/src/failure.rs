@@ -574,6 +574,10 @@ impl PortcoveError {
         self
     }
 
+    pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
+        self.failure.known_cause.as_ref()
+    }
+
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
         self.failure.known_cause = Some(cause);
         self

@@ -730,6 +730,17 @@ pub(crate) fn file_scan_extensions(
                             }
                         }
                     }
+                    SourceRepresentationKind::SnesCopierHeaderOptional { identities }
+                        if !identities.is_empty() =>
+                    {
+                        // Raw files only: a header inside a ZIP is not recognized.
+                        for extension in &representation.extensions {
+                            let extension = extension.to_ascii_lowercase();
+                            if extension != "zip" {
+                                raw.insert(extension);
+                            }
+                        }
+                    }
                     SourceRepresentationKind::ArchiveMember {
                         member_extensions,
                         identities,
@@ -2113,6 +2124,20 @@ pub(crate) fn registered_launch_assessment(
         )
         .map(|digest| digest.value.clone()),
         canonical_n64_size: canonical.map(|digest| digest.size),
+        // Durable digests keep the headerless pair; it differs from the whole
+        // file only when a header was present.
+        copier_headerless_sha256: digest(
+            SourceDigestAlgorithm::Sha256,
+            DigestScope::SnesHeaderlessContent,
+        )
+        .filter(|digest| digest.size + crate::source_file::SNES_COPIER_HEADER_BYTES == source.size)
+        .map(|digest| digest.value.clone()),
+        copier_headerless_sha1: digest(
+            SourceDigestAlgorithm::Sha1,
+            DigestScope::SnesHeaderlessContent,
+        )
+        .filter(|digest| digest.size + crate::source_file::SNES_COPIER_HEADER_BYTES == source.size)
+        .map(|digest| digest.value.clone()),
     };
     if (requires_n64_shape(catalog, profile_id, &identity) && canonical.is_none())
         || matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some()
@@ -2209,6 +2234,31 @@ fn representation_matches(
         SourceRepresentationKind::CanonicalN64 { identities } => {
             if file.canonical_n64_sha256.is_none() {
                 return false;
+            }
+            identities
+        }
+        SourceRepresentationKind::SnesCopierHeaderOptional { identities } => {
+            if file.archive_member {
+                return false;
+            }
+            // Without a recognized header the content is the whole file; its
+            // headerless digests are only stored when a header was present.
+            if file.copier_headerless_sha256.is_none() {
+                let whole = [
+                    (SourceDigestAlgorithm::Sha1, &file.sha1),
+                    (SourceDigestAlgorithm::Sha256, &file.sha256),
+                ]
+                .into_iter()
+                .map(|(algorithm, value)| ObservedSourceDigest {
+                    algorithm,
+                    scope: DigestScope::SnesHeaderlessContent,
+                    value: value.clone(),
+                    size: file.size,
+                })
+                .collect::<Vec<_>>();
+                return identities
+                    .iter()
+                    .any(|identity| digest_identity_matches(identity, &whole));
             }
             identities
         }
@@ -2353,6 +2403,23 @@ fn observed_digests(identity: &FileIdentity) -> Vec<ObservedSourceDigest> {
             value: identity.storage_sha256.clone(),
             size: identity.storage_size,
         });
+    }
+    // A raw SNES dump's content after a recognized 512-byte copier header. It is
+    // recorded only when a header was present, so no other file's stored facts
+    // change; matching treats a file without one as its whole content.
+    if !identity.archive_member
+        && let (Some(sha1), Some(sha256)) = (
+            &identity.copier_headerless_sha1,
+            &identity.copier_headerless_sha256,
+        )
+    {
+        append_pair(
+            &mut values,
+            DigestScope::SnesHeaderlessContent,
+            identity.size - crate::source_file::SNES_COPIER_HEADER_BYTES,
+            sha1,
+            sha256,
+        );
     }
     if let (Some(sha1), Some(sha256), Some(size)) = (
         &identity.canonical_n64_sha1,

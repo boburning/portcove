@@ -40,6 +40,7 @@ use crate::{
 };
 
 mod backups;
+mod carry;
 mod protection;
 use crate::AdapterKind;
 pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
@@ -3528,10 +3529,12 @@ impl PortcoveService {
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
+                // This resolution just confirmed the same artifact's uploader.
                 self.activate_staged_locked(
                     &port.id,
                     reporter.operation.operation_id(),
                     crate::VersionChangeKind::Update,
+                    release.uploader_continuity.as_ref(),
                 )
             } else {
                 Ok(staged.clone())
@@ -3566,6 +3569,12 @@ impl PortcoveService {
             }
             reporter.operation.begin_publication()?;
             self.prepare_retained_install_data(&existing)?;
+            if activate
+                && let Some(active) = &status.active
+                && active.id != existing.id
+            {
+                self.carry_unknown_files(active, &existing)?;
+            }
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -3638,6 +3647,7 @@ impl PortcoveService {
                 &port.id,
                 &Uuid::new_v4().to_string(),
                 crate::VersionChangeKind::Update,
+                None,
             )
         } else {
             Ok(installed)
@@ -4087,6 +4097,7 @@ impl PortcoveService {
             if let Some(active) = &status.active {
                 self.adopt_additive_archive_data(active, &previous)?;
                 self.record_additive_rollback_baseline(active, &previous)?;
+                self.carry_unknown_files(active, &previous)?;
             }
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&previous, &qualification)?;
@@ -4133,6 +4144,20 @@ impl PortcoveService {
         };
         let port = self.installed_port(previous).map_err(invalid)?;
         crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        self.require_activation_uploader_continuity(previous, None)
+            .map_err(|error| RollbackTargetFailure {
+                reason: if error
+                    .details
+                    .get("reason")
+                    .is_some_and(|reason| reason.starts_with("provider_uploader_"))
+                {
+                    PortActionReason::ReviewRequired
+                } else {
+                    PortActionReason::InvalidInstallation
+                },
+                error,
+                definition: None,
+            })?;
         self.require_portable_runtime_unchanged(previous)
             .map_err(invalid)?;
         if let Some(active) = active {
@@ -4221,7 +4246,12 @@ impl PortcoveService {
                     ));
                 }
             }
-            self.activate_staged_locked(port_id, &activity.id, crate::VersionChangeKind::Activation)
+            self.activate_staged_locked(
+                port_id,
+                &activity.id,
+                crate::VersionChangeKind::Activation,
+                None,
+            )
         })();
         self.finish_activity(activity, result)
     }
@@ -4231,15 +4261,13 @@ impl PortcoveService {
         port_id: &str,
         operation_id: &str,
         kind: crate::VersionChangeKind,
+        fresh_continuity: Option<&crate::UploaderContinuityRecord>,
     ) -> Result<InstallRecord> {
         let status = self.status_without_rollback_assessment(port_id)?;
         let staged = status
             .staged
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
-        crate::managed_runtime_policy::require_managed_activation_available(
-            &self.catalog,
-            &staged,
-        )?;
+        self.require_activation_gates(&staged, fresh_continuity)?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -4275,6 +4303,11 @@ impl PortcoveService {
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.prepare_retained_install_data(&staged)?;
+            // Tier 2: carry harmless files the active version gained, after
+            // declared data and before the pointer changes (#5359).
+            if let Some(active) = &status.active {
+                self.carry_unknown_files(active, &staged)?;
+            }
             let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
             commit.persist(&store)?;
@@ -6444,6 +6477,53 @@ impl PortcoveService {
         crate::output_root::validate_install_path(&self.library, port_id, install_root)
     }
 
+    /// Every catalog gate a build must pass before it becomes active from stored
+    /// facts: staged activation and its recovery, and publication recovery all
+    /// apply this one check.
+    pub(crate) fn require_activation_gates(
+        &self,
+        install: &InstallRecord,
+        fresh: Option<&crate::UploaderContinuityRecord>,
+    ) -> Result<()> {
+        crate::managed_runtime_policy::require_managed_activation_available(
+            &self.catalog,
+            install,
+        )?;
+        self.require_activation_uploader_continuity(install, fresh)
+    }
+
+    /// Uploader continuity for a build about to become active from stored facts
+    /// (#6209). `fresh` is a resolution made just now for the same artifact.
+    pub(crate) fn require_activation_uploader_continuity(
+        &self,
+        install: &InstallRecord,
+        fresh: Option<&crate::UploaderContinuityRecord>,
+    ) -> Result<()> {
+        let current = self.catalog.port(&install.port_id).ok();
+        // The route the build was installed under, read from its verified
+        // manifest without the path-ownership check: a published payload in a
+        // game output folder is not registered yet during publication recovery.
+        // Only a manifest older than retained contracts is judged by the current
+        // catalog's route; a port neither knows has no GitHub route to continue.
+        // Every other failure refuses.
+        let retained = match Installer::new(self.library.clone())?.retained_catalog(install)? {
+            Some(catalog) => catalog.port(&install.port_id)?.clone(),
+            None => match current {
+                Some(port) => port.clone(),
+                None => return Ok(()),
+            },
+        };
+        let recorded = crate::install::recorded_acquisition(install)?;
+        crate::release::require_recorded_uploader_continuity(
+            &retained,
+            current,
+            Platform::current()?,
+            install,
+            &recorded,
+            fresh,
+        )
+    }
+
     pub(crate) fn installed_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
         Ok(self
             .installed_catalog(install)?
@@ -7688,6 +7768,7 @@ mod tests {
                 size: 10,
                 url: "https://invalid.example/never-requested".into(),
             },
+            uploader_continuity: None,
         };
         assert!(
             service
@@ -8179,6 +8260,7 @@ mod tests {
                 sha256: reviewed.sha256.clone(),
                 size: 42,
             },
+            uploader_continuity: None,
         };
         library.register_install(&install, true).unwrap();
         let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
@@ -8358,6 +8440,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8380,6 +8463,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8466,6 +8550,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8512,6 +8597,7 @@ mod tests {
                     size: 4,
                     sha256: self.sha256.clone(),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -11078,6 +11164,49 @@ mod tests {
             );
             assert!(recovered.repair_plan().unwrap().items.is_empty());
         }
+    }
+
+    #[test]
+    fn activation_recovery_holds_a_staged_build_without_recorded_uploader_facts() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", false);
+        let status = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let active = status.active.unwrap();
+        let mut staged = status.staged.unwrap();
+        // The staged build's manifest as a version before #6209 wrote it.
+        let manifest_path = staged.path.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest["acquisition_facts_recorded"], true);
+        manifest
+            .as_object_mut()
+            .unwrap()
+            .remove("acquisition_facts_recorded");
+        let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+        fs::write(&manifest_path, &bytes).unwrap();
+        staged.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+        library.update_install_manifest(&staged).unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            "unrecorded-activation",
+            LifecycleOperationKind::Activate,
+            "zelda64-recomp",
+        );
+        operation.install = Some(staged.clone());
+        store.put(&mut operation).unwrap();
+
+        let recovered = service_with_release(library.clone(), "v2");
+
+        let status = recovered.status("zelda64-recomp").unwrap();
+        assert_eq!(status.active.unwrap().id, active.id);
+        assert_eq!(status.staged.unwrap().id, staged.id);
+        let retained = store.get(&operation.id).unwrap().unwrap();
+        let error = retained.last_error.unwrap();
+        assert!(error.contains("holding back this version"), "{error}");
     }
 
     #[test]

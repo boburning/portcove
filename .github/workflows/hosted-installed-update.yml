@@ -83,6 +83,9 @@ jobs:
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/hosted-installed-update/evidence
       pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
+      # The shared tool cache defaults to %LOCALAPPDATA%\Portcove\tool-cache, a default
+      # Portcove location the scenario requires to be absent before it starts.
+      PORTCOVE_SHARED_TOOL_CACHE: ${{ github.workspace }}/work/tool-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

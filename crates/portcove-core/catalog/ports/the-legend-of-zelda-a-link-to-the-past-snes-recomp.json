@@ -42,19 +42,19 @@
         {
           "role": "game",
           "profile_id": "a-link-to-the-past-snes-usa",
-          "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+          "label": "The Legend of Zelda: A Link to the Past (USA) stock SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock headerless SNES ROM. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms."
+      "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms."
     },
     "launch_arguments": ["zelda.sfc"],
     "launch_environment": {
       "SNESRECOMP_NO_LAUNCHER": "1"
     },
     "runtime_source_filename": "zelda.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "zelda.sfc": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb"
     },

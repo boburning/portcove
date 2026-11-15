@@ -13387,7 +13387,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+            "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
           },
           {
             "title": "Keep the actual original and player data",
@@ -13395,11 +13395,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate-2, and use that absolute GamePath in a separate baldurs-gate-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
           },
           {
             "title": "Add the game and manage your files",
@@ -13444,7 +13444,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+            "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=bg1. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
           },
           {
             "title": "Keep the actual original and player data",
@@ -13452,11 +13452,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/baldurs-gate, and use that absolute GamePath in a separate baldurs-gate.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
           },
           {
             "title": "Add the game and manage your files",
@@ -14090,6 +14090,46 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "bips-blips",
+      "name": "Blips",
+      "original_game_title": "Bips, Bips Gold, and Bips Platinum",
+      "summary": "Play box-pushing puzzles from three Bips games and create your own levels in the bundled editor.",
+      "project_url": "https://github.com/joyrider3774/blips",
+      "issue_number": 6132,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
+      "download_block_reason": "Portcove downloads are paused while distribution permission is reviewed for the bundled original level packs, two paid assets and font files.",
+      "manual_setup": {
+        "help_url": "https://github.com/joyrider3774/blips/blob/v4.0/README.md",
+        "steps": [
+          {
+            "title": "Choose your existing permitted player",
+            "instruction": "Keep the program and its graphics, sound and level folders together. On Windows, use the x64 or x86 package matching your system and start Blips.exe from its own folder. On Linux, use the AppImage or Ubuntu ZIP for x86-64 or ARM64. Make the AppImage executable. If FUSE is unavailable, add --appimage-extract-and-run to the AppImage command."
+          },
+          {
+            "title": "Choose the correct Mac build",
+            "instruction": "On Intel Mac with macOS 15 or later, use Blips-macos-15-intel_intel.zip. On Apple Silicon with macOS 14 or later, use Blips-macos-14_arm64.zip. Open Blips.app from the extracted folder."
+          }
+        ],
+        "warnings": [
+          "Use an existing copy you already trust and are permitted to use. Keep its asset notices with the player."
+        ],
+        "references": [
+          {
+            "title": "Preserve progress, settings and custom levels",
+            "instruction": "Keep .blips_settings, .blips_joystick.def, .blips_*.dat and .blips_levelpacks from the player’s HOME directory. If HOME is unset, look in the directory you started the player from. Keep the old working copy until you confirm your data in a replacement."
+          }
+        ]
+      }
     },
     {
       "id": "bitsandbreakpoints-d-psx-pc-recomp",
@@ -24055,6 +24095,48 @@
       }
     },
     {
+      "id": "dungeon-keeper-keeperfx-tux-edition",
+      "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
+      "name": "Dungeon Keeper / KeeperFX Tux Edition",
+      "original_game_title": "Dungeon Keeper",
+      "summary": "Set up the community Linux build of KeeperFX using your own Dungeon Keeper files.",
+      "issue_number": 6110,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/releases/tag/v1.4.0.6103",
+      "setup_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+      "download_block_reason": "Open the publisher’s release and choose the Linux x86-64 AppImage. The upstream launcher prepares and maintains the game folder.",
+      "manual_setup": {
+        "help_url": "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/install.md",
+        "steps": [
+          {
+            "title": "Start the Linux AppImage",
+            "instruction": "On a current Linux x86-64 system such as Ubuntu 24.04 or newer, download KeeperFX-Tux-Edition-x86_64.AppImage from the publisher and make it executable. Run it directly or use --appimage-extract-and-run if FUSE is unavailable."
+          },
+          {
+            "title": "Copy your owned Dungeon Keeper files",
+            "instruction": "At the launcher’s Copy Dungeon Keeper Files prompt, select your original CD or a prepared GOG, Steam, or EA installation. Keep the original files in place. For music, use tracks from your own copy as described in the upstream guide."
+          },
+          {
+            "title": "Keep one Linux game folder",
+            "instruction": "The AppImage uses ~/.local/share/keeperfx-alpha by default. To use a separate folder, set KFX_ALPHA_PREFIX to its absolute path on each launch. Keep this folder separate from the Windows KeeperFX installation. A different AppImage version can update the same folder on its first launch. Before opening a replacement AppImage, close the game and launcher and back up the complete Linux folder, which holds saves, settings, screenshots, mods, and Workshop maps."
+          }
+        ],
+        "warnings": [
+          "Keep the build that wrote your saves before changing channels or versions. Older saves can depend on their original build, and some later scripted levels have an additional compatibility boundary. The publisher’s FAQ lists the affected versions."
+        ],
+        "references": [
+          {
+            "title": "Check save compatibility and use owned original data",
+            "instruction": "See https://github.com/ForkedInTime/keeperfx-tux-edition/blob/v1.4.0.6103/docs/faq.md for edition-specific setup and save compatibility."
+          }
+        ]
+      }
+    },
+    {
       "id": "dungeon-siege-joshspeakman-macos",
       "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
       "name": "Dungeon Siege / Dungeon Siege macOS",
@@ -25063,6 +25145,44 @@
         "linux-x86-64"
       ],
       "availability": "unknown"
+    },
+    {
+      "id": "empire-earth-gold-apple-silicon",
+      "name": "Empire Earth for Apple Silicon",
+      "original_game_title": "Empire Earth Gold",
+      "summary": "Play the base Empire Earth game on Apple Silicon using your own GOG Gold edition.",
+      "project_url": "https://github.com/maxgraf96/ee-macos",
+      "issue_number": 6117,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/maxgraf96/ee-macos/releases/tag/v0.8.2",
+      "setup_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+      "download_block_reason": "Use the publisher’s DMG or ZIP with macOS tools so the app bundle’s toolchain links are preserved.",
+      "manual_setup": {
+        "help_url": "https://github.com/maxgraf96/ee-macos/blob/v0.8.2/docs/INSTALL.md",
+        "steps": [
+          {
+            "title": "Install the Apple Silicon player",
+            "instruction": "On an Apple Silicon Mac with macOS 15 or later, get the publisher’s v0.8.2 DMG or ZIP and compare its SHA-256 with the release checksums. Move the complete EmpireEarth.app to Applications and open it there. The game host and movie libraries declare macOS 15 even though the launcher reports macOS 13."
+          },
+          {
+            "title": "Supply your own GOG game files",
+            "instruction": "Choose your installed GOG Empire Earth Gold folder or its Windows English offline installer with all companion parts. The player checks the supplied base-game files and prepares an Apple Silicon build in your user profile. Keep your original installer or game folder separately."
+          }
+        ],
+        "warnings": [
+          "The publisher distributes the app without Apple notarization. Review the publisher and exact package before trusting it on your Mac."
+        ],
+        "references": [
+          {
+            "title": "Keep saved games and settings",
+            "instruction": "Before replacing the player, back up your active ~/Library/Application Support/EmpireEarth folder. It contains game saves and scenarios in Data, profiles in Users, and private settings and your game key in registry.json. The app prepares the game in your profile. Replace EmpireEarth.app yourself with a verified publisher release."
+          }
+        ]
+      }
     },
     {
       "id": "empty-epsilon-native",
@@ -27041,13 +27161,17 @@
             "instruction": "The official Windows package includes the game. Choose Play after installation."
           },
           {
+            "title": "Install the Linux distribution package",
+            "instruction": "On Ubuntu x86-64 or ARM64, install sopwith from Universe, then open Sopwith or run sopwith. Other distributions may package it separately. No original game files are needed. Before moving to another system, keep sopwith.cfg and any personal hiscores.txt from your SDL Sopwith data folder (usually ~/.local/share/SDL Sopwith). A distribution can use a writable shared high-score file instead, such as /var/games/sopwith/hiscores.txt on Ubuntu."
+          },
+          {
             "title": "Install the upstream Mac app",
             "instruction": "Choose the ZIP for your Mac processor, extract its DMG and copy SDL Sopwith.app into Applications. The inspected Intel build needs macOS 13 and the Apple silicon build needs macOS 15. Keep your SDL Sopwith settings and high scores before replacing the Mac app."
           }
         ],
         "warnings": [
           "This project has not been verified for play through Portcove.",
-          "You and upstream own the Mac setup, updates and preference files."
+          "Your Linux distribution manages package updates. Keep your Linux preferences and scores separately. You and upstream own setup, updates and preference files on Mac."
         ],
         "help_url": "https://fragglet.github.io/sdl-sopwith/"
       },
@@ -27061,6 +27185,7 @@
       },
       "platforms": [
         "windows-x86-64",
+        "linux-x86-64",
         "macos-x86-64",
         "macos-aarch64"
       ]
@@ -28814,6 +28939,48 @@
         ]
       },
       "recommended_download_channel": "stable"
+    },
+    {
+      "id": "grand-theft-auto-san-andreas-unity",
+      "name": "San Andreas Unity",
+      "original_game_title": "Grand Theft Auto: San Andreas",
+      "summary": "Explore San Andreas and use the project’s multiplayer features with game data from your own PC installation.",
+      "project_url": "https://github.com/in0finite/SanAndreasUnity",
+      "issue_number": 6134,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+      "download_block_reason": "Portcove downloads are paused while the cover artwork bundled in the Windows, Linux and Android packages is reviewed. Use these instructions for copies you already trust and are permitted to use.",
+      "manual_setup": {
+        "help_url": "https://github.com/in0finite/SanAndreasUnity/blob/v4.0/README.md",
+        "steps": [
+          {
+            "title": "Prepare your installed PC game",
+            "instruction": "Keep your installed PC Grand Theft Auto: San Andreas data outside the San Andreas Unity player folder. In San Andreas Unity, use Change path to GTA to select your installed game folder. The project focuses on free exploration and multiplayer. Expect its own menus and modes."
+          },
+          {
+            "title": "Start an existing Windows or Linux copy",
+            "instruction": "Keep the executable, Unity libraries and SanAndreasUnity_Data folder together in a writable directory. Launch SanAndreasUnity.exe on Windows x64 or SanAndreasUnity.x86_64 on Linux x64 from that directory. If the Linux ZIP extracted with no permissions, restore owner read and directory access on that private copy and make SanAndreasUnity.x86_64 executable."
+          }
+        ],
+        "warnings": [
+          "Keep your original game, working folder and actual user profile before updating or replacing the player. You and upstream own the separate copy."
+        ],
+        "references": [
+          {
+            "title": "Keep your desktop settings",
+            "instruction": "Preserve config.user.json from the directory you start the player in. Also preserve the active Unity user profile and any local Data folder, plugins or mods you use."
+          },
+          {
+            "title": "Android preview and Mac source",
+            "instruction": "The Android v4.0 APK is an ARMv7 debug build and requires a device that can run 32-bit apps. It needs your installed PC game data and keeps its settings in the app’s user data. For Intel Mac and Apple Silicon, refer to the upstream Unity source build instructions. Compatibility for each Mac architecture still needs to be verified."
+          }
+        ]
+      }
     },
     {
       "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
@@ -30930,7 +31097,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+            "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=iwd2. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
           },
           {
             "title": "Keep the actual original and player data",
@@ -30938,11 +31105,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale-2, and use that absolute GamePath in a separate icewind-dale-2.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
           },
           {
             "title": "Add the game and manage your files",
@@ -30995,7 +31162,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+            "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=auto. For original Icewind Dale, let this build recognize the installed iwd/how expansion combination; do not force an absent expansion. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
           },
           {
             "title": "Keep the actual original and player data",
@@ -31003,11 +31170,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/icewind-dale, and use that absolute GamePath in a separate icewind-dale.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
           },
           {
             "title": "Add the game and manage your files",
@@ -34842,6 +35009,51 @@
       "release_url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases"
     },
     {
+      "id": "little-fighter-2-lf2-port",
+      "name": "Little Fighter 2 / LF2 Port",
+      "summary": "Run the original Little Fighter 2 v2.0a game data with LF2 Port's native Linux player.",
+      "project_url": "https://github.com/SomeoneIsWorking/lf2-port",
+      "issue_number": 6111,
+      "listed_at": "2026-11-15",
+      "original_game_title": "Little Fighter 2",
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/SomeoneIsWorking/lf2-port/releases/tag/v0.1.2",
+      "manual_setup": {
+        "help_url": "https://github.com/SomeoneIsWorking/lf2-port/blob/v0.1.2/README.md",
+        "steps": [
+          {
+            "title": "Prepare a separate game copy",
+            "instruction": "Use the original developers' Little Fighter 2 v2.0a installer. Extract it with the upstream tagged helper into a new writable folder, or copy a complete already-extracted v2.0a tree. Keep the original installer and any original extracted tree separately."
+          },
+          {
+            "title": "Set up the Linux x64 AppImage",
+            "instruction": "Make LF2-Port-x86_64.AppImage executable. Put the working tree in a folder named game beside it, or select the working folder, its lf2.exe or a complete ZIP in the upstream picker. Start the AppImage with the full working copy available."
+          },
+          {
+            "title": "Add the working Linux player",
+            "instruction": "Once the AppImage works on your system, select it in Portcove and keep its containing folder as the start folder. Save the launch details, then choose Play. Removing the registration leaves the working tree in place."
+          }
+        ],
+        "warnings": [
+          "This upstream player includes translated original game code. The original game and its data remain under the original developers' terms.",
+          "Use a separate writable working tree. The game can write files inside it as well as in the port profile. Back up both locations before replacing the player. A successful new ZIP import replaces the previous imported tree, so preserve its recordings and changes first."
+        ],
+        "references": [
+          {
+            "title": "Preserve the selected game and profile",
+            "instruction": "Keep the working game tree and the lf2-port profile under XDG_CONFIG_HOME or ~/.config. The port stores a ZIP import under game-import in its profile. Preserve that selected tree, lf2.cfg and any recordings or mods that you add."
+          },
+          {
+            "title": "Check Linux and other platform options",
+            "instruction": "Linux v0.1.2 has an x64 AppImage. Launch it with APPIMAGE_EXTRACT_AND_RUN=1 if FUSE is unavailable. Music needs ffmpeg on PATH. The release also offers a separate ARM64 Android 7 or later debug preview with a folder or ZIP import. macOS uses the upstream source build. The original Windows game is a separate player."
+          }
+        ]
+      }
+    },
+    {
       "id": "little-fighter-2-openlf2",
       "name": "Little Fighter 2 / OpenLF2",
       "summary": "Play Little Fighter 2 in OpenLF2 with the original v2.0a installer as game data.",
@@ -36845,7 +37057,7 @@
         "game_slug": "mercenaries-playground-of-destruction",
         "match_kind": "underlying-game"
       },
-      "download_block_reason": "Portcove downloads are paused because its current release package could not be identified for review. They can resume once that package is identified and reviewed."
+      "download_block_reason": "New downloads are unavailable because the prebuilt release package includes compiled game code, and the project's MIT license covers only its toolkit. Downloads can resume with permission covering that package, or with a reviewed route that builds from your own disc."
     },
     {
       "id": "meta-k-bannedpenta01-super-smash-bros-brawl",
@@ -37518,6 +37730,43 @@
         "warnings": [
           "Use only a copy and content you are already permitted to use. Engine licensing does not grant rights to original game assets, music, mods or bundled components.",
           "Before updating the game, keep a copy of its working files and every location containing saved data. Choosing a different executable does not give it a separate profile."
+        ]
+      }
+    },
+    {
+      "id": "might-and-magic-ix-macos",
+      "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
+      "name": "Might and Magic IX / MM9 Native macOS",
+      "original_game_title": "Might and Magic IX",
+      "summary": "Build the upstream Apple Silicon app from your owned Might and Magic IX GOG installer.",
+      "issue_number": 6109,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/releases/tag/v1.3",
+      "setup_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+      "download_block_reason": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+      "manual_setup": {
+        "help_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+        "steps": [
+          {
+            "title": "Prepare the owned GOG installer",
+            "instruction": "On Apple Silicon with macOS 13 or later, download your Might and Magic IX (Writ of Fate) GOG offline Windows installer for version 1.3. Keep any companion files alongside the EXE. The builder checks the hashes of five original engine modules."
+          },
+          {
+            "title": "Build the native app",
+            "instruction": "Open MM9-Native-Installer.dmg from the upstream release and use MM9 Native Installer to choose the owned EXE. Keep the original installer. The build needs Apple’s Command Line Tools, internet access for verified build dependencies, and about 4 GB of free space. Once it completes, open MM9 Native.app from your user Applications folder in Finder."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "With the game closed, back up SaveGames, autoexec.cfg, and any HDTextures in ~/Library/Application Support/MM9 Native/game. With its save backup selected, the upstream Updater DMG copies existing saves to ~/Library/Application Support/MM9 Native/backups before an update. Keep your own backup separately."
+          }
+        ],
+        "warnings": [
+          "The upstream Uninstaller DMG can also remove saves and the Wine installation. Leave those choices off to keep them.",
+          "The setup tools have universal Mac executables, but the builder and native game require Apple Silicon. There is no Windows, Linux, Intel Mac, or Android native package from this project."
         ]
       }
     },
@@ -38486,7 +38735,7 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Battle Arena Toshinden",
-      "download_block_reason": "Fresh acquisition of the older v0.1.3 package remains held: its selected source predates the current project license. This route registers only a permitted current-source noncommercial completed build; older package grants, component applicability and managed preparation are not certified.",
+      "download_block_reason": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
       "manual_setup": {
         "steps": [
           {
@@ -44094,7 +44343,7 @@
           },
           {
             "title": "Prepare upstream and select the real player",
-            "instruction": "Use a complete upstream GemRB build with its plugins, scripts and supplied configuration, not just a loose executable. GitHub release metadata has no binary asset to recommend. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
+            "instruction": "For Windows x64, use the official SourceForge archive with its plugins, scripts and configuration. Its v0.9.5 ZIP is named gemrb-win32-v0.9.5.zip and contains a 64-bit player. The player needs the Microsoft Visual C++ x64 runtime. Give this game its own configuration: GamePath points to a separate complete working copy of the installed original; GameType=pst. Use the configuration supplied with your actual build rather than leaving @...@ development-template placeholders. Register gemrb.exe with the complete GemRB installation as working directory and two literal argument lines, -c then the absolute path to this game’s configuration."
           },
           {
             "title": "Keep your originals and game data",
@@ -44102,11 +44351,11 @@
           },
           {
             "title": "Choose the upstream Linux build",
-            "instruction": "Use the official GemRB Linux AppImage or install org.gemrb.gemrb from Flathub. The Flatpak creates GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb on first start. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run org.gemrb.gemrb -c followed by the absolute path to that config. Back up the sandbox config and actual saves separately."
+            "instruction": "Use the official x86-64 GemRB AppImage with the host libjack.so.0 library, or install org.gemrb.gemrb from Flathub on x86-64 or ARM64 Linux. Start the Flatpak normally once to create GemRB.cfg in ~/.var/app/org.gemrb.gemrb/config/gemrb. For that package, copy this title’s complete original working copy to ~/.var/app/org.gemrb.gemrb/data/planescape-torment, and use that absolute GamePath in a separate planescape-torment.cfg. Use a writable SavePath parent and an empty, dedicated CachePath under the same app’s data and cache directories. Start with flatpak run --command=gemrb org.gemrb.gemrb -c followed by the absolute config path in quotes. This passes the path to the player as one argument. Back up the sandbox config and actual saves separately."
           },
           {
             "title": "Choose the upstream Mac build",
-            "instruction": "Use the Intel Mac bundle from GemRB’s download page or follow its Mac Source Ports link for a build matching your architecture. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
+            "instruction": "Use the Mac Source Ports Universal 2 DMG at https://github.com/MacSourcePorts/MSPBuildSystem/releases/tag/GemRB_0.9.5. Its v0.9.5 build uses macOS 10.15 or later on Intel and macOS 11 or later on Apple Silicon. GemRB’s SourceForge release directory also offers separate Intel and Apple Silicon builds. Keep the bundle complete. Use this game’s own configuration and point GamePath to the prepared original game folder. Keep this title’s saves, config and working data together when replacing the bundle."
           },
           {
             "title": "Add the game and manage your files",
@@ -45315,6 +45564,49 @@
         "help_url": "https://github.com/ThibaudVB/Pokepark-2-Recompiled"
       },
       "issue_number": 3423
+    },
+    {
+      "id": "populous-the-beginning-openpoptb",
+      "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
+      "name": "Populous: The Beginning / OpenPopTB",
+      "original_game_title": "Populous: The Beginning",
+      "summary": "Prepare the upstream Apple Silicon player from your own Populous: The Beginning files.",
+      "issue_number": 6100,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/releases/tag/v0.2.1",
+      "setup_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+      "download_block_reason": "Open the publisher’s release for the Apple Silicon ZIP. The app builds from your owned game files.",
+      "manual_setup": {
+        "help_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/v0.2.1/README.md",
+        "steps": [
+          {
+            "title": "Choose the Apple Silicon app",
+            "instruction": "The standard Populous TB.app uses the original software renderer. Populous TB (Direct3D).app uses your D3DPopTB.exe, and Populous UW.app needs popTBUW.exe for Undiscovered Worlds. The ZIP requires macOS 14 or later and Apple’s Command Line Tools for first launch."
+          },
+          {
+            "title": "Prepare a writable working copy",
+            "instruction": "Make a separate writable copy of your installed GOG game, including QMixer.dll, WEANETR.dll, and the data, levels, sound, and fmv folders. Choose that folder in the app. Compare the executable and libraries to the tested hashes in upstream’s guide. For Direct3D, see the D3DPopTB.exe hash in the tagged runtime source. The app builds locally from your copy and can also unpack the owned GOG offline installer with its companion files."
+          },
+          {
+            "title": "Back up the actual save directory",
+            "instruction": "Keep save from the chosen working folder and retain your original files. The apps share ~/Library/Application Support/OpenPopTB for the remembered directory and generated code. Before selecting an installer again or changing variants, back up the active save folder and any app-extracted Game folder. Use the upstream release when replacing the app."
+          }
+        ],
+        "warnings": [
+          "Installer extraction can replace the shared Game folder. Keep separate working folders for variants when you want separate saves.",
+          "The exact downloadable package is Apple Silicon only. Multiplayer is still in development."
+        ],
+        "references": [
+          {
+            "title": "Check the Direct3D original",
+            "instruction": "The D3DPopTB.exe hash is listed at https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/e888d11ddb4810758c33d55bd6e0a7144e804409/runtime/prepare.c#L350."
+          }
+        ]
+      }
     },
     {
       "id": "populous-the-beginning-recomp",
@@ -46719,6 +47011,44 @@
         ],
         "warnings": [
           "Select the actual completed q4hle.exe and preserve q4.toml, the original location and existing q4 data root. PC openQ4, the SDK renderer and legacy builds have separate compatibility and maintenance scope."
+        ]
+      }
+    },
+    {
+      "id": "quake-ii-q2repro",
+      "project_url": "https://github.com/Paril/q2repro",
+      "name": "Quake II / Q2rePRO",
+      "original_game_title": "Quake II",
+      "summary": "Set up the Q2rePRO engine with your own Quake II rerelease installation.",
+      "issue_number": 6102,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/Paril/q2repro/releases/tag/nightly",
+      "setup_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
+      "download_block_reason": "Use the publisher’s Windows nightly and the matching SDL dependency. For Linux, build from the pinned source.",
+      "manual_setup": {
+        "help_url": "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md",
+        "steps": [
+          {
+            "title": "Prepare the Windows nightly",
+            "instruction": "On Windows x64, choose q2repro-rerelease-client_win64_x64.zip from the publisher. Use a separate writable engine folder and install the Microsoft Visual C++ x64 runtime. For the November 12, 2026 build, extract SDL3.dll from the official SDL 3.4.14 Windows x64 runtime ZIP at https://github.com/libsdl-org/SDL/releases/tag/release-3.4.14 and place it beside q2repro.exe. Check a newer build’s requirements before replacing either file."
+          },
+          {
+            "title": "Use your installed Quake II rerelease",
+            "instruction": "Run q2repro.exe from the extracted engine folder. It can discover an installed Quake II rerelease. Keep the complete original installation, with its rerelease PAK files and game DLL, in place. To add the Windows player to your Library, select q2repro.exe and use its own folder as the working directory."
+          },
+          {
+            "title": "Build the Linux player",
+            "instruction": "Check out commit 9619f8e20a74dec67dff0b20eb8f34a3adf926da with its submodules. Follow BUILDING.md for Meson, a C and C++ toolchain, and the Linux dependencies. Install the build with Meson so it places the native game library in baseq2 under the configured library directory. For an uninstalled build, pass the absolute Meson build directory containing baseq2/game_x86_64.so with +set libdir. Use +set basedir with the folder containing the rerelease baseq2 directory and +set homedir with a separate writable profile. Keep the source installation intact."
+          }
+        ],
+        "warnings": [
+          "On Windows in rerelease mode the engine uses the Windows Saved Games folder under NightDive Studios/Quake II. Back up that shared profile before switching engines. A separate executable folder does not isolate the profile.",
+          "The publisher marks native rerelease game-DLL multiplayer as unfinished. The nightly release can replace its ZIP in place."
         ]
       }
     },
@@ -58964,6 +59294,49 @@
       }
     },
     {
+      "id": "touhou-4-lotus-land-story-portable64",
+      "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
+      "original_game_title": "Touhou Gensokyo: Lotus Land Story",
+      "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
+      "project_url": "https://github.com/N0zoM1z0/th04",
+      "issue_number": 6128,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/N0zoM1z0/th04/releases/tag/portable64-2026.10.27",
+      "setup_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+      "download_block_reason": "Open the publisher’s preview release for the Windows ZIP. On Linux, follow the pinned source build.",
+      "manual_setup": {
+        "help_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+        "steps": [
+          {
+            "title": "Prepare the Windows preview",
+            "instruction": "Extract the x64 preview into a writable folder and check the release SHA-256. Put your own th04.hdi, FREECG98.BMP and ym2608_adpcm_rom.bin beside th04-port64.exe. Compare your files with the tested input identities in the upstream guide. Play.bat starts the ordinary game outside Portcove."
+          },
+          {
+            "title": "Register the Windows player",
+            "instruction": "Choose th04-port64.exe with its own folder as the working directory. Add these arguments as separate entries: --hdi th04.hdi --font-bmp FREECG98.BMP --save-dir save-normal --title --audio --pmd-driver pmd86 --opna-rom ym2608_adpcm_rom.bin. Save the launch details and choose Play."
+          },
+          {
+            "title": "Build a Linux x86-64 copy",
+            "instruction": "Follow the pinned Portable 64-bit Linux build with CMake, a C++17 compiler and SDL2 development files. Start the built th04-port64 from your prepared folder and set the input paths and save directory as shown in the upstream Linux command."
+          }
+        ],
+        "warnings": [
+          "The upstream preview offers an assisted mode with its own save directory. Use the ordinary player for regular play and keep both profiles separately."
+        ],
+        "references": [
+          {
+            "title": "Keep scores and settings",
+            "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
+          }
+        ]
+      }
+    },
+    {
       "id": "tox2-recomp-yuias-tales-of-xillia-2",
       "name": "Tales of Xillia 2 — TOX2-recomp (yuias)",
       "original_game_title": "Tales of Xillia 2",
@@ -62530,12 +62903,6 @@
       "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
       "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "vurus-windows-amd64.zip"
-        ],
-        "linux-x86-64": [
-          "vurus-linux.tar.gz"
-        ],
         "macos-x86-64": [
           "vurus-darwin-x86_64.zip"
         ],
@@ -62548,16 +62915,16 @@
         "help_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
         "steps": [
           {
-            "title": "Choose the desktop release",
-            "instruction": "In the release picker, choose desktop release v202610242327-beta and extract the package into a writable folder. Use vurus.exe on Windows x64, or launch.sh on Linux x64 with glibc 2.35 or later, SDL2 and OpenGL. On macOS 15 or later, use the Intel or Apple Silicon archive matching your Mac and run vurus from a terminal. The Mac builds are unsigned."
-          },
-          {
             "title": "Prepare your original game files",
-            "instruction": "Put your owned ISO or single-BIN CUE/BIN next to the player, or use --data with its path or an extracted resource folder. Keep the CUE and its BIN together to import CD audio. When you import a disc image, Vurus prepares data/ beside the executable. An extracted resource folder can be used in place. Keep the original separately. Use --data to choose a different image when a previous import already exists."
+            "instruction": "Copy your owned Vyruz ISO, or a single-BIN CUE with its BIN, beside the Vurus player, then start it. Keep the CUE and BIN together to import CD music, and keep your original separately. On first start Vurus imports the disc into data/ beside the player and reuses that import later, so you can then delete the copied image. To import a different image after a previous import, use --data with its path."
           },
           {
-            "title": "Keep imports and progress when updating",
-            "instruction": "Back up the whole data/ folder, saves/, slot1.vzs, options.cfg, and vz.sco before replacing the player. Keep any external resource folder, separate save or options paths you configured, and any older selected import until you have checked your progress. Keep the previous runtime with its data for recovery."
+            "title": "Use the Mac release",
+            "instruction": "On macOS 15 or later, pick desktop release v202610242327-beta, extract the Intel or Apple Silicon archive matching your Mac into a writable folder, and run vurus from a terminal. The Mac builds are unsigned."
+          },
+          {
+            "title": "Keep imports and progress",
+            "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep your own copy, such as on a Mac, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
           }
         ],
         "warnings": [

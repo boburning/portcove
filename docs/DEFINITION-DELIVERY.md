@@ -16,7 +16,7 @@ component fixtures do not complete either production outcome.
 Core advertises each installed `AdapterKind` template with contract version 1.
 The public inventory additionally advertises Libultraship portable version 2,
 native portable versions 2–9, managed PS1 versions 2–3, N64 portable versions 2–4
-and staged-source portable versions 2–5, 8, 10–12 and 15–33. The inventory owner is
+and staged-source portable versions 2–5, 8, 10–12 and 15–36. The inventory owner is
 `EngineTemplateCapability::current()` in
 [`definition_capabilities.rs`](../crates/portcove-core/src/definition_capabilities.rs);
 the version semantics and admission limits below remain part of each contract.
@@ -616,6 +616,17 @@ acquisition hold. Indexed and retained definitions with `excluded_artifacts`
 must declare a staged-source minimum version of 35. Earlier readers reject
 the capability. Holds that omit this field keep their existing behavior and
 capability requirements. The new field grants no additional acquisition authority.
+
+Staged-source version 36 admits SNES sources whose dump may carry a 512-byte
+copier header (the `snes-copier-header-optional` source representation and its
+`snes-headerless-content` digest scope) and the `snes-headerless` source
+materialization that writes their content without the header (see [copier
+headers](CATALOG.md#snes-copier-headers)). An indexed entry using either must
+require staged-source minimum version 36, so an older reader refuses it instead
+of copying a headered file whole. Changing an existing source identity record
+still cannot ship by indexed definition; converted routes ship in the
+application's embedded catalog. The version adds no source, download,
+installation or publisher authority.
 
 ## Decision and threat model
 

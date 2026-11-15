@@ -46,6 +46,7 @@ fn input(
         source_row,
         target,
         target_row,
+        target_replaces: None,
     }
 }
 
@@ -287,6 +288,7 @@ fn unreadable_copies_are_never_absent_or_replaced() {
             source_row: Some(present("2", &["1", "2"])),
             target: file("1"),
             target_row: Some(present("1", &["1"])),
+            target_replaces: None,
         },
         &CarryExclusions::default(),
     );
@@ -300,6 +302,7 @@ fn unreadable_copies_are_never_absent_or_replaced() {
             source_row: Some(present("2", &["1", "2"])),
             target: TargetCopy::Unreadable,
             target_row: Some(present("1", &["1"])),
+            target_replaces: None,
         },
         &CarryExclusions::default(),
     );
@@ -313,6 +316,7 @@ fn unreadable_copies_are_never_absent_or_replaced() {
             source_row: Some(present("1", &["1"])),
             target: TargetCopy::Unreadable,
             target_row: Some(present("1", &["1"])),
+            target_replaces: None,
         },
         &CarryExclusions::default(),
     );
@@ -639,4 +643,64 @@ fn case_collisions_and_blocked_targets_are_excluded() {
     );
     assert_eq!(by_path["fine.ini"], CarryAction::Copy);
     assert_eq!(written_paths(&planned), BTreeSet::from(["fine.ini"]));
+}
+
+#[test]
+fn an_interrupted_replacement_re_plans_against_the_displaced_record() {
+    // N1: the switch wrote T's row as pending{A, a}, displacing T's present
+    // [t_old] row, and was interrupted before publishing. T still holds t_old.
+    let pending = pending_from(A, "2");
+    let retry = |target: TargetCopy| {
+        one(
+            "save.dat",
+            PathInput {
+                source: src(Some("2")),
+                source_row: Some(present("2", &["1", "2"])),
+                target,
+                target_row: Some(pending.clone()),
+                target_replaces: Some(present("1", &["0", "1"])),
+            },
+            &CarryExclusions::default(),
+        )
+    };
+    let replaced = retry(file("1"));
+    assert_eq!(replaced.action, CarryAction::Replace);
+    assert_eq!(
+        replaced.target_row,
+        RowChange::Set(present("2", &["1", "2"]))
+    );
+    // Edited since: keep both, and keep only the bytes now there.
+    let kept = retry(file("7"));
+    assert_eq!(kept.action, CarryAction::KeepSeparately);
+    assert_eq!(kept.target_row, RowChange::Set(present("7", &["7"])));
+    // The displaced record keeps its lineage when T is kept unchanged.
+    let unrelated = one(
+        "save.dat",
+        PathInput {
+            source: src(Some("5")),
+            source_row: None,
+            target: file("1"),
+            target_row: Some(pending_from("other", "9")),
+            target_replaces: Some(present("1", &["0", "1"])),
+        },
+        &CarryExclusions::default(),
+    );
+    assert_eq!(unrelated.action, CarryAction::KeepSeparately);
+    assert_eq!(
+        unrelated.target_row,
+        RowChange::Set(present("1", &["0", "1"]))
+    );
+    // A displaced record is ignored when T's own row is present.
+    let own = one(
+        "save.dat",
+        PathInput {
+            source: src(Some("2")),
+            source_row: Some(present("2", &["1", "2"])),
+            target: file("1"),
+            target_row: Some(present("9", &["9"])),
+            target_replaces: Some(present("1", &["1"])),
+        },
+        &CarryExclusions::default(),
+    );
+    assert_eq!(own.action, CarryAction::KeepSeparately);
 }

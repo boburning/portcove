@@ -2510,6 +2510,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -3215,6 +3225,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -5433,6 +5479,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -7303,6 +7350,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -7856,6 +7908,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -10625,6 +10697,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -10745,6 +10827,42 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -14649,6 +14767,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -15519,6 +15638,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -17097,6 +17217,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -17170,6 +17300,42 @@
           "library_root",
           "volume_total_bytes",
           "volume_available_bytes"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -17889,6 +18055,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -17898,6 +18074,42 @@
           "channel",
           "published_at",
           "asset"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -18503,6 +18715,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -18645,6 +18867,42 @@
           "version",
           "notes",
           "notes_truncated"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -18886,6 +19144,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -20196,6 +20455,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -20235,6 +20504,42 @@
           "library_root",
           "volume_total_bytes",
           "volume_available_bytes"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -21532,6 +21837,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -23235,6 +23541,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -24915,6 +25222,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -28411,6 +28719,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -29116,6 +29434,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -29883,6 +30237,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -29932,6 +30296,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UserSelectedLaunch": {
         "additionalProperties": false,
@@ -35032,6 +35432,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -39230,6 +39635,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -40888,6 +41294,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -45024,6 +45450,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -45154,6 +45590,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -45377,6 +45849,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -45507,6 +45989,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -49110,6 +49628,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -50980,6 +51499,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -51533,6 +52057,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -52189,6 +52733,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -53000,6 +53545,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -54589,6 +55135,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -55190,6 +55756,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -55679,6 +56246,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -56245,6 +56832,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57189,6 +57777,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57508,6 +58097,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57837,6 +58427,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -58900,6 +59491,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -60238,6 +60830,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -60881,6 +61493,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -62324,6 +62937,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -62796,6 +63429,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -63050,6 +63684,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -63437,6 +64072,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -64896,6 +65532,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -65511,6 +66167,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -66954,6 +67611,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -68227,6 +68904,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -68932,6 +69619,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -70177,6 +70900,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70222,6 +70955,42 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -70433,6 +71202,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70553,6 +71332,42 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -70837,6 +71652,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70846,6 +71671,42 @@
           "channel",
           "published_at",
           "asset"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }

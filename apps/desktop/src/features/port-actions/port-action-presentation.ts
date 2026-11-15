@@ -127,6 +127,8 @@ export function capabilityActionReason(assessment: Assessment): string {
     );
   if (assessment.reason === "available")
     return "No current prerequisite is outstanding. Execution checks again.";
+  if (assessment.action === "rollback" && assessment.reason === "review_required")
+    return "Portcove can’t confirm who uploaded the previous version.";
   if (assessment.reason === "review_required") return "Review the operation before continuing.";
   if (assessment.reason === "not_installed")
     return "The installation or retained version required for this operation is absent.";
@@ -195,6 +197,12 @@ function presentRollbackAssessment(assessment: Assessment): ActionPresentation {
       blocked: true,
       reason:
         "Portcove could not verify the previous version. Restore previous version is on hold.",
+    };
+  if (availability === "held" && reason === "review_required")
+    return {
+      blocked: true,
+      reason:
+        "Restore previous version is on hold because Portcove can’t confirm who uploaded that version.",
     };
   return unavailable("rollback");
 }

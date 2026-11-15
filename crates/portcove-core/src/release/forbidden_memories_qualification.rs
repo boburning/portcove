@@ -80,6 +80,7 @@ fn authenticated_baseline(
             size: SIZE,
             sha256: DIGEST.into(),
         },
+        uploader_continuity: None,
     })
 }
 

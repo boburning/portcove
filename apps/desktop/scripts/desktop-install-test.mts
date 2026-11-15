@@ -1028,13 +1028,22 @@ export async function installScenarios({
       // Base UI keeps busy actions focusable: `disabled` stays false while
       // aria-disabled/aria-busy mark them inert, and the busy layout can place a
       // neighbouring control under the click point.
+      // Calibrated from 15 s (#4879), shared by every click in this journey:
+      // hosted run 43680800015 kept Play busy past 15 s after rollback while a
+      // 14 s workspace snapshot, a 6 s follow-up and 13-15 s debug-build
+      // capability reads settled. Harness only; the slowest wait is recorded.
+      const actionableStarted = Date.now();
       await browser.wait(
         async () =>
           (await element.isEnabled()) &&
           (await element.getAttribute("aria-disabled")) !== "true" &&
           (await element.getAttribute("aria-busy")) !== "true",
-        15_000,
+        60_000,
         `${label} did not become actionable`,
+      );
+      observations.slowest_actionable_ms = Math.max(
+        Number(observations.slowest_actionable_ms ?? 0),
+        Date.now() - actionableStarted,
       );
       await executeBrowserScript(
         browser,

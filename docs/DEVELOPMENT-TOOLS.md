@@ -3780,4 +3780,7 @@ This retains bounded Linux pressure/disk/process counters and the configured
 Windows pool/counter observation. Plain output includes an I/O summary. Process
 counters are cumulative and may include waited-for children; they are not rates
 or current-hotspot proof. Inaccessible or unregistered work remains unobserved;
-missing records never establish machine idle.
+missing records never establish machine idle. Windows passive status uses one
+bounded snapshot of process creation identities for the slot and queue records.
+A failed snapshot reports observation unavailable. Resource admission still
+checks live ownership through the existing guard.

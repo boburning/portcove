@@ -281,7 +281,15 @@ keep-for-later waits are calibrated from 5 s to 60 s, the readiness omission wai
 from 10 s to 60 s, and the library-move and source-intake groups' watchdogs from
 300 s and 180 s to 600 s. The wait for a settled update outcome to close its observation
 review is calibrated from 5 s to 60 s: the review closes after the outcome's
-workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. Its
+workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
+supplied update outcome to render after Apply and to show its summary are calibrated
+from 5 s to 60 s: run 43680800015 still showed "Updating…" after 5 s while 12 s
+capability reads ran. The update-acquisition journey's wait for an action to stop
+being busy is calibrated from 15 s to 60 s: the same run kept Play busy past 15 s after
+rollback while a 14 s workspace snapshot, a 6 s follow-up and 13-15 s capability reads
+settled. The wait is shared by every click in that journey, and its report records
+`slowest_actionable_ms`. The
+preparation journey's
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
@@ -335,8 +343,11 @@ failed run is never acceptance.
 The Windows job reuses the shared hosted WebView2 preparation, the pinned
 `native-drivers` bootstrap (tauri-driver and the signature-checked matching
 EdgeDriver) and the installed-update harness helpers for driver startup,
-connection, hashing and Settings navigation. The scenario in
-`apps/desktop/scripts/desktop-hosted-installed-update.mts`:
+connection, hashing and Settings navigation. The job points
+`PORTCOVE_SHARED_TOOL_CACHE` into its work directory, because the shared tool
+cache otherwise defaults to `%LOCALAPPDATA%\Portcove\tool-cache`, a default
+Portcove location the scenario requires to be absent before it starts. The
+scenario in `apps/desktop/scripts/desktop-hosted-installed-update.mts`:
 
 1. Downloads the from-version installer and CLI ZIP and verifies both against
    that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a
@@ -348,8 +359,15 @@ connection, hashing and Settings navigation. The scenario in
    preference with automatic checks off, creates the library with the release
    CLI and seeds deterministic save and settings files under
    `user/hosted-update-acceptance/`, recording their SHA-256 values. The process
-   the NSIS installer relaunches is started by the installer, not the harness,
-   so its isolation is checked rather than assumed (step 5).
+   the NSIS installer relaunches does not inherit the installer's environment:
+   from an elevated installer, the `/R` relaunch uses
+   `nsis_tauri_utils::RunAsUser`, which starts the app with Explorer's token and
+   an environment Windows builds from the user profile, including
+   `HKCU\Environment`. Before the first session the harness therefore also
+   writes the same overrides there and restores the previous values when the
+   run ends. Step 5 checks that the shipping relaunch, given these
+   profile-level overrides, stays isolated; it does not test whether
+   process-scoped overrides survive the relaunch.
 3. Launches the installed application under WebDriver, opens Settings, Updates,
    presses Check for updates and requires the offered version to equal the
    feed's newer version.

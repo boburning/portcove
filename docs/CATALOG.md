@@ -287,7 +287,9 @@ approved metadata/intake scope and scheduling remain unchanged.
 The `native-portable` adapter offers the existing managed installation, update,
 retained-version, backup and recovery lifecycle to fitting upstream archives.
 For ordinary GitHub discovery, releases containing only explicit other-OS
-players are outside that platform's stream. Same-OS, unknown or mixed package
+players are outside that platform's stream. PortMaster packages target handheld
+Linux firmware and count as another platform's players on every desktop
+platform, so a PortMaster-only release never enters a desktop stream. Same-OS, unknown or mixed package
 names still use the normal variant, processor and integrity refusals; source-only
 releases never silently select an older runtime. Curated identities retain their
 existing exact selection.
@@ -808,8 +810,9 @@ They do not block those operations, and only a reviewed loader-read name
 beside the executable, such as `dinput8.ini`, `ReShade.ini`, `dxvk.conf` or
 `Game.exe.config`, blocks launch. Verification and the removal review list them,
 backups keep a separate copy that restore does not put back, and removal backs
-them up first. They are not declared player data and are not collected or
-carried forward. Past the unknown-file caps only a backup or removal is held;
+them up first. They are not declared player data and are not collected as such;
+harmless ones are carried to the version that becomes active under the
+[Tier 2 contract](ARCHITECTURE.md#unknown-player-side-files). Past the unknown-file caps only a backup or removal is held;
 see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
 Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
@@ -1279,14 +1282,43 @@ honours the optional truncation record; as in the format itself, offset `0x454F4
 as the end marker.
 
 Identity is exact, so an original that carries a 512-byte copier header is a different file
-and is refused at registration. Accepting header variants of a pinned original needs
-header-aware source registration and is not part of this contract.
+and is refused at registration; the header-aware representation below applies only to
+copied SNES runtime files, not to ROM patch inputs.
 
 An indexed definition that declares `runtime_rom_patch` must require
 `staged-source-portable` capability version 33 ([definition
 delivery](DEFINITION-DELIVERY.md)); the declaration joins the installed compatibility
 identity only when set. No shipped definition declares it yet; the first candidate
 consumer is tracked on its port issue.
+
+### SNES copier headers
+
+Some SNES dumps start with a 512-byte copier header. A source representation of kind
+`snes-copier-header-optional` identifies a raw SNES dump by its content: a file whose
+length is 512 bytes more than a multiple of 1024 (and at most 64 MiB) is identified by the
+bytes after those 512, and any other length is identified whole. Its identities use the
+`snes-headerless-content` scope, and only this kind reads it, so matching for every other
+profile is unchanged; a header inside a ZIP is not recognized. The header's bytes are never
+interpreted, and exactly one header is ever skipped. Registration records that digest pair
+for any raw file whose length shows a header, whatever its profile; other files' stored
+facts are unchanged. A library holding such a record uses a digest scope that an older
+Portcove version cannot read.
+
+A port whose source profile uses this kind must use the `snes-headerless` materialization,
+and that materialization requires it. It reads the registered original (following a
+symlink as registration does), drops the header when the length shows one, checks the
+result against the single pinned `runtime_source_hashes` identity in memory and only then
+atomically writes the runtime file; the original is never changed. The registered source
+record keeps the file's own SHA-256 and size. Indexed definitions using either need
+staged-source capability 36 ([definition delivery](DEFINITION-DELIVERY.md)).
+
+The managed DKC3, F-Zero, Super Bomberman, Super Mario World and A Link to the Past routes
+use it; their pinned content and runtime identities are unchanged. Mega Man X2 and Super
+Metroid stay exact: their reviewed predecessor-archive transitions bind the creating
+`copy` materialization. DKC2 hands the original to its user-prepared runtime without a
+materialization step and stays exact. An existing installation keeps the retained
+contract it was installed under, so it accepts a headered dump only after it is next
+installed or updated.
 
 ## Default covers
 
@@ -2114,6 +2146,37 @@ preserved-location failover and player-chosen catalog downloads are not
 automatic progression and keep their own identity checks. GitLab release links
 and generic-package rows carry no per-file uploader, and a release author is not
 the file uploader, so GitLab selection remains unevaluated.
+
+The guard also applies when a build becomes active from stored facts rather than
+a resolution made just then (#6209). A GitHub resolution records its decision
+(the basis, the uploader's account ID and the asset's `created_at`) with the
+resolved release, and the install manifest keeps it with the build, bound by the
+manifest's registered hash. Before activating a staged build, rolling back to a
+retained build or recovering an interrupted activation or publication, Core
+applies that recorded decision again:
+
+- a build installed before the baseline keeps its earlier behavior;
+- a recorded decision stands, except that an accepted uploader must still be in
+  the current catalog's `release.accepted_uploaders`, so narrowing the list also
+  holds builds staged under it (`provider_uploader_not_continuous`);
+- a manifest written by a version that records these facts but carries no
+  decision (a curated record, or a build no GitHub resolution produced) needs
+  none;
+- a build installed after the baseline whose manifest predates recording may
+  have been staged by a version without the guard. Its activation and its
+  recovery are held (`provider_uploader_not_observed`) unless a resolution of the
+  same artifact made just then supplies the decision, as Update does when it
+  finds the build already staged. Restoring such a previous version is held,
+  which the rollback assessment shows before the action is chosen.
+
+Other providers and curated, direct, user-prepared and managed-build routes are
+not upstream progression and are unaffected, as is the active build. A build
+this version adopts from local files records the marker; an adopted tree with a
+separately recorded runtime is also recognized. A manifest rewrite or prepared
+derivative carries the original's recorded facts and install time and never
+adds a marker the original lacked, so a derivative of a pre-baseline build stays
+pre-baseline. Rolling back to a held build reports `review_required`. A held
+recovery keeps its journal for review, as an acquisition hold does.
 
 To accept a new uploader, review the account and the held release on the
 canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`

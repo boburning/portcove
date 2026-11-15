@@ -42,6 +42,7 @@ async fn progression(id: &str) {
             channel: ReleaseChannel::Stable,
             published_at: None,
             asset: archive,
+            uploader_continuity: None,
         }
     });
     let first = PortcoveService::with_provider(

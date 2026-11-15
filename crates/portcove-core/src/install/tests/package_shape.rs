@@ -53,6 +53,7 @@ async fn install(installer: &Installer, library: &Library, version: &str, member
             channel: crate::ReleaseChannel::Stable,
             published_at: None,
             asset,
+            uploader_continuity: None,
         },
         activate: true,
         managed: None,

@@ -155,10 +155,7 @@ pub(crate) fn recover_published_install(
                 .as_ref()
                 .is_some_and(|active| active.id == install.id)
             {
-                crate::managed_runtime_policy::require_managed_activation_available(
-                    service.catalog(),
-                    &install,
-                )?;
+                service.require_activation_gates(&install, None)?;
                 service.recover_managed_route_publication(&install, expected)?;
             } else if status.external_runtime.is_some() {
                 return Err(PortcoveError::conflict(
@@ -166,16 +163,15 @@ pub(crate) fn recover_published_install(
                 ));
             }
         } else {
-            let already_active = service
+            let current_active = service
                 .library
                 .status(&operation.port_id, install.channel)?
-                .active
+                .active;
+            let already_active = current_active
+                .as_ref()
                 .is_some_and(|active| active.id == install.id);
             if operation.activate && !already_active {
-                crate::managed_runtime_policy::require_managed_activation_available(
-                    service.catalog(),
-                    &install,
-                )?;
+                service.require_activation_gates(&install, None)?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -792,10 +788,7 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            crate::managed_runtime_policy::require_managed_activation_available(
-                service.catalog(),
-                &install,
-            )?;
+            service.require_activation_gates(&install, None)?;
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),
@@ -807,6 +800,9 @@ pub(crate) fn recover_activation(
             )?;
             let commit = activation.prepare_commit(service, operation)?;
             service.prepare_retained_install_data(&install)?;
+            if let Some(active) = &status.active {
+                service.carry_unknown_files(active, &install)?;
+            }
             service.library.activate_staged(&install.port_id)?;
             commit.persist(store)?;
         } else {
