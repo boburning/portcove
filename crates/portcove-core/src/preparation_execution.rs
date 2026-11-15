@@ -1535,8 +1535,11 @@ fn validate_cleanup_fingerprint(fingerprint: &str) -> Result<()> {
 
 #[cfg(test)]
 mod capacity_tests {
-    use super::{GAMECUBE_DISC_CAPACITY_BYTES, preparation_capacity_bytes};
+    use super::{
+        GAMECUBE_DISC_CAPACITY_BYTES, discard_empty_opengoal_scaffold, preparation_capacity_bytes,
+    };
     use crate::RuntimeSourceMaterialization;
+    use std::fs;
 
     #[test]
     fn compressed_gamecube_preparation_reserves_full_disc_and_generated_output() {
