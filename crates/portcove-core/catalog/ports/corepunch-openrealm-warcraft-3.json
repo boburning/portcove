@@ -1,0 +1,48 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "corepunch-openrealm-warcraft-3",
+    "project_url": "https://github.com/corepunch/open-realm",
+    "name": "Warcraft III / OpenRealm",
+    "original_game_title": "Warcraft III",
+    "summary": "Try the upstream Warcraft III alpha with your own classic MPQ archives.",
+    "issue_number": 6103,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/corepunch/open-realm/releases/tag/v0.0.11-alpha",
+    "setup_url": "https://github.com/corepunch/open-realm/blob/v0.0.11-alpha/README.md",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["openwarcraft3-windows-x64.zip"],
+      "linux-x86-64": ["openwarcraft3-linux-x64.tar.gz"],
+      "macos-x86-64": ["openwarcraft3-macos-x64.tar.gz"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/corepunch/open-realm/blob/v0.0.11-alpha/README.md",
+      "steps": [
+        {
+          "title": "Open the complete native package",
+          "instruction": "Extract the upstream alpha and keep its libraries and share directory. Use openwarcraft3.exe on Windows or bin/openwarcraft3 on Linux and Intel Mac. On Linux use SDL2, glibc 2.38 or later and your distribution’s OpenGL, VA-API, VDPAU and OpenCL loader libraries. On Intel Mac the inspected executable needs macOS 15 or later and SDL2 compatibility libraries under /usr/local/opt/sdl2-compat."
+        },
+        {
+          "title": "Point to your classic Warcraft III install",
+          "instruction": "Pass -data followed by the quoted path to your own folder with top-level Warcraft III MPQ files and any loose Maps/ folder. Use -roc for Reign of Chaos or -tft when you have the Frozen Throne data. Keep your original installation separately."
+        },
+        {
+          "title": "Use the publisher’s x86-64 Flatpak",
+          "instruction": "On Linux you can install the packaged OpenRealm Flatpak with the publisher’s instructions and the Freedesktop 25.08 runtime. Open it and select your Warcraft III folder through the file chooser. Choose whether to add an optional Steam shortcut when asked."
+        }
+      ],
+      "warnings": [
+        "This guide covers Warcraft III. The alpha package also includes development resources for other Blizzard games."
+      ],
+      "references": [
+        {
+          "title": "Keep the profile before replacing the player",
+          "instruction": "Keep config.cfg, autoexec.cfg and saves from %APPDATA%/warcraft-3 on Windows or $XDG_DATA_HOME/warcraft-3 on Linux and Mac (usually ~/.local/share/warcraft-3). Keep any explicit -config location and the share/warcraft-3 fallback if used. Flatpak saves and its selected folder setting live in the Flatpak app profile."
+        }
+      ]
+    }
+  }
+}
