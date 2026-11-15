@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "bstoney-yt-mercenaries-2-decompilation",
+    "project_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation",
+    "name": "Mercenaries 2: World in Flames / Native beta",
+    "original_game_title": "Mercenaries 2: World in Flames",
+    "summary": "Try the publisher’s Windows beta with your own installed PC game.",
+    "issue_number": 6099,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation/releases/tag/beta-20261021",
+    "setup_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation/blob/beta-20261021/README.md",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["m2-beta-windows.zip"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation/blob/beta-20261021/README.md",
+      "steps": [
+        {
+          "title": "Open the Windows beta",
+          "instruction": "Extract the official ZIP and open m2-beta.exe on a Windows PC that runs 32-bit apps. The beta can find your installed EA app edition. If it needs help, pass --install and the quoted path to your own complete PC game folder."
+        },
+        {
+          "title": "Keep beta settings and progress",
+          "instruction": "Keep m2-alpha.toml and the m2-alpha save and autosave files. The beta checks its working directory and then the executable folder for settings. Saves go beside the settings file it finds, or beside the executable. Preserve that location and your original game before replacing the beta."
+        }
+      ],
+      "warnings": [
+        "A plain launch can join a Mercenaries 2 invitation on your clipboard. For solo play, remove any old game invite from the clipboard before opening the beta.",
+        "The initial town and gameplay systems are part of the upstream beta. The publisher describes the rebuild as still in development."
+      ]
+    }
+  }
+}

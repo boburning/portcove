@@ -136,6 +136,15 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Supply the USA disc and BIOS",
+            "instruction": "Choose your original single-track USA CHD and retail SCPH-1001 BIOS. Portcove checks these files and builds the game on this computer."
+          }
+        ],
+        "warnings": []
+      },
       "manual_preparation": "Provide your own matching one-track USA CHD (SLUS-00972) and retail SCPH-1001 BIOS. Portcove checks the track count and the first data-track SHA-1, then prepares the private runtime with that BIOS. A copy installed with the bundled OpenBIOS keeps it until you update; the update needs your SCPH-1001 BIOS. Play starts the generated player. Keep your original disc and BIOS separately. Native gameplay and save compatibility remain unverified."
     },
     "bios_source_profile": "psx-scph-1001-bios"

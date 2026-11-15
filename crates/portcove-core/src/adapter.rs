@@ -4059,7 +4059,7 @@ pub fn recheck_host_tool(
             tool_id: id.to_owned(),
             path,
             state: crate::HostToolProbeState::Invalid,
-            message: "the resolved executable is missing or changed; locate it again to approve the current bytes".into(),
+            message: "the resolved executable is missing, changed, or incompatible; locate a compatible executable".into(),
             sha256: None,
             persisted: false,
             retry_action: format!("locate the {} executable again", status.display_name),
@@ -5047,6 +5047,13 @@ mod tests {
         let suffix = if cfg!(windows) { ".exe" } else { "" };
         let selected = temporary.path().join(format!("selected-chdman{suffix}"));
         let discovered = temporary.path().join(format!("discovered-chdman{suffix}"));
+        #[cfg(windows)]
+        std::fs::copy(
+            crate::test_fixture::build_probe(temporary.path()),
+            &selected,
+        )
+        .unwrap();
+        #[cfg(not(windows))]
         std::fs::write(&selected, b"selected").unwrap();
         std::fs::write(&discovered, b"discovered").unwrap();
         crate::permissions::normalize_archive_entry(&selected, false, true).unwrap();

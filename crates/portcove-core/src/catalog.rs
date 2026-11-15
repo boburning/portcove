@@ -2437,6 +2437,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn updater_switch_routes_pass_their_complete_upstream_switch() {
+        // The managed route is safe only while the game starts with this switch.
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("blacklabelhq-medievilrecomp").unwrap();
+        assert_eq!(port.launch_arguments, ["--disable-updated"]);
+    }
+
+    #[test]
     fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
         let catalog = Catalog::embedded().unwrap();
         // Only reviewed routes opt in; every other embedded port keeps the
@@ -2449,6 +2457,7 @@ mod tests {
                 .map(|port| port.id.as_str())
                 .collect::<std::collections::BTreeSet<_>>(),
             std::collections::BTreeSet::from([
+                "cdlewis-snowboardkids-recomp",
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
                 "snap64-recomp",
@@ -2901,6 +2910,13 @@ mod tests {
         ] {
             assert!(!ids.is_empty());
             assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            // Ascending order lets concurrent additions merge instead of colliding at the end.
+            if let Some(pair) = ids.windows(2).find(|pair| pair[0] >= pair[1]) {
+                panic!(
+                    "keep reviewed legacy addition IDs in ascending order; move {:?} before {:?}",
+                    pair[1], pair[0]
+                );
+            }
             for id in ids {
                 assert!(
                     id.split('-').all(|part| !part.is_empty()

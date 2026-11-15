@@ -488,7 +488,17 @@ export async function sourceRemovalScenario({
       );
       await retainRemovalWitness("after-consent");
       try {
-        await browser.wait(async () => (await browser.findElements(row)).length === 0, 15_000);
+        // Calibrated from 15 s (#4879): in hosted run 43725858503 the authorized
+        // removal write itself took 6.5 s of this wait, and the row leaves only
+        // with the next consistent workspace snapshot. One started before consent
+        // was refused as a retryable stale-snapshot conflict after 11 s, and its
+        // debug-build retry was still running when 15 s expired. Harness only;
+        // the row must still disappear.
+        await browser.wait(
+          async () => (await browser.findElements(row)).length === 0,
+          60_000,
+          "Removed saved location stayed in Game files",
+        );
       } catch (waitError) {
         await retainRemovalWitness("wait-failed");
         throw waitError;

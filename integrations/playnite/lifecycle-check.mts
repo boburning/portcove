@@ -126,6 +126,17 @@ interface CargoExecutionOptions {
   ) => Promise<Pick<HeavyRustLock, "inherited" | "release">>;
   execute?: (command: string, args: string[], options: RunOptions) => Promise<unknown>;
 }
+// The first definition-state action (`select`) compiles the fixture-enabled
+// Core test binary on a cold Windows runner; later actions reuse it.
+// Qualification 43715629646 cut `select` at 20 minutes while the same run's
+// cold Core-inclusive archive build took about 34 minutes, so only `select`
+// gets 40 minutes. With `install` and `revoke` at 20 minutes the phase stays
+// inside the job's 120-minute limit. Other child budgets stay at ten minutes.
+function cargoPhaseBudget(phase: string | undefined, action: string | undefined) {
+  if (phase !== "definition-state") return {};
+  return { timeout: (action === "select" ? 40 : 20) * 60_000 };
+}
+
 export async function executeCargoPhase(
   phase: string | undefined,
   action: string | undefined,
@@ -146,11 +157,9 @@ export async function executeCargoPhase(
   );
   if (!lease.inherited) throw new Error("Cargo phase did not inherit validated admission");
   try {
-    // The first definition-state action can compile the fixture-enabled Core
-    // test binary on a cold Windows runner. Other child budgets stay at ten minutes.
     await execute("cargo", args, {
       env: environment,
-      ...(phase === "definition-state" ? { timeout: 20 * 60_000 } : {}),
+      ...cargoPhaseBudget(phase, action),
     });
   } finally {
     await lease.release(); // Existing inherited lease release is a no-op; the parent owns closure.
@@ -212,7 +221,12 @@ export function run(
       const output = Buffer.concat(stdout).toString("utf8").trim();
       const errors = Buffer.concat(stderr).toString("utf8").trim();
       if (timedOut) {
-        finish(reject, new Error(`${command} timed out after ${timeout}ms`));
+        // Keep the buffered tail so a cut shows build progress versus a hang.
+        const tail = (errors || output).slice(-4_000);
+        finish(
+          reject,
+          new Error(`${command} timed out after ${timeout}ms${tail ? `\n${tail}` : ""}`),
+        );
         return;
       }
       if (status !== 0) {

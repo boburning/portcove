@@ -210,6 +210,9 @@ function fixture(
     export function reconcileCatalogArtworkWithdrawals() {
       throw new Error('proposal cost fixtures do not reconcile game media');
     }
+    export function assertPreparedArtwork() {
+      throw new Error('proposal cost fixtures do not assemble large artwork worksets');
+    }
   `,
   );
   const preload = join(scratch, "inert-process-control.mjs");

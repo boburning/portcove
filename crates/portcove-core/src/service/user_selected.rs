@@ -3043,31 +3043,8 @@ mod tests {
     }
 
     #[test]
-    fn snowboard_kids_frontend_license_player_route_1354() {
-        assert_listing_only_player_route("snowboard-kids", Some(false));
-    }
-
-    #[test]
-    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
-        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
-    }
-
-    #[test]
-    fn vidanox_banjotooierecompiled_frontend_license_player_route_1795() {
-        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(false));
-    }
-
-    #[test]
     fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
         assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
-    }
-
-    #[test]
-    fn danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800() {
-        assert_listing_only_player_route(
-            "danielgomesvieira2000-beetle-adventure-racing-recomp",
-            Some(false),
-        );
     }
 
     #[test]
@@ -3075,10 +3052,6 @@ mod tests {
         assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(true));
     }
 
-    #[test]
-    fn blast_corps_recompiled_permitted_player_route_2558() {
-        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(false));
-    }
     #[test]
     fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
         assert_listing_only_player_route("final-fantasy-tactics-finfantacrecomp", Some(true));
@@ -3208,11 +3181,6 @@ mod tests {
             "unchiga-yu-gi-oh-forbidden-memories-recompiled",
             Some(true),
         );
-    }
-
-    #[test]
-    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
-        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(false));
     }
 
     #[test]

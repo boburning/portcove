@@ -300,6 +300,27 @@ void test("upstream package platforms extend only the descriptive listing", () =
   assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
 });
 
+void test("managed setup can use a guide distinct from the upstream listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "alexbeav-diablo-recomp";
+  const record = records.find((port) => port.listing.id === id)!;
+  const managed = catalog.ports.find((port) => port.id === id)?.presentation;
+  const listing = directory.listings.find((port) => port.id === id);
+  assert.match(JSON.stringify(managed?.manual_setup), /then builds the game on this computer/);
+  assert.match(JSON.stringify(listing?.manual_setup), /Choose the official Mac ZIP/);
+  const integration = { ...record.integration, presentation: {} };
+  const inherited = projectAuthoredPort(checkedAuthoredPort({ ...record, integration }));
+  assert.deepEqual(inherited?.presentation?.manual_setup, record.listing.manual_setup);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...record,
+        integration: { ...integration, presentation: { manual_setup: { steps: [] } } },
+      }),
+    /integration\.presentation\.manual_setup requires steps and warnings arrays/,
+  );
+});
+
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
   assert.throws(() => parseCatalogSource('{"id":"first","id":"second"}'), /duplicate JSON key/);
   assert.throws(
@@ -1040,5 +1061,24 @@ void test("funding links are authored per listing, validated, and select listing
   assert.equal(
     listingDeclarationHash(listing),
     listingDeclarationHash({ ...listing, funding_urls: urls }),
+  );
+});
+
+void test("the reviewed legacy additions fixture must stay in ascending order", async () => {
+  const { reviewCompatibilityFixture } = await import("./catalog-authoring.mts");
+  const legacy = { source_profiles: [{ id: "frozen-profile" }], ports: [{ id: "frozen-port" }] };
+  const catalog = {
+    source_catalog: { identities: [{ id: "frozen-profile" }, { id: "added-profile" }] },
+    ports: [{ id: "frozen-port" }, { id: "alpha-port" }, { id: "beta-port" }],
+  } as unknown as Parameters<typeof reviewCompatibilityFixture>[0];
+  const fixture = (portIds: string[]) =>
+    Buffer.from(JSON.stringify({ source_profile_ids: ["added-profile"], port_ids: portIds }));
+  assert.equal(
+    reviewCompatibilityFixture(catalog, legacy, fixture(["alpha-port", "beta-port"])).status,
+    "matched",
+  );
+  assert.throws(
+    () => reviewCompatibilityFixture(catalog, legacy, fixture(["beta-port", "alpha-port"])),
+    /port_ids: keep IDs in ascending order/,
   );
 });

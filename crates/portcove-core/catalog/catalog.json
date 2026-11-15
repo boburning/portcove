@@ -37323,28 +37323,12 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac tools and setup kit",
-              "instruction": "Choose the official Mac ZIP from the upstream releases. Use -macos-x64.zip for Intel or -macos-arm64.zip for Apple silicon. Extract the complete kit to a writable folder and follow its README-SETUP.txt. Put Xcode Command Line Tools, CMake, Ninja and Python 3.10 or newer on PATH. The inspected Mac setup host requires macOS 11 or newer. The bundled game and BIOS generators require macOS 15 or newer."
-            },
-            {
-              "title": "Supply your matching disc and BIOS",
-              "instruction": "Use your own European Diablo disc (SLES-01156) with its single data track intact. This kit requires your own retail SCPH-5552 BIOS dump. Keep the CUE and every referenced track together when using CUE/BIN."
-            },
-            {
-              "title": "Build and add the player on Mac",
-              "instruction": "Run Diablo_Recompiled from the unpacked folder and follow Generate & rebuild. In Portcove, select build-release/Diablo_Recompiled as the program and build-release as its start folder."
+              "title": "Supply your Diablo disc and BIOS",
+              "instruction": "Portcove checks your own single-track Diablo (Europe) CHD and retail SCPH-5552 BIOS, then builds the game on this computer."
             }
           ],
           "warnings": [
-            "Before replacing your kit, make a normal in-game save, close the game and keep the previous kit and memory cards. Upstream warns that save states may be incompatible across versions.",
-            "Portcove has not verified Mac setup, gameplay or save compatibility for this kit."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/diablo-recomp#readme",
-          "references": [
-            {
-              "title": "Updates and backups",
-              "instruction": "Keep the complete working folder and back up your disc image, BIOS, saves, settings and overlay captures before replacing the kit. Keep the player with the folder that built it."
-            }
+            "Save states may stop working after an update. Make a normal in-game save before updating."
           ]
         },
         "artwork": {
@@ -37456,28 +37440,15 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac toolchain and setup kit",
-              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+              "title": "Supply both Japanese discs and the BIOS",
+              "instruction": "Choose the folder with your two original Japanese CHDs and your retail SCPH-5500 BIOS. Name the CHDs so Disc 1 sorts before Disc 2. Portcove checks both discs and builds the game on this computer."
             },
             {
-              "title": "Supply your original files",
-              "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use your own retail BIOS as the kit’s README-SETUP.txt names it, and follow that guide for the image format."
-            },
-            {
-              "title": "Build and add the prepared player",
-              "instruction": "From the unpacked folder, run Ace_Combat_3__Electrosphere__Japan__Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Ace_Combat_3__Electrosphere__Japan__Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+              "title": "Choose the disc before Play",
+              "instruction": "If the game asks for the other disc, close it and choose that disc beside Play before starting it again."
             }
           ],
-          "warnings": [
-            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp#readme",
-          "references": [
-            {
-              "title": "Updates and backups",
-              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
-            }
-          ]
+          "warnings": []
         },
         "artwork": {
           "game_id": 14751,
@@ -40321,37 +40292,11 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
-            },
-            {
-              "title": "Supply the matching original files",
-              "instruction": "For upstream setup use your own USA SLUS-00972 disc in the upstream kit’s supported image format. For CUE/BIN, keep the complete CUE and every referenced track. Use your own retail SCPH-1001 BIOS, as the kit’s README-SETUP.txt describes. Keep the complete original separately from generated files."
-            },
-            {
-              "title": "Prepare an independent Mac copy",
-              "instruction": "Choose the Intel or Apple Silicon setup ZIP for your Mac. Follow the upstream toolchain instructions for Python 3, CMake, Ninja and the selected Apple Clang and SDK. Finish the Generate & rebuild wizard outside Portcove with your own USA SLUS-00972 disc and the BIOS that the kit’s README-SETUP.txt names. Keep the completed build-release/Ace_Combat_3__Electrosphere__USA__Recompiled with its matching config and data. Mac runtime replacement remains upstream-owned."
-            },
-            {
-              "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "title": "Supply the USA disc and BIOS",
+              "instruction": "Choose your original single-track USA CHD and retail SCPH-1001 BIOS. Portcove checks these files and builds the game on this computer."
             }
           ],
-          "warnings": [
-            "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions.",
-            "Portcove has not confirmed setup or gameplay for this package."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp#readme",
-          "references": [
-            {
-              "title": "Preserve the working player and external data",
-              "instruction": "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
-            },
-            {
-              "title": "Updates and backups",
-              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
-            }
-          ]
+          "warnings": []
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
@@ -52878,7 +52823,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside OpenJazz.exe. The maintained launch arguments select that folder; no compiler or installer is needed. Keep the original source copy. Portcove retains game-data, openjazz.cfg, openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. These are distinct from runtime files. Runtime rollback carries current declared data without rewinding progress. Custom launch paths or editions remain available through external registration. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The offered Linux ZIP is the upstream glibc2.35 x86-64 build and requires system SDL2/C++ libraries. It uses the same supported game-data argument and declared in-folder fallbacks; upstream user-profile storage, when used, remains external. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Portcove passes game-data to the player. Keep the original source copy. Portcove retains game-data, the in-folder openjazz.cfg and openjazz.log, the openjazz.tmp multiplayer transfer file and the reviewed scene diagnostics during compatible replacement. Use external registration for a custom launch path or separately maintained installation. The Linux x86-64 ZIP requires glibc 2.35 or newer and the system SDL2 and C++ libraries. On Linux, back up openjazz.cfg from XDG_CONFIG_HOME/openjazz or the default ~/.config/openjazz separately. This profile is outside Portcove backups. In the 20260301 release, choosing a slot in the Save Game menu leaves campaign progress unsaved.",
         "original_game_title": "Jazz Jackrabbit",
         "manual_setup": {
           "steps": [
@@ -52887,11 +52832,16 @@
               "instruction": "Before first Play, copy the files from your own original Jazz Jackrabbit game into a game-data folder beside the OpenJazz player. Keep the original source copy. The managed route selects this folder automatically. For external registration, use Change launch details to add game-data as a launch argument, or follow upstream instructions for your existing game folder. No compiler or installer is needed."
             },
             {
+              "title": "Keep your Linux settings",
+              "instruction": "Back up openjazz.cfg from XDG_CONFIG_HOME/openjazz, or ~/.config/openjazz when you use the default location. This profile is outside Portcove backups. Keep a separate copy of the original game files you put in game-data."
+            },
+            {
               "title": "Set up OpenJazz on Android",
               "instruction": "Unpack openjazz-android-debug.zip and install the enclosed APK on a compatible Android device. Copy the data files from your own Jazz Jackrabbit copy into OpenJazz’s app-specific external files folder. The package ID is eu.alister.openjazz. If your device does not give you access to that folder, this build has no verified folder picker or alternate import route. Keep a separate copy of your original game data."
             }
           ],
           "warnings": [
+            "In OpenJazz 20260301, choosing a slot in the Save Game menu leaves campaign progress unsaved.",
             "On Android, use the upstream app. You manage its runtime updates and back up the game data it uses."
           ],
           "help_url": "https://github.com/AlisterT/openjazz#readme"
@@ -53561,6 +53511,95 @@
       }
     },
     {
+      "id": "blacklabelhq-medievilrecomp",
+      "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
+      "summary": "Play MediEvil natively with your own supported North American disc.",
+      "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "BlackLabelHQ/MediEvilRecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MediEvilRecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "medievil.exe"
+        ]
+      },
+      "launch_arguments": [
+        "--disable-updated"
+      ],
+      "persistent_paths": [
+        "settings.json",
+        "interface.ini",
+        "carda.sav",
+        "cardb.sav",
+        "mods",
+        "shaders",
+        "packs",
+        "dump",
+        ".modhub"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Requires the .NET 10 runtime. On first Play, use MediEvil's disc picker to select your own supported North American MediEvil CUE/BIN or CHD; the game remembers the disc's path, so keep the disc in a folder outside the game folder. Portcove starts the game with --disable-updated, upstream's switch for an external manager, which removes its update check, Updates menu and installer, so only Portcove replaces the managed copy. Settings, memory-card saves, the interface layout, mods, shader and asset packs, texture dumps and the mod hub cache stay in the game folder and are kept across updates, backups and rollback. Keep the memory cards at their default names, carda.sav and cardb.sav. Mods run code you choose to install.",
+        "original_game_title": "MediEvil",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original disc in the game",
+              "instruction": "Choose Play, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc and remembers its path, so keep the disc in a folder outside the game folder. Portcove does not supply original game files."
+            },
+            {
+              "title": "Run a copy you manage yourself",
+              "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder and start medievil.exe (medievil on Linux and macOS) from that folder. The player needs the .NET 10 runtime and OpenAL; follow upstream's prerequisite instructions if either is missing. To add that copy to Portcove, select the player and its folder."
+            }
+          ],
+          "warnings": [
+            "The project publishes no licence, and the package bundles the recompiled game code and third-party libraries without their licence notices. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "In a copy you manage yourself, the in-game updater replaces the game's program files. Keep a copy of your working folder, including settings.json, interface.ini, the memory-card files and mods, before updating."
+          ],
+          "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
+          "references": [
+            {
+              "title": "Keep the game folder's data",
+              "instruction": "The game keeps settings.json, interface.ini, the carda.sav and cardb.sav memory cards, mods, shader and asset packs (shaders, packs), texture dumps (dump) and the mod hub cache (.modhub) in its own folder. Back up that folder and keep your disc separately before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 4000,
+          "cover_id": 84944,
+          "image_id": "co1tjk",
+          "image_sha256": "a592d900ce17c971b523af9b3996c552dcee9a1b4bcf723c6bbaa71e534cebc8",
+          "game_slug": "medievil",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "medievil.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "blake-stone-aliens-of-gold-bstone",
       "name": "Blake Stone: Aliens of Gold (Bstone)",
       "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
@@ -53680,6 +53719,10 @@
             {
               "title": "Reviewed BStone package",
               "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
+            },
+            {
+              "title": "Change the Linux renderer",
+              "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
             }
           ]
         },
@@ -53901,6 +53944,10 @@
             {
               "title": "Reviewed BStone package",
               "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
+            },
+            {
+              "title": "Change the Linux renderer",
+              "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
             }
           ]
         },
@@ -53987,6 +54034,84 @@
         }
       ],
       "windows_temp_directory": "profile"
+    },
+    {
+      "id": "blast-corps-blastcorps-recompiled",
+      "name": "Blast Corps (BlastCorps: Recompiled)",
+      "summary": "A native Blast Corps player for your own North American revision 1.1 dump.",
+      "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "SlaveOfIDO/blastcorps-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BlastCorpsRecompiled-",
+            "-Windows-RelWithDebInfo.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BlastCorpsRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. It keeps a copy named bc.n64.us.z64 in its profile at %LOCALAPPDATA%\\BlastCorpsRecompiled, together with saves, settings and mods; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Blast Corps",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own supported original",
+              "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us.z64, in its profile. Keep your original separately."
+            },
+            {
+              "title": "Keep the complete Windows player",
+              "instruction": "For a copy you manage yourself, keep the BlastCorps Recompiled 1.1.1 Windows package files together: BlastCorpsRecompiled.exe, assets, the DLLs and recompcontrollerdb.txt. The published player needs no game compiler or separate installer. To add that copy to Portcove, select BlastCorpsRecompiled.exe and its package folder; removing it from Portcove leaves every file in place."
+            }
+          ],
+          "warnings": [
+            "The package includes the Suplexmentary Comic NC font, which the project license does not cover, plus the CutOutsFLF font and a fan-made splash image. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+            "Portcove has not observed native setup, gameplay or saves. Changing versions does not rewind saves or check mods; keep a separate backup of the profile."
+          ],
+          "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
+          "references": [
+            {
+              "title": "Preserve the actual profile before maintenance",
+              "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us.z64 original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3424,
+          "cover_id": 104010,
+          "image_id": "co2896",
+          "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
+          "game_slug": "blast-corps",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "blastcorpsrecompiled.exe"
+          ]
+        }
+      }
     },
     {
       "id": "blast-corps-power-dozer",
@@ -54246,7 +54371,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -55099,6 +55228,91 @@
       }
     },
     {
+      "id": "cdlewis-snowboardkids-recomp",
+      "name": "Snowboard Kids / Snowboard Kids: Recompiled (cdlewis)",
+      "summary": "Use the Snowboard Kids player and select your own North American or Japanese cartridge dump on first Play.",
+      "project_url": "https://github.com/cdlewis/snowboardkids-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "windows_tracked_handoff": true,
+      "release": {
+        "provider": "github",
+        "repository": "cdlewis/snowboardkids-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SnowboardKidsRecompiled-",
+            "Windows.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American or Japanese Snowboard Kids ROM in the game menu. The player checks it and keeps a copy in its profile at %LOCALAPPDATA%\\SnowboardKidsRecompiled, together with game_region.txt, saves, settings, mods and local crash reports; crash uploads are off. Keep your original separately. If the player restarts itself to change region, Portcove keeps the session open until that game closes. A copy you manage yourself without portable.txt shares the profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the originals and the profile.",
+        "original_game_title": "Snowboard Kids",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your original game on first Play",
+              "instruction": "Choose Play, then select your own North American or Japanese Snowboard Kids ROM in the game menu. The player checks the game identity, normalizes supported byte orders and keeps its own copy in its profile, so keep your original separately."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, keep the whole player folder together: SnowboardKidsRecompiled.exe on Windows, or the native player and its folder on Linux. Flatpak and macOS application bundles keep their upstream installation and launchers. To add that copy to Portcove, select the player and its folder."
+            }
+          ],
+          "warnings": [
+            "Upstream lists graphics and CPU requirements and Windows runtime prerequisites. Portcove has not observed native setup, gameplay or saves.",
+            "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads the package only from the project’s own releases. You need your own original game files."
+          ],
+          "help_url": "https://github.com/cdlewis/snowboardkids-recomp/blob/2ac83a8af625acf7da92d5610b25f2693bff7c91/README.md",
+          "references": [
+            {
+              "title": "Preserve your actual profile when updating",
+              "instruction": "Keep the player's profile when updating: normally %LOCALAPPDATA%\\SnowboardKidsRecompiled on Windows, ~/.config/SnowboardKidsRecompiled on Linux, or ~/Library/Application Support/SnowboardKidsRecompiled on macOS. It holds the copied originals, game_region.txt, saves, settings and mods, and on Windows local crash reports. On Windows and native Linux, portable.txt in the working folder stores data there instead; on macOS the marker belongs beside the application bundle. Portcove does not back up or remove the profile."
+            },
+            {
+              "title": "Keep Flatpak data alongside the actual profile",
+              "instruction": "For Flatpak, also preserve the complete ~/.var/app/io.github.snowboardkidsrecomp.snowboardkidsrecomp folder. This build keeps additional writable mod data in its Flatpak data area, while the profile resolver still uses HOME/.config/SnowboardKidsRecompiled unless APP_FOLDER_PATH or portable mode selects another folder. Keep both the app data and actual profile when updating; Portcove does not back up or remove them."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3342,
+          "cover_id": 104128,
+          "image_id": "co28cg",
+          "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
+          "game_slug": "snowboard-kids",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "crashpad_handler.exe",
+            "snowboardkidsrecompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "citrongames-dora64",
       "name": "Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames)",
       "summary": "Explore Doraemon: Nobita to Mittsu no Seireiseki / Dora64 (citrongames) and follow the upstream project for requirements, downloads and setup.",
@@ -55292,7 +55506,7 @@
     {
       "id": "commander-keen-4-omnispeak",
       "name": "Commander Keen 4 (Omnispeak)",
-      "summary": "Use Commander Keen 4 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
+      "summary": "Play Commander Keen 4 using the official Omnispeak v1.1 packages with bundled EGA shareware. Setup and updates stay upstream-owned.",
       "project_url": "https://github.com/sulix/omnispeak",
       "support_tier": "beta",
       "channels": [
@@ -55324,25 +55538,25 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own Keen 4 v1.4 EGA GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 with the matching Omnispeak episode support files. The documented Keen 4 v1.4 EGA shareware is a limited alternative for this episode only. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact. Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 4. Copy the contents of data/keen4 beside omnispeak.exe, along with your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 4, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately. Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback. You and upstream maintain this external player, original files and profile. Portcove offers explicit registration, supervised Play and registration-only removal; it does not acquire ownership of the external files or offer managed Update, Backup, Rollback or deletion. Keep a working copy and back up its actual data before an upstream update. Other platforms need their own supported upstream package/application flow; this Windows guide does not establish native execution on any platform.",
+        "manual_preparation": "The official Windows x64 and Linux v1.1 packages already contain Keen 4 v1.4 EGA shareware and its matching support files. Extract the complete package and keep its GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 beside the player. If you want to use your own matching v1.4 EGA files, keep the bundled player and original source separate and use a separate working copy. Use the official stable omnispeak-win64-1.1.zip. Register omnispeak.exe and its containing folder. Use separate argument lines for /EPISODE and 4 if selecting the episode explicitly. Use /GAMEPATH for a separate original-data folder and /USERPATH for a separate writable save/config folder, with each option and its value on separate lines. Confirm the launch details and choose Play separately. Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback. You and upstream retain the runtime, originals and profile. Use upstream packages to update it. Removing its Windows registration preserves all external files.",
         "original_game_title": "Commander Keen 4",
         "manual_setup": {
           "steps": [
             {
-              "title": "Match the episode and EGA revision",
-              "instruction": "Use your own Keen 4 v1.4 EGA GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 with the matching Omnispeak episode support files. The documented Keen 4 v1.4 EGA shareware is a limited alternative for this episode only. CGA, v1.0 and other unsupported revisions are not interchangeable. Keep original files and their version intact."
+              "title": "Use the bundled Keen 4 shareware",
+              "instruction": "The official Windows x64 and Linux v1.1 packages already contain Keen 4 v1.4 EGA shareware and its matching support files. Extract the complete package and keep its GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 beside the player. If you want to use your own matching v1.4 EGA files, keep the bundled player and original source separate and use a separate working copy."
             },
             {
-              "title": "Choose the ordinary upstream game package",
-              "instruction": "Use the official stable Windows 64-bit v1.1 package rather than the separate modding preview. Extract its full wrapper, including its data directory and support files. Register omnispeak.exe inside that wrapper with the same working directory. Use a separate player copy for Keen 4. Copy the contents of data/keen4 beside omnispeak.exe, along with your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4; the wrapper initially contains Keen 4 files, not a ready Keen 5/6 layout. Keep your originals elsewhere unchanged. Then use two argument lines, /EPISODE and 4, in Change launch details. /GAMEPATH plus the real original-data folder and /USERPATH plus a separate writable save/config folder can keep episode data and profiles apart. Each option and value is a separate literal argument. Registration does not execute the player; choose Play separately."
+              "title": "Register the Windows x64 player",
+              "instruction": "Use the official stable omnispeak-win64-1.1.zip. Register omnispeak.exe and its containing folder. Use separate argument lines for /EPISODE and 4 if selecting the episode explicitly. Use /GAMEPATH for a separate original-data folder and /USERPATH for a separate writable save/config folder, with each option and its value on separate lines. Confirm the launch details and choose Play separately."
             },
             {
               "title": "Use the official Linux v1.1 launcher",
-              "instruction": "Extract omnispeak-linux-1.1.tar.gz into a separate working folder for Keen 4 v1.4 EGA. This archive is for x86-64 or 32-bit x86. Keep the architecture-specific SDL2 folders and use the publisher’s omnispeak launcher from the prepared folder. Copy your matching GAMEMAPS.CK4, EGAGRAPH.CK4 and AUDIO.CK4 into that working folder along with the episode support files from data/keen4. Use /EPISODE 4 and keep the actual config and save directory. This shell launcher splits argument values at spaces, so use a path without spaces for an explicit /USERPATH."
+              "instruction": "Extract the complete omnispeak-linux-1.1.tar.gz, including the architecture-specific SDL2 folders. From the extracted folder, run the upstream launcher with ./omnispeak /EPISODE 4. This package supports Linux x86-64 and 32-bit x86. Use a path without spaces if you add an explicit /USERPATH for the save/config directory."
             },
             {
               "title": "Keep upstream update ownership",
-              "instruction": "You manage this external game, its original files and its profile using the project’s tools. Add it to Portcove, choose Play separately and remove its registration when you no longer want it listed. Portcove does not take over its files or offer updates, backups, rollback or deletion for this copy. Keep a working copy and back up its data before updating. Other platforms need their own supported package and application instructions. These Windows instructions do not establish that the game runs on any platform."
+              "instruction": "Use upstream packages to update the player and back up your game data and actual save/config folder separately. Removing the Windows registration keeps all external files. For Linux, use the upstream launcher directly."
             }
           ],
           "warnings": [
@@ -56614,6 +56828,594 @@
       }
     },
     {
+      "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
+      "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
+      "summary": "Native Beetle Adventure Racing! for Windows, using your own USA cartridge dump on first Play.",
+      "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "danielgomesvieira2000/beetle-adventure-racing-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "beetle-adventure-racing-recomp-",
+            "windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "beetle-adventure-racing-recomp.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose Load ROM and select your own USA Beetle Adventure Racing cartridge dump. The player checks it and keeps a copy in its profile at %LOCALAPPDATA%\\beetle-adventure-racing-recomp, together with Controller Pak saves, settings, bindings and cheats; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Beetle Adventure Racing!",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Load your original game on first Play",
+              "instruction": "Choose Play, then Load ROM in the player and select your own USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and keeps its own copy of the selected game in its profile, so keep your original separately. The released player needs no decompilation build or separate game-generation step."
+            },
+            {
+              "title": "Keep a complete Windows player",
+              "instruction": "For a copy you manage yourself, extract the whole Windows x64 alpha ZIP and keep beetle-adventure-racing-recomp.exe with its assets and DLLs; debug-symbols ZIPs are not player packages. To add that copy to Portcove, select the player and its folder."
+            }
+          ],
+          "warnings": [
+            "The package includes a modified RecompFrontend copy that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "This alpha has upstream limitations, and Portcove has not observed native setup, gameplay or saves. Linux is not offered."
+          ],
+          "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
+          "references": [
+            {
+              "title": "Preserve the current copy and Controller Pak data",
+              "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2715,
+          "cover_id": 104718,
+          "image_id": "co28su",
+          "image_sha256": "cbcd2bd8f4371735cee53a83c72e5f694c09dd899c1d35ac08126389f63200e1",
+          "game_slug": "beetle-adventure-racing",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "beetle-adventure-racing-recomp.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-chocobo-dungeon-recomp",
+      "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
+      "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
+      "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/chocobo-dungeon-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ChocoboDungeon-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocobo.exe"
+        ]
+      },
+      "persistent_paths": [
+        "extracted",
+        "nand",
+        "chocobo.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
+        "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your disc image",
+              "instruction": "Copy a single image of your own NTSC-U Chocobo's Dungeon disc (R7FEGD, .iso or .ciso) beside the program (chocobo.exe on Windows), and keep your original separately. On first start the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. After that the copied image is no longer needed. You can instead put the sys and files folders of an already extracted disc into extracted."
+            },
+            {
+              "title": "Build the windowed Linux player from your original",
+              "instruction": "Follow the tagged upstream build instructions. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+            },
+            {
+              "title": "Keep each profile with its actual root",
+              "instruction": "Use the upstream player with the matching extracted sys and files. With the standard layout preserve extracted, nand and chocobo.ini beside the creating runtime. The Windows player also accepts an explicit extracted-folder path, where save placement can follow that external root. Preserve the actual data locations before switching layouts."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and a bundled font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
+            "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
+          ],
+          "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "chocobo.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-lode-runner-2009-xbla-rexglue",
+      "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
+      "summary": "Play Lode Runner with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/lode-runner-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/lode-runner-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "lode_runner-",
+            "-win-amd64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "lode_runner.exe"
+        ]
+      },
+      "persistent_paths": [
+        "5841085B",
+        "assets",
+        "lode_runner.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full Lode Runner Xbox 360 LIVE package (title 5841085B, default.xex 0.0.1.2) into the managed Lode Runner folder as the complete 5841085B console export folder (5841085B/000D0000/<package>), and keep your original separately. Lode Runner always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside lode_runner.exe; without a package it explains what it needs and closes and checks that default.xex is version 0.0.1.2. If it says your files are a different version, delete assets, replace the 5841085B folder with a package whose default.xex is 0.0.1.2 and start again. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841085B folder, assets and lode_runner.toml across updates and backups. Once the game has started, you can delete the copied 5841085B folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\lode_runner, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "Lode Runner (2009)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full Lode Runner Xbox 360 LIVE package (title 5841085B, default.xex 0.0.1.2) beside lode_runner.exe as the complete 5841085B console export folder (5841085B/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start lode_runner.exe and let it prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, lode_runner.toml and the 5841085B folder with the program. Saves and the shader cache stay in Documents\\lode_runner."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
+            "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
+          ],
+          "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "lode_runner.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-mylifedarklord-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
+      "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifedarklord-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsADarklord-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifedarklord.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifedarklord.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mld_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a Darklord base WAD (WF2E) beside mylifedarklord.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
+            },
+            {
+              "title": "Optionally bring your King save",
+              "instruction": "To let My Life as a Darklord read your My Life as a King save, close both games and copy the folder nand/title/00010001/57464345 from My Life as a King's folder into this game's nand/title/00010001 folder. Keep the original King save."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifedarklord.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-mylifeking-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
+      "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifeking-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifeking-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsAKing-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifeking.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifeking.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a King base WAD (WFCE), and the matching add-on content WAD if you have it, into the managed folder beside mylifeking.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifeking.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mlk_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a King base WAD (WFCE) beside mylifeking.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifeking.ini and the generated game folder with the program."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifeking.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-outrun-arcade-recomp",
+      "name": "OutRun Online Arcade (darkuni Recomp)",
+      "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/outrun-arcade-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "outrun_arcade-",
+            "-win-amd64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "outrun_arcade.exe"
+        ]
+      },
+      "persistent_paths": [
+        "58410968",
+        "assets",
+        "outrun_arcade.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) into the managed OutRun Online Arcade folder as the complete 58410968 console export folder (58410968/000D0000/<package>), and keep your original separately. OutRun Online Arcade always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside outrun_arcade.exe; without a package it explains what it needs and closes. This build was made from default.xex 0.0.1.5 and does not check the version, so a different version may not start or may not play correctly. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410968 folder, assets and outrun_arcade.toml across updates and backups. Once the game has started, you can delete the copied 58410968 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\outrun_arcade, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "OutRun Online Arcade",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) beside outrun_arcade.exe as the complete 58410968 console export folder (58410968/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start outrun_arcade.exe and let it prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, outrun_arcade.toml and the 58410968 folder with the program. Saves and the shader cache stay in Documents\\outrun_arcade."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "outrun_arcade.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-poker-smash-recomp",
+      "name": "Poker Smash (darkuni Recomp)",
+      "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/poker-smash-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/poker-smash-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "PokerSmash-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "poker_smash.exe"
+        ]
+      },
+      "persistent_paths": [
+        "5841089C",
+        "assets",
+        "poker_smash.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) into the managed Poker Smash folder as the complete 5841089C console export folder (5841089C/000D0000/<package>), and keep your original separately. Poker Smash always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, Poker Smash finds the package and extracts the game into assets beside poker_smash.exe; without a package it explains what it needs and closes. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841089C folder, assets and poker_smash.toml across updates and backups. Once the game has started, you can delete the copied 5841089C folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\poker_smash, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if Poker Smash does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "Poker Smash",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) beside poker_smash.exe as the complete 5841089C console export folder (5841089C/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start poker_smash.exe and let the upstream program prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, poker_smash.toml and the 5841089C folder with the program. Saves and the shader cache stay in Documents\\poker_smash."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "poker_smash.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-target-terror-wii-recomp",
+      "name": "TARGET: Terror (darkuni Recomp)",
+      "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
+      "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/target-terror-wii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "TargetTerror-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "targetterror.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "targetterror.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the managed folder beside targetterror.exe, and keep your original separately. On first Play the game builds its game folder from the image, which takes a few minutes and up to about 4.4 GB; leave its console window open while it runs, and if the first start is interrupted or used the wrong image, delete the game folder before starting again; without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. The download is the recompiled player with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves and high scores) and targetterror.ini across updates and backups. The log and hang report beside the program are diagnostics. Backups include the game folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
+        "original_game_title": "TARGET: Terror",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your Wii disc image",
+              "instruction": "Copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the folder beside targetterror.exe, and keep your original separately. On first start the game builds its game folder from the image, which takes a few minutes; after that the copied image is no longer needed."
+            },
+            {
+              "title": "Allow space for the upstream import",
+              "instruction": "Run targetterror.exe and leave the console window open while first-run extraction populates game. Leave enough free space for the image plus up to about 4.4 GB of extracted files. If the first start is interrupted or used the wrong image, delete the game folder before starting again with the right image in place."
+            },
+            {
+              "title": "Preserve the creating profile",
+              "instruction": "Keep the generated game folder, targetterror.ini and nand, including high scores, with the creating runtime."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code, icon art and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "targetterror.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "descent-dxx-rebirth",
       "name": "Descent (DXX-Rebirth)",
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
@@ -56671,6 +57473,10 @@
             {
               "title": "Point this engine at its own data",
               "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            },
+            {
+              "title": "Use the distribution package on Ubuntu",
+              "instruction": "On Ubuntu 26.04 x64 or ARM64, use the d1x-rebirth package from Multiverse. Launch d1x-rebirth with -hogdir followed by the quoted path to your separate Descent data folder. Keep your originals outside the package, preserve ~/.d1x-rebirth or your chosen profile override, and use the distribution package manager for updates."
             }
           ],
           "warnings": [
@@ -56748,6 +57554,10 @@
             {
               "title": "Point this engine at its own data",
               "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            },
+            {
+              "title": "Use the distribution package on Ubuntu",
+              "instruction": "On Ubuntu 26.04 x64 or ARM64, use the d2x-rebirth package from Multiverse. Launch d2x-rebirth with -hogdir followed by the quoted path to your separate Descent II data folder. Keep your originals outside the package, preserve ~/.d2x-rebirth or your chosen profile override, and use the distribution package manager for updates. Use the complete retail data with the reviewed Ubuntu package. Its 0.60~git20250524-2 build fails to load the interactive demo. On Linux x64 the current upstream AppImage can open that demo instead."
             }
           ],
           "warnings": [
@@ -56812,13 +57622,17 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Keep the originals separately and follow upstream’s native dependencies. A custom DETHRACE_ROOT_DIR or external preference-data fallback remains outside Portcove backup. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "Before first Play, copy DATA from your own supported Carmageddon installation beside dethrace.exe, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace Portcove’s executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route. The reviewed Carmageddon data directory includes saves, options, captures and supported data changes. DATA, optional MUSIC and named diagnostics are retained for compatible runtime replacement and backup. The upstream AppData/dethrace fallback or DETHRACE_ROOT_DIR-selected data remains external and outside backups. Runtime rollback carries current declared data without rewinding saves. Existing external installations keep their files and runtime update owner. The Linux player uses the same declared DATA/MUSIC and named diagnostics. Use a short installation folder on Linux x64. The v0.10.1 player can close during startup from a deeply nested folder. Keep the originals separately and follow upstream’s native dependencies. Back up data from any custom DETHRACE_ROOT_DIR or external preferences folder separately.",
         "original_game_title": "Carmageddon",
         "manual_setup": {
           "steps": [
             {
               "title": "Start the game",
               "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
+            },
+            {
+              "title": "Use the upstream Linux ARM64 player",
+              "instruction": "Download the official Linux ARM64 archive from the release page and extract it into its own writable folder. The v0.10.1 player needs glibc 2.38 or newer. Put a working copy of your supported Carmageddon DATA folder beside dethrace, including GENERAL.TXT, and run the player from that folder. Keep your originals separately. Before replacing the player, close it and back up the DATA folder and the Dethrace preferences directory it actually uses."
             },
             {
               "title": "Open Dethrace on Mac",
@@ -58437,7 +59251,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -58691,6 +59509,73 @@
           ],
           "executables": [
             "aerofoil.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "elf-bowling-recomp",
+      "name": "Elf Bowling / Elf Bowling Recomp",
+      "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
+      "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "AdamLovattDevOps/elfbowling-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "elfbowl-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "elfbowl.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, the player asks you to choose your own 1,130,496-byte Elf Bowling.exe from the 1999 release. It checks the file's SHA-256, copies it into its NStorm\\Elf Bowling profile under %APPDATA% and uses that copy from then on; keep your original separately and do not put it in Portcove's install folder, where an extra program holds launch and updates. Cancelling the picker shows a message and closes the game. The package is the player with SDL2 libraries; the original game is never included. The project has not published a license for its engine source. The player works from its profile folder, so the copied original and everything the game writes stay in %APPDATA%\\NStorm\\Elf Bowling, outside the managed copy. Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Elf Bowling",
+        "manual_setup": {
+          "help_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
+          "steps": [
+            {
+              "title": "Select the unmodified original",
+              "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release, and keep your original separately. On first start the player asks you to choose it, checks its SHA-256 and keeps a copy in its app profile."
+            },
+            {
+              "title": "Choose the upstream player",
+              "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries. In a copy you manage yourself, you can also put the original next to the player or point ELFBOWL_EXE to it."
+            },
+            {
+              "title": "Use the separate Android or Mac setup",
+              "instruction": "The v1.0 release has an Android APK for ARM64 and x64. It uses Android’s file picker for the original. The upstream Mac instructions build from source with SDL2 and SDL2_ttf. The publisher supplies no Mac or Linux ARM64 package."
+            },
+            {
+              "title": "Keep the app profile",
+              "instruction": "Preserve the NStorm/Elf Bowling profile before replacing the upstream player. It is normally under XDG_DATA_HOME or ~/.local/share on Linux, and under %APPDATA% on Windows. Android keeps its app files separately. Keep any optional locally generated artwork with the copy that uses it."
+            }
+          ],
+          "warnings": [
+            "The project has not published a license for its engine source. The original game is supplied separately."
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "elfbowl.exe"
           ]
         }
       }
@@ -59315,13 +60200,17 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. The selected binary requires OpenSSL3 and other upstream system libraries. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
+        "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. Install the upstream runtime libraries before Play. The tested Linux x64 package needs libphysfs1 and libzip5 on Ubuntu 26.04, in addition to its other system libraries, including OpenSSL 3. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback.",
         "original_game_title": "Gladiator",
         "manual_setup": {
           "steps": [
             {
               "title": "Start the game",
               "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
+            },
+            {
+              "title": "Prepare Linux x64",
+              "instruction": "Install the upstream player's system libraries before choosing Play. On Ubuntu 26.04 the tested package needs libphysfs1 and libzip5 in addition to its other system libraries, including OpenSSL 3. Keep your ~/.openglad profile separately. It contains your saves, settings and campaigns and is outside Portcove backups."
             },
             {
               "title": "Prepare your Apple silicon Mac",
@@ -60219,6 +61108,100 @@
       "windows_temp_directory": "temp"
     },
     {
+      "id": "hybrid-heaven-ogdanimal",
+      "name": "Hybrid Heaven: Recompiled (ogdanimal)",
+      "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. The game checks and copies it on first launch; saves and settings stay in its own profile.",
+      "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "ogdanimal/HybridHeaven-Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "HybridHeaven-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "HybridHeaven-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "HybridHeavenRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "HybridHeavenRecompiled"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, the game asks once for your own USA Hybrid Heaven cartridge dump, checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows and ~/.config/HybridHeavenRecompiled on Linux. Portcove starts the managed copy without APP_FOLDER_PATH, so a Linux copy you run with APP_FOLDER_PATH keeps a separate profile; a copy you manage yourself without portable.txt or APP_FOLDER_PATH shares the managed profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. On Linux the player needs a Vulkan driver, SDL2 and GTK 3. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Hybrid Heaven",
+        "manual_setup": {
+          "help_url": "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/431720eac60bb0508ea5c4b4aec88d47fa7bc79e/README.md",
+          "warnings": [
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover, and fan-made launcher background and icon artwork credited in the project README. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+            "Portcove has not observed native setup, gameplay or saves. On Linux the player needs a Vulkan driver, SDL2 and GTK 3."
+          ],
+          "steps": [
+            {
+              "title": "Supply your original on first Play",
+              "instruction": "Choose Play. First launch asks once for your own ordinary USA Hybrid Heaven cartridge dump (upstream SHA-1 16dbc21620b52deab5c5abf8a309ac60adfbee85). The game checks it and copies it into its own profile, then offers Start Game. No decompression or converter is needed. Keep your original separately."
+            },
+            {
+              "title": "Keep the complete package",
+              "instruction": "For a copy you manage yourself, keep the complete upstream package in a folder you control and start HybridHeavenRecompiled.exe on Windows or HybridHeavenRecompiled on Linux from that folder, with assets beside it. To add that copy to Portcove, select the player and its folder; removing it from Portcove leaves every file in place. Android APK installation remains an upstream device setup route."
+            }
+          ],
+          "references": [
+            {
+              "title": "Keep the game profile when updating",
+              "instruction": "Close the game and back up its profile before changing versions: normally %LOCALAPPDATA%\\HybridHeavenRecompiled on Windows or ~/.config/HybridHeavenRecompiled on Linux. A copy with portable.txt uses its own folder instead, and a Linux copy started with APP_FOLDER_PATH uses the folder that variable names. The profile holds the copied original, settings, saves and mods. The game can import a compatible save through Settings → Saves before starting; its existing save is kept as hybridheaven.us.bin.pre-import.bak. Controller Pak .mpk files are not accepted by that importer. Check progress in the new copy before retiring the old one."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3513,
+          "cover_id": 152879,
+          "image_id": "co39yn",
+          "image_sha256": "bf0007c9b9a4ef9b1d297695a5dcfce8154960e72d9860e15da72cdb89bcf3f5",
+          "game_slug": "hybrid-heaven",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "hybridheavenrecompiled.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "hybridheavenrecompiled"
+          ]
+        }
+      }
+    },
+    {
       "id": "icewind-dale-ii-gemrb",
       "name": "Icewind Dale II (GemRB)",
       "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
@@ -60951,6 +61934,104 @@
             "ja2-launcher.exe",
             "ja2-resource-pack.exe",
             "ja2.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "james2doyle-ffta-recomp",
+      "name": "Final Fantasy Tactics Advance (FFTA Recomp)",
+      "summary": "Final Fantasy Tactics Advance recompiled for Windows and Linux, using your own USA GBA ROM.",
+      "project_url": "https://github.com/james2doyle/ffta-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "james2doyle/ffta-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "FFTARecomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "FFTARecomp.exe"
+        ]
+      },
+      "launch_environment": {
+        "GBARECOMP_SELFHEAL_RECOMPILE": "0"
+      },
+      "persistent_paths": [
+        "saves",
+        "rom.cfg",
+        "bios.cfg",
+        "skip_launcher_on_boot",
+        "config.ini",
+        "keybinds.ini",
+        "mods/packages",
+        "mods/state.toml",
+        "hang_dump.log",
+        "hang_fp_tail.csv",
+        "hang_trace.csv",
+        "recomp_coverage_AFXE.json",
+        "recomp_master_misses_AFXE.toml.frag"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM in the player's file picker; the player rejects other files and remembers the path in rom.cfg, so keep the ROM where it is. Portcove keeps the battery save in saves, the launcher and input settings (rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini), imported mods in mods/packages with mods/state.toml, and the diagnostic files it writes beside itself (hang_dump.log, hang_fp_tail.csv, hang_trace.csv and its recompilation coverage reports) across updates, backups and rollback. Save-state slots are written beside your ROM, outside the managed copy, and are not backed up or rewound by Portcove. Portcove starts the player with its runtime self-heal compiler turned off, so it never compiles or loads extra code inside the managed copy; the game falls back to its built-in interpreter for any uncompiled code. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed.",
+        "original_game_title": "Final Fantasy Tactics Advance",
+        "manual_setup": {
+          "help_url": "https://github.com/james2doyle/ffta-recomp",
+          "steps": [
+            {
+              "title": "Use your own supported USA original",
+              "instruction": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM (AFXE, SHA-1 4ac05441f4de70a4ec3dd932116346c61b8783d9) in the player's file picker. The player rejects other files after selection and remembers the path in rom.cfg, so keep the ROM where it is. Save-state slots are written beside that ROM with .stateN names. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed."
+            },
+            {
+              "title": "Run a copy you manage yourself",
+              "instruction": "Keep the complete package for your system together. Start FFTARecomp.exe on Windows, or the FFTARecomp AppImage on Linux, from its own folder; the launch screen and game run in one process. To add that copy to Portcove, select the player and its folder with no extra arguments, then choose Play."
+            }
+          ],
+          "warnings": [
+            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package also includes retail box art that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "This upstream preview is experimental. Portcove has not observed native setup, gameplay or saves, and no compatibility of saves or save states across versions is claimed."
+          ],
+          "references": [
+            {
+              "title": "Keep saves, settings and external states",
+              "instruction": "The battery save is saves/ffta_us.sav beside the player unless --save or --save-path points elsewhere. rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini and keybinds.ini also sit beside the player, and imported mods go to mods/packages with mods/state.toml. Save-state slots live beside your ROM, or in the --state-dir folder. Back up all of these before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 414,
+          "cover_id": 524147,
+          "image_id": "cob8fn",
+          "image_sha256": "0f5ee5a926888d3a7adce4e37f40a14c8123e354844dbf0e3832e0aa048e1f00",
+          "game_slug": "final-fantasy-tactics-advance",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "bios",
+            "licenses",
+            "mods"
+          ],
+          "executables": [
+            "fftarecomp.exe"
           ]
         }
       }
@@ -61707,26 +62788,34 @@
           "steps": [
             {
               "title": "Use the Rigel Engine player",
-              "instruction": "Use the native package for your system. The Windows runtime ZIP contains RigelEngine.exe; upstream’s platform instructions cover Debian packages and the macOS application. Keep your original game files in their own folder."
+              "instruction": "On Windows x64, extract the complete rigelengine_win_x64.zip. On Intel Mac, copy the complete Rigel Engine app out of rigelengine_mac_x64.dmg and open it through macOS. Keep your original game files in their own folder."
+            },
+            {
+              "title": "Install the official Debian package on Linux x64",
+              "instruction": "Choose rigelengine_linux_x64.deb and open it with your package manager so it can install the SDL2 and SDL2_mixer dependencies. Start RigelEngine and choose your Duke Nukem II data folder. Use your package manager to replace the engine."
+            },
+            {
+              "title": "Use the Linux x64 or ARM64 Flatpak",
+              "instruction": "Install io.github.lethal_guitar.RigelEngine from Flathub. Copy your Duke Nukem II data, including NUKEM2.CMP, into ~/.var/app/io.github.lethal_guitar.RigelEngine/data/Duke2. Start the app through Flatpak and keep a backup of its app profile. Update the engine through Flatpak."
             },
             {
               "title": "Select your Duke Nukem II files",
               "instruction": "On first Play, choose your Duke Nukem II folder containing NUKEM2.CMP. Shareware and registered editions work. Keep the optional NUKEM2.F1–F5 intro movies with it for movie playback; Rigel Engine remembers your choice."
             },
             {
-              "title": "Add the game and manage your files",
+              "title": "Register your Windows player",
               "instruction": "Complete the upstream setup in your working copy before registration. Select the actual RigelEngine.exe and its containing folder as the working directory; keep every packaged companion. Leave arguments empty for the normal upstream startup flow, or supply separate literal arguments only when deliberately following that version’s documented options. Registration binds your explicit executable, folder and arguments with consent; Play is a separate action. You and upstream own runtime replacement, original files, saves, settings and profiles. Close the game and preserve every actual data/profile location and the working player before upstream updates. Registration-only removal preserves all external files. Managed Install, Update, Backup, Rollback, migration and external deletion are unavailable."
             }
           ],
           "warnings": [
             "Rigel Engine imports existing saves, high scores and settings into its own user profile. Keep that profile and your mod files backed up when updating the upstream installation.",
-            "Portcove offers Windows registration in this entry. It downloads the Intel macOS application from upstream but has not run it; Linux operation through Portcove has not been confirmed."
+            "Portcove offers registration for Windows. On Linux, start Rigel Engine through your package manager’s launcher or Flatpak. On Intel Mac, open the complete application."
           ],
           "help_url": "https://github.com/lethal-guitar/RigelEngine#running-rigelengine",
           "references": [
             {
-              "title": "Keep upstream platform alternatives separate",
-              "instruction": "Upstream also provides Linux packages and a macOS application with their own setup, original-data and profile rules. On macOS, open the normal application rather than registering its private bundle executable. Portcove offers Windows registration in this entry; Linux and macOS operation through Portcove has not been confirmed."
+              "title": "Keep your game data and engine profile",
+              "instruction": "Keep your original Duke Nukem II data and any old saves as separate copies. Preserve Rigel Engine’s profile with your actual saves, high scores, settings and mods. The Flatpak has its own profile inside ~/.var/app/io.github.lethal_guitar.RigelEngine."
             }
           ]
         },
@@ -62294,6 +63383,14 @@
             {
               "title": "Keep your saves, options and mods",
               "instruction": "The Windows and Linux players store both options and saved progress in config beside the executable. Supported mods live in mods/ beside it. Keep both with their creating runtime and close the game normally before maintenance: the inspected title writes config during shutdown. Put replacement content in the supported mods tree; direct edits to shipped assets are outside the declared preserved data and can block update or removal until preserved and reconciled. Runtime rollback retains current data and does not rewind saves or guarantee cross-version mod/save compatibility."
+            },
+            {
+              "title": "Use the upstream Android app",
+              "instruction": "Install Tails Adventure by mechakotik from Google Play or choose the publisher’s Android APK on GitHub Releases. The inspected APK requires Android 5.0 or later and OpenGL ES 2.0. Keep using the same distribution channel for updates so your app signature stays compatible."
+            },
+            {
+              "title": "Keep the Android save and mods",
+              "instruction": "With the game closed, preserve config and mods/ from the app’s writable files folder when your device gives you access, normally Android/data/com.mechakotik.tailsadventure/files. If the game cannot use external app storage, it saves config in private app storage. Check your Android backup before clearing app data, uninstalling or changing channels."
             }
           ],
           "warnings": [
@@ -63564,6 +64661,180 @@
       }
     },
     {
+      "id": "n64hub-rayman-2-recomp-n64-usa",
+      "name": "Rayman 2: The Great Escape (n64hub)",
+      "summary": "A Windows port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
+      "project_url": "https://github.com/n64hub/rayman-2-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "n64hub/rayman-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Rayman2Recompiled-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Rayman2Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy.",
+        "original_game_title": "Rayman 2: The Great Escape",
+        "manual_setup": {
+          "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
+          "steps": [
+            {
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions."
+            },
+            {
+              "title": "Prepare the game",
+              "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select Rayman2Recompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy."
+          ],
+          "references": [
+            {
+              "title": "Upstream releases and their setup notes",
+              "instruction": "https://github.com/n64hub/rayman-2-recomp/releases"
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rayman2recompiled.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "n64hub-super-smash-bros-n64-usa-recomp",
+      "name": "Super Smash Bros. (Smash Bros. Recompiled)",
+      "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
+      "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "n64hub/super-smash-bros-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SmashBrosRecompiled-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SmashBrosRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy.",
+        "original_game_title": "Super Smash Bros.",
+        "manual_setup": {
+          "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+          "steps": [
+            {
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions."
+            },
+            {
+              "title": "Prepare the game",
+              "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select SmashBrosRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy."
+          ],
+          "references": [
+            {
+              "title": "Upstream releases and their setup notes",
+              "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases"
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "smashbrosrecompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "nam-raze",
       "name": "NAM (Raze)",
       "summary": "Play NAM in Raze using your own original PC game files.",
@@ -63618,7 +64889,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -64145,7 +65420,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version.",
+        "manual_preparation": "The official packages include the freeware One Must Fall 2097 resources. Choose Play after installation. The Windows ZIP includes an ARM64 player alongside the managed x86-64 executable. The managed Linux route uses the stable x86-64 AppImage and its bundled resources. The v0.8.6 AppImage needs the system libraries libjack.so.0 and libpipewire-0.3.so.0. OpenOMF keeps configuration and state in its external profile, normally AppData/OpenOMF on Windows or ~/.local/share/OpenOMF on Linux. On Linux, explicit XDG_CONFIG_HOME and XDG_STATE_HOME select their own absolute locations, and XDG_DATA_HOME can change the SDL preference root. Back up settings, saves, scores, screenshots, recordings and user mods separately. Use a separately prepared copy for custom OpenOMF overrides or alternate resources. Package resources and bundled mods stay with their installed version.",
         "original_game_title": "One Must Fall: 2097",
         "manual_setup": {
           "steps": [
@@ -64155,7 +65430,7 @@
             },
             {
               "title": "Start the managed Linux AppImage",
-              "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
+              "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and SDL2. The v0.8.6 AppImage also needs your system’s libjack.so.0 and libpipewire-0.3.so.0. Use your distribution’s packages if Play reports either library missing. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
             },
             {
               "title": "Prepare the upstream Apple Silicon package",
@@ -64939,6 +66214,93 @@
               "title": "Keep your existing game data",
               "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
             }
+          ]
+        }
+      }
+    },
+    {
+      "id": "pilotwings-64-dgv-recomp",
+      "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
+      "summary": "Native Pilotwings 64 for Windows and Linux with an in-game picker for your own USA cartridge image; saves and settings stay in the player's profile.",
+      "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "danielgomesvieira2000/pilotwings-64-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Pilotwings64Recomp-",
+            "-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "Pilotwings64Recomp-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Pilotwings64Recomp.exe"
+        ],
+        "linux-x86-64": [
+          "Pilotwings64Recomp"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose Load ROM and pick your own 8 MiB Pilotwings 64 USA Rev 0 cartridge image. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Pilotwings64Recomp on Windows and $XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. The Linux player needs glibc 2.43 or later. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Pilotwings 64",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original on first Play",
+              "instruction": "Choose Play, then Load ROM in the player and pick your own 8 MiB Pilotwings 64 USA Rev 0 cartridge image. The project recommends an unmodified big-endian .z64; the picker also converts byteswapped images of the same cartridge. The player checks the file and keeps its own copy in its profile, so keep your original separately."
+            },
+            {
+              "title": "Start a copy you manage yourself",
+              "instruction": "Extract the whole package to a writable folder. On Windows open Pilotwings64Recomp.exe. On Linux run Pilotwings64Recomp.sh or the Pilotwings64Recomp program from the extracted folder. To add that copy to Portcove, select the player and its folder and leave arguments empty; removing it from Portcove leaves every file in place."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover, plus two RT64 shaders adapted from Shadertoy, possibly under a noncommercial Creative Commons license. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+            "Portcove has not observed native setup, gameplay or saves. The Linux player needs glibc 2.43, libstdc++ with GLIBCXX_3.4.32, SDL2, GTK 3, FreeType and a working Vulkan driver."
+          ],
+          "help_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md",
+          "references": [
+            {
+              "title": "Preserve the player's profile",
+              "instruction": "The profile is %LOCALAPPDATA%\\Pilotwings64Recomp on Windows and $XDG_DATA_HOME/Pilotwings64Recomp on Linux, usually ~/.local/share/Pilotwings64Recomp. It holds the copied original, saves, settings and mods, and on Windows possibly pw64.log. A portable.txt in the player's folder keeps the profile in that folder instead. Close the game and back up the profile before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3573,
+          "cover_id": 257550,
+          "image_id": "co5iq6",
+          "image_sha256": "14f29e308d8b2d3c5541b1b098a0d19cf7a3e74fe871f7d0ef511437eb83f756",
+          "game_slug": "pilotwings-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "pilotwings64recomp.exe"
           ]
         }
       }
@@ -66249,7 +67611,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -66543,7 +67909,7 @@
             },
             {
               "title": "Run the upstream Linux build",
-              "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
+              "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Back up id1 beside the player and any separate .ironwail profile your copy uses. Keep your original Quake files separately. Store-selected profiles and migration files stay with your separately prepared copy."
             },
             {
               "title": "Select the prepared player",
@@ -66856,7 +68222,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -67051,16 +68421,26 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
+        "manual_preparation": "Before Play, copy your matching Rise of the Triad data beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs. Use DARKWAR.RTC, DARKWAR.RTL and DARKWAR.WAD for the registered edition, or the matching HUNTBGIN.RTC, HUNTBGIN.RTL and HUNTBGIN.WAD for a supported shareware edition. Include DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the uppercase filenames and your separate original copy. On Linux, use glibc 2.38 or later, install SDL2 and SDL2_mixer through your distribution, and supply a General MIDI soundfont. Put it at userdata/barrett.sf2 or use a system soundfont path listed by Barrett. If Play stops during userdata setup, keep your original files and existing userdata while checking the reported error. Keep the packaged SDL2 and SDL2_mixer libraries alongside the Windows player. On Apple silicon, use macOS 15 or later and install both libraries with Homebrew in /opt/homebrew. Choose Preview for these upstream beta packages. The Linux v1.3-beta player failed to start with the public Apogee v1.3 shareware files. The player reported a missing WAD resource. Keep those original files intact and use a release with verified support for that edition. Upstream stores settings, saves, scores, optional soundfonts and OPL preferences in userdata beside the player. That folder, the named original inputs and named error/license outputs are declared for compatible replacement and backup. Original files must match the selected edition. Custom WAD/map/launch paths or changes to the runtime can use external registration; undeclared additions remain protected. Runtime rollback carries current declared data without rewinding progress or guaranteeing old-save compatibility. Existing external installations keep their files and runtime owner. Source/package inspection is separate from original-input, gameplay, minimum-environment and packaged Desktop acceptance observations.",
         "original_game_title": "Rise of the Triad",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your original game",
-              "instruction": "Before first Play, copy your own supported Rise of the Triad DARKWAR.RTC/RTL/WAD or supported shareware HUNTBGIN.RTC/RTL/WAD into the folder beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs, together with upstream’s required DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the original source copy and the packaged Windows SDL2/SDL2_mixer libraries. On Linux, install SDL2 and SDL2_mixer from your distribution, use glibc 2.38 or later, and keep the uppercase file names shown here so Portcove preserves them. On an Apple silicon Mac, use macOS 15 or later and install SDL2 and SDL2_mixer with Homebrew in /opt/homebrew. The native archive needs no installer or compiler; this upstream beta is offered through Preview."
+              "instruction": "Before Play, copy your matching Rise of the Triad data beside barrett.exe on Windows or barrett on Linux and Apple silicon Macs. Use DARKWAR.RTC, DARKWAR.RTL and DARKWAR.WAD for the registered edition, or the matching HUNTBGIN.RTC, HUNTBGIN.RTL and HUNTBGIN.WAD for a supported shareware edition. Include DEMO1_3.DMO through DEMO4_3.DMO and REMOTE1.RTS. Keep the uppercase filenames and your separate original copy."
+            },
+            {
+              "title": "Set up the upstream Linux player",
+              "instruction": "On Linux, use glibc 2.38 or later, install SDL2 and SDL2_mixer through your distribution, and supply a General MIDI soundfont. Put it at userdata/barrett.sf2 or use a system soundfont path listed by Barrett. If Play stops during userdata setup, keep your original files and existing userdata while checking the reported error."
+            },
+            {
+              "title": "Keep the Windows or Mac dependencies",
+              "instruction": "Keep the packaged SDL2 and SDL2_mixer libraries alongside the Windows player. On Apple silicon, use macOS 15 or later and install both libraries with Homebrew in /opt/homebrew. Choose Preview for these upstream beta packages."
             }
           ],
-          "warnings": [],
+          "warnings": [
+            "The Linux v1.3-beta player failed to start with the public Apogee v1.3 shareware files. The player reported a missing WAD resource. Keep those original files intact and use a release with verified support for that edition."
+          ],
           "help_url": "https://github.com/lunarmeadow/barrett#readme"
         },
         "artwork": {
@@ -67866,7 +69246,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -67896,6 +69280,220 @@
           ],
           "executables": [
             "raze.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "snowboard-kids",
+      "name": "Snowboard Kids (SnowboardKids-Recomp)",
+      "summary": "A native Snowboard Kids port for Windows and Linux. Select your own USA cartridge dump on first Play.",
+      "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "HikariLucy/SnowboardKids-Recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SnowboardKidsRecompiled-",
+            "-Windows-x86_64.zip"
+          ],
+          "linux-x86-64": [
+            "SnowboardKidsRecompiled-",
+            "-Linux-x86_64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SnowboardKidsEngine.exe"
+        ],
+        "linux-x86-64": [
+          "SnowboardKidsEngine"
+        ]
+      },
+      "launch_environment": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser; the player remembers its location and may keep its own copy in the profile, so keep the original where you selected it. Settings, Controller Pak saves, save states, logs and any user game modules go to the player's profile: %APPDATA%\\SnowboardKids on Windows, or $XDG_DATA_HOME/SnowboardKids, usually ~/.local/share/SnowboardKids, on Linux. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. A game module in the profile's modules folder takes precedence over the packaged one, so remove an old one after an update. Portcove replaces the player; you own the original and the profile. If no compatible game module loads, the player can run its bundled Python module builder; Portcove starts it without writing Python bytecode into the managed copy.",
+        "original_game_title": "Snowboard Kids",
+        "manual_setup": {
+          "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
+          "steps": [
+            {
+              "title": "Select your own supported original on Play",
+              "instruction": "Choose Play, then select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and the supported N64 byte orders. The player remembers where your ROM is, so keep the original where you selected it."
+            },
+            {
+              "title": "Keep the complete package for your system",
+              "instruction": "For a copy you manage yourself, keep the whole package together: SnowboardKidsEngine.exe on Windows or SnowboardKidsEngine on Linux, the matching modules/snowboardkids-us game module, assets and runtime libraries. The published beta includes a precompiled module, so normal players compile nothing. To add that copy to Portcove, select the engine and its folder."
+            }
+          ],
+          "warnings": [
+            "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files. Source and first-party checks do not confirm gameplay, real saves or installed behavior.",
+            "This is an upstream beta. Portcove has not observed native setup, gameplay or saves. A game module left in the profile's modules folder overrides the packaged one."
+          ],
+          "references": [
+            {
+              "title": "Preserve the actual profile and active module",
+              "instruction": "Back up the player's profile before changing versions: normally %APPDATA%\\SnowboardKids on Windows or ~/.local/share/SnowboardKids on Linux, unless SBK_USER_DATA_DIR selects another folder in a copy you manage yourself. It holds settings, the remembered ROM location, Controller Pak .mpk saves, .sbks save states, logs and any user game modules. Loading a save state does not rewind Controller Pak storage. A game module in that folder, or one named by --module or SBK_GAME_MODULE, takes priority over the packaged module, so remove an old one after updating. Close the player before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3342,
+          "cover_id": 104128,
+          "image_id": "co28cg",
+          "image_sha256": "e6de2524e0b09d327d373cfd986e9f4c77cd451f56dcff7c09b68a0a8a5b49bb",
+          "game_slug": "snowboard-kids",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "modules",
+            "scripts"
+          ],
+          "executables": [
+            "snowboardkidsengine.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "licenses",
+            "modules",
+            "scripts"
+          ],
+          "executables": [
+            "scripts/build-game-module.py",
+            "snowboardkidsengine"
+          ]
+        }
+      }
+    },
+    {
+      "id": "snprecomp-wootbeer-sin-and-punishment",
+      "name": "Sin and Punishment — snprecomp (wootbeer)",
+      "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
+      "project_url": "https://github.com/wootbeer/snprecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "wootbeer/snprecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SnPRecompiled-",
+            "-windows.zip"
+          ],
+          "linux-x86-64": [
+            "SnPRecompiled-",
+            "-linux-x86_64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SnPRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "SnPRecompiled"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Use a separate upstream copy for portable.txt mode. Do not use Add to Steam from the managed copy: the shortcut points at one version folder, starts the game outside Portcove and stays in Steam after removal. The Linux x86-64 player needs glibc 2.38 or later and system SDL2, Vulkan, X11, FreeType and D-Bus libraries; Load ROM uses the desktop file-chooser portal.",
+        "original_game_title": "Sin and Punishment",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Choose Load ROM and select your own supported Japanese or English Sin and Punishment ROM (see Check the required game files). The player keeps a copy in its snprecomp profile, with separate saves for Japanese and English. Back up that profile separately before changing versions."
+            },
+            {
+              "title": "Check the required game files",
+              "instruction": "Use your own Japanese ROM with SHA-1 581297b9d5c3a4c33169ae0aae218c742cd9cbcf, or an English variant with SHA-1 5945ff3935d9d9531bbb5cfcabed7c198e2b2f41 or e3906c919236dac6eba020b4b8c1df91fd725c5d. This guide has not confirmed other translations; check the project’s requirements before using one."
+            },
+            {
+              "title": "Follow upstream setup",
+              "instruction": "Extract the complete package to a writable folder. On Windows run SnPRecompiled.exe. On Linux run SnPRecompiled.sh from the extracted folder. Choose Load ROM and select your own supported copy, then start the game. To register a Linux copy, select the SnPRecompiled program, not SnPRecompiled.sh."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select SnPRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Upstream marks the Linux and Steam Deck routes untested. Portcove has not observed native setup or gameplay.",
+            "The Android app disables Android backup. Clearing its data or uninstalling can remove its imported ROM and separate Japanese and English saves. Keep your external original and update io.github.wootbeer.snprecomp with the same package identity and signer.",
+            "The profile is %LOCALAPPDATA%\\snprecomp on Windows and ~/.config/snprecomp on Linux; a separately prepared copy without portable.txt shares it. Use a separate upstream copy for portable.txt mode. Do not use Add to Steam from the managed copy: the shortcut points at one version folder, starts the game outside Portcove and stays in Steam after removal. The Linux x86-64 player needs glibc 2.38 or later and system SDL2, Vulkan, X11, FreeType and D-Bus libraries; Load ROM uses the desktop file-chooser portal."
+          ],
+          "help_url": "https://github.com/wootbeer/snprecomp",
+          "references": [
+            {
+              "title": "Set up the separate Android ARM64 app",
+              "instruction": "Use SnPRecompiled-0.2.11-android.apk from the upstream release on Android 9 or newer. It needs a Vulkan driver with descriptor indexing. Open the app and choose Load ROM to select your original with the system picker. The app copies it into its own storage."
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: the existing snprecomp profile or the application folder when portable.txt is present. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "snprecompiled.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "snprecompiled",
+            "snprecompiled.sh"
           ]
         }
       }
@@ -68591,6 +70189,70 @@
           ],
           "executables": [
             "reflectionhle.app/contents/macos/reflectionhle"
+          ]
+        }
+      }
+    },
+    {
+      "id": "star-wars-atari-darkuni",
+      "name": "Star Wars (Atari arcade) / darkuni",
+      "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
+      "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/starwars-arcade-recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "StarWars-linux.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "starwars"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, put your own starwars.zip, matching the MAME starwars revision 2 set, in your home folder as ~/starwars.zip, not into Portcove's install folder, and keep a separate copy. The game checks the 13 ROM and PROM parts by content; without them it shows Star Wars ROMs not found or incomplete, lists the missing parts and suggests putting the ZIP next to the program; keep it in your home folder instead. The package is the publisher's hardware recreation only and contains no ROM data; the publisher does not provide a license for its code. The Linux x86-64 player needs glibc 2.38 or later, X11, ALSA and OpenGL. High scores (nvram.bin) and settings (settings.json) are in ~/.config/starwars, or starwars under XDG_CONFIG_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the ROM set, high scores and settings.",
+        "original_game_title": "Star Wars (Atari arcade)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your own Star Wars arcade ROM set",
+              "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip (%USERPROFILE% on Windows); each Windows, Linux and Mac build finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+            },
+            {
+              "title": "Start the Windows or Mac player",
+              "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe; it also finds the ZIP beside it. On Intel Mac or Apple Silicon, extract the universal Star Wars.app and open it."
+            },
+            {
+              "title": "Keep your high scores and settings",
+              "instruction": "Back up nvram.bin and settings.json from the starwars folder under your user configuration directory. This is normally %APPDATA% on Windows, ~/.config or XDG_CONFIG_HOME on Linux and ~/Library/Application Support on Mac."
+            }
+          ],
+          "warnings": [
+            "The Linux x64 binary requires glibc 2.38 or later, X11 and ALSA libraries.",
+            "The publisher does not provide a license for its project code."
+          ],
+          "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "starwars"
           ]
         }
       }
@@ -70115,6 +71777,78 @@
       }
     },
     {
+      "id": "tdrrmk2-uhexen2-tweaked",
+      "name": "Hexen II / uHexen2 Tweaked",
+      "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
+      "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
+      "support_tier": "beta",
+      "channels": [
+        "beta"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "TDRRmk2/uhexen2-tweaked",
+        "asset_hints": {
+          "windows-x86-64": [
+            "H2HoT-Tweaked-",
+            "-win32.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "glh2.exe"
+        ]
+      },
+      "windows_runtime_path_policy": "printable-ascii-max-path",
+      "persistent_paths": [
+        "data1",
+        "debug_h2.log"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into data1 in the managed player's folder, and keep your original installation separately. Portcove does not check these files and nothing patches them; the engine refuses older or mixed versions. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log when startup logging is enabled, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading.",
+        "original_game_title": "Hexen II",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Copy your original game data before Play",
+              "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II installation, patched to version 1.11, into the data1 folder of the game folder you will play from, and keep your original installation separately. The engine refuses older or mixed pak versions; nothing patches them for you, and the package contains no game data or patching tools."
+            },
+            {
+              "title": "Use a copy you manage yourself",
+              "instruction": "Extract the complete Windows test ZIP into a separate working Hexen II folder that already holds data1. Select glh2.exe with that folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+            }
+          ],
+          "warnings": [
+            "The test package bundles ten third-party codec and runtime DLLs without their licence notices. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+            "Portal of Praevus, HexenWorld and mods are not part of this route; they need other programs, folders or arguments in a copy you manage yourself. Portal of Praevus needs portals/pak3.pak and the -portals argument."
+          ],
+          "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
+          "references": [
+            {
+              "title": "Keep the game folder's saves and settings",
+              "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "glh2.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "thatguymcd-glover-r",
       "name": "Glover / Glover-R (ThatGuyMcd)",
       "summary": "Explore Glover / Glover-R (ThatGuyMcd) and follow the upstream project for requirements, downloads and setup.",
@@ -71269,6 +73003,72 @@
       }
     },
     {
+      "id": "the-settlers-freeserf",
+      "name": "The Settlers / FreeSerf",
+      "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
+      "project_url": "https://github.com/freeserf/freeserf",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "freeserf/freeserf",
+        "asset_hints": {
+          "linux-x86-64": [
+            "FreeSerf-",
+            "-Linux.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "FreeSerf"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your original DOS data file (SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA) or the six original Amiga files to ~/.local/share/freeserf, or to freeserf under XDG_DATA_HOME, not into Portcove's install folder, and keep your originals separate. Without them FreeSerf shows Could not find the game data. The package is the GPL-3 engine with a GPL-2 SoundFont and contains no game data. The Linux x86-64 player needs glibc 2.38 and a matching C++ runtime, for example Ubuntu 24.04 or later. FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME or, when that is unset, in ~/freeserf/saves. Settings are in freeserf.ini in ~/.local/share/freeserf or under XDG_DATA_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the engine; you own the original data, saves and settings.",
+        "original_game_title": "The Settlers",
+        "manual_setup": {
+          "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+          "steps": [
+            {
+              "title": "Choose data from your original game",
+              "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Copy them to ~/.local/share/freeserf on Linux or Mac, or to the freeserf folder under %LOCALAPPDATA% on Windows, and keep your originals separate. When launching from a terminal, -g takes the directory containing your data."
+            },
+            {
+              "title": "Install the Windows or Mac release",
+              "instruction": "On Windows x64, use the Release installer. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+            },
+            {
+              "title": "Keep your saves and settings",
+              "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME on Linux, or in ~/freeserf/saves when XDG_DATA_HOME is unset. On Windows it uses the freeserf folder in your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini: in ~/.local/share/freeserf or under XDG_DATA_HOME on Linux, in %APPDATA%\\freeserf on Windows, and in Library/Application Support/freeserf on Mac. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
+            }
+          ],
+          "warnings": [
+            "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "resources"
+          ],
+          "executables": [
+            "freeserf"
+          ]
+        }
+      }
+    },
+    {
       "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
       "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
       "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
@@ -71896,8 +73696,12 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Choose the upstream package for your system",
-              "instruction": "On Windows, extract the portable ZIP or run the upstream x64 installer, then open VCMI_launcher.exe. On Linux x86-64, use the AppImage on a system with glibc 2.38 or newer, or follow the upstream Linux guide for a distribution package or Flatpak. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
+              "title": "Install VCMI on Windows or Mac",
+              "instruction": "On Windows x64, extract the portable ZIP or run the x64 installer, then open VCMI_launcher.exe. On Windows ARM64, run the official VCMI-Windows-arm64.exe installer and open VCMI Launcher from the Start menu. Update that copy through the upstream installer. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
+            },
+            {
+              "title": "Run the VCMI AppImage on Linux",
+              "instruction": "Choose VCMI-Linux-x64.AppImage for x86-64 or VCMI-Linux-arm64.AppImage for ARM64 from the official release. Make the full AppImage executable and open it on a system with glibc 2.38 or newer and AppImage support. Use its built-in launcher to import your Heroes III data. If you use a distribution package or Flatpak instead, follow the upstream Linux guide and update through that package manager."
             },
             {
               "title": "Import your Heroes III data",
@@ -71905,7 +73709,7 @@
             },
             {
               "title": "Choose the client after upstream setup",
-              "instruction": "On Windows, register VCMI_client.exe and its containing folder. For a native Linux distribution package, select the native vcmiclient executable and its containing folder. Use the upstream AppImage, Flatpak or Mac app through its own launcher."
+              "instruction": "To register an upstream copy on Windows x64, select VCMI_client.exe and its containing folder. On Linux x64, use the native vcmiclient executable and its containing folder for a distribution package. Play through the upstream launcher on Windows ARM64 or when using an AppImage, Flatpak or Mac app."
             }
           ],
           "warnings": [
@@ -71924,10 +73728,6 @@
               "instruction": "https://vcmi.eu/players/Installation_Linux/"
             },
             {
-              "title": "ARM64 desktop packages",
-              "instruction": "For a native ARM64 Windows or Linux system, use the corresponding upstream Windows installer or Linux AppImage directly from VCMI Releases. Keep its profile with that installation."
-            },
-            {
               "title": "Upstream Android setup",
               "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it. Android guide at https://vcmi.eu/players/Installation_Android/."
             },
@@ -71944,6 +73744,101 @@
           "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
           "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
           "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "vidanox-banjotooierecompiled",
+      "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
+      "summary": "Use the Banjo-Tooie player package and select your own USA cartridge dump.",
+      "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "Vidanox/BanjoTooieRecompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BanjoTooieRecompiled-",
+            "windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "BanjoTooieRecompiled-",
+            "linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BanjoTooieRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "BanjoTooieRecompiled"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose Select ROM and pick your own Banjo-Tooie USA cartridge dump. The player checks it and keeps a copy named bt.n64.us.1.0.z64 in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows and ~/.config/BanjoTooieRecompiled on Linux. Portcove starts the managed copy without APP_FOLDER_PATH, so a copy you run with APP_FOLDER_PATH keeps a separate profile; a copy you manage yourself without portable.txt or APP_FOLDER_PATH shares the managed profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. On Linux the player needs Vulkan, SDL2, FreeType, D-Bus and a running xdg-desktop-portal service. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Banjo-Tooie",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then Select ROM and supply your own Banjo-Tooie USA 32 MiB cartridge dump. The project recommends an unmodified big-endian .z64; the player also converts byteswapped dumps of the same cartridge. Another region or a modified image is not accepted. The player checks the file and keeps its own copy in its profile, so keep your original separately."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole package. On Windows, run BanjoTooieRecompiled.exe with assets and the supplied SDL2 and DXC libraries beside it. On Linux, run run.sh, or start BanjoTooieRecompiled with its extracted folder as the working folder."
+            }
+          ],
+          "warnings": [
+            "Upstream calls Linux less exercised than Windows. Portcove has not observed native setup, gameplay or saves. On Linux the player needs Vulkan, SDL2, FreeType, D-Bus and a running xdg-desktop-portal service for Select ROM.",
+            "The package includes the Suplexmentary Comic NC font, which the project license does not cover, and menu art based on Rare's promotional artwork. Portcove downloads the package only from the project’s own releases. You need your own original game files."
+          ],
+          "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. It holds the copied original bt.n64.us.1.0.z64, saves, settings and mods. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3418,
+          "cover_id": 295556,
+          "image_id": "co6c1w",
+          "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
+          "game_slug": "banjo-tooie",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "banjotooierecompiled.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "banjotooierecompiled",
+            "run.sh"
+          ]
         }
       }
     },
@@ -72700,7 +74595,11 @@
             },
             {
               "title": "Keep upstream update ownership and platform handoffs",
-              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+              "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+            },
+            {
+              "title": "Use Raze from Flathub on Linux",
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
