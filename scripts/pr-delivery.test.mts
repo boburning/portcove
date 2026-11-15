@@ -606,6 +606,64 @@ void test("required context reduction fails closed on missing and duplicate prod
   );
 });
 
+void test("a bound run tolerates only successful duplicate check runs from another run on the same head", () => {
+  const bound = successfulRuns().map((run) => ({ ...run, head_sha: head }));
+  const binding = { head, run: 42, attempt: 1, jobs: workflowJobs() };
+  const foreign = (overrides: Record<string, unknown> = {}) => ({
+    id: 100,
+    name: "rust",
+    status: "completed",
+    conclusion: "success",
+    head_sha: head,
+    html_url: "https://github.test/check/100",
+    ...overrides,
+  });
+  const accepted = requiredCheckContexts([...bound, foreign()], [], required, binding);
+  assert.ok(accepted.every((context) => context.outcome === "success"));
+  assert.equal(
+    requiredFixture(accepted.find((context) => context.context === "rust")).check_run_id,
+    required.indexOf("rust") + 1,
+  );
+  for (const overrides of [{ conclusion: "failure" }, { status: "in_progress", conclusion: null }])
+    assert.throws(
+      () => requiredCheckContexts([...bound, foreign(overrides)], [], required, binding),
+      /unjoined or conflicting observations/u,
+    );
+  assert.throws(
+    () => requiredCheckContexts([...bound, foreign({ head_sha: base })], [], required, binding),
+    /differs from expected head/u,
+  );
+  assert.throws(
+    () =>
+      requiredCheckContexts(
+        bound,
+        [{ id: 99, context: "rust", state: "success", target_url: "https://github.test/status" }],
+        required,
+        binding,
+      ),
+    /unjoined or conflicting observations/u,
+  );
+});
+
+void test("REST merge local composition requires the reviewed target and tree", async () => {
+  assert.deepEqual(
+    parseArguments([
+      "merge",
+      "--target",
+      base,
+      "--tree",
+      "e".repeat(40),
+      "--verify-local-composition",
+    ]).options["--verify-local-composition"],
+    true,
+  );
+  const client = await deliveryFixture();
+  await assert.rejects(
+    client.merge(7, head, required, emptyIntent, squashMessage, undefined, undefined, "/tmp"),
+    /requires --target and --tree/u,
+  );
+});
+
 void test("required check observation is exact-head and fails closed on ambiguity", async () => {
   const client = await deliveryFixture();
   client.pull = async () => pull();

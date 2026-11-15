@@ -191,10 +191,19 @@ before submission, then verifies the actual squash parent and tree. If the
 target advances during the request, GitHub's source SHA precondition can still
 allow the squash. The helper retains the actual commit and expected composition
 for reconciliation in that case. Existing invocations may omit both options.
-After a selective retry, also supply the successful
+GitHub rebuilds its preview lazily, so on a frequently advancing target it can
+remain on an older target commit. From a checkout of the reviewed head, add
+`--verify-local-composition`: the helper then verifies the historical preview
+object, that its target is an ancestor of the reviewed target, and that
+`git merge-tree` of the reviewed target and head equals the reviewed tree,
+instead of requiring the preview to sit on the live tip. A real composition
+mismatch still refuses. After a selective retry, also supply the successful
 workflow's `--run <id> --attempt <number>`. This joins complete check and job
 inventories across attempts and checks that the identified workflow remains
-successfully completed before the merge request. It freezes and rechecks the source SHA and required
+successfully completed before the merge request. When a reopen started another
+workflow run on the same head, bind the intended run the same way; completed
+successful check runs from the other run are tolerated, while a failed or
+pending one still refuses. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or

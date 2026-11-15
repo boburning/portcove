@@ -282,6 +282,22 @@ export function requiredCheckContexts(
         const id = observation.check_run_id;
         const job = id === undefined ? undefined : lineage.checks.get(id);
         const raw = checkRuns.find((check) => check.id === id);
+        // A completed successful check run for the same head from another workflow
+        // run (for example one started by a reopen) adds no authority and cannot
+        // mask the bound run, whose own job must still succeed below. A foreign
+        // failed or pending observation still refuses.
+        if (
+          observation.source === "check-run" &&
+          id !== undefined &&
+          !job &&
+          !seen.has(id) &&
+          raw?.head_sha === binding.head &&
+          raw.status === "completed" &&
+          observation.outcome === "success"
+        ) {
+          seen.add(id);
+          continue;
+        }
         if (
           observation.source !== "check-run" ||
           id === undefined ||
@@ -601,10 +617,10 @@ export function validateCommitComposition(
     throw new Error("Git commit composition differs from expected source, target, or tree");
 }
 
-function localComposition(
+export function localComposition(
   value: unknown,
   previewSha: string,
-  expected: MergeSnapshotExpectation,
+  expected: Pick<MergeSnapshotExpectation, "head" | "target" | "tree">,
   checkout: string,
   remainingMs: number,
 ) {

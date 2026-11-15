@@ -6,6 +6,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
+  localComposition,
   prepareMergeSnapshot,
   verifyMergeSnapshotReadback,
   readDeliverySnapshot,
@@ -313,6 +314,45 @@ void test("local composition admits a historical provider preview only after che
     const output: unknown = JSON.parse(cli.stdout);
     assert.ok(output && typeof output === "object" && "tree" in output);
     assert.equal(output.tree, value.expected.tree);
+  } finally {
+    rmSync(value.directory, { recursive: true, force: true });
+  }
+});
+
+void test("guarded REST merge composition verifies a lagging preview against the live target", () => {
+  const value = localGitFixture();
+  try {
+    const result = localComposition(
+      value.snapshot.preview,
+      value.snapshot.preview.sha,
+      value.expected,
+      value.directory,
+      60_000,
+    );
+    assert.equal(result.method, "local-git-merge-tree");
+    assert.equal(result.preview_target, value.snapshot.preview.parents[0]!.sha);
+    assert.throws(
+      () =>
+        localComposition(
+          value.snapshot.preview,
+          value.snapshot.preview.sha,
+          { ...value.expected, tree: "1".repeat(40) },
+          value.directory,
+          60_000,
+        ),
+      /independently reviewed tree/u,
+    );
+    assert.throws(
+      () =>
+        localComposition(
+          value.snapshot.preview,
+          value.snapshot.preview.sha,
+          { ...value.expected, head: "2".repeat(40) },
+          value.directory,
+          60_000,
+        ),
+      /incomplete|differs/u,
+    );
   } finally {
     rmSync(value.directory, { recursive: true, force: true });
   }

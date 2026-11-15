@@ -25,6 +25,7 @@ import {
   validateMergeReadiness,
   validateMergedCommit,
   validateCommitComposition,
+  localComposition,
   prepareMergeSnapshot,
   verifyMergeSnapshotReadback,
   readDeliverySnapshot,
@@ -673,7 +674,10 @@ export class PullRequestDeliveryClient {
     mergeMessage?: unknown,
     binding?: { run: number; attempt: number },
     composition?: { target: string; tree: string },
+    localCheckout?: string,
   ) {
+    if (localCheckout !== undefined && !composition)
+      throw new Error("Merge --verify-local-composition requires --target and --tree");
     if (
       composition &&
       ![composition.target, composition.tree].every((sha) => /^[0-9a-f]{40}$/u.test(sha))
@@ -737,7 +741,12 @@ export class PullRequestDeliveryClient {
       if (fresh.body !== state.pull.body)
         throw new Error("PR body changed before merge; refresh delivery review");
       const preview = await this.request("GET", `repos/${repository}/git/commits/${previewSha}`);
-      validateCommitComposition(preview.data, expected, previewSha, false);
+      // GitHub rebuilds its preview lazily, so it can lag a frequently advancing
+      // target. With a local checkout of the reviewed head, verify the historical
+      // preview object and the current composition independently instead.
+      if (localCheckout !== undefined)
+        localComposition(preview.data, previewSha, expected, localCheckout, 60_000);
+      else validateCommitComposition(preview.data, expected, previewSha, false);
       if ((await this.branch(ref)).commit.sha !== expected.target)
         throw new Error("Merge target advanced before mutation; refresh the reviewed composition");
     }
@@ -1672,6 +1681,7 @@ const deliveryFlags: Readonly<Record<string, readonly string[]>> = {
     "--attempt",
     "--closure-intent-file",
     "--merge-message-file",
+    "--verify-local-composition",
     "--json",
   ],
   "prepare-merge": [
@@ -1761,6 +1771,10 @@ export function deliveryHelp(command: string | null | undefined = null) {
       ),
     );
   }
+  if (!command || command === "merge")
+    lines.push(
+      "  Merge --verify-local-composition, run from a checkout of the reviewed head, checks a historical provider preview and the reviewed --target/--tree composition with local Git objects instead of requiring the preview on the live target tip.",
+    );
   if (!command || ["prepare-merge", "verify-merge"].includes(command))
     lines.push(
       "  Snapshot commands perform no network, remote mutation, retry, review or acceptance. Prepare requires fresh bracketed collection within 60 seconds and complete source-bound check/job/closure inventories. --verify-local-composition independently checks stored Git objects and current composition when the provider preview is historical. Verify requires actual squash parent/tree/message and closure readback. See docs/CONTRIBUTION-CONVENTIONS.md for the snapshot contract.",
@@ -2125,6 +2139,7 @@ async function main(argv: string[]) {
       options["--target"]
         ? { target: optionText(options, "--target"), tree: optionText(options, "--tree") }
         : undefined,
+      options["--verify-local-composition"] ? process.cwd() : undefined,
     );
     const directory = path.join(projectRoot, "work/pr-delivery");
     const closureReceipt = retainMergeReceipt(directory, { number, head, ...merged });
