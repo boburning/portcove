@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 60;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 61;
 
 struct Migration {
     version: i64,
@@ -383,7 +383,21 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_60,
         verify: crate::catalog_store::verify_catalog_bound,
     },
+    Migration {
+        version: 61,
+        name: "carried unknown-file ledger",
+        apply: migration_61,
+        verify: crate::carry_ledger::verify_schema,
+    },
 ];
+
+fn migration_61(transaction: &Transaction<'_>) -> Result<()> {
+    // Digests of files Portcove didn't install that a version switch carried
+    // or recorded (#5359 Tier 2). Rows hold no bytes and no restore authority;
+    // they cascade with their installation. Adding the tables changes no file.
+    crate::carry_ledger::migrate_schema(transaction)?;
+    crate::carry_ledger::verify_schema(transaction)
+}
 
 fn migration_60(transaction: &Transaction<'_>) -> Result<()> {
     // The signed catalog and retained format-1 catalog bounds rise from 4 MiB
@@ -3458,7 +3472,10 @@ mod tests {
         let transaction = connection.transaction().unwrap();
         rebuild_catalog_state(&transaction, CATALOG_BOUND_V60 * 2).unwrap();
         transaction.commit().unwrap();
-        for migration in MIGRATIONS {
+        for migration in MIGRATIONS
+            .iter()
+            .filter(|migration| migration.version <= 60)
+        {
             (migration.verify)(&connection).unwrap();
         }
         assert!(accepts_catalog_blob(&connection, CATALOG_BOUND_V60 + 1));
@@ -3908,6 +3925,7 @@ mod tests {
         schema_57: 57,
         schema_58: 58,
         schema_59: 59,
+        schema_60: 60,
     }
 
     #[test]
