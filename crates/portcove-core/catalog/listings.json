@@ -37650,6 +37650,43 @@
       }
     },
     {
+      "id": "might-and-magic-ix-macos",
+      "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
+      "name": "Might and Magic IX / MM9 Native macOS",
+      "original_game_title": "Might and Magic IX",
+      "summary": "Build the upstream Apple Silicon app from your owned Might and Magic IX GOG installer.",
+      "issue_number": 6109,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/releases/tag/v1.3",
+      "setup_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+      "download_block_reason": "Open the publisher’s v1.3 release and choose the Installer, Updater, or Uninstaller DMG for the operation you need.",
+      "manual_setup": {
+        "help_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/v1.3/README.md",
+        "steps": [
+          {
+            "title": "Prepare the owned GOG installer",
+            "instruction": "On Apple Silicon with macOS 13 or later, download your Might and Magic IX (Writ of Fate) GOG offline Windows installer for version 1.3. Keep any companion files alongside the EXE. The builder checks the hashes of five original engine modules."
+          },
+          {
+            "title": "Build the native app",
+            "instruction": "Open MM9-Native-Installer.dmg from the upstream release and use MM9 Native Installer to choose the owned EXE. Keep the original installer. The build needs Apple’s Command Line Tools, internet access for verified build dependencies, and about 4 GB of free space. Once it completes, open MM9 Native.app from your user Applications folder in Finder."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "With the game closed, back up SaveGames, autoexec.cfg, and any HDTextures in ~/Library/Application Support/MM9 Native/game. With its save backup selected, the upstream Updater DMG copies existing saves to ~/Library/Application Support/MM9 Native/backups before an update. Keep your own backup separately."
+          }
+        ],
+        "warnings": [
+          "The upstream Uninstaller DMG can also remove saves and the Wine installation. Leave those choices off to keep them.",
+          "The setup tools have universal Mac executables, but the builder and native game require Apple Silicon. There is no Windows, Linux, Intel Mac, or Android native package from this project."
+        ]
+      }
+    },
+    {
       "id": "might-and-magic-vii-openenroth",
       "name": "Might and Magic VII (OpenEnroth)",
       "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README. Portcove setup/gameplay not verified.",
