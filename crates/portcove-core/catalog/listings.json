@@ -2593,7 +2593,7 @@
       "id": "f-zero-snes-recomp",
       "name": "F-Zero SNES Recomp",
       "summary": "Native F-Zero recompilation.",
-      "project_url": "https://github.com/RetroPortingToolKit/FZeroSNESRecomp",
+      "project_url": "https://github.com/RetroPortingToolKit/F-ZeroForever",
       "listed_at": "2026-10-23",
       "original_game_title": "F-Zero",
       "variant_label": "SNES",
@@ -2606,6 +2606,24 @@
         "match_kind": "underlying-game"
       },
       "issue_number": 1114,
+      "manual_setup": {
+        "help_url": "https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3",
+        "warnings": [
+          "F-Zero Forever 2.x is a separate package. Keep its runtime and profile outside your existing Portcove installation."
+        ],
+        "steps": [
+          {
+            "title": "Use a separate reviewed Windows v1.8.3 copy",
+            "instruction": "Use FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release. Extract the whole ZIP to a short, writable folder outside your Portcove library. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+          }
+        ],
+        "references": [
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "Keep the original game file separately. Preserve saves/ and config.ini, fzero-video.ini, keybinds.ini and rom.cfg beside the executable when moving your external Windows copy."
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ],
