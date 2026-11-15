@@ -53,7 +53,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "nsmbu-recomp-irishbruse",
+    "target_key": "new-super-mario-bros-u-wii-u",
     "origin": {
       "project_url": "https://github.com/IrishBruse/nsmbu-recomp"
     },
@@ -71,7 +71,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from IrishBruse to nsmbu-recomp. GitHub only lets an administrator of the original repository transfer it, and IrishBruse remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from IrishBruse to nsmbu-recomp. GitHub only lets an administrator of the original repository transfer it, and IrishBruse authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -92,7 +92,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "afb6f1d3c661b6aa27d6ef45ddb64cd40df6fed5e972dd5d34895da97ecefb4d"
+          "decision_sha256": "a60d1f8e0c0d2aa2f1794dacc19337e4cccf9ac70bc8a454d31e576263500df6"
         }
       }
     ]

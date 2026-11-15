@@ -65,7 +65,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from boubou666 to TheBozos. GitHub only lets an administrator of the original repository transfer it, and boubou666 remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from boubou666 to TheBozos. GitHub only lets an administrator of the original repository transfer it, and boubou666 authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -86,7 +86,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "599218fdb0e15683b677b497b21f1e312c78cb249202f8a9f1a5e91a96c5e554"
+          "decision_sha256": "979ea7f244b94f55cdc204f659d229887af87db621852603160428b2c8203344"
         }
       }
     ]

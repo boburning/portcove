@@ -57,7 +57,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from Arzaroth to TheBozos. GitHub only lets an administrator of the original repository transfer it, and Arzaroth remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from Arzaroth to TheBozos. GitHub only lets an administrator of the original repository transfer it, and Arzaroth authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -78,7 +78,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "250806b75220c02747924698d4f7b6c72c28a90f8d75679cbf32e5a704d04a2b"
+          "decision_sha256": "1d6219401008c90933534a15021e612735fcf2fff850c2bdf18993f27be63644"
         }
       }
     ]

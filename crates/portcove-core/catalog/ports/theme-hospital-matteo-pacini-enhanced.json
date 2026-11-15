@@ -37,7 +37,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "theme-hospital-matteo-pacini-enhanced",
+    "target_key": "theme-hospital-pc",
     "origin": {
       "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced"
     },
@@ -71,7 +71,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "e4d53a18737d66e5d46531e6ca59a115be410a9c6bb62da09df71cae381bdacc"
+          "decision_sha256": "698c06f9fea6e7632b2f83f3ce8f756b5c5e17f95a0d30a148545ec39d4e71f5"
         }
       }
     ]

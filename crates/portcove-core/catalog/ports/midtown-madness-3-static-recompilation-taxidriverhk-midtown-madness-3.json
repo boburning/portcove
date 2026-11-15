@@ -65,7 +65,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from taxidriverhk to xbox-games-recomp. GitHub only lets an administrator of the original repository transfer it, and taxidriverhk remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from taxidriverhk to xbox-games-recomp. GitHub only lets an administrator of the original repository transfer it, and taxidriverhk authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -86,7 +86,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "60bd2ed0d8b50c90efa0a4d31cc8d1663bac9cce99d04355205e0f9fc1bcbd92"
+          "decision_sha256": "7ce81bc38ff733d4f7d0ccde2af1c5fc4fc166dfd2aa45fbdc4b0466d6b8de40"
         }
       }
     ]

@@ -65,7 +65,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from rodrigo-mendonca to DCRecomp. GitHub only lets an administrator of the original repository transfer it, and rodrigo-mendonca remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from rodrigo-mendonca to DCRecomp. GitHub only lets an administrator of the original repository transfer it, and rodrigo-mendonca authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -86,7 +86,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "7651095de6e1cf13e3b5a7a64f2aad640626ff787ae79c6be88fcc264fe38697"
+          "decision_sha256": "5c44c33cf158dfd110e0c9184a61d5f9c9a05c048ad1fae4807d4ca112f2b73c"
         }
       }
     ]

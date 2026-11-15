@@ -49,7 +49,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "witherblitz-nsmb-wii-multiplayer-recompilation",
+    "target_key": "new-super-mario-bros-wii",
     "origin": {
       "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation"
     },
@@ -83,7 +83,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "07891b6e88577ed77a0c001be3269a5db4744b82354fbb49edf35a2ee08d3c71"
+          "decision_sha256": "d5854af78e5b3a359ed3bf883c16644525ba1143ca570980d93d1c34a95d5e57"
         }
       }
     ]

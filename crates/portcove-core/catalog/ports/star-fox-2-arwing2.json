@@ -50,7 +50,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "star-fox-2-arwing2",
+    "target_key": "star-fox-2-snes",
     "origin": {
       "project_url": "https://github.com/carlosrmz009/arwing2"
     },
@@ -71,6 +71,16 @@
         "rationale": "The account carlosrmz009 no longer exists, and the repository's history and contributors continue under carl0srmz, which is how a renamed owner account appears. A GitHub account rename keeps the repository, its ID and its history. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
+            "kind": "supporting",
+            "reference": "https://github.com/carl0srmz/arwing2/commit/8810170b152a66a5c3ef5d5092163c0aae93e476",
+            "note": "An early commit is authored as 134228961+carlosrmz009@users.noreply.github.com, the former login under the account's numeric ID."
+          },
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/users/carl0srmz",
+            "note": "Account ID 134228961 is now carl0srmz, the current owner."
+          },
+          {
             "kind": "context",
             "reference": "https://api.github.com/users/carlosrmz009",
             "note": "The former owner login carlosrmz009 returns HTTP 404."
@@ -89,7 +99,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "95fda99cbd50bb976a37a9ecaba8dcdafc9ac00446e17baec689f8a6edde6502"
+          "decision_sha256": "33bef5837ae79e5c9f190d83af5260f08ddc85af9aae6bab23459871842d33d3"
         }
       }
     ]

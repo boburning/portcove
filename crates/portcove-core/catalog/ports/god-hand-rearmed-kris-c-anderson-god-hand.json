@@ -57,7 +57,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The account kris-c-anderson no longer exists, and the repository's history and contributors continue under God-Hand-Rearmed, which is how a renamed owner account appears. A GitHub account rename keeps the repository, its ID and its history. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository was transferred into the God-Hand-Rearmed organization (created 2026-11-09, after the repository). GitHub only lets an administrator of the original repository transfer it. The former owner login kris-c-anderson now returns HTTP 404; the contributor kc-anderson is probably that account renamed, which is not independently verified. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -65,9 +65,19 @@
             "note": "Repository ID 1429373816, recorded when this port was listed, resolves to God-Hand-Rearmed/God-Hand-Rearmed."
           },
           {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repos/God-Hand-Rearmed/God-Hand-Rearmed/contributors",
+            "note": "kc-anderson is a contributor of the current repository."
+          },
+          {
             "kind": "context",
             "reference": "https://api.github.com/users/kris-c-anderson",
             "note": "The former owner login kris-c-anderson returns HTTP 404."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/orgs/God-Hand-Rearmed",
+            "note": "God-Hand-Rearmed is an organization created on 2026-11-09."
           },
           {
             "kind": "context",
@@ -78,7 +88,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "d506ce128e574cb4aaa69fbc209cad3ec2130c068cff4052a1c9dddeaa203e96"
+          "decision_sha256": "d406f07f6af5068aca10f03c709912c393facc7f173717463ac7648b56f6a40c"
         }
       }
     ]

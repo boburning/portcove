@@ -65,7 +65,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from MikeRavenelle to ArmDucks. GitHub only lets an administrator of the original repository transfer it, and MikeRavenelle remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from MikeRavenelle to ArmDucks. GitHub only lets an administrator of the original repository transfer it, and MikeRavenelle authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -86,7 +86,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "1b4409b23c8e70156dcf82811b9dc92fc082c2c490ea879dd9dc97e60eebe3e2"
+          "decision_sha256": "4f1691ce1a7f0076183d6df3c72dd3483c2cac42ae0c3e2941b36a2d3e9d455e"
         }
       }
     ]

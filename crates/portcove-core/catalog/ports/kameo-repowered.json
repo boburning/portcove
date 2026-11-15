@@ -52,7 +52,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "kameo-repowered",
+    "target_key": "kameo-elements-of-power-xbox-360",
     "origin": {
       "project_url": "https://github.com/birabittoh/KameoRePowered"
     },
@@ -70,7 +70,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from birabittoh to MaxDeadBear. GitHub only lets an administrator of the original repository transfer it, and birabittoh remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from birabittoh to MaxDeadBear. GitHub only lets an administrator of the original repository transfer it, and birabittoh authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -91,7 +91,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "0cd19a5971e6b6d660b3f26af7fe95b053d0a6249abd92b3ccee42128277a57d"
+          "decision_sha256": "627d4174cd244d1b777d4a6fa9f6bc1e05823341326fe90d0af8e522da8cbd84"
         }
       }
     ]

@@ -48,7 +48,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from Acid236 to SSBUArena. GitHub only lets an administrator of the original repository transfer it, and Acid236 remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from Acid236 to SSBUArena. GitHub only lets an administrator of the original repository transfer it, and Acid236 authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -69,7 +69,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "4e33a65a921cf114d0aa0728ce1996dbadd319348c2ac04a8072aef4d5730699"
+          "decision_sha256": "da8cbfa2ab4d648c9f308ab214c0d65c0a1dc2d5740e4f54694a64c4ccdac92c"
         }
       }
     ]

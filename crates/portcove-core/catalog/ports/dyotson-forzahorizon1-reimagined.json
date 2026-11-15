@@ -76,7 +76,7 @@
         },
         "relationship": "relocation",
         "outcome": "accepted",
-        "rationale": "The repository moved from Dyotson to FH1-ReImagined. GitHub only lets an administrator of the original repository transfer it, and Dyotson remains one of its contributors, so the original maintainer continues the project. Keep the Portcove identity and listing; only its project location changes.",
+        "rationale": "The repository moved from Dyotson to FH1-ReImagined. GitHub only lets an administrator of the original repository transfer it, and Dyotson authored its history and remains a contributor. Keep the Portcove identity and listing; only its project location changes.",
         "evidence": [
           {
             "kind": "supporting",
@@ -97,7 +97,7 @@
         "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
         "review": {
           "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
-          "decision_sha256": "b03cdc28bcccaed7ed06e0f43e28e6641a2ad291fb3d4917dac11bfc8e5d84ee"
+          "decision_sha256": "be4e9f2f8cce492b0d2fbbb8f12727bae801acf0f0e45fe1eaeea5e9bedf1cf7"
         }
       }
     ]
