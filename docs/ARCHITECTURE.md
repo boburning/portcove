@@ -2683,6 +2683,28 @@ checks still require an exact match and refuse any unknown file. That is
 intentionally strict for now: those paths copy or re-derive the whole runtime,
 and Tier 1 does not decide how unknown files travel with it.
 
+Tier 2 (T2-2) carries harmless unknown files to the version about to become
+active, under the port lock and before the pointer changes, at staged
+activation, update reuse, rollback and recovery of an interrupted activation.
+Only native-portable, ready staged-source archive and N64 executable-parent
+installations take part; generated-cache and every other route never carry.
+The library ledger (schema 61, `carried_files` and `carried_file_outcomes`)
+records each version's carried or recorded digests and lineage, never bytes.
+A copy in the target is replaced or removed only when it is a recorded,
+unchanged ancestor of the source's file, or Portcove's own interrupted
+placement from that source; every other difference keeps both copies. Paths
+either version declares, the target's package members and folders, generated
+metadata, loader-read names, Portcove metadata, unsafe or short names, case
+collisions, links and sensitive entries are never carried. Pending rows are
+committed before anything is written; copies are staged beside each
+destination, verified against the plan's approved digests and published only
+when all are staged, each after an unchanged-destination and exact-parent
+check. Too little free space (the larger of 1 GiB and 2% kept) carries nothing
+and the switch goes ahead; a modified active version carries nothing and
+records `source_modified`; a locked or changed file, or a partial earlier carry
+the switch can't finish, holds. The step has no cancellation or progress yet,
+and the outcome is recorded but not yet shown (T2-3).
+
 An explicit backup and removal (review and execution) copy every unknown file
 and need only the space for the whole backup (owner decision, November 15,
 2026): when there are unknown files, the library volume must keep the larger
