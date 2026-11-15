@@ -798,13 +798,15 @@ fn snap64_tracked_handoff_requires_a_keeper_in_fresh_and_retained_readers() {
         .insert(crate::Platform::WindowsX86_64, vec!["game.exe".into()]);
     port.windows_tracked_handoff = true;
     let mut entry = entry_for_port(&port);
-    let native = entry["required_capabilities"]
+    assert!(inspect(&entry).unwrap_err().message.contains("version 35"));
+    entry["required_capabilities"]
         .as_array_mut()
         .unwrap()
-        .iter_mut()
-        .find(|requirement| requirement["template"] == "native-portable")
-        .unwrap();
-    assert_eq!(native["minimum_version"], 35);
+        .push(json!({
+            "template": "native-portable",
+            "minimum_version": 35,
+            "maximum_version": 35,
+        }));
     let bytes = serde_json::to_vec(&entry).unwrap();
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     assert!(
