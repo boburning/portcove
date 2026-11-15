@@ -59082,13 +59082,17 @@
               "instruction": "The official Windows package includes the game. Choose Play after installation."
             },
             {
+              "title": "Install the Linux distribution package",
+              "instruction": "On Ubuntu x86-64 or ARM64, install sopwith from Universe, then open Sopwith or run sopwith. Other distributions may package it separately. No original game files are needed. Before moving to another system, keep sopwith.cfg and any personal hiscores.txt from your SDL Sopwith data folder (usually ~/.local/share/SDL Sopwith). A distribution can use a writable shared high-score file instead, such as /var/games/sopwith/hiscores.txt on Ubuntu."
+            },
+            {
               "title": "Install the upstream Mac app",
               "instruction": "Choose the ZIP for your Mac processor, extract its DMG and copy SDL Sopwith.app into Applications. The inspected Intel build needs macOS 13 and the Apple silicon build needs macOS 15. Keep your SDL Sopwith settings and high scores before replacing the Mac app."
             }
           ],
           "warnings": [
             "This project has not been verified for play through Portcove.",
-            "You and upstream own the Mac setup, updates and preference files."
+            "Your Linux distribution manages package updates. Keep your Linux preferences and scores separately. You and upstream own setup, updates and preference files on Mac."
           ],
           "help_url": "https://fragglet.github.io/sdl-sopwith/"
         },
