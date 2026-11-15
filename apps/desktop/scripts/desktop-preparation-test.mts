@@ -4104,9 +4104,7 @@ export async function preparationScenarios({
       5_000,
       "release-channel popup did not close after Escape",
     );
-    const releaseChannelTrigger = By.css(
-      `${channelSection} button[data-slot="select-trigger"]`,
-    );
+    const releaseChannelTrigger = By.css(`${channelSection} button[data-slot="select-trigger"]`);
     const restoredTrigger = await browser.wait(
       until.elementLocated(releaseChannelTrigger),
       5_000,
