@@ -1,5 +1,5 @@
 # Nightly Preview (#534, owner decision 2026-11-14). Builds, signs and publishes
-# at most one preview a day from the CI-green `main` commit, never from a tag.
+# at most one preview a day from the newest CI-green `main` commit, never from a tag.
 # The `release` environment admits this run because its ref is `main`. The
 # `nightly-X.Y.Z-preview.N` tag only names the release and the feed version stays
 # `X.Y.Z-preview.N`. Previews publish only to the opt-in Preview feed.
@@ -50,7 +50,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Require the Pages feed branch before anything is published
         run: git ls-remote --exit-code --heads origin gh-pages
-      - name: Tag the next preview of a CI-green, untagged main
+      - name: Tag the next preview of the newest CI-green, untagged main commit
         id: preview
         env:
           GH_TOKEN: ${{ github.token }}

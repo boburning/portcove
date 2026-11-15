@@ -88,20 +88,26 @@ step fails after the GitHub Release exists, re-run the failed jobs. The publish
 job continues only when the release's asset set is identical.
 
 **Nightly previews.** [`nightly-preview.yml`](../.github/workflows/nightly-preview.yml)
-runs daily at 05:37 UTC on `main` and can be started by hand on `main`. It does
-nothing when the `main` commit already carries a `v*` or `nightly-*` tag, or its
-`CI` run has not succeeded. Otherwise it pushes one annotated
-`nightly-X.Y.Z-preview.N` tag at that commit with `GITHUB_TOKEN`. Then it builds,
+runs daily at 05:37 UTC on `main` and can be started by hand on `main`. It walks
+back up to 100 first-parent `main` commits and picks the newest one whose newest
+`CI` push run succeeded, using one read of the latest 100 completed `CI` runs on
+`main`. On a busy `main` the newest commit often has no finished `CI` run
+yet, because pending runs are replaced. It does nothing when the newest `main`
+commit already carries a `v*` or `nightly-*` tag, when it reaches a tagged
+commit before a CI-green one, or when none of those commits is CI-green.
+Otherwise it pushes one annotated `nightly-X.Y.Z-preview.N` tag at the chosen
+commit with `GITHUB_TOKEN`. Then it builds,
 signs and publishes exactly that commit through the shared jobs, in the
 `release` environment, which admits the run because its ref is `main`. The
 release and feed version is `X.Y.Z-preview.N`, and asset names carry only the
 version.
 
 - **Version:** a pre-release of the patch after the newest release, or of the
-  `Cargo.toml` workspace version when that is higher or nothing has been
+  chosen commit's `Cargo.toml` workspace version when that is higher or nothing has been
   released. N is one more than the highest existing `v*` or `nightly-*` preview
   of that version. `node scripts/app-release.mts next-preview` prints the
-  version the nightly would use.
+  version for the checked-out workspace, which is the nightly's version unless the
+  chosen commit predates a workspace version bump.
 - **Notes:** the tag message lists the commits since the previous `v*` or
   `nightly-*` tag. At signs are replaced so that subjects cannot mention anyone.
 - **Tag integrity:** the publish job refuses a `nightly-*` tag that no longer

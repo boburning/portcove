@@ -33,6 +33,7 @@
     "placeholder": "البحث في الألعاب ومشاريع المنافذ…",
     "show": "عرض الألعاب والمنافذ"
   },
+  "launchRequestAccepted": "تم طلب تشغيل {{game}}.",
   "navigation": {
     "back": "<key/>: رجوع",
     "gamepadBack": "زر الرجوع: رجوع",

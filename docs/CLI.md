@@ -2154,7 +2154,7 @@ Deleting slots on one device never deletes them elsewhere unless
 
 ### Concurrency and failure-isolated batches
 
-Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
+Mutating commands, verification, and `exec` use a cross-process lock for the selected port. A second frontend targeting that same port fails immediately with `error.code: "conflict"`, exit code 14, and `details.port_id`; it should retry later rather than run a competing operation. The launch lock remains held through game exit and post-exit mutable-data collection. An unfinished durable launch request continues to block the port even if its supervisor crashes. Desktop startup or `launch recover <request-id>` recovers only the exact recorded child/start identity/install before committing a failed terminal outcome. For reviewed Windows tracked handoffs, Portcove keeps a separate member-query handle before starting the game. If the supervisor exits during play, the helper holds the session until exact job membership and the installed identity allow recovery. A live supervisor, PID/start mismatch, ambiguous spawning phase, legacy missing identity, or changed install fails closed for manual review. Recovery can wait for an exact still-running child and then collect from the recorded install; it cannot claim that hard termination allowed a game to flush data. Completed request rows remain reconnectable evidence without blocking a later launch. Commands for other ports continue independently. `capabilities.port_operation_locking` is `per_port_fail_fast` when this contract is available.
 
 An update also reuses a matching artifact already retained as a rollback or inactive installation. Before reuse, activation, rollback, or launch, Portcove checks the registered manifest identity and current critical executable/library/bootstrap bytes. `--stage` marks the checked local artifact for activation, while a normal update promotes it without another download. An install migrated from an older schema without immutable identity must be replaced or re-adopted; Portcove never fabricates its provenance.
 
@@ -2312,12 +2312,16 @@ and [Zelda 64: Recompiled](#zelda-64-recompiled-mods) `.nrm`); others return
 `unsupported`. A computed digest establishes bytes, not publisher
 authenticity.
 
-Only files the selected revision installed are ever changed. Unknown files in `mods`
-and installed files edited outside Portcove hold the operation and are listed by
-`profile live`; nothing is overwritten or deleted. `activate` parks the departing
-profile's saves and settings, restores the arriving profile's, and reconciles mods
-from the exact revision. An interrupted switch resumes from its journal without
-merging or losing either profile's data. Until launch (or an immediate refresh of
+Only files the selected revision installed are ever changed. Ship of Harkinian's
+empty `mods/custom_mod_files_go_here.txt` stays in place when setups switch.
+Other unknown entries, a changed marker, and installed files edited outside
+Portcove hold the operation and are listed by `profile live`. `activate` parks
+the departing profile's saves and settings, restores the arriving profile's,
+and reconciles mods
+from the exact revision. On Windows, this includes Shipwright's checked
+working-directory save paths. The switch journal records the paths it parks.
+Older interrupted switches hold if the ownership of those paths is ambiguous.
+Until launch (or an immediate refresh of
 the installed build) has restored the new live data, collection is suspended so a
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.

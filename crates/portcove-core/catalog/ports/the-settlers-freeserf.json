@@ -1,0 +1,42 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "the-settlers-freeserf",
+    "project_url": "https://github.com/freeserf/freeserf",
+    "name": "The Settlers / FreeSerf",
+    "original_game_title": "The Settlers",
+    "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
+    "issue_number": 6122,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md#play",
+    "release_url": "https://github.com/freeserf/freeserf/releases/tag/v0.5",
+    "download_asset_hints": {
+      "windows-x86-64": ["FreeSerf-x64-Release.exe"],
+      "linux-x86-64": ["FreeSerf-0.5.0-Linux.tar.gz"],
+      "macos-aarch64": ["FreeSerf.dmg"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+      "steps": [
+        {
+          "title": "Install or extract the upstream release",
+          "instruction": "On Windows x64, use the Release installer. On Linux x64, extract the tar.gz. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+        },
+        {
+          "title": "Choose data from your original game",
+          "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Keep your originals separate. On Linux or Mac, you can use ~/.local/share/freeserf. On Windows, use the freeserf folder under %LOCALAPPDATA%. When launching from a terminal, -g takes the directory containing your data."
+        },
+        {
+          "title": "Keep the files you save",
+          "instruction": "Start FreeSerf from a working directory you can write to. Ctrl+Z writes a save to the current working directory. Keep your saves and active freeserf.ini before replacing the player. Use -l with a saved game file to reopen it."
+        }
+      ],
+      "warnings": [
+        "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
+      ]
+    }
+  }
+}

@@ -5,10 +5,10 @@
     "name": "Mortal Kombat: Shaolin Monks (Xbox) (ShaolinMonksRecomp)",
     "summary": "Attach an independently permitted, prepared OpenShao Windows player using the supported USA/Europe Xbox original. Preserve the separate application-data and Saved Games locations, remembered source and legacy-folder migration recovery.",
     "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
-    "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+    "project_url": "https://github.com/OAleex/OpenShao",
     "platforms": [],
     "availability": "unknown",
-    "setup_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+    "setup_url": "https://github.com/OAleex/OpenShao",
     "artwork": {
       "game_id": 1614,
       "cover_id": 94081,
@@ -58,6 +58,43 @@
         "id": "1423414457"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1423414457"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/OAleex/OpenShao",
+          "repository": {
+            "host": "github.com",
+            "id": "1423414457"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner OAleex renamed the repository it listed; the same repository answers at OAleex/OpenShao. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1423414457",
+            "note": "Repository ID 1423414457, recorded when this port was listed, resolves to OAleex/OpenShao."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/OAleex/ShaolinMonksRecomp",
+            "note": "The listed path resolves to OAleex/OpenShao, repository ID 1423414457."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "ba1e7ec2367fb073f60d6a92278a62ad7bda8e5b6360b23270a846dfb2dd36c2"
+        }
+      }
+    ]
   }
 }

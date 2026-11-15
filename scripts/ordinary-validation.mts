@@ -2413,6 +2413,7 @@ for (const file of [
 
 const workflowTests = new Map([
   ["upstream-relocation-evidence.yml", ["scripts/check-catalog-repositories.test.mts"]],
+  ["hosted-installed-update.yml", ["scripts/hosted-installed-update.test.mts"]],
   [
     "hosted-native-continuity.yml",
     ["scripts/hosted-native-continuity.test.mts", "scripts/updater-artifact-inventory.test.mts"],

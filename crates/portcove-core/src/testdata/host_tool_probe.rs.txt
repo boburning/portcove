@@ -162,6 +162,15 @@ fn main() {
                 thread::sleep(Duration::from_secs(2));
             }
         }
+        Some("--managed-builder-handle-burst") => {
+            let executable = env::current_exe().unwrap();
+            for _ in 0..520 {
+                assert!(Command::new(&executable)
+                    .arg("--managed-builder-handle-child")
+                    .status().unwrap().success());
+            }
+        }
+        Some("--managed-builder-handle-child") => {}
         Some("--closure-fanout") => {
             // Fixed first-party process workload; no shell, game or network.
             fs::write("closure-root-pid", std::process::id().to_string()).unwrap();

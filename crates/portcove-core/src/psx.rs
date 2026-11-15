@@ -8,12 +8,55 @@ use uuid::Uuid;
 
 use crate::{
     ChildProcessClass, ChildProcessPolicy, Library, OperationCoordinator, OperationEvent,
-    OperationResult, Platform, PortcoveError, Result, SourceRecord, adapter::hash_file,
-    archive::extract_archive_with_checkpoint,
+    OperationResult, Platform, PortcoveError, ReleaseAsset, Result, SourceRecord,
+    adapter::hash_file, archive::extract_archive_with_checkpoint,
 };
 
 const TOOLCHAIN_VERSION: &str = "1.0.14";
 const APPLE_SYSTEM_BIN: &str = "/usr/bin";
+const WEBP_DEPENDENCY: &str = "psx_libwebp";
+const WEBP_ARCHIVE: &str = "libwebp-4fa21912338357f89e4fd51cf2368325b59e9bd9.tar.gz";
+const WEBP_SHA256: &str = "923f3382a47a2af185c3240c954cf004428b237bd7317413a95146d01eb4b94b";
+const WEBP_URL: &str = "https://codeload.github.com/webmproject/libwebp/tar.gz/4fa21912338357f89e4fd51cf2368325b59e9bd9";
+const WEBP_SIZE: u64 = 3_834_766;
+const DEPENDENCY_MANIFEST_MAX_BYTES: u64 = 64 * 1024;
+
+/// Recognizes only the reviewed dependency pin in an already verified kit.
+/// The manifest cannot choose a network destination or a local filename.
+pub(crate) fn missing_offline_webp(root: &Path) -> Result<Option<(ReleaseAsset, PathBuf)>> {
+    let directory = root.join("psxrecomp").join("third_party");
+    let manifest = directory.join("deps.manifest");
+    crate::path::refuse_symlink_ancestors(&manifest)?;
+    if !manifest.try_exists()? {
+        return Ok(None);
+    }
+    let bytes = crate::path::read_bounded_regular(&manifest, DEPENDENCY_MANIFEST_MAX_BYTES)?;
+    let text = std::str::from_utf8(&bytes)
+        .map_err(|_| PortcoveError::verification("PS1 dependency manifest is not UTF-8"))?;
+    let mut rows = text
+        .lines()
+        .map(str::split_ascii_whitespace)
+        .filter(|fields| fields.clone().next() == Some(WEBP_DEPENDENCY));
+    let expected = [WEBP_DEPENDENCY, WEBP_ARCHIVE, WEBP_SHA256, WEBP_URL];
+    if !rows.next().is_some_and(|fields| fields.eq(expected)) || rows.next().is_some() {
+        return Ok(None);
+    }
+    let destination = directory.join(WEBP_ARCHIVE);
+    crate::path::refuse_symlink_ancestors(&destination)?;
+    if destination.try_exists()? {
+        // The kit's CMake resolver will independently check its vendored bytes.
+        return Ok(None);
+    }
+    Ok(Some((
+        ReleaseAsset {
+            name: WEBP_ARCHIVE.into(),
+            url: WEBP_URL.into(),
+            size: WEBP_SIZE,
+            sha256: WEBP_SHA256.into(),
+        },
+        destination,
+    )))
+}
 
 #[derive(Debug, Clone)]
 pub struct PsxManagedPreparation {
@@ -2555,6 +2598,32 @@ mod tests {
             fs::read(&original.path).unwrap(),
             b"inert owned BIOS fixture"
         );
+    }
+
+    #[test]
+    fn offline_webp_only_provisions_the_exact_missing_kit_dependency() {
+        let root = tempfile::tempdir().unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        let directory = root.path().join("psxrecomp").join("third_party");
+        fs::create_dir_all(&directory).unwrap();
+        let manifest = directory.join("deps.manifest");
+        let row = format!("{WEBP_DEPENDENCY} {WEBP_ARCHIVE} {WEBP_SHA256} {WEBP_URL}");
+        fs::write(
+            &manifest,
+            row.replace(WEBP_URL, "https://example.invalid/other"),
+        )
+        .unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        fs::write(&manifest, format!("{row}\n{row}")).unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        fs::write(&manifest, format!("# Reviewed dependency\r\n{row}\r\n")).unwrap();
+        let (asset, destination) = missing_offline_webp(root.path()).unwrap().unwrap();
+        assert_eq!(asset.sha256, WEBP_SHA256);
+        assert_eq!(asset.size, WEBP_SIZE);
+        assert_eq!(destination, directory.join(WEBP_ARCHIVE));
+        fs::write(&destination, b"existing package data").unwrap();
+        assert!(missing_offline_webp(root.path()).unwrap().is_none());
+        assert_eq!(fs::read(destination).unwrap(), b"existing package data");
     }
 
     fn preparation_input_fixture(root: &Path, multi_disc: bool) -> PsxManagedPreparation {

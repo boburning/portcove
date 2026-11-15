@@ -68,6 +68,7 @@ export interface DesktopEventPayloads {
   "portcove://application-update-notice": EventPortcoveApplicationUpdateNotice;
   "portcove://library-changed": EventPortcoveLibraryChanged;
   "portcove://operation": EventPortcoveOperation;
+  "portcove://play-request": EventPortcoveLibraryChanged;
 }
 export interface EventPortcoveApplicationUpdateNotice {
   available: ApplicationUpdateAvailable | null;

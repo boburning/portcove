@@ -1243,7 +1243,7 @@ void test("collect reads due lists once, resolves a bounded uncovered set and su
 void test("provider-wide refusals stop hint resolution without blaming any hint", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-stop-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const mode of ["quota_unknown", "plain", "401", "retry_exhausted"] as const) {
+  for (const mode of ["quota_unknown", "plain", "401", "retry_exhausted", "network"] as const) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
     let leads = parseLeadState(undefined);
@@ -1285,6 +1285,7 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
         http: { request: async () => assert.fail("no list is due") },
         sdk: await fixtureGitHub(({ endpoint }) => {
           reads.push(endpoint);
+          if (mode === "network") throw new TypeError("fetch failed: getaddrinfo ENOTFOUND");
           return new Response(JSON.stringify({ message: "fixture" }), {
             status: mode === "401" ? 401 : 503,
             headers: { "content-type": "application/json" },
@@ -1300,5 +1301,71 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
       session.journal.notes.some((n) => (n as { phase?: string }).phase === "external-resolution"),
       mode,
     );
+  }
+});
+
+void test("a list read ended by the run deadline or cancellation stays due without a backoff", async (t) => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-deadline-"));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  for (const code of [
+    "deadline_exceeded",
+    "cancelled",
+    "download_failed",
+    "worker",
+    "download_failed-in-time",
+    "not-found",
+  ] as const) {
+    const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
+    const budget = new DiscoveryBudget("ordinary");
+    // The real deadline path: the bounded read fails once the run's time is spent.
+    if (code === "download_failed" || code === "worker")
+      budget.remaining = () => ({ requests: 1000, bytes: 1024 ** 3, milliseconds: 0 });
+    const leads = parseLeadState(undefined);
+    Object.assign(session, {
+      stateDir: root,
+      runDir: root,
+      journalFile: path.join(root, "journal.json"),
+      checkpoint: {},
+      checkpointPreimage: "fixture",
+      inventory: { issues: [] },
+      intakeRecords: [],
+      journal: { format: 1, started_at: now, notes: [], candidates: {}, evidence: {} },
+      leads,
+      budget,
+      researchedLeads: new Set<number>(),
+    });
+    session.knownLeadUrls = () => new Set();
+    let reads = 0;
+    Object.defineProperty(session, "source", {
+      configurable: true,
+      value: {
+        budget,
+        http: {
+          request: async () => {
+            reads += 1;
+            if (code === "not-found")
+              return { requests: 1, bytes: 0, status: 404, headers: {}, text: "" };
+            if (code === "worker") throw new Error("Bounded external/byte worker failed");
+            throw new GitHubApiError(
+              code === "download_failed-in-time" ? "download_failed" : code,
+              "Run ended",
+            );
+          },
+        },
+        sdk: await fixtureGitHub(() => assert.fail("no hint resolution expected")),
+      },
+    });
+    await session.collectExternalLists();
+    const attempts = session.leads.external?.attempts ?? {};
+    if (code === "not-found" || code === "download_failed-in-time") {
+      assert.ok(reads >= 1);
+      assert.ok(
+        Object.keys(attempts).length >= 1,
+        "a list-specific failure waits before rereading",
+      );
+    } else {
+      assert.equal(reads, 1, `${code} stops the list loop`);
+      assert.deepEqual(attempts, {}, `${code} must not back off any list`);
+    }
   }
 });

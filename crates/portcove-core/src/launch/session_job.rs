@@ -86,7 +86,7 @@ pub(crate) struct SessionJob {
 impl SessionJob {
     /// Creates the session's uniquely named job. An existing object with that
     /// name is refused instead of being joined.
-    fn create(session_id: &str, install_root: &Path) -> io::Result<Self> {
+    pub(crate) fn create(session_id: &str, install_root: &Path) -> io::Result<Self> {
         // Resolve the root first: an unresolvable root never starts tracking.
         let install_root = resolved_root(install_root)?;
         let name = wide_name(session_id)?;
@@ -164,6 +164,7 @@ impl SessionJob {
 
     /// Spawns the configured game suspended, assigns it to the session job,
     /// shares the tracking handle and only then lets it run.
+    #[cfg(test)]
     pub(crate) fn spawn(
         command: &mut Command,
         session_id: &str,
@@ -171,17 +172,29 @@ impl SessionJob {
     ) -> io::Result<(Child, Self)> {
         let mut job = Self::create(session_id, install_root)
             .map_err(|error| context("could not create the session process job", error))?;
-        // std replaces earlier creation flags, so compose the supervised-game
-        // flags configured by configure_supervised_game with suspension.
-        command.creation_flags(super::SUPERVISED_GAME_CREATION_FLAGS | CREATE_SUSPENDED);
-        let mut child = command.spawn()?;
-        if let Err(error) = job.adopt_suspended(&child) {
-            // The game has not run any of its own code yet.
+        let mut child = job.spawn_suspended(command)?;
+        if let Err(error) = job.resume(&child) {
             let _ = child.kill();
             let _ = child.wait();
             return Err(error);
         }
         Ok((child, job))
+    }
+
+    /// Creates and assigns the child without releasing its creation suspension.
+    /// The caller owns cleanup of the returned child until it is resumed.
+    pub(crate) fn spawn_suspended(&mut self, command: &mut Command) -> io::Result<Child> {
+        // std replaces earlier creation flags, so compose the supervised-game
+        // flags configured by configure_supervised_game with suspension.
+        command.creation_flags(super::SUPERVISED_GAME_CREATION_FLAGS | CREATE_SUSPENDED);
+        let mut child = command.spawn()?;
+        if let Err(error) = self.adopt_suspended(&child) {
+            // The game has not run any of its own code yet.
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(error);
+        }
+        Ok(child)
     }
 
     fn adopt_suspended(&mut self, child: &Child) -> io::Result<()> {
@@ -199,6 +212,26 @@ impl SessionJob {
         let identity = unsafe { super::process_identity_from_windows_handle(process, child.id()) };
         if let Ok(identity) = identity {
             self.shared.insert((child.id(), identity));
+        }
+        Ok(())
+    }
+
+    /// Releases creation suspension after the caller records the launch.
+    pub(crate) fn resume(&self, child: &Child) -> io::Result<()> {
+        let mut inside = 0;
+        // SAFETY: both handles are live and `inside` is writable.
+        if unsafe { IsProcessInJob(child.as_raw_handle(), self.job.as_raw_handle(), &mut inside) }
+            == 0
+        {
+            return Err(context(
+                "could not confirm the suspended game's session process job",
+                io::Error::last_os_error(),
+            ));
+        }
+        if inside == 0 {
+            return Err(io::Error::other(
+                "the suspended game does not belong to its session process job",
+            ));
         }
         resume_primary_thread(child.id())
             .map_err(|error| context("could not start the suspended game", error))
@@ -672,7 +705,16 @@ mod tests {
             .stdin(Stdio::null())
             .stdout(Stdio::null())
             .stderr(Stdio::null());
-        let (mut child, mut job) = SessionJob::spawn(&mut command, &id, &root).unwrap();
+        let mut job = SessionJob::create(&id, &root).unwrap();
+        let mut child = job.spawn_suspended(&mut command).unwrap();
+        let before_resume = child.try_wait();
+        let resumed = job.resume(&child);
+        if resumed.is_err() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+        assert!(before_resume.unwrap().is_none());
+        resumed.unwrap();
         assert_eq!(job.wait_for_child(&mut child).unwrap().code(), Some(7));
         let deadline = Instant::now() + Duration::from_secs(30);
         while job.active_processes().unwrap() != 0 {

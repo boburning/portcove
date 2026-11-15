@@ -1007,6 +1007,16 @@ mod tests {
     }
 
     #[test]
+    fn pilotwings_dgv_prepared_player_route_1275() {
+        let executable = if cfg!(windows) {
+            "Pilotwings64Recomp.exe"
+        } else {
+            "Pilotwings64Recomp"
+        };
+        assert_bound_listing_player_route("pilotwings-64-dgv-recomp", executable, &[]);
+    }
+
+    #[test]
     fn inspected_player_adoption_1866_dabs_mod() {
         assert_bound_listing_player_route("dabdavis-perfect-dark-dabs-mod", "pd.x86_64.exe", &[]);
     }
@@ -1898,6 +1908,36 @@ mod tests {
         "cps2recomp-x-men-vs-street-fighter",
         ["--play", "xmvsf"]
     );
+
+    #[test]
+    fn openlf2_local_installer_route_5830() {
+        let id = "little-fighter-2-openlf2";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert!(service.catalog.port(id).is_err());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+
+        let selected = [
+            "--installer",
+            "original LF2 v2.0a.exe",
+            "--config-dir",
+            "player profile",
+        ];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
 
     prepared_player_case!(render96_selected_native_route_519, "render96ex");
 

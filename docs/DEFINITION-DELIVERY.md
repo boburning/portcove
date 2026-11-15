@@ -197,6 +197,11 @@ verified title launcher and engine. Fresh and retained entries with an OpenMoHAA
 Unix layout require version 33. The existing Windows layout and earlier
 unfingerprinted Unix entries use their existing capability rules.
 
+Native portable version 35 covers Windows recovery when a Snap64 successor
+starts without inheriting the job handle. Fresh and retained indexed Snap64
+entries that declare the tracked handoff require version 35. Previously
+admitted tracked definitions for other ports retain their original minimum.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

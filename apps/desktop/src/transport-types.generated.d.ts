@@ -4161,6 +4161,12 @@ export interface UpdateReleaseNotesEntry {
   published_at?: string | null;
   title?: string | null;
   /**
+   * This release's page. Present only when Desktop may open it: it is built by
+   * Portcove under the port's own release repository from a plain tag and passes
+   * the reviewed-link check.
+   */
+  url?: string | null;
+  /**
    * The release tag, normalized for display.
    */
   version: string;
@@ -5135,6 +5141,11 @@ export interface OutputPortRemovalPreview {
   persistent_data_will_be_preserved: boolean;
   port_id: string;
   preview_sha256: string;
+  /**
+   * Bytes the removal backup stores for those files, once identical copies
+   * collapse. The free-space check covers this. Omitted when zero.
+   */
+  unknown_file_bytes?: number;
   /**
    * Unknown player-side files in the versions being removed (#5359).
    * Removal copies them to a new backup's separate area before it deletes

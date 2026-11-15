@@ -1,0 +1,45 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "elf-bowling-recomp",
+    "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
+    "name": "Elf Bowling / Elf Bowling Recomp",
+    "original_game_title": "Elf Bowling",
+    "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
+    "issue_number": 6105,
+    "listed_at": "2026-11-14",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/README.md#quick-start",
+    "release_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/releases",
+    "download_asset_hints": {
+      "windows-x86-64": ["elfbowl-windows-x64.zip"],
+      "linux-x86-64": ["ElfBowling-x86_64.AppImage"]
+    },
+    "recommended_download_channel": "stable",
+    "manual_setup": {
+      "help_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
+      "steps": [
+        {
+          "title": "Choose the upstream player",
+          "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries."
+        },
+        {
+          "title": "Select the unmodified original",
+          "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release. Pick it on first run, put it next to the player, or point ELFBOWL_EXE to it on desktop. The upstream player checks SHA-256 and keeps a copy in its app profile. Keep your original separately."
+        },
+        {
+          "title": "Use the separate Android or Mac setup",
+          "instruction": "The v1.0 release has an Android APK for ARM64 and x64. It uses Android’s file picker for the original. The upstream Mac instructions build from source with SDL2 and SDL2_ttf. The publisher supplies no Mac or Linux ARM64 package."
+        },
+        {
+          "title": "Keep the app profile",
+          "instruction": "Preserve the NStorm/Elf Bowling profile before replacing the upstream player. It is normally under XDG_DATA_HOME or ~/.local/share on Linux, and under %APPDATA% on Windows. Android keeps its app files separately. Keep any optional locally generated artwork with the copy that uses it."
+        }
+      ],
+      "warnings": [
+        "The project has not published a license for its engine source. The original game is supplied separately."
+      ]
+    }
+  }
+}

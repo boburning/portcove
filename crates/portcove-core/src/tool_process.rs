@@ -176,6 +176,11 @@ pub(crate) fn run_setup(
         .arg(source)
         .current_dir(working_directory)
         .envs(environment);
+    // The debugger observes process creation and exit. The standard heap
+    // keeps reviewed upstream compilation and teardown costs representative.
+    if cfg!(windows) {
+        command.env("_NO_DEBUG_HEAP", "1");
+    }
     run_tool(&mut command, checkpoint, observer)
 }
 

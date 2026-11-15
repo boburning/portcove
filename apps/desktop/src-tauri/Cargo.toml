@@ -68,6 +68,7 @@ windows = { version = "0.62.2", features = [
 ] }
 windows-sys = { workspace = true, features = ["Win32_UI_WindowsAndMessaging"] }
 windows-version.workspace = true
+tauri-plugin-single-instance = "=2.5.5"
 
 [target.'cfg(unix)'.dependencies]
 libc.workspace = true
