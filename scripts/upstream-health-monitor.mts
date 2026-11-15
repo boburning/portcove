@@ -114,6 +114,10 @@ interface MonitorReport {
     changed_in_this_run: boolean;
     freshness: "fresh" | "stale";
     latest_collection_status: "complete" | "partial";
+    artifact_scope: {
+      direct: NonNullable<Observation["artifact_identities"]>;
+      historical: NonNullable<Observation["historical_artifact_identities"]>;
+    } | null;
   })[];
   collection: Collection;
   recovery_evidence: {
@@ -769,6 +773,11 @@ export async function advanceHealthMonitor(
         recoveryEvidence.push({ kind: "provider-metadata", ...evidence });
     }
   }
+  // Collection records get their artifact identities from the active inventory.
+  // Checkpoints qualify comparison evidence without attesting to those fields.
+  const observationsByLocation = new Map(
+    collection.observations.map((record) => [locationKey(record), record]),
+  );
   const report: MonitorReport = {
     format_version: 1,
     authority:
@@ -788,10 +797,22 @@ export async function advanceHealthMonitor(
       const attempt = applicable(port.port_id);
       if (!attempt) return [];
       return port.canonical_incidents.map((incident) => {
-        const observedHere =
-          selectedSet.has(port.port_id) && !replayedLocations.has(incidentLocationKey(incident));
+        const key = incidentLocationKey(incident);
+        const record = observationsByLocation.get(key);
+        const matchingRecord =
+          record?.observation_contract_sha256 === incident.observation_contract_sha256
+            ? record
+            : undefined;
+        const direct = (matchingRecord?.artifact_identities ?? []).filter(
+          (identity) => identity.port_id === port.port_id,
+        );
+        const historical = (matchingRecord?.historical_artifact_identities ?? []).filter(
+          (identity) => identity.port_id === port.port_id,
+        );
+        const observedHere = selectedSet.has(port.port_id) && !replayedLocations.has(key);
         return {
           ...incident,
+          artifact_scope: direct.length || historical.length ? { direct, historical } : null,
           observed_this_run: observedHere,
           changed_in_this_run: observedHere && incident.notify,
           freshness:
@@ -881,6 +902,7 @@ export async function drainHealthMonitor(
       ) {
         condition.observed_this_run = true;
         condition.changed_in_this_run = earlier.changed_in_this_run;
+        condition.artifact_scope ??= earlier.artifact_scope;
       }
       if (condition.observed_this_run) currentConditions.set(condition.key, condition);
     }
@@ -969,7 +991,15 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
       "| --- | --- | --- | --- | --- |",
     );
     for (const incident of incidents.slice(0, 20)) {
-      const scope = `${cell(incident.port_id)} / ${cell(incident.provider)}:${cell(incident.location)}${incident.release_ref === null ? "" : ` @${cell(incident.release_ref)}`}`;
+      const artifacts = incident.artifact_scope;
+      const variants = [
+        ...(artifacts?.direct ?? []).map((identity) => `${identity.platform} ${identity.version}`),
+        ...(artifacts?.historical ?? []).map(
+          (identity) =>
+            `historical ${identity.platform ?? "platform unknown"} ${identity.upstream_ref}`,
+        ),
+      ];
+      const scope = `${cell(incident.port_id)} / ${cell(incident.provider)}:${cell(incident.location)}${incident.release_ref === null ? "" : ` @${cell(incident.release_ref)}`} (${cell(incident.operation)}) · ${cell(variants.length ? [...new Set(variants)].join(", ") : "artifact scope unknown")}`;
       const assessment = `${cell(incident.rule)} (HTTP ${cell(incident.http_status)}); ${cell(incident.classification)}; ${incident.accounted_for ? "accounted observation" : "unaccounted"}`;
       const recurrence = `first ${cell(incident.first_seen)}; ${cell(incident.occurrences)} observation(s); ${cell(observedSpan(incident))} observed span`;
       const evidence = `${incident.changed_in_this_run ? "New/changed" : "Continuing"}; ${cell(conditionEvidence(incident))}; last ${cell(incident.observed_at)}`;
@@ -983,7 +1013,7 @@ export function renderHealthMonitorSummary(report: MonitorReport): string {
       );
     lines.push(
       "",
-      "Platforms/variants, usable fallbacks, accepted bytes and operational holds are unassessed by this location-only monitor. Follow Core policy and accepted artifact evidence before taking action.",
+      "Artifact variants come from the active inventory for matching observations in this session. Usable fallbacks, accepted bytes and operational holds remain unassessed. Follow Core policy and accepted artifact evidence before taking action.",
     );
   }
 
