@@ -319,7 +319,7 @@ export function usePortcoveData(libraryGeneration = 0) {
       const held = previous?.snapshot;
       const readSnapshot = () =>
         desktopApi.workspaceSnapshot(libraryGeneration, held?.catalog_digest ?? null);
-      let transport;
+      let transport: WorkspaceSnapshotTransport;
       try {
         transport = await readSnapshot();
       } catch (error) {

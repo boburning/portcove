@@ -2232,8 +2232,7 @@ degrade to visible manual refresh plus polling rather than an unhandled rejectio
 state authority. A read that Core refuses as a retryable stale snapshot, because it overlapped a
 write, is read once more before it is reported, so a player's own successful change does not raise a
 refresh warning; a second refusal, or any other failure, is reported as before. The hook mounts and
-unmounts its scoped QueryClient and removes its exact
-generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
+unmounts its scoped QueryClient and removes its exact generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
 scoped to each effect lifetime. Strict Mode replay and library changes retire old continuations
 and cannot reuse a disposed coordinator.
 
