@@ -56649,7 +56649,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat is an upstream sound-capture helper. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mld_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
         "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
         "manual_setup": {
           "steps": [
@@ -56659,15 +56659,15 @@
             },
             {
               "title": "Let the game import the WADs",
-              "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+              "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
             },
             {
               "title": "Keep saves and settings",
               "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
             },
             {
-              "title": "Keep any optional King save import separate",
-              "instruction": "The upstream instructions describe reading a copied King save at nand/title/00010001/57464345/data/ARCH.SAV. Close both games, preserve the original King profile, and follow the upstream copy instructions only if you want the optional import."
+              "title": "Optionally bring your King save",
+              "instruction": "To let My Life as a Darklord read your My Life as a King save, close both games and copy the folder nand/title/00010001/57464345 from My Life as a King's folder into this game's nand/title/00010001 folder. Keep the original King save."
             }
           ],
           "warnings": [
@@ -56723,7 +56723,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a King base WAD (WFCE), and the matching add-on content WAD if you have it, into the managed folder beside mylifeking.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans. Portcove preserves game, nand (saves) and mylifeking.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat is an upstream sound-capture helper. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a King base WAD (WFCE), and the matching add-on content WAD if you have it, into the managed folder beside mylifeking.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifeking.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mlk_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
         "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
         "manual_setup": {
           "steps": [
@@ -56733,7 +56733,7 @@
             },
             {
               "title": "Let the game import the WADs",
-              "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+              "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
             },
             {
               "title": "Keep saves and settings",

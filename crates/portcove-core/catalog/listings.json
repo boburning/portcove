@@ -20208,15 +20208,15 @@
           },
           {
             "title": "Let the game import the WADs",
-            "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+            "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
           },
           {
             "title": "Keep saves and settings",
             "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
           },
           {
-            "title": "Keep any optional King save import separate",
-            "instruction": "The upstream instructions describe reading a copied King save at nand/title/00010001/57464345/data/ARCH.SAV. Close both games, preserve the original King profile, and follow the upstream copy instructions only if you want the optional import."
+            "title": "Optionally bring your King save",
+            "instruction": "To let My Life as a Darklord read your My Life as a King save, close both games and copy the folder nand/title/00010001/57464345 from My Life as a King's folder into this game's nand/title/00010001 folder. Keep the original King save."
           }
         ],
         "warnings": [
@@ -20254,7 +20254,7 @@
           },
           {
             "title": "Let the game import the WADs",
-            "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay."
+            "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
           },
           {
             "title": "Keep saves and settings",
