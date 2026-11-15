@@ -1,8 +1,9 @@
 //! One bounded release transfer that can continue after a dropped body.
 //!
 //! A resume is only a transport optimization: callers still verify the whole
-//! file's size and SHA-256 before accepting it. Resume is limited to this
-//! transfer; durable cross-restart continuation belongs to the job authority.
+//! file's size and SHA-256 before accepting it. A caller may also supply the
+//! partial-download store, so an interrupted transfer's bytes continue in a
+//! later transfer of the same asset after a restart (#6222).
 
 use std::{io::SeekFrom, path::Path, time::Duration};
 
@@ -141,6 +142,8 @@ struct Transfer<'a> {
     /// Strong validator and complete length of the representation on disk.
     validator: Option<HeaderValue>,
     length: Option<u64>,
+    /// The kept-bytes entry this transfer writes into, if any.
+    lease: Option<&'a super::partial_download::Lease>,
 }
 
 impl Transfer<'_> {
@@ -155,6 +158,10 @@ impl Transfer<'_> {
     where
         F: FnMut(OperationEvent),
     {
+        if let Some(lease) = self.lease {
+            // The bytes about to be discarded no longer describe anything.
+            lease.forget();
+        }
         if let Some(file) = &mut self.file {
             file.flush().await?;
             file.get_mut().set_len(0).await?;
@@ -220,6 +227,16 @@ impl Transfer<'_> {
                     .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
             ));
         }
+        if range.is_some() && matches!(status.as_u16(), 400 | 403 | 405 | 412 | 501) {
+            // Some servers refuse range requests outright; that says nothing
+            // about the file, so start over without one. Other statuses keep
+            // their own classification.
+            self.restart(operation, emit).await?;
+            return Err(Step::Retry(
+                PortcoveError::network("the server refused to continue the download")
+                    .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
+            ));
+        }
         let response = response.error_for_status().map_err(|error| {
             PortcoveError::network(error.to_string())
                 .with_upstream(Some(UpstreamObservation::Status(status.as_u16())))
@@ -248,6 +265,16 @@ impl Transfer<'_> {
                 }
                 self.validator = strong_validator(&response);
                 self.length = response.content_length();
+                if let Some(lease) = self.lease {
+                    // Recorded before any byte arrives, so bytes received before
+                    // a crash or exit can continue.
+                    lease.describe(
+                        self.validator
+                            .as_ref()
+                            .and_then(|value| value.to_str().ok()),
+                        self.length,
+                    );
+                }
             }
         }
         if self.file.is_none() {
@@ -327,6 +354,23 @@ pub(crate) async fn download<F>(
 where
     F: FnMut(OperationEvent),
 {
+    download_resuming(client, asset, destination, operation, emit, policy, None).await
+}
+
+/// Like [`download`], continuing from and keeping interrupted bytes in
+/// `partials` for this exact asset.
+pub(crate) async fn download_resuming<F>(
+    client: &reqwest::Client,
+    asset: &ReleaseAsset,
+    destination: &Path,
+    operation: &OperationCoordinator,
+    emit: &mut F,
+    policy: ResumePolicy,
+    partials: Option<&super::partial_download::PartialDownloads>,
+) -> Result<()>
+where
+    F: FnMut(OperationEvent),
+{
     validate_download_progress(0, asset.size)?;
     let mut transfer = Transfer {
         asset,
@@ -336,7 +380,51 @@ where
         reported: 0,
         validator: None,
         length: None,
+        lease: None,
     };
+    // Write straight into this asset's kept-bytes entry while holding it, so
+    // bytes survive a failure, a crash or Portcove closing.
+    let lease = partials.and_then(|store| store.lease(asset));
+    if let Some(lease) = &lease {
+        match lease.writer() {
+            Ok(writer) => {
+                transfer.lease = Some(lease);
+                transfer.file = Some(BufWriter::with_capacity(
+                    1024 * 1024,
+                    tokio::fs::File::from_std(writer),
+                ));
+                let resumed = lease.resumed().and_then(|received| {
+                    HeaderValue::from_str(&received.validator)
+                        .ok()
+                        .map(|validator| (received, validator))
+                });
+                if lease.resumed().is_some() && resumed.is_none() {
+                    // An unusable record: start the entry over.
+                    lease.forget();
+                    if let Some(file) = &mut transfer.file {
+                        let _ = file.get_mut().set_len(0).await;
+                        let _ = file.get_mut().seek(SeekFrom::Start(0)).await;
+                    }
+                }
+                if let Some((received, validator)) = resumed {
+                    // The first request asks only for the rest, under the same
+                    // continuity checks as a reconnect.
+                    transfer.completed = received.bytes;
+                    transfer.reported = received.bytes;
+                    transfer.validator = Some(validator);
+                    transfer.length = received.length;
+                    emit(operation.message(
+                        "info",
+                        format!(
+                            "Continuing the earlier download of {} from the bytes already received.",
+                            asset.name
+                        ),
+                    ));
+                }
+            }
+            Err(_) => transfer.lease = None,
+        }
+    }
     let mut resumes = 0_u32;
     // Exhaustion reports the original interruption, so its upstream
     // classification (and preserved-location failover) does not depend on
@@ -397,15 +485,40 @@ where
         Some(file) => file.flush().await,
         None => Ok(()),
     };
+    let resumable = transfer.resumable();
+    let completed = transfer.completed;
+    let leased = transfer.lease.is_some();
+    // The writer closes before its entry moves or is removed.
+    drop(transfer);
+    let Some(lease) = lease.filter(|_| leased) else {
+        if let Err(error) = transfer_result {
+            return Err(match drain_result {
+                Ok(()) => error,
+                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
+            });
+        }
+        drain_result?;
+        return validate_download_size(completed, asset.size);
+    };
     if let Err(error) = transfer_result {
+        // Keep bytes of an interrupted, refused or cancelled transfer; never a
+        // rejected, unverifiable or partly written one.
+        if drain_result.is_err() || !resumable || error.code == crate::ErrorCode::Verification {
+            lease.discard();
+        }
         return Err(match drain_result {
             Ok(()) => error,
             Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
         });
     }
-    drain_result?;
-    validate_download_size(transfer.completed, asset.size)?;
-    Ok(())
+    if let Err(error) = drain_result
+        .map_err(PortcoveError::from)
+        .and_then(|()| validate_download_size(completed, asset.size))
+    {
+        lease.discard();
+        return Err(error);
+    }
+    lease.finish(destination)
 }
 
 #[cfg(test)]

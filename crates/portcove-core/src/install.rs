@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+mod partial_download;
 mod transfer;
 
 #[derive(Debug, Clone)]
@@ -2116,7 +2117,28 @@ impl Installer {
                 }
             },
         };
-        Self::download_with_client(&client, asset, destination, operation, emit).await
+        // Release assets with an expected digest may continue after a restart;
+        // the caller verifies the complete file either way. Kept bytes live in
+        // the library, so only a download staged inside the library uses them:
+        // a game output folder on another volume keeps its own capacity check.
+        let partials = partial_download::PartialDownloads::new(
+            self.library.downloads_dir().join("partial-v1"),
+        );
+        let inside_library = destination
+            .parent()
+            .and_then(|parent| fs::canonicalize(parent).ok())
+            .zip(fs::canonicalize(self.library.root()).ok())
+            .is_some_and(|(parent, root)| parent.starts_with(root));
+        transfer::download_resuming(
+            &client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+            inside_library.then_some(&partials),
+        )
+        .await
     }
 
     /// Shared bounded byte transfer; callers supply a provider-constrained

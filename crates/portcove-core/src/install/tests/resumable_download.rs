@@ -632,3 +632,349 @@ fn cancellation_during_resume_back_off_stops_without_another_request() {
     // Received bytes were drained to disk before returning, for private cleanup.
     assert_eq!(fs::read(&destination).unwrap(), &BODY[..DROPPED_AT]);
 }
+
+/// Serves `responses` in order to separate transfers that share one asset URL;
+/// each transfer stands in for a separate Portcove run.
+struct Restarts {
+    root: String,
+    requests: std::sync::mpsc::Receiver<String>,
+    server: crate::test_http::HttpServer,
+    client: reqwest::Client,
+}
+
+impl Restarts {
+    fn serve(responses: Vec<Vec<u8>>) -> Self {
+        let count = responses.len();
+        let mut responses = responses.into_iter();
+        let (root, requests, server) =
+            serve_routed_http_bytes(count, move |_| responses.next().unwrap());
+        Self {
+            root,
+            requests,
+            server,
+            client: reqwest::Client::builder().no_proxy().build().unwrap(),
+        }
+    }
+
+    fn asset(&self, sha256: String) -> ReleaseAsset {
+        sample(&self.root, BODY.len() as u64, sha256)
+    }
+
+    async fn transfer(
+        &self,
+        partials: &partial_download::PartialDownloads,
+        destination: &Path,
+        sha256: String,
+    ) -> (Result<()>, Vec<u8>, Vec<String>) {
+        let asset = self.asset(sha256);
+        let operation = OperationCoordinator::new("download", None);
+        let mut messages = Vec::new();
+        let result = tokio::time::timeout(
+            Duration::from_secs(30),
+            transfer::download_resuming(
+                &self.client,
+                &asset,
+                destination,
+                &operation,
+                &mut |event| {
+                    if let crate::OperationEventKind::Message { message, .. } = event.event {
+                        messages.push(message);
+                    }
+                },
+                fast(0),
+                Some(partials),
+            ),
+        )
+        .await
+        .expect("transfer fixture exceeded thirty seconds");
+        (result, fs::read(destination).unwrap_or_default(), messages)
+    }
+
+    /// Every request the server answered, in order.
+    fn finish(self) -> Vec<String> {
+        self.server.join().unwrap();
+        self.requests.try_iter().collect()
+    }
+}
+
+fn stored_entries(root: &Path) -> Vec<String> {
+    let mut names = fs::read_dir(root)
+        .map(|entries| {
+            entries
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
+
+#[tokio::test]
+async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("\"v1\"")),
+        partial(Some("\"v1\""), "bytes 6-15/16", &BODY[DROPPED_AT..]),
+    ]);
+    // First run: the body drops and no reconnect is allowed.
+    let first = temporary.path().join("first.download");
+    let (result, _, _) = server.transfer(&partials, &first, digest.clone()).await;
+    assert!(result.is_err());
+    assert!(!first.exists());
+    assert_eq!(stored_entries(&store_root).len(), 2);
+
+    // A later run of the same asset asks only for the rest.
+    let second = temporary.path().join("second.download");
+    let (result, file, messages) = server.transfer(&partials, &second, digest).await;
+    result.unwrap();
+    assert_eq!(file, BODY);
+    assert!(messages[0].contains("Continuing the earlier download"));
+    // A completed download leaves nothing behind.
+    assert!(stored_entries(&store_root).is_empty());
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[0]), None);
+    assert_eq!(ranged(&requests[1]).as_deref(), Some("bytes=6-"));
+    assert_eq!(if_range(&requests[1]).as_deref(), Some("\"v1\""));
+}
+
+#[tokio::test]
+async fn bytes_written_before_portcove_stopped_continue_in_the_next_run() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![partial(
+        Some("\"v1\""),
+        "bytes 6-15/16",
+        &BODY[DROPPED_AT..],
+    )]);
+    // A run that stopped without unwinding: its lease recorded the validator
+    // and wrote bytes, then the process exit closed it (releasing the lock)
+    // without finishing or discarding it.
+    {
+        use std::io::Write as _;
+        let lease = partials.lease(&server.asset(digest.clone())).unwrap();
+        lease.describe(Some("\"v1\""), Some(BODY.len() as u64));
+        lease
+            .writer()
+            .unwrap()
+            .write_all(&BODY[..DROPPED_AT])
+            .unwrap();
+    }
+    let destination = temporary.path().join("next.download");
+    let (result, file, messages) = server.transfer(&partials, &destination, digest).await;
+    result.unwrap();
+    assert_eq!(file, BODY);
+    assert!(messages[0].contains("Continuing the earlier download"));
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[0]).as_deref(), Some("bytes=6-"));
+    assert_eq!(if_range(&requests[0]).as_deref(), Some("\"v1\""));
+}
+
+#[tokio::test]
+async fn a_changed_representation_in_a_later_run_starts_over() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("\"v1\"")),
+        // The server now has a different representation and answers whole.
+        whole(Some("\"v2\""), CHANGED),
+    ]);
+    let first = temporary.path().join("first.download");
+    server
+        .transfer(&partials, &first, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    let second = temporary.path().join("second.download");
+    let (result, file, _) = server.transfer(&partials, &second, digest).await;
+    result.unwrap();
+    // No received byte is spliced into the new representation; the caller's
+    // digest check refuses this file.
+    assert_eq!(file, CHANGED);
+    assert!(stored_entries(&store_root).is_empty());
+    server.finish();
+}
+
+#[tokio::test]
+async fn a_refused_range_request_starts_over_without_a_range() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("\"v1\"")),
+        head("403 Forbidden", None, "", 0),
+        whole(Some("\"v1\""), BODY),
+    ]);
+    let first = temporary.path().join("first.download");
+    server
+        .transfer(&partials, &first, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    // With no retries left, the refusal ends this run and keeps nothing.
+    let second = temporary.path().join("second.download");
+    server
+        .transfer(&partials, &second, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    assert!(stored_entries(&store_root).is_empty());
+    let third = temporary.path().join("third.download");
+    let (result, file, _) = server.transfer(&partials, &third, digest).await;
+    result.unwrap();
+    assert_eq!(file, BODY);
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[1]).as_deref(), Some("bytes=6-"));
+    assert_eq!(ranged(&requests[2]), None);
+}
+
+#[tokio::test]
+async fn weak_validators_and_other_assets_never_use_kept_bytes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("W/\"v1\"")),
+        dropped(Some("\"v1\"")),
+        whole(Some("\"v1\""), BODY),
+    ]);
+    let weak = temporary.path().join("weak.download");
+    server
+        .transfer(&partials, &weak, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    assert!(stored_entries(&store_root).is_empty());
+
+    let kept = temporary.path().join("kept.download");
+    server
+        .transfer(&partials, &kept, digest)
+        .await
+        .0
+        .unwrap_err();
+    assert_eq!(stored_entries(&store_root).len(), 2);
+    // A different expected digest is a different asset: it starts at zero and
+    // leaves the other entry alone.
+    let other = temporary.path().join("other.download");
+    let (result, _, _) = server
+        .transfer(&partials, &other, hex::encode(Sha256::digest(CHANGED)))
+        .await;
+    result.unwrap();
+    assert_eq!(stored_entries(&store_root).len(), 2);
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[2]), None);
+}
+
+fn asset_numbered(index: u8, size: u64) -> ReleaseAsset {
+    ReleaseAsset {
+        name: "sample.zip".into(),
+        url: format!("https://example.invalid/{index}.zip"),
+        size,
+        sha256: hex::encode(Sha256::digest([index])),
+    }
+}
+
+/// Leaves an entry as an interrupted transfer would.
+fn keep_entry(partials: &partial_download::PartialDownloads, index: u8, bytes: usize) {
+    use std::io::Write as _;
+    let lease = partials.lease(&asset_numbered(index, 1 << 20)).unwrap();
+    lease.describe(Some("\"v\""), Some(1 << 20));
+    lease
+        .writer()
+        .unwrap()
+        .write_all(&vec![index; bytes])
+        .unwrap();
+    drop(lease);
+}
+
+fn parts(root: &Path) -> Vec<String> {
+    stored_entries(root)
+        .into_iter()
+        .filter(|name| name.ends_with(".part"))
+        .collect()
+}
+
+#[test]
+fn kept_bytes_stay_within_their_entry_and_byte_bounds() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::with_bounds(
+        root.clone(),
+        4,
+        64 << 20,
+        Duration::from_secs(3600),
+    );
+    for index in 0..6_u8 {
+        keep_entry(&partials, index, 4);
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let kept = parts(&root);
+    assert_eq!(kept.len(), 4);
+    // The oldest entries went first.
+    assert!(
+        !kept
+            .iter()
+            .any(|name| name.starts_with(&asset_numbered(0, 1).sha256))
+    );
+
+    let small = temporary.path().join("small");
+    let partials = partial_download::PartialDownloads::with_bounds(
+        small.clone(),
+        8,
+        (1 << 20) + 8,
+        Duration::from_secs(3600),
+    );
+    for index in 0..3_u8 {
+        keep_entry(&partials, index, 8);
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    // Each new entry reserves its asset's whole size, so only two fit.
+    assert_eq!(parts(&small).len(), 2);
+}
+
+#[test]
+fn expired_and_leftover_entries_are_removed_on_the_next_use() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::with_bounds(
+        root.clone(),
+        4,
+        64 << 20,
+        Duration::from_secs(60),
+    );
+    keep_entry(&partials, 1, 4);
+    let old = filetime::FileTime::from_unix_time(1, 0);
+    for name in parts(&root) {
+        filetime::set_file_mtime(root.join(name), old).unwrap();
+    }
+    fs::write(root.join(".portcove-partial-leftover"), b"crash").unwrap();
+    fs::write(root.join("unpaired.json"), b"{}").unwrap();
+    // Using the store for another asset removes the expired entry and the
+    // leftovers.
+    keep_entry(&partials, 2, 4);
+    let names = stored_entries(&root);
+    assert!(
+        !names
+            .iter()
+            .any(|name| name.starts_with(".portcove-partial-"))
+    );
+    assert!(!names.iter().any(|name| name == "unpaired.json"));
+    let kept = parts(&root);
+    assert_eq!(kept.len(), 1);
+    assert!(kept[0].starts_with(&asset_numbered(2, 1).sha256));
+    // An expired entry of the same asset is not continued either.
+    keep_entry(&partials, 3, 4);
+    for name in parts(&root) {
+        filetime::set_file_mtime(root.join(name), old).unwrap();
+    }
+    let lease = partials.lease(&asset_numbered(3, 1 << 20)).unwrap();
+    assert!(lease.resumed().is_none());
+}
