@@ -4045,7 +4045,7 @@ impl PortcoveService {
                 .ok_or_else(|| PortcoveError::not_found(format!("{port_id} is not installed")))?;
             let qualification = self.installed_mutability_qualification(&active)?;
             self.managed_install_root(port_id, &active.path)?;
-            Installer::new(self.library.clone())?.verify_managed(&active, &qualification)
+            Installer::new(self.library.clone())?.verify_player_install(&active, &qualification)
         })();
         self.finish_activity(activity, result)
     }

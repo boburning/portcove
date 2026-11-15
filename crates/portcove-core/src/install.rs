@@ -2089,6 +2089,36 @@ impl Installer {
         Ok(self.verify_managed_with_unknown(install, qualification)?.0)
     }
 
+    /// Player-facing verification can recognize scoped runtime output without
+    /// changing the installed data contract or permission to replace any file.
+    pub(crate) fn verify_player_install(
+        &self,
+        install: &InstallRecord,
+        qualification: &InstallQualification,
+    ) -> Result<VerificationReport> {
+        let (mut report, mut unknown) = self.verify_managed_with_unknown(install, qualification)?;
+        if let Some(cache) = reviewed_g_diffuser_cache(install, qualification.platform) {
+            let executable = install.path.join(&install.selected_executable);
+            let working = executable.parent().ok_or_else(|| {
+                PortcoveError::verification("installed G-Diffuser executable has no parent")
+            })?;
+            for name in [cache, "imgui.ini"] {
+                let candidate = working.join(name);
+                let relative = manifest_relative(&install.path, &candidate)?;
+                if unknown.contains(&relative)
+                    && crate::external_runtime::open_single_link_file(&candidate).is_ok()
+                    && !crate::package_layout::is_unknown_file_hazard(&candidate)?
+                {
+                    unknown.retain(|entry| entry != &relative);
+                }
+            }
+            report.valid = report.failures.is_empty() && unknown.is_empty();
+            report.unknown_file_count = unknown.len() as u64;
+            report.unknown_files = unknown.into_iter().take(REPORTED_UNKNOWN_FILES).collect();
+        }
+        Ok(report)
+    }
+
     /// Verification plus every unknown player-side file path, not only the
     /// report's bounded list.
     pub(crate) fn verify_managed_with_unknown(
@@ -4716,6 +4746,35 @@ fn staged_install_files(root: &Path) -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
+// Exact v1.2.3 artifacts observed writing regular settings/cache files
+// beside the executable. Other versions retain ordinary unknown-file reporting.
+fn reviewed_g_diffuser_cache(install: &InstallRecord, platform: Platform) -> Option<&'static str> {
+    if install.port_id != "g-diffuser" || install.version != "v1.2.3" {
+        return None;
+    }
+    let artifact = &install.artifact;
+    match (
+        platform,
+        artifact.asset_name.as_str(),
+        artifact.size,
+        artifact.sha256.as_str(),
+    ) {
+        (
+            Platform::WindowsX86_64,
+            "G-Diffuser-v1.2.3-windows-x64.zip",
+            8_127_887,
+            "fd92ab7998a32a3d6d8adab7e6c1d399d62ed6ef32320ddba8fd0d4a137d5d72",
+        ) => Some("gdiffuser-shadercache-d3d11.bin"),
+        (
+            Platform::LinuxX86_64,
+            "G-Diffuser-v1.2.3-linux-x64.tar.gz",
+            11_232_874,
+            "8ee7086bb255a350539572e6b148db46ffd4dce9f5d5e518a67427446b51f2bb",
+        ) => Some("gdiffuser-shadercache-opengl.bin"),
+        _ => None,
+    }
+}
+
 fn require_optional_mutable_file(path: &Path) -> Result<()> {
     // Unlike a best-effort existence probe, an inaccessible ancestor is not
     // evidence of an absent file. Check every existing ancestor before opening.
@@ -6261,18 +6320,27 @@ mod tests {
         root: &Path,
         qualification: &InstallQualification,
     ) -> (Installer, InstallRecord) {
-        let library = Library::open(root.parent().unwrap().join("library")).unwrap();
-        let installer = Installer::new(library).unwrap();
         let artifact = ArtifactIdentity {
             asset_name: "fixture.zip".into(),
             sha256: "a".repeat(64),
             size: 32,
         };
+        create_test_install_with_artifact(root, qualification, "v1", artifact)
+    }
+
+    fn create_test_install_with_artifact(
+        root: &Path,
+        qualification: &InstallQualification,
+        version: &str,
+        artifact: ArtifactIdentity,
+    ) -> (Installer, InstallRecord) {
+        let library = Library::open(root.parent().unwrap().join("library")).unwrap();
+        let installer = Installer::new(library).unwrap();
         let port_id = qualification.retained_contract.as_ref().unwrap().port_id();
         let (manifest_sha256, selected_executable, runtime) = write_manifest(
             "test-install",
             port_id,
-            "v1",
+            version,
             &artifact,
             qualification,
             root,
@@ -6283,7 +6351,7 @@ mod tests {
             InstallRecord {
                 id: "test-install".into(),
                 port_id: port_id.into(),
-                version: "v1".into(),
+                version: version.into(),
                 path: root.to_path_buf(),
                 channel: crate::ReleaseChannel::Stable,
                 installed_at: 1,
@@ -7344,6 +7412,72 @@ mod tests {
 
         let error = qualification.file_patterns(root, &selected).unwrap_err();
         assert!(error.message.contains("patterns overlap"));
+    }
+
+    #[test]
+    fn g_diffuser_player_verify_recognizes_only_reviewed_regular_output_leaves() {
+        let temporary = tempfile::tempdir().unwrap();
+        let root = temporary.path().join("payload");
+        let working = root.join("G-Diffuser");
+        fs::create_dir_all(&working).unwrap();
+        fs::write(working.join("G-Diffuser.exe"), b"trusted executable").unwrap();
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("g-diffuser").unwrap();
+        let qualification =
+            crate::test_fixture::retained_qualification(port, Platform::WindowsX86_64).unwrap();
+        let (installer, install) = create_test_install_with_artifact(
+            &root,
+            &qualification,
+            "v1.2.3",
+            ArtifactIdentity {
+                asset_name: "G-Diffuser-v1.2.3-windows-x64.zip".into(),
+                sha256: "fd92ab7998a32a3d6d8adab7e6c1d399d62ed6ef32320ddba8fd0d4a137d5d72".into(),
+                size: 8_127_887,
+            },
+        );
+        let layout = working.join("imgui.ini");
+        let cache = working.join("gdiffuser-shadercache-d3d11.bin");
+        fs::write(&layout, b"window layout").unwrap();
+        fs::write(&cache, b"compiled shaders").unwrap();
+        assert!(
+            installer
+                .verify_player_install(&install, &qualification)
+                .unwrap()
+                .valid
+        );
+        assert_eq!(
+            installer
+                .verify_managed(&install, &qualification)
+                .unwrap()
+                .unknown_file_count,
+            2,
+        );
+        let foreign = root.join("imgui.ini");
+        fs::write(&foreign, b"same name in another folder").unwrap();
+        let wrong_directory = installer
+            .verify_player_install(&install, &qualification)
+            .unwrap();
+        assert!(!wrong_directory.valid);
+        assert_eq!(wrong_directory.unknown_files, ["imgui.ini"]);
+        fs::remove_file(&foreign).unwrap();
+        fs::hard_link(&layout, &foreign).unwrap();
+        let with_alias = installer
+            .verify_player_install(&install, &qualification)
+            .unwrap();
+        assert!(!with_alias.valid);
+        assert_eq!(with_alias.unknown_file_count, 2);
+        fs::remove_file(foreign).unwrap();
+        fs::write(cache, b"MZ\0\0").unwrap();
+        let unsafe_cache = installer
+            .verify_player_install(&install, &qualification)
+            .unwrap();
+        assert!(!unsafe_cache.valid);
+        assert!(
+            unsafe_cache
+                .failures
+                .iter()
+                .any(|entry| entry.contains("shadercache"))
+        );
     }
 
     #[test]
