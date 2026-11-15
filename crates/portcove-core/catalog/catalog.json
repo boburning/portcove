@@ -56622,6 +56622,515 @@
       }
     },
     {
+      "id": "darkuni-chocobo-dungeon-recomp",
+      "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
+      "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
+      "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/chocobo-dungeon-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "ChocoboDungeon-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "chocobo.exe"
+        ]
+      },
+      "persistent_paths": [
+        "extracted",
+        "nand",
+        "chocobo.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
+        "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your disc image",
+              "instruction": "Copy a single image of your own NTSC-U Chocobo's Dungeon disc (R7FEGD, .iso or .ciso) beside the program (chocobo.exe on Windows), and keep your original separately. On first start the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. After that the copied image is no longer needed. You can instead put the sys and files folders of an already extracted disc into extracted."
+            },
+            {
+              "title": "Build the windowed Linux player from your original",
+              "instruction": "Follow the tagged upstream build instructions. Obtain sys/main.dol from your own matching extracted disc and run the documented Python recompilation into a clean gen directory. Build the windowed USE_SDL=ON target with CMake, Ninja, a C++17 compiler, SDL2 and OpenGL development libraries."
+            },
+            {
+              "title": "Keep each profile with its actual root",
+              "instruction": "Use the upstream player with the matching extracted sys and files. With the standard layout preserve extracted, nand and chocobo.ini beside the creating runtime. The Windows player also accepts an explicit extracted-folder path, where save placement can follow that external root. Preserve the actual data locations before switching layouts."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and a bundled font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
+            "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
+          ],
+          "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "chocobo.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-lode-runner-2009-xbla-rexglue",
+      "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
+      "summary": "Play Lode Runner with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/lode-runner-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/lode-runner-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "lode_runner-",
+            "-win-amd64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "lode_runner.exe"
+        ]
+      },
+      "persistent_paths": [
+        "5841085B",
+        "assets",
+        "lode_runner.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full Lode Runner Xbox 360 LIVE package (title 5841085B, default.xex 0.0.1.2) into the managed Lode Runner folder as the complete 5841085B console export folder (5841085B/000D0000/<package>), and keep your original separately. Lode Runner always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside lode_runner.exe; without a package it explains what it needs and closes and checks that default.xex is version 0.0.1.2. If it says your files are a different version, delete assets, replace the 5841085B folder with a package whose default.xex is 0.0.1.2 and start again. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841085B folder, assets and lode_runner.toml across updates and backups. Once the game has started, you can delete the copied 5841085B folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\lode_runner, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "Lode Runner (2009)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full Lode Runner Xbox 360 LIVE package (title 5841085B, default.xex 0.0.1.2) beside lode_runner.exe as the complete 5841085B console export folder (5841085B/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start lode_runner.exe and let it prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, lode_runner.toml and the 5841085B folder with the program. Saves and the shader cache stay in Documents\\lode_runner."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
+            "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
+          ],
+          "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "lode_runner.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-mylifedarklord-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
+      "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifedarklord-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsADarklord-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifedarklord.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifedarklord.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a Darklord base WAD (WF2E), and the matching add-on content WAD if you have it, into the managed folder beside mylifedarklord.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifedarklord.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mld_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a Darklord base WAD (WF2E) beside mylifedarklord.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifedarklord.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifedarklord.ini and the generated game folder with the program."
+            },
+            {
+              "title": "Optionally bring your King save",
+              "instruction": "To let My Life as a Darklord read your My Life as a King save, close both games and copy the folder nand/title/00010001/57464345 from My Life as a King's folder into this game's nand/title/00010001 folder. Keep the original King save."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifedarklord.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-mylifeking-recomp",
+      "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
+      "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
+      "project_url": "https://github.com/darkuni/mylifeking-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/mylifeking-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "MyLifeAsAKing-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "mylifeking.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "mylifeking.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U My Life as a King base WAD (WFCE), and the matching add-on content WAD if you have it, into the managed folder beside mylifeking.exe, and keep your originals separately. On first Play the game builds its game folder from them; without a base WAD it shows Game files not found and closes. Once the game has started, delete the copied WADs so they are not kept in backups. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves) and mylifeking.ini across updates and backups. The log beside the program is a diagnostic; record-audio.bat starts the game outside Portcove and records mlk_audio.wav beside the program for sound bug reports; delete that file when you no longer need it. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns WAD import and save formats.",
+        "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare the WiiWare originals",
+              "instruction": "Copy your own NTSC-U My Life as a King base WAD (WFCE) beside mylifeking.exe, plus the matching optional add-on content WAD if you have it, and keep your originals separately. On first start the game builds its game folder from them in a few seconds; after that the copied WADs are no longer needed."
+            },
+            {
+              "title": "Let the game import the WADs",
+              "instruction": "Run mylifeking.exe. The first start populates game and, with the add-on WAD, game/dlc. To add the add-on content later, delete the game folder and start again with both WADs in place; saves in nand stay. If the first start failed or used the wrong WAD, delete the game folder and start again with the right WAD in place."
+            },
+            {
+              "title": "Keep saves and settings",
+              "instruction": "Keep nand, mylifeking.ini and the generated game folder with the program."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "mylifeking.exe",
+            "record-audio.bat"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-outrun-arcade-recomp",
+      "name": "OutRun Online Arcade (darkuni Recomp)",
+      "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/outrun-arcade-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "outrun_arcade-",
+            "-win-amd64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "outrun_arcade.exe"
+        ]
+      },
+      "persistent_paths": [
+        "58410968",
+        "assets",
+        "outrun_arcade.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) into the managed OutRun Online Arcade folder as the complete 58410968 console export folder (58410968/000D0000/<package>), and keep your original separately. OutRun Online Arcade always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside outrun_arcade.exe; without a package it explains what it needs and closes. This build was made from default.xex 0.0.1.5 and does not check the version, so a different version may not start or may not play correctly. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410968 folder, assets and outrun_arcade.toml across updates and backups. Once the game has started, you can delete the copied 58410968 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\outrun_arcade, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "OutRun Online Arcade",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) beside outrun_arcade.exe as the complete 58410968 console export folder (58410968/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start outrun_arcade.exe and let it prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, outrun_arcade.toml and the 58410968 folder with the program. Saves and the shader cache stay in Documents\\outrun_arcade."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "outrun_arcade.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-poker-smash-recomp",
+      "name": "Poker Smash (darkuni Recomp)",
+      "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
+      "project_url": "https://github.com/darkuni/poker-smash-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/poker-smash-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "PokerSmash-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "poker_smash.exe"
+        ]
+      },
+      "persistent_paths": [
+        "5841089C",
+        "assets",
+        "poker_smash.toml"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) into the managed Poker Smash folder as the complete 5841089C console export folder (5841089C/000D0000/<package>), and keep your original separately. Poker Smash always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, Poker Smash finds the package and extracts the game into assets beside poker_smash.exe; without a package it explains what it needs and closes. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 5841089C folder, assets and poker_smash.toml across updates and backups. Once the game has started, you can delete the copied 5841089C folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\poker_smash, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if Poker Smash does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "original_game_title": "Poker Smash",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your original beside the program",
+              "instruction": "Copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) beside poker_smash.exe as the complete 5841089C console export folder (5841089C/000D0000/<package>). Keep your original export separately."
+            },
+            {
+              "title": "Use the documented Windows prerequisites",
+              "instruction": "The package README calls for 64-bit Windows 10 or 11 and the Microsoft Visual C++ 2015–2022 x64 Redistributable when its runtime libraries are missing."
+            },
+            {
+              "title": "Complete first-run setup",
+              "instruction": "Start poker_smash.exe and let the upstream program prepare assets from your package on first start."
+            },
+            {
+              "title": "Keep your settings and saves",
+              "instruction": "Keep the generated assets, poker_smash.toml and the 5841089C folder with the program. Saves and the shader cache stay in Documents\\poker_smash."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+            "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "licenses"
+          ],
+          "executables": [
+            "poker_smash.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "darkuni-target-terror-wii-recomp",
+      "name": "TARGET: Terror (darkuni Recomp)",
+      "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
+      "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/target-terror-wii-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "TargetTerror-",
+            "-win64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "targetterror.exe"
+        ]
+      },
+      "persistent_paths": [
+        "game",
+        "nand",
+        "targetterror.ini"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Before first Play, copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the managed folder beside targetterror.exe, and keep your original separately. On first Play the game builds its game folder from the image, which takes a few minutes and up to about 4.4 GB; leave its console window open while it runs, and if the first start is interrupted or used the wrong image, delete the game folder before starting again; without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. The download is the recompiled player with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves and high scores) and targetterror.ini across updates and backups. The log and hang report beside the program are diagnostics. Backups include the game folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
+        "original_game_title": "TARGET: Terror",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your Wii disc image",
+              "instruction": "Copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the folder beside targetterror.exe, and keep your original separately. On first start the game builds its game folder from the image, which takes a few minutes; after that the copied image is no longer needed."
+            },
+            {
+              "title": "Allow space for the upstream import",
+              "instruction": "Run targetterror.exe and leave the console window open while first-run extraction populates game. Leave enough free space for the image plus up to about 4.4 GB of extracted files. If the first start is interrupted or used the wrong image, delete the game folder before starting again with the right image in place."
+            },
+            {
+              "title": "Preserve the creating profile",
+              "instruction": "Keep the generated game folder, targetterror.ini and nand, including high scores, with the creating runtime."
+            }
+          ],
+          "warnings": [
+            "The package includes recompiled game code, icon art and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          ],
+          "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [],
+          "executables": [
+            "targetterror.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "descent-dxx-rebirth",
       "name": "Descent (DXX-Rebirth)",
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",

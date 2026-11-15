@@ -207,7 +207,8 @@ export function proposalDecoderFixture(
         try { records.push({...validateImage(Buffer.from('inert image '+i)), port_id, reason:'fixture-decoder', mapping:null}); }
         catch { records.push({failure:true, port_id, reason:'fixture-decoder', mapping:null}); }
       }
-      return {catalog:input,records,metrics:{},gone_image_ids:[]};
+      return {catalog:input,records,metrics:{game_queries:0,image_queries:0,image_bytes:0},gone_image_ids:[],
+        workset:{catalog_ports:input.ports.length,selected_port_ids:[...(selectedPortIds ?? [])],invalidated_port_ids:[]}};
     }
   `,
   );

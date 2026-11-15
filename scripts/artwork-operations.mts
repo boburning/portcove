@@ -34,6 +34,7 @@ export async function prepareCoverArtworkInOperations(
   const records: CoverPreparation["records"] = [];
   const metrics = { game_queries: 0, image_queries: 0, image_bytes: 0 };
   let gone: string[] = [];
+  const invalidated = new Set<string>();
   for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
     const batch = new Set(ids.slice(start, start + ARTWORK_OPERATION_PORTS));
     const result = await operation(
@@ -48,6 +49,7 @@ export async function prepareCoverArtworkInOperations(
     metrics.game_queries += result.metrics.game_queries;
     metrics.image_queries += result.metrics.image_queries;
     metrics.image_bytes += result.metrics.image_bytes;
+    for (const id of result.workset.invalidated_port_ids) if (batch.has(id)) invalidated.add(id);
     gone = result.gone_image_ids;
   }
   const prepared: CoverPreparation = {
@@ -68,7 +70,7 @@ export async function prepareCoverArtworkInOperations(
     workset: {
       catalog_ports: input.ports.length,
       selected_port_ids: [...ids],
-      invalidated_port_ids: [],
+      invalidated_port_ids: [...invalidated].sort(),
     },
   };
   // A Gone observed by a later operation also withdraws an earlier operation's mapping.

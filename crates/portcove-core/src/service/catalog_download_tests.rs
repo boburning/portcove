@@ -2399,8 +2399,8 @@ async fn darkuni_lode_runner_2009_xbla_rexglue_upstream_release_download_4216() 
         "darkuni-lode-runner-2009-xbla-rexglue",
         "v1.0.1",
         "lode_runner-v1.0.1-win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2411,8 +2411,8 @@ async fn darkuni_outrun_arcade_recomp_upstream_release_download_4133() {
         "darkuni-outrun-arcade-recomp",
         "v1.0.1",
         "outrun_arcade-v1.0.1-win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2423,8 +2423,8 @@ async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
         "darkuni-poker-smash-recomp",
         "v1.0.0",
         "PokerSmash-v1.0.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2617,8 +2617,8 @@ async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
         "darkuni-chocobo-dungeon-recomp",
         "v1.1",
         "ChocoboDungeon-v1.1-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2628,8 +2628,8 @@ async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
         "darkuni-mylifedarklord-recomp",
         "v0.2",
         "MyLifeAsADarklord-v0.2-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2639,8 +2639,8 @@ async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
         "darkuni-mylifeking-recomp",
         "v0.5",
         "MyLifeAsAKing-v0.5-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2650,8 +2650,8 @@ async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
         "darkuni-target-terror-wii-recomp",
         "v1.0",
         "TargetTerror-v1.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

@@ -3,22 +3,21 @@
   "listing": {
     "id": "darkuni-target-terror-wii-recomp",
     "name": "TARGET: Terror (darkuni Recomp)",
-    "summary": "Player-managed Windows setup for the NTSC-U Wii disc.",
+    "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
     "original_game_title": "TARGET: Terror",
     "issue_number": 4178,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64"],
     "availability": "packages",
     "manual_setup": {
       "steps": [
         {
           "title": "Prepare your Wii disc image",
-          "instruction": "Keep the Windows x64 package files together, with the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
+          "instruction": "Copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the folder beside targetterror.exe, and keep your original separately. On first start the game builds its game folder from the image, which takes a few minutes; after that the copied image is no longer needed."
         },
         {
           "title": "Allow space for the upstream import",
-          "instruction": "Run targetterror.exe and allow first-run extraction to populate game. Keep the original disc image separately, and leave enough free space for the generated files."
+          "instruction": "Run targetterror.exe and leave the console window open while first-run extraction populates game. Leave enough free space for the image plus up to about 4.4 GB of extracted files. If the first start is interrupted or used the wrong image, delete the game folder before starting again with the right image in place."
         },
         {
           "title": "Preserve the creating profile",
@@ -26,7 +25,7 @@
         }
       ],
       "warnings": [
-        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "The package includes recompiled game code, icon art and bundled fonts that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
       ],
       "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
@@ -36,5 +35,33 @@
       "windows-x86-64": ["TargetTerror-", "-win64.zip"]
     },
     "recommended_download_channel": "stable"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/target-terror-wii-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["TargetTerror-", "-win64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["targetterror.exe"]
+    },
+    "persistent_paths": ["game", "nand", "targetterror.ini"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the managed folder beside targetterror.exe, and keep your original separately. On first Play the game builds its game folder from the image, which takes a few minutes and up to about 4.4 GB; leave its console window open while it runs, and if the first start is interrupted or used the wrong image, delete the game folder before starting again; without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. The download is the recompiled player with SDL2 and contains no game data; the project license does not cover the recompiled game code, and its system font replacements are Apache-licensed Droid Sans with a DejaVu Sans Mono bitmap. Portcove preserves game, nand (saves and high scores) and targetterror.ini across updates and backups. The log and hang report beside the program are diagnostics. Backups include the game folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["targetterror.exe"]
+      }
+    }
   }
 }
