@@ -1,14 +1,18 @@
-//! Bytes of an interrupted release download, kept so a later transfer of the
-//! exact same asset can continue after Portcove restarts (#6222).
+//! Bytes of a release download kept so a later transfer of the exact same
+//! asset can continue after Portcove stops, crashes or the transfer fails
+//! (#6222).
 //!
-//! Resume is only a transport optimization. An entry is bound to the asset's
-//! URL, declared size and expected SHA-256, and to the strong validator its
-//! bytes came with; the next transfer continues only through the same `Range`
-//! and `If-Range` checks as a reconnect within one transfer, and the caller
-//! still verifies the complete file. Nothing here publishes, registers or
-//! activates anything.
+//! A transfer that may use the store writes straight into its entry while it
+//! holds an exclusive lock on it, and records the strong validator as soon as
+//! it is known, so received bytes survive a process exit. Resume is only a
+//! transport optimization: an entry is bound to the asset's URL, declared size
+//! and expected SHA-256 and to its validator; the next transfer continues only
+//! through the same `Range` and `If-Range` checks as a reconnect within one
+//! transfer, and the caller still verifies the complete file. Nothing here
+//! publishes, registers or activates anything.
 use std::{
-    fs,
+    fs::{self, File, OpenOptions},
+    io::{Seek, SeekFrom},
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
@@ -17,13 +21,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{ReleaseAsset, Result};
 
-/// Entries kept at once; the oldest is dropped first.
-const MAX_ENTRIES: usize = 4;
-/// Total received bytes kept at once.
-const MAX_TOTAL_BYTES: u64 = 16 * 1024 * 1024 * 1024;
-/// Entries older than this are discarded unused.
-const MAX_AGE: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 const RECORD_BYTES: u64 = 16 * 1024;
+const TEMPORARY_PREFIX: &str = ".portcove-partial-";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -34,7 +33,6 @@ struct Record {
     sha256: String,
     validator: String,
     length: Option<u64>,
-    received: u64,
 }
 
 /// Received bytes and the representation facts they belong to.
@@ -48,11 +46,45 @@ pub(crate) struct Received {
 #[derive(Debug, Clone)]
 pub(crate) struct PartialDownloads {
     root: PathBuf,
+    max_entries: usize,
+    max_bytes: u64,
+    max_age: Duration,
+}
+
+/// Exclusive use of one asset's entry for the length of one transfer. Dropping
+/// it keeps the bytes for a later transfer.
+#[derive(Debug)]
+pub(crate) struct Lease {
+    file: File,
+    part: PathBuf,
+    record: PathBuf,
+    asset: ReleaseAsset,
+    resumed: Option<Received>,
 }
 
 impl PartialDownloads {
     pub(crate) fn new(root: PathBuf) -> Self {
-        Self { root }
+        Self {
+            root,
+            max_entries: 4,
+            max_bytes: 16 * 1024 * 1024 * 1024,
+            max_age: Duration::from_secs(7 * 24 * 60 * 60),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn with_bounds(
+        root: PathBuf,
+        max_entries: usize,
+        max_bytes: u64,
+        max_age: Duration,
+    ) -> Self {
+        Self {
+            root,
+            max_entries,
+            max_bytes,
+            max_age,
+        }
     }
 
     /// Only an asset with an expected digest the caller verifies may continue.
@@ -71,174 +103,215 @@ impl PartialDownloads {
         )
     }
 
-    fn record_for(asset: &ReleaseAsset, received: &Received) -> Record {
-        Record {
-            format_version: 1,
-            url: asset.url.clone(),
-            size: asset.size,
-            sha256: asset.sha256.to_ascii_lowercase(),
-            validator: received.validator.clone(),
-            length: received.length,
-            received: received.bytes,
-        }
-    }
-
-    /// Moves a matching entry's bytes to `destination` and returns what they
-    /// are; any mismatch, expiry or damage discards the entry instead.
-    pub(crate) fn take(&self, asset: &ReleaseAsset, destination: &Path) -> Option<Received> {
+    /// Takes this asset's entry for one transfer: its kept bytes when they
+    /// still match, otherwise an empty entry. `None` when the asset cannot use
+    /// the store, another transfer holds it, or the store is unusable; the
+    /// caller then downloads without it.
+    pub(crate) fn lease(&self, asset: &ReleaseAsset) -> Option<Lease> {
         let key = Self::key(asset)?;
-        let (part, record_path) = self.paths(&key);
-        let restored = Self::restore(asset, &part, &record_path, destination);
-        let _ = fs::remove_file(&record_path);
-        let _ = fs::remove_file(&part);
-        restored.ok().flatten()
+        if asset.size > self.max_bytes {
+            return None;
+        }
+        fs::create_dir_all(&self.root).ok()?;
+        crate::path::refuse_symlink_ancestors(&self.root).ok()?;
+        if fs::symlink_metadata(&self.root)
+            .map(|metadata| !metadata.is_dir())
+            .unwrap_or(true)
+        {
+            return None;
+        }
+        let (part, record) = self.paths(&key);
+        if fs::symlink_metadata(&part).is_ok_and(|metadata| !metadata.is_file()) {
+            return None;
+        }
+        let mut file = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&part)
+            .ok()?;
+        file.try_lock().ok()?;
+        let resumed = self.matching(asset, &file, &record);
+        if resumed.is_none() {
+            let _ = fs::remove_file(&record);
+            file.set_len(0).ok()?;
+        }
+        file.seek(SeekFrom::End(0)).ok()?;
+        // Bounds apply to everything else in the store, including entries a
+        // crash left behind.
+        self.sweep(&key, asset.size);
+        Some(Lease {
+            file,
+            part,
+            record,
+            asset: asset.clone(),
+            resumed,
+        })
     }
 
-    fn restore(
-        asset: &ReleaseAsset,
-        part: &Path,
-        record_path: &Path,
-        destination: &Path,
-    ) -> Result<Option<Received>> {
-        if !record_path.exists() {
-            return Ok(None);
-        }
-        let record: Record = serde_json::from_slice(&crate::path::read_bounded_regular(
-            record_path,
-            RECORD_BYTES,
-        )?)?;
-        let metadata = fs::symlink_metadata(part)?;
+    fn matching(&self, asset: &ReleaseAsset, file: &File, record_path: &Path) -> Option<Received> {
+        let record: Record = serde_json::from_slice(
+            &crate::path::read_bounded_regular(record_path, RECORD_BYTES).ok()?,
+        )
+        .ok()?;
+        let metadata = file.metadata().ok()?;
+        let bytes = metadata.len();
         let fresh = metadata
             .modified()
             .ok()
             .and_then(|modified| SystemTime::now().duration_since(modified).ok())
-            .is_some_and(|age| age <= MAX_AGE);
-        if !metadata.is_file()
-            || !fresh
-            || record.format_version != 1
-            || record.url != asset.url
-            || record.size != asset.size
-            || record.sha256 != asset.sha256.to_ascii_lowercase()
-            || record.received == 0
-            || record.received >= asset.size
-            || metadata.len() != record.received
-            || record.length.is_some_and(|length| length != asset.size)
-        {
-            return Ok(None);
-        }
-        fs::rename(part, destination)?;
-        Ok(Some(Received {
-            bytes: record.received,
+            .is_some_and(|age| age <= self.max_age);
+        (fresh
+            && record.format_version == 1
+            && record.url == asset.url
+            && record.size == asset.size
+            && record.sha256 == asset.sha256.to_ascii_lowercase()
+            && bytes > 0
+            && bytes < asset.size
+            && record.length.is_none_or(|length| length == asset.size))
+        .then_some(Received {
+            bytes,
             validator: record.validator,
             length: record.length,
-        }))
+        })
     }
 
-    /// Keeps the bytes at `source` for a later transfer of the same asset. The
-    /// caller has drained and closed its writer; a failure keeps nothing.
-    pub(crate) fn keep(&self, asset: &ReleaseAsset, source: &Path, received: &Received) {
-        let Some(key) = Self::key(asset) else {
+    /// Removes expired, unpaired, leftover and surplus entries other than
+    /// `keeping`, so `keeping` plus the rest fits the bounds. An entry another
+    /// transfer holds is left alone.
+    fn sweep(&self, keeping: &str, keeping_bytes: u64) {
+        let Ok(entries) = fs::read_dir(&self.root) else {
             return;
         };
-        if received.bytes == 0
-            || received.bytes >= asset.size
-            || received.bytes > MAX_TOTAL_BYTES
-            || fs::symlink_metadata(source)
-                .map(|metadata| metadata.len())
-                .ok()
-                != Some(received.bytes)
-        {
-            return;
-        }
-        let (part, record_path) = self.paths(&key);
-        let kept = self.store(asset, source, received, &key, &part, &record_path);
-        if kept.is_err() {
-            let _ = fs::remove_file(&record_path);
-            let _ = fs::remove_file(&part);
-        }
-    }
-
-    fn store(
-        &self,
-        asset: &ReleaseAsset,
-        source: &Path,
-        received: &Received,
-        key: &str,
-        part: &Path,
-        record_path: &Path,
-    ) -> Result<()> {
-        fs::create_dir_all(&self.root)?;
-        crate::path::refuse_symlink_ancestors(&self.root)?;
-        self.make_room(key, received.bytes)?;
-        let _ = fs::remove_file(record_path);
-        fs::rename(source, part)?;
-        crate::durability::write_bytes_atomically_with_prefix(
-            record_path,
-            &serde_json::to_vec(&Self::record_for(asset, received))?,
-            true,
-            Some(".portcove-partial-"),
-        )
-    }
-
-    /// Drops any entry for `asset`, for example after it completed.
-    pub(crate) fn discard(&self, asset: &ReleaseAsset) {
-        if let Some(key) = Self::key(asset) {
-            let (part, record_path) = self.paths(&key);
-            let _ = fs::remove_file(record_path);
-            let _ = fs::remove_file(part);
-        }
-    }
-
-    /// Removes expired, unpaired and oldest entries until one more of `bytes`
-    /// fits the bounds.
-    fn make_room(&self, keeping: &str, bytes: u64) -> Result<()> {
-        let mut entries = Vec::new();
-        for entry in fs::read_dir(&self.root)? {
-            let entry = entry?;
-            let path = entry.path();
+        let mut kept = Vec::new();
+        for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
-            let Some(key) = name.strip_suffix(".part") else {
-                if let Some(key) = name.strip_suffix(".json")
-                    && !self.paths(key).0.exists()
-                {
+            let path = entry.path();
+            if name.starts_with(TEMPORARY_PREFIX) {
+                let _ = fs::remove_file(&path);
+                continue;
+            }
+            if let Some(key) = name.strip_suffix(".json") {
+                if !self.paths(key).0.exists() {
                     let _ = fs::remove_file(&path);
                 }
                 continue;
+            }
+            let Some(key) = name.strip_suffix(".part") else {
+                continue;
             };
-            let metadata = fs::symlink_metadata(&path)?;
+            if key == keeping {
+                continue;
+            }
+            let Ok(metadata) = fs::symlink_metadata(&path) else {
+                continue;
+            };
             let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
             let expired = SystemTime::now()
                 .duration_since(modified)
-                .is_ok_and(|age| age > MAX_AGE);
-            if key == keeping || expired || !metadata.is_file() {
-                let (part, record_path) = self.paths(key);
-                let _ = fs::remove_file(record_path);
-                let _ = fs::remove_file(part);
+                .is_ok_and(|age| age > self.max_age);
+            if expired || !metadata.is_file() {
+                self.remove_unheld(key);
                 continue;
             }
-            entries.push((modified, key.to_owned(), metadata.len()));
+            kept.push((modified, key.to_owned(), metadata.len()));
         }
-        entries.sort();
-        let mut total: u64 = entries.iter().map(|(_, _, size)| size).sum();
-        let mut count = entries.len();
-        for (_, key, size) in entries {
-            if count < MAX_ENTRIES && total.saturating_add(bytes) <= MAX_TOTAL_BYTES {
+        kept.sort();
+        let mut total = kept
+            .iter()
+            .map(|(_, _, size)| size)
+            .sum::<u64>()
+            .saturating_add(keeping_bytes);
+        let mut count = kept.len() + 1;
+        for (_, key, size) in kept {
+            if count <= self.max_entries && total <= self.max_bytes {
                 break;
             }
-            let (part, record_path) = self.paths(&key);
-            fs::remove_file(record_path).or_else(ignore_missing)?;
-            fs::remove_file(part).or_else(ignore_missing)?;
-            total -= size;
-            count -= 1;
+            if self.remove_unheld(&key) {
+                total = total.saturating_sub(size);
+                count -= 1;
+            }
         }
-        Ok(())
+    }
+
+    /// Removes an entry unless another transfer holds it.
+    fn remove_unheld(&self, key: &str) -> bool {
+        let (part, record) = self.paths(key);
+        let held = File::open(&part).is_ok_and(|file| file.try_lock().is_err());
+        if held {
+            return false;
+        }
+        let _ = fs::remove_file(record);
+        let _ = fs::remove_file(part);
+        true
     }
 }
 
-fn ignore_missing(error: std::io::Error) -> std::io::Result<()> {
-    if error.kind() == std::io::ErrorKind::NotFound {
+impl Lease {
+    /// Kept bytes this transfer continues from, if any.
+    pub(crate) fn resumed(&self) -> Option<&Received> {
+        self.resumed.as_ref()
+    }
+
+    /// A second handle the transfer writes through; the lock stays on this lease.
+    pub(crate) fn writer(&self) -> std::io::Result<File> {
+        let mut file = self.file.try_clone()?;
+        file.seek(SeekFrom::End(0))?;
+        Ok(file)
+    }
+
+    /// Records the representation the bytes now belong to. Without a strong
+    /// validator they cannot continue, so no record is kept.
+    pub(crate) fn describe(&self, validator: Option<&str>, length: Option<u64>) {
+        let _ = fs::remove_file(&self.record);
+        let Some(validator) = validator else {
+            return;
+        };
+        let record = Record {
+            format_version: 1,
+            url: self.asset.url.clone(),
+            size: self.asset.size,
+            sha256: self.asset.sha256.to_ascii_lowercase(),
+            validator: validator.to_owned(),
+            length,
+        };
+        if let Ok(bytes) = serde_json::to_vec(&record) {
+            let _ = crate::durability::write_bytes_atomically_with_prefix(
+                &self.record,
+                &bytes,
+                true,
+                Some(TEMPORARY_PREFIX),
+            );
+        }
+    }
+
+    /// Drops the representation record before received bytes are discarded.
+    pub(crate) fn forget(&self) {
+        let _ = fs::remove_file(&self.record);
+    }
+
+    /// Moves the complete bytes to `destination` and removes the entry.
+    pub(crate) fn finish(self, destination: &Path) -> Result<()> {
+        let _ = fs::remove_file(&self.record);
+        let Self { file, part, .. } = self;
+        // The lock and handle go before the file moves (Windows refuses
+        // renaming an open file).
+        drop(file);
+        if fs::rename(&part, destination).is_err() {
+            // A game output folder on another volume.
+            fs::copy(&part, destination)?;
+            fs::remove_file(&part)?;
+        }
         Ok(())
-    } else {
-        Err(error)
+    }
+
+    /// Removes the entry and its bytes, for example after a rejected file.
+    pub(crate) fn discard(self) {
+        let _ = fs::remove_file(&self.record);
+        let _ = self.file.set_len(0);
+        let Self { file, part, .. } = self;
+        drop(file);
+        let _ = fs::remove_file(part);
     }
 }

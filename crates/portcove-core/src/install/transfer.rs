@@ -142,6 +142,8 @@ struct Transfer<'a> {
     /// Strong validator and complete length of the representation on disk.
     validator: Option<HeaderValue>,
     length: Option<u64>,
+    /// The kept-bytes entry this transfer writes into, if any.
+    lease: Option<&'a super::partial_download::Lease>,
 }
 
 impl Transfer<'_> {
@@ -156,6 +158,10 @@ impl Transfer<'_> {
     where
         F: FnMut(OperationEvent),
     {
+        if let Some(lease) = self.lease {
+            // The bytes about to be discarded no longer describe anything.
+            lease.forget();
+        }
         if let Some(file) = &mut self.file {
             file.flush().await?;
             file.get_mut().set_len(0).await?;
@@ -221,6 +227,15 @@ impl Transfer<'_> {
                     .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
             ));
         }
+        if range.is_some() && (status.is_client_error() || status.is_server_error()) {
+            // Some servers refuse range requests outright; that says nothing
+            // about the file, so start over without one.
+            self.restart(operation, emit).await?;
+            return Err(Step::Retry(
+                PortcoveError::network("the server refused to continue the download")
+                    .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
+            ));
+        }
         let response = response.error_for_status().map_err(|error| {
             PortcoveError::network(error.to_string())
                 .with_upstream(Some(UpstreamObservation::Status(status.as_u16())))
@@ -249,6 +264,16 @@ impl Transfer<'_> {
                 }
                 self.validator = strong_validator(&response);
                 self.length = response.content_length();
+                if let Some(lease) = self.lease {
+                    // Recorded before any byte arrives, so bytes received before
+                    // a crash or exit can continue.
+                    lease.describe(
+                        self.validator
+                            .as_ref()
+                            .and_then(|value| value.to_str().ok()),
+                        self.length,
+                    );
+                }
             }
         }
         if self.file.is_none() {
@@ -354,32 +379,38 @@ where
         reported: 0,
         validator: None,
         length: None,
+        lease: None,
     };
-    if let Some(received) = partials.and_then(|store| store.take(asset, destination)) {
-        let opened = tokio::fs::OpenOptions::new()
-            .append(true)
-            .open(destination)
-            .await;
-        match (HeaderValue::from_str(&received.validator), opened) {
-            (Ok(validator), Ok(file)) => {
-                // The first request asks only for the rest, under the same
-                // continuity checks as a reconnect.
-                transfer.file = Some(BufWriter::with_capacity(1024 * 1024, file));
-                transfer.completed = received.bytes;
-                transfer.reported = received.bytes;
-                transfer.validator = Some(validator);
-                transfer.length = received.length;
-                emit(operation.message(
-                    "info",
-                    format!(
-                        "Continuing the earlier download of {} from the bytes already received.",
-                        asset.name
-                    ),
+    // Write straight into this asset's kept-bytes entry while holding it, so
+    // bytes survive a failure, a crash or Portcove closing.
+    let lease = partials.and_then(|store| store.lease(asset));
+    if let Some(lease) = &lease {
+        match lease.writer() {
+            Ok(writer) => {
+                transfer.lease = Some(lease);
+                transfer.file = Some(BufWriter::with_capacity(
+                    1024 * 1024,
+                    tokio::fs::File::from_std(writer),
                 ));
+                if let Some(received) = lease.resumed()
+                    && let Ok(validator) = HeaderValue::from_str(&received.validator)
+                {
+                    // The first request asks only for the rest, under the same
+                    // continuity checks as a reconnect.
+                    transfer.completed = received.bytes;
+                    transfer.reported = received.bytes;
+                    transfer.validator = Some(validator);
+                    transfer.length = received.length;
+                    emit(operation.message(
+                        "info",
+                        format!(
+                            "Continuing the earlier download of {} from the bytes already received.",
+                            asset.name
+                        ),
+                    ));
+                }
             }
-            _ => {
-                let _ = tokio::fs::remove_file(destination).await;
-            }
+            Err(_) => transfer.lease = None,
         }
     }
     let mut resumes = 0_u32;
@@ -442,38 +473,40 @@ where
         Some(file) => file.flush().await,
         None => Ok(()),
     };
-    if let Err(error) = transfer_result {
-        // Keep resumable bytes of an interrupted or cancelled transfer; never a
-        // rejected or unverifiable one. The file is closed before it moves.
-        let keep = partials.filter(|_| {
-            drain_result.is_ok()
-                && transfer.resumable()
-                && error.code != crate::ErrorCode::Verification
-        });
-        let received = transfer
-            .validator
-            .as_ref()
-            .and_then(|value| value.to_str().ok())
-            .map(|validator| super::partial_download::Received {
-                bytes: transfer.completed,
-                validator: validator.to_owned(),
-                length: transfer.length,
+    let resumable = transfer.resumable();
+    let completed = transfer.completed;
+    let leased = transfer.lease.is_some();
+    // The writer closes before its entry moves or is removed.
+    drop(transfer);
+    let Some(lease) = lease.filter(|_| leased) else {
+        if let Err(error) = transfer_result {
+            return Err(match drain_result {
+                Ok(()) => error,
+                Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
             });
-        drop(transfer.file.take());
-        if let (Some(store), Some(received)) = (keep, received) {
-            store.keep(asset, destination, &received);
+        }
+        drain_result?;
+        return validate_download_size(completed, asset.size);
+    };
+    if let Err(error) = transfer_result {
+        // Keep bytes of an interrupted, refused or cancelled transfer; never a
+        // rejected, unverifiable or partly written one.
+        if drain_result.is_err() || !resumable || error.code == crate::ErrorCode::Verification {
+            lease.discard();
         }
         return Err(match drain_result {
             Ok(()) => error,
             Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
         });
     }
-    drain_result?;
-    validate_download_size(transfer.completed, asset.size)?;
-    if let Some(store) = partials {
-        store.discard(asset);
+    if let Err(error) = drain_result
+        .map_err(PortcoveError::from)
+        .and_then(|()| validate_download_size(completed, asset.size))
+    {
+        lease.discard();
+        return Err(error);
     }
-    Ok(())
+    lease.finish(destination)
 }
 
 #[cfg(test)]
