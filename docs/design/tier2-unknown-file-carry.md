@@ -400,17 +400,22 @@ backup doesn't put them back."
 
 ## 7. Caps and holds
 
-- **The caps.** They are Tier 1's constants (`unknown_files.rs:15-17`): 1,024
-  files, 16 MiB each and 64 MiB in total. They apply to the files actually to be
-  copied, which is the "copy" and "replace" rows (M6). Removals and unchanged
-  paths don't count.
-- **Past a cap (D1, for owner confirmation).** Portcove copies nothing and
-  removes nothing, records `over_cap`, and the switch goes ahead. This
-  **deviates from the owner's "hold rather than truncate"** in one respect: it
-  doesn't hold. It doesn't truncate either, because it is all-or-nothing. It
-  matches Tier 1's rule that version changes are never held by a cap and that
-  automatic snapshots leave files in place (`unknown_files.rs:187-190`), and it
-  keeps "unknown files never jam". Holding instead is the alternative.
+- **No fixed caps (D1, owner decision 2026-11-15).** The owner asked to drop
+  the 1,024-file, 16 MiB-per-file and 64 MiB-total limits for carrying. There
+  is no count or size limit on what Tier 2 carries. A fixed per-file limit
+  would leave an undeclared save larger than it behind, which works against
+  keeping player data.
+- **Free-space check instead.** Before copying, Portcove sums the bytes of the
+  files actually to be copied (the "copy" and "replace" rows; removals and
+  unchanged paths don't count) and reuses Core's existing margin,
+  `disc_filesystem::required_free_bytes` (`disc_filesystem.rs:996-998`), against
+  `fs4::available_space` on the target version's volume.
+- **Not enough room.** Portcove copies nothing and removes nothing, records
+  `insufficient_space`, and the switch goes ahead. Nothing is held and nothing is
+  truncated: all files stay in the version they came from.
+- **Tier 1's backup caps are unchanged.** They bound what a backup copies
+  (`unknown_files.rs:15-17`), not what is carried. Removal backups deduplicate
+  so Tier 2's own copies don't push them past those caps (§5, B3).
 - **Disposable writers.** The reviewed lever is to declare them
   `runtime_mutable_paths`, as Sonic 2 does with `logs`
   (`crates/portcove-core/catalog/ports/sonic-the-hedgehog-2-recomp.json`).
@@ -441,12 +446,11 @@ and byte counts go in details.
   then switch versions again." Details list both paths for up to 64 files.
 - Outcome `new_version_ships_file`: "Version {to} comes with its own {file}, so
   your copy stayed in version {from}."
-- Outcome `over_cap` (M6): "Portcove didn't bring {count} files it didn't
-  install to version {to}, because together they're more than it can copy (up to
-  1,024 files, 16 MB each and 64 MB in total). They're still in the version
-  {from} folder. To use one in version {to}, copy it from that folder yourself,
-  or delete files you don't need there before your next version switch."
-  Details give both folders, the counts and the largest files.
+- Outcome `insufficient_space`: "Portcove didn't bring {count} files it didn't
+  install to version {to}, because the drive doesn't have enough free space to
+  copy them. They're still in the version {from} folder. Free up space, then
+  switch versions again." Details give both folders, the bytes needed and the
+  bytes available.
 - Outcome `source_modified`: "Portcove didn't bring files it didn't install to
   version {to}, because version {from} has changed or added program files.
   They're still in the version {from} folder."
@@ -484,9 +488,10 @@ lines 257-534):
      it in v1: the package file is untouched;
    - a carried path becomes declared: rows freeze and nothing is written there;
    - a path inside a folder that holds package files is never carried.
-6. Caps over the files to be copied: exactly at each limit carries. One past
-   any limit copies and removes nothing, the switch succeeds and the outcome is
-   `over_cap`. Large unchanged files don't count.
+6. No fixed caps: more than 1,024 files and a file over 16 MiB are carried.
+   With a stubbed available-space reading below the required bytes, nothing is
+   copied or removed, the switch succeeds and the outcome is
+   `insufficient_space`. Unchanged files don't count toward the bytes needed.
 7. Hazards: a hazard in T holds as today. A hazard in A gives
    `source_modified` and still allows rollback. Hazards, loader names,
    `.portcove`-containing names, generated metadata, target members and
@@ -537,22 +542,25 @@ tests for every outcome and both causes.
 - **Loaders that read folders the package doesn't ship.** Rule 8 only covers
   folders that hold package files. A loader that reads every file in a folder
   the package doesn't ship is not covered, but non-hazard data files only.
-- **A large undeclared writer can stop all carrying.** Past a cap, nothing is
-  carried (`over_cap`, which is visible).
+- **A large undeclared writer copies every switch.** With no caps, a
+  multi-gigabyte undeclared cache is copied on each version switch and
+  duplicated per version. The reviewed lever is to declare it
+  `runtime_mutable_paths`. When the drive is short of space, nothing is carried
+  (`insufficient_space`, which is visible).
 - **Windows alias rules.** They are proven only on hosted Windows.
 
 **Decisions** (critical reviewer's recommendation recorded; owner confirms):
 
-| Decision                         | Recommendation                                                                                         |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| D1, caps                         | All-or-nothing, no hold. Explicit deviation from "hold rather than truncate"; needs owner confirmation |
-| D2, divergence                   | Keep both and report. A later in-app "use this copy" action                                            |
-| D3, restore write-back           | No                                                                                                     |
-| D4, removal propagation          | Only with the lineage, unchanged-target and eligibility proofs (M1, B1)                                |
-| D5, ledger                       | Library database, schema 61. A sidecar could be forged by the game or the player                       |
-| D6, deduplicated removal backups | Required, in or before T2-2                                                                            |
-| D7, relocation and transfer      | Later                                                                                                  |
-| D8, SMW and ALttP                | Bind now with the file undeclared, after confirming it isn't a package member                          |
+| Decision                         | Recommendation                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| D1, caps                         | Owner decision 2026-11-15: no fixed caps; a free-space check carries nothing, without holding, when the drive is short |
+| D2, divergence                   | Owner decision 2026-11-15: keep both and report. A later in-app "use this copy" action                                 |
+| D3, restore write-back           | No                                                                                                                     |
+| D4, removal propagation          | Only with the lineage, unchanged-target and eligibility proofs (M1, B1)                                                |
+| D5, ledger                       | Owner decision 2026-11-15: library database, schema 61. A sidecar could be forged by the game or the player            |
+| D6, deduplicated removal backups | Required, in or before T2-2                                                                                            |
+| D7, relocation and transfer      | Later                                                                                                                  |
+| D8, SMW and ALttP                | Bound in PR #6177 with the pair declared `runtime_mutable_paths`; Tier 2 never carries it                              |
 
 **Phasing** (each phase is one reviewed PR; T2-2 has a critical reviewer from
 the start, because it touches user-data loss):
