@@ -18306,7 +18306,7 @@
         "steps": [
           {
             "title": "Add your own Warcraft III files",
-            "instruction": "Copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq for The Frozen Throne, and any loose Maps folder from your own classic Warcraft III installation into a data folder beside the OpenRealm executable. Keep your original installation separately."
+            "instruction": "Copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq for The Frozen Throne, and any loose Maps folder from your own classic Warcraft III installation into one data folder for OpenRealm. Keep your original installation separately."
           },
           {
             "title": "Use a copy you manage yourself",

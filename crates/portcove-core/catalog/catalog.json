@@ -55812,7 +55812,8 @@
         "beta"
       ],
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "adapter": "native-portable",
       "release": {
@@ -55821,12 +55822,18 @@
         "asset_hints": {
           "windows-x86-64": [
             "openwarcraft3-windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "openwarcraft3-linux-x64.tar.gz"
           ]
         }
       },
       "executable_hints": {
         "windows-x86-64": [
           "openwarcraft3.exe"
+        ],
+        "linux-x86-64": [
+          "bin/openwarcraft3"
         ]
       },
       "launch_arguments": [
@@ -55834,6 +55841,7 @@
         "data",
         "-tft"
       ],
+      "launch_from_install_root": true,
       "persistent_paths": [
         "data",
         "screenshots"
@@ -55842,14 +55850,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq, and any loose Maps folder from your own classic Warcraft III installation into the data folder of the managed game folder. Portcove starts the alpha with that folder in The Frozen Throne mode and keeps data and screenshots across updates, backups and rollback. Settings, saves and campaign progress stay in %APPDATA%/warcraft-3, which Portcove does not back up or roll back. Use a short library path with plain ASCII characters; Portcove refuses other install folders before download.",
+        "manual_preparation": "Before Play, copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq, and any loose Maps folder from your own classic Warcraft III installation into the data folder at the top of the managed game folder. Portcove starts the alpha from that folder with -data data -tft and keeps data and screenshots across updates, backups and rollback. Settings, saves and campaign progress stay in %APPDATA%/warcraft-3 on Windows or $XDG_DATA_HOME/warcraft-3 on Linux, usually ~/.local/share/warcraft-3, which Portcove does not back up or roll back. On Windows, use a short library path with plain ASCII characters; Portcove refuses other install folders before download. On Linux the alpha needs SDL2, glibc 2.38 or later and your distribution's OpenGL, VA-API, VDPAU and OpenCL loader libraries.",
         "original_game_title": "Warcraft III",
         "manual_setup": {
           "help_url": "https://github.com/corepunch/open-realm/blob/v0.0.11-alpha/README.md",
           "steps": [
             {
               "title": "Add your own Warcraft III files",
-              "instruction": "Copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq for The Frozen Throne, and any loose Maps folder from your own classic Warcraft III installation into a data folder beside the OpenRealm executable. Keep your original installation separately."
+              "instruction": "Copy war3.mpq and War3Local.mpq, plus War3x.mpq and War3xLocal.mpq for The Frozen Throne, and any loose Maps folder from your own classic Warcraft III installation into one data folder for OpenRealm. Keep your original installation separately."
             },
             {
               "title": "Use a copy you manage yourself",
@@ -55880,6 +55888,25 @@
           ],
           "executables": [
             "openwarcraft3.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "bin",
+            "lib",
+            "licenses",
+            "share"
+          ],
+          "executables": [
+            "bin/openwarcraft3",
+            "lib/libgame.so",
+            "lib/libjass.so",
+            "lib/libmenu.so",
+            "lib/librenderer-sc2.so",
+            "lib/librenderer-wow.so",
+            "lib/librenderer.so",
+            "lib/libshared.so",
+            "lib/libsheet.so"
           ]
         }
       },
