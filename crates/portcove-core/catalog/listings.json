@@ -63456,7 +63456,7 @@
           },
           {
             "title": "Keep imports and progress",
-            "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep your own copy, such as on a Mac, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
+            "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep a copy you manage yourself, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
           }
         ],
         "warnings": [
