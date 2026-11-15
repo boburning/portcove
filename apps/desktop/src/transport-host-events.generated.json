@@ -310,5 +310,10 @@
     ],
     "title": "OperationEvent",
     "type": "object"
+  },
+  "portcove://play-request": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "null",
+    "type": "null"
   }
 }

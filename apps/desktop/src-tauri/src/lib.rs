@@ -246,6 +246,20 @@ pub(crate) struct ExitDiagnostics(
     std::sync::Arc<std::sync::Mutex<Option<crate::diagnostics_writer::Guard>>>,
 );
 
+/// Completes this process's diagnostics session when Tauri clears its resource
+/// table, which `cleanup_before_exit` does before a later launch that forwarded
+/// its arguments to the running instance exits.
+#[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
+struct DiagnosticsCloser(ExitDiagnostics);
+
+impl tauri::Resource for DiagnosticsCloser {}
+
+impl Drop for DiagnosticsCloser {
+    fn drop(&mut self) {
+        self.0.shutdown();
+    }
+}
+
 impl ExitDiagnostics {
     fn new(guard: Option<crate::diagnostics_writer::Guard>) -> Self {
         Self(std::sync::Arc::new(std::sync::Mutex::new(guard)))
@@ -2902,7 +2916,32 @@ pub fn run() -> std::process::ExitCode {
     let startup_initialization = initialization.clone();
     let exit_diagnostics = ExitDiagnostics::new(diagnostic_guard.take());
     let startup_preferences = preferences.clone();
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // The single-instance plugin must be registered first. Only the installed
+    // application uses it, so isolated native and development runs stay
+    // independent instances.
+    #[cfg(all(windows, not(test)))]
+    let builder = if recent_play_shortcuts::forwards_later_launches() {
+        // Registered just before the single-instance plugin so a forwarding launch,
+        // which exits during that plugin's setup, still completes its diagnostics.
+        let closer = exit_diagnostics.clone();
+        builder
+            .plugin(
+                tauri::plugin::Builder::<tauri::Wry>::new("portcove-exit-diagnostics")
+                    .setup(move |app, _| {
+                        use tauri::Manager;
+                        app.resources_table().add(DiagnosticsCloser(closer.clone()));
+                        Ok(())
+                    })
+                    .build(),
+            )
+            .plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+                recent_play_shortcuts::forward_later_launch(app, arguments);
+            }))
+    } else {
+        builder
+    };
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(webview_boundary::init());

@@ -13,6 +13,8 @@ pub(crate) const DESKTOP_EVENT_APPLICATION_UPDATE_NOTICE: &str =
     "portcove://application-update-notice";
 pub(crate) const DESKTOP_EVENT_LIBRARY_CHANGED: &str = "portcove://library-changed";
 pub(crate) const DESKTOP_EVENT_OPERATION: &str = "portcove://operation";
+/// A later launch forwarded a play request; take it with `take_startup_play_request`.
+pub(crate) const DESKTOP_EVENT_PLAY_REQUEST: &str = "portcove://play-request";
 
 pub(crate) type DesktopError = portcove_core::FailureReport;
 
@@ -418,6 +420,7 @@ pub fn export_transport_schemas() -> Value {
             output::<ApplicationUpdateStatus>(),
         ),
         (DESKTOP_EVENT_LIBRARY_CHANGED.to_owned(), output::<()>()),
+        (DESKTOP_EVENT_PLAY_REQUEST.to_owned(), output::<()>()),
         (
             DESKTOP_EVENT_OPERATION.to_owned(),
             output::<portcove_core::OperationEvent>(),

@@ -546,7 +546,7 @@ already rejects every other webview. Capability selection stays explicit: the
 `default` capability names only the `main` window, and a host test refuses any
 capability file that names another window, `webviews`, `remote` or `platforms`,
 or a configured window other than `main`. Events changed: every Portcove event
-(`library-changed`, `operation`, `application-update-notice`) is emitted with an
+(`library-changed`, `operation`, `application-update-notice`, `play-request`) is emitted with an
 explicit `main` target through one function that shares the invoke gate's label.
 Each event has one consumer, in the main window, and none is a global event.
 Targeting is a second layer, not the boundary: the frontend's default listeners
@@ -1541,14 +1541,25 @@ request that the frontend takes once, after the workspace has its catalog and
 statuses. A game that can play directly uses the existing Continue launch path;
 one that needs attention opens its details; an unknown or removed game opens
 nothing. Core's launch path still owns readiness, per-port locking and
-executable trust. Desktop has no single-instance forwarding, so an entry used
-while Portcove is open starts a second window that handles the request. That
-window holds its own shared application-runtime lease, so an application update
-waits for it like any other open window. It opens the saved library selection:
-if the first window was started with a `PORTCOVE_LIBRARY` override, the entry
-resolves the port in the saved library instead. Two windows refreshing at once
-each commit a complete list, and the last commit wins. The jump list has not been
-observed on a native Windows taskbar.
+executable trust. When the process uses the installed identity, Desktop also
+registers Tauri's single-instance plugin first: a later launch, including an entry
+used while Portcove is open, passes its arguments to the running window through
+the operating system's single-instance channel and exits. The running window
+parses them with the same exact-form check, replaces any request the frontend has
+not taken, announces `portcove://play-request` and comes to the front; the
+frontend takes the request and routes it as at startup, in the library that window
+already has open. Development, fixture, portable and isolated runs of a
+non-installed executable never register the plugin, so they keep starting independent instances; such a run
+started from an entry opens its own window, holds its own shared
+application-runtime lease and opens the saved library selection. The plugin keys
+its single-instance channel by the bundle identifier only, so an isolated run of the
+installed executable (for example one using `PORTCOVE_PREFERENCES` or
+`PORTCOVE_LIBRARY`) forwards to an installed instance already running in the same
+session instead of opening its own window; isolated native runs should use a
+non-installed executable. A forwarding launch completes its diagnostics session
+before it exits. Two windows
+refreshing at once each commit a complete list, and the last commit wins. The jump
+list and forwarding have not been observed on a native Windows taskbar.
 
 ## Desktop library handoff state
 
@@ -3832,7 +3843,7 @@ while core and Tauri remain authoritative for source validation and mutation.
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.
 
-The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, and `portcove://application-update-notice` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
+The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, `portcove://application-update-notice` and `portcove://play-request` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
 
 ## Signed catalog authority
 
