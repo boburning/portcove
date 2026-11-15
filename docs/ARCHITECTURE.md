@@ -1541,14 +1541,19 @@ request that the frontend takes once, after the workspace has its catalog and
 statuses. A game that can play directly uses the existing Continue launch path;
 one that needs attention opens its details; an unknown or removed game opens
 nothing. Core's launch path still owns readiness, per-port locking and
-executable trust. Desktop has no single-instance forwarding, so an entry used
-while Portcove is open starts a second window that handles the request. That
-window holds its own shared application-runtime lease, so an application update
-waits for it like any other open window. It opens the saved library selection:
-if the first window was started with a `PORTCOVE_LIBRARY` override, the entry
-resolves the port in the saved library instead. Two windows refreshing at once
-each commit a complete list, and the last commit wins. The jump list has not been
-observed on a native Windows taskbar.
+executable trust. When the process uses the installed identity, Desktop also
+registers Tauri's single-instance plugin first: a later launch, including an entry
+used while Portcove is open, passes its arguments to the running window through
+the operating system's single-instance channel and exits. The running window
+parses them with the same exact-form check, replaces any request the frontend has
+not taken, announces `portcove://play-request` and comes to the front; the
+frontend takes the request and routes it as at startup, in the library that window
+already has open. Development, fixture, portable and isolated native runs never
+register the plugin, so they keep starting independent instances; such a run
+started from an entry opens its own window, holds its own shared
+application-runtime lease and opens the saved library selection. Two windows
+refreshing at once each commit a complete list, and the last commit wins. The jump
+list and forwarding have not been observed on a native Windows taskbar.
 
 ## Desktop library handoff state
 

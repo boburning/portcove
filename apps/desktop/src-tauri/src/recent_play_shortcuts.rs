@@ -3,8 +3,11 @@
 //!
 //! Core owns successful-launch history; this adapter only mirrors a bounded
 //! read of it. Each shortcut starts this executable with a fixed
-//! `--portcove-play <port-id>` argument. No URL scheme or listener is
-//! registered, so web content cannot produce that argument. The request names a
+//! `--portcove-play <port-id>` argument. No URL scheme or network listener is
+//! registered, so web content cannot produce that argument. The installed
+//! application forwards a later launch's arguments to the running instance
+//! through the operating system's single-instance channel; they are parsed
+//! exactly as startup arguments. The request names a
 //! port only: the frontend routes it to the ordinary Play action, and Core's
 //! launch path still owns readiness, locking and executable trust.
 
@@ -56,6 +59,53 @@ impl StartupPlayRequest {
 
     fn take(&self) -> Option<String> {
         self.0.lock().ok().and_then(|mut request| request.take())
+    }
+
+    /// Records a request forwarded by a later launch; it replaces any request
+    /// the frontend has not taken yet.
+    fn replace(&self, port_id: String) {
+        if let Ok(mut request) = self.0.lock() {
+            *request = Some(port_id);
+        }
+    }
+}
+
+/// Whether this process forwards later launches to itself: only the installed
+/// application, so development, fixture, portable and isolated native runs keep
+/// starting independent instances.
+pub(crate) fn forwards_later_launches() -> bool {
+    #[cfg(all(windows, not(test)))]
+    {
+        INSTALLED_IDENTITY.get().copied().unwrap_or(false)
+    }
+    #[cfg(not(all(windows, not(test))))]
+    {
+        false
+    }
+}
+
+/// Handles a later launch of the installed application in the running one. The
+/// later process exits; its arguments are parsed exactly as at startup. A play
+/// request is offered to the frontend through the same one-shot state, and the
+/// window is brought forward either way.
+#[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
+pub(crate) fn forward_later_launch<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    arguments: Vec<String>,
+) {
+    use tauri::Manager;
+    if let Some(port_id) = play_request(arguments.into_iter().map(OsString::from)) {
+        app.state::<StartupPlayRequest>().replace(port_id);
+        let _ = crate::transport::emit_desktop_event(
+            app,
+            crate::desktop_contract::DESKTOP_EVENT_PLAY_REQUEST,
+            (),
+        );
+    }
+    if let Some(window) = app.get_webview_window(crate::transport::MAIN_WINDOW_LABEL) {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
     }
 }
 
@@ -372,6 +422,16 @@ mod tests {
         assert_eq!(request.take(), Some("lighthouse".into()));
         assert_eq!(request.take(), None);
         assert_eq!(StartupPlayRequest::default().take(), None);
+    }
+
+    #[test]
+    fn a_forwarded_request_replaces_an_untaken_one_and_is_taken_once() {
+        let request =
+            StartupPlayRequest::from_arguments(arguments(&["portcove", PLAY_ARGUMENT, "first"]));
+        request.replace("second".to_owned());
+        assert_eq!(request.take().as_deref(), Some("second"));
+        assert_eq!(request.take(), None);
+        assert!(!forwards_later_launches());
     }
 
     #[test]

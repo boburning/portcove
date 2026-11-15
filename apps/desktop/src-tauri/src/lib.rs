@@ -2902,7 +2902,19 @@ pub fn run() -> std::process::ExitCode {
     let startup_initialization = initialization.clone();
     let exit_diagnostics = ExitDiagnostics::new(diagnostic_guard.take());
     let startup_preferences = preferences.clone();
-    let builder = tauri::Builder::default()
+    let builder = tauri::Builder::default();
+    // The single-instance plugin must be registered first. Only the installed
+    // application uses it, so isolated native and development runs stay
+    // independent instances.
+    #[cfg(all(windows, not(test)))]
+    let builder = if recent_play_shortcuts::forwards_later_launches() {
+        builder.plugin(tauri_plugin_single_instance::init(|app, arguments, _| {
+            recent_play_shortcuts::forward_later_launch(app, arguments);
+        }))
+    } else {
+        builder
+    };
+    let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(webview_boundary::init());

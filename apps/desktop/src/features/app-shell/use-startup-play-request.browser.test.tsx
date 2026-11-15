@@ -74,4 +74,31 @@ describe("startup play request", () => {
       vi.restoreAllMocks();
     }
   });
+
+  it("takes a request forwarded by a later launch and routes it the same way", async () => {
+    const take = vi
+      .spyOn(desktopApi, "takeStartupPlayRequest")
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(port.id);
+    let announce: (() => void) | undefined;
+    const unlisten = vi.fn();
+    const listen = vi.fn((_name: string, accept: () => void) => {
+      announce = accept;
+      return Promise.resolve(unlisten);
+    }) as unknown as NonNullable<Parameters<typeof useStartupPlayRequest>[0]["listen"]>;
+    const { play, props } = setup(playable);
+    const view = await renderHook(
+      (value = { ...props(true), listen }) => useStartupPlayRequest(value),
+      { initialProps: { ...props(true), listen } },
+    );
+    await vi.waitFor(() => expect(take).toHaveBeenCalledTimes(1));
+    expect(play).not.toHaveBeenCalled();
+    expect(listen).toHaveBeenCalledWith("portcove://play-request", expect.any(Function));
+    await vi.waitFor(() => expect(announce).toBeDefined());
+    await view.act(async () => announce?.());
+    await vi.waitFor(() => expect(play).toHaveBeenCalledWith(port));
+    expect(take).toHaveBeenCalledTimes(2);
+    await view.unmount();
+    expect(unlisten).toHaveBeenCalledTimes(1);
+  });
 });
