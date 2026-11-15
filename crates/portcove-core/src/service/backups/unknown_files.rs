@@ -63,6 +63,10 @@ pub(crate) struct UnknownFileCopy {
     /// and their path there. Versions can name their top folder differently.
     pub(crate) stored_in: String,
     pub(crate) stored_path: String,
+    /// The game-folder file this copy records, re-hashed after the stored
+    /// copies are written. Not part of the index.
+    #[serde(skip)]
+    pub(crate) source: PathBuf,
 }
 
 #[derive(Debug, Serialize)]
@@ -180,25 +184,23 @@ pub(super) fn copy_area(
 /// Collapse identical copies of one file across installations, then apply
 /// the caps to what is stored. `key` is the path the copies share, relative
 /// to each version's persistence root, which is how Tier 2 carries them.
-/// Only same-key, same-size copies are hashed, and only after the per-file
-/// cap, so hashing stays bounded.
+/// Only same-key, same-size copies are hashed. The caps are checked first
+/// over one copy per (key, size), which is at most what will be stored, so
+/// hashing stays within the caps' bytes per installation.
 pub(crate) fn deduplicate(
     files: Vec<(UnknownRuntimeFile, String)>,
 ) -> Result<UnknownFileSelection> {
-    if files
-        .iter()
-        .any(|(file, _)| file.size > MAX_UNKNOWN_FILE_BYTES)
-    {
-        let files = files.into_iter().map(|(file, _)| file).collect::<Vec<_>>();
-        require_within_caps(&files)?;
-        return Err(PortcoveError::state(
-            "an oversized unknown file passed the caps",
-        ));
-    }
     let mut groups = BTreeMap::<(&str, u64), usize>::new();
+    let mut representatives = Vec::new();
     for (file, key) in &files {
-        *groups.entry((key.as_str(), file.size)).or_default() += 1;
+        let count = groups.entry((key.as_str(), file.size)).or_default();
+        if *count == 0 {
+            representatives.push(file.clone());
+        }
+        *count += 1;
     }
+    require_within_caps(&representatives)?;
+    drop(representatives);
     let mut digests = Vec::with_capacity(files.len());
     for (file, key) in &files {
         digests.push(if groups[&(key.as_str(), file.size)] > 1 {
@@ -220,6 +222,7 @@ pub(crate) fn deduplicate(
         };
         match first.get(&(key.clone(), digest.clone())) {
             Some((stored_in, stored_path)) => duplicates.push(UnknownFileCopy {
+                source: crate::install::manifest_member(&file.install_root, &file.relative)?,
                 install_id: file.install_id,
                 path: file.relative,
                 size: file.size,
@@ -293,6 +296,7 @@ pub(super) fn copy_removal_area(
             sha256,
             stored_in: file.install_id.clone(),
             stored_path: file.relative.clone(),
+            source: PathBuf::new(),
         });
     }
     let stored = index.len() as u64;
@@ -304,6 +308,20 @@ pub(super) fn copy_removal_area(
         return Err(PortcoveError::state(
             "a collapsed unknown file has no stored copy",
         ));
+    }
+    // A collapsed copy's bytes live only in its stored copy, so it must not
+    // have changed since it was hashed: removal deletes it next.
+    for copy in duplicates {
+        let metadata = fs::symlink_metadata(&copy.source)?;
+        if !metadata.is_file()
+            || metadata.len() != copy.size
+            || crate::service::sha256_file(&copy.source)? != copy.sha256
+        {
+            return Err(PortcoveError::conflict(
+                "An unrecognized file in the game folder changed while Portcove was backing it up. Nothing was changed; try again.",
+            )
+            .detail("path", &copy.path));
+        }
     }
     index.extend(duplicates.iter().cloned());
     index.sort_by(|left, right| {
@@ -404,11 +422,21 @@ impl PortcoveService {
             if files.is_empty() {
                 continue;
             }
-            let port = self.installed_port(install)?;
+            // The selected executable, as verification uses; a version whose
+            // root can't be read keeps its own keys and never collapses.
             let root = self
-                .persistence_root(&port, &install.path)?
-                .strip_prefix(&install.path)
+                .installed_mutability_qualification(install)
                 .ok()
+                .and_then(|qualification| {
+                    qualification
+                        .persistence_root(
+                            &install.path,
+                            &install.path.join(&install.selected_executable),
+                        )
+                        .strip_prefix(&install.path)
+                        .ok()
+                        .map(Path::to_path_buf)
+                })
                 .map(|root| {
                     root.components()
                         .map(|part| part.as_os_str().to_string_lossy().into_owned())
@@ -700,6 +728,31 @@ mod tests {
         fs::create_dir(&stage).unwrap();
         let error = copy_removal_area(&stage, &selection.files, &selection.duplicates).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
+        // A collapsed copy changed after hashing: removal would delete bytes
+        // the backup doesn't hold, so it holds (review M1).
+        fs::write(temporary.path().join("install-a/settings.ini"), b"lives=9").unwrap();
+        let selection = deduplicate(keyed(
+            installation(
+                temporary.path(),
+                "install-a",
+                &[("settings.ini", b"lives=9")],
+            )
+            .into_iter()
+            .chain(installation(
+                temporary.path(),
+                "install-b",
+                &[("settings.ini", b"lives=9")],
+            ))
+            .collect(),
+        ))
+        .unwrap();
+        assert_eq!(selection.duplicates.len(), 1);
+        fs::write(temporary.path().join("install-b/settings.ini"), b"lives=2").unwrap();
+        let again = temporary.path().join("stage-again");
+        fs::create_dir(&again).unwrap();
+        let error = copy_removal_area(&again, &selection.files, &selection.duplicates).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(error.details["path"], "settings.ini");
         // An oversized file holds before anything is hashed.
         let mut oversized = installation(temporary.path(), "install-c", &[("big.bin", b"x")]);
         oversized[0].size = MAX_UNKNOWN_FILE_BYTES + 1;

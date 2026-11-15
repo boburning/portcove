@@ -2648,14 +2648,21 @@ into the review fingerprint. The manifest records the area as `unknown_files_v1`
 so it never writes an unknown file into a declared path, and an older reader
 ignores the area. Restoring the area is Tier 2 work.
 
-A removal backup collects every version, and identical copies of one file are
-stored once (`unknown_files_v2`). Copies share a path relative to each
-version's persistence root and the same SHA-256. Each distinct copy stays in
-the first installation's folder (by id), and `unknown-files/index.json` lists
-every installation's copy with `stored_in` and `stored_path`. The record's
-`file_count` counts every copy and `stored_file_count` what was stored. The caps,
-in the removal review and in execution, count stored copies, so the copies
-Tier 2 places in several versions do not reach them. A backup whose `data/` is
+A removal backup collects every version, and stores identical copies of one
+file once. Copies are identical when they share a path relative to each
+version's persistence root (from the selected executable, as verification
+reads it) and the same SHA-256. Each distinct copy stays in the first
+installation's folder (by id), and `unknown-files/index.json` lists every
+installation's copy with `stored_in` and `stored_path`. Such a backup is
+recorded as `unknown_files_v2`, whose `file_count` counts every copy and
+`stored_file_count` what was stored; a backup where nothing collapsed keeps
+`unknown_files_v1`. An older reader ignores v2 and shows no unknown files for
+that backup. Each stored copy is re-hashed after copying, and each collapsed
+copy's game-folder file is re-hashed afterwards too, so removal never deletes
+bytes the backup doesn't hold. The caps, in the removal review and in
+execution, count stored copies, so the copies Tier 2 places in several versions
+do not reach them. They are checked over one copy per (path, size) before any
+hashing. A backup whose `data/` is
 empty, holding only unknown files, cannot be restored (restore and its review
 refuse it, and the restore assessment ignores it) and is never the latest
 protection in `BackupInventory.protection`.

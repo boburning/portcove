@@ -388,11 +388,11 @@ undeclared files.
 ## 5. Backup and restore
 
 Explicit and automatic backups copy the active version's files through Tier 1,
-carried ones included (`service/backups/unknown_files.rs:93-145`), and keep
+carried ones included (`copy_area` in `service/backups/unknown_files.rs`), and keep
 the `unknown_files_v1` layout.
 
 **Removal backups deduplicate (B3, D6 required).** `UnknownFileScope::Removal`
-collects every version (`unknown_files.rs:150-195`). Tier 2 puts identical
+collects every version (`backup_unknown_files` in `unknown_files.rs`). Tier 2 puts identical
 copies in several versions, so the caps would be reached because of Portcove's
 own copies. The new layout is `unknown_files_v2`, written by removal backups
 only:
@@ -407,10 +407,17 @@ only:
   its digest and `stored_in` and `stored_path`, the folder and path that hold
   the bytes. (T2-1b chose this over a content-addressed `objects/` store, which
   players couldn't browse.)
-- **The caps.** They count stored copies and their bytes. Only copies with the
-  same shared path and size are hashed, after the per-file cap, and each
-  stored copy is re-hashed after copying, so a collapsed copy always names the
-  bytes kept. The removal review applies the same collapsed caps.
+- **The caps.** They count stored copies and their bytes, and are checked
+  first over one copy per (shared path, size), so hashing stays bounded. Only
+  copies with the same shared path and size are hashed. Each stored copy is
+  re-hashed after copying, and each collapsed copy's source afterwards, so the
+  bytes removal deletes are always the bytes kept. The removal review applies
+  the same collapsed caps.
+- **The shared path** comes from the selected executable, as verification
+  reads it. A version whose root can't be read keeps its own keys and never
+  collapses, so this adds no new hold.
+- **Only when needed.** A removal backup where nothing collapsed keeps
+  `unknown_files_v1`, which older readers count.
 - **The record.** Recorded beside, and outside, the content digest, like v1.
 - **Older readers.** The manifest field is optional and unknown fields are
   ignored (`service/backups.rs:489-497`), so they still restore exactly
@@ -424,7 +431,7 @@ This lands in T2-2 or before it.
   or may no longer exist.
 - Restore is about saves, whereas Tier 2's semantics apply to version switches.
 - The automatic safety snapshot copies no unknown files past a cap
-  (`unknown_files.rs:187-190`).
+  (the `Automatic` arm of `backup_unknown_files`).
 
 Restore leaves Tier 2 rows alone, and its copy still says "Restoring this
 backup doesn't put them back."
@@ -432,8 +439,8 @@ backup doesn't put them back."
 ## 6. Removal, relocation, transfer and preparation
 
 - **Removal** (whole port, `library.rs:3461-3476`). Rows cascade with the
-  installations. The backup is deduplicated as in section 5, and the review is
-  unchanged.
+  installations. The backup is deduplicated as in section 5. The review still
+  lists every version's copy, and applies the collapsed caps.
 - **Output relocation and library transfer.** They still refuse any unknown
   file (ARCHITECTURE line 2649). Tier 2 doesn't make that worse: a carried file
   already exists in its source version, which was already refused. Rows survive

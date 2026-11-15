@@ -786,8 +786,9 @@ impl PortcoveService {
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
-            let (unknown_files_v1, unknown_files_v2) = if unknown_scope == UnknownFileScope::Removal
-            {
+            // Only a backup where copies collapsed needs the v2 index; any
+            // other keeps the layout older readers count (T2-1b review L1).
+            let (unknown_files_v1, unknown_files_v2) = if !unknown_duplicates.is_empty() {
                 (
                     None,
                     unknown_files::copy_removal_area(&staging_path, &unknown, &unknown_duplicates)?,

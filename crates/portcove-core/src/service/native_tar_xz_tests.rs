@@ -385,22 +385,23 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         .unwrap();
     assert!(safety.automatic.is_none());
     let area = unknown_area(safety, &first).join(&relative);
-    assert_eq!(
-        fs::read(area.join("settings/easy-access.ini")).unwrap(),
-        b"lives=9"
-    );
     assert_eq!(fs::read(area.join("logs/replay.txt")).unwrap(), b"replay");
-    // D6: the identical settings file is stored once; the differing log twice.
+    // D6: the identical settings file is stored once, under the installation
+    // with the lower id; the differing log is stored twice.
     let second_area = unknown_area(safety, &second).join(second_relative);
     assert_eq!(
         fs::read(second_area.join("logs/replay.txt")).unwrap(),
         b"second replay"
     );
-    let (stored_in, duplicate) = if first.id < second.id {
-        (&first, &second_area)
+    let (stored_in, kept, duplicate) = if first.id < second.id {
+        (&first, &area, &second_area)
     } else {
-        (&second, &area)
+        (&second, &second_area, &area)
     };
+    assert_eq!(
+        fs::read(kept.join("settings/easy-access.ini")).unwrap(),
+        b"lives=9"
+    );
     assert!(!duplicate.join("settings/easy-access.ini").exists());
     assert_eq!(safety.unknown_file_count, 4);
     let manifest: serde_json::Value =
