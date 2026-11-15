@@ -37317,6 +37317,9 @@
           }
         ],
         "saves_and_settings": "portcove-managed",
+        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
+        "original_game_title": "Diablo",
+        "variant_label": "PlayStation",
         "manual_setup": {
           "steps": [
             {
@@ -37328,9 +37331,6 @@
             "Save states may stop working after an update. Make a normal in-game save before updating."
           ]
         },
-        "manual_preparation": "Provide your own matching single-track CHD for Diablo Europe SLES-01156 and legally obtained retail SCPH-5552 BIOS. OpenBIOS is not an accepted substitute for this release. Portcove uses its registered Python/build toolchain for managed preparation and skips the setup launcher when playing. Generation, runtime, lifecycle and gameplay are untested. Preserve the title GPL-3.0-only, framework PolyForm Noncommercial and UI MIT notices; no rights to retail game data or generated retail content are inferred. Linux x86-64 uses the pinned managed build toolchain; the packaged setup host requires GLIBC 2.29, GLIBCXX 3.4.26 and OpenGL. Generated-game minimum-host compatibility and Linux runtime behavior remain untested.",
-        "original_game_title": "Diablo",
-        "variant_label": "PlayStation",
         "artwork": {
           "game_id": 125,
           "cover_id": 161304,

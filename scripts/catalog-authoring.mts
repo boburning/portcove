@@ -552,12 +552,16 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   );
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
+  const presentation = isRecord(integration.presentation) ? integration.presentation : {};
+  const managedGuide = presentation.manual_setup;
+  delete presentation.manual_setup;
   const common: Record<string, unknown> = {};
   for (const field of sharedPortFields) common[field] = record.listing[field];
   for (const field of listingPresentationFields) {
-    if (Object.hasOwn(record.listing, field)) {
-      const presentation = isRecord(integration.presentation) ? integration.presentation : {};
-      if (field === "manual_setup" && presentation.manual_setup != null) continue;
+    if (field === "manual_setup" && managedGuide != null) {
+      presentation[field] = managedGuide;
+      integration.presentation = presentation;
+    } else if (Object.hasOwn(record.listing, field)) {
       presentation[field] = structuredClone(record.listing[field]);
       integration.presentation = presentation;
     }
