@@ -3936,7 +3936,7 @@
         "steps": [
           {
             "title": "Set up Dark Forces on Linux",
-            "instruction": "Use the upstream-recommended Flathub package io.github.theforceengine.tfe on desktop Linux or through Discover in Steam Deck Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Follow the upstream Linux guide to build the engine yourself if you use a different distribution route."
+            "instruction": "Install io.github.theforceengine.tfe from Flathub on x86-64 or ARM64 Linux. On Steam Deck, use Discover in Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Use Flathub for package updates. Follow the upstream Linux guide if you prefer a local build."
           }
         ],
         "warnings": [],
