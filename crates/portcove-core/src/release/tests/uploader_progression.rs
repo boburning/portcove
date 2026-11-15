@@ -95,6 +95,16 @@ async fn github_progression_requires_a_continuous_uploader() {
     let same = release(2, "v1.1.0", Some(account(REGULAR)), AFTER);
     let resolved = resolve(&port, &[same, n.clone()]).await.unwrap();
     assert_eq!(resolved.release.version, "v1.1.0");
+    // The decision travels with the resolved release, so the build staged from
+    // it can apply the same decision before it becomes active.
+    assert_eq!(
+        resolved.release.uploader_continuity,
+        Some(crate::UploaderContinuityRecord {
+            basis: crate::UploaderContinuityBasis::Established,
+            uploader_id: Some(REGULAR),
+            uploaded_at: Some(AFTER.into()),
+        })
+    );
 
     // A foreign uploader's N+1 is held with the player reason, and a later
     // N+2 cannot launder that account through its own post-baseline upload.
@@ -225,4 +235,111 @@ async fn a_held_update_check_leaves_the_installed_copy_active() {
     let status = service.status("starship").unwrap();
     assert_eq!(status.active.unwrap().id, installed.id);
     assert!(status.staged.is_none());
+}
+
+/// Rewrites a registered build's manifest as a version before #6209 wrote it,
+/// without the marker that acquisition facts are recorded.
+fn as_unrecorded(library: &Library, install: &InstallRecord) -> InstallRecord {
+    use sha2::Digest as _;
+    let path = install.path.join(".portcove-manifest.json");
+    let mut manifest: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    assert_eq!(manifest["acquisition_facts_recorded"], true);
+    manifest
+        .as_object_mut()
+        .unwrap()
+        .remove("acquisition_facts_recorded");
+    let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+    std::fs::write(&path, &bytes).unwrap();
+    let mut rewritten = install.clone();
+    rewritten.manifest_sha256 = hex::encode(sha2::Sha256::digest(&bytes));
+    library.update_install_manifest(&rewritten).unwrap();
+    rewritten
+}
+
+fn assert_unconfirmed(error: &PortcoveError) {
+    assert_eq!(error.code, crate::ErrorCode::Unsupported, "{error:?}");
+    assert_eq!(error.details["reason"], "provider_uploader_not_observed");
+    assert!(
+        error
+            .message
+            .starts_with("Portcove is holding back this version"),
+        "{}",
+        error.message
+    );
+}
+
+#[test]
+fn a_build_staged_without_recorded_uploader_facts_needs_a_fresh_resolution() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let active = crate::retained_build::tests::install(&library, "active", b"active runtime", true);
+    let staged =
+        crate::retained_build::tests::install(&library, "staged", b"staged runtime", false);
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    // A build this version recorded passes the uploader check.
+    service
+        .require_activation_uploader_continuity(&staged, None)
+        .unwrap();
+
+    // Staged after the baseline by a version that recorded nothing: activation
+    // is held and nothing changes.
+    let unrecorded = as_unrecorded(&library, &staged);
+    assert_unconfirmed(&service.activate_staged("starship").unwrap_err());
+    let status = service.status("starship").unwrap();
+    assert_eq!(status.active.unwrap().id, active.id);
+    assert_eq!(status.staged.unwrap().id, unrecorded.id);
+    // A fresh resolution of the same artifact supplies the decision.
+    service
+        .require_activation_uploader_continuity(
+            &unrecorded,
+            Some(&crate::UploaderContinuityRecord {
+                basis: crate::UploaderContinuityBasis::RepositoryOwner,
+                uploader_id: Some(OWNER),
+                uploaded_at: Some(AFTER.into()),
+            }),
+        )
+        .unwrap();
+    // Installed before the baseline: unchanged behavior.
+    service
+        .require_activation_uploader_continuity(
+            &InstallRecord {
+                installed_at: 1,
+                ..unrecorded
+            },
+            None,
+        )
+        .unwrap();
+}
+
+#[test]
+fn rollback_to_a_build_without_recorded_uploader_facts_is_held() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    crate::retained_build::tests::install(&library, "first", b"first runtime", true);
+    let second = crate::retained_build::tests::install(&library, "second", b"second runtime", true);
+    let previous = library
+        .status("starship", ReleaseChannel::Stable)
+        .unwrap()
+        .previous
+        .unwrap();
+    as_unrecorded(&library, &previous);
+    let service = crate::PortcoveService::new(library.clone()).unwrap();
+    let assessment = service
+        .status("starship")
+        .unwrap()
+        .port_actions
+        .into_iter()
+        .find(|assessment| assessment.action == crate::PortAction::Rollback)
+        .unwrap();
+    assert_eq!(assessment.availability, crate::PortActionAvailability::Held);
+    assert_eq!(
+        assessment.reason,
+        crate::PortActionReason::InvalidInstallation
+    );
+    assert_unconfirmed(&service.rollback("starship").unwrap_err());
+    assert_eq!(
+        service.status("starship").unwrap().active.unwrap().id,
+        second.id
+    );
 }

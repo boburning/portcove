@@ -95,6 +95,7 @@ fn serve_archive(
                 size,
                 sha256: digest,
             },
+            uploader_continuity: None,
         },
         server,
     )

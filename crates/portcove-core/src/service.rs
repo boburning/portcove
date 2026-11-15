@@ -3524,10 +3524,12 @@ impl PortcoveService {
             Installer::new(self.library.clone())?.verify_critical(staged, &qualification)?;
             reporter.operation.begin_publication()?;
             return if activate {
+                // This resolution just confirmed the same artifact's uploader.
                 self.activate_staged_locked(
                     &port.id,
                     reporter.operation.operation_id(),
                     crate::VersionChangeKind::Update,
+                    release.uploader_continuity.as_ref(),
                 )
             } else {
                 Ok(staged.clone())
@@ -3634,6 +3636,7 @@ impl PortcoveService {
                 &port.id,
                 &Uuid::new_v4().to_string(),
                 crate::VersionChangeKind::Update,
+                None,
             )
         } else {
             Ok(installed)
@@ -4129,6 +4132,8 @@ impl PortcoveService {
         };
         let port = self.installed_port(previous).map_err(invalid)?;
         crate::install::check_retained_runtime_paths(previous, &previous.path).map_err(invalid)?;
+        self.require_activation_uploader_continuity(previous, None)
+            .map_err(invalid)?;
         self.require_portable_runtime_unchanged(previous)
             .map_err(invalid)?;
         if let Some(active) = active {
@@ -4217,7 +4222,12 @@ impl PortcoveService {
                     ));
                 }
             }
-            self.activate_staged_locked(port_id, &activity.id, crate::VersionChangeKind::Activation)
+            self.activate_staged_locked(
+                port_id,
+                &activity.id,
+                crate::VersionChangeKind::Activation,
+                None,
+            )
         })();
         self.finish_activity(activity, result)
     }
@@ -4227,6 +4237,7 @@ impl PortcoveService {
         port_id: &str,
         operation_id: &str,
         kind: crate::VersionChangeKind,
+        fresh_continuity: Option<&crate::UploaderContinuityRecord>,
     ) -> Result<InstallRecord> {
         let status = self.status_without_rollback_assessment(port_id)?;
         let staged = status
@@ -4236,6 +4247,7 @@ impl PortcoveService {
             &self.catalog,
             &staged,
         )?;
+        self.require_activation_uploader_continuity(&staged, fresh_continuity)?;
         self.require_ghostship_install_data_compatibility(
             &staged,
             status
@@ -6389,6 +6401,25 @@ impl PortcoveService {
         crate::output_root::validate_install_path(&self.library, port_id, install_root)
     }
 
+    /// Uploader continuity for a build about to become active from stored facts
+    /// (#6209). `fresh` is a resolution made just now for the same artifact.
+    pub(crate) fn require_activation_uploader_continuity(
+        &self,
+        install: &InstallRecord,
+        fresh: Option<&crate::UploaderContinuityRecord>,
+    ) -> Result<()> {
+        let retained = self.installed_port(install)?;
+        let recorded = crate::install::recorded_acquisition(install)?;
+        crate::release::require_recorded_uploader_continuity(
+            &retained,
+            self.catalog.port(&install.port_id).ok(),
+            Platform::current()?,
+            install,
+            &recorded,
+            fresh,
+        )
+    }
+
     pub(crate) fn installed_port(&self, install: &InstallRecord) -> Result<PortDefinition> {
         Ok(self
             .installed_catalog(install)?
@@ -7618,6 +7649,7 @@ mod tests {
                 size: 10,
                 url: "https://invalid.example/never-requested".into(),
             },
+            uploader_continuity: None,
         };
         assert!(
             service
@@ -8109,6 +8141,7 @@ mod tests {
                 sha256: reviewed.sha256.clone(),
                 size: 42,
             },
+            uploader_continuity: None,
         };
         library.register_install(&install, true).unwrap();
         let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
@@ -8288,6 +8321,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:2.0.0", port.id))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8310,6 +8344,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8396,6 +8431,7 @@ mod tests {
                     size: 4,
                     sha256: hex::encode(Sha256::digest(format!("{}:{}", port.id, self.version))),
                 },
+                uploader_continuity: None,
             })
         }
     }
@@ -8442,6 +8478,7 @@ mod tests {
                     size: 4,
                     sha256: self.sha256.clone(),
                 },
+                uploader_continuity: None,
             })
         }
     }

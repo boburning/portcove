@@ -906,6 +906,7 @@ mod lifecycle {
                     size: 42,
                     sha256: "ab".repeat(32),
                 },
+                uploader_continuity: None,
             },
             output_root: service.library.versions_dir().join(ID),
             activate: true,

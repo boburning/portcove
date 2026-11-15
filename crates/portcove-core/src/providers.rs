@@ -137,6 +137,7 @@ pub(crate) fn resolve_direct(
             size: release.size,
             sha256: release.sha256.to_ascii_lowercase(),
         },
+        uploader_continuity: None,
     })
 }
 

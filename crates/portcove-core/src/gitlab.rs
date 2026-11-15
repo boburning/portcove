@@ -982,6 +982,7 @@ fn resolve_observed_asset(
             size,
             sha256,
         },
+        uploader_continuity: None,
     })
 }
 
@@ -1417,6 +1418,7 @@ mod tests {
                 size: 1,
                 sha256: "a".repeat(64),
             },
+            uploader_continuity: None,
         };
         provider
             .store_release(oldest_key.clone(), release.clone())

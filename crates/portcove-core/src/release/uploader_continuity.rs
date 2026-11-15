@@ -76,6 +76,29 @@ pub(super) enum Continuity {
     NotObserved,
 }
 
+impl Continuity {
+    /// The durable record of this decision for `asset`, kept with a staged build.
+    pub(super) fn record(self, asset: &GithubAsset) -> crate::UploaderContinuityRecord {
+        use crate::UploaderContinuityBasis as Basis;
+        let basis = match self {
+            Self::PredatesBaseline => Basis::PredatesBaseline,
+            Self::RepositoryOwner => Basis::RepositoryOwner,
+            Self::ProjectAutomation => Basis::ProjectAutomation,
+            Self::Established => Basis::Established,
+            Self::Accepted => Basis::Accepted,
+            Self::NotObserved => Basis::NotObserved,
+        };
+        crate::UploaderContinuityRecord {
+            basis,
+            uploader_id: match &asset.uploader {
+                AssetUploader::Account(account) => Some(account.id),
+                _ => None,
+            },
+            uploaded_at: asset.created_at.clone(),
+        }
+    }
+}
+
 fn uploaded_at(asset: &GithubAsset) -> Option<OffsetDateTime> {
     asset
         .created_at
@@ -196,6 +219,98 @@ pub(super) fn require(
     Err(held(port, tag, asset, cause, not_continuous)
         .detail("uploader", account.login.clone())
         .detail("uploader_id", account.id.to_string()))
+}
+
+/// What a build's manifest recorded about how it was obtained.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct RecordedAcquisition {
+    /// The manifest was written by a version that records continuity whenever a
+    /// GitHub resolution applies it, so an absent decision means none applied.
+    pub(crate) facts_recorded: bool,
+    pub(crate) uploader_continuity: Option<crate::UploaderContinuityRecord>,
+    /// The player adopted an existing local tree; no provider upload was followed.
+    pub(crate) adopted_tree: bool,
+}
+
+const RECORDED_HOLD_SUFFIX: &str =
+    "Nothing was changed. Check for updates to get a version Portcove can confirm.";
+
+fn recorded_hold(install: &crate::InstallRecord, cause: &str, reason: &str) -> PortcoveError {
+    PortcoveError::unsupported(format!(
+        "Portcove is holding back this version because {cause}. {RECORDED_HOLD_SUFFIX}"
+    ))
+    .detail("reason", reason)
+    .detail("port_id", install.port_id.clone())
+    .detail("version", install.version.clone())
+}
+
+/// Applies uploader continuity to a build that is about to become active from
+/// stored facts: activation of a staged build, rollback to it, or recovery of its
+/// activation. `retained` is the port the build was installed under; `current` is
+/// the catalog's port when it is still listed, so a narrowed accepted-uploader
+/// list applies. `fresh` is the decision of a resolution made just now for the
+/// same artifact, which supersedes the stored facts.
+///
+/// Only ordinary GitHub release progression is guarded: other providers,
+/// curated, direct, user-prepared and adopted builds are unaffected, and so is a
+/// build installed before the baseline. A later build whose manifest predates
+/// recording was staged by a client that may not have applied the guard, so it
+/// is held until a fresh resolution confirms it.
+pub(crate) fn require_recorded(
+    retained: &PortDefinition,
+    current: Option<&PortDefinition>,
+    platform: crate::Platform,
+    install: &crate::InstallRecord,
+    recorded: &RecordedAcquisition,
+    fresh: Option<&crate::UploaderContinuityRecord>,
+) -> Result<()> {
+    let release = &retained.release;
+    if release.provider != crate::ReleaseSource::Github
+        || release.curated.contains_key(&platform)
+        || release.direct.contains_key(&platform)
+        || release.user_prepared.contains_key(&platform)
+        || release.managed_build.contains_key(&platform)
+        || recorded.adopted_tree
+    {
+        return Ok(());
+    }
+    let Some(record) = fresh.or(recorded.uploader_continuity.as_ref()) else {
+        if recorded.facts_recorded || install.installed_at < BASELINE_UNIX_SECONDS {
+            return Ok(());
+        }
+        return Err(recorded_hold(
+            install,
+            "Portcove has no record of who uploaded it",
+            "provider_uploader_not_observed",
+        ));
+    };
+    if record.basis != crate::UploaderContinuityBasis::Accepted {
+        return Ok(());
+    }
+    // An accepted uploader must still be accepted: the catalog may narrow the
+    // list after the build was staged, and never widens it.
+    let accepted = current.unwrap_or(retained);
+    let still_accepted = record.uploader_id.is_some_and(|id| {
+        id != GHOST_ACCOUNT_ID
+            && accepted
+                .release
+                .accepted_uploaders
+                .iter()
+                .any(|account| account.id == id)
+    });
+    if still_accepted {
+        Ok(())
+    } else {
+        let mut error = recorded_hold(
+            install,
+            "it was uploaded by a GitHub account that is no longer accepted for this project",
+            "provider_uploader_not_continuous",
+        );
+        if let Some(id) = record.uploader_id {
+            error = error.detail("uploader_id", id.to_string());
+        }
+        Err(error)
+    }
 }
 
 #[cfg(test)]
@@ -365,5 +480,129 @@ mod tests {
             .unwrap(),
             Continuity::PredatesBaseline
         );
+    }
+
+    fn staged(installed_at: i64) -> crate::InstallRecord {
+        crate::InstallRecord {
+            id: "staged".into(),
+            port_id: "shipwright".into(),
+            version: "v2".into(),
+            path: std::path::PathBuf::from("staged"),
+            channel: crate::ReleaseChannel::Stable,
+            installed_at,
+            verified: true,
+            staged: true,
+            artifact: crate::ArtifactIdentity::default(),
+            runtime: None,
+            manifest_sha256: String::new(),
+            selected_executable: std::path::PathBuf::new(),
+        }
+    }
+
+    #[test]
+    fn stored_facts_apply_the_same_decision_before_a_build_becomes_active() {
+        use crate::{UploaderContinuityBasis as Basis, UploaderContinuityRecord as Record};
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("shipwright").unwrap().clone();
+        port.release.provider = crate::ReleaseSource::Github;
+        port.release.curated.clear();
+        port.release.direct.clear();
+        port.release.user_prepared.clear();
+        port.release.managed_build.clear();
+        port.release.accepted_uploaders = vec![crate::AcceptedUploader {
+            id: 7,
+            login: "reviewed".into(),
+        }];
+        let platform = crate::Platform::WindowsX86_64;
+        let after = staged(BASELINE_UNIX_SECONDS + 60);
+        let before = staged(BASELINE_UNIX_SECONDS - 1);
+        let recorded = |basis, uploader_id| RecordedAcquisition {
+            facts_recorded: true,
+            uploader_continuity: Some(Record {
+                basis,
+                uploader_id,
+                uploaded_at: Some("2026-12-01T00:00:00Z".into()),
+            }),
+            adopted_tree: false,
+        };
+        let check = |install: &crate::InstallRecord,
+                     recorded: &RecordedAcquisition,
+                     current: Option<&PortDefinition>,
+                     fresh: Option<&Record>| {
+            require_recorded(&port, current, platform, install, recorded, fresh)
+        };
+        let none = RecordedAcquisition::default();
+        // A build installed before the baseline keeps its earlier behavior.
+        check(&before, &none, None, None).unwrap();
+        // A recording version that applied no decision (curated, or no GitHub
+        // resolution) leaves nothing to re-apply.
+        let recorded_without_decision = RecordedAcquisition {
+            facts_recorded: true,
+            ..RecordedAcquisition::default()
+        };
+        check(&after, &recorded_without_decision, None, None).unwrap();
+        // A later build from a version that did not record facts is held, unless
+        // a fresh resolution of the same artifact confirms it.
+        let held = check(&after, &none, None, None).unwrap_err();
+        assert_eq!(held.details["reason"], "provider_uploader_not_observed");
+        assert!(
+            held.message.contains("holding back this version"),
+            "{}",
+            held.message
+        );
+        check(
+            &after,
+            &none,
+            None,
+            Some(
+                &recorded(Basis::Established, Some(2))
+                    .uploader_continuity
+                    .unwrap(),
+            ),
+        )
+        .unwrap();
+        // Recorded passes stand, including UNKNOWN coverage.
+        for basis in [
+            Basis::PredatesBaseline,
+            Basis::RepositoryOwner,
+            Basis::ProjectAutomation,
+            Basis::Established,
+            Basis::NotObserved,
+        ] {
+            check(&after, &recorded(basis, Some(2)), None, None).unwrap();
+        }
+        // An accepted uploader must still be accepted by the current catalog.
+        check(&after, &recorded(Basis::Accepted, Some(7)), None, None).unwrap();
+        let mut narrowed = port.clone();
+        narrowed.release.accepted_uploaders.clear();
+        let refused = check(
+            &after,
+            &recorded(Basis::Accepted, Some(7)),
+            Some(&narrowed),
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(
+            refused.details["reason"],
+            "provider_uploader_not_continuous"
+        );
+        assert_eq!(refused.details["uploader_id"], "7");
+        check(&after, &recorded(Basis::Accepted, None), None, None).unwrap_err();
+        check(
+            &after,
+            &recorded(Basis::Accepted, Some(GHOST_ACCOUNT_ID)),
+            None,
+            None,
+        )
+        .unwrap_err();
+        // Adopted local trees and other acquisition routes are not upstream progression.
+        let adopted = RecordedAcquisition {
+            adopted_tree: true,
+            ..RecordedAcquisition::default()
+        };
+        check(&after, &adopted, None, None).unwrap();
+        let mut gitlab = port.clone();
+        gitlab.release.provider = crate::ReleaseSource::Gitlab;
+        require_recorded(&gitlab, None, platform, &after, &none, None).unwrap();
     }
 }

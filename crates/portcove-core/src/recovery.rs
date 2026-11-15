@@ -159,6 +159,7 @@ pub(crate) fn recover_published_install(
                     service.catalog(),
                     &install,
                 )?;
+                service.require_activation_uploader_continuity(&install, None)?;
                 service.recover_managed_route_publication(&install, expected)?;
             } else if status.external_runtime.is_some() {
                 return Err(PortcoveError::conflict(
@@ -176,6 +177,7 @@ pub(crate) fn recover_published_install(
                     service.catalog(),
                     &install,
                 )?;
+                service.require_activation_uploader_continuity(&install, None)?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -796,6 +798,7 @@ pub(crate) fn recover_activation(
                 service.catalog(),
                 &install,
             )?;
+            service.require_activation_uploader_continuity(&install, None)?;
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),

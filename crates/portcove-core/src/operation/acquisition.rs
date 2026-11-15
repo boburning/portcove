@@ -321,6 +321,7 @@ mod tests {
                         channel: ReleaseChannel::Stable,
                         published_at: None,
                         asset: asset.clone(),
+                        uploader_continuity: None,
                     },
                     phase: Phase::Acquiring,
                     created_at: 1,
