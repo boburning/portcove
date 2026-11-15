@@ -25,7 +25,7 @@ import {
   readArtworkJson,
   readArtworkInput,
 } from "./inspect-igdb-artwork.mts";
-import type { ImageValidator } from "./inspect-igdb-artwork.mts";
+import type { ArtworkCatalog, ImageValidator } from "./inspect-igdb-artwork.mts";
 import { isRecord } from "./runtime-values.mts";
 
 interface Difference {
@@ -453,6 +453,65 @@ function proposalImageValidator(
         };
 }
 
+// One artwork operation admits at most 400 ports. A larger workset runs as
+// consecutive operations over the evolving proposal; each carries the exact-image
+// Gone observations forward, and later observations are reconciled into every
+// earlier record once all operations finish.
+const ARTWORK_OPERATION_PORTS = 400;
+async function prepareArtworkInOperations<
+  Result extends { catalog: ArtworkCatalog; records: unknown[]; gone_image_ids: string[] },
+>(
+  catalog: ArtworkCatalog,
+  selectedPortIds: readonly string[] | undefined,
+  operation: (
+    ids: readonly string[] | undefined,
+    catalog: ArtworkCatalog,
+    gone: readonly string[],
+  ) => Promise<Result>,
+): Promise<Result> {
+  const ids = selectedPortIds ?? catalog.ports.map((port) => port.id);
+  if (ids.length <= ARTWORK_OPERATION_PORTS) return operation(selectedPortIds, catalog, []);
+  let merged: Result | undefined;
+  for (let start = 0; start < ids.length; start += ARTWORK_OPERATION_PORTS) {
+    const batch = ids.slice(start, start + ARTWORK_OPERATION_PORTS);
+    const next = await operation(batch, merged?.catalog ?? catalog, merged?.gone_image_ids ?? []);
+    merged = merged ? mergeArtworkOperations(merged, next) : next;
+  }
+  return merged!;
+}
+function mergeArtworkOperations<
+  Result extends { catalog: ArtworkCatalog; records: unknown[]; gone_image_ids: string[] },
+>(earlier: Result, later: Result): Result {
+  const merged = { ...later, records: [...earlier.records, ...later.records] } as Result & {
+    metrics?: Record<string, number>;
+    workset?: {
+      catalog_ports: number;
+      selected_port_ids: string[];
+      invalidated_port_ids: string[];
+    };
+  };
+  const before = earlier as typeof merged;
+  if (before.metrics && merged.metrics)
+    merged.metrics = Object.fromEntries(
+      Object.entries(merged.metrics).map(([key, value]) => [
+        key,
+        value + (before.metrics?.[key] ?? 0),
+      ]),
+    );
+  if (before.workset && merged.workset)
+    merged.workset = {
+      ...merged.workset,
+      selected_port_ids: [...before.workset.selected_port_ids, ...merged.workset.selected_port_ids],
+      invalidated_port_ids: [
+        ...new Set([
+          ...before.workset.invalidated_port_ids,
+          ...merged.workset.invalidated_port_ids,
+        ]),
+      ].sort(),
+    };
+  return merged;
+}
+
 async function prepareArtworkProposal(fullProposal = false) {
   validateArtworkProposalArguments(fullProposal);
   const captured = readArtworkInput(
@@ -499,21 +558,29 @@ async function prepareArtworkProposal(fullProposal = false) {
   const heroMedia = option("--hero-media");
   if (heroMedia !== null && heroMedia !== "igdb") throw new Error("--hero-media requires igdb.");
   const inspector = createIgdbInspector(option("--credentials-file"), validateImage);
-  const covers = await prepareCatalogArtwork(input, {
-    ...inspector,
-    acceptedCatalog: acceptedArtwork,
-    identities,
-    refreshPortIds,
-    ...(selectedPortIds ? { selectedPortIds } : {}),
-  });
+  const covers = await prepareArtworkInOperations(input, selectedPortIds, (ids, catalog, gone) =>
+    prepareCatalogArtwork(catalog, {
+      ...inspector,
+      acceptedCatalog: acceptedArtwork,
+      identities,
+      refreshPortIds: ids ? refreshPortIds.filter((id) => ids.includes(id)) : refreshPortIds,
+      ...(ids ? { selectedPortIds: ids } : {}),
+      ...(gone.length ? { knownGoneImageIds: gone } : {}),
+    }),
+  );
+  // Gone observations from a later operation also withdraw earlier mappings.
+  if ((selectedPortIds ?? input.ports).length > ARTWORK_OPERATION_PORTS && "workset" in covers)
+    reconcileCatalogArtworkWithdrawals(covers, covers.gone_image_ids);
   const gameMedia =
     heroMedia === "igdb"
-      ? await prepareCatalogGameMedia(covers.catalog, {
-          inspector,
-          identities,
-          knownGoneImageIds: covers.gone_image_ids,
-          ...(selectedPortIds ? { selectedPortIds } : {}),
-        })
+      ? await prepareArtworkInOperations(covers.catalog, selectedPortIds, (ids, catalog, gone) =>
+          prepareCatalogGameMedia(catalog, {
+            inspector,
+            identities,
+            knownGoneImageIds: gone.length ? gone : covers.gone_image_ids,
+            ...(ids ? { selectedPortIds: ids } : {}),
+          }),
+        )
       : undefined;
   if (gameMedia) reconcileCatalogArtworkWithdrawals(covers, gameMedia.gone_image_ids);
   const result = { ...covers, catalog: gameMedia?.catalog ?? covers.catalog };

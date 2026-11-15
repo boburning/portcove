@@ -3,7 +3,11 @@ import { readFileSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
-import type { ArtworkCatalog, ArtworkPreparationOptions } from "./inspect-igdb-artwork.mts";
+import type {
+  ArtworkCatalog,
+  ArtworkPreparationOptions,
+  ArtworkRecord,
+} from "./inspect-igdb-artwork.mts";
 
 import {
   requiredFixture,
@@ -272,15 +276,31 @@ void test("the entire accepted cover inventory survives a routine executable rel
   );
   const input = structuredClone(accepted);
   requiredFixture(requiredFixture(input.ports[0]).release).version = "ordinary-successor";
-  const result = await prepareCatalogArtwork(input, {
-    acceptedCatalog: accepted,
-    inspectGame: () => assert.fail("unchanged accepted artwork must not search"),
-    inspectImage: () => assert.fail("unchanged accepted artwork must not download"),
-  });
+  // One operation admits at most 400 ports, so the whole catalog runs as
+  // consecutive operations over the evolving proposal, as the generator does.
+  const ids = input.ports.map((port) => port.id);
+  const result: {
+    catalog: ArtworkCatalog;
+    records: ArtworkRecord[];
+    reused: number;
+    fallback: number;
+  } = { catalog: input, records: [], reused: 0, fallback: 0 };
+  for (let start = 0; start < ids.length; start += 400) {
+    const operation = await prepareCatalogArtwork(result.catalog, {
+      acceptedCatalog: accepted,
+      selectedPortIds: ids.slice(start, start + 400),
+      inspectGame: () => assert.fail("unchanged accepted artwork must not search"),
+      inspectImage: () => assert.fail("unchanged accepted artwork must not download"),
+    });
+    result.catalog = operation.catalog;
+    result.records.push(...operation.records);
+    result.reused += operation.metrics.reused;
+    result.fallback += operation.metrics.fallback;
+  }
   const mapped = accepted.ports.filter((port) => port.presentation?.artwork);
   const unmapped = accepted.ports.filter((port) => !port.presentation?.artwork);
-  assert.equal(result.metrics.reused, mapped.length);
-  assert.equal(result.metrics.fallback, unmapped.length);
+  assert.equal(result.reused, mapped.length);
+  assert.equal(result.fallback, unmapped.length);
   assert.deepEqual(
     result.records.filter((record) => record.mapping).map((record) => record.port_id),
     mapped.map((port) => port.id),

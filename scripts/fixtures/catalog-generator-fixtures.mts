@@ -196,9 +196,13 @@ export function proposalDecoderFixture(
     export async function prepareCatalogGameMedia() {
       throw new Error('Game-media acquisition is not modeled by this decoder-only fixture.');
     }
+    // The generator may split a large catalog into several operations; the
+    // fixture's images belong to the whole run, not to each operation.
+    let fixtureImage=0;
     export async function prepareCatalogArtwork(input, {validateImage}) {
       const records=[];
-      for(let i=0;i<Number(process.env.FIXTURE_IMAGES);i++) {
+      for(;fixtureImage<Number(process.env.FIXTURE_IMAGES);fixtureImage++) {
+        const i=fixtureImage;
         try { records.push(validateImage(Buffer.from('inert image '+i))); }
         catch { records.push({failure:true}); }
       }
