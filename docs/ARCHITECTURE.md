@@ -2674,10 +2674,11 @@ and Tier 1 does not decide how unknown files travel with it.
 
 An explicit backup and removal (review and execution) copy every unknown file
 and need only the space for the whole backup (owner decision, November 15,
-2026): the library volume must keep the larger of 1 GiB and 2% of the volume
-free after the saves and settings plus the stored unknown files, or they hold
-instead of truncating. A removal with no unknown files takes no backup and
-checks nothing. The removal review reports the stored unknown bytes as
+2026): when there are unknown files, the library volume must keep the larger
+of 1 GiB and 2% of the volume free after the saves and settings plus the
+stored unknown files, or they hold instead of truncating. A removal with no
+unknown files takes no backup, and an explicit backup of saves alone, checks
+nothing new. The removal review reports the stored unknown bytes as
 `PortRemovalPreview.unknown_file_bytes` and binds them into its fingerprint;
 Desktop and the CLI say how much those files take in the backup, which stays
 until the player deletes it. The caps of 1,024 files, 16 MiB in one file and

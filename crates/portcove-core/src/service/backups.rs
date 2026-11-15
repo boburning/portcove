@@ -756,12 +756,15 @@ impl PortcoveService {
         };
         let unknown = selection.files;
         let unknown_duplicates = selection.duplicates;
-        if matches!(
-            unknown_scope,
-            UnknownFileScope::Explicit | UnknownFileScope::Removal
-        ) {
-            // The whole backup must fit: saves and settings as well as the
-            // unknown files it stores.
+        if !unknown.is_empty()
+            && matches!(
+                unknown_scope,
+                UnknownFileScope::Explicit | UnknownFileScope::Removal
+            )
+        {
+            // Uncapped unknown files need room: the whole backup must fit,
+            // saves and settings as well as the unknown files it stores. A
+            // backup of saves alone keeps its earlier behaviour.
             let data_bytes = if source_exists {
                 unknown_files::tree_bytes(&source)?
             } else {

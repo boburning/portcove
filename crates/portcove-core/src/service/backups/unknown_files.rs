@@ -70,7 +70,7 @@ pub(crate) fn require_space(
     match space_shortfall(bytes, available, total) {
         None => Ok(()),
         Some(required) => Err(PortcoveError::conflict(
-            "There isn't enough free space for this backup. This operation stopped and every file stayed in place. Free up space on the drive that holds your Portcove library, then try again.",
+            "There isn't enough free space to back up this game's files first. This operation stopped and every file stayed in place. Free up space on the drive that holds your Portcove library, then try again.",
         )
         .detail("unknown_file_count", files.len().to_string())
         .detail("backup_bytes", bytes.to_string())

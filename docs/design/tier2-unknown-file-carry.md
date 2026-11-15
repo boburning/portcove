@@ -409,8 +409,9 @@ only:
   players couldn't browse.)
 - **The space check.** Owner decision, November 15, 2026: removal and explicit
   backups have no caps and need only the free space for what they store (the
-  same reserve as section 7); automatic snapshots keep Tier 1's caps. The check
-  counts stored copies and their bytes. Only copies with the same shared path
+  same reserve as section 7); automatic snapshots and the legacy Ghostship
+  recovery snapshot keep Tier 1's caps. When there are unknown files, the check
+  counts the saves and settings plus the stored copies. Only copies with the same shared path
   and size are hashed. Each stored copy is
   re-hashed after copying, and each collapsed copy's source afterwards, so no
   copy changes unseen during the backup. A write after the backup and before
