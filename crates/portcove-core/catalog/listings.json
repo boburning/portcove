@@ -42117,7 +42117,7 @@
           },
           {
             "title": "Start the managed Linux AppImage",
-            "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and its own SDL2 libraries. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
+            "instruction": "Install the stable x86-64 AppImage in Portcove and choose Play. Your Linux system needs AppImage support. The package includes the freeware resources and SDL2. The v0.8.6 AppImage also needs your system’s libjack.so.0 and libpipewire-0.3.so.0. Use your distribution’s packages if Play reports either library missing. For a custom OpenOMF override or alternate resource set, keep a separately prepared copy."
           },
           {
             "title": "Prepare the upstream Apple Silicon package",
