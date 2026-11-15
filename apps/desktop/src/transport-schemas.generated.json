@@ -2510,6 +2510,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -3215,6 +3225,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -10625,6 +10671,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -10745,6 +10801,42 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -17097,6 +17189,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -17170,6 +17272,42 @@
           "library_root",
           "volume_total_bytes",
           "volume_available_bytes"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -17889,6 +18027,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -17898,6 +18046,42 @@
           "channel",
           "published_at",
           "asset"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -18503,6 +18687,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -18645,6 +18839,42 @@
           "version",
           "notes",
           "notes_truncated"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -20196,6 +20426,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -20235,6 +20475,42 @@
           "library_root",
           "volume_total_bytes",
           "volume_available_bytes"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }
@@ -28411,6 +28687,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -29116,6 +29402,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -29883,6 +30205,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -29932,6 +30264,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UserSelectedLaunch": {
         "additionalProperties": false,
@@ -45024,6 +45392,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -45154,6 +45532,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -45377,6 +45791,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -45507,6 +45931,42 @@
           "automatic"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -68227,6 +68687,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -68932,6 +69402,42 @@
         "required": [
           "checked_at",
           "check"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -70177,6 +70683,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70222,6 +70738,42 @@
           "adopted_tree"
         ],
         "type": "string"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
+        ],
+        "type": "object"
       },
       "UpstreamActivity": {
         "description": "What the release provider reported about the upstream repository while Portcove\nwas already reading it to select a release. A maintenance observation only: it\ngrants or revokes no release, update, install or catalog authority, and it is\nnot the catalog's reviewed `upstream_status` declaration.",
@@ -70433,6 +70985,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70553,6 +71115,42 @@
           "required_runtime",
           "update_available",
           "release"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       },
@@ -70837,6 +71435,16 @@
               "null"
             ]
           },
+          "uploader_continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/UploaderContinuityRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "version": {
             "type": "string"
           }
@@ -70846,6 +71454,42 @@
           "channel",
           "published_at",
           "asset"
+        ],
+        "type": "object"
+      },
+      "UploaderContinuityBasis": {
+        "enum": [
+          "predates-baseline",
+          "repository-owner",
+          "project-automation",
+          "established",
+          "accepted",
+          "not-observed"
+        ],
+        "type": "string"
+      },
+      "UploaderContinuityRecord": {
+        "properties": {
+          "basis": {
+            "$ref": "#/$defs/UploaderContinuityBasis"
+          },
+          "uploaded_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploader_id": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "basis"
         ],
         "type": "object"
       }

@@ -110,6 +110,7 @@ fn fixture() -> Fixture {
                 size: 42,
                 sha256: "a".repeat(64),
             },
+            uploader_continuity: None,
         }),
     });
     let library = crate::Library::open(temporary.path().join("library")).unwrap();
@@ -601,6 +602,7 @@ async fn pinned_real_sm64_relationships_stay_independent_and_sparse_without_fabr
                 size: asset["bytes"].as_u64().unwrap(),
                 sha256: asset["downloaded_sha256"].as_str().unwrap().into(),
             },
+            uploader_continuity: None,
         }),
     });
     let temporary = tempfile::tempdir().unwrap();

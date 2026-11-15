@@ -793,6 +793,7 @@ mod tests {
                     size: bytes.len() as u64,
                     sha256,
                 },
+                uploader_continuity: None,
             }
         }
     }
@@ -2312,6 +2313,7 @@ mod tests {
                                 size: 42,
                                 sha256: "ab".repeat(32),
                             },
+                            uploader_continuity: None,
                         },
                         output_root: library.versions_dir().join(id),
                         activate: true,

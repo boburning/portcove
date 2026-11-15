@@ -2115,6 +2115,37 @@ automatic progression and keep their own identity checks. GitLab release links
 and generic-package rows carry no per-file uploader, and a release author is not
 the file uploader, so GitLab selection remains unevaluated.
 
+The guard also applies when a build becomes active from stored facts rather than
+a resolution made just then (#6209). A GitHub resolution records its decision
+(the basis, the uploader's account ID and the asset's `created_at`) with the
+resolved release, and the install manifest keeps it with the build, bound by the
+manifest's registered hash. Before activating a staged build, rolling back to a
+retained build or recovering an interrupted activation or publication, Core
+applies that recorded decision again:
+
+- a build installed before the baseline keeps its earlier behavior;
+- a recorded decision stands, except that an accepted uploader must still be in
+  the current catalog's `release.accepted_uploaders`, so narrowing the list also
+  holds builds staged under it (`provider_uploader_not_continuous`);
+- a manifest written by a version that records these facts but carries no
+  decision (a curated record, or a build no GitHub resolution produced) needs
+  none;
+- a build installed after the baseline whose manifest predates recording may
+  have been staged by a version without the guard. Its activation and its
+  recovery are held (`provider_uploader_not_observed`) unless a resolution of the
+  same artifact made just then supplies the decision, as Update does when it
+  finds the build already staged. Restoring such a previous version is held,
+  which the rollback assessment shows before the action is chosen.
+
+Other providers and curated, direct, user-prepared and managed-build routes are
+not upstream progression and are unaffected, as is the active build. A build
+this version adopts from local files records the marker; an adopted tree with a
+separately recorded runtime is also recognized. A manifest rewrite or prepared
+derivative carries the original's recorded facts and install time and never
+adds a marker the original lacked, so a derivative of a pre-baseline build stays
+pre-baseline. Rolling back to a held build reports `review_required`. A held
+recovery keeps its journal for review, as an acquisition hold does.
+
 To accept a new uploader, review the account and the held release on the
 canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`
 to the integration's `release.accepted_uploaders`. The field is valid only on

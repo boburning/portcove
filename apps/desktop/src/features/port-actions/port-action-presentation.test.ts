@@ -3,6 +3,7 @@ import { expect, it } from "vite-plus/test";
 import { installedLaunchStatus, portStatus } from "../../test-fixtures";
 import type { PortStatus } from "../../types";
 import {
+  capabilityActionReason,
   catalogSetupPresentation,
   installedCardInputPresentation,
   hasPendingSetupAction,
@@ -166,6 +167,28 @@ it.each(
     blocked: true,
     reason:
       "Portcove couldn’t check whether you can restore the previous version. Refresh to check again.",
+  });
+});
+
+it("names the unconfirmed uploader in the capability panel", () => {
+  expect(
+    capabilityActionReason({ action: "rollback", availability: "held", reason: "review_required" }),
+  ).toBe("Portcove can’t confirm who uploaded the previous version.");
+});
+
+it("explains a rollback held for an unconfirmed uploader", () => {
+  expect(
+    portActionPresentation(
+      {
+        ...portStatus(),
+        port_actions: [{ action: "rollback", availability: "held", reason: "review_required" }],
+      },
+      "rollback",
+    ),
+  ).toEqual({
+    blocked: true,
+    reason:
+      "Restore previous version is on hold because Portcove can’t confirm who uploaded that version.",
   });
 });
 

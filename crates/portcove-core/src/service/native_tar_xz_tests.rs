@@ -75,6 +75,7 @@ fn release(version: &str) -> (ResolvedRelease, crate::test_http::HttpServer) {
                 size,
                 sha256: digest,
             },
+            uploader_continuity: None,
         },
         server,
     )

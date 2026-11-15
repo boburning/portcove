@@ -2352,6 +2352,38 @@ pub struct ResolvedRelease {
     pub channel: ReleaseChannel,
     pub published_at: Option<String>,
     pub asset: ReleaseAsset,
+    // Why a GitHub release resolution followed this asset's uploader, recorded
+    // with the build so activation, rollback and recovery can apply the same
+    // decision later. Absent for every other provider and for curated releases.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploader_continuity: Option<UploaderContinuityRecord>,
+}
+
+// Why uploader continuity allowed a GitHub asset, as observed when it was resolved.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "kebab-case")]
+pub enum UploaderContinuityBasis {
+    // Uploaded before the 2026-11-14 baseline.
+    PredatesBaseline,
+    RepositoryOwner,
+    ProjectAutomation,
+    // The uploader also published this project before the baseline.
+    Established,
+    // A maintainer reviewed and accepted this uploader for the integration.
+    Accepted,
+    // The provider response carried no uploader facts (UNKNOWN).
+    NotObserved,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct UploaderContinuityRecord {
+    pub basis: UploaderContinuityBasis,
+    // GitHub account ID of the uploader, when one was observed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploader_id: Option<u64>,
+    // The asset's provider `created_at`, when observed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uploaded_at: Option<String>,
 }
 
 /// What one check of one game is expected to ask of its release provider, computed

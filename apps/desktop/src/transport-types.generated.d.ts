@@ -67,6 +67,8 @@ export type AdoptionBatchItemOutcome = "copied" | "changed" | "failed";
  */
 export type GameUpdateAcquisitionPhase = "acquiring" | "verifying" | "acquired" | "attention_required";
 export type Platform = "windows-x86-64" | "linux-x86-64" | "macos-x86-64" | "macos-aarch64";
+export type UploaderContinuityBasis =
+  "predates-baseline" | "repository-owner" | "project-automation" | "established" | "accepted" | "not-observed";
 export type DefinitionEligibilityOutcome = "eligible" | "hold" | "escalate";
 export type DefinitionEligibilityReason =
   | "mandatory_checks_passed"
@@ -1654,6 +1656,7 @@ export interface ResolvedRelease {
   asset: ReleaseAsset;
   channel: ReleaseChannel;
   published_at: string | null;
+  uploader_continuity?: UploaderContinuityRecord | null;
   version: string;
   [k: string]: unknown;
 }
@@ -1662,6 +1665,12 @@ export interface ReleaseAsset {
   sha256: string;
   size: number;
   url: string;
+  [k: string]: unknown;
+}
+export interface UploaderContinuityRecord {
+  basis: UploaderContinuityBasis;
+  uploaded_at?: string | null;
+  uploader_id?: number | null;
   [k: string]: unknown;
 }
 /**

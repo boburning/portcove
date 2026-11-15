@@ -76,6 +76,7 @@ fn release(
                 size,
                 sha256,
             },
+            uploader_continuity: None,
         },
         server,
     )

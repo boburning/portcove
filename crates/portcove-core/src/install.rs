@@ -87,6 +87,9 @@ pub struct InstallQualification {
     shared_preferences: Option<crate::managed_shared_preferences::Acceptance>,
     native_build_recipe: Option<crate::CartridgeBuildRecipe>,
     acquisition: Option<crate::ScopedResolvedRelease>,
+    /// Carried forward from an existing manifest when it is rewritten or derived,
+    /// so a rewrite never adds facts the original did not record.
+    retained_acquisition: Option<crate::release::RecordedAcquisition>,
     retained_contract: Option<crate::installed_contract::InstalledContract>,
     platform: Platform,
     requires_tar_xz: bool,
@@ -245,6 +248,7 @@ impl InstallQualification {
             shared_preferences: None,
             native_build_recipe: port.release.managed_build.get(&platform).copied(),
             acquisition: None,
+            retained_acquisition: None,
             retained_contract: None,
             platform,
             requires_tar_xz: port.release.requires_tar_xz(platform),
@@ -501,6 +505,18 @@ struct InstallManifest {
     artifact: ArtifactIdentity,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     github_artifact_identity: Option<crate::definition_acquisition::GithubArtifactIdentity>,
+    /// The uploader-continuity decision of the GitHub resolution this build came
+    /// from, applied again before it becomes active (#6209).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    uploader_continuity: Option<crate::UploaderContinuityRecord>,
+    /// Written by a Portcove version that records `uploader_continuity` whenever
+    /// a GitHub resolution applied it; absent on earlier manifests (#6209).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    acquisition_facts_recorded: bool,
+    /// When a derived build's original artifact was installed; a derivative keeps
+    /// the original's install time for the uploader-continuity baseline.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    acquired_at: Option<i64>,
     #[serde(default)]
     runtime: Option<RuntimeIdentity>,
     #[serde(default)]
@@ -3079,6 +3095,12 @@ impl Installer {
         if let Some(runtime) = &install.runtime {
             qualification.runtime_origin = runtime.origin;
         }
+        qualification.retained_acquisition = Some(crate::release::RecordedAcquisition {
+            facts_recorded: manifest.acquisition_facts_recorded,
+            uploader_continuity: manifest.uploader_continuity,
+            adopted_tree: false,
+            acquired_at: manifest.acquired_at.or(Some(install.installed_at)),
+        });
         Ok(qualification)
     }
 
@@ -3353,6 +3375,9 @@ mod legacy_dkr_tests {
             version: artifact.version.clone(),
             artifact: artifact_identity.clone(),
             github_artifact_identity: None,
+            uploader_continuity: None,
+            acquisition_facts_recorded: false,
+            acquired_at: None,
             runtime: None,
             runtime_root: None,
             selected_executable: artifact.executable.clone(),
@@ -3848,6 +3873,25 @@ fn write_manifest_with_shape(
             .acquisition
             .as_ref()
             .and_then(|proof| proof.github_identity.clone()),
+        uploader_continuity: match &qualification.retained_acquisition {
+            Some(retained) => retained.uploader_continuity.clone(),
+            None => qualification
+                .acquisition
+                .as_ref()
+                .and_then(|proof| proof.release.uploader_continuity.clone()),
+        },
+        // A fresh qualification is written by this version: its acquisition's
+        // release carries the decision whenever a GitHub resolution applied one.
+        // A reviewed legacy release is a Core plan re-made inside the port lock,
+        // and the review digest covers its decision.
+        acquisition_facts_recorded: qualification
+            .retained_acquisition
+            .as_ref()
+            .is_none_or(|retained| retained.facts_recorded),
+        acquired_at: qualification
+            .retained_acquisition
+            .as_ref()
+            .and_then(|retained| retained.acquired_at),
         selected_executable: selected_relative.clone(),
         mutable_paths,
         mutable_file_patterns: qualification.file_patterns(root, &selected)?,
@@ -4083,6 +4127,22 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
         PortcoveError::verification("runtime working directory escaped its installation")
     })?;
     crate::runtime_path_policy::check_working_directory(port, platform, &target.join(relative))
+}
+
+/// How a registered build was obtained, read from its hash-verified manifest.
+pub(crate) fn recorded_acquisition(
+    install: &InstallRecord,
+) -> Result<crate::release::RecordedAcquisition> {
+    let manifest = verified_manifest(install)?;
+    Ok(crate::release::RecordedAcquisition {
+        facts_recorded: manifest.acquisition_facts_recorded,
+        uploader_continuity: manifest.uploader_continuity,
+        acquired_at: manifest.acquired_at,
+        adopted_tree: install
+            .runtime
+            .as_ref()
+            .is_some_and(|runtime| runtime.origin == RuntimeOrigin::AdoptedTree),
+    })
 }
 
 fn verified_manifest(install: &InstallRecord) -> Result<InstallManifest> {
@@ -5698,6 +5758,7 @@ mod tests {
                         .to_uppercase(),
                     url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
                 },
+                uploader_continuity: None,
             },
         };
         let failure = installer
@@ -5744,6 +5805,7 @@ mod tests {
                     sha256: crate::managed_shared_preferences::SHA.to_uppercase(),
                     url: format!("http://{}/runtime.zip", server.local_addr().unwrap()),
                 },
+                uploader_continuity: None,
             },
         };
         let installer = Installer::with_network_bounds(
@@ -8433,6 +8495,7 @@ mod tests {
                     size: 1,
                     sha256: "0".repeat(64),
                 },
+                uploader_continuity: None,
             },
             activate: true,
             managed: None,
@@ -8730,6 +8793,7 @@ mod tests {
                     size: 1,
                     sha256: "0".repeat(64),
                 },
+                uploader_continuity: None,
             },
             activate: true,
             managed: None,
@@ -8808,6 +8872,7 @@ mod tests {
                     size: archive_bytes.len() as u64,
                     sha256,
                 },
+                uploader_continuity: None,
             },
             activate: true,
             managed: None,
@@ -9017,6 +9082,7 @@ mod tests {
                         size: archive_bytes.len() as u64,
                         sha256: hex::encode(Sha256::digest(&archive_bytes)),
                     },
+                    uploader_continuity: None,
                 },
                 activate: true,
                 managed: None,
@@ -9134,6 +9200,7 @@ mod tests {
                     size: archive_bytes.len() as u64,
                     sha256,
                 },
+                uploader_continuity: None,
             },
             activate: true,
             managed: None,
