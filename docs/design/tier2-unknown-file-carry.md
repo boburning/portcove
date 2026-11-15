@@ -410,8 +410,9 @@ only:
 - **The caps.** They count stored copies and their bytes, and are checked
   first over one copy per (shared path, size), so hashing stays bounded. Only
   copies with the same shared path and size are hashed. Each stored copy is
-  re-hashed after copying, and each collapsed copy's source afterwards, so the
-  bytes removal deletes are always the bytes kept. The removal review applies
+  re-hashed after copying, and each collapsed copy's source afterwards, so no
+  copy changes unseen during the backup. A write after the backup and before
+  removal moves the folders is not covered, as in Tier 1. The removal review applies
   the same collapsed caps.
 - **The shared path** comes from the selected executable, as verification
   reads it. A version whose root can't be read keeps its own keys and never

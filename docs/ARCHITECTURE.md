@@ -2658,8 +2658,9 @@ recorded as `unknown_files_v2`, whose `file_count` counts every copy and
 `stored_file_count` what was stored; a backup where nothing collapsed keeps
 `unknown_files_v1`. An older reader ignores v2 and shows no unknown files for
 that backup. Each stored copy is re-hashed after copying, and each collapsed
-copy's game-folder file is re-hashed afterwards too, so removal never deletes
-bytes the backup doesn't hold. The caps, in the removal review and in
+copy's game-folder file is re-hashed afterwards too, so no copy changes
+unseen during the backup. A write after the backup and before removal moves the
+folders is not covered, as in Tier 1. The caps, in the removal review and in
 execution, count stored copies, so the copies Tier 2 places in several versions
 do not reach them. They are checked over one copy per (path, size) before any
 hashing. A backup whose `data/` is
