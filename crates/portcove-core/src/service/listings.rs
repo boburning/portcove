@@ -27,6 +27,7 @@ impl PortcoveService {
         // Retain strict project/artwork links even if a separate directory corrects its own display.
         if self.catalog.ports().iter().any(|port| {
             port.project_url == url
+                || release_page_url(port, url)
                 || repository_updates_url(&port.project_url).as_deref() == Some(url)
                 || crate::game_recommendations::normalize(port, u64::MAX)
                     .evidence
@@ -592,4 +593,24 @@ mod resource_url_tests {
             assert!(!service.is_reviewed_resource_url(url).unwrap(), "{url}");
         }
     }
+}
+
+/// A single release page of the port's own GitHub or GitLab release repository on
+/// its public web host, named by a plain tag. Any other path, host, query,
+/// fragment or encoded tag is refused.
+fn release_page_url(port: &crate::PortDefinition, url: &str) -> bool {
+    let Some(segments) = crate::release_notes::repository_segments(&port.release.repository) else {
+        return false;
+    };
+    let prefix = match port.release.provider {
+        crate::ReleaseSource::Github => {
+            format!("https://github.com/{}/releases/tag/", segments.join("/"))
+        }
+        crate::ReleaseSource::Gitlab => {
+            format!("https://gitlab.com/{}/-/releases/", segments.join("/"))
+        }
+        _ => return false,
+    };
+    url.strip_prefix(&prefix)
+        .is_some_and(crate::release_notes::linkable_tag)
 }

@@ -1412,7 +1412,7 @@ impl ReleaseProvider for GithubReleaseProvider {
                 beta: is_beta_release(release),
             })
             .collect::<Vec<_>>();
-        Some(crate::release_notes::between(
+        let mut notes = crate::release_notes::between(
             &listed,
             &crate::release_notes::NotesRequest {
                 channel,
@@ -1421,7 +1421,9 @@ impl ReleaseProvider for GithubReleaseProvider {
                 offered,
             },
             releases_url,
-        ))
+        );
+        crate::release_notes::link_entries(&mut notes, Some("tag"));
+        Some(notes)
     }
 }
 

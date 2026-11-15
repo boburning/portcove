@@ -105,6 +105,22 @@ impl PortcoveService {
             let reviewed = self.is_reviewed_resource_url(url);
             keep_reviewed_link(&mut notes, reviewed);
         }
+        // Each release page is checked on its own; without an openable list, no
+        // release page is offered either.
+        for entry in &mut notes.entries {
+            let reviewed = match (&notes.releases_url, &entry.url) {
+                (Some(_), Some(url)) => self.is_reviewed_resource_url(url),
+                _ => Ok(false),
+            };
+            match reviewed {
+                Ok(true) => {}
+                Ok(false) => entry.url = None,
+                Err(error) => {
+                    tracing::warn!(%error, "could not check a release page link; omitting it");
+                    entry.url = None;
+                }
+            }
+        }
         Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
     }
 
@@ -517,7 +533,7 @@ mod tests {
                 .repository
                 .as_deref()
                 .unwrap_or(&port.release.repository);
-            Some(crate::UpdateReleaseNotes {
+            let mut notes = crate::UpdateReleaseNotes {
                 releases_url: Some(format!("https://github.com/{repository}/releases")),
                 coverage: if self.entries.is_empty() {
                     crate::UpdateReleaseNotesCoverage::Unavailable
@@ -525,7 +541,9 @@ mod tests {
                     crate::UpdateReleaseNotesCoverage::Complete
                 },
                 entries: self.entries.clone(),
-            })
+            };
+            crate::release_notes::link_entries(&mut notes, Some("tag"));
+            Some(notes)
         }
     }
 
@@ -536,6 +554,7 @@ mod tests {
             published_at: None,
             notes: "Fixes".into(),
             notes_truncated: false,
+            url: None,
         }
     }
 
@@ -618,6 +637,41 @@ mod tests {
                 .is_reviewed_resource_url(notes.releases_url.as_deref().unwrap())
                 .unwrap()
         );
+        // Each release page under the same repository is a reviewed handoff too.
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2")
+        );
+        // A tag that is not plain keeps its notes but gets no release page.
+        let slashed = crate::UpdateReleaseNotesEntry {
+            version: "release/v2".into(),
+            ..notes_entry()
+        };
+        let slashed_notes = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, None, vec![slashed]),
+        )
+        .plan_game_update(PORT, true)
+        .await
+        .unwrap()
+        .release_notes
+        .unwrap();
+        assert_eq!(slashed_notes.entries[0].url, None);
+        for refused in [
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2/../../../other",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2?x=1",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2#notes",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v%2F2",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/",
+            "https://github.com/Other/Zelda64Recomp/releases/tag/v2",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/download/v2/x.zip",
+            "http://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2",
+        ] {
+            assert!(
+                !reviewed.is_reviewed_resource_url(refused).unwrap(),
+                "{refused}"
+            );
+        }
         // A link Desktop would refuse is dropped; the notes remain.
         let foreign = reviewed_repository_service(
             &service.library,
@@ -630,6 +684,7 @@ mod tests {
             .release_notes
             .unwrap();
         assert_eq!(notes.releases_url, None);
+        // The foreign repository's release pages are dropped with its list.
         assert_eq!(notes.entries, [notes_entry()]);
         // Neither notes nor an openable link: nothing to show.
         let empty = reviewed_repository_service(

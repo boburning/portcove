@@ -6,8 +6,8 @@ type ReleaseNotes = NonNullable<GameUpdatePlan["release_notes"]>;
 
 /**
  * Upstream release notes from Core's update review. Notes are untrusted project
- * text rendered as escaped plain text. The only link is the project's release list,
- * which Core includes only when Portcove may open it.
+ * text rendered as escaped plain text. The only links are the project's release list
+ * and each release's page, which Core includes only when Portcove may open them.
  */
 export function UpdateReleaseNotes({
   notes,
@@ -96,10 +96,17 @@ export function UpdateReleaseNotes({
                 )}
                 {entry.notes_truncated && (
                   <p className="mb-1 text-[length:var(--text-sm)]">
-                    {notes.releases_url
-                      ? "These notes are shortened. The full notes are on the project’s release page."
-                      : "These notes are shortened."}
+                    {entry.url
+                      ? "These notes are shortened. The full notes are on this release’s page."
+                      : notes.releases_url
+                        ? "These notes are shortened. The full notes are on the project’s release page."
+                        : "These notes are shortened."}
                   </p>
+                )}
+                {entry.url && (
+                  <ExternalLink href={entry.url}>
+                    Release page for <bdi>{entry.version}</bdi>
+                  </ExternalLink>
                 )}
               </li>
             );

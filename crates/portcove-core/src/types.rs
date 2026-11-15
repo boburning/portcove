@@ -2177,6 +2177,11 @@ pub struct UpdateReleaseNotesEntry {
     /// Normalized plain text; may contain unrendered Markdown or HTML source.
     pub notes: String,
     pub notes_truncated: bool,
+    /// This release's page. Present only when Desktop may open it: it is built by
+    /// Portcove under the port's own release repository from a plain tag and passes
+    /// the reviewed-link check.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

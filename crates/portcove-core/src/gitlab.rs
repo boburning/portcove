@@ -631,7 +631,7 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 beta: is_beta_tag(&release.tag_name),
             })
             .collect::<Vec<_>>();
-        Some(crate::release_notes::between(
+        let mut notes = crate::release_notes::between(
             &listed,
             &crate::release_notes::NotesRequest {
                 channel,
@@ -640,7 +640,9 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 offered,
             },
             releases_url,
-        ))
+        );
+        crate::release_notes::link_entries(&mut notes, None);
+        Some(notes)
     }
 }
 

@@ -149,7 +149,35 @@ fn entry(release: &ListedRelease<'_>) -> Option<UpdateReleaseNotesEntry> {
         published_at: release.published_at.and_then(timestamp),
         notes,
         notes_truncated,
+        url: None,
     })
+}
+
+/// A tag that a release page link may name: plain characters only, so the link
+/// cannot add path segments, encoded characters, a query or a fragment.
+pub(crate) fn linkable_tag(tag: &str) -> bool {
+    (1..=128).contains(&tag.len())
+        && tag != "."
+        && tag != ".."
+        && tag
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.+".contains(&byte))
+}
+
+/// Adds each entry's release page under `releases_url`: `<list>/tag/<tag>` for
+/// GitHub and `<list>/<tag>` for GitLab. Entries whose tag is not plain keep no link.
+pub(crate) fn link_entries(notes: &mut UpdateReleaseNotes, tag_segment: Option<&str>) {
+    let Some(list) = notes.releases_url.clone() else {
+        return;
+    };
+    for entry in &mut notes.entries {
+        entry.url = linkable_tag(&entry.version)
+            .then(|| match tag_segment {
+                Some(segment) => web_url(&list, &[segment, entry.version.as_str()]),
+                None => web_url(&list, &[entry.version.as_str()]),
+            })
+            .flatten();
+    }
 }
 
 /// Accepts only a bounded RFC 3339-shaped timestamp; anything else is absent.
@@ -323,6 +351,65 @@ mod tests {
             .iter()
             .map(|entry| entry.version.as_str())
             .collect()
+    }
+
+    #[test]
+    fn release_page_links_name_only_plain_tags() {
+        assert!(linkable_tag("v1.2.3"));
+        assert!(linkable_tag("2026-11-15_nightly+1"));
+        for tag in [
+            "",
+            ".",
+            "..",
+            "release/v1",
+            "v1%2F2",
+            "v1?x",
+            "v1#x",
+            "v 1",
+            "v1\\x",
+        ] {
+            assert!(!linkable_tag(tag), "{tag}");
+        }
+        let mut notes = UpdateReleaseNotes {
+            releases_url: Some("https://github.com/owner/name/releases".into()),
+            coverage: Coverage::Complete,
+            entries: vec![
+                entry(&ListedRelease {
+                    tag: "v1+build",
+                    title: None,
+                    published_at: None,
+                    notes: "",
+                    selectable: true,
+                    beta: false,
+                })
+                .unwrap(),
+                entry(&ListedRelease {
+                    tag: "nested/v1",
+                    title: None,
+                    published_at: None,
+                    notes: "",
+                    selectable: true,
+                    beta: false,
+                })
+                .unwrap(),
+            ],
+        };
+        link_entries(&mut notes, Some("tag"));
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://github.com/owner/name/releases/tag/v1+build")
+        );
+        assert_eq!(notes.entries[1].url, None);
+        notes.releases_url = Some("https://gitlab.com/group/name/-/releases".into());
+        link_entries(&mut notes, None);
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://gitlab.com/group/name/-/releases/v1+build")
+        );
+        notes.releases_url = None;
+        notes.entries[0].url = None;
+        link_entries(&mut notes, Some("tag"));
+        assert_eq!(notes.entries[0].url, None);
     }
 
     #[test]

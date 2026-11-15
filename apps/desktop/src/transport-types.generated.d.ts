@@ -4161,6 +4161,12 @@ export interface UpdateReleaseNotesEntry {
   published_at?: string | null;
   title?: string | null;
   /**
+   * This release's page. Present only when Desktop may open it: it is built by
+   * Portcove under the port's own release repository from a plain tag and passes
+   * the reviewed-link check.
+   */
+  url?: string | null;
+  /**
    * The release tag, normalized for display.
    */
   version: string;

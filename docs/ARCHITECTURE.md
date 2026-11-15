@@ -3469,12 +3469,17 @@ Notes, titles and versions are untrusted upstream text. Core removes complete
 HTML comments, control characters and bidirectional or invisible formatting
 characters (zero-width joiners stay), keeps at most one blank line in a row,
 bounds every value and drops malformed timestamps; Desktop renders the text
-escaped, with no Markdown, HTML or embedded links. The only link is the
-project's release list page, built by Core from the provider origin and
-repository and kept only when it passes the reviewed-link check that Desktop
-applies before opening any URL; if that check cannot complete, the link is
-dropped and the review continues. Per-release links would need a reviewed
-allowlist change. An uncached or unlisted offered release yields no entries;
+escaped, with no Markdown, HTML or embedded links. The only links are the
+project's release list page and each release's page, built by Core from the
+provider origin and repository and kept only when they pass the reviewed-link
+check that Desktop applies before opening any URL; if that check cannot complete,
+the link is dropped and the review continues. A release page is offered only for
+a plain tag (ASCII letters, digits, `-`, `_`, `.`, `+`), and only while the release
+list itself is openable. The reviewed-link check accepts exactly
+`https://github.com/<repository>/releases/tag/<tag>` or
+`https://gitlab.com/<repository>/-/releases/<tag>` for a cataloged port's own
+release repository and such a tag; any other path, host, query, fragment or
+encoded tag is refused. An uncached or unlisted offered release yields no entries;
 with no entries and no openable link the review carries no value, as do direct
 manifest and user-prepared ports. The notes are excluded from `plan_sha256`,
 so edited upstream text never invalidates a reviewed update.
