@@ -32842,12 +32842,6 @@
         ],
         "warnings": [
           "The Linux system package can place gamedata in a system-owned directory. Use the writable portable copy for saving game progress."
-        ],
-        "references": [
-          {
-            "title": "Original versions and credits",
-            "url": "https://advsys.net/ken/klab.htm"
-          }
         ]
       }
     },
