@@ -1241,6 +1241,7 @@ void test("a Gone image found by a later operation withdraws an earlier operatio
   assert.equal(result.metrics.fallback, 421);
   assert.equal(result.metrics.reused, 0);
   assert.deepEqual(result.gone_image_ids, ["coexisting"]);
+  assert.equal(result.workset.invalidated_port_ids.length, 420);
 });
 
 void test("operations over a large workset refuse unknown refresh and duplicate identities", async () => {
