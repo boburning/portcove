@@ -1275,18 +1275,24 @@ Identity is exact, so an original that carries a 512-byte copier header is a dif
 and is refused at registration; the header-aware representation below applies only to
 copied SNES runtime files, not to ROM patch inputs.
 
+An indexed definition that declares `runtime_rom_patch` must require
+`staged-source-portable` capability version 33 ([definition
+delivery](DEFINITION-DELIVERY.md)); the declaration joins the installed compatibility
+identity only when set. No shipped definition declares it yet; the first candidate
+consumer is tracked on its port issue.
+
 ### SNES copier headers
 
 Some SNES dumps start with a 512-byte copier header. A source representation of kind
 `snes-copier-header-optional` identifies a raw SNES dump by its content: a file whose
 length is 512 bytes more than a multiple of 1024 (and at most 64 MiB) is identified by the
 bytes after those 512, and any other length is identified whole. Its identities use the
-`snes-headerless-content` scope. That digest pair is computed for raw files only and is
-recorded only when a header was present, so matching and stored facts for every other
-file and profile are unchanged; a header inside a ZIP is not recognized. The header's
-bytes are never interpreted, and exactly one header is ever skipped. A library that has
-registered a headered dump records the new scope, which an older Portcove version cannot
-read.
+`snes-headerless-content` scope, and only this kind reads it, so matching for every other
+profile is unchanged; a header inside a ZIP is not recognized. The header's bytes are never
+interpreted, and exactly one header is ever skipped. Registration records that digest pair
+for any raw file whose length shows a header, whatever its profile; other files' stored
+facts are unchanged. A library holding such a record uses a digest scope that an older
+Portcove version cannot read.
 
 A port whose source profile uses this kind must use the `snes-headerless` materialization,
 and that materialization requires it. It reads the registered original (following a
