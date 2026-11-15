@@ -21,6 +21,7 @@ import { desktopApi } from "../api";
 import {
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type Dispatch,
@@ -1150,10 +1151,11 @@ function SourceHealth({
   openEvidence?: ((evidenceId: string) => void) | undefined;
 }) {
   const sourceHeading = useRef<HTMLHeadingElement>(null);
-  const activeSection = useRef(active);
+  const visit = useMemo(() => (active ? Symbol() : undefined), [active]);
+  const activeVisit = useRef(visit);
   const pendingRemoval = useRef<{ generation: number; profileId: string } | undefined>(undefined);
   useLayoutEffect(() => {
-    activeSection.current = active;
+    activeVisit.current = visit;
     const removal = pendingRemoval.current;
     if (!removal) return;
     if (!active || removal.generation !== generation) {
@@ -1168,11 +1170,11 @@ function SourceHealth({
     }
     pendingRemoval.current = undefined;
     if (document.activeElement === document.body) sourceHeading.current?.focus();
-  }, [active, generation, requirementsState, sources]);
+  }, [active, generation, requirementsState, sources, visit]);
 
   const refreshAfterRemoval = async (profileId: string) => {
     const removal = { generation, profileId };
-    if (activeSection.current) pendingRemoval.current = removal;
+    if (visit && activeVisit.current === visit) pendingRemoval.current = removal;
     try {
       await onAdded?.();
     } catch (error) {

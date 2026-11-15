@@ -326,11 +326,15 @@ it("never commits an old source preview under a new identity", async () => {
   ).toBe(false);
 });
 
-it.each(["lost focus", "another control", "left and returned"] as const)(
+it.each(["lost focus", "another control", "left during refresh", "left during removal"] as const)(
   "settles a saved location removal after %s",
   async (scenario) => {
     vi.spyOn(desktopApi, "previewSourceRemoval").mockResolvedValue(preview);
-    vi.spyOn(desktopApi, "removeSource").mockResolvedValue(preview);
+    let releaseRemoval!: (value: SourceRemovalPreview) => void;
+    const removalReady = new Promise<SourceRemovalPreview>((resolve) => {
+      releaseRemoval = resolve;
+    });
+    vi.spyOn(desktopApi, "removeSource").mockReturnValue(removalReady);
     let releaseRefresh!: () => void;
     const refreshReady = new Promise<void>((resolve) => {
       releaseRefresh = resolve;
@@ -361,14 +365,20 @@ it.each(["lost focus", "another control", "left and returned"] as const)(
     await root.rerender(<Settings />);
     await click("Review saved location removal");
     await click("Remove saved location…");
+    if (scenario !== "left during removal") {
+      await act(async () => releaseRemoval(preview));
+    }
+    if (scenario === "left during refresh" || scenario === "left during removal") {
+      await act(async () => selectCategory("appearance"));
+      await act(async () => selectCategory("game-files"));
+    }
+    if (scenario === "left during removal") {
+      await act(async () => releaseRemoval(preview));
+    }
     const discovery = button("Find required files");
     if (scenario === "another control") {
       discovery.focus();
     } else {
-      if (scenario === "left and returned") {
-        await act(async () => selectCategory("appearance"));
-        await act(async () => selectCategory("game-files"));
-      }
       if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     }
 
