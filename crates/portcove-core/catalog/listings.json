@@ -62866,12 +62866,6 @@
       "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
       "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "vurus-windows-amd64.zip"
-        ],
-        "linux-x86-64": [
-          "vurus-linux.tar.gz"
-        ],
         "macos-x86-64": [
           "vurus-darwin-x86_64.zip"
         ],
@@ -62884,16 +62878,16 @@
         "help_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
         "steps": [
           {
-            "title": "Choose the desktop release",
-            "instruction": "In the release picker, choose desktop release v202610242327-beta and extract the package into a writable folder. Use vurus.exe on Windows x64, or launch.sh on Linux x64 with glibc 2.35 or later, SDL2 and OpenGL. On macOS 15 or later, use the Intel or Apple Silicon archive matching your Mac and run vurus from a terminal. The Mac builds are unsigned."
-          },
-          {
             "title": "Prepare your original game files",
-            "instruction": "Put your owned ISO or single-BIN CUE/BIN next to the player, or use --data with its path or an extracted resource folder. Keep the CUE and its BIN together to import CD audio. When you import a disc image, Vurus prepares data/ beside the executable. An extracted resource folder can be used in place. Keep the original separately. Use --data to choose a different image when a previous import already exists."
+            "instruction": "Copy your owned Vyruz ISO, or a single-BIN CUE with its BIN, beside the Vurus player, then start it. Keep the CUE and BIN together to import CD music, and keep your original separately. On first start Vurus imports the disc into data/ beside the player and reuses that import later, so you can then delete the copied image. To import a different image after a previous import, use --data with its path."
           },
           {
-            "title": "Keep imports and progress when updating",
-            "instruction": "Back up the whole data/ folder, saves/, slot1.vzs, options.cfg, and vz.sco before replacing the player. Keep any external resource folder, separate save or options paths you configured, and any older selected import until you have checked your progress. Keep the previous runtime with its data for recovery."
+            "title": "Use the Mac release",
+            "instruction": "On macOS 15 or later, pick desktop release v202610242327-beta, extract the Intel or Apple Silicon archive matching your Mac into a writable folder, and run vurus from a terminal. The Mac builds are unsigned."
+          },
+          {
+            "title": "Keep imports and progress",
+            "instruction": "Keep data/, saves/, slot1.vzs, options.cfg, vz.sco and benchmark-results/ with the player. Portcove keeps them across managed updates. If you keep your own copy, such as on a Mac, back them up before replacing the player. Keep any resource folder, save file or options file you chose with --data, VURUS_DATA_DIR, --save-file or --options-file."
           }
         ],
         "warnings": [
