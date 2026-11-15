@@ -196,14 +196,15 @@ fn pending_rows_count_only_from_the_same_source() {
 #[test]
 fn an_interrupted_placement_from_this_source_is_portcoves_own() {
     // M1: T holds a's bytes from an interrupted publish, and A had no row.
-    // A changed before the retry: replace Portcove's own placement.
-    assert_eq!(
-        action(
-            "settings.ini",
-            input(Some("2"), None, file("1"), Some(pending_from(A, "1")))
-        ),
-        CarryAction::Replace
+    // A changed before the retry: replace Portcove's own placement. T's row
+    // starts from A's lineage, not the pending row's.
+    let replaced = one(
+        "settings.ini",
+        input(Some("2"), None, file("1"), Some(pending_from(A, "1"))),
+        &CarryExclusions::default(),
     );
+    assert_eq!(replaced.action, CarryAction::Replace);
+    assert_eq!(replaced.target_row, RowChange::Set(present("2", &["2"])));
     // A deleted it before the retry: remove Portcove's own placement.
     let removed = one(
         "settings.ini",
@@ -304,6 +305,19 @@ fn unreadable_copies_are_never_absent_or_replaced() {
     );
     assert_eq!(unreadable_target.action, CarryAction::TargetUnreadable);
     assert_eq!(unreadable_target.target_row, RowChange::Untouched);
+    assert_eq!(unreadable_target.source_row, RowChange::Untouched);
+    let absent_source = one(
+        "save.dat",
+        PathInput {
+            source: SourceCopy::Absent,
+            source_row: Some(present("1", &["1"])),
+            target: TargetCopy::Unreadable,
+            target_row: Some(present("1", &["1"])),
+        },
+        &CarryExclusions::default(),
+    );
+    assert_eq!(absent_source.action, CarryAction::TargetUnreadable);
+    assert_eq!(absent_source.source_row, RowChange::Untouched);
 }
 
 #[test]

@@ -55,7 +55,10 @@ target T, the planner considers the union of:
 
 - A's Tier 1 harmless list from `verify_managed_with_unknown` (`install.rs:2094`),
   re-expressed relative to A's persistence root (`service.rs:6952`); and
-- every path of A's ledger rows (section 2), including paths A no longer has.
+- every path of A's ledger rows (section 2), including paths A no longer has;
+  and
+- every path of T's `pending` rows from A, so that a retry can remove a copy
+  Portcove placed from A before A deleted it (T2-1 review N2).
 
 A file of A outside its persistence root is not a candidate, so a renamed
 wrapper directory (`Game-v1/` → `Game-v2/`) cannot strand a copy in a dead path.
@@ -147,6 +150,8 @@ carried_files(
   state TEXT NOT NULL CHECK(state IN ('pending','present')),
   sha256 TEXT NOT NULL,
   source_install_id TEXT,          -- install the bytes were copied from; NULL if recorded in place
+  replaces_sha256 TEXT,            -- pending only: the present row it displaced
+  replaces_lineage TEXT,           -- pending only: that row's lineage (JSON)
   lineage TEXT NOT NULL,           -- JSON array, <= 8 SHA-256, oldest first, no consecutive
                                    -- duplicates (L1), ends with sha256
   format INTEGER NOT NULL,         -- 1
@@ -250,7 +255,11 @@ Every file write lands in T while A is still active and untouched, so an
 interruption leaves A authoritative. A retry re-plans. A `pending` T row from
 the same A, whose `sha256` equals T's current copy, counts as Portcove's own
 earlier placement and may be replaced. Pending rows never count as lineage when
-T is later a source. Rows written for A in step 4 are true whether or not the
+T is later a source. A `pending` row keeps the `present` row it displaced in
+`replaces_sha256` and `replaces_lineage`, and the planner treats that copy as
+recorded and unchanged. Otherwise a retry after an interruption before publish
+would turn a planned Replace into "keep separately" and drop T's lineage
+(T2-1 review N1). Rows written for A in step 4 are true whether or not the
 pointer change happens: they describe A's copy at that moment, and A is only
 modified while active. The status shows an outcome only while
 `active == to_install_id`.

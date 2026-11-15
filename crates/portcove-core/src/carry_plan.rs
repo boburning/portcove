@@ -427,8 +427,11 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         }
         (SourceCopy::Absent, TargetCopy::Absent) => (CarryAction::Nothing, RowChange::Delete),
     };
+    // An unplanned path keeps A's row, so a later retry still has its lineage.
     let source_row = match action {
-        CarryAction::Excluded(_) => RowChange::Untouched,
+        CarryAction::Excluded(_)
+        | CarryAction::SourceUnreadable
+        | CarryAction::TargetUnreadable => RowChange::Untouched,
         _ => source_row,
     };
     PlannedPath {
