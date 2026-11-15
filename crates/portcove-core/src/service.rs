@@ -6431,11 +6431,21 @@ impl PortcoveService {
         install: &InstallRecord,
         fresh: Option<&crate::UploaderContinuityRecord>,
     ) -> Result<()> {
-        let retained = self.installed_port(install)?;
+        let current = self.catalog.port(&install.port_id).ok();
+        // A build without a retained contract (a manifest older than retained
+        // contracts) is judged by the current catalog's route; a port neither
+        // knows has no GitHub release route to continue.
+        let retained = match self.installed_port(install) {
+            Ok(port) => port,
+            Err(_) => match current {
+                Some(port) => port.clone(),
+                None => return Ok(()),
+            },
+        };
         let recorded = crate::install::recorded_acquisition(install)?;
         crate::release::require_recorded_uploader_continuity(
             &retained,
-            self.catalog.port(&install.port_id).ok(),
+            current,
             Platform::current()?,
             install,
             &recorded,
