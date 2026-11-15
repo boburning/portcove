@@ -343,8 +343,11 @@ failed run is never acceptance.
 The Windows job reuses the shared hosted WebView2 preparation, the pinned
 `native-drivers` bootstrap (tauri-driver and the signature-checked matching
 EdgeDriver) and the installed-update harness helpers for driver startup,
-connection, hashing and Settings navigation. The scenario in
-`apps/desktop/scripts/desktop-hosted-installed-update.mts`:
+connection, hashing and Settings navigation. The job points
+`PORTCOVE_SHARED_TOOL_CACHE` into its work directory, because the shared tool
+cache otherwise defaults to `%LOCALAPPDATA%\Portcove\tool-cache`, a default
+Portcove location the scenario requires to be absent before it starts. The
+scenario in `apps/desktop/scripts/desktop-hosted-installed-update.mts`:
 
 1. Downloads the from-version installer and CLI ZIP and verifies both against
    that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a
@@ -356,8 +359,15 @@ connection, hashing and Settings navigation. The scenario in
    preference with automatic checks off, creates the library with the release
    CLI and seeds deterministic save and settings files under
    `user/hosted-update-acceptance/`, recording their SHA-256 values. The process
-   the NSIS installer relaunches is started by the installer, not the harness,
-   so its isolation is checked rather than assumed (step 5).
+   the NSIS installer relaunches does not inherit the installer's environment:
+   from an elevated installer, the `/R` relaunch uses
+   `nsis_tauri_utils::RunAsUser`, which starts the app with Explorer's token and
+   an environment Windows builds from the user profile, including
+   `HKCU\Environment`. Before the first session the harness therefore also
+   writes the same overrides there and restores the previous values when the
+   run ends. Step 5 checks that the shipping relaunch, given these
+   profile-level overrides, stays isolated; it does not test whether
+   process-scoped overrides survive the relaunch.
 3. Launches the installed application under WebDriver, opens Settings, Updates,
    presses Check for updates and requires the offered version to equal the
    feed's newer version.

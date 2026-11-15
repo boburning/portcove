@@ -26,6 +26,7 @@ import {
   updatePreferenceBytes,
   verifyAgainstSums,
   windowsAssetNames,
+  windowsPathKey,
   type observeFeed,
 } from "./hosted-installed-update.mts";
 
@@ -312,6 +313,19 @@ void test("CLI and locale readers accept only successful, complete answers", () 
   );
 });
 
+void test("Windows path keys ignore the extended-length prefix, quotes, separators and case", () => {
+  const expected = "d:\\a\\portcove\\work\\scope\\library";
+  for (const value of [
+    "\\\\?\\D:\\a\\portcove\\work\\scope\\library",
+    "D:\\a\\portcove/work/scope/library\\",
+    '"D:\\A\\Portcove\\Work\\Scope\\Library"',
+  ])
+    assert.equal(windowsPathKey(value), expected, value);
+  assert.equal(windowsPathKey("\\\\?\\UNC\\server\\share\\x"), "\\\\server\\share\\x");
+  assert.equal(windowsPathKey("C:\\"), "c:\\");
+  assert.notEqual(windowsPathKey("D:\\a\\library2"), windowsPathKey("D:\\a\\library"));
+});
+
 void test("the workflow is manual, read-only and secret-free", () => {
   const raw = read(".github/workflows/hosted-installed-update.yml");
   const document = parseDocument(raw, { uniqueKeys: true });
@@ -346,6 +360,9 @@ void test("the workflow is manual, read-only and secret-free", () => {
   const windows = workflow.jobs.windows;
   assert.ok(isRecord(windows) && Array.isArray(windows.steps));
   assert.equal(windows["runs-on"], "windows-2022");
+  // Tooling must not create a default Portcove location before the fresh-machine check.
+  assert.ok(isRecord(windows.env));
+  assert.equal(windows.env.PORTCOVE_SHARED_TOOL_CACHE, "${{ github.workspace }}/work/tool-cache");
   assert.equal(windows.if, "needs.feed.outputs.outcome == 'offered'");
   const uses = windows.steps.filter(isRecord).map((step) => step.uses);
   assert.ok(uses.includes("./.github/actions/prepare-hosted-webview"));

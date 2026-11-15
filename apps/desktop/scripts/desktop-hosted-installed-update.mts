@@ -50,6 +50,7 @@ import {
   updatePreferenceBytes,
   verifyAgainstSums,
   windowsAssetNames,
+  windowsPathKey,
   type Channel,
   type LocationSnapshot,
   type ManifestEntry,
@@ -106,6 +107,48 @@ function portcoveEnvironment(): NodeJS.ProcessEnv {
   for (const [name, value] of Object.entries(process.env))
     if (!name.toUpperCase().startsWith("PORTCOVE_")) environment[name] = value;
   return { ...environment, ...isolatedEnvironment };
+}
+
+/**
+ * The NSIS `/R` relaunch does not inherit the installer's environment. From an
+ * elevated installer (hosted runners are elevated), tauri-bundler's template calls
+ * `nsis_tauri_utils::RunAsUser`, which uses `CreateProcessWithTokenW` with
+ * Explorer's token and no environment block, so Windows builds the app's
+ * environment from the user profile, including HKCU\Environment. The harness
+ * therefore writes the isolated scope there (a broadcast alone would not reach
+ * it). Previous values are read before anything is written, so a partial
+ * publish is still restored when the run ends.
+ */
+let publishedUserEnvironment: Record<string, string | null> | null = null;
+function userEnvironment(names: string[]) {
+  return powershellJson(
+    `$previous = [ordered]@{}
+    foreach ($name in ($env:HOSTED_NAMES | ConvertFrom-Json)) {
+      $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'User')
+    }
+    ConvertTo-Json -InputObject $previous -Compress`,
+    { NAMES: JSON.stringify(names) },
+  ) as Record<string, string | null>;
+}
+function setUserEnvironment(values: Record<string, string | null>) {
+  powershell(
+    `$values = $env:HOSTED_VALUES | ConvertFrom-Json -AsHashtable
+    foreach ($name in $values.Keys) { [Environment]::SetEnvironmentVariable($name, $values[$name], 'User') }`,
+    { VALUES: JSON.stringify(values) },
+  );
+}
+function publishIsolationToUserEnvironment() {
+  publishedUserEnvironment = userEnvironment(Object.keys(isolatedEnvironment));
+  report.relaunch_environment = {
+    published: Object.keys(isolatedEnvironment),
+    previous: publishedUserEnvironment,
+  };
+  setUserEnvironment(isolatedEnvironment);
+}
+function restoreUserEnvironment() {
+  if (!publishedUserEnvironment) return;
+  setUserEnvironment(publishedUserEnvironment);
+  publishedUserEnvironment = null;
 }
 
 interface Check {
@@ -261,7 +304,7 @@ function applicationProcesses(): ProcessRow[] {
 }
 function installedApplicationProcesses() {
   return applicationProcesses().filter(
-    (row) => row.path && path.win32.resolve(row.path).toLowerCase() === application.toLowerCase(),
+    (row) => row.path && windowsPathKey(row.path) === windowsPathKey(application),
   );
 }
 function processAlive(pid: number) {
@@ -287,8 +330,7 @@ const markerSnapshot = () => snapshot(isolationMarkers(localAppData));
 
 /** The registration names the isolated root; NSIS may record only the uninstaller. */
 function registrationInstallRoot(entry: Record<string, unknown> | undefined) {
-  const clean = (value: string) =>
-    path.win32.resolve(value.trim().replace(/^"|"$/gu, "")).replace(/\\+$/u, "").toLowerCase();
+  const clean = windowsPathKey;
   const expected = clean(scope.install);
   const location = typeof entry?.install_location === "string" ? entry.install_location : "";
   if (location.trim())
@@ -753,7 +795,7 @@ async function main() {
     "library-created-in-isolated-scope",
     typeof identityBefore.id === "string" &&
       typeof identityBefore.root === "string" &&
-      path.win32.resolve(identityBefore.root).toLowerCase() === scope.library.toLowerCase(),
+      windowsPathKey(identityBefore.root) === windowsPathKey(scope.library),
     identityBefore,
   );
   for (const file of playerDataSeed()) {
@@ -786,6 +828,7 @@ async function main() {
   const toVersion = feed.offer.version;
 
   // 6. First session on the from-version: check, refuse while the CLI holds.
+  publishIsolationToUserEnvironment();
   const first = await startSession("from", tools);
   // Second baseline: what the fully isolated app creates on its own (Tauri makes
   // `%LOCALAPPDATA%\io.github.portcove.portcove` regardless of the WebView2
@@ -933,7 +976,7 @@ async function main() {
               entry.pid !== appPid &&
               entry.path !== undefined &&
               entry.path !== null &&
-              path.win32.resolve(entry.path).toLowerCase() === application.toLowerCase(),
+              windowsPathKey(entry.path) === windowsPathKey(application),
           ),
         "automatic relaunch",
         3 * 60_000,
@@ -1098,6 +1141,11 @@ try {
 } finally {
   report.finished_at = new Date().toISOString();
   await retainDiagnostics().catch(() => undefined);
+  try {
+    restoreUserEnvironment();
+  } catch (error) {
+    report.relaunch_environment_restore_error = errorMessage(error);
+  }
   persist();
   for (const row of (() => {
     try {

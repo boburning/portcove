@@ -243,6 +243,21 @@ export function playerDataSeed() {
 /** Snapshot of whether each location exists. */
 export type LocationSnapshot = Record<string, boolean>;
 
+/**
+ * A comparison key for a Windows path: surrounding quotes and the extended-length
+ * `\\?\` (or `\\?\UNC\`) prefix that Rust's canonicalized paths carry are removed,
+ * then the path is resolved, its trailing separators dropped and its case folded.
+ */
+export function windowsPathKey(value: string) {
+  let plain = value.trim().replace(/^"|"$/gu, "");
+  if (/^\\\\\?\\UNC\\/iu.test(plain)) plain = `\\\\${plain.slice(8)}`;
+  else if (plain.startsWith("\\\\?\\")) plain = plain.slice(4);
+  return path.win32
+    .resolve(plain)
+    .replace(/(?<=[^:\\])\\+$/u, "")
+    .toLowerCase();
+}
+
 /** Broad default Portcove folders, observed only (Windows paths). */
 export function defaultFolders(localAppData: string, roamingAppData: string) {
   return [
