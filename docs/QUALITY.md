@@ -527,6 +527,14 @@ earlier run; its Intel override is now 240 seconds (5s × 48), below the
 120-second default after passing in 119.4 seconds earlier; Intel now has the
 same exact 180-second override as Windows.
 
+The Playnite reference-client lifecycle check runs its first `definition-state`
+Cargo action against a cold fixture-enabled Core test build on Windows.
+Scheduled Qualification 43715629646 (job 132822315937) was the first run to
+reach that phase and stopped it at its 20-minute child budget with no output and
+no assertion run; ordinary hosted Windows Rust test builds take 18-23 minutes.
+That one child budget is now 40 minutes, inside the job's 120-minute limit;
+other Playnite Cargo children keep ten minutes.
+
 The October 2026 test audit calibrated the three maintained Node suites that
 contain fixed Linux Python child wrappers from a 30-second default to
 60 seconds. Their child limits remain 30 seconds. The dynamic ordinary and

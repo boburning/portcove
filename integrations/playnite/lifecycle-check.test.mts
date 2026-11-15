@@ -81,7 +81,7 @@ void test("only the definition-state Cargo phase gets the cold-build budget", as
   const environment = { PORTCOVE_HEAVY_RUST_LOCK_TOKEN: "owned" };
   for (const [phase, action, timeout] of [
     ["cli-build", undefined, undefined],
-    ["definition-state", "select", 1_200_000],
+    ["definition-state", "select", 2_400_000],
   ] as const) {
     await executeCargoPhase(phase, action, {
       environment,
