@@ -430,7 +430,7 @@ if ($global:PortcovePreflightUxFixture.catalogToken -ne 'fixture-token') { throw
 );
 
 void test(
-  "installer waits for the isolated database and preserves responsive-window refusal evidence",
+  "installer responsive-window refusal retains evidence and the forced-cleanup failure state",
   { skip: process.platform !== "win32" },
   async () => {
     const { execFileSync } = await import("node:child_process");
