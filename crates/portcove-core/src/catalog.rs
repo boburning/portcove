@@ -3508,7 +3508,24 @@ mod tests {
             port.executable_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp.exe"]
         );
-        assert!(port.presentation.as_ref().unwrap().manual_setup.is_none());
+        let guide = port
+            .presentation
+            .as_ref()
+            .unwrap()
+            .manual_setup
+            .as_ref()
+            .unwrap();
+        assert_eq!(
+            guide.help_url.as_deref(),
+            Some("https://github.com/RetroPortingToolKit/F-ZeroForever/releases/tag/v1.8.3")
+        );
+        let hold = port.managed_acquisition_hold.as_ref().unwrap();
+        assert_eq!(hold.reviewed_artifacts.len(), 1);
+        assert_eq!(hold.reviewed_artifacts[0].version, "v1.8.3");
+        assert_eq!(
+            hold.reviewed_artifacts[0].sha256,
+            "4a97edf9478501ad15d5f66403298e5c983d69558b1839017acbba5c58efe658"
+        );
         assert!(port.automated_tested_platforms.is_empty());
         assert!(port.manually_validated_platforms.is_empty());
         assert_eq!(
@@ -3537,10 +3554,7 @@ mod tests {
         assert_eq!(port.release.provider, ReleaseSource::Github);
         assert!(port.release.user_prepared.is_empty());
         assert!(port.release.direct.is_empty());
-        assert_eq!(
-            port.release.repository,
-            "RetroPortingToolKit/FZeroSNESRecomp"
-        );
+        assert_eq!(port.release.repository, "RetroPortingToolKit/F-ZeroForever");
         assert_eq!(
             port.release.asset_hints[&Platform::WindowsX86_64],
             ["FZeroSNESRecomp-", "-windows-x64.zip"]
