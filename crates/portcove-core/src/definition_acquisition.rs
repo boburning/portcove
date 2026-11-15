@@ -298,6 +298,7 @@ pub struct ScopedResolvedRelease {
     /// Repository maintenance facts read during this resolution, when the provider
     /// read the repository. Never part of release authority.
     pub(crate) upstream_activity: Option<crate::UpstreamActivity>,
+    pub(crate) fallback_reason: Option<String>,
 }
 
 impl ScopedResolvedRelease {
@@ -308,6 +309,7 @@ impl ScopedResolvedRelease {
             selection: None,
             github_identity: None,
             upstream_activity: None,
+            fallback_reason: None,
         }
     }
 
@@ -323,6 +325,7 @@ impl ScopedResolvedRelease {
             selection: None,
             github_identity: None,
             upstream_activity: None,
+            fallback_reason: None,
         })
     }
 

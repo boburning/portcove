@@ -243,6 +243,10 @@ impl EngineTemplateCapability {
             contract_version: crate::archive_data::ADDITIVE_DATA_POLICY_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -1010,7 +1014,10 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
-            ("super-metroid-recomp", 29),
+            (
+                "super-metroid-recomp",
+                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+            ),
             ("mega-man-x2-snes-recomp", 28),
             // Its v1.2.0 settings files append to the predecessor policy.
             (
@@ -1092,7 +1099,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 35, 35)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 36, 36)).unwrap();
         assert!(!future.compatible);
     }
 

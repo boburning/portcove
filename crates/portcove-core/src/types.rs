@@ -1024,7 +1024,7 @@ pub struct ReviewedPackageLayout {
 /// Holds fresh managed acquisition and adoption for one route. Installed copies
 /// keep their retained definition; only the listed reviewed artifacts may still
 /// be activated or recovered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ManagedAcquisitionHold {
     /// Player-facing explanation for refused Install and Update.
@@ -1034,9 +1034,13 @@ pub struct ManagedAcquisitionHold {
     /// Exact reviewed artifacts whose activation remains permitted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub reviewed_artifacts: Vec<ReviewedHoldArtifact>,
+    /// Exact artifacts unavailable for acquisition or staged activation. An
+    /// empty list preserves the route-wide acquisition hold.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub excluded_artifacts: Vec<ReviewedHoldArtifact>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReviewedHoldArtifact {
     pub version: String,
