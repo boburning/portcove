@@ -73,8 +73,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - purpose: shipwright-profile
-            revision: 3e962852d5870afc86f7d6df7d499480307aa4ea
+          - purpose: jak-setup-heap
+            revision: 0abc41d15ab7a6b1d21b556986a8cfe6ffbd000f
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
@@ -85,17 +85,17 @@ jobs:
           ref: ${{ matrix.revision }}
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: matrix.purpose == 'shipwright-profile'
+        if: matrix.purpose == 'jak-setup-heap'
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.purpose == 'shipwright-profile'
+        if: matrix.purpose == 'jak-setup-heap'
         with:
           node-version-file: .node-version
           package-manager-cache: false
       - uses: ./.github/actions/setup-rust
-      - name: Build the reviewed Shipwright profile candidate
-        if: matrix.purpose == 'shipwright-profile'
+      - name: Build the reviewed upstream setup candidate
+        if: matrix.purpose == 'jak-setup-heap'
         shell: pwsh
         run: |
           pnpm install --frozen-lockfile
