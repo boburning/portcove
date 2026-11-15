@@ -820,8 +820,10 @@ superseded listing-only player test, formats the edits and regenerates the catal
 Pass the publisher digest with `--sha256 PLATFORM=HEX`; without it Core only checks
 the local hash and the command says so. Kept paths (`--persistent`) require an
 explicit `--saves` choice, and a listing without `original_game_title` needs
-`--original-game-title`. `--repository`, `--channel` and `--env` cover the other
-declarations. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
+`--original-game-title`. `--repository`, `--channel`, `--env` and repeated
+`--launch-arg` values (written in order) cover the other declarations. It refuses
+a listing that still has a `download_block_reason`, or whose summary names a
+structured fact such as the release channel, before writing anything. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
 `target/debug/portcove`), and each managed platform needs an archive that the host
 can inspect, so a Windows host promotes only Windows. The guide, rights warnings,
 provider digest, write locations and process lifetime remain the author's review.

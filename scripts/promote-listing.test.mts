@@ -139,6 +139,27 @@ void test("promotion refuses incomplete, ambiguous or inconsistent inputs", () =
   (elsewhere.listing as { project_url?: string }).project_url = "https://github.com/Owner/other";
   elsewhere.listing.release_url = "https://example.invalid/releases";
   assert.throws(() => promotePort(elsewhere, options), /Name the GitHub repository/);
+  // Core refuses both of these after generation; the promotion stops before any write.
+  const blocked = listing();
+  (blocked.listing as { download_block_reason?: string }).download_block_reason = "Use the ZIP.";
+  assert.throws(() => promotePort(blocked, options), /download_block_reason/);
+  const channelSummary = listing();
+  channelSummary.listing.summary = "Try the Windows beta with your own game.";
+  assert.throws(() => promotePort(channelSummary, options), /summary mentions 'beta'/);
+});
+
+void test("launch arguments are written in order", () => {
+  const promoted = promotePort(listing(), {
+    ...options,
+    launchArguments: ["--hdi", "game.hdi", "-tft"],
+  });
+  assert.deepEqual((promoted.integration as { launch_arguments?: string[] }).launch_arguments, [
+    "--hdi",
+    "game.hdi",
+    "-tft",
+  ]);
+  const plain = promotePort(listing(), options);
+  assert.equal("launch_arguments" in (plain.integration as object), false);
 });
 
 void test("arguments are parsed strictly", () => {
@@ -176,6 +197,14 @@ void test("arguments are parsed strictly", () => {
     /names windows-x86-64 twice/,
   );
   assert.throws(() => parseArguments([...base, "--cli"]), /needs a value/);
+  assert.throws(() => parseArguments([...base, "--channel", "--saves"]), /needs a value/);
+  assert.deepEqual(
+    parseArguments([...base, "--launch-arg", "--hdi", "--launch-arg", "game.hdi"]).options
+      .launchArguments,
+    ["--hdi", "game.hdi"],
+  );
+  assert.throws(() => parseArguments([...base, "--launch-arg", ""]), /needs a value/);
+  assert.throws(() => parseArguments([...base, "--launch-arg", "--channel"]), /needs a value/);
 });
 
 void test("GitHub repositories come from release or project URLs", () => {

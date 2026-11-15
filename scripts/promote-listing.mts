@@ -46,6 +46,7 @@ export interface PromoteOptions {
   persistentPaths?: string[] | undefined;
   savesAndSettings?: SavesAndSettings | undefined;
   launchEnvironment?: Record<string, string> | undefined;
+  launchArguments?: string[] | undefined;
   originalGameTitle?: string | undefined;
 }
 
@@ -67,11 +68,35 @@ function releaseRepository(listing: Json) {
   return githubRepository(listing.project_url);
 }
 
+// Mirrors Core's repository summary check, so a refused summary stops before any write.
+const STRUCTURED_SUMMARY_TERMS = [
+  "opt-in",
+  " beta ",
+  " rolling ",
+  " portable ",
+  " managed ",
+  " verified ",
+  " checksum",
+  " release",
+];
+
 /** The authored port with its managed integration added. */
 export function promotePort(port: unknown, options: PromoteOptions): Json {
   if (!isRecord(port) || !isRecord(port.listing)) throw new Error("Port file has no listing.");
   if ("integration" in port) throw new Error("This port already has an integration.");
   const listing = port.listing;
+  if (listing.download_block_reason !== undefined)
+    throw new Error(
+      "The listing has a download_block_reason, which a managed route cannot keep; remove it once the route resolves that condition, and rewrite the listing guide to match.",
+    );
+  if (typeof listing.summary === "string") {
+    const summary = ` ${listing.summary.toLowerCase()} `;
+    const term = STRUCTURED_SUMMARY_TERMS.find((candidate) => summary.includes(candidate));
+    if (term)
+      throw new Error(
+        `The listing summary mentions '${term.trim()}'; keep that in structured fields and describe the player outcome instead.`,
+      );
+  }
   if (!options.platforms.length) throw new Error("Name at least one managed platform.");
   if (new Set(options.platforms).size !== options.platforms.length)
     throw new Error("Each managed platform may be named once.");
@@ -137,6 +162,7 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
     release: { provider: "github", repository, asset_hints: assetHints },
     executable_hints: executableHints,
   };
+  if (options.launchArguments?.length) integration.launch_arguments = [...options.launchArguments];
   if (options.launchEnvironment && Object.keys(options.launchEnvironment).length)
     integration.launch_environment = options.launchEnvironment;
   integration.persistent_paths = persistentPaths;
@@ -266,10 +292,18 @@ const VALUE_FLAGS = new Set([
   "--persistent",
   "--saves",
   "--env",
+  "--launch-arg",
   "--cli",
   "--original-game-title",
 ]);
-const REPEATED = new Set(["--archive", "--executable", "--sha256", "--persistent", "--env"]);
+const REPEATED = new Set([
+  "--archive",
+  "--executable",
+  "--sha256",
+  "--persistent",
+  "--env",
+  "--launch-arg",
+]);
 
 const isChannel = (value: string): value is "stable" | "beta" =>
   value === "stable" || value === "beta";
@@ -283,7 +317,14 @@ export function parseArguments(args: string[]) {
     const flag = args[index]!;
     const value = args[index + 1];
     if (!VALUE_FLAGS.has(flag)) throw new Error(`Unknown option ${flag}.`);
-    if (value === undefined || value.startsWith("--")) throw new Error(`${flag} needs a value.`);
+    // A launch argument is passed through verbatim, so it may itself start with "--",
+    // but never as one of this command's own options, which would hide a missing value.
+    if (
+      value === undefined ||
+      !value ||
+      (value.startsWith("--") && (flag !== "--launch-arg" || VALUE_FLAGS.has(value)))
+    )
+      throw new Error(`${flag} needs a value.`);
     const list = values.get(flag) ?? [];
     if (list.length && !REPEATED.has(flag)) throw new Error(`${flag} may be given once.`);
     values.set(flag, [...list, value]);
@@ -335,6 +376,7 @@ export function parseArguments(args: string[]) {
       persistentPaths: all("--persistent"),
       savesAndSettings: saves,
       launchEnvironment: environment,
+      launchArguments: all("--launch-arg"),
       originalGameTitle: one("--original-game-title"),
     },
   };
@@ -357,7 +399,7 @@ function main() {
     parsed = parseArguments(process.argv.slice(2));
   } catch (error) {
     console.error(
-      `${(error as Error).message}\nUsage: node scripts/promote-listing.mts --port ID --archive PLATFORM=PATH --executable PLATFORM=NAME --preparation TEXT [--sha256 PLATFORM=HEX] [--repository OWNER/NAME] [--channel stable|beta] [--persistent PATH ... --saves external-user-owned|portcove-managed] [--env NAME=VALUE ...] [--original-game-title TEXT] [--cli PATH]`,
+      `${(error as Error).message}\nUsage: node scripts/promote-listing.mts --port ID --archive PLATFORM=PATH --executable PLATFORM=NAME --preparation TEXT [--sha256 PLATFORM=HEX] [--repository OWNER/NAME] [--channel stable|beta] [--persistent PATH ... --saves external-user-owned|portcove-managed] [--env NAME=VALUE ...] [--launch-arg VALUE ...] [--original-game-title TEXT] [--cli PATH]`,
     );
     process.exit(2);
   }
