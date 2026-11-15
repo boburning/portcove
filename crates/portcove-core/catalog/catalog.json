@@ -54804,7 +54804,7 @@
             },
             {
               "title": "Prepare the Linux source build",
-              "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder 2 inputs. Use your own Cannon Fodder 2 AmigaDOS files and an appropriate ADF extraction tool. The first game’s DOS data and SOS Unpacker do not supply this sequel. The engine checks XDG_DATA_DIRS/OpenFodder, then ~/.local/share/OpenFodder, then the working directory. Keep the actual data, Campaigns, Saves and configuration roots together."
+              "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder 2 inputs. Use your own Cannon Fodder 2 AmigaDOS files and an appropriate ADF extraction tool. The first game’s DOS data and SOS Unpacker do not supply this sequel. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together."
             },
             {
               "title": "Add the game and manage your files",
@@ -54817,6 +54817,10 @@
           ],
           "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
           "references": [
+            {
+              "title": "Use the Linux Flathub package",
+              "instruction": "Install org.openfodder.OpenFodder from Flathub on x86-64 or ARM64. It supplies the campaign definitions and first-game demos. Start the installed app through your applications menu. For original data or writable saves, create Data and Saves folders under ~/.var/app/org.openfodder.OpenFodder/data/OpenFodder. For the sequel's DOS CD campaign, put all its own DOS CD or GOG source files in Data/Dos2_CD under that root. Follow upstream instructions for the sequel's Amiga data. The bundled demos are from Cannon Fodder 1. The Flatpak package manager owns installation and updates. Preserve the actual data and save folders before changing versions."
+            },
             {
               "title": "Keep the actual original and player data",
               "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
@@ -54882,7 +54886,7 @@
             },
             {
               "title": "Prepare the Linux source build",
-              "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder inputs. For the DOS CD release put your own CF_ENG.DAT in Data/Dos_CD. Upstream also documents different Amiga and CD32 inputs. The engine checks XDG_DATA_DIRS/OpenFodder, then ~/.local/share/OpenFodder, then the working directory. Keep the actual data, Campaigns, Saves and configuration roots together."
+              "instruction": "Use upstream’s tagged Git checkout with its submodules, SDL2 and SDL2_mixer. Follow the supplied build instructions. The supplied Makefile puts the player in Run/OpenFodder. Set up the separate upstream campaign data pack and your own Cannon Fodder inputs. For the DOS CD release put your own CF_ENG.DAT in Data/Dos_CD. Upstream also documents different Amiga and CD32 inputs. The engine first checks its working directory, then XDG_DATA_HOME/OpenFodder and each XDG_DATA_DIRS/OpenFodder, followed by ~/.local/share/OpenFodder and /usr/local/share/OpenFodder. Keep the actual data, Campaigns, Saves and configuration roots together."
             },
             {
               "title": "Add the game and manage your files",
@@ -54895,6 +54899,10 @@
           ],
           "help_url": "https://github.com/OpenFodder/openfodder/blob/5eb41362f72fcedf2b1dffed397a7a8edf9a6305/README.md",
           "references": [
+            {
+              "title": "Use the Linux Flathub package",
+              "instruction": "Install org.openfodder.OpenFodder from Flathub on x86-64 or ARM64. It supplies the campaign definitions and first-game demos. Start the installed app through your applications menu. For original data or writable saves, create Data and Saves folders under ~/.var/app/org.openfodder.OpenFodder/data/OpenFodder. For the DOS CD campaign, put your own CF_ENG.DAT in Data/Dos_CD under that root. Follow upstream instructions for Amiga or CD32. The Flatpak package manager owns installation and updates. Preserve the actual data and save folders before changing versions."
+            },
             {
               "title": "Keep the actual original and player data",
               "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
