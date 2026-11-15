@@ -19326,7 +19326,7 @@ fn main() {
     }
 
     #[tokio::test]
-    async fn mstan_snes_installations_update_with_the_undeclared_preloaded_mod_state() {
+    async fn mstan_snes_installations_update_with_the_disposable_preloaded_mod_state() {
         const STATE: &str = "mods/preloaded/state.toml";
         for (id, old_version, new_version) in [
             ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
@@ -19354,11 +19354,18 @@ fn main() {
             // definition must keep their recorded persistence scope.
             assert!(crate::persistence::requires_restore_receipt(&port), "{id}");
             assert!(!port.persistent_paths.iter().any(|path| path == STATE));
+            assert!(port.runtime_mutable_paths.iter().any(|path| path == STATE));
+            // Installations created before this change recorded the definition
+            // without the disposable mod-state paths.
+            let mut earlier = port.clone();
+            earlier
+                .runtime_mutable_paths
+                .retain(|path| !path.starts_with("mods/preloaded/"));
             let temporary = tempfile::tempdir().unwrap();
             let library = Library::open(temporary.path().join("library")).unwrap();
             let old = register_forward_install(
                 &library,
-                &port,
+                &earlier,
                 old_version,
                 true,
                 &[
@@ -19383,7 +19390,10 @@ fn main() {
             let report = service.verify(id).unwrap();
             assert!(!report.has_hazards(), "{id}: {:?}", report.failures);
             assert!(
-                report.unknown_files.iter().any(|path| path == STATE),
+                !report
+                    .unknown_files
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded/")),
                 "{id}: {:?}",
                 report.unknown_files
             );
@@ -19400,6 +19410,15 @@ fn main() {
                 b"player settings"
             );
             assert!(!backup.path.join("data").join(STATE).exists(), "{id}");
+            assert!(
+                !backup
+                    .path
+                    .join("unknown-files")
+                    .join(&old.id)
+                    .join(STATE)
+                    .exists(),
+                "{id}"
+            );
 
             let updated = service.update(id, None, None, true, |_| {}).await.unwrap();
             assert_eq!(updated.id, new.id, "{id}");
@@ -19414,7 +19433,7 @@ fn main() {
                     "{id}: {relative}"
                 );
             }
-            // The undeclared file is not carried; the new runtime rewrites it.
+            // Disposable runtime output is not carried; the new runtime rewrites it.
             assert!(!new.path.join(STATE).exists(), "{id}");
 
             fs::create_dir_all(new.path.join("mods/preloaded")).unwrap();

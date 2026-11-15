@@ -35,20 +35,26 @@ against the seven in that receipt. The persistence-contract check then refuses
 with a `PortableDataContractChanged` conflict, which blocks launch restore, data
 collection, backup, restore, game settings, protection and the update itself.
 
-A critical review on 2026-11-15 chose to bind both routes and leave the pair
-undeclared:
+A critical review on 2026-11-15 chose to bind both routes without declaring
+the pair as player data, and the independent review of the binding then chose
+to declare it as disposable runtime output (`runtime_mutable_paths`), as
+Sonic 2 v0.9.23 did for its replay logs:
 
-- No persistence coordinate changes. The definitions, their persistent and
-  runtime-mutable paths and their derivation inputs are unchanged, so existing
-  receipts still match and rollback is not held.
+- No persistence coordinate changes. Persistent paths and derivation inputs
+  are unchanged, and runtime-mutable paths are outside the persistence scope
+  that existing ready-archive receipts record, so those receipts still match
+  and rollback is not held.
 - Managed play sets `SNESRECOMP_NO_LAUNCHER=1`, so there is no mod-selection
-  screen and the selection is always the package default. Nothing a player
-  chose is lost when the file is left behind on update or rollback; the new
-  runtime writes it again on its next start.
-- Neither file is a package member (checked below), so Tier 1 verification
-  reports them as harmless unknown files. They are not carried across updates
-  and are backed up only in the separate unknown-file area.
-- `.toml` is not a hazard extension and is not on the loader-sensitive list.
+  screen and managed play never changes the selection from the package
+  default. A selection made by running the game outside Portcove is not
+  carried across versions; the new runtime writes the default again on its
+  next start.
+- Neither file is a package member (checked below). As declared runtime
+  output they are not reported as files Portcove didn't install, so backups
+  and the removal review stay free of a notice for this known writer, and
+  they are not backed up.
+- Neither `.toml` nor `.tmp` is a hazard extension or on the loader-sensitive
+  list.
 
 #5678's additive rule is no longer needed for these two routes. If a later
 release lets players choose mods in managed play, the file becomes player data

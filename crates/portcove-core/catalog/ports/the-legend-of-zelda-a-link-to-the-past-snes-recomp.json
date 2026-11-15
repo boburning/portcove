@@ -81,7 +81,9 @@
     "runtime_mutable_paths": [
       "last_run_report.json",
       ".snesrecomp_write_probe",
-      "tier2_coverage.json"
+      "tier2_coverage.json",
+      "mods/preloaded/state.toml",
+      "mods/preloaded/state.toml.tmp"
     ]
   }
 }

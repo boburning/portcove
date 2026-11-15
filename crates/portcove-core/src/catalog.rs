@@ -3283,7 +3283,7 @@ mod tests {
         // the persistence scope in every existing ready-archive receipt, and
         // managed play skips the launcher, so the selection is always the
         // package default. The newest packages are appended after the reviewed
-        // ones and the file stays an undeclared, harmless unknown file.
+        // ones and the pair is declared as disposable runtime output.
         for (id, contract, rows, evidence) in [
             (
                 "super-mario-world-recomp",
@@ -3333,6 +3333,12 @@ mod tests {
             for path in ["mods/state.toml", "mods/state.toml.tmp"] {
                 assert!(
                     port.persistent_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            for path in ["mods/preloaded/state.toml", "mods/preloaded/state.toml.tmp"] {
+                assert!(
+                    port.runtime_mutable_paths.iter().any(|p| p == path),
                     "{id}: {path}"
                 );
             }
