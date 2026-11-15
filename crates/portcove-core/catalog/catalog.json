@@ -56649,13 +56649,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups. A start path you give chocobo.exe yourself is outside Portcove and keeps saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
+        "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats.",
         "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your disc image",
-              "instruction": "Copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) beside chocobo.exe, and keep your original separately. On first start the game extracts it into its extracted folder, which takes up to a minute; after that the copied image is no longer needed. You can instead put the sys and files folders of an already extracted disc into extracted."
+              "instruction": "Copy a single image of your own NTSC-U Chocobo's Dungeon disc (R7FEGD, .iso or .ciso) beside the program (chocobo.exe on Windows), and keep your original separately. On first start the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. After that the copied image is no longer needed. You can instead put the sys and files folders of an already extracted disc into extracted."
             },
             {
               "title": "Build the windowed Linux player from your original",
@@ -56667,7 +56667,7 @@
             }
           ],
           "warnings": [
-            "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "The package includes recompiled game code and a bundled font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
             "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
           ],
