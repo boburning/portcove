@@ -218,14 +218,23 @@ taking 60.
      `carried_file_unreadable`, which holds and is retryable; it is the only
      unreadable case that holds;
    - a source that can't be read for any other reason, such as a lasting
-     permission error: that path is kept separately with a report, and the rest
-     carry (N5);
+     permission error: that path stays in A with the `source_unreadable`
+     outcome, and the rest carry (N5);
    - a T mismatch: that path is re-planned as "keep separately", and the switch
      writes nothing at it.
 
-   A failure during publish can only be an interruption. Recovery repeats
-   publish from the staged files, or sweeps them and re-plans if any staged
-   file no longer matches.
+   Publish is not cancellable. Cancellation is checked only while planning,
+   staging and verifying, so a cancel can't leave T half-published. Just before
+   each rename or removal, Portcove re-checks that destination's size and
+   mtime against the verify pass (a re-hash on any doubt); a mismatch keeps
+   that path separate. A rename or removal can still fail without an
+   interruption, for example an antivirus or sharing lock on Windows: that
+   holds as `carried_file_unreadable`, A stays active, and T never becomes
+   active with only part of the files published. A retry, or recovery after an
+   interruption, finishes publishing from the staged files, or sweeps them and
+   re-plans if any staged file no longer matches. Files already published are
+   pending rows from A that match T's bytes, so a re-plan treats them as
+   Portcove's own placement.
 
 4. One transaction:
    - marks T's rows `present`;
@@ -466,6 +475,8 @@ and byte counts go in details.
   are different in version {from} and version {to}, so each version keeps its
   own copy. To use one copy in both versions, delete the copy you don't want,
   then switch to version {from} and back to version {to}." Details list both paths for up to 64 files.
+- Outcome `source_unreadable`: "Portcove couldn't read {file}, so it stayed in
+  version {from}." Details give the path and the error.
 - Outcome `new_version_ships_file`: "Version {to} comes with its own {file}, so
   your copy stayed in version {from}."
 - Outcome `insufficient_space`: "Portcove didn't bring {count} files it didn't
