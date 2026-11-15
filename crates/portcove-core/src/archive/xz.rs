@@ -18,7 +18,7 @@ use crate::{PortcoveError, Result};
 const MAX_INDEX_BYTES: u64 = 32 * 1024;
 const MAX_BLOCKS: usize = 1024;
 const MAX_BLOCK_BYTES: u64 = 128 * 1024 * 1024;
-// The verified worker holds both packed and decoded bytes. JGR Patch Pack
+// The verified worker accounts for packed and decoded bytes. JGR Patch Pack
 // 0.73.5 uses a single block of about 42 MiB packed and 116 MiB decoded.
 const DECODER_MEMORY_BYTES: u64 = 160 * 1024 * 1024;
 
@@ -224,14 +224,14 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn verified_xz_reader_accepts_a_single_block_above_the_previous_limit() {
+    fn verified_xz_reader_accepts_a_single_block_above_the_previous_limits() {
         let temporary = tempfile::tempdir().unwrap();
         let source = temporary.path().join(ASSET);
-        let decoded_len = 65 * 1024 * 1024;
+        let decoded_len = 100 * 1024 * 1024;
         let mut data = vec![0; decoded_len];
         // Supply enough incompressible bytes to stay within the expansion ratio.
         let mut random = 1_u32;
-        for byte in &mut data[..512 * 1024] {
+        for byte in &mut data[..1024 * 1024] {
             random ^= random << 13;
             random ^= random >> 17;
             random ^= random << 5;
