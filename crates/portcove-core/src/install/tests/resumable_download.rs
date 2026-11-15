@@ -632,3 +632,206 @@ fn cancellation_during_resume_back_off_stops_without_another_request() {
     // Received bytes were drained to disk before returning, for private cleanup.
     assert_eq!(fs::read(&destination).unwrap(), &BODY[..DROPPED_AT]);
 }
+
+/// Serves `responses` in order to separate transfers that share one asset URL;
+/// each transfer stands in for a separate Portcove run.
+struct Restarts {
+    root: String,
+    requests: std::sync::mpsc::Receiver<String>,
+    server: crate::test_http::HttpServer,
+    client: reqwest::Client,
+}
+
+impl Restarts {
+    fn serve(responses: Vec<Vec<u8>>) -> Self {
+        let count = responses.len();
+        let mut responses = responses.into_iter();
+        let (root, requests, server) =
+            serve_routed_http_bytes(count, move |_| responses.next().unwrap());
+        Self {
+            root,
+            requests,
+            server,
+            client: reqwest::Client::builder().no_proxy().build().unwrap(),
+        }
+    }
+
+    async fn transfer(
+        &self,
+        partials: &partial_download::PartialDownloads,
+        destination: &Path,
+        sha256: String,
+    ) -> (Result<()>, Vec<u8>, Vec<String>, Vec<String>) {
+        let asset = sample(&self.root, BODY.len() as u64, sha256);
+        let operation = OperationCoordinator::new("download", None);
+        let mut messages = Vec::new();
+        let result = tokio::time::timeout(
+            Duration::from_secs(30),
+            transfer::download_resuming(
+                &self.client,
+                &asset,
+                destination,
+                &operation,
+                &mut |event| {
+                    if let crate::OperationEventKind::Message { message, .. } = event.event {
+                        messages.push(message);
+                    }
+                },
+                fast(0),
+                Some(partials),
+            ),
+        )
+        .await
+        .expect("transfer fixture exceeded thirty seconds");
+        (
+            result,
+            fs::read(destination).unwrap_or_default(),
+            self.requests.try_iter().collect(),
+            messages,
+        )
+    }
+
+    fn finish(self) {
+        self.server.join().unwrap();
+    }
+}
+
+fn stored_entries(root: &Path) -> Vec<String> {
+    let mut names = fs::read_dir(root)
+        .map(|entries| {
+            entries
+                .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    names.sort();
+    names
+}
+
+#[tokio::test]
+async fn interrupted_bytes_continue_after_a_restart_with_the_same_validator() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("\"v1\"")),
+        partial(Some("\"v1\""), "bytes 6-15/16", &BODY[DROPPED_AT..]),
+    ]);
+    // First run: the body drops and no reconnect is allowed.
+    let first = temporary.path().join("first.download");
+    let (result, _, _, _) = server.transfer(&partials, &first, digest.clone()).await;
+    assert!(result.is_err());
+    // The received bytes moved out of the failed operation's staging.
+    assert!(!first.exists());
+    assert_eq!(stored_entries(&store_root).len(), 2);
+
+    // A later run of the same asset asks only for the rest.
+    let second = temporary.path().join("second.download");
+    let (result, file, requests, messages) = server.transfer(&partials, &second, digest).await;
+    result.unwrap();
+    assert_eq!(file, BODY);
+    assert_eq!(ranged(&requests[1]).as_deref(), Some("bytes=6-"));
+    assert_eq!(if_range(&requests[1]).as_deref(), Some("\"v1\""));
+    assert!(messages[0].contains("Continuing the earlier download"));
+    // A completed download leaves nothing behind.
+    assert!(stored_entries(&store_root).is_empty());
+    server.finish();
+}
+
+#[tokio::test]
+async fn a_changed_representation_after_a_restart_starts_over() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("\"v1\"")),
+        // The server now has a different representation and answers whole.
+        whole(Some("\"v2\""), CHANGED),
+    ]);
+    let first = temporary.path().join("first.download");
+    server
+        .transfer(&partials, &first, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    let second = temporary.path().join("second.download");
+    let (result, file, _, _) = server.transfer(&partials, &second, digest).await;
+    result.unwrap();
+    // No received byte is spliced into the new representation; the caller's
+    // digest check refuses this file.
+    assert_eq!(file, CHANGED);
+    assert!(stored_entries(&store_root).is_empty());
+    server.finish();
+}
+
+#[tokio::test]
+async fn weak_validators_and_other_assets_never_use_kept_bytes() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    let digest = hex::encode(Sha256::digest(BODY));
+    let server = Restarts::serve(vec![
+        dropped(Some("W/\"v1\"")),
+        dropped(Some("\"v1\"")),
+        whole(Some("\"v1\""), BODY),
+    ]);
+    let weak = temporary.path().join("weak.download");
+    server
+        .transfer(&partials, &weak, digest.clone())
+        .await
+        .0
+        .unwrap_err();
+    assert!(stored_entries(&store_root).is_empty());
+
+    let kept = temporary.path().join("kept.download");
+    server
+        .transfer(&partials, &kept, digest)
+        .await
+        .0
+        .unwrap_err();
+    assert_eq!(stored_entries(&store_root).len(), 2);
+    // A different expected digest is a different asset: it starts at zero and
+    // leaves the other entry alone.
+    let other = temporary.path().join("other.download");
+    let (result, _, requests, _) = server
+        .transfer(&partials, &other, hex::encode(Sha256::digest(CHANGED)))
+        .await;
+    result.unwrap();
+    assert_eq!(ranged(requests.last().unwrap()), None);
+    assert_eq!(stored_entries(&store_root).len(), 2);
+    server.finish();
+}
+
+#[test]
+fn kept_bytes_stay_within_their_entry_bound() {
+    let temporary = tempfile::tempdir().unwrap();
+    let store_root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::new(store_root.clone());
+    for index in 0..6_u8 {
+        let source = temporary.path().join(format!("{index}.download"));
+        fs::write(&source, [index; 4]).unwrap();
+        let asset = ReleaseAsset {
+            name: "sample.zip".into(),
+            url: format!("https://example.invalid/{index}.zip"),
+            size: 16,
+            sha256: hex::encode(Sha256::digest([index])),
+        };
+        partials.keep(
+            &asset,
+            &source,
+            &partial_download::Received {
+                bytes: 4,
+                validator: "\"v\"".into(),
+                length: Some(16),
+            },
+        );
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    let parts = stored_entries(&store_root)
+        .into_iter()
+        .filter(|name| name.ends_with(".part"))
+        .count();
+    assert_eq!(parts, 4);
+}

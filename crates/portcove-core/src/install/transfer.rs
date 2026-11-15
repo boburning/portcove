@@ -1,8 +1,9 @@
 //! One bounded release transfer that can continue after a dropped body.
 //!
 //! A resume is only a transport optimization: callers still verify the whole
-//! file's size and SHA-256 before accepting it. Resume is limited to this
-//! transfer; durable cross-restart continuation belongs to the job authority.
+//! file's size and SHA-256 before accepting it. A caller may also supply the
+//! partial-download store, so an interrupted transfer's bytes continue in a
+//! later transfer of the same asset after a restart (#6222).
 
 use std::{io::SeekFrom, path::Path, time::Duration};
 
@@ -327,6 +328,23 @@ pub(crate) async fn download<F>(
 where
     F: FnMut(OperationEvent),
 {
+    download_resuming(client, asset, destination, operation, emit, policy, None).await
+}
+
+/// Like [`download`], continuing from and keeping interrupted bytes in
+/// `partials` for this exact asset.
+pub(crate) async fn download_resuming<F>(
+    client: &reqwest::Client,
+    asset: &ReleaseAsset,
+    destination: &Path,
+    operation: &OperationCoordinator,
+    emit: &mut F,
+    policy: ResumePolicy,
+    partials: Option<&super::partial_download::PartialDownloads>,
+) -> Result<()>
+where
+    F: FnMut(OperationEvent),
+{
     validate_download_progress(0, asset.size)?;
     let mut transfer = Transfer {
         asset,
@@ -337,6 +355,33 @@ where
         validator: None,
         length: None,
     };
+    if let Some(received) = partials.and_then(|store| store.take(asset, destination)) {
+        let opened = tokio::fs::OpenOptions::new()
+            .append(true)
+            .open(destination)
+            .await;
+        match (HeaderValue::from_str(&received.validator), opened) {
+            (Ok(validator), Ok(file)) => {
+                // The first request asks only for the rest, under the same
+                // continuity checks as a reconnect.
+                transfer.file = Some(BufWriter::with_capacity(1024 * 1024, file));
+                transfer.completed = received.bytes;
+                transfer.reported = received.bytes;
+                transfer.validator = Some(validator);
+                transfer.length = received.length;
+                emit(operation.message(
+                    "info",
+                    format!(
+                        "Continuing the earlier download of {} from the bytes already received.",
+                        asset.name
+                    ),
+                ));
+            }
+            _ => {
+                let _ = tokio::fs::remove_file(destination).await;
+            }
+        }
+    }
     let mut resumes = 0_u32;
     // Exhaustion reports the original interruption, so its upstream
     // classification (and preserved-location failover) does not depend on
@@ -398,6 +443,26 @@ where
         None => Ok(()),
     };
     if let Err(error) = transfer_result {
+        // Keep resumable bytes of an interrupted or cancelled transfer; never a
+        // rejected or unverifiable one. The file is closed before it moves.
+        let keep = partials.filter(|_| {
+            drain_result.is_ok()
+                && transfer.resumable()
+                && error.code != crate::ErrorCode::Verification
+        });
+        let received = transfer
+            .validator
+            .as_ref()
+            .and_then(|value| value.to_str().ok())
+            .map(|validator| super::partial_download::Received {
+                bytes: transfer.completed,
+                validator: validator.to_owned(),
+                length: transfer.length,
+            });
+        drop(transfer.file.take());
+        if let (Some(store), Some(received)) = (keep, received) {
+            store.keep(asset, destination, &received);
+        }
         return Err(match drain_result {
             Ok(()) => error,
             Err(drain) => error.detail("download_write_drain_error", drain.to_string()),
@@ -405,6 +470,9 @@ where
     }
     drain_result?;
     validate_download_size(transfer.completed, asset.size)?;
+    if let Some(store) = partials {
+        store.discard(asset);
+    }
     Ok(())
 }
 

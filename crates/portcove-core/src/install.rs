@@ -25,6 +25,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tokio::io::AsyncWriteExt;
 
+mod partial_download;
 mod transfer;
 
 #[derive(Debug, Clone)]
@@ -2036,7 +2037,21 @@ impl Installer {
                 }
             },
         };
-        Self::download_with_client(&client, asset, destination, operation, emit).await
+        // Release assets with an expected digest may continue after a restart;
+        // the caller verifies the complete file either way.
+        let partials = partial_download::PartialDownloads::new(
+            self.library.downloads_dir().join("partial-v1"),
+        );
+        transfer::download_resuming(
+            &client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+            Some(&partials),
+        )
+        .await
     }
 
     /// Shared bounded byte transfer; callers supply a provider-constrained
