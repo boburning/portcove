@@ -21,7 +21,7 @@
       "steps": [
         {
           "title": "Prepare a separate game folder",
-          "instruction": "Extract the v0.2 archive for your x64 system into its own writable folder. Copy the files listed in the upstream guide from your original DOS game into that working folder. Keep the upstream uppercase names, including CINEM and the .BPA files. In the working folder, set CDROM.INI to ./CINEM and leave your original installation unchanged."
+          "instruction": "Extract the v0.2 archive for your x64 system into its own writable folder. Copy the files listed in the upstream guide from the full DOS game into that working folder. The v0.2 player rejects the 1.1 shareware MENU.BPA. Keep the upstream uppercase names, including CINEM and the .BPA files. In the working folder, set CDROM.INI to ./CINEM and leave your original installation unchanged."
         },
         {
           "title": "Start the upstream player",
