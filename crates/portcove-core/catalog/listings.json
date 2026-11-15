@@ -14448,6 +14448,10 @@
           {
             "title": "Reviewed BStone package",
             "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
+          },
+          {
+            "title": "Change the Linux renderer",
+            "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
           }
         ]
       },
@@ -14508,6 +14512,10 @@
           {
             "title": "Reviewed BStone package",
             "instruction": "The reviewed Linux x64 and Intel Mac ZIPs are documented at https://github.com/bibendovsky/bstone/releases/tag/v1.3.4."
+          },
+          {
+            "title": "Change the Linux renderer",
+            "instruction": "If the external player’s menus or game view are clipped with Vulkan, add --vid_renderer and software as two separate arguments in its launch details. Keep your existing data and profile paths."
           }
         ]
       },
