@@ -406,7 +406,7 @@ pub(crate) fn inspect_for_port(
 /// What the live mods root holds relative to the revision that should own it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ModsObservation {
-    /// Files whose names no enabled package of the owning revision provides.
+    /// Files outside the enabled packages and the reviewed empty runtime marker.
     pub unmanaged: Vec<String>,
     /// Owned files whose bytes differ from the package that placed them.
     pub drifted: Vec<String>,
@@ -439,6 +439,10 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                 .insert(package.sha256.as_str());
         }
     }
+    let ship_loader = matches!(
+        native_mod_list::loader_list(&layout.port_id()),
+        Some(LoaderList::Ship(_))
+    );
     for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -449,6 +453,12 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                     observation.drifted.push(name);
                 }
             }
+            // Shipwright 9.3.1 creates this empty file when it creates mods/.
+            // It is shared runtime scaffolding and deployment leaves it in place.
+            None if ship_loader
+                && name == "custom_mod_files_go_here.txt"
+                && metadata.is_file()
+                && metadata.len() == 0 => {}
             _ => observation.unmanaged.push(name),
         }
     }

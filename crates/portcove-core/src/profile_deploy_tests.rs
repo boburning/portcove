@@ -237,6 +237,49 @@ fn switching_holds_when_unmanaged_mod_files_would_cross_the_boundary() {
 }
 
 #[test]
+fn switching_keeps_the_ship_loader_empty_marker_and_holds_edited_bytes() {
+    let w = world();
+    let other = w
+        .service
+        .copy_profile("starship", &w.default, "Other")
+        .unwrap();
+    let marker = user(&w).join("mods/custom_mod_files_go_here.txt");
+    fs::create_dir_all(marker.parent().unwrap()).unwrap();
+    fs::write(&marker, b"").unwrap();
+
+    let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    w.service
+        .install_mod_package("starship", &other.id, &package, 1)
+        .unwrap();
+    w.service.activate_profile("starship", &other.id).unwrap();
+    assert_eq!(
+        live_mods(&w),
+        ["custom_mod_files_go_here.txt", "hd-link.o2r"]
+    );
+    assert_eq!(fs::read(&marker).unwrap(), b"");
+    w.service.activate_profile("starship", &w.default).unwrap();
+    assert_eq!(live_mods(&w), ["custom_mod_files_go_here.txt"]);
+
+    fs::write(&marker, b"player notes").unwrap();
+    let held = w
+        .service
+        .activate_profile("starship", &other.id)
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Conflict);
+    assert_eq!(held.details["unmanaged"], "custom_mod_files_go_here.txt");
+    assert_eq!(fs::read(&marker).unwrap(), b"player notes");
+
+    fs::remove_file(&marker).unwrap();
+    fs::create_dir(&marker).unwrap();
+    let held = w
+        .service
+        .activate_profile("starship", &other.id)
+        .unwrap_err();
+    assert_eq!(held.details["unmanaged"], "custom_mod_files_go_here.txt");
+    assert!(marker.is_dir());
+}
+
+#[test]
 fn an_interrupted_switch_resumes_without_losing_either_profiles_progress() {
     let w = world();
     let other = w

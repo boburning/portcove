@@ -2312,10 +2312,12 @@ and [Zelda 64: Recompiled](#zelda-64-recompiled-mods) `.nrm`); others return
 `unsupported`. A computed digest establishes bytes, not publisher
 authenticity.
 
-Only files the selected revision installed are ever changed. Unknown files in `mods`
-and installed files edited outside Portcove hold the operation and are listed by
-`profile live`; nothing is overwritten or deleted. `activate` parks the departing
-profile's saves and settings, restores the arriving profile's, and reconciles mods
+Only files the selected revision installed are ever changed. Ship of Harkinian's
+empty `mods/custom_mod_files_go_here.txt` stays in place when setups switch.
+Other unknown entries, a changed marker, and installed files edited outside
+Portcove hold the operation and are listed by `profile live`. `activate` parks
+the departing profile's saves and settings, restores the arriving profile's,
+and reconciles mods
 from the exact revision. An interrupted switch resumes from its journal without
 merging or losing either profile's data. Until launch (or an immediate refresh of
 the installed build) has restored the new live data, collection is suspended so a
