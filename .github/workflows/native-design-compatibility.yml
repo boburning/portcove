@@ -73,8 +73,14 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - purpose: jak-setup-heap
-            revision: 3e8f1504981451d13cd4de8248c29eb1d409c6d5
+          - purpose: diablo-managed-guide
+            revision: 85ba266ee3cc03d716fc6668aa2694f6716c5fd8
+            executable: portcove
+          - purpose: diablo-supervisor
+            revision: 08b09862987607b85bd894851e06205d3c899bdb
+            executable: portcove
+          - purpose: ace-combat-managed-guides
+            revision: 49d9e62d61991d256aebd64371e1a57298c4349c
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
@@ -85,19 +91,20 @@ jobs:
           ref: ${{ matrix.revision }}
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: matrix.purpose == 'jak-setup-heap'
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.purpose == 'jak-setup-heap'
         with:
           node-version-file: .node-version
           package-manager-cache: false
       - uses: ./.github/actions/setup-rust
-      - name: Build the reviewed upstream setup candidate
-        if: matrix.purpose == 'jak-setup-heap'
+      - name: Build the exact reviewed native retest candidate
         shell: pwsh
+        env:
+          EXPECTED_SOURCE: ${{ matrix.revision }}
         run: |
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $source -cne $env:EXPECTED_SOURCE) { throw 'Source differs before build' }
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pnpm --dir apps/desktop build
@@ -117,14 +124,13 @@ jobs:
           $file = "target/debug/$($env:EXECUTABLE_NAME).exe"
           $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash $file from $actual" | Set-Content -LiteralPath 'target/debug/native-build-identity.txt'
-          if (Test-Path -LiteralPath 'target/debug/portcove-desktop.exe') {
-            $desktopHash = (Get-FileHash -LiteralPath 'target/debug/portcove-desktop.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
-            "$desktopHash target/debug/portcove-desktop.exe from $actual" | Add-Content -LiteralPath 'target/debug/native-build-identity.txt'
-          }
+          $desktopHash = (Get-FileHash -LiteralPath 'target/debug/portcove-desktop.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$desktopHash target/debug/portcove-desktop.exe from $actual" | Add-Content -LiteralPath 'target/debug/native-build-identity.txt'
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-${{ matrix.purpose }}-${{ matrix.revision }}
           if-no-files-found: error
+          retention-days: 2
           path: |
             target/debug/${{ matrix.executable }}.exe
             target/debug/portcove-desktop.exe
