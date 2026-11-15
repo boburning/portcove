@@ -6,6 +6,17 @@ import type { PortStatus } from "../../types";
 import type { CatalogEntry } from "../browsing/catalog-entry";
 import { useStartupPlayRequest } from "./use-startup-play-request";
 
+const events = vi.hoisted(() => ({
+  accept: undefined as (() => void) | undefined,
+  unlisten: vi.fn(),
+}));
+vi.mock("../../desktop-events", () => ({
+  listenDesktopEvent: vi.fn((name: string, accept: () => void) => {
+    if (name === "portcove://play-request") events.accept = accept;
+    return Promise.resolve(events.unlisten);
+  }),
+}));
+
 const port = portDefinition();
 const playable = installedLaunchStatus({ launchable: true, blockers: [], pending_setup: false });
 
@@ -76,29 +87,23 @@ describe("startup play request", () => {
   });
 
   it("takes a request forwarded by a later launch and routes it the same way", async () => {
+    events.accept = undefined;
+    events.unlisten.mockClear();
     const take = vi
       .spyOn(desktopApi, "takeStartupPlayRequest")
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(port.id);
-    let announce: (() => void) | undefined;
-    const unlisten = vi.fn();
-    const listen = vi.fn((_name: string, accept: () => void) => {
-      announce = accept;
-      return Promise.resolve(unlisten);
-    }) as unknown as NonNullable<Parameters<typeof useStartupPlayRequest>[0]["listen"]>;
     const { play, props } = setup(playable);
-    const view = await renderHook(
-      (value = { ...props(true), listen }) => useStartupPlayRequest(value),
-      { initialProps: { ...props(true), listen } },
-    );
+    const view = await renderHook((value = props(true)) => useStartupPlayRequest(value), {
+      initialProps: props(true),
+    });
     await vi.waitFor(() => expect(take).toHaveBeenCalledTimes(1));
     expect(play).not.toHaveBeenCalled();
-    expect(listen).toHaveBeenCalledWith("portcove://play-request", expect.any(Function));
-    await vi.waitFor(() => expect(announce).toBeDefined());
-    await view.act(async () => announce?.());
+    await vi.waitFor(() => expect(events.accept).toBeDefined());
+    await view.act(async () => events.accept?.());
     await vi.waitFor(() => expect(play).toHaveBeenCalledWith(port));
     expect(take).toHaveBeenCalledTimes(2);
     await view.unmount();
-    expect(unlisten).toHaveBeenCalledTimes(1);
+    expect(events.unlisten).toHaveBeenCalledTimes(1);
   });
 });

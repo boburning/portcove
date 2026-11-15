@@ -17,6 +17,7 @@ use std::sync::Mutex;
 use portcove_core::RecentlyPlayedGame;
 
 use crate::DesktopState;
+use crate::{desktop_contract::DESKTOP_EVENT_PLAY_REQUEST, transport::emit_desktop_event};
 
 /// The only accepted startup form is `<program> --portcove-play <port-id>`.
 pub(crate) const PLAY_ARGUMENT: &str = "--portcove-play";
@@ -70,6 +71,7 @@ impl StartupPlayRequest {
     }
 }
 
+#[cfg_attr(not(all(windows, not(test))), allow(dead_code))]
 /// Whether this process forwards later launches to itself: only the installed
 /// application, so development, fixture, portable and isolated native runs keep
 /// starting independent instances.
@@ -96,11 +98,7 @@ pub(crate) fn forward_later_launch<R: tauri::Runtime>(
     use tauri::Manager;
     if let Some(port_id) = play_request(arguments.into_iter().map(OsString::from)) {
         app.state::<StartupPlayRequest>().replace(port_id);
-        let _ = crate::transport::emit_desktop_event(
-            app,
-            crate::desktop_contract::DESKTOP_EVENT_PLAY_REQUEST,
-            (),
-        );
+        let _ = emit_desktop_event::<()>(app, DESKTOP_EVENT_PLAY_REQUEST, ());
     }
     if let Some(window) = app.get_webview_window(crate::transport::MAIN_WINDOW_LABEL) {
         let _ = window.unminimize();

@@ -39,14 +39,12 @@ export function useStartupPlayRequest({
   statuses,
   play,
   openDetails,
-  listen = listenDesktopEvent,
 }: {
   ready: boolean;
   entries: readonly CatalogEntry[];
   statuses: ReadonlyMap<string, PortStatus>;
   play: (port: CatalogEntry) => void;
   openDetails: (portId: string) => void;
-  listen?: typeof listenDesktopEvent;
 }) {
   const [forwarded, setForwarded] = useState(0);
   const handled = useRef(-1);
@@ -57,7 +55,7 @@ export function useStartupPlayRequest({
   useEffect(() => {
     let closed = false;
     let stop: (() => void) | undefined;
-    void listen("portcove://play-request", () => setForwarded((count) => count + 1))
+    void listenDesktopEvent("portcove://play-request", () => setForwarded((count) => count + 1))
       .then((unlisten) => {
         if (closed) unlisten();
         else stop = unlisten;
@@ -69,7 +67,7 @@ export function useStartupPlayRequest({
       closed = true;
       stop?.();
     };
-  }, [listen]);
+  }, []);
   useEffect(() => {
     if (!ready || handled.current === forwarded) return;
     handled.current = forwarded;
