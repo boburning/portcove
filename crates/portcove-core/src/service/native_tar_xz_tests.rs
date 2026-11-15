@@ -251,9 +251,8 @@ fn unknown_area(backup: &crate::BackupRecord, install: &InstallRecord) -> std::p
     backup.path.join("unknown-files").join(&install.id)
 }
 
-/// #5359 Tier 2: an edit made in the newer version comes back on rollback
-/// and returns on the next update, while a file edited in both versions is
-/// kept in each.
+/// #5359 Tier 2: an edit made in the newer version comes back on rollback,
+/// while a file edited in both versions is kept in each.
 #[tokio::test]
 async fn carried_files_follow_edits_back_and_forth_and_keep_both_when_both_changed() {
     let temporary = tempfile::tempdir().unwrap();
@@ -333,6 +332,37 @@ async fn carried_files_follow_edits_back_and_forth_and_keep_both_when_both_chang
     for install in [&first, &second] {
         assert_eq!(crate::carry_step::sweep(&install.path).unwrap(), 0);
     }
+}
+
+/// #5359 Tier 2: a modified active version carries nothing and never holds
+/// the switch away from it (design L5).
+#[tokio::test]
+async fn a_modified_active_version_carries_nothing_and_does_not_hold() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let (first_release, first_server) = release("1.0.0");
+    let provider = Arc::new(Provider(Mutex::new(first_release)));
+    let service = service(library.clone(), provider.clone());
+    let first = install(&service).await;
+    first_server.join().unwrap();
+    service.prepare_launch(PORT, None).unwrap();
+    let (second_release, second_server) = release("2.0.0");
+    *provider.0.lock().unwrap() = second_release;
+    let second = update(&service).await.unwrap();
+    second_server.join().unwrap();
+    let folder = second.path.join(&second.selected_executable);
+    let folder = folder.parent().unwrap();
+    fs::write(folder.join("settings.ini"), b"two").unwrap();
+    fs::write(folder.join("helper.exe"), b"MZ unrecognized program").unwrap();
+    let outcome = service
+        .carry_unknown_files(&second, &first)
+        .unwrap()
+        .unwrap();
+    assert!(outcome.source_modified);
+    assert!(outcome.carried.is_empty());
+    let first_folder = first.path.join(&first.selected_executable);
+    assert!(!first_folder.parent().unwrap().join("settings.ini").exists());
+    assert!(!first_folder.parent().unwrap().join("helper.exe").exists());
 }
 
 /// #5359 Tier 1: a settings file the game writes beside itself no longer

@@ -40,6 +40,9 @@ pub(crate) struct CarryOutcome {
     pub(crate) source_unreadable: Vec<String>,
     pub(crate) new_version_ships_file: Vec<String>,
     pub(crate) insufficient_space: bool,
+    /// The active version has changed program files or unrecognized
+    /// programs, so nothing was carried (design section 4, L5).
+    pub(crate) source_modified: bool,
 }
 
 impl CarryOutcome {
@@ -79,10 +82,25 @@ impl PortcoveService {
         active: &InstallRecord,
         target: &InstallRecord,
     ) -> Result<Option<CarryOutcome>> {
-        if active.id == target.id {
+        if active.id == target.id
+            || !self.carry_participates(active)?
+            || !self.carry_participates(target)?
+        {
             return Ok(None);
         }
-        let unknown = self.portable_runtime_unknown_files(active)?;
+        // A modified active version carries nothing and never holds the
+        // switch: rollback stays the way out of it (design L5).
+        let Ok(unknown) = self.portable_runtime_unknown_files(active) else {
+            let outcome = CarryOutcome {
+                source_modified: true,
+                ..CarryOutcome::default()
+            };
+            let mut connection = self.library.connection()?;
+            let transaction = connection.transaction()?;
+            record_outcome(&transaction, active, target, &outcome);
+            transaction.commit()?;
+            return Ok(Some(outcome));
+        };
         let active_qualification = self.installed_mutability_qualification(active)?;
         let target_qualification = self.installed_mutability_qualification(target)?;
         let (source_root, source_exclusions) = active_qualification.carry_exclusions(active)?;
@@ -113,13 +131,52 @@ impl PortcoveService {
             }
         }
         candidates.extend(source_rows.keys().cloned());
-        candidates.extend(target_rows.iter().filter_map(|(path, stored)| {
-            matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
-                .then(|| path.clone())
-        }));
-        if candidates.is_empty() {
+        candidates.extend(
+            target_rows
+                .iter()
+                .filter(|(_, stored)| {
+                    matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
+                })
+                .map(|(path, _)| path.clone()),
+        );
+        // Paths no carry may touch are dropped before anything is read, so a
+        // locked or unreadable excluded file can't hold the switch (M3).
+        let probe = candidates
+            .iter()
+            .filter(|path| crate::archive::validate_relative_path(path, false).is_ok())
+            .map(|path| {
+                (
+                    path.clone(),
+                    PathInput {
+                        source: carry_plan::SourceCopy::Absent,
+                        source_row: None,
+                        target: carry_plan::TargetCopy::Absent,
+                        target_row: None,
+                        target_replaces: None,
+                    },
+                )
+            })
+            .collect::<BTreeMap<_, _>>();
+        let mut shipped = Vec::new();
+        let eligible = carry_plan::plan(&active.id, &probe, &exclusions, &|_| false)
+            .into_iter()
+            .filter_map(|planned| match planned.action {
+                CarryAction::Excluded(carry_plan::Exclusion::PackageMember) => {
+                    shipped.push(planned.path);
+                    None
+                }
+                CarryAction::Excluded(_) => None,
+                _ => Some(planned.path),
+            })
+            .collect::<BTreeSet<_>>();
+        let harmless = unknown
+            .iter()
+            .map(|file| file.relative.as_str())
+            .collect::<BTreeSet<_>>();
+        if eligible.is_empty() {
             return Ok(None);
         }
+        let candidates = eligible;
 
         let checkpoint = || Ok(());
         let (source_listings, target_listings) = (Listings::default(), Listings::default());
@@ -168,10 +225,15 @@ impl PortcoveService {
                     sha256: row.sha256.clone(),
                     lineage: row.lineage.clone(),
                 };
-                let displaced = target_rows
-                    .get(&planned.path)
-                    .filter(|stored| stored.row.state == RowState::Present)
-                    .map(|stored| &stored.row);
+                // The present record T holds, or the one an earlier
+                // interrupted attempt's pending row kept (review M1).
+                let displaced =
+                    target_rows
+                        .get(&planned.path)
+                        .and_then(|stored| match stored.row.state {
+                            RowState::Present => Some(&stored.row),
+                            RowState::Pending { .. } => stored.replaces.as_ref(),
+                        });
                 if !carry_ledger::put(&transaction, &target.id, &planned.path, &pending, displaced)?
                 {
                     not_written.insert(planned.path.clone());
@@ -210,10 +272,27 @@ impl PortcoveService {
                 kept.extend(staged.publish().map_err(hold)?);
                 kept
             }
-            Err(CarryStop::InsufficientSpace { .. }) => {
-                outcome.insufficient_space = true;
+            Err(CarryStop::InsufficientSpace {
+                required,
+                available,
+            }) => {
                 self.restore_target_rows(&mut connection, target, &plan, &target_rows, &copying)?;
-                self.record_carry_outcome(&mut connection, active, target, &outcome)?;
+                // An earlier attempt published part of a carry here: hold
+                // rather than activate a partial carry (review M5).
+                let earlier = target_rows.values().any(|stored| {
+                    matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
+                });
+                if earlier {
+                    return Err(PortcoveError::conflict(
+                        "There isn't enough free space to finish carrying files to the new version. Nothing more was changed. Free up space on the drive that holds the game, then try again.",
+                    )
+                    .detail("required_bytes", required.to_string())
+                    .detail("available_bytes", available.to_string()));
+                }
+                outcome.insufficient_space = true;
+                let transaction = connection.transaction()?;
+                record_outcome(&transaction, active, target, &outcome);
+                transaction.commit()?;
                 return Ok(Some(outcome.bounded()));
             }
             Err(stop) => return Err(hold(stop)),
@@ -232,9 +311,6 @@ impl PortcoveService {
                 CarryAction::SourceUnreadable => {
                     outcome.source_unreadable.push(planned.path.clone())
                 }
-                CarryAction::Excluded(carry_plan::Exclusion::PackageMember) => {
-                    outcome.new_version_ships_file.push(planned.path.clone())
-                }
                 CarryAction::KeepSeparately => outcome.kept_separately.push(planned.path.clone()),
                 _ if kept_here => outcome.kept_separately.push(planned.path.clone()),
                 _ => {}
@@ -252,9 +328,29 @@ impl PortcoveService {
             }
             apply(&transaction, &active.id, &planned.path, &planned.source_row)?;
         }
+        // Only files the active version actually has count as shipped.
+        outcome.new_version_ships_file = shipped
+            .into_iter()
+            .filter(|path| {
+                harmless
+                    .iter()
+                    .any(|relative| relative == path || relative.ends_with(&format!("/{path}")))
+            })
+            .collect();
+        record_outcome(&transaction, active, target, &outcome);
         transaction.commit()?;
-        self.record_carry_outcome(&mut connection, active, target, &outcome)?;
         Ok(Some(outcome.bounded()))
+    }
+
+    /// Whether an installation is on a route Tier 2 carries for: the routes
+    /// on which Tier 1 splits hazards from harmless files and that activate
+    /// through Core's staged path (design section 1). Generated-cache and
+    /// every other adapter never carry.
+    fn carry_participates(&self, install: &InstallRecord) -> Result<bool> {
+        let port = self.installed_port(install)?;
+        Ok(port.adapter == crate::AdapterKind::NativePortable
+            || crate::persistence::ready_staged_archive(&port)
+            || port.n64_runtime_at_executable_parent)
     }
 
     /// Put T's rows back as they were before step 2, for a carry that wrote
@@ -279,57 +375,56 @@ impl PortcoveService {
         transaction.commit()?;
         Ok(())
     }
+}
 
-    fn record_carry_outcome(
-        &self,
-        connection: &mut rusqlite::Connection,
-        active: &InstallRecord,
-        target: &InstallRecord,
-        outcome: &CarryOutcome,
-    ) -> Result<()> {
-        let transaction = connection.transaction()?;
-        let bounded = serde_json::to_value(CarryOutcome {
-            carried: outcome
-                .carried
-                .iter()
-                .take(MAX_OUTCOME_PATHS)
-                .cloned()
-                .collect(),
-            removed: outcome
-                .removed
-                .iter()
-                .take(MAX_OUTCOME_PATHS)
-                .cloned()
-                .collect(),
+/// Record the switch's outcome in the caller's transaction, bounded in bytes.
+/// An outcome is never a reason to hold a switch whose files are published.
+fn record_outcome(
+    transaction: &rusqlite::Transaction<'_>,
+    active: &InstallRecord,
+    target: &InstallRecord,
+    outcome: &CarryOutcome,
+) {
+    let mut paths = MAX_OUTCOME_PATHS;
+    loop {
+        let bounded = CarryOutcome {
+            carried: outcome.carried.iter().take(paths).cloned().collect(),
+            removed: outcome.removed.iter().take(paths).cloned().collect(),
             kept_separately: outcome
                 .kept_separately
                 .iter()
-                .take(MAX_OUTCOME_PATHS)
+                .take(paths)
                 .cloned()
                 .collect(),
             source_unreadable: outcome
                 .source_unreadable
                 .iter()
-                .take(MAX_OUTCOME_PATHS)
+                .take(paths)
                 .cloned()
                 .collect(),
             new_version_ships_file: outcome
                 .new_version_ships_file
                 .iter()
-                .take(MAX_OUTCOME_PATHS)
+                .take(paths)
                 .cloned()
                 .collect(),
             insufficient_space: outcome.insufficient_space,
-        })?;
-        carry_ledger::put_outcome(
-            &transaction,
-            &target.port_id,
-            &active.id,
-            &target.id,
-            &bounded,
-        )?;
-        transaction.commit()?;
-        Ok(())
+            source_modified: outcome.source_modified,
+        };
+        let Ok(value) = serde_json::to_value(&bounded) else {
+            return;
+        };
+        if serde_json::to_string(&value).map_or(0, |text| text.len()) <= 60_000 || paths == 0 {
+            let _ = carry_ledger::put_outcome(
+                transaction,
+                &target.port_id,
+                &active.id,
+                &target.id,
+                &value,
+            );
+            return;
+        }
+        paths /= 2;
     }
 }
 

@@ -202,10 +202,6 @@ pub(crate) fn recover_published_install(
                     }
                     _ => {}
                 }
-                // Tier 2 (#5359): the same carry step as an uninterrupted switch.
-                if let Some(active) = &current_active {
-                    service.carry_unknown_files(active, &install)?;
-                }
             }
             service
                 .library
