@@ -74,7 +74,7 @@ jobs:
       matrix:
         include:
           - purpose: jak-setup-heap
-            revision: 0abc41d15ab7a6b1d21b556986a8cfe6ffbd000f
+            revision: 3e8f1504981451d13cd4de8248c29eb1d409c6d5
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
