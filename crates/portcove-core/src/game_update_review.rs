@@ -111,14 +111,10 @@ impl PortcoveService {
         // check is the port-bound part of Desktop's reviewed-link check.
         let list_kept = notes.releases_url.is_some();
         for entry in &mut notes.entries {
-            if !(list_kept
-                && entry
-                    .url
-                    .as_deref()
-                    .is_some_and(|url| super::listings::release_page_url(port, url)))
-            {
-                entry.url = None;
-            }
+            entry.url = entry
+                .url
+                .take()
+                .filter(|url| list_kept && super::listings::release_page_url(port, url));
         }
         Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
     }
@@ -655,6 +651,12 @@ mod tests {
         assert_eq!(
             notes.entries[0].url.as_deref(),
             Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2")
+        );
+        // Desktop's gate opens exactly what the review offers.
+        assert!(
+            reviewed
+                .is_reviewed_resource_url(notes.entries[0].url.as_deref().unwrap())
+                .unwrap()
         );
         // A tag that is not plain keeps its notes but gets no release page.
         let slashed = crate::UpdateReleaseNotesEntry {
