@@ -26,6 +26,7 @@ import {
   updatePreferenceBytes,
   verifyAgainstSums,
   windowsAssetNames,
+  windowsPathKey,
   type observeFeed,
 } from "./hosted-installed-update.mts";
 
@@ -310,6 +311,19 @@ void test("CLI and locale readers accept only successful, complete answers", () 
     read("apps/desktop/src/features/application-update/ApplicationUpdates.tsx"),
     /case "library-in-use":\s+return t\("failure\.libraryInUse"\)/u,
   );
+});
+
+void test("Windows path keys ignore the extended-length prefix, quotes, separators and case", () => {
+  const expected = "d:\\a\\portcove\\work\\scope\\library";
+  for (const value of [
+    "\\\\?\\D:\\a\\portcove\\work\\scope\\library",
+    "D:\\a\\portcove/work/scope/library\\",
+    '"D:\\A\\Portcove\\Work\\Scope\\Library"',
+  ])
+    assert.equal(windowsPathKey(value), expected, value);
+  assert.equal(windowsPathKey("\\\\?\\UNC\\server\\share\\x"), "\\\\server\\share\\x");
+  assert.equal(windowsPathKey("C:\\"), "c:\\");
+  assert.notEqual(windowsPathKey("D:\\a\\library2"), windowsPathKey("D:\\a\\library"));
 });
 
 void test("the workflow is manual, read-only and secret-free", () => {

@@ -50,6 +50,7 @@ import {
   updatePreferenceBytes,
   verifyAgainstSums,
   windowsAssetNames,
+  windowsPathKey,
   type Channel,
   type LocationSnapshot,
   type ManifestEntry,
@@ -261,7 +262,7 @@ function applicationProcesses(): ProcessRow[] {
 }
 function installedApplicationProcesses() {
   return applicationProcesses().filter(
-    (row) => row.path && path.win32.resolve(row.path).toLowerCase() === application.toLowerCase(),
+    (row) => row.path && windowsPathKey(row.path) === windowsPathKey(application),
   );
 }
 function processAlive(pid: number) {
@@ -287,8 +288,7 @@ const markerSnapshot = () => snapshot(isolationMarkers(localAppData));
 
 /** The registration names the isolated root; NSIS may record only the uninstaller. */
 function registrationInstallRoot(entry: Record<string, unknown> | undefined) {
-  const clean = (value: string) =>
-    path.win32.resolve(value.trim().replace(/^"|"$/gu, "")).replace(/\\+$/u, "").toLowerCase();
+  const clean = windowsPathKey;
   const expected = clean(scope.install);
   const location = typeof entry?.install_location === "string" ? entry.install_location : "";
   if (location.trim())
@@ -753,7 +753,7 @@ async function main() {
     "library-created-in-isolated-scope",
     typeof identityBefore.id === "string" &&
       typeof identityBefore.root === "string" &&
-      path.win32.resolve(identityBefore.root).toLowerCase() === scope.library.toLowerCase(),
+      windowsPathKey(identityBefore.root) === windowsPathKey(scope.library),
     identityBefore,
   );
   for (const file of playerDataSeed()) {
@@ -933,7 +933,7 @@ async function main() {
               entry.pid !== appPid &&
               entry.path !== undefined &&
               entry.path !== null &&
-              path.win32.resolve(entry.path).toLowerCase() === application.toLowerCase(),
+              windowsPathKey(entry.path) === windowsPathKey(application),
           ),
         "automatic relaunch",
         3 * 60_000,
