@@ -892,9 +892,11 @@ async function assertReviewedUpdateOutcomes({
               { cause: error },
             );
           });
+        // The outcome can render before the workspace refresh finishes. Hosted job
+        // 132633665928 observed the banner while the review was still busy at 5 s.
         await browser.wait(
           async () => (await browser.findElements(dialog)).length === 0,
-          5_000,
+          60_000,
           "Settled update outcome did not close its observation review",
         );
         assert.equal((await browser.findElements(dialog)).length, 0);
