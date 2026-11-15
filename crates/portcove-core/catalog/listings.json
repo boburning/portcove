@@ -12428,11 +12428,11 @@
         "steps": [
           {
             "title": "Keep the portable package together",
-            "instruction": "Extract the Windows MinGW x64 ZIP into a separate folder. This selected package includes the upstream data directory; keep it beside opentyrian2000.exe."
+            "instruction": "Choose the upstream MinGW x64 ZIP on Windows x86-64 or opentyrian2000-MSVC-ARM64.zip on Windows ARM64. Extract the complete package into a writable folder. Keep opentyrian2000.exe, its libraries and the included data directory together."
           },
           {
             "title": "Use the included player",
-            "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+            "instruction": "On Windows x86-64, finish setup with opentyrian2000.exe and its folder, then choose Play in Portcove. On Windows ARM64, start opentyrian2000.exe directly. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
           },
           {
             "title": "Install the upstream Linux package",
