@@ -287,7 +287,9 @@ approved metadata/intake scope and scheduling remain unchanged.
 The `native-portable` adapter offers the existing managed installation, update,
 retained-version, backup and recovery lifecycle to fitting upstream archives.
 For ordinary GitHub discovery, releases containing only explicit other-OS
-players are outside that platform's stream. Same-OS, unknown or mixed package
+players are outside that platform's stream. PortMaster packages target handheld
+Linux firmware and count as another platform's players on every desktop
+platform, so a PortMaster-only release never enters a desktop stream. Same-OS, unknown or mixed package
 names still use the normal variant, processor and integrity refusals; source-only
 releases never silently select an older runtime. Curated identities retain their
 existing exact selection.
@@ -808,8 +810,9 @@ They do not block those operations, and only a reviewed loader-read name
 beside the executable, such as `dinput8.ini`, `ReShade.ini`, `dxvk.conf` or
 `Game.exe.config`, blocks launch. Verification and the removal review list them,
 backups keep a separate copy that restore does not put back, and removal backs
-them up first. They are not declared player data and are not collected or
-carried forward. Past the unknown-file caps only a backup or removal is held;
+them up first. They are not declared player data and are not collected as such;
+harmless ones are carried to the version that becomes active under the
+[Tier 2 contract](ARCHITECTURE.md#unknown-player-side-files). Past the unknown-file caps only a backup or removal is held;
 see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
 Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
