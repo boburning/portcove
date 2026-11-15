@@ -189,6 +189,10 @@ example, changing an input file) remain. Repeated controls carry the game, and a
 variant when needed, in their accessible name, with the visible label as its
 prefix (“Play: Title · Project”).
 
+When Portcove accepts Play or Try launch, its task announcement says
+“Launch requested for Title.” The tracked game session supplies startup and
+return outcomes.
+
 Count and name entities that exist. Library entries can include several ports
 for one game, so Library counts read “N in your library” rather than “games” or
 “library entries”. Filters use player concepts: **Runs on**, **Available for this

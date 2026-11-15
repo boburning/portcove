@@ -1,4 +1,4 @@
-import { countMessage } from "../localization";
+import { countMessage, useAppTranslation } from "../localization";
 import {
   SidebarCollections,
   OrganizationControls,
@@ -526,6 +526,7 @@ export function StatusLayer({
   /** Returns Play only when current readback reports the record's port launchable. */
   readyToPlay?: (record: InvocationRecord) => (() => void) | undefined;
 }) {
+  const { t } = useAppTranslation("common");
   const acknowledgedSuccess = useRef(new Set<number>());
   const [latestSuccess, setLatestSuccess] = useState<number>();
   useLayoutEffect(() => {
@@ -548,7 +549,9 @@ export function StatusLayer({
       {invocations && (
         <InvocationAnnouncements
           messages={[...invocations.values()].flatMap((record) => {
-            const text = invocationAnnouncement(record, operationEvents);
+            const text = invocationAnnouncement(record, operationEvents, (game) =>
+              t("launchRequestAccepted", { game }),
+            );
             return text === undefined ? [] : [{ id: record.id, text }];
           })}
         />
@@ -623,6 +626,7 @@ export function StatusLayer({
 function invocationAnnouncement(
   record: InvocationRecord,
   events: ReadonlyMap<string, OperationEvent> | undefined,
+  acceptedLaunchAnnouncement: (game: string) => string,
 ) {
   const identity = `${record.context.action} · ${record.context.target.label}`;
   const failure = invocationFailure(record);
@@ -636,6 +640,10 @@ function invocationAnnouncement(
         ? ""
         : ` Refreshing the current state also failed: ${errorText(record.refreshFailure)}. The original action result is retained.`;
     return `${identity}: cancelled.${detail}${readback}`;
+  }
+  // A launch acknowledgement can arrive before the supervisor starts a game process.
+  if (record.context.operation === "launch" && record.outcome === "succeeded") {
+    return acceptedLaunchAnnouncement(record.context.target.label);
   }
   const outcome = record.outcome === "succeeded" ? "finished" : record.outcome;
   if (record.phase === "pending") {

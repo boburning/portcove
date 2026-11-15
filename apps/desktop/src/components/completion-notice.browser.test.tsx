@@ -64,16 +64,28 @@ it("keeps the factual completion when current readback does not report the game 
   expect(page.getByRole("button", { name: /^Play/u }).query()).toBeNull();
 });
 
-it("shows no visible message after a successful launch", async () => {
-  await render(
+it("announces launch acceptance without waiting for the game to start", async () => {
+  const launch = record("launch", "Launch game", "launch");
+  const notice = (invocation: InvocationRecord) => (
     <StatusLayer
       clearError={vi.fn()}
-      invocations={new Map([[7, record("launch", "Launch", "launch")]])}
+      invocations={new Map([[7, invocation]])}
       dismissInvocation={vi.fn()}
       openActivity={vi.fn()}
-    />,
+    />
   );
+  const { id, name, context } = launch;
+  const screen = await render(notice({ id, name, context, phase: "pending" }));
+  const message = document.querySelector('[data-announcement-invocation-id="7"]');
+  expect(message?.textContent).toBe("Launch game · Harbor Adventure: Starting game.");
+
+  await screen.rerender(notice({ ...launch, phase: "pending" }));
+  expect(message?.textContent).toBe("Launch requested for Harbor Adventure.");
+
+  await screen.rerender(notice(launch));
   const group = document.querySelector<HTMLElement>('[data-invocation-id="7"]');
   await expect.poll(() => group?.className).toBe("sr-only");
+  expect(document.querySelector('[data-announcement-invocation-id="7"]')).toBe(message);
+  expect(message?.textContent).toBe("Launch requested for Harbor Adventure.");
   expect(document.querySelector('[data-slot="notice-body"]')).toBeNull();
 });

@@ -633,6 +633,7 @@ export default interface Resources {
       "placeholder": "Search games and port projects…",
       "show": "Show games and ports"
     },
+    "launchRequestAccepted": "Launch requested for {{game}}.",
     "navigation": {
       "back": "<key/>: Back",
       "gamepadBack": "Back button: Back",
