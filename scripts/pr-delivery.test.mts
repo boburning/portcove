@@ -1592,6 +1592,7 @@ void test("bound merge refuses an attempt change after check and closure collect
     pull: pull(),
     head,
     contexts: requiredCheckContexts(successfulRuns(), [], required),
+    jobs: workflowJobs(),
   });
   client.pullCommits = async () => [{ sha: head, commit: { message: squashMessage.title } }];
   await assert.rejects(

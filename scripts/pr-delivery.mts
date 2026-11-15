@@ -709,8 +709,10 @@ export class PullRequestDeliveryClient {
     validateMergeReadiness(number, head, state.pull, state.contexts);
     // A bound merge requires every required context to be a successful job of the
     // identified run attempt, not merely a successful check of the same name.
-    if (binding && state.jobs)
+    if (binding) {
+      if (!state.jobs) throw new Error("Bound merge job inventory is unavailable");
       assertSuccessfulWorkflowJobs(state.jobs, state.contexts, { head, ...binding });
+    }
     const targetRef = state.pull.base.ref;
     if (expected) {
       if (!targetRef) throw new Error("Merge target branch is unavailable");
