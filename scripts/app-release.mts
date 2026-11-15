@@ -87,7 +87,12 @@ const workspaceVersionPattern = /(\[workspace\.package\][^[]*?\nversion = ")([^"
 
 /** The `[workspace.package]` version in Cargo.toml. */
 export function readWorkspaceVersion(root: string) {
-  const match = workspaceVersionPattern.exec(readFileSync(path.join(root, "Cargo.toml"), "utf8"));
+  return parseWorkspaceVersion(readFileSync(path.join(root, "Cargo.toml"), "utf8"));
+}
+
+/** The `[workspace.package]` version in Cargo.toml text. */
+export function parseWorkspaceVersion(cargoToml: string) {
+  const match = workspaceVersionPattern.exec(cargoToml);
   if (!match) throw new Error("workspace.package version not found");
   parseVersion(match[2]!);
   return match[2]!;
@@ -278,18 +283,18 @@ export function quietMentions(text: string) {
 }
 
 /** How many first-parent `main` commits a nightly looks back for a CI-green one. */
-export const nightlyLookback = 20;
+export const nightlyLookback = 100;
 
 /**
  * Tags and pushes at most one `nightly-X.Y.Z-preview.N`, at the newest CI-green
  * first-parent commit of `origin/main` that is newer than every commit carrying a
  * `v*` or `nightly-*` tag. On a busy `main` the newest commit often has no finished
  * `CI` run yet (pending runs are replaced), so an older reviewed commit is used.
+ * The version follows the chosen commit's `Cargo.toml` workspace version.
  * The tag only names the release: signing is admitted by the `main` ref of the
  * nightly run, never by this tag.
  */
 export async function nightlyPreview(
-  workspaceVersion: string,
   ci: (sha: string) => Promise<string>,
   run: Runner = defaultRunner,
 ): Promise<{ skipped: string } | { tag: string; version: string; commit: string }> {
@@ -323,6 +328,7 @@ export async function nightlyPreview(
     return {
       skipped: `CI has not succeeded on any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
     };
+  const workspaceVersion = parseWorkspaceVersion(git(["show", `${commit}:Cargo.toml`]));
   const tags = listVersionTags(run);
   const version = nextPreviewVersion(tags, workspaceVersion);
   const tag = `${nightlyTagPrefix}${version}`;
@@ -467,6 +473,62 @@ export async function ciConclusion(token: string, sha: string) {
     .filter((run) => run.name === "CI" && run.status === "completed")
     .sort((a, b) => a.id - b.id || a.run_attempt - b.run_attempt);
   return runs.at(-1)?.conclusion ?? "";
+}
+
+/**
+ * Conclusion of the newest completed `CI` push run per commit, from the latest
+ * 100 completed `CI` push runs on `main` in one read. The nightly looks up its
+ * candidate commits here instead of reading each commit's runs.
+ */
+export async function mainCiConclusions(token: string) {
+  const api = await client(token);
+  const response = await api.request("GET /repos/{owner}/{repo}/actions/runs", {
+    owner: "boburning",
+    repo: "portcove",
+    branch: "main",
+    event: "push",
+    status: "completed",
+    per_page: 100,
+    ...read(),
+  });
+  return newestConclusions(
+    (
+      response.data as {
+        workflow_runs: {
+          name: string;
+          head_sha: string;
+          conclusion: string | null;
+          run_attempt: number;
+          id: number;
+        }[];
+      }
+    ).workflow_runs,
+  );
+}
+
+/** The conclusion of each commit's newest `CI` run and attempt. */
+export function newestConclusions(
+  runs: readonly {
+    name: string;
+    head_sha: string;
+    conclusion: string | null;
+    run_attempt: number;
+    id: number;
+  }[],
+) {
+  const newest = new Map<string, { id: number; attempt: number; conclusion: string }>();
+  for (const run of runs) {
+    if (run.name !== "CI") continue;
+    const known = newest.get(run.head_sha);
+    if (known && (known.id > run.id || (known.id === run.id && known.attempt >= run.run_attempt)))
+      continue;
+    newest.set(run.head_sha, {
+      id: run.id,
+      attempt: run.run_attempt,
+      conclusion: run.conclusion ?? "",
+    });
+  }
+  return new Map([...newest].map(([sha, run]) => [sha, run.conclusion]));
 }
 
 type Release = {
@@ -943,9 +1005,8 @@ async function main(argv: string[]) {
   else if (command === "next-preview")
     console.log(nextPreviewVersion(listVersionTags(), readWorkspaceVersion(process.cwd())));
   else if (command === "nightly-preview") {
-    const result = await nightlyPreview(readWorkspaceVersion(process.cwd()), (sha) =>
-      ciConclusion(token(), sha),
-    );
+    const conclusions = await mainCiConclusions(token());
+    const result = await nightlyPreview((sha) => Promise.resolve(conclusions.get(sha) ?? ""));
     if ("skipped" in result) {
       console.error(`::notice::No nightly preview: ${result.skipped}`);
       console.log("tag=");
