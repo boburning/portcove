@@ -2673,16 +2673,20 @@ intentionally strict for now: those paths copy or re-derive the whole runtime,
 and Tier 1 does not decide how unknown files travel with it.
 
 An explicit backup and removal (review and execution) copy every unknown file
-and need only the space for it (owner decision, November 15, 2026): the
-library volume must keep the larger of 1 GiB and 2% of the volume free after
-the stored bytes, or they hold instead of truncating. The removal review
-reports those bytes as `PortRemovalPreview.unknown_file_bytes`, shown as the
-backup size, which stays until the player deletes the backup. The caps of
-1,024 files, 16 MiB in one file and 64 MiB in total bound only the automatic
-snapshot before a version change, the restore safety backup and the
-portable-save import snapshot: past one they copy none of the unknown files and
-record `unknown_files_left_in_place_v1`, because those operations delete
-nothing and run on every switch. Update, rollback, collection and launch are
+and need only the space for the whole backup (owner decision, November 15,
+2026): the library volume must keep the larger of 1 GiB and 2% of the volume
+free after the saves and settings plus the stored unknown files, or they hold
+instead of truncating. A removal with no unknown files takes no backup and
+checks nothing. The removal review reports the stored unknown bytes as
+`PortRemovalPreview.unknown_file_bytes` and binds them into its fingerprint;
+Desktop and the CLI say how much those files take in the backup, which stays
+until the player deletes it. The caps of 1,024 files, 16 MiB in one file and
+64 MiB in total bound the automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot: past one they copy
+none of the unknown files and record `unknown_files_left_in_place_v1`, because
+those operations delete nothing and run on every switch. The legacy Ghostship
+recovery safety snapshot keeps the caps and holds past one, because its
+capacity review is sized for them. Update, rollback, collection and launch are
 never held. Declared
 persistence, retained-scope receipts and canonical collection are unchanged.
 

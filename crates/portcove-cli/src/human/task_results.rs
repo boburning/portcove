@@ -764,7 +764,7 @@ pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -
         }
         if preview.unknown_file_bytes > 0 {
             unknown.push_str(&format!(
-                "\nBackup size: {}. The backup stays until you delete it.",
+                "\nThese files take {} in the backup, which stays until you delete it.",
                 format_bytes(preview.unknown_file_bytes)
             ));
         }

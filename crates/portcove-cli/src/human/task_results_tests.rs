@@ -183,11 +183,13 @@ fn removal_review_keeps_exact_inventory_and_core_preservation_flag_without_claim
     assert!(text.contains("Removal copies them to a new backup first"));
     assert!(text.lines().any(|line| line == "  player/settings.ini"));
     assert!(text.contains("1 more unrecognized file is not listed."));
-    assert!(!text.contains("Backup size"));
+    assert!(!text.contains("in the backup"));
     preview.unknown_file_bytes = 3 * 1024 * 1024;
     let text = removal_preview(&preview, &catalog);
-    assert!(text.contains("Backup size: "), "{text}");
-    assert!(text.contains("The backup stays until you delete it."));
+    assert!(
+        text.contains("These files take 3.0 MiB in the backup, which stays until you delete it."),
+        "{text}"
+    );
     let review = text.find("Review SHA-256").unwrap();
     assert!(text.find("Unrecognized files").unwrap() < review);
     preview.managed_paths.clear();

@@ -152,8 +152,7 @@ it("names unrecognized files and their backup before consent", async () => {
     "copies them to a new backup before uninstalling",
     "Restoring a backup doesn't put them back.",
     "Files not listed here: 1",
-    "Backup size: 3",
-    "The backup stays until you delete it.",
+    "These files take 3.0 MiB in the backup, which stays until you delete it.",
   ])
     expect(dialog().textContent).toContain(text);
 });
@@ -165,7 +164,7 @@ it("omits unrecognized files when there are none", async () => {
   );
   await expect.poll(() => dialog().textContent).toContain(review.persistent_data_path);
   expect(dialog().textContent).not.toContain("didn't install");
-  expect(dialog().textContent).not.toContain("Backup size");
+  expect(dialog().textContent).not.toContain("in the backup");
 });
 
 it("dismisses a removal review without applying it", async () => {

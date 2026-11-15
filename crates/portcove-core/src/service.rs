@@ -4714,10 +4714,20 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        // Removal copies these before deleting the folders, so the library
-        // must have room for what it stores once identical copies collapse.
+        // Removal copies these, with the saves and settings, to a new backup
+        // before deleting the folders, so the library must have room for that
+        // backup once identical copies collapse. Without unknown files no
+        // backup is taken.
         let stored = backups::deduplicate_unknown_files(keyed)?;
-        backups::require_unknown_file_space(self.library.root(), &stored.files)?;
+        if !stored.files.is_empty() {
+            let user = self.library.user_dir(port_id);
+            let data_bytes = if user.is_dir() {
+                backups::unknown_file_tree_bytes(&user)?
+            } else {
+                0
+            };
+            backups::require_unknown_file_space(self.library.root(), &stored.files, data_bytes)?;
+        }
         let unknown_file_bytes = stored
             .files
             .iter()
@@ -4729,8 +4739,12 @@ impl PortcoveService {
         let preview_sha256 = if listed.is_empty() {
             hex::encode(Sha256::digest(serde_json::to_vec(&installs)?))
         } else {
-            // Consent binds the unknown files the review showed.
-            hex::encode(Sha256::digest(serde_json::to_vec(&(&installs, &listed))?))
+            // Consent binds the unknown files and the backup size the review showed.
+            hex::encode(Sha256::digest(serde_json::to_vec(&(
+                &installs,
+                &listed,
+                unknown_file_bytes,
+            ))?))
         };
         Ok(PortRemovalPreview {
             port_id: port_id.to_owned(),
@@ -4788,8 +4802,8 @@ impl PortcoveService {
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
             // Removal deletes the version folders. Unknown player-side files
-            // (#5359) go to a separate area of a backup first; past a cap the
-            // removal holds instead of deleting what it could not keep.
+            // (#5359) go to a separate area of a backup first; without the
+            // space for it the removal holds instead of deleting them.
             self.create_removal_safety_backup_locked(port_id)?;
             let paths = self.library.port_install_paths(port_id)?;
             let removals = paths

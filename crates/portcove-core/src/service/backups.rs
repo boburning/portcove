@@ -36,6 +36,7 @@ pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
 pub(super) use unknown_files::{
     UnknownFileScope, UnknownRuntimeFile, deduplicate as deduplicate_unknown_files,
     measure as measure_unknown_files, require_space as require_unknown_file_space,
+    tree_bytes as unknown_file_tree_bytes,
 };
 
 /// The newest this many automatic snapshots per game are kept.
@@ -665,7 +666,14 @@ impl PortcoveService {
     }
 
     pub(super) fn create_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Explicit)
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Explicit, None)
+    }
+
+    /// A safety snapshot before a recovery that sizes its capacity review for
+    /// the caps: past one it holds, as explicit backups did before the owner
+    /// decision of November 15, 2026.
+    pub(super) fn create_capped_safety_backup_locked(&self, port_id: &str) -> Result<BackupRecord> {
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::CappedSafety, None)
     }
 
     /// The safety backup before a restore replaces canonical data. Restore
@@ -674,7 +682,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Automatic)
+        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Automatic, None)
     }
 
     /// Publish an ordinary snapshot of current canonical data with a reviewed
@@ -686,7 +694,13 @@ impl PortcoveService {
         port_id: &str,
         overlay: &SnapshotOverlay<'_>,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, None, Some(overlay), UnknownFileScope::Automatic)
+        self.create_backup_snapshot(
+            port_id,
+            None,
+            Some(overlay),
+            UnknownFileScope::Automatic,
+            None,
+        )
     }
 
     fn create_backup_locked_labeled(
@@ -694,7 +708,13 @@ impl PortcoveService {
         port_id: &str,
         label: crate::AutomaticSnapshotLabel,
     ) -> Result<BackupRecord> {
-        self.create_backup_snapshot(port_id, Some(label), None, UnknownFileScope::Automatic)
+        self.create_backup_snapshot(
+            port_id,
+            Some(label),
+            None,
+            UnknownFileScope::Automatic,
+            None,
+        )
     }
 
     /// Before removal, keep the unknown player-side files of every version,
@@ -704,15 +724,19 @@ impl PortcoveService {
         &self,
         port_id: &str,
     ) -> Result<Option<BackupRecord>> {
-        if self
-            .backup_unknown_files(port_id, UnknownFileScope::Removal)?
-            .files
-            .is_empty()
-        {
+        // One selection, so identical copies are hashed once more, not twice.
+        let selection = self.backup_unknown_files(port_id, UnknownFileScope::Removal)?;
+        if selection.files.is_empty() {
             return Ok(None);
         }
-        self.create_backup_snapshot(port_id, None, None, UnknownFileScope::Removal)
-            .map(Some)
+        self.create_backup_snapshot(
+            port_id,
+            None,
+            None,
+            UnknownFileScope::Removal,
+            Some(selection),
+        )
+        .map(Some)
     }
 
     fn create_backup_snapshot(
@@ -721,15 +745,29 @@ impl PortcoveService {
         label: Option<crate::AutomaticSnapshotLabel>,
         overlay: Option<&SnapshotOverlay<'_>>,
         unknown_scope: UnknownFileScope,
+        selection: Option<unknown_files::UnknownFileSelection>,
     ) -> Result<BackupRecord> {
         self.require_generated_cache_outputs_unchanged(port_id)?;
         let source = self.library.user_dir(port_id);
         let source_exists = source.is_dir();
-        let selection = self.backup_unknown_files(port_id, unknown_scope)?;
+        let selection = match selection {
+            Some(selection) => selection,
+            None => self.backup_unknown_files(port_id, unknown_scope)?,
+        };
         let unknown = selection.files;
         let unknown_duplicates = selection.duplicates;
-        if unknown_scope != UnknownFileScope::Automatic {
-            unknown_files::require_space(self.library.root(), &unknown)?;
+        if matches!(
+            unknown_scope,
+            UnknownFileScope::Explicit | UnknownFileScope::Removal
+        ) {
+            // The whole backup must fit: saves and settings as well as the
+            // unknown files it stores.
+            let data_bytes = if source_exists {
+                unknown_files::tree_bytes(&source)?
+            } else {
+                0
+            };
+            unknown_files::require_space(self.library.root(), &unknown, data_bytes)?;
         }
         let unknown_files_left_in_place_v1 =
             (selection.left_in_place > 0).then_some(selection.left_in_place);

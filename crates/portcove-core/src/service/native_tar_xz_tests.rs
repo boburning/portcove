@@ -367,6 +367,8 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         preview.unknown_file_count, 4,
         "every version's copy is listed"
     );
+    // The backup stores the shared settings once: 6 + 7 + 13 of the 33 listed bytes.
+    assert_eq!(preview.unknown_file_bytes, 26);
     assert!(
         preview
             .unknown_files

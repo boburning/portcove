@@ -34,23 +34,46 @@ pub(crate) fn space_shortfall(bytes: u64, available: u64, total: u64) -> Option<
     (required > available).then_some(required)
 }
 
-/// Hold an explicit or removal backup that the library volume can't hold.
-pub(crate) fn require_space(volume: &Path, files: &[UnknownRuntimeFile]) -> Result<()> {
-    if files.is_empty() {
+/// Bytes of the regular files under `root`, which a backup copies to `data/`.
+pub(crate) fn tree_bytes(root: &Path) -> Result<u64> {
+    let mut total = 0_u64;
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        for entry in fs::read_dir(&directory)? {
+            let entry = entry?;
+            let metadata = fs::symlink_metadata(entry.path())?;
+            if metadata.is_dir() {
+                pending.push(entry.path());
+            } else if metadata.is_file() {
+                total = total.saturating_add(metadata.len());
+            }
+        }
+    }
+    Ok(total)
+}
+
+/// Hold an explicit or removal backup that the library volume can't hold:
+/// its unknown files plus `data_bytes` of saves and settings.
+pub(crate) fn require_space(
+    volume: &Path,
+    files: &[UnknownRuntimeFile],
+    data_bytes: u64,
+) -> Result<()> {
+    if files.is_empty() && data_bytes == 0 {
         return Ok(());
     }
     let bytes = files
         .iter()
-        .fold(0_u64, |total, file| total.saturating_add(file.size));
+        .fold(data_bytes, |total, file| total.saturating_add(file.size));
     let available = fs4::available_space(volume)?;
     let total = fs4::total_space(volume)?;
     match space_shortfall(bytes, available, total) {
         None => Ok(()),
         Some(required) => Err(PortcoveError::conflict(
-            "There isn't enough free space to back up the files Portcove didn't install. This operation stopped and every file stayed in place. Free up space on the drive that holds your Portcove library, then try again.",
+            "There isn't enough free space for this backup. This operation stopped and every file stayed in place. Free up space on the drive that holds your Portcove library, then try again.",
         )
         .detail("unknown_file_count", files.len().to_string())
-        .detail("unknown_file_bytes", bytes.to_string())
+        .detail("backup_bytes", bytes.to_string())
         .detail("required_bytes", required.to_string())
         .detail("available_bytes", available.to_string())),
     }
@@ -85,7 +108,7 @@ pub(crate) const UNKNOWN_FILES_INDEX: &str = "index.json";
 
 /// One installation's copy of an unknown file in a removal backup. Identical
 /// copies of one path are stored once, under the first installation that has
-/// them, so Portcove's own carried copies do not count against the caps (D6).
+/// them, so Portcove's own carried copies need no extra space (D6).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) struct UnknownFileCopy {
     pub(crate) install_id: String,
@@ -134,7 +157,8 @@ pub(crate) fn measure(
         .collect::<Result<Vec<_>>>()
 }
 
-/// The automatic snapshot's caps: past one it copies no unknown file.
+/// The caps of automatic snapshots (past one they copy no unknown file) and
+/// of the capped safety snapshot (past one it holds).
 pub(crate) fn require_within_caps(files: &[UnknownRuntimeFile]) -> Result<()> {
     let total = files
         .iter()
@@ -408,6 +432,9 @@ impl PortcoveService {
         for install in &installs {
             files.extend(self.portable_runtime_unknown_files(install)?);
         }
+        if scope == UnknownFileScope::CappedSafety {
+            require_within_caps(&files)?;
+        }
         if scope == UnknownFileScope::Automatic && require_within_caps(&files).is_err() {
             return Ok(UnknownFileSelection {
                 left_in_place: files.len() as u64,
@@ -485,6 +512,9 @@ pub(crate) enum UnknownFileScope {
     /// A backup the player asked for: the active version; every file, if
     /// there is space.
     Explicit,
+    /// A safety snapshot whose operation sized its capacity review for the
+    /// caps (legacy Ghostship recovery): the active version; past a cap, hold.
+    CappedSafety,
     /// A safety snapshot before a version change, restore or import, which
     /// deletes no unknown file: the active version; past a cap, copy none.
     Automatic,
@@ -737,10 +767,12 @@ mod tests {
         assert_eq!(space_shortfall(u64::MAX, u64::MAX - 1, 0), Some(u64::MAX));
         let temporary = tempfile::tempdir().unwrap();
         let mut huge = installation(temporary.path(), "install-a", &[("replay.dat", b"x")]);
-        require_space(temporary.path(), &huge).unwrap();
-        require_space(temporary.path(), &[]).unwrap();
+        require_space(temporary.path(), &huge, 0).unwrap();
+        require_space(temporary.path(), &[], 0).unwrap();
         huge[0].size = u64::MAX / 2;
-        let error = require_space(temporary.path(), &huge).unwrap_err();
+        let error = require_space(temporary.path(), &huge, 0).unwrap_err();
+        // Saves count too: no unknown file, but more data than the volume holds.
+        assert!(require_space(temporary.path(), &[], u64::MAX / 2).is_err());
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert!(error.message.contains("every file stayed in place"));
         assert!(error.details.contains_key("required_bytes"));
