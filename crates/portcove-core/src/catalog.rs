@@ -14,7 +14,6 @@ pub(crate) mod listings;
 // A `static` keeps one copy of the bytes; a `const` may be duplicated per use.
 pub(crate) static EMBEDDED_CATALOG: &str = include_str!("../catalog/catalog.json");
 
-/// SHA-256 of the catalog compiled into this binary, before any listing merge.
 /// How a port's source profile uses copier-header-optional SNES identities.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SnesCopierHeaderUse {
@@ -23,6 +22,7 @@ pub(crate) enum SnesCopierHeaderUse {
     Mixed,
 }
 
+/// SHA-256 of the catalog compiled into this binary, before any listing merge.
 pub(crate) fn embedded_catalog_sha256() -> String {
     use sha2::Digest;
     hex::encode(sha2::Sha256::digest(EMBEDDED_CATALOG.as_bytes()))
@@ -442,8 +442,6 @@ impl Catalog {
             .collect()
     }
 
-    /// A managed PS1 disc set with an audio track needs a reader that keeps
-    /// every track; older readers refuse such a catalog only generically.
     /// Whether the port's source profile identifies SNES dumps that may carry a
     /// copier header. Every active representation must then be of that kind, so
     /// one materialization fits every admitted file.
@@ -474,6 +472,8 @@ impl Catalog {
         }
     }
 
+    /// A managed PS1 disc set with an audio track needs a reader that keeps
+    /// every track; older readers refuse such a catalog only generically.
     pub(crate) fn requires_psx_multi_track_set(&self, port: &PortDefinition) -> bool {
         self.managed_psx_set_track_counts(port)
             .is_some_and(|counts| counts.iter().any(|count| *count > 1))

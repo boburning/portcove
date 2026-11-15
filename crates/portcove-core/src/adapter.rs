@@ -1372,6 +1372,8 @@ fn write_snes_headerless_source(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
     checkpoint()?;
+    // Registration follows a symlinked dump to its file, so this does too.
+    let source = &std::fs::canonicalize(source)?;
     let Some(expected) = required_hashes
         .values()
         .next()

@@ -2130,13 +2130,13 @@ pub(crate) fn registered_launch_assessment(
             SourceDigestAlgorithm::Sha256,
             DigestScope::SnesHeaderlessContent,
         )
-        .filter(|digest| digest.size < source.size)
+        .filter(|digest| digest.size + crate::source_file::SNES_COPIER_HEADER_BYTES == source.size)
         .map(|digest| digest.value.clone()),
         copier_headerless_sha1: digest(
             SourceDigestAlgorithm::Sha1,
             DigestScope::SnesHeaderlessContent,
         )
-        .filter(|digest| digest.size < source.size)
+        .filter(|digest| digest.size + crate::source_file::SNES_COPIER_HEADER_BYTES == source.size)
         .map(|digest| digest.value.clone()),
     };
     if (requires_n64_shape(catalog, profile_id, &identity) && canonical.is_none())
@@ -2240,6 +2240,25 @@ fn representation_matches(
         SourceRepresentationKind::SnesCopierHeaderOptional { identities } => {
             if file.archive_member {
                 return false;
+            }
+            // Without a recognized header the content is the whole file; its
+            // headerless digests are only stored when a header was present.
+            if file.copier_headerless_sha256.is_none() {
+                let whole = [
+                    (SourceDigestAlgorithm::Sha1, &file.sha1),
+                    (SourceDigestAlgorithm::Sha256, &file.sha256),
+                ]
+                .into_iter()
+                .map(|(algorithm, value)| ObservedSourceDigest {
+                    algorithm,
+                    scope: DigestScope::SnesHeaderlessContent,
+                    value: value.clone(),
+                    size: file.size,
+                })
+                .collect::<Vec<_>>();
+                return identities
+                    .iter()
+                    .any(|identity| digest_identity_matches(identity, &whole));
             }
             identities
         }
@@ -2385,29 +2404,22 @@ fn observed_digests(identity: &FileIdentity) -> Vec<ObservedSourceDigest> {
             size: identity.storage_size,
         });
     }
-    // A raw file's content without an optional SNES copier header: the bytes
-    // after the header when the length shows one, otherwise the whole file. This
-    // scope is read only by copier-header-optional representations.
-    if !identity.archive_member {
-        match (
+    // A raw SNES dump's content after a recognized 512-byte copier header. It is
+    // recorded only when a header was present, so no other file's stored facts
+    // change; matching treats a file without one as its whole content.
+    if !identity.archive_member
+        && let (Some(sha1), Some(sha256)) = (
             &identity.copier_headerless_sha1,
             &identity.copier_headerless_sha256,
-        ) {
-            (Some(sha1), Some(sha256)) => append_pair(
-                &mut values,
-                DigestScope::SnesHeaderlessContent,
-                identity.size - crate::source_file::SNES_COPIER_HEADER_BYTES,
-                sha1,
-                sha256,
-            ),
-            _ => append_pair(
-                &mut values,
-                DigestScope::SnesHeaderlessContent,
-                identity.size,
-                &identity.sha1,
-                &identity.sha256,
-            ),
-        }
+        )
+    {
+        append_pair(
+            &mut values,
+            DigestScope::SnesHeaderlessContent,
+            identity.size - crate::source_file::SNES_COPIER_HEADER_BYTES,
+            sha1,
+            sha256,
+        );
     }
     if let (Some(sha1), Some(sha256), Some(size)) = (
         &identity.canonical_n64_sha1,

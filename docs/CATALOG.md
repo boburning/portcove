@@ -1281,29 +1281,28 @@ Some SNES dumps start with a 512-byte copier header. A source representation of 
 `snes-copier-header-optional` identifies a raw SNES dump by its content: a file whose
 length is 512 bytes more than a multiple of 1024 (and at most 64 MiB) is identified by the
 bytes after those 512, and any other length is identified whole. Its identities use the
-`snes-headerless-content` scope, which is computed only for raw files, so no other
-profile's scopes change and a header inside a ZIP is not recognized. The header's bytes
-are never interpreted, and exactly one header is ever skipped.
+`snes-headerless-content` scope. That digest pair is computed for raw files only and is
+recorded only when a header was present, so matching and stored facts for every other
+file and profile are unchanged; a header inside a ZIP is not recognized. The header's
+bytes are never interpreted, and exactly one header is ever skipped. A library that has
+registered a headered dump records the new scope, which an older Portcove version cannot
+read.
 
 A port whose source profile uses this kind must use the `snes-headerless` materialization,
-and that materialization requires it. It reads the registered original, drops the header
-when the length shows one, checks the result against the single pinned
-`runtime_source_hashes` identity in memory and only then atomically writes the runtime
-file; the original is never changed. The registered source record keeps the file's own
-SHA-256 and size. Indexed definitions using either need staged-source capability 36
-([definition delivery](DEFINITION-DELIVERY.md)).
+and that materialization requires it. It reads the registered original (following a
+symlink as registration does), drops the header when the length shows one, checks the
+result against the single pinned `runtime_source_hashes` identity in memory and only then
+atomically writes the runtime file; the original is never changed. The registered source
+record keeps the file's own SHA-256 and size. Indexed definitions using either need
+staged-source capability 36 ([definition delivery](DEFINITION-DELIVERY.md)).
 
-The managed DKC3, F-Zero, Mega Man X2, Super Bomberman, Super Mario World, Super Metroid
-and A Link to the Past routes use it; their pinned content and runtime identities are
-unchanged. DKC2 hands the original to its user-prepared runtime without a materialization
-step and stays exact. Existing installations keep their retained `copy` contract until
-they are next installed or updated.
-
-An indexed definition that declares `runtime_rom_patch` must require
-`staged-source-portable` capability version 33 ([definition
-delivery](DEFINITION-DELIVERY.md)); the declaration joins the installed compatibility
-identity only when set. No shipped definition declares it yet; the first candidate
-consumer is tracked on its port issue.
+The managed DKC3, F-Zero, Super Bomberman, Super Mario World and A Link to the Past routes
+use it; their pinned content and runtime identities are unchanged. Mega Man X2 and Super
+Metroid stay exact: their reviewed predecessor-archive transitions bind the creating
+`copy` materialization. DKC2 hands the original to its user-prepared runtime without a
+materialization step and stays exact. An existing installation keeps the retained
+contract it was installed under, so it accepts a headered dump only after it is next
+installed or updated.
 
 ## Default covers
 

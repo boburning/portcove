@@ -1018,15 +1018,11 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
-            // Copier-header-optional SNES sources need the newest staged-source reader.
             (
                 "super-metroid-recomp",
-                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
             ),
-            (
-                "mega-man-x2-snes-recomp",
-                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
-            ),
+            ("mega-man-x2-snes-recomp", 28),
             // Its v1.2.0 settings files append to the predecessor policy.
             (
                 "sonic-the-hedgehog-recomp",

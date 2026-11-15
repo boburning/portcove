@@ -37,7 +37,7 @@
       "windows-x86-64": ["MegaManX2SNESRecomp.exe"]
     },
     "runtime_source_filename": "game.sfc",
-    "runtime_source_materialization": "snes-headerless",
+    "runtime_source_materialization": "copy",
     "runtime_source_hashes": {
       "game.sfc": "f3246755f608a1e1dc9c848b61da3b824c7853b29b3be40df6fc7f2793a887ed"
     },
@@ -73,12 +73,12 @@
         {
           "role": "game",
           "profile_id": "mega-man-x2-snes-usa",
-          "label": "Mega Man X2 (USA) exact SNES original",
+          "label": "Mega Man X2 (USA) exact headerless SNES original",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Mega Man X2 (USA) original, with or without a copier header. The managed route selects compatible official Windows packages and starts the game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package."
+      "manual_preparation": "Select your own headerless Mega Man X2 (USA) original. The managed route selects compatible official Windows packages and starts the game directly. Historical installations without the partitioned-data contract retain their creating rules and remain held for a separate reviewed transition. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Default configuration, saves, screenshots and selected mod-state files and the default logs directory remain in the declared managed scope; packaged mod files stay immutable. Gameplay and in-game save/load remain unqualified. Quickstates require their creating runtime; a new runtime or unchanged original does not establish state compatibility or rewind progress. Backups include the checked private game.sfc original copy. Default diagnostic recording stays enabled. The logs directory contains session output, game memory, inputs, build/original identities, settings and mod options, which may include private local paths. No upload happens automatically; share diagnostics only with your consent. Each launch retains at most one hour of ten-second segments and 256 MiB of checkpoint bytes; older sessions accumulate until you remove them. Keep replay files and their save/config/mod sidecars together. A read-only installation can fall back to %TEMP%/MegaManX2SNESRecomp/logs, outside managed backup and removal scope. MMX_REPLAY_RECORD=0 is an optional user opt-out. Keep config.local.ini absent and separate developer trace, oracle and custom path overrides disabled. Keep packaged executables, libraries, assets, built-in mod manifests and notices unchanged; extra mods and donor assets require separate qualification. Preserve upstream PolyForm Noncommercial and dependency notices; original game data is not included in the runtime package."
     },
     "windows_runtime_path_policy": "printable-ascii-max-path",
     "archive_data_compatibility_v1": {

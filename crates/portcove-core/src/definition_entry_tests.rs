@@ -1054,11 +1054,9 @@ fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
 #[test]
 fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
-    for id in [
-        "alariq-mc2",
-        "crash-team-racing-ctr-native",
-        "f-zero-snes-recomp",
-    ] {
+    // F-Zero also needs the copier-header reader (version 36), checked with the
+    // other current projection floors.
+    for id in ["alariq-mc2", "crash-team-racing-ctr-native"] {
         let mut entry = entry_for_port(catalog.port(id).unwrap());
         for version in [1, 20, 21, 22] {
             entry["required_capabilities"][0]["minimum_version"] = json!(version);
