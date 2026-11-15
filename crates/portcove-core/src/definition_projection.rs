@@ -198,6 +198,20 @@ impl DefinitionContentIndex {
                 crate::adapter::PSX_MULTI_TRACK_SET_CAPABILITY
             )));
         }
+        // The representation kind lives in the source catalog, so only the
+        // projection can tell that its admission needs the copier-header reader.
+        if catalog.snes_copier_header_profile(catalog.port(stable_id)?)
+            != crate::catalog::SnesCopierHeaderUse::None
+            && !entry.capabilities().checks.iter().any(|check| {
+                check.requirement.template == "staged-source-portable"
+                    && check.requirement.minimum_version
+                        >= crate::adapter::SNES_COPIER_HEADER_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "copier-header-optional SNES sources require staged-source capability version 36",
+            ));
+        }
         if serde_json::to_value(catalog.authoritative_document())? != document.catalog {
             return Err(PortcoveError::verification(
                 "catalog projection contains unsupported or incomplete semantics",

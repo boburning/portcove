@@ -195,7 +195,8 @@ pub(crate) fn requires_fresh_direct_data_guard(port: &crate::PortDefinition) -> 
             .is_some_and(|release| release.version == version && release.sha256 == sha256))
 }
 
-/// A ready managed archive with at most one verified, persistent raw-file copy.
+/// A ready managed archive with at most one verified, persistent runtime source
+/// file, copied whole or written without a SNES copier header.
 /// Decide from the retained definition before collecting data from an install.
 pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
     let source_is_ready = match (
@@ -204,9 +205,14 @@ pub(crate) fn ready_staged_archive(port: &PortDefinition) -> bool {
         port.runtime_source_materialization,
     ) {
         (None, None, None) => true,
-        (Some(_), Some(filename), Some(crate::RuntimeSourceMaterialization::Copy)) => {
-            port.persistent_paths.contains(filename)
-        }
+        (
+            Some(_),
+            Some(filename),
+            Some(
+                crate::RuntimeSourceMaterialization::Copy
+                | crate::RuntimeSourceMaterialization::SnesHeaderless,
+            ),
+        ) => port.persistent_paths.contains(filename),
         _ => false,
     };
     port.adapter == crate::AdapterKind::StagedSourcePortable

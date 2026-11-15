@@ -1097,11 +1097,9 @@ fn native_manual_progress_requires_its_reader_and_owned_data_boundary() {
 #[test]
 fn ready_staged_archive_entries_require_prelaunch_preservation_reader() {
     let catalog = crate::Catalog::embedded().unwrap();
-    for id in [
-        "alariq-mc2",
-        "crash-team-racing-ctr-native",
-        "f-zero-snes-recomp",
-    ] {
+    // F-Zero also needs the copier-header reader (version 36), checked with the
+    // other current projection floors.
+    for id in ["alariq-mc2", "crash-team-racing-ctr-native"] {
         let mut entry = entry_for_port(catalog.port(id).unwrap());
         for version in [1, 20, 21, 22] {
             entry["required_capabilities"][0]["minimum_version"] = json!(version);
@@ -1154,8 +1152,8 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         entry["required_capabilities"][0]["minimum_version"] = json!(26);
         entry["required_capabilities"][0]["maximum_version"] = json!(26);
         assert!(inspect(&entry).unwrap().capabilities().compatible);
-        entry["required_capabilities"][0]["minimum_version"] = json!(36);
-        entry["required_capabilities"][0]["maximum_version"] = json!(36);
+        entry["required_capabilities"][0]["minimum_version"] = json!(37);
+        entry["required_capabilities"][0]["maximum_version"] = json!(37);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()

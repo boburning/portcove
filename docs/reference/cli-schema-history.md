@@ -48,6 +48,12 @@ optional port field `runtime_rom_patch` and the materialization `rom-patch` unde
 the same rule. An indexed definition that uses them also requires staged-source
 capability 33, so an older reader refuses it rather than copying an unpatched file.
 
+SNES copier headers ([#6212](https://github.com/boburning/portcove/issues/6212))
+added the source representation kind `snes-copier-header-optional`, the digest
+scope `snes-headerless-content` and the materialization `snes-headerless` under
+the same rule. An indexed definition that uses them also requires staged-source
+capability 36, so an older reader refuses it rather than copying a headered file.
+
 ## Documented API changes
 
 Within API93, the read-only `installation runtimes` command and its

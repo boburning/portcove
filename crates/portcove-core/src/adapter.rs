@@ -1059,6 +1059,9 @@ fn prepare_runtime_source_input(
                 "ROM patching requires its catalog patch declaration and a file-set source",
             ));
         }
+        RuntimeSourceMaterialization::SnesHeaderless => {
+            write_snes_headerless_source(source, destination, required_hashes, checkpoint)?
+        }
     }
     checkpoint()?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
@@ -1357,6 +1360,67 @@ fn prepare_rom_patch_source(
     )?;
     verify_runtime_source_hashes(destination, required_hashes, checkpoint)?;
     atomic_write_json(&marker_path, &expected)
+}
+
+/// Write the content of a raw SNES dump without its optional 512-byte copier
+/// header. The output is verified against its single pinned identity in memory,
+/// before anything replaces the destination, and the original is only read.
+fn write_snes_headerless_source(
+    source: &Path,
+    destination: &Path,
+    required_hashes: &BTreeMap<String, String>,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    checkpoint()?;
+    // Registration follows a symlinked dump to its file, so this does too.
+    let source = &std::fs::canonicalize(source)?;
+    let Some(expected) = required_hashes
+        .values()
+        .next()
+        .filter(|_| required_hashes.len() == 1)
+    else {
+        return Err(PortcoveError::usage(
+            "a headerless SNES runtime file requires exactly one pinned identity",
+        ));
+    };
+    let metadata = std::fs::symlink_metadata(source)?;
+    if !metadata.is_file()
+        || metadata.len() > crate::source_file::MAX_SNES_COPIER_HEADERED_BYTES
+        || source
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("zip"))
+    {
+        return Err(PortcoveError::source(
+            "a headerless SNES runtime file is made from a raw cartridge dump of at most 64 MiB",
+        ));
+    }
+    let bytes = crate::path::read_bounded_regular(
+        source,
+        crate::source_file::MAX_SNES_COPIER_HEADERED_BYTES,
+    )?;
+    let header = crate::source_file::snes_copier_header_bytes(bytes.len() as u64) as usize;
+    let content = &bytes[header..];
+    checkpoint()?;
+    let actual = hex::encode(Sha256::digest(content));
+    if !actual.eq_ignore_ascii_case(expected) {
+        return Err(PortcoveError::verification(
+            "the cartridge content is not the reviewed runtime file",
+        )
+        .detail("expected_sha256", expected.as_str())
+        .detail("actual_sha256", actual));
+    }
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("runtime source destination has no parent"))?;
+    crate::path::refuse_symlink_ancestors(parent)?;
+    std::fs::create_dir_all(parent)?;
+    crate::durability::write_bytes_atomically_with_prefix(
+        destination,
+        content,
+        true,
+        Some(".portcove-source-"),
+    )
 }
 
 /// Read the original and patch members of a file-set folder or ZIP, each bounded
@@ -2485,6 +2549,10 @@ fn materialize_psx_bin_cue(
 
 /// Managed PS1 readers that keep every track of a multi-track disc set.
 pub(crate) const PSX_MULTI_TRACK_SET_CAPABILITY: u32 = 4;
+
+/// Staged-source reader version that admits SNES dumps with an optional copier
+/// header and writes their headerless content (#6212).
+pub(crate) const SNES_COPIER_HEADER_CAPABILITY: u32 = 36;
 
 /// Extracts a managed disc set with a rewritten cue per disc. `track_counts`
 /// holds each disc's exact catalog track count, in disc order.
@@ -5982,6 +6050,52 @@ mod tests {
             prepare_n64_source(&source, &destination, &|| Ok(())).unwrap();
             assert_eq!(std::fs::read(destination).unwrap(), canonical);
         }
+    }
+
+    #[test]
+    fn snes_runtime_sources_are_written_without_a_copier_header() {
+        let temporary = tempfile::tempdir().unwrap();
+        let content = (0..2048_u32)
+            .map(|index| (index * 7) as u8)
+            .collect::<Vec<_>>();
+        let required =
+            BTreeMap::from([("game.sfc".to_owned(), hex::encode(Sha256::digest(&content)))]);
+        let destination = temporary.path().join("runtime/game.sfc");
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        for (name, bytes) in [
+            ("plain.sfc", content.clone()),
+            (
+                "headered.smc",
+                [vec![0xFF_u8; 512], content.clone()].concat(),
+            ),
+        ] {
+            let source = temporary.path().join(name);
+            std::fs::write(&source, &bytes).unwrap();
+            prepare_runtime_source(
+                &source,
+                &destination,
+                RuntimeSourceMaterialization::SnesHeaderless,
+                &required,
+                &|| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(std::fs::read(&destination).unwrap(), content, "{name}");
+            // The original is only read.
+            assert_eq!(std::fs::read(&source).unwrap(), bytes, "{name}");
+        }
+        // Content that is not the pinned identity never replaces the runtime file.
+        let wrong = temporary.path().join("wrong.smc");
+        std::fs::write(&wrong, [vec![0_u8; 512], vec![1_u8; 2048]].concat()).unwrap();
+        let error = prepare_runtime_source(
+            &wrong,
+            &destination,
+            RuntimeSourceMaterialization::SnesHeaderless,
+            &required,
+            &|| Ok(()),
+        )
+        .unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Verification);
+        assert_eq!(std::fs::read(&destination).unwrap(), content);
     }
 
     #[test]

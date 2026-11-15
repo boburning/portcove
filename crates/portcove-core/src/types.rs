@@ -325,6 +325,9 @@ pub enum RuntimeSourceMaterialization {
     /// Apply an exactly identified patch to an exactly identified original from a
     /// file-set source and write the verified patched file; older engines reject this value.
     RomPatch,
+    /// Write a raw SNES dump's content without its optional 512-byte copier header,
+    /// verified before it replaces the runtime file; older engines reject this value.
+    SnesHeaderless,
 }
 
 impl RuntimeSourceMaterialization {

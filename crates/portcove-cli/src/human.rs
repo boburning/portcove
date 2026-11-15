@@ -1769,6 +1769,7 @@ fn digest_scope(scope: portcove_core::DigestScope) -> &'static str {
         DigestScope::OriginalContainer => "original container",
         DigestScope::NormalizedContent => "normalized content",
         DigestScope::CanonicalN64BigEndian => "normalized N64 content",
+        DigestScope::SnesHeaderlessContent => "SNES content without a copier header",
         DigestScope::ArchiveMember => "archive member",
         DigestScope::GamecubeNormalizedIso => "normalized GameCube disc",
         DigestScope::PsxNormalizedTrackSet => "normalized PlayStation track set",

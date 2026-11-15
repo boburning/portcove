@@ -128,6 +128,14 @@ pub(crate) fn definition_requirements(
     } else {
         default_version
     };
+    // A headerless SNES runtime file needs staged-source capability 36.
+    let default_version = if port.runtime_source_materialization
+        == Some(crate::RuntimeSourceMaterialization::SnesHeaderless)
+    {
+        default_version.max(crate::adapter::SNES_COPIER_HEADER_CAPABILITY)
+    } else {
+        default_version
+    };
     // ROM patching needs staged-source capability 33 whatever chain matched.
     let default_version = if port.runtime_rom_patch.is_some()
         || port.runtime_source_materialization
@@ -343,7 +351,12 @@ impl<'a> IndexedCatalogFixture<'a> {
         let leaf = format!("sha256/{}.json", self.contract_sha256);
         let port = self.port.as_ref();
         let port_id = &port.id;
-        let capability_version = if crate::managed_runtime_policy::has_exact_exclusions(port) {
+        let capability_version = if port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::SnesHeaderless)
+        {
+            // The newest staged-source requirement, so it stays first.
+            crate::adapter::SNES_COPIER_HEADER_CAPABILITY
+        } else if crate::managed_runtime_policy::has_exact_exclusions(port) {
             crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY
         } else if port.runtime_rom_patch.is_some() {
             // ROM patching needs staged-source capability version 33; it is the newest
