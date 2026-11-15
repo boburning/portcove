@@ -284,7 +284,10 @@ review is calibrated from 5 s to 60 s: the review closes after the outcome's
 workspace refresh, and run 43646110119 measured 4-8 s snapshots with a retried read. The waits for a
 supplied update outcome to render after Apply and to show its summary are calibrated
 from 5 s to 60 s: run 43680800015 still showed "Updating…" after 5 s while 12 s
-capability reads ran. The preparation journey's
+capability reads ran. The update-acquisition journey's wait for an action to stop
+being busy is calibrated from 15 s to 60 s: the same run kept Play busy past 15 s after
+rollback while a 14 s workspace snapshot and 13-15 s capability reads settled. The
+preparation journey's
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed
 the unchanged 12 MiB bound. This makes the fixture
