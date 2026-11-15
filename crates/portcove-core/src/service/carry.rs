@@ -99,7 +99,12 @@ impl PortcoveService {
                     Some(crate::failure::KnownFailureCause::PortableRuntimeModified { .. })
                 ) =>
             {
-                self.require_no_partial_carry(active, target)?;
+                if self.partial_carry_present(active, target)? {
+                    return Err(PortcoveError::conflict(
+                        "Portcove was part-way through carrying files to this version when it stopped, and the version you're leaving has since changed. Nothing more was changed. Undo the change to the active version, then try again.",
+                    )
+                    .detail("carried_file_pending", &target.id));
+                }
                 let outcome = CarryOutcome {
                     source_modified: true,
                     ..CarryOutcome::default()
@@ -290,10 +295,7 @@ impl PortcoveService {
                 self.restore_target_rows(&mut connection, target, &plan, &target_rows, &copying)?;
                 // An earlier attempt published part of a carry here: hold
                 // rather than activate a partial carry (review M5).
-                let earlier = target_rows.values().any(|stored| {
-                    matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
-                });
-                if earlier {
+                if self.partial_carry_present(active, target)? {
                     return Err(PortcoveError::conflict(
                         "There isn't enough free space to finish carrying files to the new version. Nothing more was changed. Free up space on the drive that holds the game, then try again.",
                     )
@@ -353,14 +355,15 @@ impl PortcoveService {
         Ok(Some(outcome.bounded()))
     }
 
-    /// Hold when an earlier attempt published part of a carry to `target`:
-    /// a pending row from `active` whose bytes are now in the target. The
-    /// target must not become active with only part of a carry.
-    fn require_no_partial_carry(
+    /// Whether an earlier attempt published part of a carry to `target`: a
+    /// pending row from `active` whose bytes are in the target, or whose file
+    /// is there but can't be read. The target must not then become active
+    /// with only part of a carry.
+    fn partial_carry_present(
         &self,
         active: &InstallRecord,
         target: &InstallRecord,
-    ) -> Result<()> {
+    ) -> Result<bool> {
         let connection = self.library.connection()?;
         let rows = carry_ledger::load(&connection, &target.id)?;
         let (target_root, _) = self
@@ -368,22 +371,22 @@ impl PortcoveService {
             .carry_exclusions(target)?;
         for (path, stored) in rows {
             if !matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
+                || crate::archive::validate_relative_path(&path, false).is_err()
             {
                 continue;
             }
             let placed = path
                 .split('/')
                 .fold(target_root.clone(), |folder, part| folder.join(part));
-            if carry_step::hash_file(&placed, &|| Ok(()))
-                .is_ok_and(|digest| digest.sha256 == stored.row.sha256)
-            {
-                return Err(PortcoveError::conflict(
-                    "Portcove was part-way through carrying files to this version when it stopped, and the version you're leaving has since changed. Nothing more was changed. Undo the change to the active version, then try again.",
-                )
-                .detail("carried_file_pending", path));
+            if std::fs::symlink_metadata(&placed).is_err() {
+                continue;
+            }
+            match carry_step::hash_file(&placed, &|| Ok(())) {
+                Ok(digest) if digest.sha256 != stored.row.sha256 => {}
+                _ => return Ok(true),
             }
         }
-        Ok(())
+        Ok(false)
     }
 
     /// Whether an installation is on a route Tier 2 carries for: the routes
