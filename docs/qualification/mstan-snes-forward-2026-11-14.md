@@ -4,11 +4,14 @@ Owners: canonical port issues [#147](https://github.com/boburning/portcove/issue
 (Super Mario World), [#151](https://github.com/boburning/portcove/issues/151)
 (A Link to the Past) and [#164](https://github.com/boburning/portcove/issues/164)
 (Super Metroid). This dated record is a static review of each route's newest
-published Windows package and tagged source against its reviewed route. Only
-Super Metroid gains an applicability row and an `upstream_support` evidence
-record. Super Mario World and A Link to the Past are requalified pending
+published Windows package and tagged source against its reviewed route. Each
+route gains one applicability row and one `upstream_support` evidence record.
+Super Metroid's came first, and the route is held because of v0.4.6. Super
+Mario World and A Link to the Past were first requalified pending
 [#5678](https://github.com/boburning/portcove/issues/5678)'s additive data
-transition, and Super Metroid is held because of v0.4.6. Historical rows,
+transition. After a critical review on 2026-11-15 they are bound with their new
+mod-state pair declared as disposable runtime output
+([below](#why-the-new-mod-state-file-is-disposable-runtime-output)). Historical rows,
 evidence and qualifications keep their exact scope. Nothing was installed,
 launched or played, and no Supported or gameplay claim is made.
 
@@ -16,25 +19,46 @@ launched or played, and no Supported or gameplay claim is made.
 
 | Port / issue                                                | Reviewed → newest                  | Outcome                                                          |
 | ----------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| `super-mario-world-recomp` / #147                           | v0.12.0 → v0.15.9                  | Requalified pending #5678; no binding or definition change       |
-| `the-legend-of-zelda-a-link-to-the-past-snes-recomp` / #151 | v0.6.1 → v0.6.6                    | Requalified pending #5678; no binding or definition change       |
+| `super-mario-world-recomp` / #147                           | v0.12.0 → v0.15.9                  | v0.15.9 row appended 2026-11-15; mod-state pair runtime-mutable  |
+| `the-legend-of-zelda-a-link-to-the-past-snes-recomp` / #151 | v0.6.1 → v0.6.6                    | v0.6.6 row appended 2026-11-15; mod-state pair runtime-mutable   |
 | `super-metroid-recomp` / #164                               | v0.4.2 → v0.4.5 bound; v0.4.6 held | v0.4.5 row appended; `managed_acquisition_hold` added for v0.4.6 |
 
-### Why Super Mario World and A Link to the Past are not bound
+### Why the new mod-state file is disposable runtime output
 
-Both newer packages need `mods/preloaded/state.toml` and its `.tmp` companion
-declared as persistent (below). A first attempt added them beside the retained
-`mods/state.toml` pair. Independent review found that this blocks every existing
-installation. Both routes are ready staged archives, so their installations
-carry a restore receipt with the creating persistence scope. With the added
-paths, the installed-mutability check grants nine paths against the seven in
-that receipt. The persistence-contract check then refuses with a
-`PortableDataContractChanged` conflict. That refusal blocks launch restore, data
+Both newer frameworks write `mods/preloaded/state.toml` through a `.tmp`
+companion. The 2026-11-14 attempt declared that pair as persistent beside the
+retained `mods/state.toml` pair. Independent review of #5881 found that this
+blocks every existing installation. Both routes are ready staged archives, so
+their installations carry a restore receipt with the creating persistence
+scope. With the added paths, the installed-mutability check grants nine paths
+against the seven in that receipt. The persistence-contract check then refuses
+with a `PortableDataContractChanged` conflict, which blocks launch restore, data
 collection, backup, restore, game settings, protection and the update itself.
-The empty-expansion check below is never reached. A generic Core rule for this
-additive transition is being designed in #5678. Until it ships, both routes keep
-their reviewed v0.12.0 and v0.6.1 bindings and unchanged definitions. With no
-applicability row, their source contracts do not admit the newer releases.
+
+A critical review on 2026-11-15 chose to bind both routes without declaring
+the pair as player data, and the independent review of the binding then chose
+to declare it as disposable runtime output (`runtime_mutable_paths`), as
+Sonic 2 v0.9.23 did for its replay logs:
+
+- No persistence coordinate changes. Persistent paths and derivation inputs
+  are unchanged, and runtime-mutable paths are outside the persistence scope
+  that existing ready-archive receipts record, so those receipts still match
+  and rollback is not held.
+- Managed play sets `SNESRECOMP_NO_LAUNCHER=1`, so there is no mod-selection
+  screen and managed play never changes the selection from the package
+  default. A selection made by running the game outside Portcove is not
+  carried across versions; the new runtime writes the default again on its
+  next start.
+- Neither file is a package member (checked below). As declared runtime
+  output they are not reported as files Portcove didn't install, so backups
+  and the removal review stay free of a notice for this known writer, and
+  they are not backed up.
+- Neither `.toml` nor `.tmp` is a hazard extension or on the loader-sensitive
+  list.
+
+#5678's additive rule is no longer needed for these two routes. If a later
+release lets players choose mods in managed play, the file becomes player data
+and needs a declaration through that rule.
 
 ## Exact artifacts
 
@@ -44,6 +68,16 @@ bytes. It was compared with the publisher's checksum file where one exists, then
 read only through Python's `zipfile` and a PE import-table reader, and the
 directory was deleted afterwards. The bound packages were downloaded again and
 still match their catalog digests.
+
+On 2026-11-15 the Super Mario World v0.15.9 and A Link to the Past v0.6.6
+packages were downloaded again the same way, matched the digests and sizes
+below, and were listed with `zipfile` and deleted. Neither has a wrapper folder.
+Neither `mods/state.toml`, `mods/preloaded/state.toml` nor either `.tmp`
+companion is a package member. The only member at a declared persistent path is
+Super Mario World's `config.ini`, which v0.12.0 also shipped. A Link to the Past
+v0.6.6 has no member at a declared persistent path. Their package shapes were
+then recorded with a CLI built from the binding commit; the derivation inputs
+equal the v0.12.0 and v0.6.1 entries'.
 
 | Package                                         |      Bytes | SHA-256                                                            | Publisher checksum                                                  | Tag commit                                 |
 | ----------------------------------------------- | ---------: | ------------------------------------------------------------------ | ------------------------------------------------------------------- | ------------------------------------------ |
@@ -96,12 +130,13 @@ Writers reachable from the managed launch (`smw.sfc` positional argument with
 `SNESRECOMP_NO_LAUNCHER=1`):
 
 - The mod runtime commits the selection at every start to
-  `mods/preloaded/state.toml` through `mods/preloaded/state.toml.tmp`. Once #5678
-  allows it, both need to be declared as persistent beside the retained
-  `mods/state.toml` pair. v0.15.9 does not read or migrate the old file, so a
-  player's earlier mod selection would start from the package defaults. That is
-  acceptable: managed play skips the launcher and has no mod-selection screen, so
-  a managed installation's selection is already the package default.
+  `mods/preloaded/state.toml` through `mods/preloaded/state.toml.tmp`. Both are
+  declared in `runtime_mutable_paths`
+  ([above](#why-the-new-mod-state-file-is-disposable-runtime-output)); the
+  retained `mods/state.toml` pair stays declared. v0.15.9 does not read or
+  migrate the old file, so the selection starts from the package defaults. That
+  is acceptable: managed play skips the launcher and has no mod-selection
+  screen, so a managed installation's selection is already the package default.
 - Native co-op writes `saves/native-coop-v1/` (including `last-mode.txt`) and
   `saves/native-coop-menu`, and content variants use `saves/variants/`. All are
   already covered by `saves`.
@@ -152,8 +187,8 @@ was added. `LICENSE` (PolyForm Noncommercial 1.0.0), `docs/` and
 Writers: the game's own `src/main.c` and `src/config.c` write the same
 `config.ini`, `rom.cfg` and copied-ROM paths as v0.6.1. `config.ini` remains
 persistent and is now created by the player on first run. The framework moved
-the mod root to `mods/preloaded`, so the same `state.toml` pair needs the
-#5678 transition as for Super Mario World. The `tier2_coverage.json` writer beside the
+the mod root to `mods/preloaded`, so the same `state.toml` pair is declared in
+`runtime_mutable_paths` as for Super Mario World. The `tier2_coverage.json` writer beside the
 executable is gone; tier-2 coverage now uses `%LOCALAPPDATA%` and is off. The
 runtime-mutable declaration stays so that v0.6.1 installations keep their
 verification allowance. The recomp-ui `moderation.ini`, sign-in and netplay
@@ -167,9 +202,9 @@ The repository has no release workflow, so which commit built the package is
 unknown. The review above read the gitlinks; `f68aa0fe…` also defines the mod
 root as `mods/preloaded`. `recomp-net` `8c76fb64…` agrees in both places.
 
-The setup text's license note still names a reviewed v0.6.5 package. The v0.6.6
-package contains the PolyForm Noncommercial 1.0.0 `LICENSE` file; the note
-changes with the binding.
+The setup text's license note named a reviewed v0.6.5 package. The v0.6.6
+package contains the PolyForm Noncommercial 1.0.0 `LICENSE` file, so the note now
+names v0.6.6.
 
 ## Super Metroid v0.4.5
 
@@ -221,15 +256,24 @@ None of this was executed.
 
 ## Existing installations
 
-Super Mario World and A Link to the Past definitions are unchanged, so their
-installations keep their exact contracts. When #5678 provides the additive
-transition, these facts apply:
+The Super Mario World and A Link to the Past definitions change only the
+license note and add the two runtime-mutable paths. Persistent paths are
+unchanged, so their installations keep their exact persistence contracts and
+update to the new rows:
 
 - Neither old package ships anything under `mods/preloaded`, and old runtimes
   never write there.
-- Both new frameworks commit `mods/preloaded/state.toml` on every start.
-  Rollback to v0.12.0 or v0.6.1 would therefore be held from the first launch
-  of the new release onward, with both copies and all data preserved.
+- Both new frameworks commit `mods/preloaded/state.toml` on every start. Existing
+  installations take on the wider runtime-mutable allowance, because their
+  manifests have nothing under `mods/preloaded`. As disposable runtime output
+  the pair is not collected, carried forward, backed up or reported, and it does
+  not hold rollback to v0.12.0 or v0.6.1. The old copy keeps its
+  retained `mods/state.toml`.
+- A Core unit test registers a reviewed-release-style installation of each route
+  under the definition without the new runtime-mutable paths, with this file
+  present, and switches to the current definition. It checks verification,
+  collection, backup, the update, a second collection and backup, and rollback.
+  This is a library fixture, not an installed or native observation.
 
 Super Metroid's persistence and update path are unchanged; the hold below
 withdraws Install and Update for now.
@@ -293,4 +337,5 @@ A per-release hold would need new Core behavior.
   checked; they are hold-reviewed artifacts, not applicability bindings.
 - Intermediate tags between each reviewed and newest release.
 - Core lifecycle execution: the transition, rollback and hold outcomes above
-  come from reading the code and unit tests, not from an isolated library run.
+  come from reading the code and unit tests, not from an isolated library run
+  with the real packages.

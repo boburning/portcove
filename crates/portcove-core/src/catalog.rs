@@ -3281,7 +3281,7 @@ mod tests {
     }
 
     #[test]
-    fn mstan_snes_bindings_add_only_super_metroid_v0_4_5_under_its_hold() {
+    fn mstan_snes_bindings_append_newest_releases_without_the_preloaded_mod_state() {
         let catalog = Catalog::embedded().unwrap();
         let sources = catalog.source_catalog().unwrap();
         let bindings = |id: &str| {
@@ -3301,25 +3301,47 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
-        // mod selection to mods/preloaded. Adding that path to an installed
-        // receipt scope is not yet a supported transition, so both routes keep
-        // their reviewed binding and persistence until that rule exists.
-        for (id, contract, row) in [
+        // mod selection to mods/preloaded/state.toml. Declaring it would widen
+        // the persistence scope in every existing ready-archive receipt, and
+        // managed play skips the launcher, so it never changes the selection
+        // from the package default. The newest packages are appended after the
+        // reviewed ones and the pair is declared as disposable runtime output.
+        for (id, contract, rows, evidence) in [
             (
                 "super-mario-world-recomp",
                 "super-mario-world-recomp-game-source",
-                (
-                    "v0.12.0",
-                    "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
-                ),
+                [
+                    (
+                        "v0.12.0",
+                        "1609aa46af51b9839c30d45ebac0c6bb8341a501fae22be4653486a71eab19fd",
+                    ),
+                    (
+                        "v0.15.9",
+                        "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
+                    ),
+                ],
+                [
+                    "super-mario-world-recomp-0-12-0-source-contract",
+                    "super-mario-world-recomp-0-15-9-source-contract",
+                ],
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp-game-source",
-                (
-                    "v0.6.1",
-                    "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
-                ),
+                [
+                    (
+                        "v0.6.1",
+                        "b53f5ab77d24dfda07caacd413d465795f150dfc0a8ce65cfeb3a05677924632",
+                    ),
+                    (
+                        "v0.6.6",
+                        "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
+                    ),
+                ],
+                [
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
+                    "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
+                ],
             ),
         ] {
             let port = catalog.port(id).unwrap();
@@ -3330,8 +3352,27 @@ mod tests {
                     .any(|path| path.starts_with("mods/preloaded")),
                 "{id}"
             );
+            for path in ["mods/state.toml", "mods/state.toml.tmp"] {
+                assert!(
+                    port.persistent_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            for path in ["mods/preloaded/state.toml", "mods/preloaded/state.toml.tmp"] {
+                assert!(
+                    port.runtime_mutable_paths.iter().any(|p| p == path),
+                    "{id}: {path}"
+                );
+            }
+            assert!(port.archive_data_compatibility_v1.is_none(), "{id}");
             assert!(port.managed_acquisition_hold.is_none(), "{id}");
-            assert_eq!(bindings(contract), [row], "{id}");
+            assert_eq!(bindings(contract), rows, "{id}");
+            let contract = sources
+                .contracts
+                .iter()
+                .find(|candidate| candidate.id == contract)
+                .unwrap();
+            assert_eq!(contract.evidence_ids, evidence, "{id}");
         }
         // Super Metroid v0.4.5 keeps the v0.4.2 writer set and is appended after
         // the reviewed packages; its partitioned data policy is unchanged.
