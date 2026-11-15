@@ -97,7 +97,8 @@ async function reconcileSnapshotConflict(
   expect(announcement?.parentElement).toBe(
     document.querySelector("[data-invocation-announcements]"),
   );
-  expect(announcement?.textContent).toContain(`${invocation.getAttribute("aria-label")}: finished`);
+  const game = invocation.getAttribute("aria-label")?.slice("Launch · ".length);
+  expect(announcement?.textContent).toBe(`Launch requested for ${game}.`);
   allowCurrentRead();
   await controlledAct(async () => {
     window.dispatchEvent(new Event("focus"));
