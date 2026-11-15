@@ -311,15 +311,15 @@ original exits while any job process whose program lies inside the
 installation (the managed install or the registered external folder) still
 runs. The session record names those programs; Desktop does not show them
 yet, and `launch show --technical-details` does. Delivered definitions must
-require [native capability 28](DEFINITION-DELIVERY.md). A successor the game
+require [native capability 28](DEFINITION-DELIVERY.md), or 35 for Snap64. A successor the game
 starts from its own process tree, such as a `_wexecv` restart from a menu action, is tracked. A browser, Steam client,
 editor or other program outside the installation never holds the session, even
 when the game started it. A child created with explicit job breakaway, or a
 program started outside the tree through the shell, a service, a scheduled task
-or an already running instance, is not tracked. Recovery after the supervisor
-itself exits has narrower coverage: it can only reach the job while a tracked
-process still holds the handle Core shares with it, so a successor that
-started without that handle can be missed. Qualify a route whose successor
+or an already running instance, is not tracked. A separate Portcove process holds a query handle for the session's job. If
+the supervisor exits, the keeper waits for the same in-install processes and
+recovers the session after they exit. A missing job or ambiguous spawning
+record requires manual review. Qualify a route whose successor
 escapes these rules as non-owning, or require the original process to stay
 alive. On Linux and macOS an exec-based restart keeps the process ID, but a
 launcher that spawns a successor and exits is untracked there, so such a route
@@ -861,7 +861,14 @@ matches; CRC32- or MD5-only files can't be compared and don't count. A disc
 whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
 admission, registration or a contract result, and a catalog identity does not
 depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
-network request, and ignores a DAT file that changed after it was added.
+network request, and ignores a DAT file that changed after it was added. A
+parsed DAT file is kept in memory for later inspections while its path, size,
+modification time and fingerprint are unchanged, so each one is read, hashed
+and parsed once rather than on every inspection; an edit that keeps both size
+and modification time is noticed only after one of them changes. The memory
+belongs to the running Portcove process, holds at most one million listed files
+in total, and skips any single DAT larger than that; adding the file again
+forces a fresh read.
 
 ### Saved-data behavior
 
@@ -1582,8 +1589,12 @@ packages.
 The OpenGOAL family declares `data/iso_data`, `data/decompiler_out` and `data/out`,
 following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/extractor/main.cpp)
 and its [decompilation output](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/decompilation_process.cpp)
-contract. Saves and `data/log` remain separately owned. These declarations are
-implementation facts, not new artifact or platform qualification.
+contract. The exact Windows Jak 1 extractor from OpenGOAL v0.3.9 also creates an
+[empty compiler directory tree](https://github.com/open-goal/jak-project/blob/b6c8430c0b0a5cb139b939bcf0ffd25285b896c7/goalc/build_actor/jak1/build_actor.cpp#L641-L647)
+at `out/jak1/obj`. After the extractor has settled, Portcove discards only that
+fresh empty tree in private staging. Existing data and unexpected entries stay
+subject to the normal output checks. Saves and `data/log` remain separately owned.
+These declarations are implementation facts, not new artifact or platform qualification.
 
 PaperBoat uses the same isolated preparation transaction through the
 Libultraship adapter. Portcove normalizes the registered Paper Mario source to a
@@ -3109,6 +3120,16 @@ and finishes the build, and the player interprets overlays. A build that still
 leaves any file in `overlay_toolchain` or `.cache/overlay-toolchain` fails
 before anything is installed or changed.
 [Framework review](qualification/psxrecomp-7192402-builder-downloads-2026-11-13.md).
+
+Some PSXRecomp kits declare the pinned libwebp source archive without
+including it. For the reviewed pin, Portcove downloads and verifies that
+archive during managed preparation and puts it in the kit's declared
+`third_party` folder before starting the builder. The existing builder network
+restrictions still apply. Kits that already include the archive keep their
+existing file and verification path.
+On Windows the admitted managed builder retains up to 2,048 exact process
+lifetimes. The supervisor waits on those exact handles and reconciles the
+complete job process count before it publishes or cleans up staging.
 PSXRecomp `d5cae379` differs from `7192402` only in GPU rendering fixes and
 test-only build files, so the same builder rules apply to kits that pin it.
 [d5cae379 requalification](qualification/psxrecomp-d5cae379-requalification-2026-11-13.md).

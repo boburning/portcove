@@ -546,7 +546,7 @@ already rejects every other webview. Capability selection stays explicit: the
 `default` capability names only the `main` window, and a host test refuses any
 capability file that names another window, `webviews`, `remote` or `platforms`,
 or a configured window other than `main`. Events changed: every Portcove event
-(`library-changed`, `operation`, `application-update-notice`) is emitted with an
+(`library-changed`, `operation`, `application-update-notice`, `play-request`) is emitted with an
 explicit `main` target through one function that shares the invoke gate's label.
 Each event has one consumer, in the main window, and none is a global event.
 Targeting is a second layer, not the boundary: the frontend's default listeners
@@ -1541,14 +1541,25 @@ request that the frontend takes once, after the workspace has its catalog and
 statuses. A game that can play directly uses the existing Continue launch path;
 one that needs attention opens its details; an unknown or removed game opens
 nothing. Core's launch path still owns readiness, per-port locking and
-executable trust. Desktop has no single-instance forwarding, so an entry used
-while Portcove is open starts a second window that handles the request. That
-window holds its own shared application-runtime lease, so an application update
-waits for it like any other open window. It opens the saved library selection:
-if the first window was started with a `PORTCOVE_LIBRARY` override, the entry
-resolves the port in the saved library instead. Two windows refreshing at once
-each commit a complete list, and the last commit wins. The jump list has not been
-observed on a native Windows taskbar.
+executable trust. When the process uses the installed identity, Desktop also
+registers Tauri's single-instance plugin first: a later launch, including an entry
+used while Portcove is open, passes its arguments to the running window through
+the operating system's single-instance channel and exits. The running window
+parses them with the same exact-form check, replaces any request the frontend has
+not taken, announces `portcove://play-request` and comes to the front; the
+frontend takes the request and routes it as at startup, in the library that window
+already has open. Development, fixture, portable and isolated runs of a
+non-installed executable never register the plugin, so they keep starting independent instances; such a run
+started from an entry opens its own window, holds its own shared
+application-runtime lease and opens the saved library selection. The plugin keys
+its single-instance channel by the bundle identifier only, so an isolated run of the
+installed executable (for example one using `PORTCOVE_PREFERENCES` or
+`PORTCOVE_LIBRARY`) forwards to an installed instance already running in the same
+session instead of opening its own window; isolated native runs should use a
+non-installed executable. A forwarding launch completes its diagnostics session
+before it exits. Two windows
+refreshing at once each commit a complete list, and the last commit wins. The jump
+list and forwarding have not been observed on a native Windows taskbar.
 
 ## Desktop library handoff state
 
@@ -2191,7 +2202,7 @@ retained path rather than claiming a move.
 
 Every filesystem-mutating operation takes an operating-system advisory lock keyed by library and port. The lock is shared across CLI and desktop processes, fails immediately with a structured conflict instead of waiting indefinitely, and is released automatically if a process exits. A launch retains its lock until the game exits and the exact launched version's mutable data has been collected, so another frontend cannot update, roll back, remove, verify, or launch that port during the save-critical interval. The desktop starts a detached instance of its own native binary in a hidden supervisor mode; Tauri only forwards an identified request and observes that exact durable row. Core commits the request, exact install, supervisor PID/start identity, cancellable preparation phase, and generic activity before the adapter reports acceptance. Immediately before process creation, one conditional SQLite transition closes cancellation; a request wins that transition or child creation proceeds, never both. Core records `spawning` before process creation and then records the child PID/start identity before reporting it, writes the per-version launched marker only after child creation, waits for the child, records successful-exit history separately from in-flight state, and commits the terminal request outcome only after exact-install collection. Terminal rows remain reconnectable evidence but do not block another launch. If a supervisor disappears, the active row continues to block mutation; Desktop startup or explicit CLI recovery waits only a child with the exact recorded start identity, repeats exact-install collection, and records failure rather than success. A crash in the irreducibly ambiguous spawning window remains blocked for manual review, as do PID mismatch, missing legacy identity, and changed install identity. Different ports remain independently operable.
 
-On Windows a game can restart into a successor and exit (for example through `_wexecv`), so the original child alone does not span such a session. Only a definition that declares the reviewed `windows_tracked_handoff` integration field, with a native Windows executable, opts in; delivered definitions must require native-portable capability 28, format-1 signed catalogs cannot carry it, and a legacy installation without a retained definition cannot inherit it on Windows ([definition delivery](DEFINITION-DELIVERY.md)); every other launch on every platform keeps the original child as the whole session, with no job, suspended start or extra wait. For an opted-in managed or external Windows launch, Core resolves the install root to its final path (an unresolvable root fails the launch) and creates the game suspended inside a fresh job object named `Local\Portcove.LaunchSession.<session-id>`, assigns it and only then resumes the thread that holds exactly the creation suspension, composing that flag with the supervised process-group flag. The name accepts only plain session-ID characters, an existing object with that name is refused rather than joined, and the job's protected DACL grants only the current account. The job sets no kill-on-close, memory or UI limits, so closing Portcove leaves the game running, and it nests inside any job that already contains the supervisor; an outer job that forbids nesting fails the launch with that cause named. Ordinary children and successors stay in the job; explicit `CREATE_BREAKAWAY_FROM_JOB` remains permitted (refusing it would make such games' process creation fail) and leaves tracking, as does anything started outside the game's tree through the shell, services or scheduled tasks. After the original child exits, the session stays `running` while any job member whose image (`QueryFullProcessImageNameW`, resolved to its final path and compared case-insensitively) lies inside the session's install root still runs; members elsewhere, such as a browser or Steam client the game opened, never hold it. Each member lifetime (PID and start time) is classified once. A member that cannot be identified, an image that cannot be read or resolved, or a membership list that does not fit holds the session (fail closed). While it waits, Core writes the holding program names and process IDs to the running session record's `message`; today that is visible only through the session record and `launch show --technical-details`, not in Desktop, and the terminal outcome replaces it. The outcome and exit code remain those of the original child, because successor exit codes are not a reliable game result. A named object loses its name when its last handle closes even while members run, so Core leaves an inheritable query-only job handle in the game before resuming it and, every 250 ms while it supervises, shares one with in-install members that lack it. Recovery reopens the job by name, resolves the recorded install root (failing to resolve it keeps the session for manual review), holds the job while it waits for the recorded child identity, then applies the same in-install rule before collecting. If no handle remains, recovery falls back to the recorded child identity alone, so it misses a successor that never received the handle (for example one started without handle inheritance within the last polling interval before the supervisor exited, or after it exited, or one that refused duplication) once every handle-holding member has exited. Failing to create the job, assign the game, share the handle or resume the game terminates the game before any of its code runs and fails the launch. Linux and macOS keep the original child: an exec-based restart keeps its PID and start identity, process-group signals are unchanged, and a launcher there that spawns a successor and exits is not tracked.
+On Windows a game can restart into a successor and exit (for example through `_wexecv`), so the original child alone does not span such a session. Only a definition that declares the reviewed `windows_tracked_handoff` integration field, with a native Windows executable, opts in; delivered definitions must require native-portable capability 28 (35 for Snap64), format-1 signed catalogs cannot carry it, and a legacy installation without a retained definition cannot inherit it on Windows ([definition delivery](DEFINITION-DELIVERY.md)); every other launch on every platform keeps the original child as the whole session, with no job, suspended start or extra wait. For an opted-in managed or external Windows launch, Core resolves the install root to its final path (an unresolvable root fails the launch) and creates the game suspended inside a fresh job object named `Local\Portcove.LaunchSession.<session-id>`, assigns it and only then resumes the thread that holds exactly the creation suspension, composing that flag with the supervised process-group flag. The name accepts only plain session-ID characters, an existing object with that name is refused rather than joined, and the job's protected DACL grants only the current account. The job sets no kill-on-close, memory or UI limits, so closing Portcove leaves the game running, and it nests inside any job that already contains the supervisor; an outer job that forbids nesting fails the launch with that cause named. Ordinary children and successors stay in the job; explicit `CREATE_BREAKAWAY_FROM_JOB` remains permitted (refusing it would make such games' process creation fail) and leaves tracking, as does anything started outside the game's tree through the shell, services or scheduled tasks. After the original child exits, the session stays `running` while any job member whose image (`QueryFullProcessImageNameW`, resolved to its final path and compared case-insensitively) lies inside the session's install root still runs; members elsewhere, such as a browser or Steam client the game opened, never hold it. Each member lifetime (PID and start time) is classified once. A member that cannot be identified, an image that cannot be read or resolved, or a membership list that does not fit holds the session (fail closed). While it waits, Core writes the holding program names and process IDs to the running session record's `message`; today that is visible only through the session record and `launch show --technical-details`, not in Desktop, and the terminal outcome replaces it. The outcome and exit code remain those of the original child, because successor exit codes are not a reliable game result. A named object loses its name when its last handle closes even while members run, so Core leaves an inheritable query-only job handle in the game before resuming it and, every 250 ms while it supervises, shares one with in-install members that lack it. Core starts a separate copy of the Portcove executable before the game runs and waits for it to acknowledge its query-only handle to the same job. The keeper waits on the exact supervisor process identity and uses ordinary Core recovery after supervisor exit. It can hold the job across a successor that does not inherit handles. Recovery requires the recorded child identity and uses exact job membership to apply the same in-install rule before collecting. If Core cannot verify the job, install root, or spawning state, it holds the session for manual review. A failure while preparing the job, sharing its handle or starting its keeper stops launch before game code runs. Linux and macOS keep the original child: an exec-based restart keeps its PID and start identity, process-group signals are unchanged, and a launcher there that spawns a successor and exits is not tracked.
 
 Every open `Library` also holds a shared operating-system lease on `locks/library.lock`, acquired before SQLite initialization and retained by every clone. Whole-library transfer must acquire that lock exclusively, so it cannot proceed while a current CLI, desktop, or launch supervisor owns the library. Per-port locks remain the normal concurrency boundary between independent games.
 
@@ -2646,7 +2657,23 @@ into the review fingerprint. The manifest records the area as `unknown_files_v1`
 (count, size, digest) outside the restorable content digest, and
 `BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
 so it never writes an unknown file into a declared path, and an older reader
-ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+ignores the area. Restoring the area is Tier 2 work.
+
+A removal backup collects every version, and stores identical copies of one
+file once. Copies are identical when they share a path relative to each
+version's persistence root (from the selected executable, as verification
+reads it) and the same SHA-256. Each distinct copy stays in the first
+installation's folder (by id), and `unknown-files/index.json` lists every
+installation's copy with `stored_in` and `stored_path`. Such a backup is
+recorded as `unknown_files_v2`, whose `file_count` counts every copy and
+`stored_file_count` what was stored; a backup where nothing collapsed keeps
+`unknown_files_v1`. An older reader ignores v2 and shows no unknown files for
+that backup. Each stored copy is re-hashed after copying, and each collapsed
+copy's game-folder file is re-hashed afterwards too, so no copy changes
+unseen during the backup. A write after the backup and before removal moves the
+folders is not covered, as in Tier 1. The free-space check, in the removal
+review and in execution, counts stored copies, so the copies Tier 2 places in
+several versions need no extra space. A backup whose `data/` is
 empty, holding only unknown files, cannot be restored (restore and its review
 refuse it, and the restore assessment ignores it) and is never the latest
 protection in `BackupInventory.protection`.
@@ -2656,13 +2683,23 @@ checks still require an exact match and refuse any unknown file. That is
 intentionally strict for now: those paths copy or re-derive the whole runtime,
 and Tier 1 does not decide how unknown files travel with it.
 
-The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
-total. Past a cap, an explicit backup and removal (review and execution) hold
-instead of truncating. An automatic snapshot before a version change, the
-restore safety backup and the portable-save import snapshot copy none of the
-unknown files and record `unknown_files_left_in_place_v1`, because those
-operations delete nothing. Update, rollback, collection and launch are never
-held by a cap. Declared
+An explicit backup and removal (review and execution) copy every unknown file
+and need only the space for the whole backup (owner decision, November 15,
+2026): when there are unknown files, the library volume must keep the larger
+of 1 GiB and 2% of the volume free after the saves and settings plus the
+stored unknown files, or they hold instead of truncating. A removal with no
+unknown files takes no backup, and an explicit backup of saves alone, checks
+nothing new. The removal review reports the stored unknown bytes as
+`PortRemovalPreview.unknown_file_bytes` and binds them into its fingerprint;
+Desktop and the CLI say how much those files take in the backup, which stays
+until the player deletes it. The caps of 1,024 files, 16 MiB in one file and
+64 MiB in total bound the automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot: past one they copy
+none of the unknown files and record `unknown_files_left_in_place_v1`, because
+those operations delete nothing and run on every switch. The legacy Ghostship
+recovery safety snapshot keeps the caps and holds past one, because its
+capacity review is sized for them. Update, rollback, collection and launch are
+never held. Declared
 persistence, retained-scope receipts and canonical collection are unchanged.
 
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.
@@ -3469,12 +3506,18 @@ Notes, titles and versions are untrusted upstream text. Core removes complete
 HTML comments, control characters and bidirectional or invisible formatting
 characters (zero-width joiners stay), keeps at most one blank line in a row,
 bounds every value and drops malformed timestamps; Desktop renders the text
-escaped, with no Markdown, HTML or embedded links. The only link is the
-project's release list page, built by Core from the provider origin and
-repository and kept only when it passes the reviewed-link check that Desktop
-applies before opening any URL; if that check cannot complete, the link is
-dropped and the review continues. Per-release links would need a reviewed
-allowlist change. An uncached or unlisted offered release yields no entries;
+escaped, with no Markdown, HTML or embedded links. The only links are the
+project's release list page and each release's page, built by Core from the
+provider origin and repository and kept only when they pass the reviewed-link
+check that Desktop applies before opening any URL; if that check cannot complete,
+the link is dropped and the review continues. A release page is offered only for
+a plain tag (ASCII letters, digits, `-`, `_`, `.`, `+`) shown exactly as published,
+only while the release list itself is openable, and only for the reviewed port's
+own release repository. The reviewed-link check accepts exactly
+`https://github.com/<repository>/releases/tag/<tag>` or
+`https://gitlab.com/<repository>/-/releases/<tag>` for a cataloged port's own
+release repository and such a tag; any other path, host, query, fragment or
+encoded tag is refused. An uncached or unlisted offered release yields no entries;
 with no entries and no openable link the review carries no value, as do direct
 manifest and user-prepared ports. The notes are excluded from `plan_sha256`,
 so edited upstream text never invalidates a reviewed update.
@@ -3681,6 +3724,10 @@ overlays cannot add credential-shaped names; Windows replacement and removal
 compare names using case-insensitive ordinal equality. Raw argument syntax is
 available only to the existing Windows junction unit-test fixtures.
 
+Reviewed Windows upstream setup that receives a source argument runs with the
+standard Windows heap. The debugger remains attached for process-tree tracking
+and settlement throughout setup, including compiler teardown.
+
 On Windows, supervised tools use a private controller whose single owning thread
 creates the suspended root, assigns its non-breakaway kill-on-close Job and
 resumes the exact creation-returned primary thread. It captures descendant
@@ -3689,8 +3736,12 @@ checkpoints. One PID-and-creation-time store combines those handles with bounded
 Job observations for descendants that start their own debugger. Cleanup proof
 uses valid returned PIDs from successful partial live snapshots as supplemental
 observations; partial snapshots never establish complete lifetime coverage.
-Malformed counts and either count above the 512-member bound remain failures. It
-requires positive retained-handle waits, zero active members and equality between
+Malformed counts and counts above the applicable member bound remain failures.
+Ordinary tools and decoders allow up to 512 members and 4,096 debug events.
+Managed builders allow up to 2,048 members and 65,536 debug events. Windows
+starts managed builders with the standard heap to avoid allocation contention
+during compilation and linking while retaining the same debug-event tracking.
+Cleanup requires positive retained-handle waits, zero active members and equality between
 the Job's lifetime count and retained identities, within one two-second closure
 deadline. Missing coverage, API failure or expiry preserves failure. Startup
 readiness failures and controller panics project the available locked proof
@@ -3828,7 +3879,7 @@ while core and Tauri remain authoritative for source validation and mutation.
 
 The CLI is the integration boundary. Consumers should probe `capabilities`, including `product_version`, `failure_isolated_batches`, and `port_operation_locking`, use `--json` for request/response automation or `--jsonl` for progress streams, select an explicit library, and launch through `exec`. `catalog export` supplies the complete versioned port and source-profile document, `activity` supplies a bounded, newest-first durable ledger for frontends that need recent results without replaying progress streams, and `storage` reports the resolved root and containing-volume capacity. `plan` combines release resolution, retained/staged version discovery, registered requirements, and capacity into a typed preflight without changing installed state. `paths` exposes canonical persistent-data and managed-version roots so backup tools do not depend on private layout conventions; `backup create`, `list`, and confirmed `restore` provide a first-party snapshot lifecycle. Bulk check, reconcile, and update operations isolate every installed port; bulk source verification isolates every registered profile. Frontends must inspect each nested outcome rather than treating a completed batch as proof that every item succeeded. `catalog export`, `source verify --all`, `activity`, `storage`, `paths`, `backup list`, and `exec` are network-free; backup create/restore are also network-free but copy local data, `plan` may make a conditional release request, and launch inherits the child's standard streams and exit code.
 
-The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, and `portcove://application-update-notice` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
+The CLI's `schema export` is library-free and is also the transport authority for the desktop. The deterministic transport-contract gate compares the Rust schema with TypeScript DTO field names, catalog adapter values, common enums, and event variants before either adapter can ship. Desktop's existing Rust host transport declarations additionally own the exact `portcove://operation`, `portcove://library-changed`, `portcove://application-update-notice` and `portcove://play-request` event names and payload schemas. Tauri producers use one Rust adapter that compiler-checks an explicit payload type; repository tooling binds that type and event constant to the schema exporter, while React subscribes through one generated payload map and typed adapter. An independent compatibility fixture prevents a coherent shared-generator rename or payload substitution from silently changing the released contract. Events remain hints: durable activity, library and updater reads are authoritative after loss, reordering or restart. Filesystem paths are deliberately narrower than native Unix paths in V1: any path crossing durable serialization or a child-process string boundary must be Unicode, and an unrepresentable path is rejected as unsupported rather than lossily rewritten.
 
 ## Signed catalog authority
 

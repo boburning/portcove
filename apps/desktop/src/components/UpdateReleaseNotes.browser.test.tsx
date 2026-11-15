@@ -127,3 +127,24 @@ it("falls back to the release page when Portcove has no notes", async () => {
   );
   expect(links()).toEqual([["All release notes", "https://github.com/owner/repo/releases"]]);
 });
+
+it("links each release page that Core supplies and opens it through the reviewed handoff", async () => {
+  const open = vi.spyOn(desktopApi, "openExternalUrl").mockResolvedValue();
+  const linked: Notes = {
+    ...notes,
+    entries: [
+      { ...notes.entries[0]!, url: "https://github.com/owner/repo/releases/tag/v3" },
+      notes.entries[1]!,
+    ],
+  };
+  await root.rerender(<UpdateReleaseNotes notes={linked} currentVersion="v1" />);
+  expect(links()).toEqual([
+    ["Release page for v3", "https://github.com/owner/repo/releases/tag/v3"],
+    ["All release notes", "https://github.com/owner/repo/releases"],
+  ]);
+  expect(container.textContent).toContain(
+    "These notes are shortened. The full notes are on this release’s page.",
+  );
+  await act(async () => container.querySelector("a")?.click());
+  expect(open).toHaveBeenCalledWith("https://github.com/owner/repo/releases/tag/v3");
+});

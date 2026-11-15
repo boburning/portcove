@@ -1538,6 +1538,37 @@ impl Installer {
             operation.checkpoint()?;
         }
         if let Some(preparation) = request.managed.clone() {
+            if let Some((dependency, destination)) =
+                crate::psx::missing_offline_webp(&payload_root)?
+            {
+                let download = lifecycle.operation_root.join("psx-libwebp.download");
+                emit(operation.message(
+                    "info",
+                    "Downloading files needed to prepare the PlayStation game",
+                ));
+                self.download(&dependency, &download, operation, &mut |mut event| {
+                    if let crate::OperationEventKind::Progress {
+                        phase, phase_id, ..
+                    } = &mut event.event
+                    {
+                        *phase = "psx-build-dependency-download".into();
+                        *phase_id = Some(phase.clone());
+                    }
+                    emit(event);
+                })
+                .await?;
+                let (sha256, size) = crate::adapter::hash_file_bounded_with_checkpoint(
+                    &download,
+                    dependency.size,
+                    || operation.checkpoint(),
+                )?;
+                if sha256 != dependency.sha256 || size != dependency.size {
+                    return Err(PortcoveError::verification(
+                        "PS1 image decoder failed its pinned source verification",
+                    ));
+                }
+                crate::durability::rename_noreplace(&download, &destination)?;
+            }
             emit(operation.message("info", "Preparing and compiling PlayStation game data"));
             let managed_root = payload_root.clone();
             run_managed_install_worker(lifecycle, operation, move |checkpoint| {

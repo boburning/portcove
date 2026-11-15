@@ -1372,6 +1372,14 @@
       "ordinary_families": ["containment-contract-tests"]
     },
     {
+      "file": "scripts/hosted-installed-update.test.mts",
+      "memberships": [
+        ["catalog-full-2", 2501],
+        ["repository-tools-2", 109]
+      ],
+      "ordinary_families": ["workflow-contract-tests"]
+    },
+    {
       "file": "scripts/hosted-native-continuity.test.mts",
       "memberships": [
         ["catalog-full-2", 2500],

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { desktopApi } from "../../api";
+import { listenDesktopEvent } from "../../desktop-events";
 import type { PortStatus } from "../../types";
 import { directlyPlayable } from "../../view-model";
 import type { CatalogEntry } from "../browsing/catalog-entry";
@@ -28,7 +29,9 @@ export function startupPlayAction(
 /**
  * Takes the host's one-shot startup play request once the workspace has its
  * catalog and statuses, then routes it through the existing actions. The host
- * keeps no other copy, so a reload or library switch never repeats it.
+ * keeps no other copy, so a reload or library switch never repeats it. When the
+ * installed application forwards a later jump-list launch, the host announces a
+ * new request and it is taken the same way.
  */
 export function useStartupPlayRequest({
   ready,
@@ -43,14 +46,31 @@ export function useStartupPlayRequest({
   play: (port: CatalogEntry) => void;
   openDetails: (portId: string) => void;
 }) {
-  const taken = useRef(false);
+  const [forwarded, setForwarded] = useState(0);
+  const handled = useRef(-1);
   const latest = useRef({ entries, statuses, play, openDetails });
   useEffect(() => {
     latest.current = { entries, statuses, play, openDetails };
   });
   useEffect(() => {
-    if (!ready || taken.current) return;
-    taken.current = true;
+    let closed = false;
+    let stop: (() => void) | undefined;
+    void listenDesktopEvent("portcove://play-request", () => setForwarded((count) => count + 1))
+      .then((unlisten) => {
+        if (closed) unlisten();
+        else stop = unlisten;
+      })
+      .catch(() => {
+        // Without forwarding a later launch still brings the window forward.
+      });
+    return () => {
+      closed = true;
+      stop?.();
+    };
+  }, []);
+  useEffect(() => {
+    if (!ready || handled.current === forwarded) return;
+    handled.current = forwarded;
     void desktopApi
       .takeStartupPlayRequest()
       .then((portId) => {
@@ -63,5 +83,5 @@ export function useStartupPlayRequest({
       .catch(() => {
         // Without a request the app simply opens; nothing else depends on it.
       });
-  }, [ready]);
+  }, [ready, forwarded]);
 }

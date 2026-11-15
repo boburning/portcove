@@ -5,11 +5,11 @@
     "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
     "original_game_title": "Resident Evil Code: Veronica X HD",
     "summary": "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-    "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",
-    "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+    "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
     "manual_setup": {
       "steps": [
         {
@@ -25,7 +25,7 @@
         "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed.",
         "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
       ],
-      "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp"
+      "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"
     },
     "issue_number": 3368
   },
@@ -39,6 +39,43 @@
         "id": "1416413920"
       }
     },
-    "decisions": []
+    "decisions": [
+      {
+        "from": {
+          "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+          "repository": {
+            "host": "github.com",
+            "id": "1416413920"
+          }
+        },
+        "to": {
+          "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
+          "repository": {
+            "host": "github.com",
+            "id": "1416413920"
+          }
+        },
+        "relationship": "relocation",
+        "outcome": "accepted",
+        "rationale": "The owner kastieloficial renamed the repository it listed; the same repository answers at kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC. Keep the Portcove identity and listing; only its project location changes.",
+        "evidence": [
+          {
+            "kind": "supporting",
+            "reference": "https://api.github.com/repositories/1416413920",
+            "note": "Repository ID 1416413920, recorded when this port was listed, resolves to kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC."
+          },
+          {
+            "kind": "context",
+            "reference": "https://api.github.com/repos/kastieloficial/RE-Code-Veronica-Recomp",
+            "note": "The listed path resolves to kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC, repository ID 1416413920."
+          }
+        ],
+        "reconsider_when": "A different repository ID at the current location, a conflicting maintainer statement or a repository history discrepancy requires a new lineage decision.",
+        "review": {
+          "reference": "https://github.com/boburning/portcove/issues/5423#issuecomment-6889016964",
+          "decision_sha256": "209a87970bce6e947adaee7ff610c019bb4a8950a681e71095fd27f7b221c8d1"
+        }
+      }
+    ]
   }
 }

@@ -277,18 +277,16 @@ impl DefinitionContentIndex {
                 "platform runtime subdirectories require n64-recomp-portable capability version 6",
             ));
         }
-        // Readers without the tracked handoff would drop the field and collect
-        // player data while a successor still runs, so they must refuse it.
+        // A reader must enforce the launch policy before it can admit this entry.
+        let handoff_capability = crate::launch::tracked_handoff_native_capability(&port);
         if port.windows_tracked_handoff
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable"
-                    && requirement.minimum_version
-                        >= crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY
+                    && requirement.minimum_version >= handoff_capability
             })
         {
             return Err(PortcoveError::verification(format!(
-                "Windows tracked handoff requires native capability version {}",
-                crate::launch::TRACKED_HANDOFF_NATIVE_CAPABILITY
+                "Windows tracked handoff requires native capability version {handoff_capability}"
             )));
         }
         if port.release.grant_declared_executable {

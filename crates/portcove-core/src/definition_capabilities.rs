@@ -322,6 +322,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::OPENMOHAA_PREPARED_LAYOUT_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::launch::LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY,
+        });
         supported
     }
 }
