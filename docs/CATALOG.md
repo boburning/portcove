@@ -147,7 +147,8 @@ upstream itself publishes and holds a package only for concrete reasons.
 - **Recorded notes, not holds.** Recompiled, translated or inherited game
   program code without a grant, bundled fonts of any licence that are not extracted from the game, icons, launcher
   art such as box art and logos, unlicensed helper code, forks or launchers,
-  and an unlicensed own layer are recorded as known limitations in the
+  third-party library binaries shipped without their licence notices, and an
+  unlicensed own layer are recorded as known limitations in the
   listing's warning. Portcove never re-hosts them; the upstream that
   publishes them answers for their terms.
 - **Explicit prohibitions stay held.** An upstream that forbids redistribution
@@ -162,6 +163,15 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
+- **Owner exceptions to the game-data hold.** On November 15, 2026 the owner
+  made two narrow kinds of bundled game material recorded notes instead of
+  holds. First, launcher or menu art that only the upstream's own front end
+  shows, even when made from game screenshots or community texture packs; art
+  the recompiled game itself uses stays held. Second, game data that its
+  rights holder released for free redistribution, such as a freeware release
+  or an official demo, when the package bundles it unmodified. Each listing
+  names the material in its warning, and the player still supplies any full
+  game separately.
 - **Confirmed false positives.** When a person confirms that a
   [release-content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)
   finding is not game data, such as a homebrew test ROM, a reviewed entry in

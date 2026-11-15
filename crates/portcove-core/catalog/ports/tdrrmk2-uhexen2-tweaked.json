@@ -9,29 +9,28 @@
     "issue_number": 2747,
     "listed_at": "2026-10-26",
     "availability": "packages",
-    "platforms": ["windows-x86-64"],
     "release_url": "https://github.com/TDRRmk2/uhexen2-tweaked/releases",
     "setup_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare a separate working game copy",
-          "instruction": "Use your own documented Hexen II installation, normally retail 1.11 with data1/pak0.pak and data1/pak1.pak. Keep the original installation recoverable. The test ZIP contains the player and libraries, not original data or the patching tools described in the general Hammer of Thyrion instructions."
+          "title": "Copy your original game data before Play",
+          "instruction": "Copy pak0.pak and pak1.pak from your own retail Hexen II 1.11 installation into the player's data1 folder before Play, and keep your original installation separately. The player does not check or patch these files, and the package contains no game data or patching tools."
         },
         {
-          "title": "Select the OpenGL player",
-          "instruction": "Extract the complete Windows test ZIP into that prepared working copy. Select glh2.exe with the working game folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
+          "title": "Use a copy you manage yourself",
+          "instruction": "Extract the complete Windows test ZIP into a separate working Hexen II folder that already holds data1. Select glh2.exe with that folder, then choose Play. This is a Win32 OpenGL Hexen II preview, not HexenWorld."
         }
       ],
       "warnings": [
-        "Updates remain upstream/player-owned. Portcove registration does not manage original data, patching, saves or expansion compatibility.",
-        "Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+        "The test package bundles ten third-party codec and runtime DLLs without their licence notices. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
+        "Portal of Praevus, HexenWorld and mods are not part of this route; they need their own folders and arguments in a copy you manage yourself."
       ],
       "help_url": "https://github.com/TDRRmk2/uhexen2-tweaked#readme",
       "references": [
         {
-          "title": "Preserve the whole working copy",
-          "instruction": "Windows saves, configuration, demos and screenshots use the selected game directory, normally data1. Back up the complete folder before applying upstream updates, including portals or custom mod folders when used. Portal of Praevus requires its own portals/pak3.pak and the separate launch argument -portals."
+          "title": "Keep the game folder's saves and settings",
+          "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
         }
       ]
     },
@@ -39,5 +38,35 @@
       "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
     },
     "recommended_download_channel": "beta"
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "TDRRmk2/uhexen2-tweaked",
+      "asset_hints": {
+        "windows-x86-64": ["H2HoT-Tweaked-", "-win32.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["glh2.exe"]
+    },
+    "windows_runtime_path_policy": "printable-ascii-max-path",
+    "persistent_paths": ["data1", "debug_h2.log"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before Play, copy pak0.pak and pak1.pak from your own retail Hexen II 1.11 installation into data1 in the managed player's folder, and keep your original installation separately. The player does not check or patch these files. data1 also receives saves, configuration, demos and screenshots, and Portcove keeps it, together with debug_h2.log, when it updates, backs up or rolls back the player. This Win32 preview runs the base game only; Portal of Praevus, HexenWorld and mods stay in copies you manage yourself. Use a short library path containing plain ASCII characters for this Windows build; Portcove refuses other install folders before downloading."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["glh2.exe"]
+      }
+    }
   }
 }
