@@ -6432,12 +6432,15 @@ impl PortcoveService {
         fresh: Option<&crate::UploaderContinuityRecord>,
     ) -> Result<()> {
         let current = self.catalog.port(&install.port_id).ok();
-        // A build without a retained contract (a manifest older than retained
-        // contracts) is judged by the current catalog's route; a port neither
-        // knows has no GitHub release route to continue.
-        let retained = match self.installed_port(install) {
-            Ok(port) => port,
-            Err(_) => match current {
+        // The route the build was installed under, read from its verified
+        // manifest without the path-ownership check: a published payload in a
+        // game output folder is not registered yet during publication recovery.
+        // Only a manifest older than retained contracts is judged by the current
+        // catalog's route; a port neither knows has no GitHub route to continue.
+        // Every other failure refuses.
+        let retained = match Installer::new(self.library.clone())?.retained_catalog(install)? {
+            Some(catalog) => catalog.port(&install.port_id)?.clone(),
+            None => match current {
                 Some(port) => port.clone(),
                 None => return Ok(()),
             },
