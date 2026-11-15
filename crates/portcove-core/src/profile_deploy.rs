@@ -406,7 +406,7 @@ pub(crate) fn inspect_for_port(
 /// What the live mods root holds relative to the revision that should own it.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub(crate) struct ModsObservation {
-    /// Files whose names no enabled package of the owning revision provides.
+    /// Files outside the enabled packages and the reviewed empty runtime marker.
     pub unmanaged: Vec<String>,
     /// Owned files whose bytes differ from the package that placed them.
     pub drifted: Vec<String>,
@@ -439,6 +439,10 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                 .insert(package.sha256.as_str());
         }
     }
+    let ship_loader = matches!(
+        native_mod_list::loader_list(&layout.port_id()),
+        Some(LoaderList::Ship(_))
+    );
     for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -449,6 +453,12 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                     observation.drifted.push(name);
                 }
             }
+            // Shipwright 9.3.1 creates this empty file when it creates mods/.
+            // It is shared runtime scaffolding and deployment leaves it in place.
+            None if ship_loader
+                && name == "custom_mod_files_go_here.txt"
+                && metadata.is_file()
+                && metadata.len() == 0 => {}
             _ => observation.unmanaged.push(name),
         }
     }
@@ -810,12 +820,9 @@ fn adopted_order(
 
 fn declared_state_paths(service: &PortcoveService, port_id: &str) -> Result<Vec<String>> {
     Ok(service
-        .catalog()
-        .port(port_id)?
-        .persistent_paths
-        .iter()
-        .filter(|path| path.as_str() != MODS)
-        .cloned()
+        .profile_persistent_paths(port_id)?
+        .into_iter()
+        .filter(|path| path != MODS)
         .collect())
 }
 
@@ -881,9 +888,16 @@ impl Phase {
     }
 }
 
-fn write_journal(layout: &Layout, from: &str, to: &str, revision: u64, phase: Phase) -> Result<()> {
+fn write_journal(
+    layout: &Layout,
+    from: &str,
+    to: &str,
+    revision: u64,
+    phase: Phase,
+    paths: &[String],
+) -> Result<()> {
     let journal = serde_json::json!({
-        "from": from, "to": to, "revision": revision, "phase": phase.name(),
+        "from": from, "to": to, "revision": revision, "phase": phase.name(), "paths": paths,
     });
     crate::durability::write_bytes_atomically(
         &layout.journal(),
@@ -1240,6 +1254,7 @@ impl PortcoveService {
             profile_id,
             target.revision,
             Phase::Start,
+            &paths,
         )?;
         self.switch_steps(
             port_id,
@@ -1300,12 +1315,12 @@ impl PortcoveService {
         if phase == Phase::Start {
             move_paths(paths, &layout.user, &layout.parked(from))?;
             phase = Phase::Parked;
-            write_journal(layout, from, to, target.revision, phase)?;
+            write_journal(layout, from, to, target.revision, phase, paths)?;
         }
         if phase == Phase::Parked {
             deploy(layout, Some(departing), target)?;
             phase = Phase::Deployed;
-            write_journal(layout, from, to, target.revision, phase)?;
+            write_journal(layout, from, to, target.revision, phase, paths)?;
         }
         if phase == Phase::Deployed {
             move_paths(paths, &layout.parked(to), &layout.user)?;
@@ -1358,6 +1373,29 @@ impl PortcoveService {
             "resuming an interrupted profile switch",
         )?;
         let paths = declared_state_paths(self, port_id)?;
+        if let Some(recorded_paths) = value.get("paths") {
+            if recorded_paths != &serde_json::to_value(&paths)? {
+                return Err(PortcoveError::conflict(
+                    "profile switch data paths changed since the switch began",
+                ));
+            }
+        } else if phase != Phase::Start {
+            // An older writer may have left newly recognized paths live when
+            // it parked the departing profile. Their ownership is ambiguous.
+            let old_paths = &self.catalog().port(port_id)?.persistent_paths;
+            for path in paths.iter().filter(|path| !old_paths.contains(path)) {
+                for root in [&layout.user, &layout.parked(&from), &layout.parked(&to)] {
+                    let candidate = root.join(path);
+                    crate::path::refuse_symlink_ancestors(&candidate)?;
+                    if candidate.try_exists()? {
+                        return Err(PortcoveError::conflict(
+                            "an older profile switch left player data with unconfirmed ownership",
+                        )
+                        .detail("path", candidate.display().to_string()));
+                    }
+                }
+            }
+        }
         self.switch_steps(
             port_id, layout, &from, &to, &paths, &departing, &target, phase,
         )
