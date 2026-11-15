@@ -3681,6 +3681,10 @@ overlays cannot add credential-shaped names; Windows replacement and removal
 compare names using case-insensitive ordinal equality. Raw argument syntax is
 available only to the existing Windows junction unit-test fixtures.
 
+Reviewed Windows upstream setup that receives a source argument runs with the
+standard Windows heap. The debugger remains attached for process-tree tracking
+and settlement throughout setup, including compiler teardown.
+
 On Windows, supervised tools use a private controller whose single owning thread
 creates the suspended root, assigns its non-breakaway kill-on-close Job and
 resumes the exact creation-returned primary thread. It captures descendant
