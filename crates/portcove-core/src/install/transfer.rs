@@ -227,9 +227,10 @@ impl Transfer<'_> {
                     .with_upstream(Some(UpstreamObservation::Status(status.as_u16()))),
             ));
         }
-        if range.is_some() && (status.is_client_error() || status.is_server_error()) {
+        if range.is_some() && matches!(status.as_u16(), 400 | 403 | 405 | 412 | 501) {
             // Some servers refuse range requests outright; that says nothing
-            // about the file, so start over without one.
+            // about the file, so start over without one. Other statuses keep
+            // their own classification.
             self.restart(operation, emit).await?;
             return Err(Step::Retry(
                 PortcoveError::network("the server refused to continue the download")
@@ -392,9 +393,20 @@ where
                     1024 * 1024,
                     tokio::fs::File::from_std(writer),
                 ));
-                if let Some(received) = lease.resumed()
-                    && let Ok(validator) = HeaderValue::from_str(&received.validator)
-                {
+                let resumed = lease.resumed().and_then(|received| {
+                    HeaderValue::from_str(&received.validator)
+                        .ok()
+                        .map(|validator| (received, validator))
+                });
+                if lease.resumed().is_some() && resumed.is_none() {
+                    // An unusable record: start the entry over.
+                    lease.forget();
+                    if let Some(file) = &mut transfer.file {
+                        let _ = file.get_mut().set_len(0).await;
+                        let _ = file.get_mut().seek(SeekFrom::Start(0)).await;
+                    }
+                }
+                if let Some((received, validator)) = resumed {
                     // The first request asks only for the rest, under the same
                     // continuity checks as a reconnect.
                     transfer.completed = received.bytes;
