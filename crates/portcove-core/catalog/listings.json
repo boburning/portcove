@@ -15942,13 +15942,13 @@
         "macos-aarch64"
       ],
       "availability": "packages",
-      "download_block_reason": "Portcove downloads are on hold because the Windows installer and Linux archive include music from the project’s separately licensed soundtrack. The setup guide covers copies you have permission to use.",
+      "download_block_reason": "Portcove downloads are on hold because the Windows installer and Linux archive include music from the project’s nonfree soundtrack repository. The setup guide covers copies you have permission to use.",
       "manual_setup": {
         "help_url": "https://github.com/raceintospace/raceintospace/releases/tag/v2.0.0",
         "steps": [
           {
             "title": "Use the Windows or Linux upstream setup",
-            "instruction": "For a permitted v2.0.0 Windows copy, use the publisher’s Win32 installer and open Race Into Space from the Start menu. On Linux x64, extract the complete portable archive and run run.sh from its folder. Keep the share/raceintospace data beside the player."
+            "instruction": "For a permitted v2.0.0 Windows copy, use the publisher’s Win32 installer and open Race Into Space after setup. On Linux x64, extract the complete portable archive and run run.sh from its folder. Keep the share/raceintospace data beside the player."
           },
           {
             "title": "Open the Apple Silicon Mac package",
