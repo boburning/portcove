@@ -75,14 +75,14 @@ try {
     if ($file -notmatch [regex]::Escape($Architecture)) {
         throw "Application executable does not contain the expected $Architecture architecture: $file"
     }
-    $linked = Invoke-Checked "otool" @("-L", $executable)
+    $linked = Invoke-Checked "otool" @("-arch", $Architecture, "-L", $executable)
     foreach ($line in @($linked | Select-Object -Skip 1)) {
         $dependency = ($line.Trim() -split " ")[0]
         if ($dependency -and $dependency -notmatch '^(/System/Library/|/usr/lib/|@rpath/|@executable_path/|@loader_path/)') {
             throw "Unexpected non-system dylib dependency: $dependency"
         }
     }
-    $loadCommands = (Invoke-Checked "otool" @("-l", $executable) | Out-String)
+    $loadCommands = (Invoke-Checked "otool" @("-arch", $Architecture, "-l", $executable) | Out-String)
     if ($loadCommands -notmatch 'LC_BUILD_VERSION|LC_VERSION_MIN_MACOSX') {
         throw "Application executable does not declare a macOS deployment target"
     }

@@ -261,6 +261,8 @@ void test("cross-built Intel artifacts receive native Intel package and launch v
   assert.match(intelSection, /Architecture x86_64/);
 
   assert.doesNotMatch(macosVerifier, /-acceptlicense/);
+  assert.match(macosVerifier, /"otool" @\("-arch", \$Architecture, "-L", \$executable\)/);
+  assert.match(macosVerifier, /"otool" @\("-arch", \$Architecture, "-l", \$executable\)/);
 });
 
 void test("supplemental macOS packaging source check retains BSD-compatible chmod syntax", () => {
