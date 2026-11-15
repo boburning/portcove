@@ -445,6 +445,7 @@ $functions = @($ast.FindAll({ param($node) $node -is [Management.Automation.Lang
 if ($functions.Count -ne 1) { throw 'Smoke function is absent or ambiguous' }
 Invoke-Expression $functions[0].Extent.Text
 $script:clock = 0
+$script:clockStep = 31
 $script:disposed = $false
 $script:stopped = $false
 $nativeAccount = $null
@@ -456,7 +457,7 @@ $script:process | Add-Member ScriptMethod Refresh {}
 $script:process | Add-Member ScriptMethod Dispose {$script:disposed=$true}
 function Start-JournaledProcess { @{process=$script:process; run=$script:run} }
 function Start-Sleep {}
-function Get-Date { $script:clock += 31; [datetime]::new(2026, 1, 1).AddSeconds($script:clock) }
+function Get-Date { $script:clock += $script:clockStep; [datetime]::new(2026, 1, 1).AddSeconds($script:clock) }
 function Stop-Process { $script:stopped=$true; $script:process.HasExited=$true }
 function Write-InstallerEvidence {}
 $message = $null
@@ -464,6 +465,36 @@ try { Invoke-ApplicationSmoke 'inert-application' 'candidate_smoke' }
 catch { $message = $_.Exception.Message }
 if (-not $script:stopped -or -not $script:disposed -or $script:run.status -cne 'forced_termination') { throw 'Owned cleanup failure state changed' }
 $message
+
+$script:clock = 0
+$script:clockStep = 1
+$script:polls = 0
+$script:run = @{}
+$script:databasePath = Join-Path ([IO.Path]::GetTempPath()) ('portcove-smoke-' + [guid]::NewGuid() + '.sqlite3')
+$script:process = [pscustomobject]@{
+  HasExited=$false; Responding=$true; MainWindowTitle='Portcove'; Id=123;
+  MainWindowHandle=[IntPtr]456; ExitCode=0
+}
+$script:process | Add-Member ScriptMethod Refresh {}
+$script:process | Add-Member ScriptMethod CloseMainWindow {
+  if (-not [IO.File]::Exists($script:databasePath)) { throw 'Window closed before the library database existed' }
+  $script:process.HasExited = $true
+  $true
+}
+$script:process | Add-Member ScriptMethod WaitForExit { $true }
+$script:process | Add-Member ScriptMethod Dispose {}
+function Start-Sleep {
+  $script:polls++
+  if ($script:polls -eq 2) { [IO.File]::WriteAllText($script:databasePath, 'fixture-db') }
+}
+function Complete-JournaledProcess {}
+try {
+  $result = Invoke-ApplicationSmoke 'inert-application' 'candidate_smoke' -ExpectedLibraryDatabase $script:databasePath
+  if ($result.exit_code -ne 0 -or $script:polls -ne 2) { throw 'Failed to verify the delayed library startup' }
+  'Delayed library startup verified'
+} finally {
+  [IO.File]::Delete($script:databasePath)
+}
 `;
     const output = execFileSync(
       "pwsh",
@@ -481,6 +512,7 @@ $message
     );
     assert.match(output, /The installed app did not open a responsive Portcove window\./u);
     assert.match(output, /retained-fixture-evidence before retrying/u);
+    assert.match(output, /Delayed library startup verified/u);
   },
 );
 
