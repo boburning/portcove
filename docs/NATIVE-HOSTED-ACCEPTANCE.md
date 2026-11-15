@@ -351,12 +351,15 @@ scenario in `apps/desktop/scripts/desktop-hosted-installed-update.mts`:
    preference with automatic checks off, creates the library with the release
    CLI and seeds deterministic save and settings files under
    `user/hosted-update-acceptance/`, recording their SHA-256 values. The process
-   the NSIS installer relaunches is started by the installer, not the harness:
-   its `/R` relaunch runs the app as the desktop user with Explorer's
-   environment. Before the first session the harness therefore also publishes
-   the same overrides as user environment values, which broadcasts the change
-   Explorer applies, and restores the previous values when the run ends. The
-   relaunch's isolation is still checked rather than assumed (step 5).
+   the NSIS installer relaunches does not inherit the installer's environment:
+   from an elevated installer, the `/R` relaunch uses
+   `nsis_tauri_utils::RunAsUser`, which starts the app with Explorer's token and
+   an environment Windows builds from the user profile, including
+   `HKCU\Environment`. Before the first session the harness therefore also
+   writes the same overrides there and restores the previous values when the
+   run ends. Step 5 checks that the shipping relaunch, given these
+   profile-level overrides, stays isolated; it does not test whether
+   process-scoped overrides survive the relaunch.
 3. Launches the installed application under WebDriver, opens Settings, Updates,
    presses Check for updates and requires the offered version to equal the
    feed's newer version.

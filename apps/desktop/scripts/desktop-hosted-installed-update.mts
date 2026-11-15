@@ -110,31 +110,40 @@ function portcoveEnvironment(): NodeJS.ProcessEnv {
 }
 
 /**
- * The NSIS `/R` relaunch starts the updated app as the desktop user through
- * Explorer, with Explorer's environment, not the installer's. Publishing the
- * isolated scope as user environment values (which broadcasts the change that
- * Explorer applies) keeps the relaunched session isolated too. The previous
- * values are restored when the run ends.
+ * The NSIS `/R` relaunch does not inherit the installer's environment. From an
+ * elevated installer (hosted runners are elevated), tauri-bundler's template calls
+ * `nsis_tauri_utils::RunAsUser`, which uses `CreateProcessWithTokenW` with
+ * Explorer's token and no environment block, so Windows builds the app's
+ * environment from the user profile, including HKCU\Environment. The harness
+ * therefore writes the isolated scope there (a broadcast alone would not reach
+ * it). Previous values are read before anything is written, so a partial
+ * publish is still restored when the run ends.
  */
 let publishedUserEnvironment: Record<string, string | null> | null = null;
-function setUserEnvironment(values: Record<string, string | null>) {
+function userEnvironment(names: string[]) {
   return powershellJson(
-    `$values = $env:HOSTED_VALUES | ConvertFrom-Json -AsHashtable
-    $previous = [ordered]@{}
-    foreach ($name in $values.Keys) {
+    `$previous = [ordered]@{}
+    foreach ($name in ($env:HOSTED_NAMES | ConvertFrom-Json)) {
       $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'User')
-      [Environment]::SetEnvironmentVariable($name, $values[$name], 'User')
     }
     ConvertTo-Json -InputObject $previous -Compress`,
-    { VALUES: JSON.stringify(values) },
+    { NAMES: JSON.stringify(names) },
   ) as Record<string, string | null>;
 }
+function setUserEnvironment(values: Record<string, string | null>) {
+  powershell(
+    `$values = $env:HOSTED_VALUES | ConvertFrom-Json -AsHashtable
+    foreach ($name in $values.Keys) { [Environment]::SetEnvironmentVariable($name, $values[$name], 'User') }`,
+    { VALUES: JSON.stringify(values) },
+  );
+}
 function publishIsolationToUserEnvironment() {
-  publishedUserEnvironment = setUserEnvironment(isolatedEnvironment);
+  publishedUserEnvironment = userEnvironment(Object.keys(isolatedEnvironment));
   report.relaunch_environment = {
     published: Object.keys(isolatedEnvironment),
     previous: publishedUserEnvironment,
   };
+  setUserEnvironment(isolatedEnvironment);
 }
 function restoreUserEnvironment() {
   if (!publishedUserEnvironment) return;
