@@ -1,8 +1,9 @@
 # Tier 2: carrying files Portcove didn't install (design, November 15, 2026)
 
-Status: **proposal for critical review**. Nothing here is implemented. Owning
-issue: [#5359](https://github.com/boburning/portcove/issues/5359) phase 5. Once
-the phases ship, the stable contract moves into
+Status: **proposal, revision 2 after critical review** (BLOCK on `fc2f7fb2a`;
+findings B1–B3, M1–M6 and L1–L6 are addressed below). Nothing here is
+implemented. Owning issue: [#5359](https://github.com/boburning/portcove/issues/5359)
+phase 5. Once the phases ship, the stable contract moves into
 [ARCHITECTURE](../ARCHITECTURE.md#unknown-player-side-files) and this note
 becomes dated design history. Line references are to `origin/main` `2488ebb5d`.
 
@@ -14,14 +15,17 @@ update or rollback leaves them behind. Tier 2 copies them to the version being
 activated. It follows one rule:
 
 > Portcove overwrites or removes a file in the version being activated only
-> when those bytes are a recorded ancestor of the copy the player is leaving.
-> If it can't prove that, both versions keep their own copy and Portcove says
-> so. It never holds a version change because of these files.
+> when (a) the path is still eligible against that version, (b) those bytes are
+> a recorded ancestor of the copy the player is leaving, and (c) that version's
+> copy is unchanged since Portcove last recorded it. Otherwise each version keeps
+> its own copy and Portcove says so. No version change is held because of these
+> files, except while a file changes or can't be read during the copy.
 
-The rule never silently loses newer data, because only provable ancestors are
-replaced and the departing copy always stays in its own folder. It has no
-dead-end holds: a divergence is reported, not held, and its remedy is to delete
-one copy and switch again. It needs no catalog field and no per-route upkeep.
+The departing copy always stays in its own folder, and only proven, unchanged
+ancestors are replaced, so newer data is never lost silently. Divergence is
+reported, not held; the remedy is to delete one copy and switch again, and a
+later in-app "use this copy" action can replace that (D2). No catalog field and
+no per-route upkeep are needed.
 
 ## 1. Scope and candidates
 
@@ -33,9 +37,7 @@ hazards from harmless files and that activate through Core's staged path:
 - N64 executable-parent.
 
 `portable_runtime_unknown_files` returns nothing for any other adapter
-(`service/native_portable.rs:549-553`). These routes all switch versions
-through `prepare_retained_install_data` (`service/psx_mod_data.rs:867-893`) or
-`rollback` (`service.rs:4036-4073`). Staged activation is chosen at
+(`service/native_portable.rs:549-553`). Staged activation is chosen at
 `service.rs:3576`.
 
 **Excluded routes:**
@@ -48,85 +50,112 @@ through `prepare_retained_install_data` (`service/psx_mod_data.rs:867-893`) or
 - **Preparation and source-only routes.** `ready_staged_archive` already
   rejects managed builds and setup helpers (`persistence.rs:200-231`).
 
-**Candidate selection** happens under the port lock, after the target's
-declared data restore and additive adoption.
+**The planned set (B1).** For a switch from the active version A to the
+target T, the planner considers the union of:
 
-1. Start from the departing active version's Tier 1 harmless list,
-   `verify_managed_with_unknown` (`install.rs:2094`). That list already
-   excludes:
-   - the source's manifest members (`install.rs:2266-2270`);
-   - its declared and retained mutable paths and patterns;
-   - `.portcove-manifest.json`, `.portcove-launched`, generated metadata and
-     PS1/archive-data metadata (`install.rs:2278-2290`);
-   - every hazard (`install.rs:2311-2321`, `package_layout.rs:417`).
+- A's Tier 1 harmless list from `verify_managed_with_unknown` (`install.rs:2094`),
+  re-expressed relative to A's persistence root (`service.rs:6952`); and
+- every path of A's ledger rows (section 2), including paths A no longer has.
 
-   Any hazard still holds the whole switch exactly as today
-   (`service/native_portable.rs:571-579`).
+A file of A outside its persistence root is not a candidate, so a renamed
+wrapper directory (`Game-v1/` → `Game-v2/`) cannot strand a copy in a dead path.
+A hazard anywhere in A is handled in section 4 (L5).
 
-2. Re-express each path relative to the source's persistence root
-   (`service.rs:6952`), the working directory the adapter launches. A file
-   outside that root is not a candidate. This keeps a renamed wrapper
-   directory, such as `Game-v1/` becoming `Game-v2/`, from landing in a dead
-   path.
-3. Drop the path, so that it stays where it is, if any of these is true:
-   - any component fails `archive::validate_relative_path`
-     (`archive.rs:280-316`): non-ASCII, `:`, reserved device names, or a
-     trailing dot or space;
-   - any component looks like an 8.3 short name (`~` followed by digits);
-   - any component starts with `.portcove`;
-   - any component is a loader-read name under `is_loader_sensitive_name`
-     (`install.rs:4956`), anywhere in the tree rather than only beside the
-     program;
-   - it is under the target's Electron `resources` folder
-     (`install.rs:5002`);
-   - it equals or is an ASCII case-alias of the target package's manifest
-     members, or is inside one of them;
-   - it equals, contains or sits inside a path that is declared persistent,
-     shared, progress or runtime-mutable, or matches a file pattern, in the
-     source's retained contract, the target's retained contract or the
-     **current catalog** definition. The catalog check means a path that a
-     later reviewed declaration claims, such as an additive successor's
-     appended file, is owned by that declaration and never by Tier 2.
-   - it collides by ASCII case with another candidate.
+**Eligibility.** Every exclusion below is evaluated against T as well as A, and
+applies to every planned **write and removal**. An excluded path is never acted
+on: no copy, no removal, and no row for it is written for T. A's existing row
+for it is frozen and ignored, never used as lineage or as the reason for a
+removal. A path is excluded when:
+
+1. any component fails `archive::validate_relative_path` (`archive.rs:280-316`):
+   non-ASCII, `:`, reserved device names, or a trailing dot or space;
+2. any component looks like an 8.3 short name (`~` followed by digits);
+3. any component contains `.portcove`, ASCII case-insensitive (M5). This
+   covers `.portcove-manifest.json`, `.portcove-launched`, the archive-data
+   baseline (`service/psx_mod_data.rs:123`) and runtime-source markers
+   `<name>.portcove-source.json` (`adapter.rs:1914-1919`);
+4. it is one of A's or T's `generated_metadata_paths` (`adapter.rs:1680-1709`),
+   or `psx_data_metadata_name` is true for it;
+5. any component is a loader-read name under `is_loader_sensitive_name`
+   (`install.rs:4956`), anywhere in the tree rather than only beside the
+   program;
+6. it is under T's Electron `resources` folder (`install.rs:5002`), matched
+   ASCII case-insensitive (L3);
+7. it equals, contains or sits inside T's package manifest members, or an
+   ASCII case-alias of one;
+8. its parent directory, other than the persistence root, directly contains a
+   file that is a member of T's package (L4). This keeps added files out of
+   shipped mod-package and asset folders, where a loader may read every file;
+9. it equals, contains or sits inside a path that is declared persistent,
+   shared, progress or runtime-mutable, or matches a file pattern, in any of:
+   - the current catalog definition;
+   - T's retained contract;
+   - the retained contract of **any installation of the port** (M3), including
+     A. This keeps Tier 2 off a path that an additive successor appended in some
+     version, so `.portcove-archive-data-baseline.json` still matches when
+     `require_adoptable` compares it (`archive_data.rs:455-487`, especially
+     468-470);
+10. it collides by ASCII case with another planned path;
+11. at T, a parent component is a file, a link or a case-alias, or the
+    destination is a non-regular object.
+
+"Absent at T" means the path is eligible **and** T's parent directory exists
+with exact names and has no exactly named entry. A path that exists only as a
+case or 8.3 alias isn't absent; rule 11 makes it ineligible.
+
+**Scenarios the rules must cover (B1):**
+
+- **v2 ships `settings.ini`.** Its bytes d0 are in v1's lineage, and the player
+  deleted the file in v1. Switching v1→v2, the path is a member of T's
+  package (rule 7), so the removal is never planned. The package file stays
+  untouched, v1's row is frozen, and the player sees nothing, because a
+  package file is not theirs.
+- **A carried path is later declared**, for example SMW `mods/preloaded/state.toml`.
+  Rule 9 applies through the current catalog at once, so every row for that path
+  freezes and Tier 2 stops touching it. The declaration's own reviewed
+  transition owns it from then on. Tier 2 doesn't make declaring that path any
+  easier: the #5881 receipt-scope conflict still applies to it.
 
 **Partitioned `archive_data_compatibility_v1` and the additive successor.** In
-a forward switch, appended paths are declared by the target, so step 3 drops
-them and `adopt_additive_archive_data` (`service/native_portable.rs:358`)
-stays their only owner. In a rollback, the successor declares them, so they
-never enter the source's list. The current-catalog check also keeps Tier 2
-from writing an appended path into a predecessor copy. Such a write would
-invalidate the rollback baseline that `record_additive_rollback_baseline`
-records (`service/native_portable.rs:333`; `psx_mod_data.rs:123-178`) and
-cause a false `appended_settings_diverged` hold. The archive-data namespace
-lives under `user/`, never in a runtime folder, so Tier 2 never sees it.
+a forward switch, appended paths are declared by T, so rule 9 excludes them and
+`adopt_additive_archive_data` (`service/native_portable.rs:358`) stays their
+only owner. In a rollback, the successor's appended paths are declared by A's
+contract, and by rule 9 every retained installation's contract counts.
+Predecessor copies therefore never receive Tier 2 writes at appended paths,
+and the baseline that `record_additive_rollback_baseline` records
+(`service/native_portable.rs:333`; `service/psx_mod_data.rs:135-178`) stays
+valid. The archive-data namespace lives under `user/`, never in a runtime
+folder.
 
-**Super Mario World and A Link to the Past.** Tier 2 can be the answer.
-Tier 1 is enough on its own to unblock them.
+**Super Mario World and A Link to the Past.** They don't need Tier 2. Tier 2
+only adds carrying through rollback.
 
 - **Why declaring the file fails.** The #5881 conflict comes from adding
   `mods/preloaded/state.toml` to `persistent_paths`. That widens the
   receipt-governed scope, which leads to `PortableDataContractChanged`.
-- **Leaving it undeclared.** Both definitions declare
-  `mods/state.toml` and `mods/state.toml.tmp`, but not `mods` or
-  `mods/preloaded` (`catalog/ports/super-mario-world-recomp.json`,
-  `.../the-legend-of-zelda-a-link-to-the-past-snes-recomp.json`). Left
-  undeclared, `mods/preloaded/state.toml` is not a package member, not a
-  hazard and not a loader name. It is therefore a Tier 1 harmless file today.
-- **What adding a binding row changes.** It changes no persistence
-  coordinate, so no receipt or contract check fires.
-- **What Tier 2 adds.** It carries the file through rollback and forward
-  switches. The old runtimes never read it.
-- **Cost.** The selection is not in restorable backups, only in the
-  unknown-file area. Managed play skips the launcher and so already uses the
-  package default (`docs/qualification/mstan-snes-forward-2026-11-14.md`).
+- **What the definitions declare.** Both declare `mods/state.toml` and its
+  `.tmp`, but not `mods` or `mods/preloaded`
+  (`crates/portcove-core/catalog/ports/super-mario-world-recomp.json`,
+  `crates/portcove-core/catalog/ports/the-legend-of-zelda-a-link-to-the-past-snes-recomp.json`).
+- **Undeclared, the file is harmless today.** It is not a hazard and not a
+  loader name. If it is also not a package member, it is a Tier 1 harmless
+  file, and a binding row changes no persistence coordinate.
+- **Under Tier 2 it is also carried,** if no file of the package sits directly
+  in `mods/preloaded` (rule 8).
+- **The cost.** The selection is in the backup's unknown-file area only. Managed
+  play already uses the package default
+  (`docs/qualification/mstan-snes-forward-2026-11-14.md`).
 
-Recommendation: bind both routes with the file undeclared through their own
-port PRs. This does not depend on Tier 2 landing.
+Recommendation (D8): bind both routes with the file undeclared through their own
+port PRs. Each PR must first confirm from the exact packages that
+`mods/preloaded/state.toml` and its `.tmp` are not package members. It must
+also record whether `mods/preloaded` itself ships a file, which decides rule 8.
 
 ## 2. Ledger
 
-**Location: the library database, not the runtime folder.** It adds library
-schema 60 (`database.rs:16`) with two tables:
+**Location: the library database (D5), library schema 61 (B2).** Schema 60 is
+taken by PR #6166 for the catalog bound, and `database.rs:16` is 59 on
+`2488ebb5d`. The migration adds two tables:
 
 ```
 carried_files(
@@ -134,317 +163,412 @@ carried_files(
   path TEXT NOT NULL,              -- persistence-root relative, ASCII, '/'
   state TEXT NOT NULL CHECK(state IN ('pending','present')),
   sha256 TEXT NOT NULL,
-  source_install_id TEXT,          -- NULL when the target's own copy was kept
-  lineage TEXT NOT NULL,           -- JSON array, at most 8 SHA-256, oldest first, ends with sha256
+  source_install_id TEXT,          -- install the bytes were copied from; NULL if recorded in place
+  lineage TEXT NOT NULL,           -- JSON array, <= 8 SHA-256, oldest first, no consecutive
+                                   -- duplicates (L1), ends with sha256
   format INTEGER NOT NULL,         -- 1
   PRIMARY KEY(install_id, path))
 carried_file_outcomes(
   port_id TEXT PRIMARY KEY, from_install_id TEXT, to_install_id TEXT,
-  outcome TEXT NOT NULL, format INTEGER NOT NULL)  -- bounded JSON, see section 7
+  outcome TEXT NOT NULL, format INTEGER NOT NULL)  -- bounded JSON, section 7
 ```
 
-A row means "this version's copy of `path` was these bytes when Portcove last
-placed or recorded it, and descends from `lineage`". It stores digests only,
-never bytes or restore authority. It is separate from `user/<port>/`, from
-backups and from every restore receipt.
+A `present` row means "this version's copy of `path` was these bytes when
+Portcove last placed or recorded it, and descends from `lineage`". A `pending`
+row means "Portcove intends to place these bytes, copied from
+`source_install_id`". The tables hold digests only, never bytes or restore
+authority. They are separate from `user/<port>/`, from backups and from every
+restore receipt.
 
-Why a database rather than a sidecar like #6107's
-`.portcove-archive-data-baseline.json` (`psx_mod_data.rs:123`):
+Why a database and not a sidecar like #6107's
+`.portcove-archive-data-baseline.json`:
 
-- The lineage is per port across two or more installations.
-- Rows follow installation IDs through relocation and transfer
-  (`VACUUM INTO`), and removal deletes them by cascade.
+- A file in a version folder can be written by the game or the player. A forged
+  lineage would authorize overwriting their data.
+- Rows follow installation IDs through relocation and transfer (`VACUUM INTO`),
+  and removal deletes them by cascade.
 - No new metadata name has to be excluded from verification, relocation and
   transfer.
 
 **Older Portcove refuses rather than corrupts.** A newer schema is refused
-with `KnownFailureCause::NewerLibrary` (`database.rs:1499-1514`). An
-installation exported to another library loses its rows. Without a lineage,
-every divergence falls to "keep separately", which is the safe side. The
-`format` column guards evolution within newer schemas: rows with an unknown
-format are treated as no lineage and are never rewritten. Carried files
-themselves are ordinary harmless files to any Tier 1 build.
+with `KnownFailureCause::NewerLibrary` (`database.rs:1499-1514`). An installation
+exported to another library loses its rows. Without rows, every divergence falls
+to "keep separately", which is the safe side. Rows with an unknown `format` are
+treated as no rows and are never rewritten. Carried files are ordinary harmless
+files to any Tier 1 build.
 
-**Atomicity and recovery.** The steps for each switch from the active version A
-to the target T:
+**Migration-ordering test.** The existing contiguous-history tests
+(`database.rs:2491`, `database.rs:2764`) must see 61 directly after #6166's 60.
+A new test migrates a schema-60 library fixture to 61, then checks:
 
-1. Plan (section 4) read-only.
-2. One transaction writes T's rows for every planned copy as `pending` with
-   `source_install_id = A`.
-3. Write each file to a `.portcove-carry-*` temporary file beside its
-   destination, hash it and compare with the plan. A mismatch raises
-   `carried_file_changed`, and nothing is activated. Then publish it with the
-   durability helper's replacing rename, or remove it for a planned removal.
-4. One transaction marks those rows `present`, records T's own kept copies,
-   and writes the outcome.
-5. The existing `verify_critical` and pointer change run unchanged
-   (`service.rs:4256-4258`, `library.rs:3414-3458`).
+- both tables exist;
+- the foreign-key cascade fires when an installation is deleted;
+- `PRAGMA foreign_key_check` is clean.
 
-Every write lands in T while A is still active and untouched, so an
-interruption leaves A authoritative. A retry, including activation recovery,
-re-runs `prepare_retained_install_data` (`recovery.rs:190`, `recovery.rs:791`).
-It overwrites a copy only if the copy equals a `pending` or `present` row of T
-placed from the same A, or is in A's lineage. The bytes are then Portcove's own
-earlier copy of A, so a retry is idempotent even if A changed in between. Leftover
-`.portcove-carry-*` files are swept at the start of each carry into T. Pending
-rows never count as lineage when T is a source, so a half-finished placement
-can't vouch for bytes T doesn't have. The status shows an outcome only while
+If #6166 has not merged when T2-2 is ready, T2-2 rebases onto it rather than
+taking 60.
+
+**Atomicity and recovery.** Under the port lock, for each switch from A to T:
+
+1. Plan read-only (section 4).
+2. One transaction writes T's rows for each planned copy as `pending`, with
+   `source_install_id` = A.
+3. Sweep leftover `.portcove-carry-*` files in T. Then, for each planned copy:
+   1. write a `.portcove-carry-*` temporary file beside the destination;
+   2. hash it and compare with the plan;
+   3. re-hash T's destination (M4) and compare with the planned T state
+      (absent, or the digest the plan approved replacing);
+   4. publish with the durability helper's replacing rename.
+
+   For a planned removal, re-hash and compare the same way, then remove. A
+   mismatch on the source raises `carried_file_changed`. A mismatch on T
+   re-plans that path as "keep separately", and that switch writes nothing at
+   the path.
+
+4. One transaction:
+   - marks T's rows `present`;
+   - records T's kept copies;
+   - writes the departing source's rows (M1): `present`, `sha256` = a, lineage
+     L_A + a, for each eligible path A has; and deletes A's rows for eligible
+     paths A no longer has;
+   - writes the outcome.
+5. The existing `verify_critical` and pointer change follow in the same locked
+   operation (section 3).
+
+Every file write lands in T while A is still active and untouched, so an
+interruption leaves A authoritative. A retry re-plans. A `pending` T row from
+the same A, whose `sha256` equals T's current copy, counts as Portcove's own
+earlier placement and may be replaced. Pending rows never count as lineage when
+T is later a source. Rows written for A in step 4 are true whether or not the
+pointer change happens: they describe A's copy at that moment, and A is only
+modified while active. The status shows an outcome only while
 `active == to_install_id`.
 
-## 3. Update
+## 3. Update and where the carry step runs (M2)
 
-**When.** Only when a version becomes active: staged activation
-(`service.rs:4256`), update reuse with `activate`, which calls
-`prepare_retained_install_data` before `register_install` (`service.rs:3547-3548`),
-and activation recovery. A stage-only update carries nothing. The step comes
-after `restore_retained_user_data_to` and additive adoption, and before the
-last `require_portable_target_transition` and `verify_critical`
-(`psx_mod_data.rs:882-890`). Declared data is placed first, then the
-undeclared files.
+`carry_unknown_files(active, target)` is a dedicated step. It is called only
+where the pointer change follows in the same locked operation, and it is a
+no-op when there is no active version or `active.id == target.id`:
 
-**The new package ships a file at the path, including as a case-alias.** The
-path is not carried, because a package member is immutable. The source keeps
-its copy, reported as "the new version has its own copy".
+| Path                     | Call site                                                                                                                        | Pointer change that follows                                              |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Staged activation        | after `prepare_retained_install_data` (`service.rs:4256`)                                                                        | `library.activate_staged` (`service.rs:4258`)                            |
+| Update reuse             | only when `activate` and `active.id != existing.id`, after `prepare_retained_install_data` (`service.rs:3547`)                   | `register_install(&existing, true)` (`service.rs:3548`)                  |
+| Recovery, preparing      | before `library.activate_staged` (`recovery.rs:791-792`)                                                                         | the same call                                                            |
+| Recovery, install intent | only when `operation.activate`, after `prepare_retained_install_data` (`recovery.rs:189-190`)                                    | `register_install(&install, operation.activate)` (`recovery.rs:204-206`) |
+| Rollback                 | after `record_additive_rollback_baseline` (`service.rs:4068`), before `verify_critical_for_replacement` (`service.rs:4070-4071`) | `library.rollback` (`service.rs:4072`)                                   |
+
+`prepare_retained_install_data` itself does not carry. That function also runs
+for a stage-only reuse and for recovery's `register_install(&install, false)`.
+Placing the step after it puts declared data and additive adoption
+(`service/psx_mod_data.rs:882-887`) before the undeclared files, and keeps the
+final `verify_critical` after the carry.
+
+**The new package ships a file at the path.** Rules 7 and 8 exclude the path,
+so it is not carried and A keeps its copy. The outcome reports it as "the new
+version has its own copy".
 
 **Windows case and alias handling** (all platforms behave the same):
 
-- Candidates are ASCII-only.
-- A collision is compared with ASCII case folding.
-- An existing destination counts only if its parent listing contains that exact
-  name. A destination that exists but isn't listed exactly is a case or 8.3
-  alias, so the copy is kept separately.
-- Each parent directory created or reused must match exactly. A parent that is
-  a file, a link or a case-alias keeps the copy separate.
-- A non-file object at the destination keeps the copy separate.
+- candidates are ASCII-only;
+- collisions are compared with ASCII case folding;
+- an existing destination counts only through an exact parent listing;
+- every parent must match exactly.
 
-None of these hold the switch.
+The re-hash before the rename (M4) means even an alias that resolves late can't
+replace bytes the plan didn't approve. None of these rules hold the switch.
 
 ## 4. Rollback in both directions, repeated
 
-Plan for each path p, where a is A's copy, t is T's copy and `L_A(p)` is the
-lineage of A's `present` row:
+Plan for each eligible path p. Here a is A's copy, t is T's copy, `L_A(p)` is
+the lineage of A's `present` row (empty if A has none), and "T unchanged" means
+T has a `present` row for p with `sha256 == t`, or a `pending` row from A with
+`sha256 == t` (M1):
 
-| A's copy            | T's copy | Condition                                   | Action                                               |
-| ------------------- | -------- | ------------------------------------------- | ---------------------------------------------------- |
-| a                   | t = a    | None                                        | Nothing. T row `present`, lineage `L_A(p)+a`         |
-| a                   | none     | None                                        | Copy a. Lineage `L_A(p)+a`                           |
-| a                   | t        | t ∈ `L_A(p)`, or T row from A with sha256 t | Replace t with a                                     |
-| a                   | t        | otherwise                                   | **Keep separately.** T row `present` `[t]`; reported |
-| none (A row exists) | t        | t ∈ `L_A(p)`                                | Remove t (A deleted its descendant)                  |
-| none                | t        | otherwise                                   | Leave t                                              |
+| A's copy             | T's copy | Condition                        | Action                              |
+| -------------------- | -------- | -------------------------------- | ----------------------------------- |
+| a                    | t = a    | None                             | Nothing                             |
+| a                    | absent   | None                             | Copy a                              |
+| a                    | t        | t ∈ `L_A(p)` **and** T unchanged | Replace t with a                    |
+| a                    | t        | otherwise                        | **Keep separately**; reported       |
+| absent, A row exists | t        | t ∈ `L_A(p)` **and** T unchanged | Remove t (A deleted its descendant) |
+| absent               | t        | otherwise                        | Leave t                             |
+| absent               | absent   | None                             | Nothing                             |
 
-Lineages are truncated to the last 8 values. Truncation can only turn a
-replacement into "keep separately". The table is the same for update,
-reactivation, rollback and a forward switch after rollback, because Core
-always knows which copy was played last: the active one. It never uses
-timestamps.
+T's row after the switch:
 
-Worked cycle. The update v1→v2 copies d1 and lineage `[d1]`; v2 changes the
-file to d2. Rolling back replaces v1's d1, because it is an ancestor, giving
-lineage `[d1,d2]`; v1 changes it to d3. Going forward replaces v2's d2, giving
-`[d1,d2,d3]`. Each departing copy stays in its folder until the next switch
-replaces it as an ancestor.
+- where T ends with a's bytes: `present`, `sha256` = a, lineage `L_A(p) + a`;
+- where T keeps its own copy: its existing lineage if its row's `sha256 == t`,
+  otherwise `[t]`;
+- where T has nothing: no row.
+
+Lineages collapse consecutive duplicates and keep the last 8 values (L1).
+Truncation, a missing row or a changed T copy can only turn a replacement or
+removal into "keep separately".
+
+The table is the same for update, reactivation, rollback and a forward switch
+after rollback. Core always knows which copy was played last, the active one,
+without timestamps.
+
+Worked cycle:
+
+1. **v1 has d1, with no rows.** Updating to v2 copies d1. Both v1 and v2 get
+   rows d1 / `[d1]`. v2 then changes the file to d2.
+2. **Rollback.** v1's copy d1 is in `L_v2 = [d1]`, and v1's row says d1, so it
+   is replaced. Both get d2 / `[d1,d2]`. v1 then changes the file to d3.
+3. **Forward.** v2's d2 is in `[d1,d2]` and matches v2's row, so it is replaced.
+   Both get d3 / `[d1,d2,d3]`.
+
+If the player edits v2's folder while v1 is active, v2's copy no longer
+matches its row. The next forward switch keeps both instead of overwriting
+that edit.
 
 **First contact after upgrading to Tier 2.** Pre-existing versions have no
-rows. Matching copies and copies only one side has carry normally. Differing
-copies are kept separately, which is exactly today's behavior and never worse.
+rows:
+
+- matching copies need nothing;
+- a copy only A has is carried;
+- differing copies are kept separately, which is today's behavior.
+
+**Hazards in A (L5).** Activation and update already hold on a hazard in A
+(`service.rs:3459`), and rollback checks only its target (`service.rs:4115`).
+The carry step runs A's Tier 1 split. To keep rollback available as the way out
+of a modified version, a hazard in A makes the carry step carry nothing and
+record outcome `source_modified`. It doesn't add a hold to rollback. The
+hazard itself keeps its existing holds elsewhere.
 
 This reuses #6107's idea of a recorded baseline that marks a stale copy
-(`archive_data.rs:455-487`), generalized from one rollback baseline to a short
-ancestry. It keeps #6107's other properties:
+(`archive_data.rs:455-487`), generalized to a short ancestry plus an
+unchanged-since-recorded check. It keeps #6107's other properties:
 
 - only the target is written (`archive_data.rs:489-512`);
 - a retry is idempotent;
 - stable hashing (`external_runtime.rs:571`);
 - ordinary-file copying (`runtime_data_policy.rs:232`), extended with digest
-  verification.
+  checks on both ends.
 
-It drops #6107's hold. A divergence between undeclared files has a safe
-default: leave both. The player-data owner, the canonical copy, isn't involved.
+It drops #6107's divergence hold. Leaving both copies is a safe default for
+undeclared files.
 
 ## 5. Backup and restore
 
-Tier 1's area (`service/backups/unknown_files.rs:93-145`) already copies the
-active version's files, carried ones included. Removal copies the files of
-every version. Neither changes.
+Explicit and automatic backups copy the active version's files through Tier 1,
+carried ones included (`service/backups/unknown_files.rs:93-145`), and keep
+the `unknown_files_v1` layout.
 
-**Restore should not write carried files back** (recommended; decision D3):
+**Removal backups deduplicate (B3, D6 required).** `UnknownFileScope::Removal`
+collects every version (`unknown_files.rs:150-195`). Tier 2 puts identical
+copies in several versions, so the caps would be reached because of Portcove's
+own copies. The new layout is `unknown_files_v2`, written by removal backups
+only:
+
+- **The store.** Content-addressed `unknown-files/objects/<sha256>`, with a
+  bounded `unknown-files/index.json` mapping each (install, path) to a digest.
+- **The caps.** They count distinct (path, digest) pairs and the bytes of
+  distinct digests.
+- **The record.** Recorded beside, and outside, the content digest, like v1.
+- **Older readers.** The manifest field is optional and unknown fields are
+  ignored (`service/backups.rs:489-497`), so they still restore exactly
+  `data/` and ignore the area.
+
+This lands in T2-2 or before it.
+
+**Restore does not write carried files back** (D3):
 
 - The area is keyed by installation, and that installation may not be active
   or may no longer exist.
-- Restore is a time-travel operation on saves, whereas Tier 2's semantics
-  apply to version switches.
+- Restore is about saves, whereas Tier 2's semantics apply to version switches.
 - The automatic safety snapshot copies no unknown files past a cap
-  (`unknown_files.rs:187-190`), so writing back could replace bytes that exist
-  nowhere else.
+  (`unknown_files.rs:187-190`).
 
-Restore leaves Tier 2 rows alone. Its copy keeps saying "Restoring this backup
-doesn't put them back." A later opt-in, "Also put back other files", is
-possible if players ask for it.
-
-**Risk: copies multiply.** Every retained version can now hold a copy, so the
-removal backup can reach the 64 MiB cap sooner. Option D6 deduplicates the
-unknown area by digest (`unknown_files_v2`).
+Restore leaves Tier 2 rows alone, and its copy still says "Restoring this
+backup doesn't put them back."
 
 ## 6. Removal, relocation, transfer and preparation
 
-- **Removal** (whole port, `library.rs:3461-3476`). The rows cascade with the
-  installations. The removal backup and review are unchanged.
+- **Removal** (whole port, `library.rs:3461-3476`). Rows cascade with the
+  installations. The backup is deduplicated as in section 5, and the review is
+  unchanged.
 - **Output relocation and library transfer.** They still refuse any unknown
-  file (ARCHITECTURE line 2649). Tier 2 does not make that worse: a carried
-  file already exists in its source version, which was already refused.
-  Database rows survive both, because they are keyed by ID. Recommended later
-  phase (D7): copy harmless files with the reviewed tree and keep refusing
-  hazards.
+  file (ARCHITECTURE line 2649). Tier 2 doesn't make that worse: a carried file
+  already exists in its source version, which was already refused. Rows survive
+  both, because they are keyed by ID. Carrying harmless files with the reviewed
+  tree is a later phase (D7).
 - **Library information export and import.** The rows are not exported. An
   imported copy keeps separately until a lineage builds up again.
-- **Preparation, source-only routes and generated-cache.** Out of scope;
-  unchanged.
+- **Preparation, source-only routes and generated-cache.** Unchanged.
 
 ## 7. Caps and holds
 
 - **The caps.** They are Tier 1's constants (`unknown_files.rs:15-17`): 1,024
-  files, 16 MiB each and 64 MiB in total. They apply to A's whole candidate set
-  and are all-or-nothing.
-- **Past a cap (recommended, D1).** Portcove carries nothing, writes no rows
-  for T and records `over_cap` with the count and bytes. The switch goes ahead
-  and every file stays in A's folder. This is not truncation. It matches how
-  Tier 1 treats an automatic snapshot (`unknown_files.rs:187-190`), and it
-  keeps "never jam" (ARCHITECTURE, "Update, rollback, collection and launch are
-  never held by a cap").
+  files, 16 MiB each and 64 MiB in total. They apply to the files actually to be
+  copied, which is the "copy" and "replace" rows (M6). Removals and unchanged
+  paths don't count.
+- **Past a cap (D1, for owner confirmation).** Portcove copies nothing and
+  removes nothing, records `over_cap`, and the switch goes ahead. This
+  **deviates from the owner's "hold rather than truncate"** in one respect: it
+  doesn't hold. It doesn't truncate either, because it is all-or-nothing. It
+  matches Tier 1's rule that version changes are never held by a cap and that
+  automatic snapshots leave files in place (`unknown_files.rs:187-190`), and it
+  keeps "unknown files never jam". Holding instead is the alternative.
 - **Disposable writers.** The reviewed lever is to declare them
   `runtime_mutable_paths`, as Sonic 2 does with `logs`
-  (`catalog/ports/sonic-the-hedgehog-2-recomp.json`). Without that, a growing
-  writer is carried until it passes a cap.
+  (`crates/portcove-core/catalog/ports/sonic-the-hedgehog-2-recomp.json`).
 
-**The one new hold** is transient and has an in-app remedy, retry.
-`KnownFailureCause::CarriedFileChanged { file, from_version, to_version }`, code
-`carried_file_changed`, is raised when a source file changes or can't be read
-during the copy. It also covers a Windows sharing violation, which usually
-means the game is running outside Portcove. Nothing is activated.
+**New holds.** Both are transient, retryable and leave A active and T's
+approved state intact (L2):
 
-Player copy, written per [CONTENT-DESIGN](../CONTENT-DESIGN.md#results-cancellation-and-errors).
-Paths go in details.
+| Cause                                                      | Code                      | When                                                                                                       |
+| ---------------------------------------------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `CarriedFileChanged { file, from_version, to_version }`    | `carried_file_changed`    | A source file's bytes differ from the plan during copying                                                  |
+| `CarriedFileUnreadable { file, from_version, to_version }` | `carried_file_unreadable` | A source or destination can't be opened or read, such as a Windows sharing violation or a permission error |
+
+Player copy, written per
+[CONTENT-DESIGN](../CONTENT-DESIGN.md#results-cancellation-and-errors). Paths
+and byte counts go in details.
 
 - `carried_file_changed`: "A file in the game folder changed while Portcove was
-  copying it to version {to}, so Portcove didn't switch versions. Version
-  {from} is still the one Play uses, and no files were lost. Close the game if
-  it's running, then try again."
-- Outcome `kept_separately` is shown on the version details after the switch,
-  with a count-aware message: "{count} files Portcove didn't install are
-  different in version {from} and version {to}, so each version keeps its own
-  copy. To use one copy in both versions, delete the copy you don't want, then
-  switch versions again." Details list each file's two paths, up to 64.
+  copying it to version {to}, so Portcove didn't switch versions. Version {from}
+  is still the one Play uses, and no files were lost. Close the game if it's
+  running, then try again."
+- `carried_file_unreadable`: "Portcove couldn't read {file} to copy it to
+  version {to}, so it didn't switch versions. Version {from} is still the one
+  Play uses, and no files were changed. Close the game or any program using
+  that file, then try again."
+- Outcome `kept_separately` (count-aware): "{count} files Portcove didn't install
+  are different in version {from} and version {to}, so each version keeps its
+  own copy. To use one copy in both versions, delete the copy you don't want,
+  then switch versions again." Details list both paths for up to 64 files.
 - Outcome `new_version_ships_file`: "Version {to} comes with its own {file}, so
   your copy stayed in version {from}."
-- Outcome `over_cap`: "Portcove didn't bring the {count} files it didn't install
-  to version {to}, because there are more than it can copy (up to 1,024 files,
-  16 MB each and 64 MB in total). They're all still in the version {from}
-  folder."
+- Outcome `over_cap` (M6): "Portcove didn't bring {count} files it didn't
+  install to version {to}, because together they're more than it can copy (up to
+  1,024 files, 16 MB each and 64 MB in total). They're still in the version
+  {from} folder. To use one in version {to}, copy it from that folder yourself,
+  or delete files you don't need there before your next version switch."
+  Details give both folders, the counts and the largest files.
+- Outcome `source_modified`: "Portcove didn't bring files it didn't install to
+  version {to}, because version {from} has changed or added program files.
+  They're still in the version {from} folder."
 - Outcome `carried`: no notice. Technical details state the count.
 
-The outcomes are a read model: `PortStatus.carried_files`, sourced from
-`carried_file_outcomes`. They are not failures, so they get no
-`KnownFailureCause`.
+The outcomes are a read model, `PortStatus.carried_files`, sourced from
+`carried_file_outcomes`. They are not failures.
 
 ## 8. Test plan
 
 Every lifecycle test drives the real `PortcoveService` paths: update, rollback,
-activation recovery, backup, restore and removal. None calls the planner alone.
+activation recovery, backup, restore and removal.
 
 **Unit tests:**
 
-- the planner table;
-- lineage truncation;
-- candidate exclusions, one case per rule in section 1;
-- the migration to schema 60, including cascade on installation deletion;
-- an unknown `format` treated as no lineage.
+- the planner table, including "T unchanged" and pending rows;
+- lineage collapsing and truncation;
+- one case per eligibility rule in section 1, for both writes and removals;
+- frozen rows after a path becomes excluded;
+- the schema 60→61 migration-ordering test (section 2);
+- an unknown `format` treated as no rows.
 
-**Linux** (`service/native_tar_xz_tests.rs`, alongside the Tier 1 tests at lines
-257-534):
+**Linux** (`service/native_tar_xz_tests.rs`, alongside the Tier 1 tests at
+lines 257-534):
 
-1. Update carries nested harmless files when the wrapper directory changes, and
-   the source copies stay in place.
+1. Update carries nested files across a wrapper-directory rename. The source
+   copies stay in place, and both versions get rows.
 2. Rollback, forward and rollback again: ancestors are replaced, and each
    departing copy is byte-identical after its switch.
-3. Divergence: both kept, status lists them, nothing is held. Deleting one
-   copy and switching carries the other.
-4. A removal propagates only along the lineage.
-5. Caps: exactly 1,024 files, 16 MiB and 64 MiB carry. One past any of them
-   carries none, the switch succeeds and every file stays in place.
-6. Hazards still hold the switch and are never carried. Loader names, `.portcove`
-   names, target members and catalog-declared paths are never carried.
-7. Interruption: new fault points `CarryPending` and `CarryPlaced`, plus the
-   existing `ActivationMetadataCommitted` (`operation.rs:914`). Recovery
-   finishes with no leftover temporary files, including when A changed before
-   the retry.
-8. `carried_file_changed` leaves the pointer and A unchanged.
-9. Restore writes no carried file. Backups contain the carried copies in the
-   unknown-file area.
-10. Removal cascades the rows.
-11. Receipt route with an SMW-shaped fixture (`mods/preloaded/state.toml`):
-    update, launch restore, backup and rollback succeed with no
+3. An edit to the inactive copy, and a pre-Tier-2 divergence: both are kept,
+   reported and never held. Deleting one copy and switching carries the other.
+4. Removal propagates only with a lineage and an unchanged T copy.
+5. The B1 scenarios:
+   - v2 ships `settings.ini`, whose digest is in L_A, after the player deleted
+     it in v1: the package file is untouched;
+   - a carried path becomes declared: rows freeze and nothing is written there;
+   - a path inside a folder that holds package files is never carried.
+6. Caps over the files to be copied: exactly at each limit carries. One past
+   any limit copies and removes nothing, the switch succeeds and the outcome is
+   `over_cap`. Large unchanged files don't count.
+7. Hazards: a hazard in T holds as today. A hazard in A gives
+   `source_modified` and still allows rollback. Hazards, loader names,
+   `.portcove`-containing names, generated metadata, target members and
+   catalog-declared or retained-declared paths are never carried.
+8. Interruption at the new fault points `CarryPending` and `CarryPlaced`, plus
+   the existing `ActivationMetadataCommitted` (`operation.rs:914`). Recovery
+   through both `recovery.rs` paths finishes with no leftover temporary files,
+   including when A changed before the retry.
+9. `carried_file_changed`: the source changes during the copy. A T change
+   between plan and rename (M4) re-plans as kept separately, and nothing is
+   overwritten.
+10. Stage-only reuse and recovery `register_install(false)` carry nothing (M2).
+11. Restore writes no carried file. A removal backup with three identical
+    copies stores the bytes once and stays within the caps (B3).
+12. Removal cascades the rows.
+13. Receipt route with an SMW-shaped fixture (`mods/preloaded/state.toml`):
+    update, launch restore, backup and rollback succeed without
     `PortableDataContractChanged`.
 
 **Windows** (`service/native_portable.rs` Windows module and
 `native_portable_transition_tests.rs`):
 
-1. A target member `Settings.INI` against a carried `settings.ini`: the member
-   is unchanged and the copy is kept separately.
+1. A target member `Settings.INI` against a carried `settings.ini`.
 2. An 8.3 alias.
-3. A read-only destination, and a sharing violation that raises
-   `carried_file_changed`.
-4. The Sonic 1 additive fixture: appended paths are never carried, and the
-   baseline is undisturbed through predecessor→predecessor carries
+3. A `resources` / `Resources` Electron case.
+4. A read-only destination, and a sharing violation that raises
+   `carried_file_unreadable`.
+5. The Sonic 1 additive fixture
    (`compatible_archive_progression_sonic_additive_settings`,
-   `native_portable.rs:4424`).
+   `service/native_portable.rs:4424`): appended paths are never carried in
+   either direction, and the baseline still matches after carries between
+   predecessor copies.
 
 Hosted Windows partitions are the authority. Desktop and CLI get rendering
-tests for the three outcomes and the cause.
+tests for every outcome and both causes.
 
-## 9. Risks, open decisions and phasing
+## 9. Risks, decisions and phasing
 
 **Risks:**
 
-- **A carried newer settings file can break an older version after rollback.**
-  This is the same exposure declared data already has. The remedy is the same:
-  delete the file in that version's folder.
-- **Carrying credential-like files.** The SMW `netplay_secret` is written only
-  outside managed play. This adds no exposure: Tier 1 backups already copy
-  such files, and the copy stays inside the library.
-- **A large disposable writer suppresses carrying for everything else** (past a
-  cap). It is visible as `over_cap`.
-- **The Windows alias rules are only proven on hosted Windows.**
-- **Copies multiply in removal backups** (D6).
+- **Newer settings can break an older version.** A carried newer settings file
+  can break an older version after rollback. Declared data already carries
+  that exposure, and the remedy is the same: delete the file in that version's
+  folder.
+- **Credential-like files are carried.** For example, SMW's `netplay_secret`,
+  which is written only outside managed play. This adds no exposure: Tier 1
+  backups already copy such files, and the copy stays inside the library.
+- **Loaders that read folders the package doesn't ship.** Rule 8 only covers
+  folders that hold package files. A loader that reads every file in a folder
+  the package doesn't ship is not covered, but non-hazard data files only.
+- **A large undeclared writer can stop all carrying.** Past a cap, nothing is
+  carried (`over_cap`, which is visible).
+- **Windows alias rules.** They are proven only on hosted Windows.
 
-**Open owner decisions (recommended option first):**
+**Decisions** (critical reviewer's recommendation recorded; owner confirms):
 
-- **D1, caps.** Carry none and leave everything in place, with no hold. The
-  alternative is to hold the switch past a cap. The owner wrote "hold rather
-  than truncate"; this proposal reads all-or-nothing as satisfying that
-  without jamming.
-- **D2, divergence.** Keep separately and report. The alternative is that the
-  active copy wins and the other copy moves to a Portcove area, which adds
-  storage, caps and its own cleanup.
-- **D3, restore write-back.** No.
-- **D4, removal propagation.** Only along a proven lineage. The alternative is
-  never.
-- **D5, ledger location.** Library schema 60, with older Portcove refusing the
-  newer library. The alternative is a per-installation sidecar file, which
-  avoids a schema bump but needs new metadata exclusions everywhere.
-- **D6.** Deduplicate the unknown-file backup area by digest, in phase T2-4.
-- **D7.** Relocation and transfer copy harmless files, in phase T2-5.
-- **D8.** Bind SMW and ALttP now under Tier 1, with the file undeclared.
+| Decision                         | Recommendation                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| D1, caps                         | All-or-nothing, no hold. Explicit deviation from "hold rather than truncate"; needs owner confirmation |
+| D2, divergence                   | Keep both and report. A later in-app "use this copy" action                                            |
+| D3, restore write-back           | No                                                                                                     |
+| D4, removal propagation          | Only with the lineage, unchanged-target and eligibility proofs (M1, B1)                                |
+| D5, ledger                       | Library database, schema 61. A sidecar could be forged by the game or the player                       |
+| D6, deduplicated removal backups | Required, in or before T2-2                                                                            |
+| D7, relocation and transfer      | Later                                                                                                  |
+| D8, SMW and ALttP                | Bind now with the file undeclared, after confirming it isn't a package member                          |
 
-**Phasing** (each phase is one reviewed PR; T2-2 gets a critical reviewer
-from the start, because it touches user-data loss):
+**Phasing** (each phase is one reviewed PR; T2-2 has a critical reviewer from
+the start, because it touches user-data loss):
 
-1. **T2-1 Planner.** Pure candidate selection and the planner table, unit
-   tests only, no behavior change.
-2. **T2-2 Carry.** Schema 60, placement in activation, reuse, recovery and
-   rollback, the `carried_file_changed` cause, the Linux and Windows lifecycle
-   tests, and an ARCHITECTURE update.
-3. **T2-3 Visibility.** `PortStatus.carried_files`, CLI human output, the
-   Desktop version-details copy and locales.
-4. **T2-4 (optional, D6).** Deduplicated unknown-file backup area.
-5. **T2-5 (optional, D7).** Relocation and transfer carry harmless files.
+1. **T2-1 Planner.** Pure eligibility and planner table, unit tests only, no
+   behavior change.
+2. **T2-1b Removal deduplication (D6).** `unknown_files_v2` for removal
+   backups, with tests. It may merge into T2-2, but must not follow it.
+3. **T2-2 Carry.**
+   - schema 61 and its migration-ordering test;
+   - the `carry_unknown_files` step at the five call sites;
+   - both causes;
+   - the Linux and Windows lifecycle tests;
+   - the ARCHITECTURE update.
+4. **T2-3 Visibility.** `PortStatus.carried_files`, CLI human output, Desktop
+   version-details copy and locales.
+5. **T2-4 (later, D7).** Relocation and transfer carry harmless files.
+6. **T2-5 (later, D2).** An in-app "use this copy" action for kept-separately
+   files.
