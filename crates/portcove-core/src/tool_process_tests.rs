@@ -311,6 +311,12 @@ fn setup_fixture_child() {
                 std::env::var("PORTCOVE_SETUP_FIXTURE").unwrap(),
             )
             .unwrap();
+            #[cfg(windows)]
+            fs::write(
+                "setup-fixture-debug-heap",
+                std::env::var("_NO_DEBUG_HEAP").unwrap(),
+            )
+            .unwrap();
         }
         "wait" => {
             // A finite fallback keeps a failed parent assertion from leaving a
@@ -438,7 +444,10 @@ fn verbose_setup_is_drained_with_bounded_capture() {
 #[test]
 fn setup_receives_the_reviewed_environment_overlay() {
     let temporary = fixture("environment");
-    let environment = BTreeMap::from([("PORTCOVE_SETUP_FIXTURE".into(), "owned".into())]);
+    let environment = BTreeMap::from([
+        ("PORTCOVE_SETUP_FIXTURE".into(), "owned".into()),
+        ("_no_debug_heap".into(), "0".into()),
+    ]);
     let output = run_setup(
         &std::env::current_exe().unwrap(),
         &["--exact".into(), CHILD_TEST.into(), "--nocapture".into()],
@@ -453,6 +462,11 @@ fn setup_receives_the_reviewed_environment_overlay() {
     assert_eq!(
         fs::read_to_string(temporary.path().join("setup-fixture-environment")).unwrap(),
         "owned"
+    );
+    #[cfg(windows)]
+    assert_eq!(
+        fs::read_to_string(temporary.path().join("setup-fixture-debug-heap")).unwrap(),
+        "1"
     );
 }
 
