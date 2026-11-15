@@ -109,6 +109,39 @@ function portcoveEnvironment(): NodeJS.ProcessEnv {
   return { ...environment, ...isolatedEnvironment };
 }
 
+/**
+ * The NSIS `/R` relaunch starts the updated app as the desktop user through
+ * Explorer, with Explorer's environment, not the installer's. Publishing the
+ * isolated scope as user environment values (which broadcasts the change that
+ * Explorer applies) keeps the relaunched session isolated too. The previous
+ * values are restored when the run ends.
+ */
+let publishedUserEnvironment: Record<string, string | null> | null = null;
+function setUserEnvironment(values: Record<string, string | null>) {
+  return powershellJson(
+    `$values = $env:HOSTED_VALUES | ConvertFrom-Json -AsHashtable
+    $previous = [ordered]@{}
+    foreach ($name in $values.Keys) {
+      $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'User')
+      [Environment]::SetEnvironmentVariable($name, $values[$name], 'User')
+    }
+    ConvertTo-Json -InputObject $previous -Compress`,
+    { VALUES: JSON.stringify(values) },
+  ) as Record<string, string | null>;
+}
+function publishIsolationToUserEnvironment() {
+  publishedUserEnvironment = setUserEnvironment(isolatedEnvironment);
+  report.relaunch_environment = {
+    published: Object.keys(isolatedEnvironment),
+    previous: publishedUserEnvironment,
+  };
+}
+function restoreUserEnvironment() {
+  if (!publishedUserEnvironment) return;
+  setUserEnvironment(publishedUserEnvironment);
+  publishedUserEnvironment = null;
+}
+
 interface Check {
   name: string;
   outcome: "passed" | "failed" | "skipped";
@@ -786,6 +819,7 @@ async function main() {
   const toVersion = feed.offer.version;
 
   // 6. First session on the from-version: check, refuse while the CLI holds.
+  publishIsolationToUserEnvironment();
   const first = await startSession("from", tools);
   // Second baseline: what the fully isolated app creates on its own (Tauri makes
   // `%LOCALAPPDATA%\io.github.portcove.portcove` regardless of the WebView2
@@ -1098,6 +1132,11 @@ try {
 } finally {
   report.finished_at = new Date().toISOString();
   await retainDiagnostics().catch(() => undefined);
+  try {
+    restoreUserEnvironment();
+  } catch (error) {
+    report.relaunch_environment_restore_error = errorMessage(error);
+  }
   persist();
   for (const row of (() => {
     try {
