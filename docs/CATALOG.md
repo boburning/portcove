@@ -334,6 +334,11 @@ the prepared game in the declared `data` folder. Prepared copies keep their
 non-owning registration, which does not track successors.
 [Yakumo qualification](qualification/yakumo-tracked-handoff-2026-11-12.md).
 
+Snowboard Kids: Recompiled by cdlewis also opts in on Windows. After a failed
+start, choosing the other region's ROM relaunches the same executable with
+`CreateProcessW`, and its in-install crashpad handler exits with the game.
+[Snowboard Kids qualification](qualification/snowboardkids-cdlewis-tracked-handoff-2026-11-15.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
