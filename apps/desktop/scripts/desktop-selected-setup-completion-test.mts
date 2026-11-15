@@ -1324,6 +1324,10 @@ export async function selectedSetupCompletionScenario({
         "BIOS review alone grants no registration",
       );
       await click(button("Use current location"));
+      // Calibrated from 15 s (#4879): in hosted run 43707489255 import_source
+      // finished at 23.5 s, but the selection is drawn from the next workspace
+      // snapshot; one already running returned stale at 36.5 s and the fresh
+      // debug-build snapshot takes ~14 s. Each poll's status read is ~5 s. Harness only.
       await browser.wait(
         async () => {
           const statuses = await read("get_statuses");
@@ -1342,7 +1346,7 @@ export async function selectedSetupCompletionScenario({
             (await required(choices[0]).getAttribute("aria-disabled")) !== "true"
           );
         },
-        15_000,
+        60_000,
         "Explicit BIOS registration must expose the actual Core-eligible selection",
       );
       const biosSources = await read("get_sources");
