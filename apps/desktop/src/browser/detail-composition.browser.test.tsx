@@ -400,6 +400,7 @@ it("clears search inline, returns focus and retains the declared platform constr
   await page.getByRole("button", { name: "Clear search", exact: true }).click();
   await expect.element(search).toHaveValue("");
   await expect.element(search).toHaveFocus();
+  await expect.element(page.getByText("Search cleared.", { exact: true })).toBeInTheDocument();
   await expect
     .element(page.getByRole("button", { name: "Remove Runs on: Windows filter", exact: true }))
     .toBeVisible();
