@@ -175,6 +175,11 @@ pub(crate) struct PlannedPath {
     pub(crate) target_row: RowChange,
     /// The departing source's row, written in the same transaction (L6).
     pub(crate) source_row: RowChange,
+    /// The source bytes the plan approved copying, for Copy and Replace.
+    pub(crate) approved_source: Option<String>,
+    /// The target bytes the plan approved replacing or removing. The carry
+    /// step stages and verifies against these, never against a later look.
+    pub(crate) approved_target: Option<String>,
 }
 
 /// Plan a switch to the target for every candidate path.
@@ -203,6 +208,8 @@ pub(crate) fn plan(
                     action: CarryAction::Excluded(reason),
                     target_row: RowChange::Untouched,
                     source_row: RowChange::Untouched,
+                    approved_source: None,
+                    approved_target: None,
                 },
                 None => decide(path, input, source_install_id),
             }
@@ -443,11 +450,25 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         | CarryAction::TargetUnreadable => RowChange::Untouched,
         _ => source_row,
     };
+    let approved_source = match (&action, &input.source) {
+        (CarryAction::Copy | CarryAction::Replace, SourceCopy::File { sha256 }) => {
+            Some(sha256.clone())
+        }
+        _ => None,
+    };
+    let approved_target = match (&action, &input.target) {
+        (CarryAction::Replace | CarryAction::Remove, TargetCopy::File { sha256 }) => {
+            Some(sha256.clone())
+        }
+        _ => None,
+    };
     PlannedPath {
         path: path.to_owned(),
         action,
         target_row,
         source_row,
+        approved_source,
+        approved_target,
     }
 }
 

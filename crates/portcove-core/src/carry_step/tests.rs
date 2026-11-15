@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use super::*;
-use crate::carry_plan::{CarryExclusions, PathInput, RowChange, plan};
+use crate::carry_plan::{CarryExclusions, CarryRow, PathInput, RowChange, plan};
 
 fn ok() -> Result<()> {
     Ok(())
@@ -32,43 +32,40 @@ fn fixture() -> Fixture {
     }
 }
 
-/// Inspect, plan and stage `paths` with no ledger rows (first contact).
-fn run(
+/// A path's source and target ledger rows.
+type Rows = (Option<CarryRow>, Option<CarryRow>);
+
+/// Inspect, plan and stage `paths`, with `rows` as the source and target
+/// ledger rows for each path.
+fn run_with(
     fixture: &Fixture,
     paths: &[&str],
+    rows: &dyn Fn(&str) -> Rows,
     space: (u64, u64),
 ) -> (Vec<PlannedPath>, std::result::Result<Staged, CarryStop>) {
     let mut inputs = BTreeMap::new();
     let mut sizes = BTreeMap::new();
-    let mut source_digests = BTreeMap::new();
-    let mut target_digests = BTreeMap::new();
+    let (source_listings, target_listings) = (Listings::default(), Listings::default());
     for path in paths {
-        let (source, size) = inspect_source(&fixture.source, path, &ok).unwrap();
-        if let SourceCopy::File { sha256 } = &source {
-            source_digests.insert(path.to_string(), sha256.clone());
-            sizes.insert(path.to_string(), size.unwrap());
+        let (source, size) = inspect_source(&fixture.source, path, &source_listings, &ok).unwrap();
+        if let Some(size) = size {
+            sizes.insert(path.to_string(), size);
         }
-        let target = inspect_target(&fixture.target, path, &ok).unwrap();
-        if let TargetCopy::File { sha256 } = &target {
-            target_digests.insert(path.to_string(), sha256.clone());
-        }
+        let target = inspect_target(&fixture.target, path, &target_listings, &ok).unwrap();
+        let (source_row, target_row) = rows(path);
         inputs.insert(
             path.to_string(),
             PathInput {
                 source,
-                source_row: None,
+                source_row,
                 target,
-                target_row: None,
+                target_row,
                 target_replaces: None,
             },
         );
     }
     let planned = plan("a", &inputs, &CarryExclusions::default(), &|_| false);
-    let inspected = Inspected {
-        sizes,
-        source_digests,
-        target_digests,
-    };
+    let inspected = Inspected { sizes };
     let staged = stage(
         (&fixture.source, &fixture.target),
         &planned,
@@ -77,6 +74,33 @@ fn run(
         &ok,
     );
     (planned, staged)
+}
+
+/// First contact: no ledger rows.
+fn run(
+    fixture: &Fixture,
+    paths: &[&str],
+    space: (u64, u64),
+) -> (Vec<PlannedPath>, std::result::Result<Staged, CarryStop>) {
+    run_with(fixture, paths, &|_| (None, None), space)
+}
+
+fn sha(bytes: &[u8]) -> String {
+    use sha2::{Digest as _, Sha256};
+    hex::encode(Sha256::digest(bytes))
+}
+
+/// Rows proving the target holds an earlier copy of the source's file.
+fn descended(old: &[u8], new: Option<&[u8]>) -> Rows {
+    let old = sha(old);
+    let source = match new {
+        Some(new) => CarryRow::present(&sha(new), vec![old.clone(), sha(new)]),
+        None => CarryRow::present(&old, vec![old.clone()]),
+    };
+    (
+        Some(source),
+        Some(CarryRow::present(&old, vec![old.clone()])),
+    )
 }
 
 const PLENTY: (u64, u64) = (u64::MAX / 2, 10 * 1024 * 1024 * 1024);
@@ -182,8 +206,6 @@ fn a_source_changed_after_planning_holds_without_writing() {
     let planned = plan("a", &inputs, &CarryExclusions::default(), &|_| false);
     let inspected = Inspected {
         sizes: BTreeMap::from([("settings.ini".to_owned(), 7)]),
-        source_digests: BTreeMap::from([("settings.ini".to_owned(), "0".repeat(64))]),
-        target_digests: BTreeMap::new(),
     };
     let staged = stage(
         (&fixture.source, &fixture.target),
@@ -216,12 +238,13 @@ fn a_target_written_after_planning_is_left_alone() {
 fn case_variant_parents_and_links_block_the_path() {
     let fixture = fixture();
     write(&fixture.target, "Profiles/x.cfg", b"theirs");
+    let listings = Listings::default();
     assert_eq!(
-        inspect_target(&fixture.target, "profiles/x.cfg", &ok).unwrap(),
+        inspect_target(&fixture.target, "profiles/x.cfg", &listings, &ok).unwrap(),
         TargetCopy::Blocked
     );
     assert_eq!(
-        inspect_target(&fixture.target, "Profiles/new.cfg", &ok).unwrap(),
+        inspect_target(&fixture.target, "Profiles/new.cfg", &listings, &ok).unwrap(),
         TargetCopy::Absent
     );
     #[cfg(unix)]
@@ -229,7 +252,7 @@ fn case_variant_parents_and_links_block_the_path() {
         std::os::unix::fs::symlink(fixture.target.join("Profiles"), fixture.target.join("link"))
             .unwrap();
         assert_eq!(
-            inspect_target(&fixture.target, "link/x.cfg", &ok).unwrap(),
+            inspect_target(&fixture.target, "link/x.cfg", &Listings::default(), &ok).unwrap(),
             TargetCopy::Blocked
         );
     }
@@ -243,4 +266,147 @@ fn sweep_removes_only_staging_files() {
     write(&fixture.target, &format!("{STAGING_PREFIX}def"), b"z");
     assert_eq!(sweep(&fixture.target).unwrap(), 2);
     assert!(fixture.target.join("keep.ini").exists());
+}
+
+#[test]
+fn a_recorded_earlier_copy_is_replaced_and_a_deleted_one_removed() {
+    let fixture = fixture();
+    write(&fixture.source, "settings.ini", b"new");
+    write(&fixture.target, "settings.ini", b"old");
+    write(&fixture.target, "cache.json", b"old cache");
+    let rows = |path: &str| match path {
+        "settings.ini" => descended(b"old", Some(b"new")),
+        _ => descended(b"old cache", None),
+    };
+    let (planned, staged) = run_with(&fixture, &["settings.ini", "cache.json"], &rows, PLENTY);
+    let actions = planned
+        .iter()
+        .map(|planned| (planned.path.as_str(), planned.action))
+        .collect::<BTreeMap<_, _>>();
+    assert_eq!(actions["settings.ini"], CarryAction::Replace);
+    assert_eq!(actions["cache.json"], CarryAction::Remove);
+    let staged = staged.unwrap();
+    assert!(staged.changed_targets.is_empty());
+    assert!(staged.publish().unwrap().is_empty());
+    assert_eq!(
+        fs::read(fixture.target.join("settings.ini")).unwrap(),
+        b"new"
+    );
+    assert!(!fixture.target.join("cache.json").exists());
+}
+
+#[test]
+fn staging_checks_the_bytes_the_plan_approved_not_a_later_look() {
+    let fixture = fixture();
+    write(&fixture.source, "settings.ini", b"new");
+    write(&fixture.target, "settings.ini", b"old");
+    write(&fixture.target, "cache.json", b"old cache");
+    let rows = |path: &str| match path {
+        "settings.ini" => descended(b"old", Some(b"new")),
+        _ => descended(b"old cache", None),
+    };
+    let (planned, staged) = {
+        // Plan first, then let the game write both targets before staging.
+        let (planned, staged) = run_with(&fixture, &["settings.ini", "cache.json"], &rows, PLENTY);
+        drop(staged);
+        write(&fixture.target, "settings.ini", b"the player's edit");
+        write(&fixture.target, "cache.json", b"the game's rewrite");
+        let sizes = BTreeMap::from([("settings.ini".to_owned(), 3)]);
+        let staged = stage(
+            (&fixture.source, &fixture.target),
+            &planned,
+            &Inspected { sizes },
+            PLENTY,
+            &ok,
+        );
+        (planned, staged)
+    };
+    assert_eq!(planned.len(), 2);
+    let staged = staged.unwrap();
+    let mut changed = staged.changed_targets.clone();
+    changed.sort();
+    assert_eq!(changed, ["cache.json", "settings.ini"]);
+    assert!(staged.publish().unwrap().is_empty());
+    assert_eq!(
+        fs::read(fixture.target.join("settings.ini")).unwrap(),
+        b"the player's edit"
+    );
+    assert_eq!(
+        fs::read(fixture.target.join("cache.json")).unwrap(),
+        b"the game's rewrite"
+    );
+    assert_eq!(sweep(&fixture.target).unwrap(), 0);
+}
+
+#[test]
+fn a_source_growing_past_its_planned_size_stops_the_copy() {
+    let fixture = fixture();
+    write(&fixture.source, "log.txt", b"short");
+    let (planned, _) = run(&fixture, &["log.txt"], PLENTY);
+    let staged = stage(
+        (&fixture.source, &fixture.target),
+        &planned,
+        &Inspected {
+            sizes: BTreeMap::from([("log.txt".to_owned(), 2)]),
+        },
+        PLENTY,
+        &ok,
+    );
+    assert!(matches!(staged, Err(CarryStop::SourceChanged(path)) if path == "log.txt"));
+    assert_eq!(fs::read_dir(&fixture.target).unwrap().count(), 0);
+}
+
+#[cfg(unix)]
+#[test]
+fn a_link_swapped_in_before_publishing_is_never_written_through() {
+    let fixture = fixture();
+    write(&fixture.source, "profiles/slot.cfg", b"slot");
+    let (_, staged) = run(&fixture, &["profiles/slot.cfg"], PLENTY);
+    let staged = staged.unwrap();
+    // Replace the freshly created folder with a link elsewhere.
+    let elsewhere = fixture.target.parent().unwrap().join("elsewhere");
+    fs::create_dir(&elsewhere).unwrap();
+    let staging = fs::read_dir(fixture.target.join("profiles"))
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+    fs::rename(&staging, fixture.target.join("staged-aside")).unwrap();
+    fs::remove_dir(fixture.target.join("profiles")).unwrap();
+    std::os::unix::fs::symlink(&elsewhere, fixture.target.join("profiles")).unwrap();
+    assert_eq!(
+        staged.publish().unwrap(),
+        vec!["profiles/slot.cfg".to_owned()]
+    );
+    assert_eq!(fs::read_dir(&elsewhere).unwrap().count(), 0);
+}
+
+#[test]
+fn sensitive_entries_are_never_read() {
+    let fixture = fixture();
+    write(
+        &fixture.source,
+        "data/retroachievements.credentials",
+        b"secret",
+    );
+    let listings = Listings::default();
+    let (source, size) = inspect_source(
+        &fixture.source,
+        "data/retroachievements.credentials",
+        &listings,
+        &ok,
+    )
+    .unwrap();
+    assert_eq!((source, size), (SourceCopy::Unreadable, None));
+    assert_eq!(
+        inspect_target(
+            &fixture.target,
+            "data/retroachievements.credentials",
+            &listings,
+            &ok
+        )
+        .unwrap(),
+        TargetCopy::Blocked
+    );
 }
