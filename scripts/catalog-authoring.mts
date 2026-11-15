@@ -162,7 +162,7 @@ function checkPlayerCopy(id: string, field: string, text: unknown) {
     );
 }
 
-function checkSetupGuideCounts(id: string, field: string, value: unknown, allowEmptySteps = false) {
+function checkSetupGuide(id: string, field: string, value: unknown, allowEmptySteps = false) {
   if (value == null) return;
   if (
     !isRecord(value) ||
@@ -173,6 +173,30 @@ function checkSetupGuideCounts(id: string, field: string, value: unknown, allowE
     throw new Error(
       `${id} ${field} requires steps and warnings arrays and an optional references array.`,
     );
+  const guideField = Object.keys(value).find(
+    (key) => !["steps", "warnings", "references", "help_url"].includes(key),
+  );
+  if (guideField !== undefined)
+    throw new Error(`${id} ${field} has an unknown field: ${JSON.stringify(guideField)}.`);
+  for (const [group, members] of [
+    ["steps", value.steps],
+    ["references", value.references ?? []],
+  ] as const) {
+    for (const [index, member] of members.entries()) {
+      const location = `${id} ${field}.${group}[${index}]`;
+      if (!isRecord(member)) throw new Error(`${location} requires a title and instruction.`);
+      const memberField = Object.keys(member).find(
+        (key) => key !== "title" && key !== "instruction",
+      );
+      if (memberField !== undefined)
+        throw new Error(`${location} has an unknown field: ${JSON.stringify(memberField)}.`);
+      if (typeof member.title !== "string" || typeof member.instruction !== "string")
+        throw new Error(`${location} requires a title and instruction.`);
+    }
+  }
+  if (value.warnings.some((warning) => typeof warning !== "string"))
+    throw new Error(`${id} ${field}.warnings contains a non-text entry.`);
+  if (value.help_url != null) publicUrl(value.help_url, `${id} ${field}.help_url`);
   if (
     (!allowEmptySteps && value.steps.length === 0) ||
     value.steps.length + (value.references?.length ?? 0) > 8
@@ -190,7 +214,7 @@ function checkPlayerGuideCopy(
   value: unknown,
   expandsRouteFacts: boolean,
 ) {
-  const guide = checkSetupGuideCounts(id, field, value, expandsRouteFacts);
+  const guide = checkSetupGuide(id, field, value, expandsRouteFacts);
   if (!guide) return;
   // References carry optional exact terms and evidence. Primary actions and
   // warnings are shown directly to players in Desktop and Playnite.
@@ -816,11 +840,7 @@ export function validateCurrentCatalog(catalog: unknown): asserts catalog is Cur
     )
       throw new Error("port presentation must be an object or null");
     if (isRecord(port.presentation))
-      checkSetupGuideCounts(
-        String(port.id),
-        "presentation.manual_setup",
-        port.presentation.manual_setup,
-      );
+      checkSetupGuide(String(port.id), "presentation.manual_setup", port.presentation.manual_setup);
   }
   for (const name of ["identities", "contracts", "evidence"] as const)
     namedRecords(source[name], `source_catalog.${name}`);
