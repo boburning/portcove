@@ -21585,6 +21585,10 @@
           {
             "title": "Point this engine at its own data",
             "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+          },
+          {
+            "title": "Use the distribution package on Ubuntu",
+            "instruction": "On Ubuntu 26.04 x64 or ARM64, use the d1x-rebirth package from Multiverse. Launch d1x-rebirth with -hogdir followed by the quoted path to your separate Descent data folder. Keep your originals outside the package, preserve ~/.d1x-rebirth or your chosen profile override, and use the distribution package manager for updates."
           }
         ],
         "warnings": [
@@ -21640,6 +21644,10 @@
           {
             "title": "Point this engine at its own data",
             "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+          },
+          {
+            "title": "Use the distribution package on Ubuntu",
+            "instruction": "On Ubuntu 26.04 x64 or ARM64, use the d2x-rebirth package from Multiverse. Launch d2x-rebirth with -hogdir followed by the quoted path to your separate Descent II data folder. Keep your originals outside the package, preserve ~/.d2x-rebirth or your chosen profile override, and use the distribution package manager for updates. Use the complete retail data with the reviewed Ubuntu package. Its 0.60~git20250524-2 build fails to load the interactive demo. On Linux x64 the current upstream AppImage can open that demo instead."
           }
         ],
         "warnings": [
