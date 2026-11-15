@@ -2661,8 +2661,8 @@ async fn hybrid_heaven_ogdanimal_upstream_release_download_2546() {
         "hybrid-heaven-ogdanimal",
         "v1.0.1",
         "HybridHeaven-1.0.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
