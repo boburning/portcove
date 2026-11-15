@@ -89,17 +89,28 @@ impl PortcoveService {
             return Ok(None);
         }
         // A modified active version carries nothing and never holds the
-        // switch: rollback stays the way out of it (design L5).
-        let Ok(unknown) = self.portable_runtime_unknown_files(active) else {
-            let outcome = CarryOutcome {
-                source_modified: true,
-                ..CarryOutcome::default()
-            };
-            let mut connection = self.library.connection()?;
-            let transaction = connection.transaction()?;
-            record_outcome(&transaction, active, target, &outcome);
-            transaction.commit()?;
-            return Ok(Some(outcome));
+        // switch: rollback stays the way out of it (design L5). Only that
+        // hazard does; any other error holds as before (review N1).
+        let unknown = match self.portable_runtime_unknown_files(active) {
+            Ok(unknown) => unknown,
+            Err(error)
+                if matches!(
+                    error.known_cause(),
+                    Some(crate::failure::KnownFailureCause::PortableRuntimeModified { .. })
+                ) =>
+            {
+                self.require_no_partial_carry(active, target)?;
+                let outcome = CarryOutcome {
+                    source_modified: true,
+                    ..CarryOutcome::default()
+                };
+                let mut connection = self.library.connection()?;
+                let transaction = connection.transaction()?;
+                record_outcome(&transaction, active, target, &outcome);
+                transaction.commit()?;
+                return Ok(Some(outcome));
+            }
+            Err(error) => return Err(error),
         };
         let active_qualification = self.installed_mutability_qualification(active)?;
         let target_qualification = self.installed_mutability_qualification(target)?;
@@ -340,6 +351,39 @@ impl PortcoveService {
         record_outcome(&transaction, active, target, &outcome);
         transaction.commit()?;
         Ok(Some(outcome.bounded()))
+    }
+
+    /// Hold when an earlier attempt published part of a carry to `target`:
+    /// a pending row from `active` whose bytes are now in the target. The
+    /// target must not become active with only part of a carry.
+    fn require_no_partial_carry(
+        &self,
+        active: &InstallRecord,
+        target: &InstallRecord,
+    ) -> Result<()> {
+        let connection = self.library.connection()?;
+        let rows = carry_ledger::load(&connection, &target.id)?;
+        let (target_root, _) = self
+            .installed_mutability_qualification(target)?
+            .carry_exclusions(target)?;
+        for (path, stored) in rows {
+            if !matches!(&stored.row.state, RowState::Pending { source_install_id } if *source_install_id == active.id)
+            {
+                continue;
+            }
+            let placed = path
+                .split('/')
+                .fold(target_root.clone(), |folder, part| folder.join(part));
+            if carry_step::hash_file(&placed, &|| Ok(()))
+                .is_ok_and(|digest| digest.sha256 == stored.row.sha256)
+            {
+                return Err(PortcoveError::conflict(
+                    "Portcove was part-way through carrying files to this version when it stopped, and the version you're leaving has since changed. Nothing more was changed. Undo the change to the active version, then try again.",
+                )
+                .detail("carried_file_pending", path));
+            }
+        }
+        Ok(())
     }
 
     /// Whether an installation is on a route Tier 2 carries for: the routes
