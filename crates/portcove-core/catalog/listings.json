@@ -12423,7 +12423,7 @@
         "steps": [
           {
             "title": "Keep the portable package together",
-            "instruction": "Extract the Windows MinGW x64 ZIP into a separate folder. This selected package includes the upstream data directory; keep it beside opentyrian2000.exe."
+            "instruction": "Choose the upstream MinGW x64 ZIP on Windows x86-64 or opentyrian2000-MSVC-ARM64.zip on Windows ARM64. Extract the complete package into a writable folder. Keep opentyrian2000.exe, its libraries and the included data directory together."
           },
           {
             "title": "Use the included player",
