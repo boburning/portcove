@@ -272,41 +272,35 @@ where
     };
     ensure_enabled(service.library(), root, source, profile)?;
     super::require_installed(service.library(), root, profile)?;
-    // Verify the signed metadata first. An outage, or a location that publishes
-    // nothing yet, then records no failed activity and changes nothing.
+    // Acquire, authenticate and check admission before recording an activity.
+    // An outage, an absent, expired or tampered publication, a newer format this
+    // client cannot read or a replay then records nothing and changes nothing.
     let (repository, transport) = connect()?;
-    let probe = tokio::time::timeout(
-        crate::definition_repository::ACQUISITION_TIMEOUT,
-        crate::definition_repository::load_repository(
-            root,
-            repository.metadata_base_url.clone(),
-            repository.targets_base_url.clone(),
-            transport,
-        ),
+    let listings = super::super::listing_delivery::acquire_admissible(
+        service.library(),
+        &repository,
+        root,
+        transport,
     )
-    .await
-    .unwrap_or_else(|_| {
-        Err(PortcoveError::network(
-            "official catalog metadata check timed out",
-        ))
-    });
-    if let Err(error) = probe {
-        let serving = delivery_serving(&error);
-        tracing::info!(
-            serving = serving.as_str(),
-            error = %error.message,
-            message = "automatic official catalog refresh found no verified update"
-        );
-        return Ok(OfficialCatalogAutomaticRefresh {
-            outcome: Unavailable,
-            serving: Some(serving),
-            status: None,
-        });
-    }
-    let (repository, transport) = connect()?;
-    let status =
-        super::super::listing_delivery::refresh(service, &repository, root, transport, emit)
-            .await?;
+    .await;
+    let candidate = match listings {
+        Ok(candidate) => candidate,
+        Err(error) => {
+            let serving = delivery_serving(&error);
+            tracing::info!(
+                serving = serving.as_str(),
+                error = %error.message,
+                message = "automatic official catalog refresh found no verified update"
+            );
+            return Ok(OfficialCatalogAutomaticRefresh {
+                outcome: Unavailable,
+                serving: Some(serving),
+                status: None,
+            });
+        }
+    };
+    // Publication keeps the ordinary activity, cancellation and atomic admission.
+    let status = super::super::listing_delivery::publish_acquired(service, candidate, emit)?;
     Ok(OfficialCatalogAutomaticRefresh {
         outcome: Refreshed,
         serving: None,

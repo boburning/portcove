@@ -253,8 +253,38 @@ it("never overlaps checks and waits while another task is using the library", as
   await advance(120_000);
   expect(automaticCalls()).toHaveLength(1);
   await act(async () => pending.resolve(notServed));
-  await advance(60_000);
-  expect(automaticCalls()).toHaveLength(1);
+  // The request made during that check is answered soon after it finishes.
+  vi.mocked(desktopApi.refreshOfficialCatalogAutomatically).mockResolvedValue(notServed);
+  await advance(2_000);
+  expect(automaticCalls()).toHaveLength(2);
+  await advance(60 * 60 * 1000);
+  expect(automaticCalls()).toHaveLength(2);
+});
+
+it("shows a player's successful refresh as the latest check", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await renderScheduled();
+  await advance(16_000);
+  expect(host.textContent).toContain("No catalog updates have been published yet.");
+  await act(async () =>
+    [...host.querySelectorAll("button")]
+      .find((button) => button.textContent === "Refresh official catalog")!
+      .click(),
+  );
+  expect(desktopApi.refreshOfficialCatalog).toHaveBeenCalledOnce();
+  expect(host.textContent).toContain("Official catalog refreshed.");
+  expect(host.textContent).toContain("Your catalog is up to date.");
+  expect(host.textContent).not.toContain("No catalog updates have been published yet.");
+});
+
+it("keeps Refresh available when only the automatic-update choice cannot be read", async () => {
+  vi.mocked(desktopApi.officialCatalogAutomaticUpdates).mockRejectedValue(
+    new Error("preferences unreadable"),
+  );
+  await render();
+  await expect.element(refreshButton()).toBeEnabled();
+  await expect.element(page.getByRole("alert")).toHaveTextContent("preferences unreadable");
+  expect(host.querySelector("[role=checkbox]")).toBeNull();
 });
 
 it("keeps failures quiet, keeps the current catalog and tries again the next day", async () => {

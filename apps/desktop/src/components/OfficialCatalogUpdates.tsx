@@ -5,6 +5,7 @@ import { errorText, isCancellation } from "../view-model";
 import { useOperationState } from "../features/operations/use-operation-state";
 import { targetInvocationContext } from "../features/operations/invocation-state";
 import {
+  recordCatalogRefresh,
   requestAutomaticCatalogCheck,
   useLastAutomaticCatalogCheck,
   type AutomaticCatalogCheck,
@@ -21,11 +22,17 @@ type CatalogError = { kind: "text"; text: string } | { kind: "choice" };
 
 const noChange = async () => {};
 
-const readSettings = (generation: number) =>
-  Promise.all([
+/** The review is required; a failed choice read leaves Refresh available. */
+async function readSettings(generation: number) {
+  const [review, automatic] = await Promise.all([
     desktopApi.officialCatalogReview(generation),
-    desktopApi.officialCatalogAutomaticUpdates(),
+    desktopApi.officialCatalogAutomaticUpdates().then(
+      (value) => ({ ok: true as const, value }),
+      (failure: unknown) => ({ ok: false as const, failure }),
+    ),
   ]);
+  return { review, automatic };
+}
 
 type OfficialCatalogUpdatesProps = {
   generation: number;
@@ -62,17 +69,20 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
     libraryGeneration: generation,
   });
 
+  const accept = ({ review, automatic }: Awaited<ReturnType<typeof readSettings>>) => {
+    setReview(review);
+    setAutomatic(automatic.ok ? automatic.value : undefined);
+    if (!automatic.ok) setError({ kind: "text", text: errorText(automatic.failure) });
+  };
+
   const load = async () => {
     const current = owner.current;
     const isCurrent = () => current.active && owner.current === current;
     setLoading(true);
     setError(undefined);
     try {
-      const [nextReview, nextAutomatic] = await readSettings(generation);
-      if (isCurrent()) {
-        setReview(nextReview);
-        setAutomatic(nextAutomatic);
-      }
+      const settings = await readSettings(generation);
+      if (isCurrent()) accept(settings);
     } catch (value) {
       if (isCurrent()) setError({ kind: "text", text: errorText(value) });
     } finally {
@@ -84,10 +94,9 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
     const current = owner.current;
     const isCurrent = () => current.active && owner.current === current;
     void readSettings(generation).then(
-      ([nextReview, nextAutomatic]) => {
+      (settings) => {
         if (isCurrent()) {
-          setReview(nextReview);
-          setAutomatic(nextAutomatic);
+          accept(settings);
           setLoading(false);
         }
       },
@@ -147,7 +156,10 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
           ),
         },
       );
-      if (isCurrent() && result) setNotice("refreshed");
+      if (isCurrent() && result) {
+        recordCatalogRefresh(generation, result);
+        setNotice("refreshed");
+      }
     } catch (value) {
       if (isCurrent()) {
         if (isCancellation(value)) setNotice("cancelled");
@@ -173,34 +185,40 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
       <p>{t("catalog.description")}</p>
       {loading ? (
         <p role="status">{t("catalog.loading")}</p>
-      ) : review?.configured && automatic !== undefined ? (
+      ) : review?.configured ? (
         <>
-          <label
-            htmlFor={checkboxId}
-            className="flex min-h-10 cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3"
-          >
-            <Checkbox
-              data-focusable
-              className="mt-0.5"
-              id={checkboxId}
-              aria-describedby={`${checkboxId}-description`}
-              checked={automatic}
-              disabled={saving}
-              onCheckedChange={(checked) => void choose(checked)}
-            />
-            <span className="grid gap-0.5">
-              <span className="font-bold text-pc-foreground">{t("catalog.automatic.label")}</span>
-              <small id={`${checkboxId}-description`} className={mutedCopyClass}>
-                {t("catalog.automatic.description")}
-              </small>
-            </span>
-          </label>
-          <p className={mutedCopyClass} role="status">
-            <CatalogCheckStatus
-              automatic={automatic}
-              check={lastCheck?.generation === generation ? lastCheck : undefined}
-            />
-          </p>
+          {automatic !== undefined && (
+            <>
+              <label
+                htmlFor={checkboxId}
+                className="flex min-h-10 cursor-pointer items-start gap-3 rounded-pc-md bg-[var(--color-bg-subtle)] p-3"
+              >
+                <Checkbox
+                  data-focusable
+                  className="mt-0.5"
+                  id={checkboxId}
+                  aria-describedby={`${checkboxId}-description`}
+                  checked={automatic}
+                  disabled={saving}
+                  onCheckedChange={(checked) => void choose(checked)}
+                />
+                <span className="grid gap-0.5">
+                  <span className="font-bold text-pc-foreground">
+                    {t("catalog.automatic.label")}
+                  </span>
+                  <small id={`${checkboxId}-description`} className={mutedCopyClass}>
+                    {t("catalog.automatic.description")}
+                  </small>
+                </span>
+              </label>
+              <p className={mutedCopyClass} role="status">
+                <CatalogCheckStatus
+                  automatic={automatic}
+                  check={lastCheck?.generation === generation ? lastCheck : undefined}
+                />
+              </p>
+            </>
+          )}
           <div>
             <Button
               data-focusable

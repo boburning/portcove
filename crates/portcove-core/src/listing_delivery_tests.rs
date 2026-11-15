@@ -645,6 +645,38 @@ async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state(
         assert_eq!(skipped.outcome, Outcome::AlreadyRunning);
     }
 
+    // A verified publication this client refuses (here, changed bytes at the
+    // same listing revision) is quiet too: no failed activity, selection kept.
+    let mut equivocation = feed(1);
+    equivocation["directory"]["listings"][0]["name"] = json!("Equivocated title");
+    publish(&fixture, &key, 2, &equivocation).await;
+    let refused = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused.outcome, Outcome::Unavailable);
+    assert_eq!(
+        refused.serving,
+        Some(crate::DefinitionDeliveryServing::VerificationFailed)
+    );
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+    assert_eq!(
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .name,
+        "New unmanaged port"
+    );
+
     // Tampered metadata and an outage both keep the accepted selection.
     let timestamp = fixture.metadata.join("timestamp.json");
     let signed = fs::read(&timestamp).unwrap();

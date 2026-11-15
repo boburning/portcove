@@ -1,6 +1,6 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { desktopApi } from "../../api";
-import type { OfficialCatalogAutomaticRefresh } from "../../types";
+import type { ListingDeliveryStatus, OfficialCatalogAutomaticRefresh } from "../../types";
 
 /** The first check waits until the workspace is up, so it never delays startup. */
 export const firstCheckMilliseconds = 15_000;
@@ -38,6 +38,16 @@ export function requestAutomaticCatalogCheck() {
   events.dispatchEvent(new Event("request"));
 }
 
+/** A player's own successful refresh is the latest check, so status stays consistent. */
+export function recordCatalogRefresh(generation: number, status: ListingDeliveryStatus) {
+  record({
+    generation,
+    at: Date.now(),
+    kind: "result",
+    result: { outcome: "refreshed", serving: null, status },
+  });
+}
+
 /** Test seam: forget the previous check between isolated renders. */
 export function resetAutomaticCatalogCheck() {
   lastCheck = undefined;
@@ -67,7 +77,11 @@ export function useOfficialCatalogAutoRefresh(
 
   useEffect(() => {
     if (!ready) return;
-    const lifetime: { active: boolean; timer?: ReturnType<typeof setTimeout> } = { active: true };
+    const lifetime: {
+      active: boolean;
+      requested: boolean;
+      timer?: ReturnType<typeof setTimeout>;
+    } = { active: true, requested: false };
     const schedule = (delay: number) => {
       clearTimeout(lifetime.timer);
       lifetime.timer = setTimeout(() => void check(), delay);
@@ -81,6 +95,7 @@ export function useOfficialCatalogAutoRefresh(
         return;
       }
       running.current = true;
+      lifetime.requested = false;
       let next = checkIntervalMilliseconds;
       try {
         // Progress and outcome appear through the ordinary Activity events.
@@ -99,11 +114,15 @@ export function useOfficialCatalogAutoRefresh(
         if (lifetime.active) record({ generation, at: Date.now(), kind: "failed" });
       } finally {
         running.current = false;
-        if (lifetime.active) schedule(next);
+        // A request that arrived while this check ran is answered soon, not tomorrow.
+        if (lifetime.active) schedule(lifetime.requested ? requestSettleMilliseconds : next);
       }
     }
     schedule(firstCheckMilliseconds);
-    const listener = () => schedule(requestSettleMilliseconds);
+    const listener = () => {
+      lifetime.requested = true;
+      schedule(requestSettleMilliseconds);
+    };
     events.addEventListener("request", listener);
     return () => {
       lifetime.active = false;

@@ -1119,12 +1119,10 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-The CLI operator command retains its explicit reviewed-plan confirmation.
-Normal Desktop setup uses the same Core transaction through its separate official
-catalog review and enablement bridge. API87 binds that confirmation to the existing
-library/Root/history plan and the exact compiled transport-source bytes. The CLI
-plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
-a definition, policy or installation.
+The CLI operator command retains its explicit reviewed-plan confirmation, and
+the CLI plan is unchanged. Desktop uses the same Core transaction without a
+separate confirmation; see normal official-catalog setup below. Installing the
+anchor emits no lifecycle event and selects no definition, policy or installation.
 
 **Normal official-catalog setup.**
 
@@ -1145,22 +1143,31 @@ reviewed for that library; the transaction rechecks that exact plan. A concurren
 installation of the same anchor is accepted. Changed sources/libraries,
 conflicting anchors, corrupt history and advanced initialization preimages still
 refuse without repair or floor reset. Only the compiled Root and source are used;
-no adapter supplies Root, source bytes or a plan. Opening a library or reviewing
-settings never installs trust. `Library::enable_official_catalog` keeps its
-exact-plan confirmation for callers that want an explicit step.
+no adapter supplies Root, source bytes or a plan. Desktop therefore installs the
+compiled official anchor automatically at the first scheduled check, shortly
+after a library loads, unless the player turned automatic updates off. Reviewing
+settings alone never installs trust. **Refresh official catalog** and **Check
+setup availability** are explicit player actions, so they install the compiled
+anchor even while automatic updates are off. `Library::enable_official_catalog`
+keeps its exact-plan confirmation for callers that want an explicit step.
 
 Desktop schedules one refresh about 15 seconds after a library has loaded, then
 about every 24 hours while it runs. Checks never overlap: Core allows one official
 catalog refresh at a time per process, a scheduled check skips while another runs
 and a player's refresh waits for it. Desktop also waits while another task holds
-the library. Before recording an activity, the scheduled refresh verifies the
-signed metadata against the compiled anchor. An outage, an absent publication
-(HTTP 404 or 410), expired metadata or a bad signature returns a quiet
-`unavailable` result with its serving status. No activity is recorded and nothing
-changes. When the metadata verifies, the existing authenticated listing-delivery
-refresh and its cancellation/lifecycle owner run as for the manual action. Any
-failure keeps the accepted directory, replay floors and bundled fallback.
-Settings shows the latest scheduled result. A failed check never raises an
+the library. Before recording an activity, the scheduled refresh acquires the
+listing target through the same authenticated TUF path and strict parser as the
+manual refresh and runs every admission check without writing. An outage, an
+absent publication (HTTP 404 or 410), expired metadata, a bad signature, a listing
+format this client cannot read, stale metadata or a replay/equivocation returns a
+quiet `unavailable` result with its serving status. No activity is recorded and
+the directory, replay floors and selection do not change. On a library's first
+check, the compiled anchor may already have been installed as described above
+even when the result is `unavailable`. An admissible candidate is published
+through the ordinary update-catalog activity, cancellation and atomic admission
+owner. A player's manual refresh still reports its failures. Any failure keeps
+the accepted directory, replay floors and bundled fallback.
+Settings shows the latest result, including a player's successful refresh. A failed scheduled check never raises an
 error notice.
 
 The **Update the catalog automatically** choice in Settings is host-wide and
