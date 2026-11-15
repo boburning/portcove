@@ -54250,7 +54250,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -58445,7 +58445,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -63630,7 +63630,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -66265,7 +66265,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -66876,7 +66876,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -67890,7 +67890,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
@@ -72728,7 +72728,7 @@
             },
             {
               "title": "Use Raze from Flathub on Linux",
-              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
+              "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Make sure ~/.config exists in your home directory. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game if a picker appears. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
             }
           ],
           "warnings": [
