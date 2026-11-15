@@ -2650,8 +2650,8 @@ async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
         "darkuni-target-terror-wii-recomp",
         "v1.0",
         "TargetTerror-v1.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

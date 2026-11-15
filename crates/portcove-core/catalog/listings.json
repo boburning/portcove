@@ -20379,19 +20379,16 @@
       "original_game_title": "TARGET: Terror",
       "issue_number": 4178,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
             "title": "Prepare your Wii disc image",
-            "instruction": "Keep the Windows x64 package files together, with the runtime DLLs beside targetterror.exe. Supply your own NTSC-U RGDEA4 ISO or CISO in that writable folder."
+            "instruction": "Copy your own NTSC-U TARGET: Terror Wii disc image (RGDEA4, .iso or .ciso) into the folder beside targetterror.exe, and keep your original separately. On first start the game builds its game folder from the image, which takes a few minutes; after that the copied image is no longer needed."
           },
           {
             "title": "Allow space for the upstream import",
-            "instruction": "Run targetterror.exe and allow first-run extraction to populate game. Keep the original disc image separately, and leave enough free space for the generated files."
+            "instruction": "Run targetterror.exe and allow first-run extraction to populate game. Leave enough free space for about 4.4 GB of generated files."
           },
           {
             "title": "Preserve the creating profile",
@@ -20411,7 +20408,10 @@
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "daxter-recompiled-anthonyhfm-daxter",
