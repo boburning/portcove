@@ -63663,7 +63663,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\Rayman2Recompiled profile. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start.",
+        "manual_preparation": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy.",
         "original_game_title": "Rayman 2: The Great Escape",
         "manual_setup": {
           "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
@@ -63684,13 +63684,12 @@
           "warnings": [
             "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
             "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-            "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\Rayman2Recompiled profile.",
-            "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+            "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy."
           ],
           "references": [
             {
-              "title": "Setup instructions for the inspected release",
-              "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
+              "title": "Upstream releases and their setup notes",
+              "instruction": "https://github.com/n64hub/rayman-2-recomp/releases"
             },
             {
               "title": "Registration ownership and removal",
@@ -63751,7 +63750,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\SmashBrosRecompiled profile. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start.",
+        "manual_preparation": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy.",
         "original_game_title": "Super Smash Bros.",
         "manual_setup": {
           "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
@@ -63772,13 +63771,12 @@
           "warnings": [
             "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
             "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-            "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\SmashBrosRecompiled profile.",
-            "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+            "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy."
           ],
           "references": [
             {
-              "title": "Setup instructions for the inspected release",
-              "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+              "title": "Upstream releases and their setup notes",
+              "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases"
             },
             {
               "title": "Registration ownership and removal",

@@ -24,8 +24,8 @@
       ],
       "references": [
         {
-          "title": "Setup instructions for the inspected release",
-          "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
+          "title": "Upstream releases and their setup notes",
+          "instruction": "https://github.com/n64hub/rayman-2-recomp/releases"
         }
       ]
     },
@@ -51,8 +51,7 @@
         "instruction": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions."
       },
       "warnings": [
-        "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\Rayman2Recompiled profile.",
-        "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+        "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\Rayman2Recompiled profile as the managed copy."
       ]
     }
   },

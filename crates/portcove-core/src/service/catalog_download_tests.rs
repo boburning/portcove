@@ -2002,8 +2002,8 @@ async fn n64hub_super_smash_bros_n64_usa_recomp_upstream_release_download_4337()
         "n64hub-super-smash-bros-n64-usa-recomp",
         "v0.1.12",
         "SmashBrosRecompiled-v0.1.12-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2013,8 +2013,8 @@ async fn n64hub_rayman_2_recomp_n64_usa_upstream_release_download_4335() {
         "n64hub-rayman-2-recomp-n64-usa",
         "v0.1.15",
         "Rayman2Recompiled-v0.1.15-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

@@ -24,8 +24,8 @@
       ],
       "references": [
         {
-          "title": "Setup instructions for the inspected release",
-          "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+          "title": "Upstream releases and their setup notes",
+          "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases"
         }
       ]
     },
@@ -51,8 +51,7 @@
         "instruction": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions."
       },
       "warnings": [
-        "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\SmashBrosRecompiled profile.",
-        "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+        "Use a separate upstream copy for portable.txt mode. A separately prepared copy without portable.txt uses the same %LOCALAPPDATA%\\SmashBrosRecompiled profile as the managed copy."
       ]
     }
   },
