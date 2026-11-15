@@ -24817,11 +24817,11 @@
         "steps": [
           {
             "title": "Select the unmodified original",
-            "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release, and keep your original separately. On first start the player asks you to choose it, checks its SHA-256 and keeps a copy in its app profile. You can also put it next to the player or point ELFBOWL_EXE to it on desktop."
+            "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release, and keep your original separately. On first start the player asks you to choose it, checks its SHA-256 and keeps a copy in its app profile."
           },
           {
             "title": "Choose the upstream player",
-            "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries."
+            "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries. In a copy you manage yourself, you can also put the original next to the player or point ELFBOWL_EXE to it."
           },
           {
             "title": "Use the separate Android or Mac setup",
