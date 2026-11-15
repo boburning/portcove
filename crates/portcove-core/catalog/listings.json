@@ -52310,6 +52310,59 @@
       }
     },
     {
+      "id": "star-wars-atari-darkuni",
+      "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
+      "name": "Star Wars (Atari arcade) / darkuni",
+      "original_game_title": "Star Wars (Atari arcade)",
+      "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
+      "issue_number": 6000,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/darkuni/starwars-arcade-recomp/tree/df540960302ba42df26b2432986b6df92af97c6a#running",
+      "release_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "starwars.exe"
+        ],
+        "linux-x86-64": [
+          "StarWars-linux.tar.gz"
+        ],
+        "macos-x86-64": [
+          "StarWars-mac.zip"
+        ],
+        "macos-aarch64": [
+          "StarWars-mac.zip"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Prepare your own Star Wars arcade ROM set",
+            "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+          },
+          {
+            "title": "Start the player for your operating system",
+            "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe. On Linux x64, unpack StarWars-linux.tar.gz and open ./starwars. Put the ZIP beside the executable for either of those platforms. On Intel Mac or Apple Silicon, extract the universal Star Wars.app, place starwars.zip in your home folder and open the app. Keep a separate copy of your original ZIP."
+          },
+          {
+            "title": "Keep your high scores and settings",
+            "instruction": "Back up nvram.bin and settings.json from the starwars folder under your user configuration directory. This is normally %APPDATA% on Windows, ~/.config or XDG_CONFIG_HOME on Linux and ~/Library/Application Support on Mac."
+          }
+        ],
+        "warnings": [
+          "The Linux x64 binary requires glibc 2.38 or later, X11 and ALSA libraries.",
+          "The publisher does not provide a license for its project code."
+        ],
+        "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+      }
+    },
+    {
       "id": "star-wars-episode-iii-revenge-of-the-sith",
       "name": "Star Wars: Episode III - Revenge of the Sith (SWROTS-PC)",
       "summary": "Attach the complete SWROTS-PC Windows player after your own Xbox USA disc setup. Keep swrots.exe with core.dll and all actual data; upstream reboot successors remain outside the selected session.",
