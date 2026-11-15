@@ -5406,6 +5406,11 @@ impl PortcoveService {
                     }
                 }
             }
+            let mut session_processes = crate::launch::SessionProcesses::prepare(
+                &self.library,
+                &session,
+                tracked_install_root.as_deref(),
+            )?;
             operation.begin_publication()?;
             self.library.update_launch_session(
                 &session.id,
@@ -5550,29 +5555,24 @@ impl PortcoveService {
                         crate::native_external_profile::reserve_recomp_appimage_fallback(&spec)?;
                     }
                 }
-                Ok(
-                    match crate::launch::spawn_supervised_game(
-                        &mut command,
-                        &session.id,
-                        tracked_install_root.as_deref(),
-                    ) {
-                        Ok(spawned) => spawned,
-                        Err(error) => {
-                            return Err(PortcoveError::launch(format!(
-                                "failed to start {}: {error}",
-                                spec.executable.display()
-                            )));
-                        }
-                    },
-                )
+                session_processes.spawn(&mut command).map_err(|error| {
+                    PortcoveError::launch(format!(
+                        "failed to start {}: {error}",
+                        spec.executable.display()
+                    ))
+                })
             };
-            let (mut child, mut session_processes) = if active.is_some() {
+            let mut child = if active.is_some() {
                 crate::definition_repository::publisher_policy::launch_assessment::with_launch_admission(
                     &self.library, spawn,
                 )?
             } else {
                 spawn()?
             };
+            // The resumed tracked child may already have handed off. Killing
+            // only that child after a failed identity or database read cannot
+            // prove that the game has stopped writing.
+            child_state_uncertain = session_processes.is_tracked();
             let child_pid = child.id();
             #[cfg(test)]
             crate::launch::child_diagnostic::spawned(&mut child);
@@ -5901,22 +5901,26 @@ impl PortcoveService {
                     "launch session {session_id} was recovered elsewhere"
                 ))
             })?;
-        let install_is_exact = match session.owner_kind {
+        let managed = match session.owner_kind {
             crate::LaunchOwnerKind::Managed => {
-                self.library.all_installs()?.into_iter().any(|install| {
+                self.library.all_installs()?.into_iter().find(|install| {
                     install.id == session.install_id
                         && install.port_id == session.port_id
                         && install.path == session.install_root
                 })
             }
+            crate::LaunchOwnerKind::External => None,
+        };
+        let external = match session.owner_kind {
             crate::LaunchOwnerKind::External => self
                 .library
                 .external_runtime_with_port(&session.port_id)?
-                .is_some_and(|(record, _)| {
+                .filter(|(record, _)| {
                     record.id == session.install_id && record.path == session.install_root
                 }),
+            crate::LaunchOwnerKind::Managed => None,
         };
-        if !install_is_exact {
+        if managed.is_none() && external.is_none() {
             return Err(PortcoveError::conflict(format!(
                 "launch session {session_id} no longer matches its registered install"
             ))
@@ -5969,10 +5973,33 @@ impl PortcoveService {
             // recorded child, so successors it started stay observable.
             let session_processes =
                 crate::launch::SessionProcesses::reopen(session_id, &session.install_root)?;
-            crate::launch::wait_for_process_exit(child_pid, child_identity)?;
+            if cfg!(windows) && session_processes.is_none() {
+                let tracked_handoff = match (&managed, &external) {
+                    (Some(install), None) => {
+                        self.installed_catalog(install)?
+                            .port(&session.port_id)?
+                            .windows_tracked_handoff
+                    }
+                    (None, Some((_, catalog))) => catalog
+                        .port(&session.port_id)
+                        .is_ok_and(|port| port.windows_tracked_handoff),
+                    _ => false,
+                };
+                if tracked_handoff {
+                    return Err(PortcoveError::conflict(
+                        "the tracked Windows process job is unavailable; a successor may still be running",
+                    )
+                    .detail("launch_session_id", session_id)
+                    .detail("recovery_action", "manual_review"));
+                }
+            }
             if let Some(mut processes) = session_processes {
+                // The retained job is the authority for the original child
+                // and its successors even after an original PID is recycled.
                 processes
                     .wait_for_successors(&mut |members| self.note_waiting(session_id, members))?;
+            } else {
+                crate::launch::wait_for_process_exit(child_pid, child_identity)?;
             }
             self.library.update_launch_session(
                 session_id,
@@ -20717,6 +20744,88 @@ fn main() {
     #[test]
     fn windows_session_without_tracked_handoff_ends_with_its_original_child() {
         supervise_handoff_probe(false);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_recovery_keeps_tracked_session_locked_when_its_job_is_unavailable() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let mut service = PortcoveService::new(library.clone()).unwrap();
+        let launched = register_handoff_launch_probe(&library, &mut service, true);
+        let markers = temporary.path().join("markers");
+        fs::create_dir_all(&markers).unwrap();
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Launch,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
+        let mut command = ChildProcessPolicy::native_command(
+            ChildProcessClass::Game,
+            launched.path.join(&launched.selected_executable),
+        )
+        .unwrap();
+        command
+            .current_dir(&launched.path)
+            .args(["original".to_string(), markers.display().to_string()]);
+        crate::launch::configure_supervised_game(&mut command);
+        // Reproduce the recovery observation of a successor with no reachable
+        // named job, while preserving the creating definition's tracked flag.
+        let (mut child, _) =
+            crate::launch::spawn_supervised_game(&mut command, &activity.id, None).unwrap();
+        let child_pid = child.id();
+        let child_identity = crate::launch::process_identity_for_child(&child)
+            .unwrap()
+            .unwrap();
+        assert!(child.wait().unwrap().success());
+        wait_for_handoff_marker(&markers.join("successor-started"), || false).unwrap();
+        let now = Library::now();
+        library
+            .create_launch_session(&LaunchSessionRecord {
+                id: activity.id.clone(),
+                port_id: "zelda64-recomp".into(),
+                install_id: launched.id,
+                install_root: launched.path.clone(),
+                owner_kind: crate::LaunchOwnerKind::Managed,
+                supervisor_pid: u32::MAX,
+                supervisor_identity: None,
+                child_pid: Some(child_pid),
+                child_identity: Some(child_identity),
+                phase: LaunchSessionPhase::Running,
+                outcome: None,
+                exit_code: None,
+                message: None,
+                started_at: now,
+                updated_at: now,
+                finished_at: None,
+            })
+            .unwrap();
+
+        let recovery = service.recover_launch_session(&activity.id);
+        let mutation = library.try_lock_port("zelda64-recomp", "update");
+        fs::write(markers.join("release"), b"release").unwrap();
+        wait_for_handoff_marker(&launched.path.join("general.json"), || false).unwrap();
+
+        let error = recovery.unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("process job is unavailable"));
+        assert!(mutation.is_err());
+        assert_eq!(
+            library
+                .active_launch_session(&activity.id)
+                .unwrap()
+                .unwrap()
+                .phase,
+            LaunchSessionPhase::Running
+        );
+        assert!(
+            !library
+                .user_dir("zelda64-recomp")
+                .join("general.json")
+                .exists()
+        );
     }
 
     #[cfg(windows)]

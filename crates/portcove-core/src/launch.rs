@@ -7,7 +7,11 @@ use std::{
 use crate::{LaunchSignal, PortcoveError, Result};
 
 #[cfg(windows)]
+mod keeper;
+#[cfg(windows)]
 mod session_job;
+#[cfg(windows)]
+pub use keeper::{LAUNCH_JOB_KEEPER_MODE, run_launch_job_keeper};
 
 /// Native-portable capability version whose readers enforce
 /// `windows_tracked_handoff`. Delivered definitions declaring the field must
@@ -107,9 +111,72 @@ pub(crate) fn waiting_message(members: &[SessionMember]) -> String {
 pub(crate) struct SessionProcesses {
     #[cfg(windows)]
     job: Option<session_job::SessionJob>,
+    #[cfg(windows)]
+    keeper: Option<Child>,
 }
 
 impl SessionProcesses {
+    /// Prepares custody before the publication boundary. Nothing can be
+    /// spawned until the independent Windows holder acknowledges the job.
+    pub(crate) fn prepare(
+        library: &crate::Library,
+        session: &crate::LaunchSessionRecord,
+        tracked_install_root: Option<&Path>,
+    ) -> Result<Self> {
+        #[cfg(windows)]
+        {
+            let Some(root) = tracked_install_root else {
+                return Ok(Self {
+                    job: None,
+                    keeper: None,
+                });
+            };
+            let job = session_job::SessionJob::create(&session.id, root)?;
+            // Unit tests run inside a harness executable with no private host
+            // dispatch. Production and native adapter tests use the real keeper.
+            let keeper = if cfg!(test) {
+                None
+            } else {
+                Some(keeper::start(library, session)?)
+            };
+            Ok(Self {
+                job: Some(job),
+                keeper,
+            })
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = (library, session, tracked_install_root);
+            Ok(Self {})
+        }
+    }
+
+    /// Starts an ordinary child or resumes a tracked child only after it
+    /// belongs to its job and the independent holder is still alive.
+    pub(crate) fn spawn(&mut self, command: &mut std::process::Command) -> std::io::Result<Child> {
+        #[cfg(windows)]
+        if let Some(job) = self.job.as_mut() {
+            let mut child = job.spawn_suspended(command)?;
+            let resume = (|| {
+                if let Some(keeper) = self.keeper.as_mut()
+                    && keeper.try_wait()?.is_some()
+                {
+                    return Err(std::io::Error::other(
+                        "the Windows launch keeper exited before the game started",
+                    ));
+                }
+                job.resume(&child)
+            })();
+            if let Err(error) = resume {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(error);
+            }
+            return Ok(child);
+        }
+        command.spawn()
+    }
+
     /// Whether this session tracks successors in a Windows session job.
     pub(crate) fn is_tracked(&self) -> bool {
         #[cfg(windows)]
@@ -147,13 +214,18 @@ impl SessionProcesses {
     }
 
     /// Reopens a recorded session's processes after its supervisor exited.
-    /// `None` means no tracked job is reachable (always without a tracked
-    /// handoff and on Unix), so only the recorded child remains to wait for.
+    /// `None` means no tracked job is reachable. The caller must check the
+    /// creating definition before recovering from the recorded child alone.
     pub(crate) fn reopen(session_id: &str, install_root: &Path) -> Result<Option<Self>> {
         #[cfg(windows)]
         {
             session_job::SessionJob::open(session_id, install_root)
-                .map(|job| job.map(|job| Self { job: Some(job) }))
+                .map(|job| {
+                    job.map(|job| Self {
+                        job: Some(job),
+                        keeper: None,
+                    })
+                })
                 .map_err(|error| {
                     PortcoveError::conflict(format!(
                         "could not inspect the recorded game processes: {error}"
@@ -173,6 +245,7 @@ impl SessionProcesses {
 /// Starts a configured supervised game. With `tracked_install_root` on
 /// Windows, the game's process tree belongs to the session job; otherwise the
 /// launch is unchanged. The original child is returned for status and identity.
+#[cfg(test)]
 pub(crate) fn spawn_supervised_game(
     command: &mut std::process::Command,
     session_id: &str,
@@ -182,10 +255,22 @@ pub(crate) fn spawn_supervised_game(
     {
         if let Some(root) = tracked_install_root {
             let (child, job) = session_job::SessionJob::spawn(command, session_id, root)?;
-            return Ok((child, SessionProcesses { job: Some(job) }));
+            return Ok((
+                child,
+                SessionProcesses {
+                    job: Some(job),
+                    keeper: None,
+                },
+            ));
         }
         let _ = session_id;
-        Ok((command.spawn()?, SessionProcesses { job: None }))
+        Ok((
+            command.spawn()?,
+            SessionProcesses {
+                job: None,
+                keeper: None,
+            },
+        ))
     }
     #[cfg(not(windows))]
     {
@@ -243,14 +328,23 @@ pub fn forward_launch_signal(pid: u32, signal: LaunchSignal) -> Result<()> {
 #[cfg(windows)]
 pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
     use windows_sys::Win32::{
-        Foundation::{CloseHandle, ERROR_INVALID_PARAMETER, GetLastError, STILL_ACTIVE},
-        System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+        Foundation::{
+            CloseHandle, ERROR_INVALID_PARAMETER, GetLastError, WAIT_OBJECT_0, WAIT_TIMEOUT,
+        },
+        System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_SYNCHRONIZE,
+            WaitForSingleObject,
+        },
     };
 
     // SAFETY: OpenProcess returns an owned handle or null. The handle is queried
     // without mutation and closed exactly once before returning.
     unsafe {
-        let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
+        let handle = OpenProcess(
+            PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_SYNCHRONIZE,
+            0,
+            pid,
+        );
         if handle.is_null() {
             let code = GetLastError();
             return if code == ERROR_INVALID_PARAMETER {
@@ -262,17 +356,21 @@ pub(crate) fn process_identity(pid: u32) -> Result<Option<String>> {
                 )))
             };
         }
-        let mut exit_code = 0_u32;
-        if GetExitCodeProcess(handle, &mut exit_code) == 0 {
-            let error = std::io::Error::last_os_error();
-            CloseHandle(handle);
-            return Err(PortcoveError::state(format!(
-                "could not read process {pid} state: {error}"
-            )));
-        }
-        if exit_code != STILL_ACTIVE as u32 {
-            CloseHandle(handle);
-            return Ok(None);
+        // A process may actually exit with code 259 (STILL_ACTIVE). Its
+        // kernel handle's signal, rather than the exit value, settles liveness.
+        match WaitForSingleObject(handle, 0) {
+            WAIT_OBJECT_0 => {
+                CloseHandle(handle);
+                return Ok(None);
+            }
+            WAIT_TIMEOUT => {}
+            _ => {
+                let error = std::io::Error::last_os_error();
+                CloseHandle(handle);
+                return Err(PortcoveError::state(format!(
+                    "could not read process {pid} state: {error}"
+                )));
+            }
         }
         let identity = process_identity_from_windows_handle(handle, pid);
         CloseHandle(handle);

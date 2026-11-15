@@ -2284,6 +2284,35 @@ pub fn run_hidden_helper() -> Option<i32> {
                 _ => 2,
             })
         }
+        #[cfg(windows)]
+        Some(mode) if mode == portcove_core::LAUNCH_JOB_KEEPER_MODE => {
+            let library = arguments.next().map(PathBuf::from);
+            let session = arguments.next();
+            let supervisor = arguments
+                .next()
+                .and_then(|value| value.to_str()?.parse::<u32>().ok());
+            Some(
+                match (
+                    library,
+                    session.as_deref().and_then(std::ffi::OsStr::to_str),
+                    supervisor,
+                ) {
+                    (Some(library), Some(session), Some(supervisor))
+                        if arguments.next().is_none() =>
+                    {
+                        run_host_helper(|| {
+                            let result = (|| {
+                                let _runtime = application_runtime_guard()?;
+                                let library = host_startup::open_library_at(&library)?;
+                                portcove_core::run_launch_job_keeper(library, session, supervisor)
+                            })();
+                            i32::from(result.is_err())
+                        })
+                    }
+                    _ => 2,
+                },
+            )
+        }
         Some(mode) if mode == "--portcove-recover" => {
             let library = arguments.next().map(PathBuf::from);
             let session_id = arguments.next();
