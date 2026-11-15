@@ -361,9 +361,16 @@ connection, hashing and Settings navigation. The scenario in
    usable. Answering `n` cancels the CLI with no change.
 5. Presses Download and restart again and observes the application exit, the
    plugin's passive `/UPDATE` NSIS installer and the automatic relaunch. No
-   relaunch fails the run, and so does any default Portcove configuration,
-   runtime lock, library or WebView2 location appearing after the relaunch or
-   by the end (the named check reports which). The remaining checks still run
+   relaunch fails the run. A second baseline is taken once the isolated
+   from-version session is ready: Tauri creates its default data folder
+   `%LOCALAPPDATA%\io.github.portcove.portcove` even when WebView2 is redirected,
+   so that bare folder is recorded as what the isolated app creates, not a
+   failure. The run fails if, after the relaunch or by the end, a marker only an
+   unisolated Portcove would write appears since that baseline: the default
+   `%LOCALAPPDATA%\Portcove\Portcove\config\preferences.json`, the
+   `.application-runtime.lock` beside it, the default `data\library`, or
+   WebView2 data under `io.github.portcove.portcove\EBWebView` (the named check
+   reports which). The remaining checks still run
    so the evidence is complete. The relaunched process is closed, then a fresh
    WebDriver session checks the new reported version, HKCU registration,
    replaced executable, unchanged preference bytes and channel, byte-identical

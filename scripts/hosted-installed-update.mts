@@ -240,6 +240,44 @@ export function playerDataSeed() {
   ];
 }
 
+/** Snapshot of whether each location exists. */
+export type LocationSnapshot = Record<string, boolean>;
+
+/** Broad default Portcove folders, observed only (Windows paths). */
+export function defaultFolders(localAppData: string, roamingAppData: string) {
+  return [
+    path.win32.join(localAppData, "Portcove"),
+    path.win32.join(roamingAppData, "Portcove"),
+    // Tauri creates `app_local_data_dir()` for its webview data directory even
+    // when `WEBVIEW2_USER_DATA_FOLDER` redirects WebView2, so an isolated app
+    // creates this folder too. Its existence proves nothing about overrides.
+    path.win32.join(localAppData, "io.github.portcove.portcove"),
+    path.win32.join(roamingAppData, "io.github.portcove.portcove"),
+  ];
+}
+
+/** Locations only a Portcove process without its overrides would create:
+ * `ProjectDirs("io.github", "Portcove", "Portcove")` default preferences and the
+ * runtime lock beside them (`host_preferences.rs`, `application_runtime.rs`),
+ * the default library (`library.rs`), and WebView2 data in Tauri's default
+ * data directory instead of `WEBVIEW2_USER_DATA_FOLDER`. */
+export function isolationMarkers(localAppData: string) {
+  const project = path.win32.join(localAppData, "Portcove", "Portcove");
+  return [
+    path.win32.join(project, "config", "preferences.json"),
+    path.win32.join(project, "config", ".application-runtime.lock"),
+    path.win32.join(project, "data", "library"),
+    path.win32.join(localAppData, "io.github.portcove.portcove", "EBWebView"),
+  ];
+}
+
+/** Locations present in `after` that were absent from `baseline`. */
+export function appearedSince(baseline: LocationSnapshot, after: LocationSnapshot) {
+  return Object.keys(after)
+    .filter((location) => after[location] && !baseline[location])
+    .sort();
+}
+
 export interface ManifestEntry {
   path: string;
   sha256: string;

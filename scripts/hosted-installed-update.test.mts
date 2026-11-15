@@ -4,7 +4,10 @@ import test from "node:test";
 import { parseDocument } from "yaml";
 import { isRecord } from "./runtime-values.mts";
 import {
+  appearedSince,
   awaitNewerFeed,
+  defaultFolders,
+  isolationMarkers,
   cliData,
   compareVersions,
   decideFeedOffer,
@@ -415,4 +418,46 @@ void test("evidence survives timeouts and failed isolation is a named result", (
     [...harness.matchAll(/\bskip\(\s*"([^"]+)"/gu)].map((match) => match[1]),
     ["library-identity-unchanged"],
   );
+});
+
+void test("isolation is judged by override-sensitive markers against the isolated baseline", () => {
+  const local = "C:\\Users\\runner\\AppData\\Local";
+  const roaming = "C:\\Users\\runner\\AppData\\Roaming";
+  const markers = isolationMarkers(local);
+  assert.deepEqual(markers, [
+    "C:\\Users\\runner\\AppData\\Local\\Portcove\\Portcove\\config\\preferences.json",
+    "C:\\Users\\runner\\AppData\\Local\\Portcove\\Portcove\\config\\.application-runtime.lock",
+    "C:\\Users\\runner\\AppData\\Local\\Portcove\\Portcove\\data\\library",
+    "C:\\Users\\runner\\AppData\\Local\\io.github.portcove.portcove\\EBWebView",
+  ]);
+  const tauriFolder = "C:\\Users\\runner\\AppData\\Local\\io.github.portcove.portcove";
+  assert.ok(defaultFolders(local, roaming).includes(tauriFolder));
+  assert.ok(!markers.includes(tauriFolder), "the bare Tauri folder is not a marker");
+  // The runtime lock name and default locations come from Core.
+  assert.match(
+    read("crates/portcove-core/src/application_runtime.rs"),
+    /APPLICATION_RUNTIME_LOCK_FILE: &str = "\.application-runtime\.lock"/u,
+  );
+  assert.match(
+    read("crates/portcove-core/src/host_preferences.rs"),
+    /ProjectDirs::from\("io\.github", "Portcove", "Portcove"\)[\s\S]{0,200}config_local_dir\(\)\.join\("preferences\.json"\)/u,
+  );
+  assert.match(
+    read("crates/portcove-core/src/library.rs"),
+    /data_local_dir\(\)\.join\("library"\)/u,
+  );
+
+  const none = Object.fromEntries(markers.map((marker) => [marker, false]));
+  // The isolated session creates only the bare Tauri folder: no marker appears.
+  const isolated = { ...none };
+  const folders = { [tauriFolder]: true };
+  assert.deepEqual(appearedSince({ [tauriFolder]: false }, folders), [tauriFolder]);
+  assert.deepEqual(appearedSince(none, isolated), []);
+  // A relaunch without its overrides writes default preferences: a failure.
+  const relaunched = { ...isolated, [markers[0]!]: true };
+  assert.deepEqual(appearedSince(isolated, relaunched), [markers[0]]);
+  // Something the isolated baseline already had is not blamed on the relaunch.
+  const webview = { ...none, [markers[3]!]: true };
+  assert.deepEqual(appearedSince(webview, webview), []);
+  assert.deepEqual(appearedSince(none, webview), [markers[3]]);
 });

@@ -30,12 +30,15 @@ import { openInstalledUpdateSettings } from "./desktop-application-update-journe
 import { executeBrowserScript } from "./browser-script.mts";
 import { errorMessage, isRecord } from "../../../scripts/runtime-values.mts";
 import {
+  appearedSince,
   channels,
   cliData,
   compareVersions,
+  defaultFolders,
   fetchBounded,
   fromReleaseTag,
   holdPortFromCatalogList,
+  isolationMarkers,
   localeUrl,
   manifestDifferences,
   observeFeed,
@@ -48,6 +51,7 @@ import {
   verifyAgainstSums,
   windowsAssetNames,
   type Channel,
+  type LocationSnapshot,
   type ManifestEntry,
 } from "../../../scripts/hosted-installed-update.mts";
 
@@ -271,29 +275,15 @@ function processAlive(pid: number) {
   );
 }
 
-/** Default player locations a Portcove process would use without overrides:
- * default config, runtime lock, library and WebView2 data. */
-function defaultLocations() {
-  const local = process.env.LOCALAPPDATA ?? "";
-  const roaming = process.env.APPDATA ?? "";
-  // `directories::ProjectDirs("io.github", "Portcove", "Portcove")` on Windows.
-  const project = path.join(local, "Portcove", "Portcove");
-  return Object.fromEntries(
-    [
-      path.join(project, "config", "preferences.json"),
-      path.join(project, "config", ".application-runtime.lock"),
-      path.join(project, "data", "library"),
-      path.join(local, "Portcove"),
-      path.join(roaming, "Portcove"),
-      path.join(local, "io.github.portcove.portcove"),
-      path.join(roaming, "io.github.portcove.portcove"),
-    ].map((location) => [location, existsSync(location)]),
-  );
+/** Existence of the broad default folders (observed) and of the override-sensitive
+ * markers (checked). See `isolationMarkers` for why only markers are checked. */
+function snapshot(locations: string[]): LocationSnapshot {
+  return Object.fromEntries(locations.map((location) => [location, existsSync(location)]));
 }
-
-function appearedLocations(before: Record<string, boolean>, after: Record<string, boolean>) {
-  return Object.keys(after).filter((location) => after[location] && !before[location]);
-}
+const localAppData = process.env.LOCALAPPDATA ?? "";
+const roamingAppData = process.env.APPDATA ?? "";
+const folderSnapshot = () => snapshot(defaultFolders(localAppData, roamingAppData));
+const markerSnapshot = () => snapshot(isolationMarkers(localAppData));
 
 /** The registration names the isolated root; NSIS may record only the uninstaller. */
 function registrationInstallRoot(entry: Record<string, unknown> | undefined) {
@@ -704,12 +694,13 @@ async function main() {
   };
 
   // 1. A fresh machine: no default Portcove location exists before anything runs.
-  const defaultsBefore = defaultLocations();
-  report.default_locations_before = defaultsBefore;
+  const foldersBefore = folderSnapshot();
+  const markersBefore = markerSnapshot();
+  report.default_locations_before = { folders: foldersBefore, markers: markersBefore };
   check(
     "no-default-portcove-locations-before",
-    Object.values(defaultsBefore).every((exists) => !exists),
-    defaultsBefore,
+    [...Object.values(foldersBefore), ...Object.values(markersBefore)].every((exists) => !exists),
+    report.default_locations_before,
   );
   check("no-portcove-registration-before", uninstallEntries().length === 0);
 
@@ -796,6 +787,15 @@ async function main() {
 
   // 6. First session on the from-version: check, refuse while the CLI holds.
   const first = await startSession("from", tools);
+  // Second baseline: what the fully isolated app creates on its own (Tauri makes
+  // `%LOCALAPPDATA%\io.github.portcove.portcove` regardless of the WebView2
+  // override). It is an observation, never blamed on the relaunch.
+  const markersIsolated = markerSnapshot();
+  report.isolated_session_created = {
+    folders: appearedSince(foldersBefore, folderSnapshot()),
+    markers: appearedSince(markersBefore, markersIsolated),
+  };
+  event("isolated-session-baseline", report.isolated_session_created);
   let appPid: number;
   try {
     const browser = first.browser;
@@ -960,12 +960,15 @@ async function main() {
   } finally {
     await endSession(first, "from");
   }
-  const defaultsAfterRelaunch = defaultLocations();
-  const appearedAfterRelaunch = appearedLocations(defaultsBefore, defaultsAfterRelaunch);
-  report.default_locations_after_relaunch = defaultsAfterRelaunch;
+  const markersAfterRelaunch = markerSnapshot();
+  const appearedAfterRelaunch = appearedSince(markersIsolated, markersAfterRelaunch);
+  report.default_locations_after_relaunch = {
+    folders: folderSnapshot(),
+    markers: markersAfterRelaunch,
+  };
   report.default_locations_appeared_after_relaunch = appearedAfterRelaunch;
-  // A relaunch that dropped the isolation overrides creates default locations.
-  // That is reported as this named failure, never silence.
+  // Only a relaunch that dropped its overrides creates these markers. That is
+  // reported as this named failure, never silence.
   checkDeferred(
     "relaunch-kept-isolation-no-default-locations",
     appearedAfterRelaunch.length === 0,
@@ -1061,9 +1064,9 @@ async function main() {
       after: identityAfter,
     });
   } else skip("library-identity-unchanged", `${feed.offer.tag} publishes no ${toAssets.cli}`);
-  const defaultsAfter = defaultLocations();
-  const appeared = appearedLocations(defaultsBefore, defaultsAfter);
-  report.default_locations_after = defaultsAfter;
+  const markersAfter = markerSnapshot();
+  const appeared = appearedSince(markersIsolated, markersAfter);
+  report.default_locations_after = { folders: folderSnapshot(), markers: markersAfter };
   report.default_locations_appeared = appeared;
   checkDeferred("run-created-no-default-locations", appeared.length === 0, appeared);
   if (deferredFailures.length)
