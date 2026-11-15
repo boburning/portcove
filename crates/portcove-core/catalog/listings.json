@@ -54935,6 +54935,43 @@
       ]
     },
     {
+      "id": "supaplex-opensupaplex",
+      "name": "OpenSupaplex",
+      "original_game_title": "Supaplex",
+      "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
+      "project_url": "https://github.com/sergiou87/open-supaplex",
+      "issue_number": 5684,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/sergiou87/open-supaplex/releases/tag/v7.2.2",
+      "setup_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+      "download_block_reason": "Use a copy you have permission to use. The publisher packages include original Supaplex resources and community level packs.",
+      "manual_setup": {
+        "help_url": "https://github.com/sergiou87/open-supaplex/blob/v7.2.2/README.md",
+        "steps": [
+          {
+            "title": "Open a Windows or Linux copy",
+            "instruction": "Extract the complete Windows x86-64 or Linux x86-64 ZIP into a writable folder. Open OpenSupaplex.exe on Windows or run OpenSupaplex from the extracted folder on Linux. Keep the packaged level files and audio beside the program. The Linux build needs glibc 2.34 or newer, SDL2 and SDL2_mixer."
+          },
+          {
+            "title": "Open a Mac copy",
+            "instruction": "Open the complete OpenSupaplex.app from the publisher’s macOS ZIP. The inspected build and its bundled frameworks require macOS 10.13 or later on Intel and macOS 11 or later on Apple Silicon."
+          },
+          {
+            "title": "Keep your progress before replacing the game",
+            "instruction": "Back up the working folder on Windows and in the publisher’s Linux ZIP. On Mac, back up ~/Library/Application Support/OpenSupaplex. Keep PLAYER.LST, HALLFAME.LST, SUPAPLEX.CFG, ADVANCED.CFG, any SAVEGAME files and any added levels."
+          }
+        ],
+        "warnings": []
+      }
+    },
+    {
       "id": "super-3-d-noah-s-ark-dos-reflectionhle",
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
       "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
