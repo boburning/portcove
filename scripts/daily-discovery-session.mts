@@ -810,6 +810,10 @@ export class DiscoverySession {
       !(error instanceof GitHubApiError) ||
       error.status === 401 ||
       (error.status ?? 0) >= 500 ||
+      // Without an HTTP answer (DNS, TLS or another network failure) GitHub said
+      // nothing about this path; only refusals and malformed answers are per-hint.
+      (error.status === null &&
+        !["redirect_refused", "invalid_response", "response_limit"].includes(error.code)) ||
       [
         "budget_exhausted",
         "rate_limited",
@@ -864,9 +868,19 @@ export class DiscoverySession {
       } catch (error) {
         // A list-specific failure waits before its next read; a budget or provider
         // refusal leaves the list due for the next admitted run.
+        // The run deadline and cancellation end the whole run; a bounded read that
+        // fails once the run's time is spent says nothing about the list either.
         const budgetRefusal =
           error instanceof GitHubApiError &&
-          ["budget_exhausted", "rate_limited", "quota_unknown", "quota_stale"].includes(error.code);
+          ([
+            "budget_exhausted",
+            "rate_limited",
+            "quota_unknown",
+            "quota_stale",
+            "deadline_exceeded",
+            "cancelled",
+          ].includes(error.code) ||
+            (error.code === "download_failed" && this.budget.remaining().milliseconds <= 0));
         if (!budgetRefusal)
           this.leads = {
             ...this.leads,
