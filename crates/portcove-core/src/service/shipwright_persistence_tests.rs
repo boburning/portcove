@@ -108,6 +108,58 @@ fn fixture() -> (
 }
 
 #[test]
+fn shipwright_profile_switches_round_trip_the_windows_save_root() {
+    let (_temporary, service, active, _) = fixture();
+    let default = service.ensure_default_profile(PORT).unwrap();
+    let custom = service.copy_profile(PORT, &default.id, "Custom").unwrap();
+    let canonical = service.library.user_dir(PORT).join("Save/file1.sav");
+    let runtime = active.path.join("Save/file1.sav");
+    fs::create_dir_all(runtime.parent().unwrap()).unwrap();
+    fs::write(&runtime, b"default progress").unwrap();
+    fs::write(active.path.join(LAUNCH_MARKER), b"").unwrap();
+
+    service.activate_profile(PORT, &custom.id).unwrap();
+    assert!(!canonical.exists());
+    assert!(!runtime.exists());
+    fs::create_dir_all(runtime.parent().unwrap()).unwrap();
+    fs::write(&runtime, b"custom progress").unwrap();
+
+    service.activate_profile(PORT, &default.id).unwrap();
+    assert_eq!(fs::read(&canonical).unwrap(), b"default progress");
+    assert_eq!(fs::read(&runtime).unwrap(), b"default progress");
+    service.activate_profile(PORT, &custom.id).unwrap();
+    assert_eq!(fs::read(&canonical).unwrap(), b"custom progress");
+    assert_eq!(fs::read(&runtime).unwrap(), b"custom progress");
+}
+
+#[test]
+fn shipwright_holds_legacy_switches_with_ambiguous_live_saves() {
+    for phase in ["parked", "deployed"] {
+        let (_temporary, service, _, _) = fixture();
+        let default = service.ensure_default_profile(PORT).unwrap();
+        let custom = service.copy_profile(PORT, &default.id, "Custom").unwrap();
+        let layout = service.deploy_layout(PORT).unwrap();
+        let canonical = service.library.user_dir(PORT).join("Save/file1.sav");
+        fs::create_dir_all(canonical.parent().unwrap()).unwrap();
+        fs::write(&canonical, b"unattributed progress").unwrap();
+        let old_journal = serde_json::json!({
+            "from": default.id,
+            "to": custom.id,
+            "revision": custom.current_revision,
+            "phase": phase,
+        })
+        .to_string();
+        fs::create_dir_all(layout.journal().parent().unwrap()).unwrap();
+        fs::write(layout.journal(), &old_journal).unwrap();
+
+        let error = service.recover_switch_locked(PORT, &layout).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(fs::read(&canonical).unwrap(), b"unattributed progress");
+        assert_eq!(fs::read_to_string(layout.journal()).unwrap(), old_journal);
+    }
+}
+
+#[test]
 fn shipwright_declared_mirrors_keep_data_across_artifacts_and_hold_historical_direct_mode() {
     let (_temporary, mut service, _, historical) = fixture();
     let old_artifact = crate::ArtifactIdentity {

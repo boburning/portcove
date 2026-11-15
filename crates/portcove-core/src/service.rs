@@ -6491,6 +6491,21 @@ impl PortcoveService {
         }
     }
 
+    pub(crate) fn profile_persistent_paths(&self, port_id: &str) -> Result<Vec<String>> {
+        // A setup switch parks the same Windows Shipwright paths that launch
+        // synchronizes through the active installed copy's checked contract.
+        if cfg!(windows)
+            && port_id == "shipwright"
+            && let Some(active) = self.status_without_rollback_assessment(port_id)?.active
+        {
+            return Ok(self
+                .persistence_contract_for_install(&active)?
+                .port
+                .persistent_paths);
+        }
+        Ok(self.catalog.port(port_id)?.persistent_paths.clone())
+    }
+
     fn persistence_contract_for_install(
         &self,
         install: &InstallRecord,

@@ -377,7 +377,15 @@ fn a_switch_interrupted_after_unparking_resumes_without_reparking_arrived_data()
     .unwrap();
     fs::create_dir_all(user(&w).join("saves")).unwrap();
     fs::write(user(&w).join("saves/a.sav"), b"other progress").unwrap();
-    write_journal(&layout, &w.default, &other.id, 1, Phase::Deployed).unwrap();
+    write_journal(
+        &layout,
+        &w.default,
+        &other.id,
+        1,
+        Phase::Deployed,
+        &declared_state_paths(&w.service, "starship").unwrap(),
+    )
+    .unwrap();
     // Recovery must neither re-park the arrived data nor fail on a name collision.
     w.service
         .recover_switch_locked("starship", &layout)
@@ -483,7 +491,15 @@ fn recovery_holds_instead_of_deleting_a_player_edited_owned_file() {
         .copy_profile("starship", &w.default, "Other")
         .unwrap();
     let layout = Layout::for_user(&user(&w));
-    write_journal(&layout, &w.default, &other.id, 1, Phase::Start).unwrap();
+    write_journal(
+        &layout,
+        &w.default,
+        &other.id,
+        1,
+        Phase::Start,
+        &declared_state_paths(&w.service, "starship").unwrap(),
+    )
+    .unwrap();
     fs::write(user(&w).join("mods/mine.o2r"), b"edited by the player").unwrap();
     assert!(
         w.service

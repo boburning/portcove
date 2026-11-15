@@ -2318,8 +2318,10 @@ Other unknown entries, a changed marker, and installed files edited outside
 Portcove hold the operation and are listed by `profile live`. `activate` parks
 the departing profile's saves and settings, restores the arriving profile's,
 and reconciles mods
-from the exact revision. An interrupted switch resumes from its journal without
-merging or losing either profile's data. Until launch (or an immediate refresh of
+from the exact revision. On Windows, this includes Shipwright's checked
+working-directory save paths. The switch journal records the paths it parks.
+Older interrupted switches hold if the ownership of those paths is ambiguous.
+Until launch (or an immediate refresh of
 the installed build) has restored the new live data, collection is suspended so a
 stale build copy can never overwrite the selected profile or resurrect a disabled
 mod.
