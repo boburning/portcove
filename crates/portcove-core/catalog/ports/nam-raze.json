@@ -29,7 +29,11 @@
         },
         {
           "title": "Keep upstream update ownership and platform handoffs",
-          "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. Linux has no native archive in this selected GitHub release: use an already prepared upstream/system-package copy or upstream’s build instructions, then its native player. Linux normally uses ~/.config/raze for configuration and savegames, and can move an older ~/.raze directory on first use. Platform handoffs do not establish native execution or save compatibility."
+          "instruction": "On Windows, Portcove replaces the managed runtime and preserves its declared data. A separate existing Windows copy stays yours: registering it preserves every external file and Portcove does not manage its Update, Backup or Rollback, and the normal-profile settings described below are not imported into a managed install. Elsewhere, you and upstream replace this external player. On macOS, use the official universal Raze.app through the normal OS application flow; do not register its private Contents/MacOS binary. Its normal settings are ~/Library/Preferences/raze.ini saves ~/Documents/raze/Savegames and screenshots ~/Documents/raze/Screenshots. A native Linux build outside Flatpak uses its own profile, usually ~/.config/raze. Preserve that profile and any older ~/.raze directory before launching a replacement."
+        },
+        {
+          "title": "Use Raze from Flathub on Linux",
+          "instruction": "Install org.zdoom.Raze from Flathub for Linux x64 or ARM64. Keep your original files and place a complete working copy of this game's data in its own subfolder under ~/.var/app/org.zdoom.Raze/.config/raze. Open Raze and choose this game in the picker. Close Raze and back up its actual configuration, saves and mods before updating through Flatpak."
         }
       ],
       "warnings": [
