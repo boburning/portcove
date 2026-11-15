@@ -1,0 +1,36 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "kingzmanh-star-trek-generations-pc-native",
+    "project_url": "https://github.com/kingzmanh/star-trek-generations-pc-native",
+    "name": "Star Trek Generations / Windows native",
+    "original_game_title": "Star Trek Generations",
+    "summary": "Prepare the publisher’s Windows preview with both original PC discs.",
+    "issue_number": 6086,
+    "listed_at": "2026-11-15",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/kingzmanh/star-trek-generations-pc-native/releases/tag/v0.1.1",
+    "setup_url": "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/v0.1.1/README.md",
+    "recommended_download_channel": "beta",
+    "download_asset_hints": {
+      "windows-x86-64": ["Star.Trek.Generations.PC.Setup.exe"]
+    },
+    "manual_setup": {
+      "help_url": "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/v0.1.1/README.md",
+      "steps": [
+        {
+          "title": "Install from both owned discs",
+          "instruction": "Open the publisher’s setup and supply Disc 1 and Disc 2 in their respective fields. Use your physical CDs, matching ISO or BIN/CUE images, or separate extracted disc folders. Choose a new destination and keep your originals separately. Setup copies about 1.1 GB and extracts the original program from Disc 1’s SUPP.Z. Open the installed game from its Start menu shortcut."
+        },
+        {
+          "title": "Keep your local progress",
+          "instruction": "Close the game and preserve the installed game/hd folder, including SAVEGAME, plus generations.ini and generations_registry.txt beside the native player. Keep the actual STG_REGFILE location if you set an override. Back those up before replacing the runtime or running its uninstaller, which removes the installed game tree."
+        }
+      ],
+      "warnings": [
+        "The Windows preview uses your original disc contents and its own installer and uninstaller. Preserve both discs for future setup."
+      ]
+    }
+  }
+}
