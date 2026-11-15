@@ -1532,8 +1532,11 @@ This is the existing operator cadence, not a new scheduler or player startup tas
 Ordinary executable updates do not refresh artwork.
 
 A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
-runs a larger workset as consecutive operations of at most 400 IDs over the evolving
-proposal and reconciles exact-image Gone observations across them. The driver admits operations of at most 400
+runs a larger workset as consecutive operations of at most 400 IDs over the same
+input, assembles the proposal per port and reconciles exact-image Gone observations
+from every operation into all records. Those operations share one provider budget;
+that path neither adapts admission nor checkpoints progress. The prepare-port
+driver admits operations of at most 400
 selected IDs and adjusts subsequent admission using observed elapsed time,
 requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset

@@ -1179,3 +1179,88 @@ void test("interrupted automatic maintenance assembles completed undelivered pro
     rmSync(scratch, { recursive: true, force: true });
   }
 });
+
+void test("operations over a large workset keep a cover an earlier operation changed", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const { prepareCoverArtworkInOperations } = await import("./artwork-operations.mts");
+  const fixture = await capturedArtworkRefresh({ status: 200, imageId: "fresh" });
+  const retained = requiredFixture(fixture.accepted.ports[0]);
+  for (let index = 0; index < 400; index++)
+    fixture.accepted.ports.push({ ...structuredClone(retained), id: `later-${index}` });
+  const input = structuredClone(fixture.accepted);
+  const result = await prepareCoverArtworkInOperations(
+    input,
+    undefined,
+    ["refresh-probe"],
+    (ids, refresh, gone) =>
+      prepareCatalogArtwork(input, {
+        ...fixture.options,
+        refreshPortIds: refresh,
+        ...(ids ? { selectedPortIds: ids } : {}),
+        ...(gone.length ? { knownGoneImageIds: gone } : {}),
+      }),
+  );
+  const ports = new Map(result.catalog.ports.map((port) => [port.id, port]));
+  assert.equal(ports.get("refresh-probe")?.presentation?.artwork?.image_id, "fresh");
+  assert.ok(
+    result.catalog.ports
+      .filter((port) => port.id !== "refresh-probe")
+      .every((port) => port.presentation?.artwork?.image_id === "coexisting"),
+  );
+  assert.equal(result.records.length, 401);
+  assert.equal(new Set(result.records.map((record) => record.port_id)).size, 401);
+  assert.equal(result.metrics.ports, 401);
+  assert.equal(result.metrics.reused, 400);
+});
+
+void test("a Gone image found by a later operation withdraws an earlier operation's mapping", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const { prepareCoverArtworkInOperations } = await import("./artwork-operations.mts");
+  const fixture = await capturedArtworkRefresh();
+  const probe = requiredFixture(fixture.accepted.ports.shift());
+  for (let index = 0; index < 420; index++)
+    fixture.accepted.ports.push({ ...structuredClone(probe), id: `earlier-${index}` });
+  fixture.accepted.ports.push(probe);
+  const input = structuredClone(fixture.accepted);
+  const result = await prepareCoverArtworkInOperations(
+    input,
+    undefined,
+    ["refresh-probe"],
+    (ids, refresh, gone) =>
+      prepareCatalogArtwork(input, {
+        ...fixture.options,
+        refreshPortIds: refresh,
+        ...(ids ? { selectedPortIds: ids } : {}),
+        ...(gone.length ? { knownGoneImageIds: gone } : {}),
+      }),
+  );
+  assert.ok(result.catalog.ports.every((port) => port.presentation?.artwork === undefined));
+  assert.equal(result.records.length, 421);
+  assert.equal(new Set(result.records.map((record) => record.port_id)).size, 421);
+  assert.ok(result.records.every((record) => record.mapping === null));
+  assert.equal(result.metrics.fallback, 421);
+  assert.equal(result.metrics.reused, 0);
+  assert.deepEqual(result.gone_image_ids, ["coexisting"]);
+});
+
+void test("operations over a large workset refuse unknown refresh and duplicate identities", async () => {
+  const { prepareCoverArtworkInOperations } = await import("./artwork-operations.mts");
+  const ports = Array.from({ length: 401 }, (_, index) => ({
+    id: `port-${index}`,
+    name: `Port ${index}`,
+  }));
+  const never = () => assert.fail("refused worksets must not run an operation");
+  await assert.rejects(
+    prepareCoverArtworkInOperations({ ports }, undefined, ["unknown-id"], never),
+    /refresh names a port outside this workset/,
+  );
+  await assert.rejects(
+    prepareCoverArtworkInOperations(
+      { ports },
+      [...ports.map((port) => port.id), "port-0"],
+      [],
+      never,
+    ),
+    /unique catalog port ids/,
+  );
+});

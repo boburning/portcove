@@ -183,7 +183,10 @@ void test("decoder initialization failure is retained by existing artwork handli
   assert.equal(fixture.factories.length, 1);
   assert.equal(fixture.processes.length, 3);
   const artwork = fixtureJson(readFileSync(join(fixture.output, "artwork-evidence.json")));
-  assert.deepEqual(artwork.records, [{ failure: true }, { failure: true }]);
+  assert.deepEqual(
+    records(artwork.records).map((item) => item.failure),
+    [true, true],
+  );
 });
 
 void test("artwork-only mode retains its eager selected-tool snapshot boundary", () => {
