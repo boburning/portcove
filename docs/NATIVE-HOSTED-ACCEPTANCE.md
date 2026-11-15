@@ -313,3 +313,64 @@ coverage does not relax any scenario assertion, process cleanup, source custody
 or retention limit. A real packet that exceeds the bound remains a failed
 retention obligation; recover and inspect each job's exact images independently.
 The operation supplies no required CI replacement or automatic acceptance claim.
+
+## Hosted installed application update
+
+The manual `hosted-installed-update.yml` workflow (#52) proves one real
+installed application update from the production feed on a fresh standard
+public `windows-2022` runner. It reads public HTTPS only (GitHub Release assets,
+the fixed channel feed and the from-version's own locale file) with
+`contents: read`, no secrets, environments or write tokens. It runs only on
+`workflow_dispatch`; there is no pull-request, push or schedule trigger.
+
+Dispatch it with the installed `from_version` exactly as published (for example
+`0.1.0-preview.2`), its `from_tag` when that is not `v<from_version>` (for
+example `nightly-0.1.0-preview.3`), the `channel` to seed (default `preview`)
+and `wait_minutes` (0-180) to let the feed catch up after a publication. The
+first job compares the production feed with the from-version and retains the
+feed bytes. If the feed does not offer a strictly newer version the Windows job
+is skipped and the final verdict job fails with "not accepted"; a skipped or
+failed run is never acceptance.
+
+The Windows job reuses the shared hosted WebView2 preparation, the pinned
+`native-drivers` bootstrap (tauri-driver and the signature-checked matching
+EdgeDriver) and the installed-update harness helpers for driver startup,
+connection, hashing and Settings navigation. The scenario in
+`apps/desktop/scripts/desktop-hosted-installed-update.mts`:
+
+1. Downloads the from-version installer and CLI ZIP and verifies both against
+   that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a
+   work directory and checks the single HKCU registration.
+2. Before the first launch, isolates every Portcove location with the existing
+   overrides (`PORTCOVE_LIBRARY`, `PORTCOVE_PREFERENCES`,
+   `PORTCOVE_APPLICATION_UPDATE_PREFERENCES`, `PORTCOVE_APPLICATION_RUNTIME_LOCK`,
+   `PORTCOVE_TEMP_DIR`, `WEBVIEW2_USER_DATA_FOLDER`). It writes the channel
+   preference with automatic checks off, creates the library with the release
+   CLI and seeds deterministic save and settings files under
+   `user/hosted-update-acceptance/`, recording their SHA-256 values.
+3. Launches the installed application under WebDriver, opens Settings, Updates,
+   presses Check for updates and requires the offered version to equal the
+   feed's newer version.
+4. Refusal: the release CLI waits at `output reset`'s confirmation prompt, which
+   holds the shared application runtime lease and an open library exactly as a
+   player's terminal would. Download and restart must then show the
+   from-version's localized "library in use" copy, leave the same process
+   running at the same version, executable and registration, and keep the app
+   usable. Answering `n` cancels the CLI with no change.
+5. Presses Download and restart again and observes the application exit, the
+   plugin's passive `/UPDATE` NSIS installer and the automatic relaunch (or
+   records that none happened). The relaunched process is closed, then a fresh
+   WebDriver session checks the new reported version, HKCU registration,
+   replaced executable, unchanged preference bytes and channel, byte-identical
+   player data, a further check and Library navigation. The new release's CLI
+   confirms the library identity is unchanged when that release publishes one.
+
+Evidence (`report.json` with every check, timeline and SHA-256, feed bytes,
+`SHA256SUMS`, locale files, screenshots, driver/CLI/process logs and Portcove
+diagnostics) is uploaded as a workflow artifact for 30 days, including after
+failure. Default player locations are recorded before and after; the installer's
+relaunched process may not inherit the isolation environment, which is recorded
+rather than hidden. The hosted runner account is an administrator, so this is
+not ordinary-user, physical-device or minimum-OS evidence, and it does not change
+any release, signing or publication authority. Its pure rules are unit-tested in
+`scripts/hosted-installed-update.test.mts`.
