@@ -18,6 +18,7 @@ mod bug_report;
 mod cancellation;
 mod carry_ledger;
 mod carry_plan;
+mod carry_step;
 mod cartridge_build;
 mod catalog;
 mod catalog_media;
