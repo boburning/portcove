@@ -1307,9 +1307,19 @@ void test("provider-wide refusals stop hint resolution without blaming any hint"
 void test("a list read ended by the run deadline or cancellation stays due without a backoff", async (t) => {
   const root = mkdtempSync(path.join(os.tmpdir(), "discovery-external-deadline-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));
-  for (const code of ["deadline_exceeded", "cancelled", "not-found"] as const) {
+  for (const code of [
+    "deadline_exceeded",
+    "cancelled",
+    "download_failed",
+    "worker",
+    "download_failed-in-time",
+    "not-found",
+  ] as const) {
     const session = Object.create(DiscoverySession.prototype) as DiscoverySession;
     const budget = new DiscoveryBudget("ordinary");
+    // The real deadline path: the bounded read fails once the run's time is spent.
+    if (code === "download_failed" || code === "worker")
+      budget.remaining = () => ({ requests: 1000, bytes: 1024 ** 3, milliseconds: 0 });
     const leads = parseLeadState(undefined);
     Object.assign(session, {
       stateDir: root,
@@ -1335,7 +1345,11 @@ void test("a list read ended by the run deadline or cancellation stays due witho
             reads += 1;
             if (code === "not-found")
               return { requests: 1, bytes: 0, status: 404, headers: {}, text: "" };
-            throw new GitHubApiError(code, "Run ended");
+            if (code === "worker") throw new Error("Bounded external/byte worker failed");
+            throw new GitHubApiError(
+              code === "download_failed-in-time" ? "download_failed" : code,
+              "Run ended",
+            );
           },
         },
         sdk: await fixtureGitHub(() => assert.fail("no hint resolution expected")),
@@ -1343,7 +1357,7 @@ void test("a list read ended by the run deadline or cancellation stays due witho
     });
     await session.collectExternalLists();
     const attempts = session.leads.external?.attempts ?? {};
-    if (code === "not-found") {
+    if (code === "not-found" || code === "download_failed-in-time") {
       assert.ok(reads >= 1);
       assert.ok(
         Object.keys(attempts).length >= 1,

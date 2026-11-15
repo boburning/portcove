@@ -870,17 +870,20 @@ export class DiscoverySession {
         // refusal leaves the list due for the next admitted run.
         // The run deadline and cancellation end the whole run; a bounded read that
         // fails once the run's time is spent says nothing about the list either.
+        const timeSpent = this.budget.remaining().milliseconds <= 0;
         const budgetRefusal =
-          error instanceof GitHubApiError &&
-          ([
-            "budget_exhausted",
-            "rate_limited",
-            "quota_unknown",
-            "quota_stale",
-            "deadline_exceeded",
-            "cancelled",
-          ].includes(error.code) ||
-            (error.code === "download_failed" && this.budget.remaining().milliseconds <= 0));
+          // A worker killed after the run's time is spent throws a plain Error.
+          (!(error instanceof GitHubApiError) && timeSpent) ||
+          (error instanceof GitHubApiError &&
+            ([
+              "budget_exhausted",
+              "rate_limited",
+              "quota_unknown",
+              "quota_stale",
+              "deadline_exceeded",
+              "cancelled",
+            ].includes(error.code) ||
+              (error.code === "download_failed" && timeSpent)));
         if (!budgetRefusal)
           this.leads = {
             ...this.leads,
