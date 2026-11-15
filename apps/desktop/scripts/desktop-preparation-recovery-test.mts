@@ -629,8 +629,25 @@ export async function interruptedPreparationScenario({
     artifacts.push(cleanupImage);
     await controls.click(controls.button("Keep files"));
     await access(required(privatePath));
-
-    await clickVisible(browser, cleanupReview);
+    // Let the dialog close and return focus before reopening. The retained
+    // Windows failure reached these controls but never issued another preview.
+    const reopenedReview = await browser.wait(
+      async () => {
+        if ((await browser.findElements(cleanupDialog)).length !== 0) return false;
+        const trigger = await review.findElement(controls.button("Review unfinished setup files"));
+        return (await executeBrowserScript(
+          browser,
+          "return document.activeElement === arguments[0];",
+          trigger,
+        ))
+          ? trigger
+          : false;
+      },
+      15_000,
+      "Keeping setup files must return focus before the cleanup review can reopen",
+    );
+    assert.ok(reopenedReview);
+    await clickVisible(browser, reopenedReview);
     await browser.wait(until.elementLocated(cleanupDialog), 15_000);
     await browser.wait(until.elementLocated(controls.button("Review cleanup…")), 15_000);
     await reviewRetainedCleanup(required(privatePath));

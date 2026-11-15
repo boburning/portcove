@@ -854,6 +854,8 @@ async function assertReviewedUpdateOutcomes({
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
 
         await clickVisible(browser, applyAction);
+        // Hosted Windows observed the Apply channel once while the review was
+        // still busy at the former 5-second boundary (job 132672094402).
         const outcome = await browser.wait(
           until.elementLocated(
             cancelled
@@ -862,7 +864,7 @@ async function assertReviewedUpdateOutcomes({
                   '(//*[@data-invocation-id][starts-with(@aria-label,"Update game")]//*[@role="alert"])[last()]',
                 ),
           ),
-          5_000,
+          60_000,
         );
         await browser.wait(
           async () => (await outcome.getText()).includes(failure.presentation.summary),
