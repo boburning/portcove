@@ -67589,7 +67589,7 @@
             },
             {
               "title": "Run the upstream Linux build",
-              "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Keep your own matching classic Quake id1 data and your external .ironwail profile. Store-selected profiles and migration files stay with your separately prepared copy."
+              "instruction": "For a separately prepared Linux copy, unpack the official x64 tarball and keep ironwail and ironwail.pak together. Use glibc 2.29 or newer, OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Back up id1 beside the player and any separate .ironwail profile your copy uses. Keep your original Quake files separately. Store-selected profiles and migration files stay with your separately prepared copy."
             },
             {
               "title": "Select the prepared player",
