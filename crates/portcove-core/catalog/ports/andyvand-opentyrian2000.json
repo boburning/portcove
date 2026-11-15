@@ -27,7 +27,7 @@
         },
         {
           "title": "Use the included player",
-          "instruction": "Finish setup with opentyrian2000.exe and its folder, then choose Play. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
+          "instruction": "On Windows x86-64, finish setup with opentyrian2000.exe and its folder, then choose Play in Portcove. On Windows ARM64, start opentyrian2000.exe directly. For other packages that require additional data, follow the upstream Tyrian 2000 data instructions."
         },
         {
           "title": "Install the upstream Linux package",
