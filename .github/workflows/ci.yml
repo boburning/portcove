@@ -1602,6 +1602,8 @@ jobs:
         run: node scripts/check-retcomm-upstreams.mts --offline
       - name: Check generated package shape baselines
         run: node scripts/package-shape-baselines.mts --check
+      - name: Check catalog size bounds
+        run: node scripts/catalog-capacity.mts --check
 
   catalog:
     timeout-minutes: 15
