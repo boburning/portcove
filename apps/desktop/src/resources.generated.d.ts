@@ -1806,6 +1806,7 @@ export default interface Resources {
     "title": "Uninstall {{identity}}?",
     "uninstallPort": "Uninstall {{name}}",
     "unknownFiles": "Files Portcove didn't install: {{total, number}}. The game may have created them, for example as settings. Portcove copies them to a new backup before uninstalling. Restoring a backup doesn't put them back.",
+    "unknownFilesSize": "These files take {{size}} in the backup, which stays until you delete it.",
     "unknownFilesUnlisted": "Files not listed here: {{total, number}}"
   },
   "report": {

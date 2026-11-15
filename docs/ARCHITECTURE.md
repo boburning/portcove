@@ -2657,7 +2657,23 @@ into the review fingerprint. The manifest records the area as `unknown_files_v1`
 (count, size, digest) outside the restorable content digest, and
 `BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
 so it never writes an unknown file into a declared path, and an older reader
-ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+ignores the area. Restoring the area is Tier 2 work.
+
+A removal backup collects every version, and stores identical copies of one
+file once. Copies are identical when they share a path relative to each
+version's persistence root (from the selected executable, as verification
+reads it) and the same SHA-256. Each distinct copy stays in the first
+installation's folder (by id), and `unknown-files/index.json` lists every
+installation's copy with `stored_in` and `stored_path`. Such a backup is
+recorded as `unknown_files_v2`, whose `file_count` counts every copy and
+`stored_file_count` what was stored; a backup where nothing collapsed keeps
+`unknown_files_v1`. An older reader ignores v2 and shows no unknown files for
+that backup. Each stored copy is re-hashed after copying, and each collapsed
+copy's game-folder file is re-hashed afterwards too, so no copy changes
+unseen during the backup. A write after the backup and before removal moves the
+folders is not covered, as in Tier 1. The free-space check, in the removal
+review and in execution, counts stored copies, so the copies Tier 2 places in
+several versions need no extra space. A backup whose `data/` is
 empty, holding only unknown files, cannot be restored (restore and its review
 refuse it, and the restore assessment ignores it) and is never the latest
 protection in `BackupInventory.protection`.
@@ -2667,13 +2683,23 @@ checks still require an exact match and refuse any unknown file. That is
 intentionally strict for now: those paths copy or re-derive the whole runtime,
 and Tier 1 does not decide how unknown files travel with it.
 
-The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
-total. Past a cap, an explicit backup and removal (review and execution) hold
-instead of truncating. An automatic snapshot before a version change, the
-restore safety backup and the portable-save import snapshot copy none of the
-unknown files and record `unknown_files_left_in_place_v1`, because those
-operations delete nothing. Update, rollback, collection and launch are never
-held by a cap. Declared
+An explicit backup and removal (review and execution) copy every unknown file
+and need only the space for the whole backup (owner decision, November 15,
+2026): when there are unknown files, the library volume must keep the larger
+of 1 GiB and 2% of the volume free after the saves and settings plus the
+stored unknown files, or they hold instead of truncating. A removal with no
+unknown files takes no backup, and an explicit backup of saves alone, checks
+nothing new. The removal review reports the stored unknown bytes as
+`PortRemovalPreview.unknown_file_bytes` and binds them into its fingerprint;
+Desktop and the CLI say how much those files take in the backup, which stays
+until the player deletes it. The caps of 1,024 files, 16 MiB in one file and
+64 MiB in total bound the automatic snapshot before a version change, the
+restore safety backup and the portable-save import snapshot: past one they copy
+none of the unknown files and record `unknown_files_left_in_place_v1`, because
+those operations delete nothing and run on every switch. The legacy Ghostship
+recovery safety snapshot keeps the caps and holds past one, because its
+capacity review is sized for them. Update, rollback, collection and launch are
+never held. Declared
 persistence, retained-scope receipts and canonical collection are unchanged.
 
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.

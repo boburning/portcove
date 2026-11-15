@@ -152,7 +152,7 @@ impl PortcoveService {
         let staged_data = recovery.join("staged-data");
         let work = recovery.join("copy-work");
         let payload_work = staging.join("copy-work");
-        let safety = self.create_backup_locked("ghostship")?;
+        let safety = self.create_capped_safety_backup_locked("ghostship")?;
         require_tree(&safety.path.join("data"), &plan.canonical_data)?;
         intent.canonical_safety = Some(safety.clone());
         operation.ghostship_recovery = Some(intent.clone());

@@ -762,6 +762,12 @@ pub(crate) fn removal_preview(preview: &PortRemovalPreview, catalog: &Catalog) -
                 "\n  {more} more unrecognized files are not listed."
             )),
         }
+        if preview.unknown_file_bytes > 0 {
+            unknown.push_str(&format!(
+                "\nThese files take {} in the backup, which stays until you delete it.",
+                format_bytes(preview.unknown_file_bytes)
+            ));
+        }
     }
     format!(
         "Managed installation removal review\nPort: {}\nManaged locations to remove: {}\n{}\nSaves and settings: {}\nSaves and settings preserved: {}{}\nReview SHA-256: {}\nReview only; no installed versions were removed.\nNext step: Use remove with this port and --expected-preview {} to confirm this exact inventory.",

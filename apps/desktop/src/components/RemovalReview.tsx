@@ -11,6 +11,7 @@ import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "./ui/dialog";
 import { ReviewedRemovalFooter } from "./ReviewedRemovalFooter";
 import { useAppTranslation } from "../localization";
+import { formatBytes } from "../view-model";
 
 export type ApplyRemoval = (expectedPreview: string) => Promise<ReviewOutcome>;
 
@@ -139,6 +140,11 @@ export function RemovalReviewDialog({
                       total:
                         (preview.unknown_file_count ?? 0) - (preview.unknown_files ?? []).length,
                     })}
+                  </p>
+                )}
+                {(preview.unknown_file_bytes ?? 0) > 0 && (
+                  <p className="[overflow-wrap:anywhere]">
+                    {t("unknownFilesSize", { size: formatBytes(preview.unknown_file_bytes ?? 0) })}
                   </p>
                 )}
               </>

@@ -305,6 +305,10 @@ pub struct PortRemovalPreview {
     /// The first unknown file paths, each relative to its version folder.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unknown_files: Vec<String>,
+    /// Bytes the removal backup stores for those files, once identical copies
+    /// collapse. The free-space check covers this. Omitted when zero.
+    #[serde(default, skip_serializing_if = "crate::types::is_zero_count")]
+    pub unknown_file_bytes: u64,
     pub preview_sha256: String,
 }
 
@@ -4692,9 +4696,12 @@ impl PortcoveService {
                 "{port_id} is not installed"
             )));
         }
-        let mut unknown = Vec::new();
+        let keyed = self.removal_unknown_files(&installs)?;
+        let unknown = keyed
+            .iter()
+            .map(|(file, _)| file.clone())
+            .collect::<Vec<_>>();
         for install in &installs {
-            unknown.extend(self.portable_runtime_unknown_files(install)?);
             let paths = crate::output_root::removal_paths(
                 &self.library,
                 port_id,
@@ -4707,8 +4714,24 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        // Removal copies these before deleting the folders, so the caps apply.
-        backups::require_unknown_files_within_caps(&unknown)?;
+        // Removal copies these, with the saves and settings, to a new backup
+        // before deleting the folders, so the library must have room for that
+        // backup once identical copies collapse. Without unknown files no
+        // backup is taken.
+        let stored = backups::deduplicate_unknown_files(keyed)?;
+        if !stored.files.is_empty() {
+            let user = self.library.user_dir(port_id);
+            let data_bytes = if user.is_dir() {
+                backups::unknown_file_tree_bytes(&user)?
+            } else {
+                0
+            };
+            backups::require_unknown_file_space(self.library.root(), &stored.files, data_bytes)?;
+        }
+        let unknown_file_bytes = stored
+            .files
+            .iter()
+            .fold(0_u64, |total, file| total.saturating_add(file.size));
         let listed = unknown
             .iter()
             .map(|file| (file.install_id.as_str(), file.relative.as_str(), file.size))
@@ -4716,8 +4739,12 @@ impl PortcoveService {
         let preview_sha256 = if listed.is_empty() {
             hex::encode(Sha256::digest(serde_json::to_vec(&installs)?))
         } else {
-            // Consent binds the unknown files the review showed.
-            hex::encode(Sha256::digest(serde_json::to_vec(&(&installs, &listed))?))
+            // Consent binds the unknown files and the backup size the review showed.
+            hex::encode(Sha256::digest(serde_json::to_vec(&(
+                &installs,
+                &listed,
+                unknown_file_bytes,
+            ))?))
         };
         Ok(PortRemovalPreview {
             port_id: port_id.to_owned(),
@@ -4725,6 +4752,7 @@ impl PortcoveService {
             persistent_data_path: self.library.user_dir(port_id),
             persistent_data_will_be_preserved: true,
             unknown_file_count: unknown.len() as u64,
+            unknown_file_bytes,
             unknown_files: unknown
                 .iter()
                 .take(crate::install::REPORTED_UNKNOWN_FILES)
@@ -4774,8 +4802,8 @@ impl PortcoveService {
             )?;
             self.collect_active_user_data_if_launched(port_id)?;
             // Removal deletes the version folders. Unknown player-side files
-            // (#5359) go to a separate area of a backup first; past a cap the
-            // removal holds instead of deleting what it could not keep.
+            // (#5359) go to a separate area of a backup first; without the
+            // space for it the removal holds instead of deleting them.
             self.create_removal_safety_backup_locked(port_id)?;
             let paths = self.library.port_install_paths(port_id)?;
             let removals = paths
