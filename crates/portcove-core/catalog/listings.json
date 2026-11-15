@@ -14318,7 +14318,7 @@
     {
       "id": "blacklabelhq-medievilrecomp",
       "name": "MediEvil / MediEvilRecomp (BlackLabelHQ)",
-      "summary": "Play MediEvil with your own supported disc; its upstream player handles setup and runtime updates.",
+      "summary": "Play MediEvil natively with your own supported North American disc.",
       "project_url": "https://github.com/BlackLabelHQ/MediEvilRecomp",
       "issue_number": 1844,
       "listed_at": "2026-10-23",
@@ -14341,22 +14341,23 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare the player",
-            "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder. The reviewed v0.2b package uses the .NET 10 runtime and OpenAL; follow upstream prerequisite instructions if either is missing. Choose medievil.exe (medievil on Linux and macOS) in that folder when saving launch details. Registration does not start the game."
+            "title": "Choose your original disc in the game",
+            "instruction": "Choose Play, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc and remembers its path, so keep the disc in a folder outside the game folder. Portcove does not supply original game files."
           },
           {
-            "title": "Choose your original disc in the game",
-            "instruction": "Choose Play when ready, then use MediEvil’s disc picker to select your own supported North American MediEvil CUE/BIN or CHD. The game validates the disc; Portcove does not supply original game files or run preparation tools during discovery."
+            "title": "Run a copy you manage yourself",
+            "instruction": "Extract the official package for your system (Windows x64 ZIP, Linux x64 TAR.GZ, or macOS Apple Silicon or Intel ZIP) into a separate folder and start medievil.exe (medievil on Linux and macOS) from that folder. The player needs the .NET 10 runtime and OpenAL; follow upstream's prerequisite instructions if either is missing. To add that copy to Portcove, select the player and its folder."
           }
         ],
         "warnings": [
-          "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+          "The project publishes no licence, and the package bundles the recompiled game code and third-party libraries without their licence notices. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "In a copy you manage yourself, the in-game updater replaces the game's program files. Keep a copy of your working folder, including settings.json, interface.ini, the memory-card files and mods, before updating."
         ],
         "help_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/b9e46db34db40d6e5c8e19b538e4d517299a4012/README.md",
         "references": [
           {
-            "title": "Let the game provide updates",
-            "instruction": "MediEvilRecomp has an in-game updater that replaces its own runtime. Keep that upstream-owned route and a separate copy of your working folder before updating. Keep settings.json, interface layout, memory-card files and custom mods with that copy, and preserve the original disc separately. Portcove leaves the external files untouched and does not provide managed Update, Backup or Rollback."
+            "title": "Keep the game folder's data",
+            "instruction": "The game keeps settings.json, interface.ini, the carda.sav and cardb.sav memory cards, mods, shader and asset packs (shaders, packs), texture dumps (dump) and the mod hub cache (.modhub) in its own folder. Back up that folder and keep your disc separately before replacing a copy you manage yourself."
           }
         ]
       },
