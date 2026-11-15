@@ -379,3 +379,40 @@ void test("the harness isolates every Portcove location before launch", () => {
     cli.indexOf("ApplicationRuntimeGuard::acquire") < cli.indexOf("OutputCommand::Reset {"),
   );
 });
+
+void test("evidence survives timeouts and failed isolation is a named result", () => {
+  const workflow: unknown = parseDocument(
+    read(".github/workflows/hosted-installed-update.yml"),
+  ).toJS();
+  assert.ok(isRecord(workflow) && isRecord(workflow.jobs) && isRecord(workflow.jobs.windows));
+  const windows = workflow.jobs.windows;
+  assert.ok(Array.isArray(windows.steps));
+  const scenario = windows.steps
+    .filter(isRecord)
+    .find((step) => String(step.run).includes("desktop-hosted-installed-update.mts"));
+  assert.ok(isRecord(scenario));
+  assert.ok(
+    Number(scenario["timeout-minutes"]) < Number(windows["timeout-minutes"]) - 10,
+    "the scenario step must stop before the job so the evidence upload runs",
+  );
+  const harness = read("apps/desktop/scripts/desktop-hosted-installed-update.mts");
+  assert.match(
+    harness,
+    /"taskkill\.exe", \["\/PID", String\(session\.driver\.pid\), "\/T", "\/F"\]/u,
+  );
+  assert.match(harness, /driver-ports-free-before-/u);
+  assert.match(harness, /watchProcesses\(appPid, 50 \* 60\)/u);
+  for (const name of [
+    "installer-relaunched-app",
+    "relaunch-kept-isolation-no-default-locations",
+    "run-created-no-default-locations",
+    "from-registration-names-isolated-install-root",
+    "updated-registration-names-isolated-install-root",
+  ])
+    assert.ok(harness.includes(`"${name}"`), name);
+  // Only the missing release CLI may skip; every other outcome passes or fails.
+  assert.deepEqual(
+    [...harness.matchAll(/\bskip\(\s*"([^"]+)"/gu)].map((match) => match[1]),
+    ["library-identity-unchanged"],
+  );
+});

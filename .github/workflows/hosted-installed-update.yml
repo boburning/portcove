@@ -128,6 +128,8 @@ jobs:
           ./scripts/bootstrap-quality-tools.ps1 -Profile native-drivers
           if ($LASTEXITCODE -ne 0) { throw 'Pinned driver bootstrap failed.' }
       - name: Install, refuse while held, update and verify
+        # Below the job limit so the summary and evidence upload still run.
+        timeout-minutes: 95
         shell: pwsh
         env:
           CHANNEL: ${{ inputs.channel }}
@@ -148,7 +150,23 @@ jobs:
           $report = Join-Path $env:PORTCOVE_OUTPUT_DIR 'report.json'
           if (-not (Test-Path -LiteralPath $report)) { "### Installed update`n`nNo report was written." >> $env:GITHUB_STEP_SUMMARY; exit 0 }
           $data = Get-Content -Raw -LiteralPath $report | ConvertFrom-Json
-          $lines = @("### Installed update: **$($data.outcome)**", '', "From $($data.inputs.from_version) to $($data.versions.to)", '')
+          $outcome = if ($data.outcome -eq 'running') { 'interrupted (the scenario did not finish)' } else { $data.outcome }
+          $lines = @("### Installed update: **$outcome**", '', "From $($data.inputs.from_version) to $($data.feed_at_check.offer.version)", '')
+          $skipped = @($data.checks | Where-Object { $_.outcome -eq 'skipped' })
+          if ($skipped.Count) {
+            $lines += "> [!WARNING]"
+            $lines += "> $($skipped.Count) check(s) skipped; they are not acceptance:"
+            foreach ($entry in $skipped) { $lines += "> - **$($entry.name)**: $($entry.detail)" }
+            $lines += ''
+          }
+          $relaunch = if ($data.relaunch) { $data.relaunch.mode } else { 'not reached' }
+          $lines += "Relaunch: **$relaunch**"
+          foreach ($name in 'default_locations_appeared_after_relaunch', 'default_locations_appeared') {
+            if ($null -eq $data.$name) { $lines += "- ${name}: not reached" }
+            elseif (@($data.$name).Count -eq 0) { $lines += "- ${name}: none" }
+            else { $lines += "- ${name}: $(@($data.$name) -join ', ')" }
+          }
+          $lines += ''
           foreach ($entry in $data.checks) { $lines += "- $($entry.outcome): $($entry.name)" }
           if ($data.error) { $lines += ''; $lines += "Error: $($data.error)" }
           $lines -join "`n" >> $env:GITHUB_STEP_SUMMARY

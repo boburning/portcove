@@ -13,9 +13,10 @@
  */
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { cp, lstat, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { createServer } from "node:net";
 import { createInterface } from "node:readline";
 import { parseArgs } from "node:util";
 import { By, until, type WebDriver } from "selenium-webdriver";
@@ -24,7 +25,6 @@ import {
   connectInstalledUpdateDriver,
   hashFile,
   startInstalledUpdateDriver,
-  waitFor,
 } from "./desktop-installed-update-harness.mts";
 import { openInstalledUpdateSettings } from "./desktop-application-update-journey.mts";
 import { executeBrowserScript } from "./browser-script.mts";
@@ -124,14 +124,20 @@ const report: Record<string, unknown> & {
   timeline: [],
   checks: [],
 };
-async function persist() {
-  await writeFile(path.join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+/** Rewritten after every event and check so a job timeout keeps the evidence. */
+function persist() {
+  try {
+    writeFileSync(path.join(output, "report.json"), `${JSON.stringify(report, null, 2)}\n`);
+  } catch (error) {
+    console.error(`report.json could not be written: ${errorMessage(error)}`);
+  }
 }
 function event(name: string, detail?: unknown) {
   report.timeline.push({ at: new Date().toISOString(), event: name, detail });
   console.log(
     `[${new Date().toISOString()}] ${name}${detail === undefined ? "" : ` ${JSON.stringify(detail)}`}`,
   );
+  persist();
 }
 function check(name: string, passed: boolean, detail?: unknown) {
   report.checks.push({
@@ -141,11 +147,49 @@ function check(name: string, passed: boolean, detail?: unknown) {
     detail,
   });
   console.log(`${passed ? "PASS" : "FAIL"} ${name}`);
+  persist();
   if (!passed) throw new Error(`check failed: ${name} ${JSON.stringify(detail)}`);
+}
+/** Records a failed check without stopping, so later evidence is still gathered;
+ * the run fails at the end when any deferred check failed. */
+const deferredFailures: string[] = [];
+function checkDeferred(name: string, passed: boolean, detail?: unknown) {
+  try {
+    check(name, passed, detail);
+  } catch {
+    deferredFailures.push(name);
+  }
 }
 function skip(name: string, reason: string) {
   report.checks.push({ name, outcome: "skipped", at: new Date().toISOString(), detail: reason });
   console.log(`SKIP ${name}: ${reason}`);
+  persist();
+}
+
+/** Thrown by a wait predicate to stop waiting at once (for example, a child exited). */
+class StopWaiting extends Error {}
+/** Polls until the predicate returns a value. Ordinary predicate errors are
+ * retried and the last one is named on timeout; `StopWaiting` ends the wait. */
+async function waitUntil<Value>(
+  predicate: () => Promise<Value>,
+  label: string,
+  deadlineMs: number,
+): Promise<NonNullable<Value>> {
+  const deadline = Date.now() + deadlineMs;
+  let last: unknown;
+  while (Date.now() < deadline) {
+    try {
+      const result = await predicate();
+      if (result) return result;
+    } catch (error) {
+      if (error instanceof StopWaiting) throw error;
+      last = error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error(
+    `${label} did not complete within ${deadlineMs} ms${last === undefined ? "" : `; last error: ${errorMessage(last)}`}`,
+  );
 }
 
 /** Runs a fixed PowerShell snippet; inputs travel as environment values only. */
@@ -227,18 +271,46 @@ function processAlive(pid: number) {
   );
 }
 
-/** Default player locations a Portcove process would use without overrides. */
+/** Default player locations a Portcove process would use without overrides:
+ * default config, runtime lock, library and WebView2 data. */
 function defaultLocations() {
   const local = process.env.LOCALAPPDATA ?? "";
   const roaming = process.env.APPDATA ?? "";
+  // `directories::ProjectDirs("io.github", "Portcove", "Portcove")` on Windows.
+  const project = path.join(local, "Portcove", "Portcove");
   return Object.fromEntries(
     [
+      path.join(project, "config", "preferences.json"),
+      path.join(project, "config", ".application-runtime.lock"),
+      path.join(project, "data", "library"),
       path.join(local, "Portcove"),
       path.join(roaming, "Portcove"),
       path.join(local, "io.github.portcove.portcove"),
       path.join(roaming, "io.github.portcove.portcove"),
     ].map((location) => [location, existsSync(location)]),
   );
+}
+
+function appearedLocations(before: Record<string, boolean>, after: Record<string, boolean>) {
+  return Object.keys(after).filter((location) => after[location] && !before[location]);
+}
+
+/** The registration names the isolated root; NSIS may record only the uninstaller. */
+function registrationInstallRoot(entry: Record<string, unknown> | undefined) {
+  const clean = (value: string) =>
+    path.win32.resolve(value.trim().replace(/^"|"$/gu, "")).replace(/\\+$/u, "").toLowerCase();
+  const expected = clean(scope.install);
+  const location = typeof entry?.install_location === "string" ? entry.install_location : "";
+  if (location.trim())
+    return { source: "InstallLocation", matches: clean(location) === expected, location };
+  const uninstall = typeof entry?.uninstall === "string" ? entry.uninstall : "";
+  const executable = /^"?([^"]+?\.exe)"?/iu.exec(uninstall)?.[1];
+  const directory = executable ? path.win32.dirname(executable) : "";
+  return {
+    source: "UninstallString",
+    matches: Boolean(directory) && clean(directory) === expected,
+    location: directory,
+  };
 }
 
 async function manifest(root: string, relative = ""): Promise<ManifestEntry[]> {
@@ -336,9 +408,10 @@ async function holdLibraryWithCli(cli: string) {
   const exited = new Promise<number | null>((resolve) =>
     child.once("exit", (code) => resolve(code)),
   );
-  await waitFor(
+  await waitUntil(
     async () => {
-      if (child.exitCode !== null) throw new Error(`CLI exited early: ${stderr}`);
+      if (child.exitCode !== null)
+        throw new StopWaiting(`CLI exited early (${String(child.exitCode)}): ${stderr}`);
       return stderr.includes("[y/N]");
     },
     "CLI confirmation prompt",
@@ -374,6 +447,7 @@ async function startSession(
   label: string,
   toolState: { tauri: string; native: string },
 ): Promise<Session> {
+  check(`driver-ports-free-before-${label}`, await driverPortsFree(), driverPorts);
   const started = startInstalledUpdateDriver(toolState.tauri, toolState.native, {
     env: portcoveEnvironment(),
     windowsHide: true,
@@ -399,8 +473,28 @@ async function endSession(session: Session, label: string) {
     session.browser.quit().catch(() => undefined),
     new Promise((resolve) => setTimeout(resolve, 20_000)),
   ]);
-  if (session.driver.exitCode === null) session.driver.kill();
+  // tauri-driver's msedgedriver child would otherwise keep the fixed native port.
+  if (session.driver.pid && session.driver.exitCode === null)
+    spawnSync("taskkill.exe", ["/PID", String(session.driver.pid), "/T", "/F"], {
+      windowsHide: true,
+      timeout: 15_000,
+      stdio: "ignore",
+    });
   await retain(`tauri-driver-${label}.log`, session.driverLog());
+  await waitUntil(driverPortsFree, `driver ports free after ${label}`, 30_000);
+  event("session-ended", { label });
+}
+
+const driverPorts = [45770, 45771];
+function portFree(port: number) {
+  return new Promise<boolean>((resolve) => {
+    const server = createServer();
+    server.once("error", () => resolve(false));
+    server.listen(port, "127.0.0.1", () => server.close(() => resolve(true)));
+  });
+}
+async function driverPortsFree() {
+  return (await Promise.all(driverPorts.map(portFree))).every(Boolean);
 }
 
 async function screenshot(browser: WebDriver, name: string) {
@@ -654,6 +748,8 @@ async function main() {
       fromRegistration[0]?.display_version === fromVersion,
     fromRegistration,
   );
+  const fromRoot = registrationInstallRoot(fromRegistration[0]);
+  check("from-registration-names-isolated-install-root", fromRoot.matches, fromRoot);
   const fromExecutable = await hashFile(application);
   report.from_executable = { ...fromExecutable, version: executableVersion(application) };
 
@@ -712,7 +808,7 @@ async function main() {
     await screenshot(browser, "02-from-update-settings");
     await clickButton(browser, fromCopy.check);
     event("check-clicked");
-    const offered = await waitFor(
+    const offered = await waitUntil(
       async () => {
         const current = await updateStatus(browser);
         return !current.checking && current.available ? current : null;
@@ -740,7 +836,7 @@ async function main() {
     const hold = await holdLibraryWithCli(fromCli);
     await clickButton(browser, fromCopy.install);
     event("install-clicked-while-held");
-    const refusal = await waitFor(
+    const refusal = await waitUntil(
       async () => {
         const text = await alertText(browser);
         return text ? text : null;
@@ -755,7 +851,7 @@ async function main() {
       { refusal },
     );
     check("refused-app-still-running", processAlive(appPid), { pid: appPid });
-    const afterRefusal = await waitFor(
+    const afterRefusal = await waitUntil(
       async () => {
         const current = await updateStatus(browser);
         return current.installing ? null : current;
@@ -793,18 +889,19 @@ async function main() {
     check("cli-hold-changed-nothing", previewAfter.preview_sha256 === hold.previewSha);
 
     // The successful update, now that nothing else holds the library.
-    const watch = await watchProcesses(appPid, 30 * 60);
+    // Outlives the chained waits below (25 + 2 + 10 + 3 minutes) with margin.
+    const watch = await watchProcesses(appPid, 50 * 60);
     try {
       await clickButton(browser, fromCopy.install, 120_000);
       event("install-clicked");
       await screenshot(browser, "06-installing");
-      const exited = await waitFor(
+      const exited = await waitUntil(
         async () => watch.events.find((entry) => entry.kind === "exited" && entry.pid === appPid),
         "from-version exit",
         25 * 60_000,
       );
       event("from-app-exited", exited);
-      const installer = await waitFor(
+      const installer = await waitUntil(
         async () =>
           watch.events.find(
             (entry) =>
@@ -816,7 +913,7 @@ async function main() {
       report.installer_process = installer;
       check("nsis-update-installer-observed", installer !== null, installer);
       const installerPid = installer!.pid;
-      const installerExit = await waitFor(
+      const installerExit = await waitUntil(
         async () =>
           watch.events.find((entry) => entry.kind === "exited" && entry.pid === installerPid),
         "NSIS installer exit",
@@ -828,7 +925,7 @@ async function main() {
         /(^|\s)\/P(\s|$)/u.test(installer!.command_line ?? ""),
         installer!.command_line,
       );
-      const relaunch = await waitFor(
+      const relaunch = await waitUntil(
         async () =>
           watch.events.find(
             (entry) =>
@@ -847,20 +944,33 @@ async function main() {
       event("relaunch", report.relaunch);
       if (relaunch) {
         await new Promise((resolve) => setTimeout(resolve, 15_000));
+        check("installer-relaunched-app", true, relaunch);
         check("relaunched-app-stays-running", processAlive(relaunch.pid), relaunch);
         report.relaunch_close = closeProcess(relaunch.pid);
       } else
-        skip(
-          "relaunched-app-stays-running",
-          "the installer did not relaunch Portcove; the harness relaunches it",
-        );
+        // The plugin asks NSIS to restart Portcove (`/R`), so no relaunch is a
+        // failure. Later checks still run so the evidence stays complete.
+        checkDeferred("installer-relaunched-app", false, {
+          reason: "no new installed Portcove process within three minutes of the installer exit",
+          installer_command_line: installer!.command_line,
+        });
     } finally {
       await watch.stop();
     }
   } finally {
     await endSession(first, "from");
   }
-  report.default_locations_after_relaunch = defaultLocations();
+  const defaultsAfterRelaunch = defaultLocations();
+  const appearedAfterRelaunch = appearedLocations(defaultsBefore, defaultsAfterRelaunch);
+  report.default_locations_after_relaunch = defaultsAfterRelaunch;
+  report.default_locations_appeared_after_relaunch = appearedAfterRelaunch;
+  // A relaunch that dropped the isolation overrides creates default locations.
+  // That is reported as this named failure, never silence.
+  checkDeferred(
+    "relaunch-kept-isolation-no-default-locations",
+    appearedAfterRelaunch.length === 0,
+    appearedAfterRelaunch,
+  );
   const leftovers = installedApplicationProcesses();
   for (const row of leftovers)
     event("closing-leftover-app", { row, result: closeProcess(row.pid) });
@@ -875,6 +985,8 @@ async function main() {
       toRegistration[0]?.display_version === toVersion,
     toRegistration,
   );
+  const toRoot = registrationInstallRoot(toRegistration[0]);
+  check("updated-registration-names-isolated-install-root", toRoot.matches, toRoot);
   const toExecutable = await hashFile(application);
   report.to_executable = { ...toExecutable, version: executableVersion(application) };
   check("installed-executable-replaced", toExecutable.sha256 !== fromExecutable.sha256);
@@ -901,7 +1013,7 @@ async function main() {
     await openInstalledUpdateSettings(browser);
     await assertPreviewSelected(browser, toCopy.preview);
     await clickButton(browser, toCopy.check);
-    const checked = await waitFor(
+    const checked = await waitUntil(
       async () => {
         const current = await updateStatus(browser);
         return !current.checking && current.last_checked_unix_seconds ? current : null;
@@ -949,7 +1061,13 @@ async function main() {
       after: identityAfter,
     });
   } else skip("library-identity-unchanged", `${feed.offer.tag} publishes no ${toAssets.cli}`);
-  report.default_locations_after = defaultLocations();
+  const defaultsAfter = defaultLocations();
+  const appeared = appearedLocations(defaultsBefore, defaultsAfter);
+  report.default_locations_after = defaultsAfter;
+  report.default_locations_appeared = appeared;
+  checkDeferred("run-created-no-default-locations", appeared.length === 0, appeared);
+  if (deferredFailures.length)
+    throw new Error(`deferred checks failed: ${deferredFailures.join(", ")}`);
   report.versions = { from: fromVersion, to: toVersion };
 }
 
@@ -977,7 +1095,7 @@ try {
 } finally {
   report.finished_at = new Date().toISOString();
   await retainDiagnostics().catch(() => undefined);
-  await persist();
+  persist();
   for (const row of (() => {
     try {
       return installedApplicationProcesses();

@@ -340,14 +340,16 @@ connection, hashing and Settings navigation. The scenario in
 
 1. Downloads the from-version installer and CLI ZIP and verifies both against
    that release's `SHA256SUMS`, then installs per-user with NSIS `/S` into a
-   work directory and checks the single HKCU registration.
-2. Before the first launch, isolates every Portcove location with the existing
-   overrides (`PORTCOVE_LIBRARY`, `PORTCOVE_PREFERENCES`,
+   work directory and checks the single HKCU registration names that root.
+2. Before the first launch, isolates every Portcove process the harness starts
+   with the existing overrides (`PORTCOVE_LIBRARY`, `PORTCOVE_PREFERENCES`,
    `PORTCOVE_APPLICATION_UPDATE_PREFERENCES`, `PORTCOVE_APPLICATION_RUNTIME_LOCK`,
    `PORTCOVE_TEMP_DIR`, `WEBVIEW2_USER_DATA_FOLDER`). It writes the channel
    preference with automatic checks off, creates the library with the release
    CLI and seeds deterministic save and settings files under
-   `user/hosted-update-acceptance/`, recording their SHA-256 values.
+   `user/hosted-update-acceptance/`, recording their SHA-256 values. The process
+   the NSIS installer relaunches is started by the installer, not the harness,
+   so its isolation is checked rather than assumed (step 5).
 3. Launches the installed application under WebDriver, opens Settings, Updates,
    presses Check for updates and requires the offered version to equal the
    feed's newer version.
@@ -358,8 +360,11 @@ connection, hashing and Settings navigation. The scenario in
    running at the same version, executable and registration, and keep the app
    usable. Answering `n` cancels the CLI with no change.
 5. Presses Download and restart again and observes the application exit, the
-   plugin's passive `/UPDATE` NSIS installer and the automatic relaunch (or
-   records that none happened). The relaunched process is closed, then a fresh
+   plugin's passive `/UPDATE` NSIS installer and the automatic relaunch. No
+   relaunch fails the run, and so does any default Portcove configuration,
+   runtime lock, library or WebView2 location appearing after the relaunch or
+   by the end (the named check reports which). The remaining checks still run
+   so the evidence is complete. The relaunched process is closed, then a fresh
    WebDriver session checks the new reported version, HKCU registration,
    replaced executable, unchanged preference bytes and channel, byte-identical
    player data, a further check and Library navigation. The new release's CLI
@@ -368,9 +373,10 @@ connection, hashing and Settings navigation. The scenario in
 Evidence (`report.json` with every check, timeline and SHA-256, feed bytes,
 `SHA256SUMS`, locale files, screenshots, driver/CLI/process logs and Portcove
 diagnostics) is uploaded as a workflow artifact for 30 days, including after
-failure. Default player locations are recorded before and after; the installer's
-relaunched process may not inherit the isolation environment, which is recorded
-rather than hidden. The hosted runner account is an administrator, so this is
+failure or a scenario timeout: `report.json` is rewritten after every event and
+check, and the scenario step's own limit stays below the job's. The step summary
+lists skipped checks separately, the relaunch mode and any default locations
+that appeared. The hosted runner account is an administrator, so this is
 not ordinary-user, physical-device or minimum-OS evidence, and it does not change
 any release, signing or publication authority. Its pure rules are unit-tested in
 `scripts/hosted-installed-update.test.mts`.
