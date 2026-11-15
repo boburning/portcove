@@ -73,11 +73,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - purpose: shipwright-profile
-            revision: 1e5071a052d99f3ed59b15dae8b6cc65ea5dd097
-            executable: portcove
-          - purpose: mmx4-core
-            revision: 98620937c0243a432569d331d6586b30856a5cad
+          - purpose: psx-managed-builder
+            revision: 74f0164d0f6b3a431a5c4607ffe5e3727a37e94c
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
@@ -87,30 +84,9 @@ jobs:
         with:
           ref: ${{ matrix.revision }}
           persist-credentials: false
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: matrix.purpose == 'shipwright-profile'
-        with:
-          package_json_file: package.json
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.purpose == 'shipwright-profile'
-        with:
-          node-version-file: .node-version
-          package-manager-cache: false
       - uses: ./.github/actions/setup-rust
-      - name: Build the reviewed Shipwright profile candidate
-        if: matrix.purpose == 'shipwright-profile'
-        shell: pwsh
-        run: |
-          pnpm install --frozen-lockfile
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          pnpm --dir apps/desktop build
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --locked -p portcove-cli --bin portcove
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          cargo build --locked -p portcove-desktop --features tauri/custom-protocol
-      - name: Build the private Core qualification CLI
-        if: matrix.purpose == 'mmx4-core'
-        run: cargo build --locked -p portcove-cli --bin portcove --features qualification-fixtures
+      - name: Build the candidate CLI
+        run: cargo build --locked -p portcove-cli --bin portcove
       - name: Bind the executable to its exact source checkout
         shell: pwsh
         env:
