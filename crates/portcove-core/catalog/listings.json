@@ -61984,6 +61984,59 @@
       "availability": "unknown"
     },
     {
+      "id": "vyruz-destruction-of-the-untel-empire-vurus",
+      "project_url": "https://github.com/rzrbld/vurus",
+      "name": "Vyruz: Destruction of the Untel Empire / Vurus",
+      "original_game_title": "Vyruz: Destruction of the Untel Empire",
+      "summary": "Run Vyruz in Vurus using your own original disc image or extracted game resources.",
+      "issue_number": 6120,
+      "listed_at": "2026-11-14",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
+      "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "vurus-windows-amd64.zip"
+        ],
+        "linux-x86-64": [
+          "vurus-linux.tar.gz"
+        ],
+        "macos-x86-64": [
+          "vurus-darwin-x86_64.zip"
+        ],
+        "macos-aarch64": [
+          "vurus-darwin-arm64.zip"
+        ]
+      },
+      "recommended_download_channel": "beta",
+      "manual_setup": {
+        "help_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/docs/data_import.md",
+        "steps": [
+          {
+            "title": "Choose the desktop release",
+            "instruction": "In the release picker, choose desktop release v202610242327-beta and extract the package into a writable folder. Use vurus.exe on Windows x64, or launch.sh on Linux x64 with glibc 2.35 or later, SDL2 and OpenGL. On macOS 15 or later, use the Intel or Apple Silicon archive matching your Mac and run vurus from a terminal. The Mac builds are unsigned."
+          },
+          {
+            "title": "Prepare your original game files",
+            "instruction": "Put your owned ISO or single-BIN CUE/BIN next to the player, or use --data with its path or an extracted resource folder. Keep the CUE and its BIN together to import CD audio. When you import a disc image, Vurus prepares data/ beside the executable. An extracted resource folder can be used in place. Keep the original separately. Use --data to choose a different image when a previous import already exists."
+          },
+          {
+            "title": "Keep imports and progress when updating",
+            "instruction": "Back up the whole data/ folder, saves/, slot1.vzs, options.cfg, and vz.sco before replacing the player. Keep any external resource folder, separate save or options paths you configured, and any older selected import until you have checked your progress. Keep the previous runtime with its data for recovery."
+          }
+        ],
+        "warnings": [
+          "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
+        ]
+      }
+    },
+    {
       "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
       "name": "War of the Monsters — War of the Monsters Recompiled (yanm1103)",
       "original_game_title": "War of the Monsters",
