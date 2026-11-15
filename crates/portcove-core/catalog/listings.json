@@ -14548,7 +14548,7 @@
         "steps": [
           {
             "title": "Select your own supported original",
-            "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us, in its profile. Keep your original separately."
+            "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us.z64, in its profile. Keep your original separately."
           },
           {
             "title": "Keep the complete Windows player",
@@ -14556,14 +14556,14 @@
           }
         ],
         "warnings": [
-          "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "The package includes the Suplexmentary Comic NC font, which the project license does not cover, plus the CutOutsFLF font and a fan-made splash image. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
           "Portcove has not observed native setup, gameplay or saves. Changing versions does not rewind saves or check mods; keep a separate backup of the profile."
         ],
         "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
         "references": [
           {
             "title": "Preserve the actual profile before maintenance",
-            "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
+            "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us.z64 original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
           }
         ]
       },
@@ -62643,7 +62643,7 @@
     {
       "id": "vidanox-banjotooierecompiled",
       "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
-      "summary": "Use the Banjo-Tooie player package and select your own USA big-endian cartridge dump.",
+      "summary": "Use the Banjo-Tooie player package and select your own USA cartridge dump.",
       "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
       "issue_number": 1795,
       "listed_at": "2026-10-23",
@@ -62674,22 +62674,22 @@
         "steps": [
           {
             "title": "Choose your original cartridge dump on first Play",
-            "instruction": "Choose Play, then Select ROM and supply your own Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The player reads it directly, without a separate extraction or compiler step."
+            "instruction": "Choose Play, then Select ROM and supply your own Banjo-Tooie USA 32 MiB cartridge dump. The project recommends an unmodified big-endian .z64; the player also converts byteswapped dumps of the same cartridge. Another region or a modified image is not accepted. The player checks the file and keeps its own copy in its profile, so keep your original separately."
           },
           {
             "title": "Keep the complete player package",
-            "instruction": "For a copy you manage yourself, extract the whole package. On Windows, run BanjoTooieRecompiled.exe with assets and the supplied SDL2 and DXC libraries beside it. On Linux, run run.sh, or start BanjoTooieRecompiled with its extracted folder as the working folder. Linux needs Vulkan, its shared libraries and the desktop file-dialog portal."
+            "instruction": "For a copy you manage yourself, extract the whole package. On Windows, run BanjoTooieRecompiled.exe with assets and the supplied SDL2 and DXC libraries beside it. On Linux, run run.sh, or start BanjoTooieRecompiled with its extracted folder as the working folder."
           }
         ],
         "warnings": [
-          "Upstream calls Linux less exercised than Windows. Portcove has not observed native setup, gameplay or saves.",
-          "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          "Upstream calls Linux less exercised than Windows. Portcove has not observed native setup, gameplay or saves. On Linux the player needs Vulkan, SDL2, FreeType, D-Bus and a running xdg-desktop-portal service for Select ROM.",
+          "The package includes the Suplexmentary Comic NC font, which the project license does not cover, and menu art based on Rare's promotional artwork. Portcove downloads the package only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
         "references": [
           {
             "title": "Keep your actual profile when updating",
-            "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep settings and saves together and keep a working copy before replacing the player."
+            "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. It holds the copied original bt.n64.us.1.0.z64, saves, settings and mods. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep a working copy before replacing the player."
           }
         ]
       },

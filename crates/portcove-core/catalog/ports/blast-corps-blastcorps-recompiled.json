@@ -23,7 +23,7 @@
       "steps": [
         {
           "title": "Select your own supported original",
-          "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us, in its profile. Keep your original separately."
+          "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us.z64, in its profile. Keep your original separately."
         },
         {
           "title": "Keep the complete Windows player",
@@ -31,14 +31,14 @@
         }
       ],
       "warnings": [
-        "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "The package includes the Suplexmentary Comic NC font, which the project license does not cover, plus the CutOutsFLF font and a fan-made splash image. Portcove downloads the package only from the project’s own releases. You need your own original game files.",
         "Portcove has not observed native setup, gameplay or saves. Changing versions does not rewind saves or check mods; keep a separate backup of the profile."
       ],
       "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
       "references": [
         {
           "title": "Preserve the actual profile before maintenance",
-          "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
+          "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us.z64 original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
         }
       ]
     },
@@ -79,7 +79,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. It keeps a copy named bc.n64.us in its profile at %LOCALAPPDATA%\\BlastCorpsRecompiled, together with saves, settings and mods; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile."
+      "manual_preparation": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. It keeps a copy named bc.n64.us.z64 in its profile at %LOCALAPPDATA%\\BlastCorpsRecompiled, together with saves, settings and mods; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile."
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {
