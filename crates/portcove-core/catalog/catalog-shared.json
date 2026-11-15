@@ -421,6 +421,16 @@
         "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md"
       },
       {
+        "id": "wave-race-recomp-1-0-2-linux-source-contract",
+        "role": "upstream_support",
+        "authority": "danielgomesvieira2000/wave-race-64-recomp",
+        "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
+        "reviewed_at": "2026-11-15",
+        "claim": "The tagged Linux x64 package uses the same USA Rev A ROM identity as Windows and supports placing the checked source and portable.txt beside the player.",
+        "immutable_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/src/main.cpp",
+        "live_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/src/main.cpp"
+      },
+      {
         "id": "f-zero-snes-recomp-1-8-3-source-contract",
         "role": "upstream_support",
         "authority": "mstan/FZeroSNESRecomp",
@@ -18302,10 +18312,11 @@
         ],
         "validator_contract_id": null,
         "evidence_ids": [
-          "wave-race-recomp-1-0-2-source-contract"
+          "wave-race-recomp-1-0-2-source-contract",
+          "wave-race-recomp-1-0-2-linux-source-contract"
         ],
         "authority_ref": "ac2a296530f957f128388a6fc18028529c7f2b40",
-        "reviewed_at": "2026-09-25",
+        "reviewed_at": "2026-11-15",
         "immutable_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
         "live_review_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/main/README.md",
         "evidence_gap": null,
@@ -18313,6 +18324,10 @@
           {
             "upstream_ref": "v1.0.2",
             "artifact_sha256": "8603e582e7a549f1f3a02c108d1453ad61e7f5df03b2f3232f9939323b044583"
+          },
+          {
+            "upstream_ref": "v1.0.2",
+            "artifact_sha256": "5ea07206731b1afde10f52909443a50b64b6ebd113634d383a5538f86437e60f"
           }
         ],
         "aliases": [],
