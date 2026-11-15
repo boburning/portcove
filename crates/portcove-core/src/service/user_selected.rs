@@ -1909,6 +1909,36 @@ mod tests {
         ["--play", "xmvsf"]
     );
 
+    #[test]
+    fn openlf2_local_installer_route_5830() {
+        let id = "little-fighter-2-openlf2";
+        let (temporary, mut service, executable, working) = fixture(id);
+        service.catalog = Catalog::embedded().unwrap();
+        assert!(service.catalog.port(id).is_err());
+        assert!(service.catalog.listing(id).unwrap().manual_setup.is_some());
+
+        let selected = [
+            "--installer",
+            "original LF2 v2.0a.exe",
+            "--config-dir",
+            "player profile",
+        ];
+        let arguments = ["--record", "route-binding"]
+            .into_iter()
+            .chain(selected)
+            .map(str::to_owned)
+            .collect();
+        assert_selected_listing_lifecycle_with_arguments(
+            temporary,
+            service,
+            executable,
+            working,
+            id,
+            arguments,
+            Some(selected.join("\n")),
+        );
+    }
+
     prepared_player_case!(render96_selected_native_route_519, "render96ex");
 
     prepared_player_case!(classic_pc_route_1877, "lethal-guitar-rigelengine");
