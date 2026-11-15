@@ -10,8 +10,8 @@ Super Metroid's came first, and the route is held because of v0.4.6. Super
 Mario World and A Link to the Past were first requalified pending
 [#5678](https://github.com/boburning/portcove/issues/5678)'s additive data
 transition. After a critical review on 2026-11-15 they are bound with their new
-mod-state file left undeclared
-([below](#why-the-new-mod-state-file-stays-undeclared)). Historical rows,
+mod-state pair declared as disposable runtime output
+([below](#why-the-new-mod-state-file-is-disposable-runtime-output)). Historical rows,
 evidence and qualifications keep their exact scope. Nothing was installed,
 launched or played, and no Supported or gameplay claim is made.
 
@@ -19,11 +19,11 @@ launched or played, and no Supported or gameplay claim is made.
 
 | Port / issue                                                | Reviewed → newest                  | Outcome                                                          |
 | ----------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------------------- |
-| `super-mario-world-recomp` / #147                           | v0.12.0 → v0.15.9                  | v0.15.9 row appended 2026-11-15; mod-state file undeclared       |
-| `the-legend-of-zelda-a-link-to-the-past-snes-recomp` / #151 | v0.6.1 → v0.6.6                    | v0.6.6 row appended 2026-11-15; mod-state file undeclared        |
+| `super-mario-world-recomp` / #147                           | v0.12.0 → v0.15.9                  | v0.15.9 row appended 2026-11-15; mod-state pair runtime-mutable  |
+| `the-legend-of-zelda-a-link-to-the-past-snes-recomp` / #151 | v0.6.1 → v0.6.6                    | v0.6.6 row appended 2026-11-15; mod-state pair runtime-mutable   |
 | `super-metroid-recomp` / #164                               | v0.4.2 → v0.4.5 bound; v0.4.6 held | v0.4.5 row appended; `managed_acquisition_hold` added for v0.4.6 |
 
-### Why the new mod-state file stays undeclared
+### Why the new mod-state file is disposable runtime output
 
 Both newer frameworks write `mods/preloaded/state.toml` through a `.tmp`
 companion. The 2026-11-14 attempt declared that pair as persistent beside the
@@ -130,8 +130,9 @@ Writers reachable from the managed launch (`smw.sfc` positional argument with
 `SNESRECOMP_NO_LAUNCHER=1`):
 
 - The mod runtime commits the selection at every start to
-  `mods/preloaded/state.toml` through `mods/preloaded/state.toml.tmp`. Both stay
-  undeclared ([above](#why-the-new-mod-state-file-stays-undeclared)); the
+  `mods/preloaded/state.toml` through `mods/preloaded/state.toml.tmp`. Both are
+  declared in `runtime_mutable_paths`
+  ([above](#why-the-new-mod-state-file-is-disposable-runtime-output)); the
   retained `mods/state.toml` pair stays declared. v0.15.9 does not read or
   migrate the old file, so the selection starts from the package defaults. That
   is acceptable: managed play skips the launcher and has no mod-selection
@@ -186,8 +187,8 @@ was added. `LICENSE` (PolyForm Noncommercial 1.0.0), `docs/` and
 Writers: the game's own `src/main.c` and `src/config.c` write the same
 `config.ini`, `rom.cfg` and copied-ROM paths as v0.6.1. `config.ini` remains
 persistent and is now created by the player on first run. The framework moved
-the mod root to `mods/preloaded`, so the same `state.toml` pair stays undeclared
-as for Super Mario World. The `tier2_coverage.json` writer beside the
+the mod root to `mods/preloaded`, so the same `state.toml` pair is declared in
+`runtime_mutable_paths` as for Super Mario World. The `tier2_coverage.json` writer beside the
 executable is gone; tier-2 coverage now uses `%LOCALAPPDATA%` and is off. The
 runtime-mutable declaration stays so that v0.6.1 installations keep their
 verification allowance. The recomp-ui `moderation.ini`, sign-in and netplay
@@ -255,18 +256,22 @@ None of this was executed.
 
 ## Existing installations
 
-Super Mario World and A Link to the Past definitions are unchanged apart from
-the license note, so their installations keep their exact contracts and update
-to the new rows:
+The Super Mario World and A Link to the Past definitions change only the
+license note and add the two runtime-mutable paths. Persistent paths are
+unchanged, so their installations keep their exact persistence contracts and
+update to the new rows:
 
 - Neither old package ships anything under `mods/preloaded`, and old runtimes
   never write there.
-- Both new frameworks commit `mods/preloaded/state.toml` on every start. As an
-  undeclared unknown file it is not collected, carried forward or restored, and
-  it does not hold rollback to v0.12.0 or v0.6.1. The old copy keeps its
+- Both new frameworks commit `mods/preloaded/state.toml` on every start. Existing
+  installations take on the wider runtime-mutable allowance, because their
+  manifests have nothing under `mods/preloaded`. As disposable runtime output
+  the pair is not collected, carried forward, backed up or reported, and it does
+  not hold rollback to v0.12.0 or v0.6.1. The old copy keeps its
   retained `mods/state.toml`.
 - A Core unit test registers a reviewed-release-style installation of each route
-  under the embedded definition with this file present. It checks verification,
+  under the definition without the new runtime-mutable paths, with this file
+  present, and switches to the current definition. It checks verification,
   collection, backup, the update, a second collection and backup, and rollback.
   This is a library fixture, not an installed or native observation.
 

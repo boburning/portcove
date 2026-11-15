@@ -3281,9 +3281,9 @@ mod tests {
         // Super Mario World v0.15.9 and A Link to the Past v0.6.6 move their
         // mod selection to mods/preloaded/state.toml. Declaring it would widen
         // the persistence scope in every existing ready-archive receipt, and
-        // managed play skips the launcher, so the selection is always the
-        // package default. The newest packages are appended after the reviewed
-        // ones and the pair is declared as disposable runtime output.
+        // managed play skips the launcher, so it never changes the selection
+        // from the package default. The newest packages are appended after the
+        // reviewed ones and the pair is declared as disposable runtime output.
         for (id, contract, rows, evidence) in [
             (
                 "super-mario-world-recomp",
