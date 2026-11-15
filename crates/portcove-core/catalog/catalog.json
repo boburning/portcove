@@ -63631,6 +63631,182 @@
       }
     },
     {
+      "id": "n64hub-rayman-2-recomp-n64-usa",
+      "name": "Rayman 2: The Great Escape (n64hub)",
+      "summary": "A Windows port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
+      "project_url": "https://github.com/n64hub/rayman-2-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "n64hub/rayman-2-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "Rayman2Recompiled-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Rayman2Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\Rayman2Recompiled profile. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start.",
+        "original_game_title": "Rayman 2: The Great Escape",
+        "manual_setup": {
+          "help_url": "https://github.com/n64hub/rayman-2-recomp/blob/4cd56ce325977de3d9014af3e682596fcd664ea9/README.md",
+          "steps": [
+            {
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Use Load ROM to select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52). The player verifies it and keeps a private copy in its profile with settings and Controller Pak files. Back up that profile separately before changing versions."
+            },
+            {
+              "title": "Prepare the game",
+              "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 32 MiB, big-endian Rayman 2 USA .z64 (SHA-1 50558356b059ad3fbaf5fe95380512b9dceaaf52), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select Rayman2Recompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Keep your current profile and Controller Pak files when replacing the program. The project reports early-game progress. Later levels and save compatibility across releases are unverified.",
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\Rayman2Recompiled profile.",
+            "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+          ],
+          "references": [
+            {
+              "title": "Setup instructions for the inspected release",
+              "instruction": "https://github.com/n64hub/rayman-2-recomp/releases/tag/v0.1.4"
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "rayman2recompiled.exe"
+          ]
+        }
+      }
+    },
+    {
+      "id": "n64hub-super-smash-bros-n64-usa-recomp",
+      "name": "Super Smash Bros. (Smash Bros. Recompiled)",
+      "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
+      "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "n64hub/super-smash-bros-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "SmashBrosRecompiled-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "SmashBrosRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately. Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\SmashBrosRecompiled profile. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start.",
+        "original_game_title": "Super Smash Bros.",
+        "manual_setup": {
+          "help_url": "https://github.com/n64hub/super-smash-bros-recomp/blob/89f7644a08ac705a03db9a61fad77828645797b0/README.md",
+          "steps": [
+            {
+              "title": "Set up the managed copy on first Play",
+              "instruction": "Use Load ROM to select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf). The player verifies it and keeps a private copy in its profile with SRAM and settings. Back up that profile separately before changing versions."
+            },
+            {
+              "title": "Prepare the game",
+              "instruction": "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if needed. On first start, choose Load ROM and select your own 16 MiB, big-endian Super Smash Bros. USA .z64 (SHA-1 e2929e10fccc0aa84e5776227e798abc07cedabf), then choose Start Game. The player checks the file and keeps a copy in its profile; keep your original separately."
+            },
+            {
+              "title": "Select the prepared player",
+              "instruction": "Select SmashBrosRecompiled.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+            }
+          ],
+          "warnings": [
+            "Keep the profile that contains your SRAM and settings. Changing portable mode does not move existing data.",
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Use a separate upstream copy for portable.txt mode. Managed and separately prepared copies share the default %LOCALAPPDATA%\\SmashBrosRecompiled profile.",
+            "Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the player does not start."
+          ],
+          "references": [
+            {
+              "title": "Setup instructions for the inspected release",
+              "instruction": "https://github.com/n64hub/super-smash-bros-recomp/releases/tag/v0.1.5"
+            },
+            {
+              "title": "Registration ownership and removal",
+              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
+            },
+            {
+              "title": "Player-data ownership",
+              "instruction": "You and upstream own the external copy's data: %LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt. Back up these locations separately; registration does not migrate or certify their compatibility."
+            },
+            {
+              "title": "Managed runtime ownership",
+              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "smashbrosrecompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "nam-raze",
       "name": "NAM (Raze)",
       "summary": "Play NAM in Raze using your own original PC game files.",

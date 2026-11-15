@@ -7,6 +7,8 @@ const DECLARED_MANAGED_ROUTE_TEST_IDS: &[&str] = &[
     "elasota-aerofoil",
     "heroes-of-might-and-magic-ii-fheroes2",
     "monster-hunter-portable-3rd-hd-yakumo",
+    "n64hub-rayman-2-recomp-n64-usa",
+    "n64hub-super-smash-bros-n64-usa-recomp",
     "nhl-94-genesis-ninety-four",
     "quake-ironwail",
     "quake-vkquake",
@@ -43,6 +45,16 @@ async fn managed_native_declared_heroes_of_might_and_magic_ii_fheroes2() {
 #[tokio::test]
 async fn managed_native_declared_monster_hunter_portable_3rd_hd_yakumo() {
     assert_declarative_managed_native_route("monster-hunter-portable-3rd-hd-yakumo").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_n64hub_rayman_2_recomp_n64_usa() {
+    assert_declarative_managed_native_route("n64hub-rayman-2-recomp-n64-usa").await;
+}
+
+#[tokio::test]
+async fn managed_native_declared_n64hub_super_smash_bros_n64_usa_recomp() {
+    assert_declarative_managed_native_route("n64hub-super-smash-bros-n64-usa-recomp").await;
 }
 
 #[tokio::test]
