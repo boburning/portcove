@@ -3689,8 +3689,12 @@ checkpoints. One PID-and-creation-time store combines those handles with bounded
 Job observations for descendants that start their own debugger. Cleanup proof
 uses valid returned PIDs from successful partial live snapshots as supplemental
 observations; partial snapshots never establish complete lifetime coverage.
-Malformed counts and either count above the 512-member bound remain failures. It
-requires positive retained-handle waits, zero active members and equality between
+Malformed counts and counts above the applicable member bound remain failures.
+Ordinary tools and decoders allow up to 512 members and 4,096 debug events.
+Managed builders allow up to 2,048 members and 65,536 debug events. Windows
+starts managed builders with the standard heap to avoid allocation contention
+during compilation and linking while retaining the same debug-event tracking.
+Cleanup requires positive retained-handle waits, zero active members and equality between
 the Job's lifetime count and retained identities, within one two-second closure
 deadline. Missing coverage, API failure or expiry preserves failure. Startup
 readiness failures and controller panics project the available locked proof
