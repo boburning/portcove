@@ -793,10 +793,15 @@ PLATFORM=NAME --preparation TEXT` with the official archive you verified. It rec
 Core's inspected layout and the listing's asset hints in a new `integration`, leaves
 the listing only its unmanaged platforms, inserts the ID into the sorted legacy
 additions fixture, flips the port's download test to the managed route, drops the
-superseded listing-only player test and regenerates the catalog. Optional
-`--repository`, `--channel`, `--persistent`, `--saves` and `--env` cover the other
-declarations. The guide, rights warnings, provider digest, write locations and
-process lifetime remain the author's review.
+superseded listing-only player test, formats the edits and regenerates the catalog.
+Pass the publisher digest with `--sha256 PLATFORM=HEX`; without it Core only checks
+the local hash and the command says so. Kept paths (`--persistent`) require an
+explicit `--saves` choice, and a listing without `original_game_title` needs
+`--original-game-title`. `--repository`, `--channel` and `--env` cover the other
+declarations. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
+`target/debug/portcove`), and each managed platform needs an archive that the host
+can inspect, so a Windows host promotes only Windows. The guide, rights warnings,
+provider digest, write locations and process lifetime remain the author's review.
 
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
