@@ -156,7 +156,7 @@ async fn run() -> ExitCode {
             let _runtime = ApplicationRuntimeGuard::acquire(
                 &HostPreferenceStore::application_runtime_lock_path()?,
             )?;
-            let library = portcove_core::Library::open(PathBuf::from(library))?;
+            let library = portcove_core::Library::open(std::path::PathBuf::from(library))?;
             portcove_core::run_launch_job_keeper(library, session, supervisor)
         })();
         return if result.is_ok() {
