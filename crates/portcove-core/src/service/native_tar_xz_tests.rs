@@ -353,12 +353,24 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         b"lives=9"
     );
 
+    // As Tier 2 would leave it: the same settings in both versions, and a
+    // log that differs.
+    let second_relative = second_folder.strip_prefix(&second.path).unwrap();
+    fs::create_dir_all(second_folder.join("settings")).unwrap();
+    fs::write(second_folder.join("settings/easy-access.ini"), b"lives=9").unwrap();
+    fs::create_dir_all(second_folder.join("logs")).unwrap();
+    fs::write(second_folder.join("logs/replay.txt"), b"second replay").unwrap();
+
     let before = service.list_backups(PORT).unwrap().backups;
     let preview = service.preview_removal(PORT).unwrap();
-    assert_eq!(preview.unknown_file_count, 2);
     assert_eq!(
-        preview.unknown_files,
-        [named("logs/replay.txt"), named("settings/easy-access.ini")]
+        preview.unknown_file_count, 4,
+        "every version's copy is listed"
+    );
+    assert!(
+        preview
+            .unknown_files
+            .contains(&named("settings/easy-access.ini"))
     );
     let consent = service
         .authorize_removal(PORT, &preview.preview_sha256)
@@ -378,7 +390,45 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
         b"lives=9"
     );
     assert_eq!(fs::read(area.join("logs/replay.txt")).unwrap(), b"replay");
-    assert!(!unknown_area(safety, &second).exists());
+    // D6: the identical settings file is stored once; the differing log twice.
+    let second_area = unknown_area(safety, &second).join(second_relative);
+    assert_eq!(
+        fs::read(second_area.join("logs/replay.txt")).unwrap(),
+        b"second replay"
+    );
+    let (stored_in, duplicate) = if first.id < second.id {
+        (&first, &second_area)
+    } else {
+        (&second, &area)
+    };
+    assert!(!duplicate.join("settings/easy-access.ini").exists());
+    assert_eq!(safety.unknown_file_count, 4);
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(safety.path.join("backup.json")).unwrap()).unwrap();
+    assert!(manifest.get("unknown_files_v1").is_none());
+    assert_eq!(manifest["unknown_files_v2"]["file_count"], 4);
+    assert_eq!(manifest["unknown_files_v2"]["stored_file_count"], 3);
+    let index: serde_json::Value =
+        serde_json::from_slice(&fs::read(safety.path.join("unknown-files/index.json")).unwrap())
+            .unwrap();
+    let files = index["files"].as_array().unwrap();
+    assert_eq!(files.len(), 4);
+    let settings = files
+        .iter()
+        .filter(|copy| {
+            copy["path"]
+                .as_str()
+                .unwrap()
+                .ends_with("settings/easy-access.ini")
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(settings.len(), 2);
+    assert!(
+        settings
+            .iter()
+            .all(|copy| copy["stored_in"] == stored_in.id.as_str())
+    );
+    assert_eq!(settings[0]["sha256"], settings[1]["sha256"]);
 }
 
 #[tokio::test]

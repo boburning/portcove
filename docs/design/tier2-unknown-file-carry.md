@@ -397,10 +397,20 @@ copies in several versions, so the caps would be reached because of Portcove's
 own copies. The new layout is `unknown_files_v2`, written by removal backups
 only:
 
-- **The store.** Content-addressed `unknown-files/objects/<sha256>`, with a
-  bounded `unknown-files/index.json` mapping each (install, path) to a digest.
-- **The caps.** They count distinct (path, digest) pairs and the bytes of
-  distinct digests.
+- **The store.** The v1 folders, `unknown-files/<install>/<install path>`,
+  so a player can still find a file by browsing. Each distinct (shared path,
+  digest) is stored once, under the first installation (by id) that has it.
+  The shared path is the file's path relative to its version's persistence
+  root, which is how Tier 2 carries it, so versions whose top folders are named
+  differently still collapse. A file outside that root is never collapsed.
+  `unknown-files/index.json` (schema 2) lists every installation's copy with
+  its digest and `stored_in` and `stored_path`, the folder and path that hold
+  the bytes. (T2-1b chose this over a content-addressed `objects/` store, which
+  players couldn't browse.)
+- **The caps.** They count stored copies and their bytes. Only copies with the
+  same shared path and size are hashed, after the per-file cap, and each
+  stored copy is re-hashed after copying, so a collapsed copy always names the
+  bytes kept. The removal review applies the same collapsed caps.
 - **The record.** Recorded beside, and outside, the content digest, like v1.
 - **Older readers.** The manifest field is optional and unknown fields are
   ignored (`service/backups.rs:489-497`), so they still restore exactly

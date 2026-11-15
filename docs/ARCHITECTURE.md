@@ -2646,7 +2646,16 @@ into the review fingerprint. The manifest records the area as `unknown_files_v1`
 (count, size, digest) outside the restorable content digest, and
 `BackupRecord.unknown_file_count` exposes the count. Restore copies only `data/`,
 so it never writes an unknown file into a declared path, and an older reader
-ignores the area. Restoring the area is Tier 2 work. A backup whose `data/` is
+ignores the area. Restoring the area is Tier 2 work.
+
+A removal backup collects every version, and identical copies of one file are
+stored once (`unknown_files_v2`). Copies share a path relative to each
+version's persistence root and the same SHA-256. Each distinct copy stays in
+the first installation's folder (by id), and `unknown-files/index.json` lists
+every installation's copy with `stored_in` and `stored_path`. The record's
+`file_count` counts every copy and `stored_file_count` what was stored. The caps,
+in the removal review and in execution, count stored copies, so the copies
+Tier 2 places in several versions do not reach them. A backup whose `data/` is
 empty, holding only unknown files, cannot be restored (restore and its review
 refuse it, and the restore assessment ignores it) and is never the latest
 protection in `BackupInventory.protection`.

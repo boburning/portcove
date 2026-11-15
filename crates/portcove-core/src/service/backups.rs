@@ -34,8 +34,8 @@ mod unknown_files;
 #[cfg(test)]
 pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
 pub(super) use unknown_files::{
-    UnknownFileScope, UnknownRuntimeFile, measure as measure_unknown_files,
-    require_within_caps as require_unknown_files_within_caps,
+    UnknownFileScope, UnknownRuntimeFile, deduplicate as deduplicate_unknown_files,
+    measure as measure_unknown_files,
 };
 
 /// The newest this many automatic snapshots per game are kept.
@@ -491,6 +491,11 @@ struct BackupManifest {
     /// older reader that ignores it still restores exactly `data/`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     unknown_files_v1: Option<unknown_files::UnknownFilesArea>,
+    /// A removal backup's unknown files, stored once per distinct copy with
+    /// `unknown-files/index.json` listing every installation's copy. Outside
+    /// the content digest for the same reason as `unknown_files_v1`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    unknown_files_v2: Option<unknown_files::UnknownFilesArea>,
     /// How many unknown files an automatic snapshot left in the game folder
     /// because they exceeded the caps. Advisory, like `automatic_v1`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -722,6 +727,7 @@ impl PortcoveService {
         let source_exists = source.is_dir();
         let selection = self.backup_unknown_files(port_id, unknown_scope)?;
         let unknown = selection.files;
+        let unknown_duplicates = selection.duplicates;
         let unknown_files_left_in_place_v1 =
             (selection.left_in_place > 0).then_some(selection.left_in_place);
         if !source_exists && unknown.is_empty() {
@@ -780,7 +786,15 @@ impl PortcoveService {
             } else {
                 copy_backup_tree(&source, &staging_path.join("data"), &source, &mut stats)?;
             }
-            let unknown_files_v1 = unknown_files::copy_area(&staging_path, &unknown)?;
+            let (unknown_files_v1, unknown_files_v2) = if unknown_scope == UnknownFileScope::Removal
+            {
+                (
+                    None,
+                    unknown_files::copy_removal_area(&staging_path, &unknown, &unknown_duplicates)?,
+                )
+            } else {
+                (unknown_files::copy_area(&staging_path, &unknown)?, None)
+            };
             self.faults.check(LifecycleFaultPoint::BackupDataCopied)?;
             if self.guarded_backup_producer(port_id)? != producer
                 || crate::archive_data::snapshot_policy(&source)? != partitioned_policy
@@ -789,7 +803,7 @@ impl PortcoveService {
                     "backup producing installation changed while copying",
                 ));
             }
-            if stats.file_count == 0 && unknown_files_v1.is_none() {
+            if stats.file_count == 0 && unknown_files_v1.is_none() && unknown_files_v2.is_none() {
                 return Err(no_persistent_data(port_id));
             }
             // Publish only data that the existing restore review can interpret.
@@ -825,6 +839,7 @@ impl PortcoveService {
                 automatic_v1: label,
                 guarded_archive_v1: producer.map(|p| p.archive_sha256),
                 unknown_files_v1,
+                unknown_files_v2,
                 unknown_files_left_in_place_v1,
             };
             let final_path = parent.join(&manifest.id);
@@ -2064,6 +2079,7 @@ fn backup_record(manifest: BackupManifest, path: PathBuf) -> BackupRecord {
         unknown_file_count: manifest
             .unknown_files_v1
             .as_ref()
+            .or(manifest.unknown_files_v2.as_ref())
             .map_or(0, |area| area.file_count),
     }
 }

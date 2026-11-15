@@ -4692,9 +4692,12 @@ impl PortcoveService {
                 "{port_id} is not installed"
             )));
         }
-        let mut unknown = Vec::new();
+        let keyed = self.removal_unknown_files(&installs)?;
+        let unknown = keyed
+            .iter()
+            .map(|(file, _)| file.clone())
+            .collect::<Vec<_>>();
         for install in &installs {
-            unknown.extend(self.portable_runtime_unknown_files(install)?);
             let paths = crate::output_root::removal_paths(
                 &self.library,
                 port_id,
@@ -4707,8 +4710,9 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        // Removal copies these before deleting the folders, so the caps apply.
-        backups::require_unknown_files_within_caps(&unknown)?;
+        // Removal copies these before deleting the folders, so the caps apply
+        // to what it stores once identical copies collapse.
+        backups::deduplicate_unknown_files(keyed)?;
         let listed = unknown
             .iter()
             .map(|file| (file.install_id.as_str(), file.relative.as_str(), file.size))
