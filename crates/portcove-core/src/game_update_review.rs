@@ -82,7 +82,8 @@ impl PortcoveService {
     }
 
     /// The release list link is kept only when Desktop's reviewed-link check would
-    /// open it; nothing else in the notes is a link.
+    /// open it. Each entry's release page is kept only with that list and only when
+    /// it is a plain-tag release page of this port's own release repository.
     fn update_release_notes(
         &self,
         port_id: &str,
@@ -92,8 +93,9 @@ impl PortcoveService {
         if plan.action == crate::InstallPlanAction::AlreadyActive {
             return Ok(None);
         }
+        let port = self.catalog.port(port_id)?;
         let Some(mut notes) = self.releases.cached_release_notes(
-            self.catalog.port(port_id)?,
+            port,
             plan.channel,
             plan.platform,
             status.active.as_ref().map(|active| active.version.as_str()),
@@ -104,6 +106,15 @@ impl PortcoveService {
         if let Some(url) = &notes.releases_url {
             let reviewed = self.is_reviewed_resource_url(url);
             keep_reviewed_link(&mut notes, reviewed);
+        }
+        // Without an openable list, no release page is offered either. The page
+        // check is the port-bound part of Desktop's reviewed-link check.
+        let list_kept = notes.releases_url.is_some();
+        for entry in &mut notes.entries {
+            entry.url = entry
+                .url
+                .take()
+                .filter(|url| list_kept && super::listings::release_page_url(port, url));
         }
         Ok((!notes.entries.is_empty() || notes.releases_url.is_some()).then_some(notes))
     }
@@ -517,14 +528,28 @@ mod tests {
                 .repository
                 .as_deref()
                 .unwrap_or(&port.release.repository);
+            let list = format!("https://github.com/{repository}/releases");
+            let entries = self
+                .entries
+                .iter()
+                .cloned()
+                .map(|mut entry| {
+                    entry.url = crate::release_notes::release_page(
+                        &list,
+                        crate::release_notes::ReleasePage::GithubTag,
+                        &entry.version,
+                    );
+                    entry
+                })
+                .collect::<Vec<_>>();
             Some(crate::UpdateReleaseNotes {
-                releases_url: Some(format!("https://github.com/{repository}/releases")),
+                releases_url: Some(list),
                 coverage: if self.entries.is_empty() {
                     crate::UpdateReleaseNotesCoverage::Unavailable
                 } else {
                     crate::UpdateReleaseNotesCoverage::Complete
                 },
-                entries: self.entries.clone(),
+                entries,
             })
         }
     }
@@ -536,6 +561,7 @@ mod tests {
             published_at: None,
             notes: "Fixes".into(),
             notes_truncated: false,
+            url: None,
         }
     }
 
@@ -559,7 +585,10 @@ mod tests {
         let with = noted.plan_game_update(PORT, true).await.unwrap();
         assert_eq!(
             with.release_notes.as_ref().unwrap().entries,
-            [notes_entry()]
+            [crate::UpdateReleaseNotesEntry {
+                url: Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2".into()),
+                ..notes_entry()
+            }]
         );
         assert_eq!(with.plan_sha256, without.plan_sha256);
         assert_eq!(
@@ -618,6 +647,47 @@ mod tests {
                 .is_reviewed_resource_url(notes.releases_url.as_deref().unwrap())
                 .unwrap()
         );
+        // Each release page under the same repository is a reviewed handoff too.
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2")
+        );
+        // Desktop's gate opens exactly what the review offers.
+        assert!(
+            reviewed
+                .is_reviewed_resource_url(notes.entries[0].url.as_deref().unwrap())
+                .unwrap()
+        );
+        // A tag that is not plain keeps its notes but gets no release page.
+        let slashed = crate::UpdateReleaseNotesEntry {
+            version: "release/v2".into(),
+            ..notes_entry()
+        };
+        let slashed_notes = reviewed_repository_service(
+            &service.library,
+            NotesProvider::new(&service, None, vec![slashed]),
+        )
+        .plan_game_update(PORT, true)
+        .await
+        .unwrap()
+        .release_notes
+        .unwrap();
+        assert_eq!(slashed_notes.entries[0].url, None);
+        for refused in [
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2/../../../other",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2?x=1",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2#notes",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v%2F2",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/",
+            "https://github.com/Other/Zelda64Recomp/releases/tag/v2",
+            "https://github.com/Zelda64Recomp/Zelda64Recomp/releases/download/v2/x.zip",
+            "http://github.com/Zelda64Recomp/Zelda64Recomp/releases/tag/v2",
+        ] {
+            assert!(
+                !reviewed.is_reviewed_resource_url(refused).unwrap(),
+                "{refused}"
+            );
+        }
         // A link Desktop would refuse is dropped; the notes remain.
         let foreign = reviewed_repository_service(
             &service.library,
@@ -630,6 +700,7 @@ mod tests {
             .release_notes
             .unwrap();
         assert_eq!(notes.releases_url, None);
+        // The foreign repository's release pages are dropped with its list.
         assert_eq!(notes.entries, [notes_entry()]);
         // Neither notes nor an openable link: nothing to show.
         let empty = reviewed_repository_service(

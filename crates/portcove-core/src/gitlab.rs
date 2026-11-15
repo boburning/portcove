@@ -640,6 +640,7 @@ impl ReleaseProvider for GitlabReleaseProvider {
                 offered,
             },
             releases_url,
+            crate::release_notes::ReleasePage::GitlabRelease,
         ))
     }
 }
@@ -1570,6 +1571,11 @@ mod tests {
             [("v1.2", "Fixes audio"), ("v1.1", "Adds widescreen")]
         );
         assert_eq!(notes.entries[0].title, None);
+        // GitLab release pages sit directly under the release list.
+        assert_eq!(
+            notes.entries[0].url.as_deref(),
+            Some("https://gitlab.example.test/group/project/-/releases/v1.2")
+        );
     }
 
     fn generic_test_port() -> PortDefinition {

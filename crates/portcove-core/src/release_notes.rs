@@ -2,9 +2,10 @@
 //!
 //! Notes come only from release-list pages the provider already persisted while
 //! resolving the offered release: building them makes no request. Upstream text is
-//! untrusted and returned as bounded plain text. The only link is the project's
-//! release list page, built from the provider origin and repository; the review
-//! keeps it only when it passes the reviewed-link check.
+//! untrusted and returned as bounded plain text. The only links are the project's
+//! release list page, built from the provider origin and repository, and each
+//! entry's own release page under it, named by its exact plain upstream tag; the
+//! review keeps each only when it passes the reviewed-link check.
 use std::collections::HashSet;
 
 use crate::{
@@ -78,7 +79,9 @@ pub(crate) fn between(
     listed: &[ListedRelease<'_>],
     request: &NotesRequest<'_>,
     releases_url: Option<String>,
+    page: ReleasePage,
 ) -> UpdateReleaseNotes {
+    let listed_entry = |release: &ListedRelease<'_>| entry(release, releases_url.as_deref(), page);
     let mut seen = HashSet::new();
     let listed = listed
         .iter()
@@ -97,7 +100,9 @@ pub(crate) fn between(
     let Some(offered_index) = position(request.offered) else {
         return result(Vec::new(), Coverage::Unavailable);
     };
-    let mut entries = entry(listed[offered_index]).into_iter().collect::<Vec<_>>();
+    let mut entries = listed_entry(listed[offered_index])
+        .into_iter()
+        .collect::<Vec<_>>();
     let installed_index = request.installed.and_then(position);
     if installed_index == Some(offered_index) {
         return result(entries, Coverage::Complete);
@@ -128,12 +133,16 @@ pub(crate) fn between(
         if entries.len() == MAX_RELEASES {
             return result(entries, Coverage::Shortened);
         }
-        entries.extend(entry(release));
+        entries.extend(listed_entry(release));
     }
     result(entries, Coverage::InstalledNotListed)
 }
 
-fn entry(release: &ListedRelease<'_>) -> Option<UpdateReleaseNotesEntry> {
+fn entry(
+    release: &ListedRelease<'_>,
+    releases_url: Option<&str>,
+    page: ReleasePage,
+) -> Option<UpdateReleaseNotesEntry> {
     let version = single_line(release.tag, MAX_VERSION_CHARS);
     if version.is_empty() {
         return None;
@@ -144,12 +153,48 @@ fn entry(release: &ListedRelease<'_>) -> Option<UpdateReleaseNotesEntry> {
         .map(|title| single_line(title, MAX_TITLE_CHARS))
         .filter(|title| !title.is_empty() && *title != version);
     Some(UpdateReleaseNotesEntry {
-        version,
         title,
         published_at: release.published_at.and_then(timestamp),
         notes,
         notes_truncated,
+        // Only a tag shown exactly as published names its page, so a display-cleaned
+        // version never links to a different tag.
+        url: releases_url
+            .filter(|_| version == release.tag)
+            .and_then(|list| release_page(list, page, release.tag)),
+        version,
     })
+}
+
+/// A tag that a release page link may name: plain characters only, so the link
+/// cannot add path segments, encoded characters, a query or a fragment.
+pub(crate) fn linkable_tag(tag: &str) -> bool {
+    (1..=128).contains(&tag.len())
+        && tag != "."
+        && tag != ".."
+        && tag
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"-_.+".contains(&byte))
+}
+
+/// Where a provider places one release's page under its release list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ReleasePage {
+    /// GitHub: `<list>/tag/<tag>`.
+    GithubTag,
+    /// GitLab: `<list>/<tag>`.
+    GitlabRelease,
+}
+
+/// One release's page under `list`, or none when the tag is not plain.
+pub(crate) fn release_page(list: &str, page: ReleasePage, tag: &str) -> Option<String> {
+    if !linkable_tag(tag) {
+        return None;
+    }
+    match page {
+        ReleasePage::GithubTag => web_url(list, &["tag", tag]),
+        ReleasePage::GitlabRelease => web_url(list, &[tag]),
+    }
 }
 
 /// Accepts only a bounded RFC 3339-shaped timestamp; anything else is absent.
@@ -314,7 +359,12 @@ mod tests {
     }
 
     fn notes(listed: &[ListedRelease<'_>], request: &NotesRequest<'_>) -> UpdateReleaseNotes {
-        between(listed, request, Some("https://example.test/all".into()))
+        between(
+            listed,
+            request,
+            Some("https://example.test/all".into()),
+            ReleasePage::GithubTag,
+        )
     }
 
     fn versions(notes: &UpdateReleaseNotes) -> Vec<&str> {
@@ -323,6 +373,73 @@ mod tests {
             .iter()
             .map(|entry| entry.version.as_str())
             .collect()
+    }
+
+    #[test]
+    fn release_page_links_name_only_plain_tags() {
+        assert!(linkable_tag("v1.2.3"));
+        assert!(linkable_tag("2026-11-15_nightly+1"));
+        for tag in [
+            "",
+            ".",
+            "..",
+            "release/v1",
+            "v1%2F2",
+            "v1?x",
+            "v1#x",
+            "v 1",
+            "v1\\x",
+        ] {
+            assert!(!linkable_tag(tag), "{tag}");
+        }
+        let listed = [
+            release("v1+build", ""),
+            release("nested/v1", ""),
+            // Shown as "v2" once the invisible character is removed, but that is
+            // not the published tag, so it gets no page.
+            release("v2\u{200b}", ""),
+            release("v0", ""),
+        ];
+        let links = |list: Option<&str>, page| {
+            between(
+                &listed,
+                &request(Some("v0"), "v1+build"),
+                list.map(str::to_owned),
+                page,
+            )
+            .entries
+            .into_iter()
+            .map(|entry| (entry.version, entry.url))
+            .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            links(
+                Some("https://github.com/owner/name/releases"),
+                ReleasePage::GithubTag
+            ),
+            [
+                (
+                    "v1+build".to_owned(),
+                    Some("https://github.com/owner/name/releases/tag/v1+build".to_owned())
+                ),
+                ("nested/v1".to_owned(), None),
+                ("v2".to_owned(), None),
+            ]
+        );
+        assert_eq!(
+            links(
+                Some("https://gitlab.com/group/name/-/releases"),
+                ReleasePage::GitlabRelease
+            )[0]
+            .1
+            .as_deref(),
+            Some("https://gitlab.com/group/name/-/releases/v1+build")
+        );
+        assert!(
+            links(None, ReleasePage::GithubTag)
+                .iter()
+                .all(|(_, url)| url.is_none())
+        );
     }
 
     #[test]
@@ -367,7 +484,12 @@ mod tests {
             notes(&listed, &request(None, "v3")).coverage,
             Coverage::InstalledNotListed
         );
-        let missing_offered = between(&listed, &request(Some("v1"), "v9"), None);
+        let missing_offered = between(
+            &listed,
+            &request(Some("v1"), "v9"),
+            None,
+            ReleasePage::GithubTag,
+        );
         assert!(missing_offered.entries.is_empty());
         assert_eq!(missing_offered.coverage, Coverage::Unavailable);
         assert_eq!(missing_offered.releases_url, None);

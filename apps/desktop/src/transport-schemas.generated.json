@@ -18629,6 +18629,13 @@
               "null"
             ]
           },
+          "url": {
+            "description": "This release's page. Present only when Desktop may open it: it is built by\nPortcove under the port's own release repository from a plain tag and passes\nthe reviewed-link check.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "version": {
             "description": "The release tag, normalized for display.",
             "type": "string"
