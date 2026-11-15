@@ -14,6 +14,7 @@ import {
   compareVersions,
   isWithdrawn,
   nextPreviewVersion,
+  nightlyLookback,
   nightlyPreview,
   parseWithdrawnList,
   publishedReleases,
@@ -429,13 +430,21 @@ void test("the workspace version is read from Cargo.toml's workspace.package sec
   assert.equal(readWorkspaceVersion(root), "0.1.0");
 });
 
-function nightlyRunner(state: { pointsAt?: string; describe?: string | null }) {
+function nightlyRunner(state: {
+  pointsAt?: string;
+  describe?: string | null;
+  history?: string[];
+  tagged?: Record<string, string>;
+}) {
   const head = "c".repeat(40);
+  const history = state.history ?? [head, "d".repeat(40), "e".repeat(40)];
   const calls: string[][] = [];
   const run: Runner = (command, args) => {
     calls.push([command, ...args]);
     if (args[0] === "rev-parse") return head;
-    if (args[0] === "tag" && args[1] === "--points-at") return state.pointsAt ?? "";
+    if (args[0] === "rev-list") return history.join("\n");
+    if (args[0] === "tag" && args[1] === "--points-at")
+      return args[2] === head ? (state.pointsAt ?? "") : (state.tagged?.[args[2]!] ?? "");
     if (args[0] === "tag" && args[1] === "--list") return existingTags.join("\n");
     if (args[0] === "describe") {
       if (state.describe === null) throw new Error("fatal: No names found");
@@ -445,17 +454,29 @@ function nightlyRunner(state: { pointsAt?: string; describe?: string | null }) {
       return "- Fix saves (abc1234)\n- Bump @types/node for @boburning (def5678)";
     return "";
   };
-  return { run, calls, head };
+  return { run, calls, head, history };
 }
 
-void test("the nightly preview tags a CI-green untagged main once and lists its new commits", () => {
+const conclusions =
+  (map: Record<string, string>) =>
+  (sha: string): Promise<string> =>
+    Promise.resolve(map[sha] ?? "");
+
+void test("the nightly preview tags a CI-green untagged main once and lists its new commits", async () => {
   const ok = nightlyRunner({});
-  const result = nightlyPreview("0.1.0", (sha) => (sha === ok.head ? "success" : ""), ok.run);
+  const result = await nightlyPreview("0.1.0", conclusions({ [ok.head]: "success" }), ok.run);
   assert.deepEqual(result, {
     tag: "nightly-0.1.0-preview.1",
     version: "0.1.0-preview.1",
     commit: ok.head,
   });
+  assert.deepEqual(ok.calls.find((call) => call[1] === "rev-list")!.slice(1), [
+    "rev-list",
+    "--first-parent",
+    "-n",
+    String(nightlyLookback),
+    ok.head,
+  ]);
   assert.deepEqual(
     ok.calls.find((call) => call[1] === "tag" && call[2] === "--points-at")!.slice(1),
     ["tag", "--points-at", ok.head, "--list", "v*", "nightly-*"],
@@ -493,25 +514,25 @@ void test("the nightly preview tags a CI-green untagged main once and lists its 
   assert.deepEqual(ok.calls.at(-1), ["git", "push", "origin", "refs/tags/nightly-0.1.0-preview.1"]);
 
   const first = nightlyRunner({ describe: null });
-  nightlyPreview("0.1.0", () => "success", first.run);
+  await nightlyPreview("0.1.0", () => Promise.resolve("success"), first.run);
   assert.equal(first.calls.find((call) => call[1] === "log")!.at(-1), first.head);
 
-  const skips: [ReturnType<typeof nightlyRunner>, string, RegExp][] = [
-    [
-      nightlyRunner({ pointsAt: "v0.1.0-preview.1" }),
-      "success",
-      /already tagged v0\.1\.0-preview\.1/u,
-    ],
+  const skips: [ReturnType<typeof nightlyRunner>, Record<string, string>, RegExp][] = [
+    [nightlyRunner({ pointsAt: "v0.1.0-preview.1" }), {}, /already tagged v0\.1\.0-preview\.1/u],
     [
       nightlyRunner({ pointsAt: "nightly-0.1.0-preview.1" }),
-      "success",
+      {},
       /already tagged nightly-0\.1\.0-preview\.1/u,
     ],
-    [nightlyRunner({}), "", /has not succeeded \(got 'none'\)/u],
-    [nightlyRunner({}), "failure", /has not succeeded \(got 'failure'\)/u],
+    [nightlyRunner({}), {}, /any of the latest 3 main commits \(ccccccccc got 'none'; d+ got/u],
+    [
+      nightlyRunner({ tagged: { ["d".repeat(40)]: "nightly-0.1.0-preview.1" } }),
+      { ["d".repeat(40)]: "success", ["e".repeat(40)]: "success" },
+      /no CI-green main commit is newer than nightly-0\.1\.0-preview\.1 \(ccccccccc got 'none'\)/u,
+    ],
   ];
   for (const [fake, ci, reason] of skips) {
-    const skipped = nightlyPreview("0.1.0", () => ci, fake.run);
+    const skipped = await nightlyPreview("0.1.0", conclusions(ci), fake.run);
     assert.ok("skipped" in skipped);
     assert.match(skipped.skipped, reason);
     assert.ok(!fake.calls.some((call) => call[1] === "push" || call[2] === "-a"));
@@ -519,12 +540,51 @@ void test("the nightly preview tags a CI-green untagged main once and lists its 
   // A stray non-preview nightly-* tag on HEAD does not suppress the nightly.
   const stray = nightlyRunner({ pointsAt: "nightly-9.9.9" });
   assert.equal(
-    (nightlyPreview("0.1.0", () => "success", stray.run) as { tag: string }).tag,
+    (
+      (await nightlyPreview("0.1.0", () => Promise.resolve("success"), stray.run)) as {
+        tag: string;
+      }
+    ).tag,
     "nightly-0.1.0-preview.1",
   );
   const offMain: Runner = (_command, args) =>
     args[0] === "rev-parse" ? (args[1] === "HEAD" ? "a".repeat(40) : "b".repeat(40)) : "";
-  assert.throws(() => nightlyPreview("0.1.0", () => "success", offMain), /origin\/main/u);
+  await assert.rejects(
+    nightlyPreview("0.1.0", () => Promise.resolve("success"), offMain),
+    /origin\/main/u,
+  );
+});
+
+void test("a busy main tags the newest CI-green commit and stops querying CI there", async () => {
+  const fake = nightlyRunner({});
+  const [head, older, oldest] = fake.history as [string, string, string];
+  const asked: string[] = [];
+  const result = await nightlyPreview(
+    "0.1.0",
+    (sha) => {
+      asked.push(sha);
+      return Promise.resolve(sha === head ? "" : "success");
+    },
+    fake.run,
+  );
+  assert.deepEqual(result, {
+    tag: "nightly-0.1.0-preview.1",
+    version: "0.1.0-preview.1",
+    commit: older,
+  });
+  assert.deepEqual(asked, [head, older]);
+  assert.ok(!asked.includes(oldest));
+  assert.equal(fake.calls.find((call) => call[1] === "describe")!.at(-1), older);
+  assert.equal(fake.calls.find((call) => call[1] === "log")!.at(-1), `v0.1.0-alpha.2..${older}`);
+  assert.equal(fake.calls.find((call) => call[1] === "tag" && call[2] === "-a")!.at(-1), older);
+  // A failed newer CI run does not block an older green commit either.
+  const failed = nightlyRunner({});
+  const picked = await nightlyPreview(
+    "0.1.0",
+    conclusions({ [failed.head]: "failure", [failed.history[1]!]: "success" }),
+    failed.run,
+  );
+  assert.equal((picked as { commit: string }).commit, failed.history[1]);
 });
 
 void test("the withdrawn list is a sorted unique version array that the feed publisher honours", () => {

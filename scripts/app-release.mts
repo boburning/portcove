@@ -277,29 +277,52 @@ export function quietMentions(text: string) {
   return text.replaceAll("@", "＠");
 }
 
+/** How many first-parent `main` commits a nightly looks back for a CI-green one. */
+export const nightlyLookback = 20;
+
 /**
- * Tags and pushes at most one `nightly-X.Y.Z-preview.N` of the `origin/main`
- * commit. Skips when that commit already carries a `v*` or `nightly-*` tag or its
- * CI has not succeeded. The tag only names the release: signing is admitted by
- * the `main` ref of the nightly run, never by this tag.
+ * Tags and pushes at most one `nightly-X.Y.Z-preview.N`, at the newest CI-green
+ * first-parent commit of `origin/main` that is newer than every commit carrying a
+ * `v*` or `nightly-*` tag. On a busy `main` the newest commit often has no finished
+ * `CI` run yet (pending runs are replaced), so an older reviewed commit is used.
+ * The tag only names the release: signing is admitted by the `main` ref of the
+ * nightly run, never by this tag.
  */
-export function nightlyPreview(
+export async function nightlyPreview(
   workspaceVersion: string,
-  ci: (sha: string) => string,
+  ci: (sha: string) => Promise<string>,
   run: Runner = defaultRunner,
-): { skipped: string } | { tag: string; version: string; commit: string } {
+): Promise<{ skipped: string } | { tag: string; version: string; commit: string }> {
   const git = (args: string[]) => run("git", args);
   const head = git(["rev-parse", "HEAD"]);
   if (head !== git(["rev-parse", "origin/main"]))
     throw new Error("nightly previews are tagged only from the origin/main commit");
-  const existing = git(["tag", "--points-at", head, "--list", ...versionTagPatterns])
+  const candidates = git(["rev-list", "--first-parent", "-n", String(nightlyLookback), head])
     .split("\n")
-    .filter((tag) => tag.startsWith("v") || tagVersion(tag) !== null);
-  if (existing.length > 0)
-    return { skipped: `main ${head} is already tagged ${existing.join(", ")}` };
-  const conclusion = ci(head);
-  if (conclusion !== "success")
-    return { skipped: `CI on main ${head} has not succeeded (got '${conclusion || "none"}')` };
+    .filter(Boolean);
+  const seen: string[] = [];
+  let commit = "";
+  for (const sha of candidates) {
+    const existing = git(["tag", "--points-at", sha, "--list", ...versionTagPatterns])
+      .split("\n")
+      .filter((tag) => tag.startsWith("v") || tagVersion(tag) !== null);
+    if (existing.length > 0) {
+      if (sha === head) return { skipped: `main ${head} is already tagged ${existing.join(", ")}` };
+      return {
+        skipped: `no CI-green main commit is newer than ${existing.join(", ")} (${seen.join("; ")})`,
+      };
+    }
+    const conclusion = await ci(sha);
+    if (conclusion === "success") {
+      commit = sha;
+      break;
+    }
+    seen.push(`${sha.slice(0, 9)} got '${conclusion || "none"}'`);
+  }
+  if (!commit)
+    return {
+      skipped: `CI has not succeeded on any of the latest ${candidates.length} main commits (${seen.join("; ")})`,
+    };
   const tags = listVersionTags(run);
   const version = nextPreviewVersion(tags, workspaceVersion);
   const tag = `${nightlyTagPrefix}${version}`;
@@ -310,7 +333,7 @@ export function nightlyPreview(
       "--tags",
       "--abbrev=0",
       ...versionTagPatterns.flatMap((pattern) => ["--match", pattern]),
-      head,
+      commit,
     ]);
   } catch {
     // No earlier version tag is reachable; the list then shows the latest commits.
@@ -321,7 +344,7 @@ export function nightlyPreview(
     "--format=- %s (%h)",
     "-n",
     String(nightlyCommitLimit + 1),
-    previous ? `${previous}..${head}` : head,
+    previous ? `${previous}..${commit}` : commit,
   ])
     .split("\n")
     .filter(Boolean)
@@ -336,9 +359,9 @@ export function nightlyPreview(
     ...listed,
     "",
   ].join("\n");
-  git(["tag", "-a", "--cleanup=verbatim", tag, "-m", message, head]);
+  git(["tag", "-a", "--cleanup=verbatim", tag, "-m", message, commit]);
   git(["push", "origin", `refs/tags/${tag}`]);
-  return { tag, version, commit: head };
+  return { tag, version, commit };
 }
 
 /**
@@ -920,10 +943,8 @@ async function main(argv: string[]) {
   else if (command === "next-preview")
     console.log(nextPreviewVersion(listVersionTags(), readWorkspaceVersion(process.cwd())));
   else if (command === "nightly-preview") {
-    const head = defaultRunner("git", ["rev-parse", "HEAD"]);
-    const conclusion = await ciConclusion(token(), head);
-    const result = nightlyPreview(readWorkspaceVersion(process.cwd()), (sha) =>
-      sha === head ? conclusion : "",
+    const result = await nightlyPreview(readWorkspaceVersion(process.cwd()), (sha) =>
+      ciConclusion(token(), sha),
     );
     if ("skipped" in result) {
       console.error(`::notice::No nightly preview: ${result.skipped}`);
