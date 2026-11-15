@@ -7,7 +7,6 @@
     "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
     "issue_number": 1795,
     "listed_at": "2026-10-23",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
     "artwork": {
@@ -28,26 +27,60 @@
     "manual_setup": {
       "steps": [
         {
-          "title": "Keep the complete player package",
-          "instruction": "On Windows, select BanjoTooieRecompiled.exe in the package folder and keep assets plus the supplied SDL2/DXC libraries together in its working folder. On Linux, retain run.sh for upstream launch, or select the native BanjoTooieRecompiled with that extracted folder as its working directory. The wrapper supplies that folder; the native build still needs its documented Vulkan, shared-library and file-dialog portal prerequisites."
+          "title": "Choose your original cartridge dump on first Play",
+          "instruction": "Choose Play, then Select ROM and supply your own Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The player reads it directly, without a separate extraction or compiler step."
         },
         {
-          "title": "Choose your original cartridge dump on first Play",
-          "instruction": "Choose Play explicitly, then Select ROM and supply your own supported Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The released player reads it directly, without a separate extraction or compiler step."
+          "title": "Keep the complete player package",
+          "instruction": "For a copy you manage yourself, extract the whole package. On Windows, run BanjoTooieRecompiled.exe with assets and the supplied SDL2 and DXC libraries beside it. On Linux, run run.sh, or start BanjoTooieRecompiled with its extracted folder as the working folder. Linux needs Vulkan, its shared libraries and the desktop file-dialog portal."
         }
       ],
       "warnings": [
-        "Upstream calls Linux less exercised than Windows. Published packages and source claims do not establish Portcove native gameplay or real-save acceptance.",
-        "Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability.",
+        "Upstream calls Linux less exercised than Windows. Portcove has not observed native setup, gameplay or saves.",
         "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
       ],
       "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
       "references": [
         {
           "title": "Keep your actual profile when updating",
-          "instruction": "You or upstream own runtime updates. Preserve the complete player folder, original game and actual profile: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, also keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder; preserve any APP_FOLDER_PATH, portable or customized profile actually used. Keep settings and saves together and retain a working copy before replacing it. Portcove does not adopt or back up these files, rewind saves or guarantee older-runtime readability."
+          "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep settings and saves together and keep a working copy before replacing the player."
         }
       ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "provider": "github",
+      "repository": "Vidanox/BanjoTooieRecompiled",
+      "asset_hints": {
+        "windows-x86-64": ["BanjoTooieRecompiled-", "windows-x64.zip"],
+        "linux-x86-64": ["BanjoTooieRecompiled-", "linux-x64.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["BanjoTooieRecompiled.exe"],
+      "linux-x86-64": ["BanjoTooieRecompiled"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, choose Select ROM and pick your own Banjo-Tooie USA 32 MiB big-endian .z64. The player reads that file directly, so keep it where it is and outside Portcove's install folder. Saves, settings and mods go to the player's profile: %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows, or ~/.config/BanjoTooieRecompiled on Linux unless APP_FOLDER_PATH names another folder. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. On Linux the player needs Vulkan, its shared libraries and the desktop file-dialog portal. Portcove replaces the player; you own the original and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["assets"],
+        "executables": ["banjotooierecompiled.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["assets"],
+        "executables": ["banjotooierecompiled", "run.sh"]
+      }
     }
   }
 }

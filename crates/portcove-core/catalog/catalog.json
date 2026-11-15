@@ -53997,6 +53997,84 @@
       "windows_temp_directory": "profile"
     },
     {
+      "id": "blast-corps-blastcorps-recompiled",
+      "name": "Blast Corps (BlastCorps: Recompiled)",
+      "summary": "A native Blast Corps player for your own North American revision 1.1 dump.",
+      "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "SlaveOfIDO/blastcorps-recomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BlastCorpsRecompiled-",
+            "-Windows-RelWithDebInfo.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BlastCorpsRecompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. It keeps a copy named bc.n64.us in its profile at %LOCALAPPDATA%\\BlastCorpsRecompiled, together with saves, settings and mods; keep your original separately. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Blast Corps",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own supported original",
+              "instruction": "On first Play, choose your own North American revision 1.1 Blast Corps ROM in the player. The player keeps its own copy, bc.n64.us, in its profile. Keep your original separately."
+            },
+            {
+              "title": "Keep the complete Windows player",
+              "instruction": "For a copy you manage yourself, keep the BlastCorps Recompiled 1.1.1 Windows package files together: BlastCorpsRecompiled.exe, assets, the DLLs and recompcontrollerdb.txt. The published player needs no game compiler or separate installer. To add that copy to Portcove, select BlastCorpsRecompiled.exe and its package folder; removing it from Portcove leaves every file in place."
+            }
+          ],
+          "warnings": [
+            "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Portcove has not observed native setup, gameplay or saves. Changing versions does not rewind saves or check mods; keep a separate backup of the profile."
+          ],
+          "help_url": "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md",
+          "references": [
+            {
+              "title": "Preserve the actual profile before maintenance",
+              "instruction": "The normal Windows profile is %LOCALAPPDATA%\\BlastCorpsRecompiled. A portable.txt file in the working folder makes that folder the profile, and if Windows cannot report the local app data folder the player also uses the working folder. Preserve the folder actually used, including the copied bc.n64.us original, saves, settings, mods and mod settings. Close the player before replacing a copy you manage yourself."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3424,
+          "cover_id": 104010,
+          "image_id": "co2896",
+          "image_sha256": "1ec211e7b4b84301a702907c5bb9f70a42f9c2d99db35c5d90886983b62e58e5",
+          "game_slug": "blast-corps",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "blastcorpsrecompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "blast-corps-power-dozer",
       "name": "Blast Corps (Power Dozer)",
       "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
@@ -72950,6 +73028,101 @@
           "image_sha256": "8140145877f727a95bf62cd94b9cb4b26a3148537c2225d90954256bd981b04c",
           "game_slug": "heroes-of-might-and-magic-iii-the-restoration-of-erathia",
           "match_kind": "underlying-game"
+        }
+      }
+    },
+    {
+      "id": "vidanox-banjotooierecompiled",
+      "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
+      "summary": "Use the Banjo-Tooie player package and select your own USA big-endian cartridge dump.",
+      "project_url": "https://github.com/Vidanox/BanjoTooieRecompiled",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "Vidanox/BanjoTooieRecompiled",
+        "asset_hints": {
+          "windows-x86-64": [
+            "BanjoTooieRecompiled-",
+            "windows-x64.zip"
+          ],
+          "linux-x86-64": [
+            "BanjoTooieRecompiled-",
+            "linux-x64.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "BanjoTooieRecompiled.exe"
+        ],
+        "linux-x86-64": [
+          "BanjoTooieRecompiled"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, choose Select ROM and pick your own Banjo-Tooie USA 32 MiB big-endian .z64. The player reads that file directly, so keep it where it is and outside Portcove's install folder. Saves, settings and mods go to the player's profile: %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows, or ~/.config/BanjoTooieRecompiled on Linux unless APP_FOLDER_PATH names another folder. A copy you manage yourself without portable.txt shares that profile. Portcove refuses to start a managed copy that contains portable.txt. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. On Linux the player needs Vulkan, its shared libraries and the desktop file-dialog portal. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Banjo-Tooie",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then Select ROM and supply your own Banjo-Tooie USA .z64 in big-endian byte order. The documented input is a 32 MiB original cartridge dump; another region, byte order or modified image is not equivalent. The player reads it directly, without a separate extraction or compiler step."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole package. On Windows, run BanjoTooieRecompiled.exe with assets and the supplied SDL2 and DXC libraries beside it. On Linux, run run.sh, or start BanjoTooieRecompiled with its extracted folder as the working folder. Linux needs Vulkan, its shared libraries and the desktop file-dialog portal."
+            }
+          ],
+          "warnings": [
+            "Upstream calls Linux less exercised than Windows. Portcove has not observed native setup, gameplay or saves.",
+            "The package includes the Suplexmentary Comic NC font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          ],
+          "help_url": "https://github.com/Vidanox/BanjoTooieRecompiled/blob/9e5852541ba1436417e2c4468960e8c6de6deda5/README.md",
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\BanjoTooieRecompiled on Windows or ~/.config/BanjoTooieRecompiled on Linux. For Flatpak, keep the complete ~/.var/app/io.github.Vidanox.BanjoTooieRecompiled folder, and keep any APP_FOLDER_PATH or portable.txt folder you actually used. Keep settings and saves together and keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 3418,
+          "cover_id": 295556,
+          "image_id": "co6c1w",
+          "image_sha256": "26b3761c34557f7325f55f859547c55b8f46525354ab10f946cb57169919e28b",
+          "game_slug": "banjo-tooie",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "banjotooierecompiled.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "banjotooierecompiled",
+            "run.sh"
+          ]
         }
       }
     },

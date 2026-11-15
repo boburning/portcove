@@ -2248,8 +2248,8 @@ async fn vidanox_banjotooierecompiled_upstream_release_download_1795() {
         "vidanox-banjotooierecompiled",
         "v1.0.1",
         "BanjoTooieRecompiled-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2260,8 +2260,8 @@ async fn blast_corps_blastcorps_recompiled_upstream_release_download_2558() {
         "blast-corps-blastcorps-recompiled",
         "1.1.1",
         "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
