@@ -35330,7 +35330,7 @@
             },
             {
               "title": "Set up a separate Apple Silicon copy",
-              "instruction": "For a permitted Open Nectar 1.3 copy, extract nectar-macos.tar.gz on Apple Silicon with macOS 11 or newer. Start nectar-launcher in the extracted folder, choose Install under Pikmin, and supply your own matching USA Rev. 1 or Europe disc and a writable installation folder. Use the launcher in that installation for later Play and updates."
+              "instruction": "For a permitted Open Nectar 1.3 copy, extract nectar-macos.tar.gz on Apple Silicon with macOS 11 or newer. Follow the bundled README.txt for first launch, then open nectar-launcher. Choose Install under Pikmin and supply your own matching USA Rev. 1 or Europe disc and a writable installation folder. Use the launcher in that installation for later Play and updates."
             },
             {
               "title": "Build a separate Intel Mac copy",
