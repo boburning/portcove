@@ -73271,8 +73271,12 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Choose the upstream package for your system",
-              "instruction": "On Windows, extract the portable ZIP or run the upstream x64 installer, then open VCMI_launcher.exe. On Linux x86-64, use the AppImage on a system with glibc 2.38 or newer, or follow the upstream Linux guide for a distribution package or Flatpak. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
+              "title": "Install VCMI on Windows or Mac",
+              "instruction": "On Windows x64, extract the portable ZIP or run the x64 installer, then open VCMI_launcher.exe. On Windows ARM64, run the official VCMI-Windows-arm64.exe installer and open VCMI Launcher from the Start menu. Update that copy through the upstream installer. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
+            },
+            {
+              "title": "Run the VCMI AppImage on Linux",
+              "instruction": "Choose VCMI-Linux-x64.AppImage for x86-64 or VCMI-Linux-arm64.AppImage for ARM64 from the official release. Make the full AppImage executable and open it on a system with glibc 2.38 or newer and AppImage support. Use its built-in launcher to import your Heroes III data. If you use a distribution package or Flatpak instead, follow the upstream Linux guide and update through that package manager."
             },
             {
               "title": "Import your Heroes III data",
@@ -73280,7 +73284,7 @@
             },
             {
               "title": "Choose the client after upstream setup",
-              "instruction": "On Windows, register VCMI_client.exe and its containing folder. For a native Linux distribution package, select the native vcmiclient executable and its containing folder. Use the upstream AppImage, Flatpak or Mac app through its own launcher."
+              "instruction": "To register an upstream copy on Windows x64, select VCMI_client.exe and its containing folder. On Linux x64, use the native vcmiclient executable and its containing folder for a distribution package. Play through the upstream launcher on Windows ARM64 or when using an AppImage, Flatpak or Mac app."
             }
           ],
           "warnings": [
@@ -73297,10 +73301,6 @@
             {
               "title": "Linux setup guide",
               "instruction": "https://vcmi.eu/players/Installation_Linux/"
-            },
-            {
-              "title": "ARM64 desktop packages",
-              "instruction": "For a native ARM64 Windows or Linux system, use the corresponding upstream Windows installer or Linux AppImage directly from VCMI Releases. Keep its profile with that installation."
             },
             {
               "title": "Upstream Android setup",
