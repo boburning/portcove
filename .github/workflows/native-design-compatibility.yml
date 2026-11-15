@@ -12,6 +12,7 @@ on:
             compatibility,
             presentation,
             preview-package,
+            native-verification-binaries,
             product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
@@ -64,6 +65,102 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  windows-local-verification:
+    if: inputs.operation == 'native-verification-binaries' && inputs.runner == 'windows-2022' && !inputs.edge_driver_proof
+    runs-on: windows-2022
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - purpose: narrator
+            revision: 8b6044e7712d526527cf8d609a1c9ef5d785c457
+            executable: portcove-desktop
+          - purpose: snap64-keeper
+            revision: e239b574684a7fe7dacf6d4cb464f4325c5a2a83
+            executable: portcove
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ matrix.revision }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: matrix.purpose == 'narrator'
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: matrix.purpose == 'narrator'
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+      - name: Build the embedded accessibility candidate
+        if: matrix.purpose == 'narrator'
+        shell: pwsh
+        run: |
+          pnpm install --frozen-lockfile
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm --dir apps/desktop build
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --locked -p portcove-desktop --features tauri/custom-protocol
+      - name: Build the retained Snap64 candidate
+        if: matrix.purpose == 'snap64-keeper'
+        run: cargo build --locked -p portcove-cli --bin portcove
+      - name: Bind the executable to its exact source checkout
+        shell: pwsh
+        env:
+          EXPECTED_SOURCE: ${{ matrix.revision }}
+          EXECUTABLE_NAME: ${{ matrix.executable }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE -ne 0 -or $actual -cne $env:EXPECTED_SOURCE) { throw 'Source differs' }
+          $file = "target/debug/$($env:EXECUTABLE_NAME).exe"
+          $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash $file from $actual" | Set-Content -LiteralPath 'target/debug/native-build-identity.txt'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: owned-${{ matrix.purpose }}-${{ matrix.revision }}
+          if-no-files-found: error
+          path: |
+            target/debug/${{ matrix.executable }}.exe
+            target/debug/native-build-identity.txt
+
+  linux-local-verification:
+    if: inputs.operation == 'native-verification-binaries' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "line-tables-only"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 98620937c0243a432569d331d6586b30856a5cad
+          persist-credentials: false
+      - uses: ./.github/actions/setup-rust
+      - name: Build the ordinary G-Diffuser verification CLI
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = 98620937c0243a432569d331d6586b30856a5cad
+          cargo build --locked -p portcove-cli --bin portcove
+          sha256sum target/debug/portcove
+          git rev-parse HEAD
+          {
+            sha256sum target/debug/portcove
+            git rev-parse HEAD
+          } >target/debug/native-build-identity.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: owned-gdiffuser-98620937c0243a432569d331d6586b30856a5cad
+          if-no-files-found: error
+          path: |
+            target/debug/portcove
+            target/debug/native-build-identity.txt
+
   preview-dmg:
     if: inputs.operation == 'preview-package' && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && !inputs.edge_driver_proof
     runs-on: ${{ inputs.runner }}
