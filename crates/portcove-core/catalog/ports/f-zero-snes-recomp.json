@@ -26,7 +26,7 @@
       "steps": [
         {
           "title": "Use a separate reviewed Windows v1.8.3 copy",
-          "instruction": "Use FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release. Extract the whole ZIP to a short, writable folder outside your Portcove library. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
+          "instruction": "If you already have FZeroSNESRecomp-1.8.3-windows-x64.zip from the linked publisher release, extract the whole ZIP outside your Portcove library. Use a short, writable path with basic Latin characters. Open FZeroSNESRecomp.exe and select your own unmodified, headerless F-Zero (USA) .sfc file."
         }
       ],
       "references": [
