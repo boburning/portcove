@@ -3197,11 +3197,6 @@ mod tests {
     }
 
     #[test]
-    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
-        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(false));
-    }
-
-    #[test]
     fn final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575() {
         assert_listing_only_player_route("final-fantasy-tactics-advance-fftarecomp", Some(false));
     }

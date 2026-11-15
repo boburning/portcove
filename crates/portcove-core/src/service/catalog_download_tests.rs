@@ -2458,8 +2458,8 @@ async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
         "james2doyle-ffta-recomp",
         "v2.1",
         "FFTARecomp-v2.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
