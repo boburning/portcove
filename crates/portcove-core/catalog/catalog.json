@@ -71269,6 +71269,72 @@
       }
     },
     {
+      "id": "the-settlers-freeserf",
+      "name": "The Settlers / FreeSerf",
+      "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
+      "project_url": "https://github.com/freeserf/freeserf",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "freeserf/freeserf",
+        "asset_hints": {
+          "linux-x86-64": [
+            "FreeSerf-",
+            "-Linux.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "FreeSerf"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, copy your original DOS data file (SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA) or the six original Amiga files to ~/.local/share/freeserf, or to freeserf under XDG_DATA_HOME, and keep your originals separate. Without them FreeSerf stops with Could not load game data. The package is the GPL-3 engine with a GPL-2 SoundFont and contains no game data. The Linux x86-64 player needs glibc 2.38 or later. FreeSerf keeps saves, including Ctrl+Z quicksaves, in freeserf/saves under XDG_DATA_HOME or, when that is unset, under your home folder, and settings in freeserf.ini in its SDL preferences folder. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Core owns engine replacement; you own the original data, saves and settings.",
+        "original_game_title": "The Settlers",
+        "manual_setup": {
+          "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
+          "steps": [
+            {
+              "title": "Choose data from your original game",
+              "instruction": "Use your original DOS data file SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA, or the six original Amiga files listed in the upstream guide. Copy them to ~/.local/share/freeserf on Linux or Mac, or to the freeserf folder under %LOCALAPPDATA% on Windows, and keep your originals separate. When launching from a terminal, -g takes the directory containing your data."
+            },
+            {
+              "title": "Install the Windows or Mac release",
+              "instruction": "On Windows x64, use the Release installer. On Apple Silicon with macOS 26 or later, copy FreeSerf.app from the DMG. Set up your original data before opening the player."
+            },
+            {
+              "title": "Keep your saves and settings",
+              "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves, in freeserf/saves under XDG_DATA_HOME on Linux, or under your home folder when XDG_DATA_HOME is unset. On Windows it uses your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini in FreeSerf's preferences folder. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
+            }
+          ],
+          "warnings": [
+            "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "resources"
+          ],
+          "executables": [
+            "freeserf"
+          ]
+        }
+      }
+    },
+    {
       "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
       "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
       "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
