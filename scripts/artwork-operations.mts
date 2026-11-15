@@ -1,4 +1,7 @@
-import { reconcileCatalogArtworkWithdrawals } from "./inspect-igdb-artwork.mts";
+import {
+  assertPreparedArtwork,
+  reconcileCatalogArtworkWithdrawals,
+} from "./inspect-igdb-artwork.mts";
 import type {
   ArtworkCatalog,
   prepareCatalogArtwork,
@@ -30,7 +33,10 @@ export async function prepareCoverArtworkInOperations(
     throw new Error("Artwork worksets require unique catalog port ids.");
   if (refreshPortIds.some((id) => !ids.includes(id)))
     throw new Error("Artwork refresh names a port outside this workset.");
-  let ports: Map<string, CoverPreparation["catalog"]["ports"][number]> | undefined;
+  // Ports outside the workset keep their unchanged input. An operation changes them
+  // only by exact-image Gone fallbacks, which the final reconciliation applies to
+  // every port with its fallback record and invalidated ID.
+  const ports = new Map(input.ports.map((port) => [port.id, structuredClone(port)]));
   const records: CoverPreparation["records"] = [];
   const metrics = { game_queries: 0, image_queries: 0, image_bytes: 0 };
   let gone: string[] = [];
@@ -42,8 +48,6 @@ export async function prepareCoverArtworkInOperations(
       refreshPortIds.filter((id) => batch.has(id)),
       gone,
     );
-    // The first operation's proposal supplies every port; later ones replace only their own.
-    ports ??= new Map(result.catalog.ports.map((port) => [port.id, port]));
     for (const port of result.catalog.ports) if (batch.has(port.id)) ports.set(port.id, port);
     records.push(...result.records.filter((record) => batch.has(record.port_id)));
     metrics.game_queries += result.metrics.game_queries;
@@ -52,8 +56,14 @@ export async function prepareCoverArtworkInOperations(
     for (const id of result.workset.invalidated_port_ids) if (batch.has(id)) invalidated.add(id);
     gone = result.gone_image_ids;
   }
+  const catalog = {
+    ...structuredClone(input),
+    ports: input.ports.map((port) => ports.get(port.id)!),
+  };
+  // Outside ports come from the unchanged input, so check the whole proposal as one operation does.
+  assertPreparedArtwork(catalog);
   const prepared: CoverPreparation = {
-    catalog: { ...structuredClone(input), ports: input.ports.map((port) => ports!.get(port.id)!) },
+    catalog,
     records,
     metrics: {
       ports: records.length,
@@ -78,7 +88,8 @@ export async function prepareCoverArtworkInOperations(
   return prepared;
 }
 // Game media has no outside-workset identity check, so its operations run over
-// the evolving proposal and carry exact-image Gone observations forward.
+// the evolving proposal, carry exact-image Gone observations forward and relabel
+// earlier records once at the end.
 type GameMediaPreparation = Awaited<ReturnType<typeof prepareCatalogGameMedia>>;
 export async function prepareGameMediaInOperations(
   catalog: ArtworkCatalog,
@@ -102,5 +113,11 @@ export async function prepareGameMediaInOperations(
     );
     media = { ...next, records: [...media.records, ...next.records] };
   }
+  // As within one operation, a selected image a later operation found Gone is
+  // relabelled on every earlier record; the catalog already dropped it.
+  const gone = new Set(media.gone_image_ids);
+  for (const record of media.records)
+    if (record.image_id && gone.has(record.image_id))
+      record.reason = "selected-image-gone-later-in-batch";
   return media;
 }

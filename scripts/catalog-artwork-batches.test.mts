@@ -1244,6 +1244,92 @@ void test("a Gone image found by a later operation withdraws an earlier operatio
   assert.equal(result.workset.invalidated_port_ids.length, 420);
 });
 
+void test("explicit large worksets record outside ports an earlier operation's Gone withdrew", async () => {
+  const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+  const { prepareCoverArtworkInOperations } = await import("./artwork-operations.mts");
+  const fixture = await capturedArtworkRefresh();
+  const probe = requiredFixture(fixture.accepted.ports[0]);
+  for (let index = 0; index < 420; index++)
+    fixture.accepted.ports.push({ ...structuredClone(probe), id: `selected-${index}` });
+  for (let index = 0; index < 5; index++)
+    fixture.accepted.ports.push({ ...structuredClone(probe), id: `outside-${index}` });
+  const input = structuredClone(fixture.accepted);
+  const selected = input.ports.map((port) => port.id).filter((id) => !id.startsWith("outside-"));
+  assert.equal(selected.length, 421);
+  const result = await prepareCoverArtworkInOperations(
+    input,
+    selected,
+    ["refresh-probe"],
+    (ids, refresh, gone) =>
+      prepareCatalogArtwork(input, {
+        ...fixture.options,
+        refreshPortIds: refresh,
+        ...(ids ? { selectedPortIds: ids } : {}),
+        ...(gone.length ? { knownGoneImageIds: gone } : {}),
+      }),
+  );
+  // The first operation observes Gone and withdraws every reference, including
+  // ports outside the workset; each withdrawal keeps its fallback record.
+  assert.ok(result.catalog.ports.every((port) => port.presentation?.artwork === undefined));
+  assert.equal(result.records.length, 426);
+  assert.equal(new Set(result.records.map((record) => record.port_id)).size, 426);
+  for (let index = 0; index < 5; index++)
+    assert.ok(result.workset.invalidated_port_ids.includes(`outside-${index}`));
+  assert.equal(result.workset.invalidated_port_ids.length, 425);
+  assert.equal(result.metrics.ports, 426);
+  assert.equal(result.metrics.fallback, 426);
+});
+
+void test("a Gone image found by a later media operation relabels an earlier operation's record", async () => {
+  const { prepareGameMediaInOperations } = await import("./artwork-operations.mts");
+  const ports = Array.from({ length: 401 }, (_, index) => ({
+    id: `port-${index}`,
+    name: `Port ${index}`,
+  }));
+  const subject = (id: string) => ({ kind: "port" as const, port_id: id });
+  let calls = 0;
+  const result = await prepareGameMediaInOperations(
+    { ports },
+    undefined,
+    [],
+    async (ids, catalog, gone) => {
+      calls++;
+      const first = ids![0]!;
+      return {
+        catalog,
+        records: [
+          calls === 1
+            ? {
+                port_id: first,
+                role: "logo" as const,
+                subject: subject(first),
+                reason: "selected",
+                image_id: "shared",
+              }
+            : {
+                port_id: first,
+                role: "logo" as const,
+                subject: subject(first),
+                reason: "image-gone",
+              },
+        ],
+        gone_image_ids: calls === 1 ? [...gone] : [...new Set([...gone, "shared"])].sort(),
+      };
+    },
+  );
+  assert.equal(calls, 2);
+  assert.deepEqual(result.gone_image_ids, ["shared"]);
+  assert.equal(result.records.length, 2);
+  assert.equal(
+    result.records.find((record) => record.port_id === "port-0")?.reason,
+    "selected-image-gone-later-in-batch",
+  );
+  assert.equal(
+    result.records.find((record) => record.port_id === "port-400")?.reason,
+    "image-gone",
+  );
+});
+
 void test("operations over a large workset refuse unknown refresh and duplicate identities", async () => {
   const { prepareCoverArtworkInOperations } = await import("./artwork-operations.mts");
   const ports = Array.from({ length: 401 }, (_, index) => ({
