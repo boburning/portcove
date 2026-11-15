@@ -283,10 +283,12 @@ export function requiredCheckContexts(
         const job = id === undefined ? undefined : lineage.checks.get(id);
         const raw = checkRuns.find((check) => check.id === id);
         // A completed successful check run for the same head from another workflow
-        // run (for example one started by a reopen) adds no authority and cannot
-        // mask the bound run, whose own job must still succeed below. A foreign
-        // failed or pending observation still refuses.
+        // run (for example one started by a reopen) adds no authority. It is only
+        // tolerated when the bound run has its own job for this context, which is
+        // then the one selected below and must itself succeed. A foreign failed or
+        // pending observation still refuses.
         if (
+          latest !== undefined &&
           observation.source === "check-run" &&
           id !== undefined &&
           !job &&
@@ -671,8 +673,7 @@ export function localComposition(
     };
     const git = (cwd: string, args: string[]) => {
       const remaining = deadline - Date.now();
-      if (remaining <= 0)
-        throw new Error("Local composition exhausted the snapshot collection budget");
+      if (remaining <= 0) throw new Error("Local composition exhausted its time budget");
       const result = spawnSync("git", ["--no-replace-objects", ...args], {
         cwd,
         env,

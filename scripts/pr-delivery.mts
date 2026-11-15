@@ -684,6 +684,7 @@ export class PullRequestDeliveryClient {
     )
       throw new Error("Merge --target and --tree must be 40-character SHAs");
     const expected = composition && { head, ...composition };
+    let verifiedComposition: ReturnType<typeof localComposition> | undefined;
     const verifyWorkflow = async () => {
       if (!binding) return;
       if (
@@ -706,6 +707,10 @@ export class PullRequestDeliveryClient {
     await verifyWorkflow();
     const state = await this.requiredCheckState(number, head, requiredContexts, binding);
     validateMergeReadiness(number, head, state.pull, state.contexts);
+    // A bound merge requires every required context to be a successful job of the
+    // identified run attempt, not merely a successful check of the same name.
+    if (binding && state.jobs)
+      assertSuccessfulWorkflowJobs(state.jobs, state.contexts, { head, ...binding });
     const targetRef = state.pull.base.ref;
     if (expected) {
       if (!targetRef) throw new Error("Merge target branch is unavailable");
@@ -745,7 +750,13 @@ export class PullRequestDeliveryClient {
       // target. With a local checkout of the reviewed head, verify the historical
       // preview object and the current composition independently instead.
       if (localCheckout !== undefined)
-        localComposition(preview.data, previewSha, expected, localCheckout, 60_000);
+        verifiedComposition = localComposition(
+          preview.data,
+          previewSha,
+          expected,
+          localCheckout,
+          60_000,
+        );
       else validateCommitComposition(preview.data, expected, previewSha, false);
       if ((await this.branch(ref)).commit.sha !== expected.target)
         throw new Error("Merge target advanced before mutation; refresh the reviewed composition");
@@ -865,6 +876,7 @@ export class PullRequestDeliveryClient {
       contexts: state.contexts,
       closing,
       ...(expected ? { expected_composition: expected } : {}),
+      ...(verifiedComposition ? { verified_composition: verifiedComposition } : {}),
       closure_readback: closureReadback,
     };
   }

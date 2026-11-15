@@ -192,18 +192,27 @@ target advances during the request, GitHub's source SHA precondition can still
 allow the squash. The helper retains the actual commit and expected composition
 for reconciliation in that case. Existing invocations may omit both options.
 GitHub rebuilds its preview lazily, so on a frequently advancing target it can
-remain on an older target commit. From a checkout of the reviewed head, add
-`--verify-local-composition`: the helper then verifies the historical preview
-object, that its target is an ancestor of the reviewed target, and that
-`git merge-tree` of the reviewed target and head equals the reviewed tree,
-instead of requiring the preview to sit on the live tip. A real composition
-mismatch still refuses. After a selective retry, also supply the successful
+remain on an older target commit. Instead of pushing a refresh commit, run the
+helper with the working directory at a non-shallow checkout of the reviewed head
+and add `--verify-local-composition` (invoke `node <main-checkout>/scripts/pr-delivery.mts merge …`
+when the candidate's own scripts should not perform the merge). Fetch the
+reviewed head, current target and observed preview (`refs/pull/<n>/merge`)
+first; the verifier performs no network access, as for
+[snapshot preparation](DEVELOPMENT-TOOLS.md). The helper then verifies the
+historical preview object, that its target is an ancestor of the reviewed
+target, and that `git merge-tree` of the reviewed target and head equals the
+reviewed tree, instead of requiring the preview to sit on the live tip, and
+records that verification in its receipt. A local mismatch refuses before
+submission; a divergence between that composition and GitHub's actual squash is
+caught by the post-merge parent and tree readback, not prevented. After a selective retry, also supply the successful
 workflow's `--run <id> --attempt <number>`. This joins complete check and job
 inventories across attempts and checks that the identified workflow remains
 successfully completed before the merge request. When a reopen started another
-workflow run on the same head, bind the intended run the same way; completed
-successful check runs from the other run are tolerated, while a failed or
-pending one still refuses. It freezes and rechecks the source SHA and required
+workflow run on the same head, bind the intended run the same way. Every required
+context must still be a successful job of the bound run attempt; another
+completed successful check run of the same name on that head (from any run or
+app) is then tolerated, while a failed or pending one, a commit status, or a
+context the bound run has no job for still refuses. It freezes and rechecks the source SHA and required
 contexts, submits that exact SHA, and reads the remote state back before any
 retry or local cleanup. Server-enforced review threads, permissions and
 repository rules remain in force; the helper is a mechanism, not review or
