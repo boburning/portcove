@@ -13706,12 +13706,12 @@
       "name": "Kamen Rider: Battride War — Battride War native port (robertoqimin)",
       "original_game_title": "Kamen Rider: Battride War",
       "summary": "An experimental Linux port of Kamen Rider: Battride War. The AppImage builds the game from your own Japanese disc image. The project has reported testing through one mission.",
-      "project_url": "https://github.com/robertoqimin/battride-war-port",
+      "project_url": "https://github.com/robertoqimin/battride-war-recomp",
       "platforms": [
         "linux-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/robertoqimin/battride-war-port",
+      "setup_url": "https://github.com/robertoqimin/battride-war-recomp",
       "manual_setup": {
         "steps": [
           {
@@ -13727,7 +13727,7 @@
           "The first build needs about 8 GB RAM and 8 GB free space. Keep your original disc files for later play.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/robertoqimin/battride-war-port",
+        "help_url": "https://github.com/robertoqimin/battride-war-recomp",
         "references": [
           {
             "title": "Project testing notes",
@@ -14549,12 +14549,12 @@
       "name": "Blast Corps — blastcorps (Doridian)",
       "original_game_title": "Blast Corps",
       "summary": "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-      "project_url": "https://github.com/Doridian/BlastCorps",
+      "project_url": "https://github.com/Doridian/DozerEncore",
       "platforms": [
         "linux-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/Doridian/BlastCorps",
+      "setup_url": "https://github.com/Doridian/DozerEncore",
       "manual_setup": {
         "steps": [
           {
@@ -14570,7 +14570,7 @@
           "Native port replays all-platinum TAS upstream; exact full human-play/hardware coverage unverified. Matching decomp alone is not this native evidence.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/Doridian/BlastCorps"
+        "help_url": "https://github.com/Doridian/DozerEncore"
       },
       "issue_number": 3587,
       "listed_at": "2026-10-25",
@@ -14998,12 +14998,12 @@
       "name": "Blue Stinger — BlueStingerRecomp (rodrigo-mendonca)",
       "original_game_title": "Blue Stinger",
       "summary": "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-      "project_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+      "project_url": "https://github.com/DCRecomp/BlueStingerRecomp",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp",
+      "setup_url": "https://github.com/DCRecomp/BlueStingerRecomp",
       "manual_setup": {
         "steps": [
           {
@@ -15019,7 +15019,7 @@
           "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/rodrigo-mendonca/BlueStingerRecomp"
+        "help_url": "https://github.com/DCRecomp/BlueStingerRecomp"
       },
       "issue_number": 3568,
       "listed_at": "2026-10-25",
@@ -17572,13 +17572,13 @@
       "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
       "original_game_title": "Resident Evil Code: Veronica X HD",
       "summary": "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-      "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+      "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp",
+      "setup_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
       "manual_setup": {
         "steps": [
           {
@@ -17594,7 +17594,7 @@
           "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-Recomp"
+        "help_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC"
       },
       "issue_number": 3368
     },
@@ -20648,12 +20648,12 @@
       "id": "dead-or-alive-xtreme-beach-volleyball",
       "name": "Dead or Alive Xtreme Beach Volleyball (doaxbv-re)",
       "summary": "Explore Dead or Alive Xtreme Beach Volleyball (doaxbv-re) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/NoRain211/doaxbv-re",
+      "project_url": "https://github.com/NoRain211/doaxvb-re",
       "issue_number": 1355,
       "listed_at": "2026-10-23",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/NoRain211/doaxbv-re",
+      "setup_url": "https://github.com/NoRain211/doaxvb-re",
       "artwork": {
         "game_id": 1390,
         "cover_id": 402248,
@@ -21234,13 +21234,13 @@
       "name": "Demon's Souls — DemonsSoulsRecomp (JonathanDC64)",
       "original_game_title": "Demon's Souls",
       "summary": "The project reports early play of Boletarian Palace 1-1. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-      "project_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp",
+      "project_url": "https://github.com/JonathanDC64/Soulbrandt",
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp",
+      "setup_url": "https://github.com/JonathanDC64/Soulbrandt",
       "manual_setup": {
         "steps": [
           {
@@ -21256,7 +21256,7 @@
           "The project reports early play of Boletarian Palace 1-1.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/JonathanDC64/DemonsSoulsRecomp"
+        "help_url": "https://github.com/JonathanDC64/Soulbrandt"
       },
       "issue_number": 3321
     },
@@ -21442,15 +21442,15 @@
       "name": "TimeSplitters 2 — Destinity13 native Linux recompilation",
       "original_game_title": "TimeSplitters 2",
       "summary": "Prepare a native Linux player from your own USA PlayStation 2 disc image.",
-      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp",
+      "project_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck",
       "issue_number": 4759,
       "listed_at": "2026-11-09",
       "platforms": [
         "linux-x86-64"
       ],
       "availability": "packages",
-      "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/releases/tag/v0.9.9",
-      "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
+      "release_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/releases/tag/v0.9.9",
+      "setup_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md",
       "download_block_reason": "Portcove downloads are paused while the bundled compiler and first-start recovery are being reviewed. These steps cover an upstream copy you already trust and are permitted to use.",
       "manual_setup": {
         "steps": [
@@ -21481,7 +21481,7 @@
             "instruction": "Follow the upstream Steam Deck guide to complete the same build in Desktop Mode, then add TS2-SteamDeck.sh as a non-Steam game. Steam Deck behavior is documented by the upstream maintainer."
           }
         ],
-        "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Linux-Recomp/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
+        "help_url": "https://github.com/Destinity13/TimeSplitters-2-Native-Recomp-Windows-Linux-SteamDeck/blob/e9be41d9b5d8d87350c9b5ba74201cd506807f7e/README.md"
       }
     },
     {
@@ -21825,14 +21825,14 @@
       "name": "Digimon World 3 — DigimonWorld3-Recomp (MikeRavenelle)",
       "original_game_title": "Digimon World 3",
       "summary": "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
-      "project_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+      "project_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
         "macos-aarch64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp",
+      "setup_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -21848,7 +21848,7 @@
           "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/MikeRavenelle/DigimonWorld3-Recomp"
+        "help_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp"
       },
       "issue_number": 3388,
       "listed_at": "2026-10-25",
@@ -24255,10 +24255,10 @@
       "name": "Forza Horizon (Forza Horizon 1: ReImagined)",
       "summary": "An independent Forza Horizon 1: ReImagined implementation with project-reported racing, free roam and co-op. The Windows installer or Linux Flatpak/tar.gz launcher downloads tools and builds locally from your own 2012 Xbox 360 disc, GOD or extracted game. TU4 is optional for Rally and 1000 Club. The launcher manages setup and updates. macOS is a source experiment without a launcher download: opening drives render, but full races, save/reload and physical controllers remain unconfirmed. Exact PC package architecture, original revision/hashes and further BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Forza Horizon",
-      "project_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+      "project_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Dyotson/ForzaHorizon1-ReImagined",
+      "setup_url": "https://github.com/FH1-ReImagined/ForzaHorizon1-ReImagined",
       "artwork": {
         "game_id": 3047,
         "cover_id": 96226,
@@ -27950,11 +27950,11 @@
       "name": "God Hand — God Hand: Rearmed (kris-c-anderson)",
       "original_game_title": "God Hand",
       "summary": "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/kris-c-anderson/godhand-rearmed",
+      "project_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed",
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/kris-c-anderson/godhand-rearmed",
+      "setup_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed",
       "manual_setup": {
         "steps": [
           {
@@ -27970,7 +27970,7 @@
           "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/kris-c-anderson/godhand-rearmed"
+        "help_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed"
       },
       "issue_number": 3075
     },
@@ -32992,12 +32992,12 @@
       "id": "kameo-repowered",
       "name": "Kameo RePowered",
       "summary": "Explore Kameo RePowered and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/birabittoh/KameoRePowered",
+      "project_url": "https://github.com/MaxDeadBear/KameoRePowered",
       "issue_number": 129,
       "listed_at": "2026-10-23",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/birabittoh/KameoRePowered",
+      "setup_url": "https://github.com/MaxDeadBear/KameoRePowered",
       "artwork": {
         "game_id": 7029,
         "cover_id": 87149,
@@ -33007,7 +33007,7 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/birabittoh/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
+        "help_url": "https://github.com/MaxDeadBear/KameoRePowered/blob/29ebaeb0e630b061e880953aa41ab70be386eb3e/README.md",
         "steps": [
           {
             "title": "Keep a lawful completed native copy",
@@ -36063,16 +36063,16 @@
       "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
       "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
       "original_game_title": "The Bigs 2",
-      "project_url": "https://github.com/mdomangue26/thebigs2",
+      "project_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/mdomangue26/thebigs2",
+      "setup_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled",
       "issue_number": 2802,
       "listed_at": "2026-10-25",
       "manual_setup": {
-        "help_url": "https://github.com/mdomangue26/thebigs2/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md",
+        "help_url": "https://github.com/mdomangue26/The-Bigs-2-Recompiled/blob/4947e569b3d86cc11ead1ee485e88fc9a6ed9ac9/README.md",
         "steps": [
           {
             "title": "Prepare your own Xbox 360 game upstream",
@@ -37319,12 +37319,12 @@
       "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
       "original_game_title": "Midtown Madness 3",
       "summary": "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50 FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/taxidriverhk/mm3recomp",
+      "project_url": "https://github.com/xbox-games-recomp/mm3recomp",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/taxidriverhk/mm3recomp",
+      "setup_url": "https://github.com/xbox-games-recomp/mm3recomp",
       "manual_setup": {
         "steps": [
           {
@@ -37340,7 +37340,7 @@
           "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50 FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/taxidriverhk/mm3recomp"
+        "help_url": "https://github.com/xbox-games-recomp/mm3recomp"
       },
       "issue_number": 3455,
       "listed_at": "2026-10-25",
@@ -37880,10 +37880,10 @@
       "name": "Mortal Kombat: Shaolin Monks (Xbox) (ShaolinMonksRecomp)",
       "summary": "Attach an independently permitted, prepared OpenShao Windows player using the supported USA/Europe Xbox original. Preserve the separate application-data and Saved Games locations, remembered source and legacy-folder migration recovery.",
       "original_game_title": "Mortal Kombat: Shaolin Monks (Xbox)",
-      "project_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+      "project_url": "https://github.com/OAleex/OpenShao",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/OAleex/ShaolinMonksRecomp",
+      "setup_url": "https://github.com/OAleex/OpenShao",
       "artwork": {
         "game_id": 1614,
         "cover_id": 94081,
@@ -40819,12 +40819,12 @@
       "id": "nsmbu-recomp-irishbruse",
       "name": "New Super Mario Bros. U Recompiled (IrishBruse)",
       "summary": "Register the completed native Windows NSMBU game produced by upstream setup, using its own game/save arguments and data working directory. Upstream retains Wii U input preparation, updates and player-data ownership; the setup launcher is not the tracked game entry.",
-      "project_url": "https://github.com/IrishBruse/nsmbu-recomp",
+      "project_url": "https://github.com/nsmbu-recomp/nsmbu-recomp",
       "issue_number": 1712,
       "listed_at": "2026-10-23",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/IrishBruse/nsmbu-recomp",
+      "setup_url": "https://github.com/nsmbu-recomp/nsmbu-recomp",
       "artwork": {
         "game_id": 2171,
         "cover_id": 95680,
@@ -40871,7 +40871,7 @@
       "name": "Ape Escape (NVDEMU)",
       "summary": "Use the maintained NVDEMU Ape Escape launcher with your own North American disc. Preserve both game and per-user launcher data; upstream owns nightly replacement and overlay preparation.",
       "original_game_title": "Ape Escape",
-      "project_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux",
+      "project_url": "https://github.com/nvd123-YT/ApeEscapeRecompiled",
       "issue_number": 2806,
       "listed_at": "2026-10-26",
       "platforms": [
@@ -40882,8 +40882,8 @@
       ],
       "availability": "packages",
       "recommended_download_channel": "beta",
-      "release_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/releases/tag/macos-nightly",
-      "setup_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
+      "release_url": "https://github.com/nvd123-YT/ApeEscapeRecompiled/releases/tag/macos-nightly",
+      "setup_url": "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/6dc0bcd026cbf94f0c8e575b30dccd904e8fc35c/README.md",
       "manual_setup": {
         "steps": [
           {
@@ -40910,7 +40910,7 @@
         "warnings": [
           "Keep complete copies, components and originals you are independently permitted to use; noncommercial framework and component notices apply separately from original game rights. Retain every game and launcher data root. Actual static archive/PE observations and owned probes do not establish source-binary reproduction, native gameplay, real-save, installed Desktop, other-platform or Supported acceptance."
         ],
-        "help_url": "https://github.com/NVDEMU/ApeEscapeRecomp-MacWindowsLinux/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/README.md"
+        "help_url": "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/becea42d6eadefd04eb0c8ee5814f805d35809c2/README.md"
       },
       "artwork": {
         "game_id": 3762,
@@ -42630,10 +42630,10 @@
       "name": "Persona 3 FES — p3fes-recompiled (poopoocacacacaca)",
       "original_game_title": "Persona 3 FES",
       "summary": "Boot, menus and New Game are reported to work. Further gameplay is not established by this status. This implementation remains separate from the VirtualAK runtime. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+      "project_url": "https://github.com/ppkkkkk/p3fes-recompiled",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/poopoocacacacaca/p3fes-recompiled",
+      "setup_url": "https://github.com/ppkkkkk/p3fes-recompiled",
       "manual_setup": {
         "steps": [
           {
@@ -42649,7 +42649,7 @@
           "Boot, menus and New Game are reported to work. Further gameplay is not established by this status. This implementation remains separate from the VirtualAK runtime.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/poopoocacacacaca/p3fes-recompiled"
+        "help_url": "https://github.com/ppkkkkk/p3fes-recompiled"
       },
       "issue_number": 3059,
       "listed_at": "2026-10-25",
@@ -47226,6 +47226,9 @@
       },
       "issue_number": 3046,
       "listed_at": "2026-10-25",
+      "funding_urls": [
+        "https://github.com/sponsors/jjmhalew"
+      ],
       "artwork": {
         "game_id": 2634,
         "cover_id": 157350,
@@ -51785,11 +51788,11 @@
       "name": "Soulcalibur III — Soulcalibur III Recomp (Arzaroth)",
       "original_game_title": "Soulcalibur III",
       "summary": "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+      "project_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp",
+      "setup_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -51805,7 +51808,7 @@
           "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/Arzaroth/SoulCaliburIII_Recomp"
+        "help_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp"
       },
       "issue_number": 3033
     },
@@ -52608,12 +52611,12 @@
       "id": "star-fox-2-arwing2",
       "name": "Star Fox 2 / Project Arwing (2)",
       "summary": "Explore Star Fox 2 / Project Arwing (2) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/carlosrmz009/arwing2",
+      "project_url": "https://github.com/carl0srmz/arwing2",
       "issue_number": 1946,
       "listed_at": "2026-10-23",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/carlosrmz009/arwing2",
+      "setup_url": "https://github.com/carl0srmz/arwing2",
       "artwork": {
         "game_id": 9674,
         "cover_id": 85763,
@@ -52623,7 +52626,7 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/carlosrmz009/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
+        "help_url": "https://github.com/carl0srmz/arwing2/blob/f683ae57c05277aef1cd7e07ff30c3b6a4358a84/README.md",
         "steps": [
           {
             "title": "Keep a permitted installed Star Fox 2 player",
@@ -54737,11 +54740,11 @@
       "name": "Super Smash Bros. Ultimate (ssbu-arena)",
       "summary": "An independently maintained OpenSmash fork for competitive Super Smash Bros. Ultimate 1v1, using AArch64-to-C translation and a Windows Vulkan player with its own relay/rollback. Network-impairment and rollback tests used two windows on one PC; ranked play, Elo and replays are planned. The README describes local source installation and says no prebuilt player, but the reviewed v0.2.7 release includes SSBU-Arena.exe, a player ZIP and manifest; that discrepancy remains. Windows 10/11 x64 is primary. Linux/macOS guide links do not establish exact CPU or gameplay support. Use your own 13.0.4 or 13.0.5 dump, keys and owned updates/DLC. Separate firmware requirements are unclear. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Super Smash Bros. Ultimate",
-      "project_url": "https://github.com/Acid236/ssbu-arena",
+      "project_url": "https://github.com/SSBUArena/ssbu-arena",
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/Acid236/ssbu-arena",
+      "setup_url": "https://github.com/SSBUArena/ssbu-arena",
       "artwork": {
         "game_id": 90101,
         "cover_id": 96089,
@@ -55164,10 +55167,10 @@
       "name": "The Sword of Etheria — Sword-Of-Etheria-PC-Recomp (AncletoCEO)",
       "original_game_title": "The Sword of Etheria",
       "summary": "This experimental build reaches boot, disc access, GS and a frame loop. Gameplay has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
+      "project_url": "https://github.com/AncletoCEO/OverEtheria",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp",
+      "setup_url": "https://github.com/AncletoCEO/OverEtheria",
       "manual_setup": {
         "steps": [
           {
@@ -55183,7 +55186,7 @@
           "This experimental build reaches boot, disc access, GS and a frame loop. Gameplay has not been established.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/AncletoCEO/Sword-Of-Etheria-PC-Recomp"
+        "help_url": "https://github.com/AncletoCEO/OverEtheria"
       },
       "issue_number": 3070,
       "listed_at": "2026-10-25",
@@ -57624,12 +57627,12 @@
       "id": "theme-hospital-matteo-pacini-enhanced",
       "name": "Theme Hospital / Theme Hospital Enhanced",
       "summary": "Explore Theme Hospital / Theme Hospital Enhanced and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/matteo-pacini/theme-hospital-enhanced",
+      "project_url": "https://github.com/matteo-pacini/theme-hospital-decomp",
       "issue_number": 1950,
       "listed_at": "2026-10-23",
       "platforms": [],
       "availability": "source-only",
-      "setup_url": "https://github.com/matteo-pacini/theme-hospital-enhanced#readme",
+      "setup_url": "https://github.com/matteo-pacini/theme-hospital-decomp#readme",
       "artwork": {
         "game_id": 1624,
         "cover_id": 182013,
@@ -57646,7 +57649,7 @@
           }
         ],
         "warnings": [],
-        "help_url": "https://github.com/matteo-pacini/theme-hospital-enhanced/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
+        "help_url": "https://github.com/matteo-pacini/theme-hospital-decomp/blob/7993814a4f562a1898b20621dbfa60644f9697d7/README.md",
         "references": [
           {
             "title": "Follow the current DOS build",
@@ -58043,10 +58046,10 @@
       "name": "Twisted Metal: Black — TMB_Recomp (boubou666)",
       "original_game_title": "Twisted Metal: Black",
       "summary": "This native build reaches boot and language selection. It is explicitly not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/boubou666/TMB_Recomp",
+      "project_url": "https://github.com/TheBozos/TMB_Recomp",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/boubou666/TMB_Recomp",
+      "setup_url": "https://github.com/TheBozos/TMB_Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -58062,7 +58065,7 @@
           "This native build reaches boot and language selection. It is explicitly not playable.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/boubou666/TMB_Recomp"
+        "help_url": "https://github.com/TheBozos/TMB_Recomp"
       },
       "issue_number": 3038,
       "listed_at": "2026-10-25",
@@ -62246,10 +62249,10 @@
       "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
       "original_game_title": "Valkyrie Profile 2: Silmeria",
       "summary": "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/boubou666/VP2S_Recomp",
+      "project_url": "https://github.com/TheBozos/VP2S_Recomp",
       "platforms": [],
       "availability": "unknown",
-      "setup_url": "https://github.com/boubou666/VP2S_Recomp",
+      "setup_url": "https://github.com/TheBozos/VP2S_Recomp",
       "manual_setup": {
         "steps": [
           {
@@ -62265,7 +62268,7 @@
           "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/boubou666/VP2S_Recomp"
+        "help_url": "https://github.com/TheBozos/VP2S_Recomp"
       },
       "issue_number": 3056,
       "listed_at": "2026-10-25",
@@ -63267,14 +63270,14 @@
       "id": "witherblitz-nsmb-wii-multiplayer-recompilation",
       "name": "New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz)",
       "summary": "Explore New Super Mario Bros. Wii / NSMB Wii Multiplayer Decompilation (WitherBlitz) and follow the upstream project for requirements, downloads and setup.",
-      "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+      "project_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation",
       "issue_number": 1847,
       "listed_at": "2026-10-23",
       "platforms": [
         "windows-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation",
+      "setup_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation",
       "artwork": {
         "game_id": 2178,
         "cover_id": 95671,
@@ -63284,7 +63287,7 @@
         "match_kind": "underlying-game"
       },
       "manual_setup": {
-        "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Multiplayer-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
+        "help_url": "https://github.com/WitherBlitz/NSMB-Wii-Recompilation/blob/aa7cf830837358d241e734e94741405c7c824ab2/README.md",
         "steps": [
           {
             "title": "Prepare your own exact Wii game upstream",
@@ -63491,6 +63494,9 @@
       "project_url": "https://github.com/jjmhalew/WoodyRE",
       "issue_number": 1636,
       "listed_at": "2026-10-23",
+      "funding_urls": [
+        "https://github.com/sponsors/jjmhalew"
+      ],
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/jjmhalew/WoodyRE",
@@ -63950,7 +63956,7 @@
       "name": "Worms World Party — WormsWorldPartyRecomp (NVDEMU)",
       "original_game_title": "Worms World Party",
       "summary": "Experimental project. This native WWP project includes generic mods that are mostly experimental and disabled by default. The README does not establish full-game or platform completion. Updater signature procedures do not establish Portcove executable trust. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
-      "project_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp",
+      "project_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -63958,7 +63964,7 @@
         "macos-x86-64"
       ],
       "availability": "unknown",
-      "setup_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp",
+      "setup_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
       "manual_setup": {
         "steps": [
           {
@@ -63974,7 +63980,7 @@
           "This native WWP project includes generic mods that are mostly experimental and disabled by default. The README does not establish full-game or platform completion. Updater signature procedures do not establish Portcove executable trust.",
           "Portcove has not confirmed setup, gameplay, saves or updates for this experimental port."
         ],
-        "help_url": "https://github.com/NVDEMU/WormsWorldPartyRecomp"
+        "help_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp"
       },
       "issue_number": 3475,
       "listed_at": "2026-10-25",
