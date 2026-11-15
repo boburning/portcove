@@ -34566,7 +34566,7 @@
           },
           {
             "title": "Intel and Apple Silicon Mac setup",
-            "instruction": "Mount the universal Mac DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
+            "instruction": "The universal TRX 1.12 Mac package requires macOS 14 or later on Intel and Apple Silicon. Mount the DMG, copy TRX.app to Applications, and open the installed app once as described by upstream. Use the upstream manual setup guide to place the original game files under the corresponding Contents/Resources/games/<game-id>/ folders. Open TRX.app from Applications to play."
           }
         ],
         "warnings": [
@@ -34578,6 +34578,10 @@
           {
             "title": "Preserve the TRX game data and profiles",
             "instruction": "Keep a backup of your original game files, cfg, saves, screenshots and any custom profile directories before replacing the runtime. On Mac, preserve any original game files or player data stored inside the bundle before replacing TRX.app. The upstream guide explains migration from the older combined layout."
+          },
+          {
+            "title": "Try the bundled Tomb Raider I PC Demo",
+            "instruction": "The TRX 1.12 Linux ZIP and universal Mac DMG include the PC Demo. Choose Tomb Raider I PC Demo in the game selector, or launch the Linux player with --mod tr1-demo-pc. The full game still needs files from your own copy."
           },
           {
             "title": "Keep a working copy before updating",
