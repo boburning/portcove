@@ -1007,6 +1007,16 @@ mod tests {
     }
 
     #[test]
+    fn pilotwings_dgv_prepared_player_route_1275() {
+        let executable = if cfg!(windows) {
+            "Pilotwings64Recomp.exe"
+        } else {
+            "Pilotwings64Recomp"
+        };
+        assert_bound_listing_player_route("pilotwings-64-dgv-recomp", executable, &[]);
+    }
+
+    #[test]
     fn inspected_player_adoption_1866_dabs_mod() {
         assert_bound_listing_player_route("dabdavis-perfect-dark-dabs-mod", "pd.x86_64.exe", &[]);
     }
