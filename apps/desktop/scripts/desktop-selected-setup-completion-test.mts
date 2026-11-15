@@ -1361,6 +1361,8 @@ export async function selectedSetupCompletionScenario({
       const acquisitionsBeforeBiosPlan = fixture.requests.length;
       await click(button(`Review ${fixture.refreshPort.name} setup`));
       await browser.wait(until.elementLocated(installDialog), 15_000);
+      // The install dialog covers the detail title, and getText() omits occluded
+      // text (hosted run 43646110119); read the rendered text content instead.
       assert.equal(
         (await browser.findElement(By.id("port-detail-title")).getAttribute("textContent"))?.trim(),
         fixture.refreshPort.name,
