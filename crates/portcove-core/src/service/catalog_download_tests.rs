@@ -2423,8 +2423,8 @@ async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
         "darkuni-poker-smash-recomp",
         "v1.0.0",
         "PokerSmash-v1.0.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

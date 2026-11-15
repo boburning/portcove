@@ -20333,15 +20333,12 @@
       "original_game_title": "Poker Smash",
       "issue_number": 4122,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare your original in the upstream folder",
-            "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841089C beside poker_smash.exe. The complete 5841089C/000D0000 console export also fits. The reviewed input uses TU 0.0.1.4."
+            "title": "Prepare your original beside the program",
+            "instruction": "Copy your own purchased full Poker Smash Xbox 360 LIVE package (title 5841089C, title update 0.0.1.4) beside poker_smash.exe as the complete 5841089C console export folder (5841089C/000D0000/<package>). Keep your original export separately."
           },
           {
             "title": "Use the documented Windows prerequisites",
@@ -20349,16 +20346,16 @@
           },
           {
             "title": "Complete first-run setup",
-            "instruction": "Start poker_smash.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+            "instruction": "Start poker_smash.exe and let the upstream program prepare assets from your package on first start."
           },
           {
-            "title": "Preserve the creating folder",
-            "instruction": "Keep the generated assets, poker_smash.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+            "title": "Keep your settings and saves",
+            "instruction": "Keep the generated assets, poker_smash.toml and the 5841089C folder with the program. Saves and the shader cache stay in Documents\\poker_smash."
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+          "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
       },
@@ -20369,7 +20366,10 @@
           "-win64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "darkuni-target-terror-wii-recomp",
