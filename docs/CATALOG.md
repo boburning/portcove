@@ -787,6 +787,17 @@ declared data paths stay the same: changing `--data-dir` or a data-location
 environment variable cannot silently redirect a retained installation. A supported
 transition must establish compatibility before changing these execution facts.
 
+To promote a reviewed listing to a managed native-portable route, run
+`node scripts/promote-listing.mts --port ID --archive PLATFORM=PATH --executable
+PLATFORM=NAME --preparation TEXT` with the official archive you verified. It records
+Core's inspected layout and the listing's asset hints in a new `integration`, leaves
+the listing only its unmanaged platforms, inserts the ID into the sorted legacy
+additions fixture, flips the port's download test to the managed route, drops the
+superseded listing-only player test and regenerates the catalog. Optional
+`--repository`, `--channel`, `--persistent`, `--saves` and `--env` cover the other
+declarations. The guide, rights warnings, provider digest, write locations and
+process lifetime remain the author's review.
+
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
 that the package is ready for Play. Avoid a redundant first step telling the player
