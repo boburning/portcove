@@ -5146,15 +5146,18 @@ fn normalize_standalone_appimage(
     {
         return Ok(());
     }
-    let [hint] = qualification.executable_hints.as_slice() else {
+    // Archive packages and previously installed layouts may still use other
+    // executable names. Only a unique AppImage hint can name this raw asset.
+    let mut appimage_hints = qualification
+        .executable_hints
+        .iter()
+        .filter(|hint| hint.to_ascii_lowercase().ends_with(".appimage"));
+    let (Some(hint), None) = (appimage_hints.next(), appimage_hints.next()) else {
         return Ok(());
     };
     crate::archive::validate_relative_path(hint, false)?;
     crate::archive::validate_relative_path(&artifact.asset_name, false)?;
-    if hint.contains(['/', '\\'])
-        || !hint.to_ascii_lowercase().ends_with(".appimage")
-        || hint.eq_ignore_ascii_case(&artifact.asset_name)
-    {
+    if hint.contains(['/', '\\']) || hint.eq_ignore_ascii_case(&artifact.asset_name) {
         return Ok(());
     }
     let source = root.join(&artifact.asset_name);
@@ -6696,37 +6699,49 @@ mod tests {
         check_standalone_appimage_versions(
             &temporary.path().join("dkr"),
             &port,
-            "DKR-R",
             "DKR-R-1.0.4-Linux-x86_64.AppImage",
-            ["1.0.4", "1.0.5"],
+            [
+                ("1.0.4", "DKR-R-1.0.4-Linux-x86_64.AppImage"),
+                ("1.0.5", "DKR-R-1.0.5-Linux-x86_64.AppImage"),
+            ],
         );
         let catalog = crate::Catalog::embedded().unwrap();
         check_standalone_appimage_versions(
             &temporary.path().join("rocket"),
             catalog.port("rocket-robot-on-wheels-rocket-r").unwrap(),
-            "Rocket-R",
             "Rocket-R.AppImage",
-            ["1.0.1", "1.0.2"],
+            [
+                ("1.0.1", "Rocket-R-1.0.1-Linux-x86_64.AppImage"),
+                ("1.0.2", "Rocket-R-1.0.2-Linux-x86_64.AppImage"),
+            ],
+        );
+        check_standalone_appimage_versions(
+            &temporary.path().join("shipwright"),
+            catalog.port("shipwright").unwrap(),
+            "soh.appimage",
+            [
+                ("9.3.0", "SoH-Dewey-Alpha.appimage"),
+                ("9.3.1", "SoH-Dewey-Bravo.appimage"),
+            ],
         );
     }
 
     fn check_standalone_appimage_versions(
         temporary: &Path,
         port: &crate::PortDefinition,
-        name: &str,
         declared: &str,
-        versions: [&str; 2],
+        releases: [(&str, &str); 2],
     ) {
         let qualification =
             crate::test_fixture::retained_qualification(port, Platform::LinuxX86_64).unwrap();
         let declared = Path::new(declared);
-        for version in versions {
+        for (version, asset_name) in releases {
             let root = temporary.join(version);
             fs::create_dir_all(&root).unwrap();
             let source = temporary.join(format!("{version}.download"));
             fs::write(&source, version).unwrap();
             let artifact = ArtifactIdentity {
-                asset_name: format!("{name}-{version}-Linux-x86_64.AppImage"),
+                asset_name: asset_name.into(),
                 sha256: hex::encode(Sha256::digest(version)),
                 size: version.len() as u64,
             };
