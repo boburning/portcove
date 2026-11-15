@@ -20,7 +20,7 @@
         },
         {
           "title": "Set up the Linux x64 AppImage",
-          "instruction": "Make LF2-Port-x86_64.AppImage executable. Put the working tree in a folder named game beside it, or select the working folder, its lf2.exe or a complete ZIP in the upstream picker. Start the AppImage with the full working copy available."
+          "instruction": "Make LF2-Port-x86_64.AppImage executable. Put the working tree in a folder named game beside it, or open the upstream picker and choose lf2.exe from the complete working tree. To import a complete ZIP, choose ZIP archive in the file-type menu if the picker starts with the executable filter."
         },
         {
           "title": "Add the working Linux player",
