@@ -13,6 +13,28 @@ fn present(label: &str, lineage: &[&str]) -> CarryRow {
     )
 }
 
+fn pending_from(source: &str, label: &str) -> CarryRow {
+    CarryRow {
+        state: RowState::Pending {
+            source_install_id: source.to_owned(),
+        },
+        sha256: digest(label),
+        lineage: vec![digest(label)],
+    }
+}
+
+fn src(label: Option<&str>) -> SourceCopy {
+    label.map_or(SourceCopy::Absent, |label| SourceCopy::File {
+        sha256: digest(label),
+    })
+}
+
+fn file(label: &str) -> TargetCopy {
+    TargetCopy::File {
+        sha256: digest(label),
+    }
+}
+
 fn input(
     source: Option<&str>,
     source_row: Option<CarryRow>,
@@ -20,16 +42,10 @@ fn input(
     target_row: Option<CarryRow>,
 ) -> PathInput {
     PathInput {
-        source: source.map(digest),
+        source: src(source),
         source_row,
         target,
         target_row,
-    }
-}
-
-fn file(label: &str) -> TargetCopy {
-    TargetCopy::File {
-        sha256: digest(label),
     }
 }
 
@@ -44,15 +60,15 @@ fn action(path: &str, input: PathInput) -> CarryAction {
 
 #[test]
 fn decision_table_rows() {
-    // t = a: nothing to copy, T records a's lineage.
     let same = one(
         "settings.ini",
-        input(Some("1"), None, file("1"), None),
+        input(Some("1"), Some(present("0", &["0"])), file("1"), None),
         &CarryExclusions::default(),
     );
+    // t = a: nothing to copy, T records a's lineage including L_A.
     assert_eq!(same.action, CarryAction::Nothing);
-    assert_eq!(same.target_row, Some(present("1", &["1"])));
-    // Absent at T: copy.
+    assert_eq!(same.target_row, RowChange::Set(present("1", &["0", "1"])));
+    assert_eq!(same.source_row, RowChange::Set(present("1", &["0", "1"])));
     assert_eq!(
         action(
             "settings.ini",
@@ -60,20 +76,19 @@ fn decision_table_rows() {
         ),
         CarryAction::Copy
     );
-    // Both absent: nothing, and no row.
     let none = one(
         "settings.ini",
         input(None, None, TargetCopy::Absent, None),
         &CarryExclusions::default(),
     );
     assert_eq!(none.action, CarryAction::Nothing);
-    assert_eq!(none.target_row, None);
+    assert_eq!(none.target_row, RowChange::Delete);
+    assert_eq!(none.source_row, RowChange::Delete);
 }
 
 #[test]
 fn replacement_needs_lineage_and_an_unchanged_target() {
     let a_row = present("2", &["1", "2"]);
-    // t is an ancestor and T still holds what Portcove recorded: replace.
     let replaced = one(
         "save.dat",
         input(
@@ -85,8 +100,11 @@ fn replacement_needs_lineage_and_an_unchanged_target() {
         &CarryExclusions::default(),
     );
     assert_eq!(replaced.action, CarryAction::Replace);
-    assert_eq!(replaced.target_row, Some(present("2", &["1", "2"])));
-    // t is an ancestor but T was edited since Portcove recorded it: keep both.
+    assert_eq!(
+        replaced.target_row,
+        RowChange::Set(present("2", &["1", "2"]))
+    );
+    // Edited since Portcove recorded it: keep both.
     assert_eq!(
         action(
             "save.dat",
@@ -99,42 +117,64 @@ fn replacement_needs_lineage_and_an_unchanged_target() {
         ),
         CarryAction::KeepSeparately
     );
-    // t is an ancestor but T has no row (an A→B→A edit made outside Portcove).
+    // No target row (an edit made outside Portcove): keep both.
     assert_eq!(
         action("save.dat", input(Some("2"), Some(a_row), file("1"), None)),
         CarryAction::KeepSeparately
     );
-    // First contact: differing copies and no rows keep both, T keeps its own.
-    let first = one(
+}
+
+#[test]
+fn kept_rows_preserve_recorded_lineage_or_restart_it() {
+    // An existing present row matching T keeps its lineage.
+    let kept = one(
         "save.dat",
-        input(Some("2"), None, file("1"), None),
+        input(Some("5"), None, file("3"), Some(present("3", &["2", "3"]))),
         &CarryExclusions::default(),
     );
-    assert_eq!(first.action, CarryAction::KeepSeparately);
-    assert_eq!(first.target_row, Some(present("1", &["1"])));
+    assert_eq!(kept.action, CarryAction::KeepSeparately);
+    assert_eq!(kept.target_row, RowChange::Set(present("3", &["2", "3"])));
+    // A stale row restarts at T's bytes.
+    let stale = one(
+        "save.dat",
+        input(Some("5"), None, file("3"), Some(present("9", &["9"]))),
+        &CarryExclusions::default(),
+    );
+    assert_eq!(stale.target_row, RowChange::Set(present("3", &["3"])));
+    // A pending row from another source restarts at T's bytes.
+    let pending = one(
+        "save.dat",
+        input(Some("5"), None, file("3"), Some(pending_from("other", "3"))),
+        &CarryExclusions::default(),
+    );
+    assert_eq!(pending.action, CarryAction::KeepSeparately);
+    assert_eq!(pending.target_row, RowChange::Set(present("3", &["3"])));
 }
 
 #[test]
 fn pending_rows_count_only_from_the_same_source() {
     let a_row = present("2", &["1", "2"]);
-    let pending = |source: &str| CarryRow {
-        state: RowState::Pending {
-            source_install_id: source.to_owned(),
-        },
-        sha256: digest("1"),
-        lineage: vec![digest("1")],
-    };
     assert_eq!(
         action(
             "save.dat",
-            input(Some("2"), Some(a_row.clone()), file("1"), Some(pending(A)))
+            input(
+                Some("2"),
+                Some(a_row.clone()),
+                file("1"),
+                Some(pending_from(A, "1"))
+            )
         ),
         CarryAction::Replace
     );
     assert_eq!(
         action(
             "save.dat",
-            input(Some("2"), Some(a_row), file("1"), Some(pending("other")))
+            input(
+                Some("2"),
+                Some(a_row),
+                file("1"),
+                Some(pending_from("other", "1"))
+            )
         ),
         CarryAction::KeepSeparately
     );
@@ -144,13 +184,7 @@ fn pending_rows_count_only_from_the_same_source() {
             "save.dat",
             input(
                 Some("2"),
-                Some(CarryRow {
-                    state: RowState::Pending {
-                        source_install_id: "other".into()
-                    },
-                    sha256: digest("2"),
-                    lineage: vec![digest("1"), digest("2")],
-                }),
+                Some(pending_from("other", "2")),
                 file("1"),
                 Some(present("1", &["1"]))
             )
@@ -160,9 +194,29 @@ fn pending_rows_count_only_from_the_same_source() {
 }
 
 #[test]
+fn an_interrupted_placement_from_this_source_is_portcoves_own() {
+    // M1: T holds a's bytes from an interrupted publish, and A had no row.
+    // A changed before the retry: replace Portcove's own placement.
+    assert_eq!(
+        action(
+            "settings.ini",
+            input(Some("2"), None, file("1"), Some(pending_from(A, "1")))
+        ),
+        CarryAction::Replace
+    );
+    // A deleted it before the retry: remove Portcove's own placement.
+    let removed = one(
+        "settings.ini",
+        input(None, None, file("1"), Some(pending_from(A, "1"))),
+        &CarryExclusions::default(),
+    );
+    assert_eq!(removed.action, CarryAction::Remove);
+    assert_eq!(removed.target_row, RowChange::Delete);
+}
+
+#[test]
 fn removal_only_follows_a_deletion_of_a_descendant() {
     let target_row = Some(present("1", &["1"]));
-    // A deleted a file whose ancestor T still holds unchanged: remove it.
     let removed = one(
         "cache.json",
         input(
@@ -174,8 +228,8 @@ fn removal_only_follows_a_deletion_of_a_descendant() {
         &CarryExclusions::default(),
     );
     assert_eq!(removed.action, CarryAction::Remove);
-    assert_eq!(removed.target_row, None);
-    // No A row: A never had it, so T's own file stays.
+    assert_eq!(removed.target_row, RowChange::Delete);
+    assert_eq!(removed.source_row, RowChange::Delete);
     assert_eq!(
         action(
             "cache.json",
@@ -183,7 +237,6 @@ fn removal_only_follows_a_deletion_of_a_descendant() {
         ),
         CarryAction::Leave
     );
-    // T changed since Portcove recorded it: leave it.
     assert_eq!(
         action(
             "cache.json",
@@ -196,61 +249,102 @@ fn removal_only_follows_a_deletion_of_a_descendant() {
         ),
         CarryAction::Leave
     );
-    // T's bytes aren't in A's lineage: leave it.
     assert_eq!(
         action(
             "cache.json",
-            input(None, Some(present("2", &["2"])), file("1"), target_row)
+            input(
+                None,
+                Some(present("2", &["2"])),
+                file("1"),
+                target_row.clone()
+            )
+        ),
+        CarryAction::Leave
+    );
+    // A pending A row is not a deletion record.
+    assert_eq!(
+        action(
+            "cache.json",
+            input(
+                None,
+                Some(pending_from("other", "1")),
+                file("1"),
+                target_row
+            )
         ),
         CarryAction::Leave
     );
 }
 
 #[test]
+fn unreadable_copies_are_never_absent_or_replaced() {
+    // M3: an unreadable source with a lineage covering T's copy never removes it.
+    let unreadable_source = one(
+        "save.dat",
+        PathInput {
+            source: SourceCopy::Unreadable,
+            source_row: Some(present("2", &["1", "2"])),
+            target: file("1"),
+            target_row: Some(present("1", &["1"])),
+        },
+        &CarryExclusions::default(),
+    );
+    assert_eq!(unreadable_source.action, CarryAction::SourceUnreadable);
+    assert_eq!(unreadable_source.target_row, RowChange::Untouched);
+    assert_eq!(unreadable_source.source_row, RowChange::Untouched);
+    let unreadable_target = one(
+        "save.dat",
+        PathInput {
+            source: src(Some("2")),
+            source_row: Some(present("2", &["1", "2"])),
+            target: TargetCopy::Unreadable,
+            target_row: Some(present("1", &["1"])),
+        },
+        &CarryExclusions::default(),
+    );
+    assert_eq!(unreadable_target.action, CarryAction::TargetUnreadable);
+    assert_eq!(unreadable_target.target_row, RowChange::Untouched);
+}
+
+#[test]
 fn worked_forward_back_forward_cycle() {
-    // 1. v1 has d1 with no rows; updating to v2 copies it.
     let update = one(
         "settings.ini",
         input(Some("1"), None, TargetCopy::Absent, None),
         &CarryExclusions::default(),
     );
     assert_eq!(update.action, CarryAction::Copy);
-    let v2_row = update.target_row.unwrap();
-    let v1_row = present("1", &["1"]);
-    // v2 changes the file to d2; the switch records v2's departing row.
-    let v2_departing = CarryRow::present(&digest("2"), {
-        let mut lineage = v2_row.lineage.clone();
-        lineage.push(digest("2"));
-        lineage
-    });
-    // 2. Roll back: v1's d1 is in v2's lineage and unchanged, so it's replaced.
+    // v2 changes the file to d2; its departing row extends its lineage.
     let rollback = one(
         "settings.ini",
-        input(Some("2"), Some(v2_departing), file("1"), Some(v1_row)),
+        input(
+            Some("2"),
+            Some(present("2", &["1", "2"])),
+            file("1"),
+            Some(present("1", &["1"])),
+        ),
         &CarryExclusions::default(),
     );
     assert_eq!(rollback.action, CarryAction::Replace);
-    let v1_row = rollback.target_row.unwrap();
-    assert_eq!(v1_row, present("2", &["1", "2"]));
-    // v1 changes it to d3 and departs.
-    let v1_departing = CarryRow::present(&digest("3"), {
-        let mut lineage = v1_row.lineage.clone();
-        lineage.push(digest("3"));
-        lineage
-    });
-    // 3. Forward: v2 still holds d2, recorded and in lineage, so it's replaced.
+    assert_eq!(
+        rollback.target_row,
+        RowChange::Set(present("2", &["1", "2"]))
+    );
     let forward = one(
         "settings.ini",
         input(
             Some("3"),
-            Some(v1_departing),
+            Some(present("3", &["1", "2", "3"])),
             file("2"),
             Some(present("2", &["1", "2"])),
         ),
         &CarryExclusions::default(),
     );
     assert_eq!(forward.action, CarryAction::Replace);
-    assert_eq!(forward.target_row, Some(present("3", &["1", "2", "3"])));
+    assert_eq!(
+        forward.target_row,
+        RowChange::Set(present("3", &["1", "2", "3"]))
+    );
 }
 
 #[test]
@@ -268,49 +362,117 @@ fn lineage_collapses_duplicates_and_keeps_the_newest_eight() {
     assert_eq!(bounded.len(), MAX_LINEAGE);
     assert_eq!(bounded.first(), Some(&digest("4")));
     assert_eq!(bounded.last(), Some(&digest("11")));
+    // Inside plan: a full L_A plus a stays at eight, and L_A ending in a collapses.
+    let full = (1..=8).map(|value| value.to_string()).collect::<Vec<_>>();
+    let full_refs = full.iter().map(String::as_str).collect::<Vec<_>>();
+    let copied = one(
+        "x.ini",
+        input(
+            Some("9"),
+            Some(present("8", &full_refs)),
+            TargetCopy::Absent,
+            None,
+        ),
+        &CarryExclusions::default(),
+    );
+    let RowChange::Set(row) = copied.target_row else {
+        panic!("copy sets a row");
+    };
+    assert_eq!(row.lineage.len(), MAX_LINEAGE);
+    assert_eq!(row.lineage.last(), Some(&digest("9")));
+    let same = one(
+        "x.ini",
+        input(Some("8"), Some(present("8", &full_refs)), file("8"), None),
+        &CarryExclusions::default(),
+    );
+    let RowChange::Set(row) = same.target_row else {
+        panic!("t = a sets a row");
+    };
+    assert_eq!(
+        row.lineage,
+        full.iter().map(|value| digest(value)).collect::<Vec<_>>()
+    );
+    // A stored row whose lineage doesn't end with its bytes is repaired (L5).
+    let malformed = CarryRow {
+        state: RowState::Present,
+        sha256: digest("2"),
+        lineage: vec![digest("1")],
+    };
+    assert_eq!(malformed.checked_lineage(), ["1", "2"].map(digest).to_vec());
 }
 
-fn excluded(path: &str, exclusions: &CarryExclusions) -> Option<Exclusion> {
-    match one(
-        path,
-        input(Some("1"), None, TargetCopy::Absent, None),
-        exclusions,
-    )
-    .action
-    {
-        CarryAction::Excluded(reason) => Some(reason),
-        _ => None,
+/// Every exclusion leaves both rows untouched, whatever the input shape.
+fn assert_excluded(path: &str, exclusions: &CarryExclusions, expected: Exclusion) {
+    let shapes = [
+        ("copy", input(Some("1"), None, TargetCopy::Absent, None)),
+        (
+            "replace",
+            input(
+                Some("2"),
+                Some(present("2", &["1", "2"])),
+                file("1"),
+                Some(present("1", &["1"])),
+            ),
+        ),
+        (
+            "remove",
+            input(
+                None,
+                Some(present("1", &["1"])),
+                file("1"),
+                Some(present("1", &["1"])),
+            ),
+        ),
+    ];
+    for (shape, input) in shapes {
+        let planned = one(path, input, exclusions);
+        assert_eq!(
+            planned.action,
+            CarryAction::Excluded(expected),
+            "{path} ({shape})"
+        );
+        assert_eq!(planned.target_row, RowChange::Untouched, "{path} ({shape})");
+        assert_eq!(planned.source_row, RowChange::Untouched, "{path} ({shape})");
     }
+}
+
+fn eligible(path: &str, exclusions: &CarryExclusions) -> bool {
+    !matches!(
+        one(
+            path,
+            input(Some("1"), None, TargetCopy::Absent, None),
+            exclusions
+        )
+        .action,
+        CarryAction::Excluded(_)
+    )
 }
 
 #[test]
 fn name_rules_exclude_unsafe_and_portcove_paths() {
     let none = CarryExclusions::default();
-    assert_eq!(excluded("settings.ini", &none), None);
-    assert_eq!(
-        excluded("data/../x.ini", &none),
-        Some(Exclusion::InvalidPath)
-    );
-    assert_eq!(
-        excluded("caf\u{e9}.ini", &none),
-        Some(Exclusion::InvalidPath)
-    );
-    assert_eq!(
-        excluded("PROGRA~1/x.ini", &none),
-        Some(Exclusion::ShortName)
-    );
-    assert_eq!(excluded("SAVE~2.DAT", &none), Some(Exclusion::ShortName));
-    assert_eq!(excluded("tilde~name.ini", &none), None);
+    assert!(eligible("settings.ini", &none));
+    for invalid in [
+        "data/../x.ini",
+        "caf\u{e9}.ini",
+        "a:b.ini",
+        "con.txt",
+        "trailing.",
+        "space ",
+        "a\\b.ini",
+    ] {
+        assert_excluded(invalid, &none, Exclusion::InvalidPath);
+    }
+    for short in ["PROGRA~1/x.ini", "SAVE~2.DAT", "a~b~1.txt"] {
+        assert_excluded(short, &none, Exclusion::ShortName);
+    }
+    assert!(eligible("tilde~name.ini", &none));
     for portcove in [
         ".portcove-manifest.json",
         "game.sfc.Portcove-Source.json",
         "sub/.PORTCOVE-launched",
     ] {
-        assert_eq!(
-            excluded(portcove, &none),
-            Some(Exclusion::PortcoveMetadata),
-            "{portcove}"
-        );
+        assert_excluded(portcove, &none, Exclusion::PortcoveMetadata);
     }
     for loader in [
         "dxvk.conf",
@@ -318,11 +480,7 @@ fn name_rules_exclude_unsafe_and_portcove_paths() {
         "portable.txt",
         "Game.exe.config",
     ] {
-        assert_eq!(
-            excluded(loader, &none),
-            Some(Exclusion::LoaderName),
-            "{loader}"
-        );
+        assert_excluded(loader, &none, Exclusion::LoaderName);
     }
 }
 
@@ -332,10 +490,7 @@ fn metadata_names_are_excluded() {
         generated_metadata: vec!["rom.cfg".into()],
         ..CarryExclusions::default()
     };
-    assert_eq!(
-        excluded("ROM.cfg", &exclusions),
-        Some(Exclusion::GeneratedMetadata)
-    );
+    assert_excluded("ROM.cfg", &exclusions, Exclusion::GeneratedMetadata);
     let paths = BTreeMap::from([(
         "receipt.json".to_owned(),
         input(Some("1"), None, TargetCopy::Absent, None),
@@ -356,53 +511,38 @@ fn package_members_and_their_folders_are_never_written_or_removed() {
         electron_resources: Some("resources".into()),
         ..CarryExclusions::default()
     };
-    // B1: v2 ships settings-like content as a member; even with A's lineage and
-    // A having deleted it, the member is never removed.
+    // B1: v2 ships the path as a member; A's lineage never removes it.
     let member = CarryExclusions {
         target_members: vec!["settings.ini".into()],
         ..CarryExclusions::default()
     };
-    let removal = one(
-        "settings.ini",
-        input(
-            None,
-            Some(present("0", &["0"])),
-            file("0"),
-            Some(present("0", &["0"])),
-        ),
-        &member,
+    assert_excluded("settings.ini", &member, Exclusion::PackageMember);
+    assert_excluded("game.EXE", &exclusions, Exclusion::PackageMember);
+    assert_excluded("mods/bundled", &exclusions, Exclusion::PackageMember);
+    assert_excluded(
+        "mods/bundled/extra.pak",
+        &exclusions,
+        Exclusion::PackageFolder,
     );
-    assert_eq!(
-        removal.action,
-        CarryAction::Excluded(Exclusion::PackageMember)
+    assert_excluded(
+        "MODS/Bundled/extra.pak",
+        &exclusions,
+        Exclusion::PackageFolder,
     );
-    assert_eq!(removal.target_row, None);
-    // Case alias of a member, a path inside a member, and a member's parent.
-    assert_eq!(
-        excluded("game.EXE", &exclusions),
-        Some(Exclusion::PackageMember)
-    );
-    assert_eq!(
-        excluded("mods/bundled", &exclusions),
-        Some(Exclusion::PackageMember)
-    );
-    // A new file beside a shipped mod package.
-    assert_eq!(
-        excluded("mods/bundled/extra.pak", &exclusions),
-        Some(Exclusion::PackageFolder)
-    );
-    // A file directly in the root beside the program is not a package folder.
-    assert_eq!(excluded("notes.txt", &exclusions), None);
-    assert_eq!(
-        excluded("Resources/app/x.json", &exclusions),
-        Some(Exclusion::ElectronResources)
+    // Only the direct parent counts: a nested folder stays eligible.
+    assert!(eligible("mods/bundled/sub/notes.txt", &exclusions));
+    assert!(eligible("notes.txt", &exclusions));
+    assert_excluded(
+        "Resources/app/x.json",
+        &exclusions,
+        Exclusion::ElectronResources,
     );
 }
 
 #[test]
 fn declared_paths_and_patterns_freeze_rows() {
     let pattern = PersistentFilePattern {
-        prefix: "slot".into(),
+        prefix: "Slot".into(),
         suffix: ".sav".into(),
         allow_empty_middle: false,
     };
@@ -411,30 +551,17 @@ fn declared_paths_and_patterns_freeze_rows() {
         declared_patterns: vec![(Some("data".into()), pattern)],
         ..CarryExclusions::default()
     };
-    // A carried path that becomes declared: its rows freeze, nothing is written.
-    let frozen = one(
+    assert_excluded(
         "mods/preloaded/state.toml",
-        input(
-            Some("2"),
-            Some(present("2", &["1", "2"])),
-            file("1"),
-            Some(present("1", &["1"])),
-        ),
         &exclusions,
+        Exclusion::Declared,
     );
-    assert_eq!(frozen.action, CarryAction::Excluded(Exclusion::Declared));
-    assert_eq!(frozen.target_row, None);
-    assert_eq!(
-        excluded("saves/slot1.srm", &exclusions),
-        Some(Exclusion::Declared)
-    );
-    assert_eq!(excluded("Saves", &exclusions), Some(Exclusion::Declared));
-    assert_eq!(
-        excluded("data/slot04.sav", &exclusions),
-        Some(Exclusion::Declared)
-    );
-    assert_eq!(excluded("data/other.sav", &exclusions), None);
-    assert_eq!(excluded("slot04.sav", &exclusions), None);
+    assert_excluded("saves/slot1.srm", &exclusions, Exclusion::Declared);
+    assert_excluded("Saves", &exclusions, Exclusion::Declared);
+    assert_excluded("data/slot04.sav", &exclusions, Exclusion::Declared);
+    assert_excluded("Data/SLOT04.SAV", &exclusions, Exclusion::Declared);
+    assert!(eligible("data/other.sav", &exclusions));
+    assert!(eligible("slot04.sav", &exclusions));
 }
 
 #[test]
@@ -449,12 +576,28 @@ fn case_collisions_and_blocked_targets_are_excluded() {
             input(Some("2"), None, TargetCopy::Absent, None),
         ),
         (
+            "Data/x.ini".to_owned(),
+            input(Some("3"), None, TargetCopy::Absent, None),
+        ),
+        (
+            "data/y.ini".to_owned(),
+            input(Some("4"), None, TargetCopy::Absent, None),
+        ),
+        (
+            "notes".to_owned(),
+            input(Some("5"), None, TargetCopy::Absent, None),
+        ),
+        (
+            "Notes/inner.txt".to_owned(),
+            input(Some("6"), None, TargetCopy::Absent, None),
+        ),
+        (
             "other.ini".to_owned(),
-            input(Some("3"), None, TargetCopy::Blocked, None),
+            input(Some("7"), None, TargetCopy::Blocked, None),
         ),
         (
             "fine.ini".to_owned(),
-            input(Some("4"), None, TargetCopy::Absent, None),
+            input(Some("8"), None, TargetCopy::Absent, None),
         ),
     ]);
     let planned = plan(A, &paths, &CarryExclusions::default(), &|_| false);
@@ -462,14 +605,20 @@ fn case_collisions_and_blocked_targets_are_excluded() {
         .iter()
         .map(|planned| (planned.path.as_str(), planned.action))
         .collect::<BTreeMap<_, _>>();
-    assert_eq!(
-        by_path["Config.ini"],
-        CarryAction::Excluded(Exclusion::CaseCollision)
-    );
-    assert_eq!(
-        by_path["config.ini"],
-        CarryAction::Excluded(Exclusion::CaseCollision)
-    );
+    for colliding in [
+        "Config.ini",
+        "config.ini",
+        "Data/x.ini",
+        "data/y.ini",
+        "notes",
+        "Notes/inner.txt",
+    ] {
+        assert_eq!(
+            by_path[colliding],
+            CarryAction::Excluded(Exclusion::CaseCollision),
+            "{colliding}"
+        );
+    }
     assert_eq!(
         by_path["other.ini"],
         CarryAction::Excluded(Exclusion::TargetBlocked)

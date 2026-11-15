@@ -7,6 +7,13 @@
 //! replaced or removed in the target when the target's bytes are proven to be
 //! an earlier copy of the source's file; every other difference keeps both
 //! copies.
+//!
+//! Every path, in [`PathInput`] keys and in [`CarryExclusions`], is relative to
+//! the persistence root with `/` separators, and so is the path the
+//! `is_metadata` callback receives. T2-2 builds the exclusions with a single
+//! constructor that re-roots install-relative lists (manifest members,
+//! generated metadata, Electron resources) and working-root lists
+//! (runtime-mutable paths), dropping entries outside the persistence root.
 
 // T2-2 wires the planner into the carry step; until then only tests call it.
 #![cfg_attr(not(test), allow(dead_code))]
@@ -45,15 +52,41 @@ impl CarryRow {
             lineage: bounded_lineage(lineage),
         }
     }
+
+    /// The row's lineage, bounded and ending with its own bytes, whatever was
+    /// read back from storage (L5).
+    fn checked_lineage(&self) -> Vec<String> {
+        let mut lineage = self.lineage.clone();
+        if lineage.last() != Some(&self.sha256) {
+            lineage.push(self.sha256.clone());
+        }
+        bounded_lineage(lineage)
+    }
+}
+
+/// What the source version holds at a path.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum SourceCopy {
+    /// The source has no file at the path.
+    Absent,
+    /// A harmless regular file with these bytes.
+    File { sha256: String },
+    /// A file that could not be read at plan time (M3). It is never treated
+    /// as absent, so it can't authorise a removal.
+    Unreadable,
 }
 
 /// What the target version holds at a path, from an exact parent listing.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum TargetCopy {
-    /// The parent exists with exact names and has no exactly named entry.
+    /// No exactly named entry, and every existing parent component is an exact,
+    /// non-alias directory. Missing parents count as absent; the carry step
+    /// creates them.
     Absent,
     /// An exactly named regular file with these bytes.
     File { sha256: String },
+    /// A regular file that could not be read; it is never replaced or removed.
+    Unreadable,
     /// A parent component is a file, a link or a case alias, or the
     /// destination is a non-regular object (rule 11).
     Blocked,
@@ -62,15 +95,14 @@ pub(crate) enum TargetCopy {
 /// The facts the planner needs for one path.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PathInput {
-    /// The source's copy, when it is on the source's Tier 1 harmless list.
-    pub(crate) source: Option<String>,
+    pub(crate) source: SourceCopy,
     pub(crate) source_row: Option<CarryRow>,
     pub(crate) target: TargetCopy,
     pub(crate) target_row: Option<CarryRow>,
 }
 
-/// Paths and names a carry must never touch, all relative to the
-/// persistence root with `/` separators.
+/// Paths and names a carry must never touch, all relative to the persistence
+/// root with `/` separators.
 #[derive(Debug, Default)]
 pub(crate) struct CarryExclusions {
     /// Persistent, shared, progress and runtime-mutable paths declared by the
@@ -112,16 +144,33 @@ pub(crate) enum CarryAction {
     KeepSeparately,
     Remove,
     Leave,
+    /// The source's file couldn't be read, so it stays in the source and the
+    /// target is not touched (`source_unreadable`).
+    SourceUnreadable,
+    /// The target's file couldn't be read, so it is kept as it is.
+    TargetUnreadable,
     Excluded(Exclusion),
+}
+
+/// How the carry changes one install's row for a path (M2).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum RowChange {
+    /// Leave any existing row exactly as it is, including frozen rows.
+    Untouched,
+    /// Write this row, replacing any existing one.
+    Set(CarryRow),
+    /// Delete any existing row.
+    Delete,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PlannedPath {
     pub(crate) path: String,
     pub(crate) action: CarryAction,
-    /// The target's row once the switch is published; `None` means no row.
-    /// Excluded paths leave every row untouched, so this is `None` for them.
-    pub(crate) target_row: Option<CarryRow>,
+    /// The target's row once the switch is published.
+    pub(crate) target_row: RowChange,
+    /// The departing source's row, written in the same transaction (L6).
+    pub(crate) source_row: RowChange,
 }
 
 /// Plan a switch to the target for every candidate path.
@@ -135,24 +184,62 @@ pub(crate) fn plan(
     exclusions: &CarryExclusions,
     is_metadata: &dyn Fn(&str) -> bool,
 ) -> Vec<PlannedPath> {
-    let mut folded = BTreeMap::<String, usize>::new();
-    for path in paths.keys() {
-        *folded.entry(path.to_ascii_lowercase()).or_default() += 1;
-    }
+    let colliding = case_collisions(paths.keys().map(String::as_str));
     paths
         .iter()
         .map(|(path, input)| {
             let exclusion = exclusion(path, input, exclusions, is_metadata).or_else(|| {
-                (folded[&path.to_ascii_lowercase()] > 1).then_some(Exclusion::CaseCollision)
+                colliding
+                    .contains(path.as_str())
+                    .then_some(Exclusion::CaseCollision)
             });
             match exclusion {
                 Some(reason) => PlannedPath {
                     path: path.clone(),
                     action: CarryAction::Excluded(reason),
-                    target_row: None,
+                    target_row: RowChange::Untouched,
+                    source_row: RowChange::Untouched,
                 },
                 None => decide(path, input, source_install_id),
             }
+        })
+        .collect()
+}
+
+/// Paths whose spelling, or any of whose parent directories, collides by ASCII
+/// case with another candidate, or where a file and a directory share a
+/// folded name (rule 10, L3).
+fn case_collisions<'a>(paths: impl Iterator<Item = &'a str> + Clone) -> BTreeSet<&'a str> {
+    let mut spellings = BTreeMap::<String, BTreeSet<&str>>::new();
+    let mut directories = BTreeSet::<String>::new();
+    let mut files = BTreeSet::<String>::new();
+    for path in paths.clone() {
+        files.insert(path.to_ascii_lowercase());
+        for (index, _) in path.match_indices('/') {
+            let prefix = &path[..index];
+            directories.insert(prefix.to_ascii_lowercase());
+            spellings
+                .entry(prefix.to_ascii_lowercase())
+                .or_default()
+                .insert(prefix);
+        }
+        spellings
+            .entry(path.to_ascii_lowercase())
+            .or_default()
+            .insert(path);
+    }
+    paths
+        .filter(|path| {
+            let mut prefixes = path
+                .match_indices('/')
+                .map(|(index, _)| &path[..index])
+                .collect::<Vec<_>>();
+            prefixes.push(path);
+            prefixes.iter().any(|prefix| {
+                let folded = prefix.to_ascii_lowercase();
+                spellings.get(&folded).is_some_and(|set| set.len() > 1)
+                    || (files.contains(&folded) && directories.contains(&folded))
+            })
         })
         .collect()
 }
@@ -238,22 +325,31 @@ fn related(path: &str, other: &str) -> bool {
 }
 
 fn declared_by_pattern(path: &str, patterns: &[(Option<String>, PersistentFilePattern)]) -> bool {
+    let path = path.to_ascii_lowercase();
     let (directory, name) = path
         .rsplit_once('/')
-        .map_or((None, path), |(directory, name)| (Some(directory), name));
+        .map_or((None, path.as_str()), |(directory, name)| {
+            (Some(directory), name)
+        });
     patterns.iter().any(|(pattern_directory, pattern)| {
-        pattern_directory.as_deref().map(str::to_ascii_lowercase)
-            == directory.map(str::to_ascii_lowercase)
-            && (pattern.matches(name) || pattern.matches(&name.to_ascii_lowercase()))
+        let folded = PersistentFilePattern {
+            prefix: pattern.prefix.to_ascii_lowercase(),
+            suffix: pattern.suffix.to_ascii_lowercase(),
+            allow_empty_middle: pattern.allow_empty_middle,
+        };
+        pattern_directory.as_deref().map(str::to_ascii_lowercase) == directory.map(str::to_owned)
+            && folded.matches(name)
     })
 }
 
-/// An 8.3 short-name alias such as `PROGRA~1` (rule 2).
+/// An 8.3 short-name alias such as `PROGRA~1`: any `~` followed by a digit
+/// (rule 2).
 fn short_name(component: &str) -> bool {
-    component.split_once('~').is_some_and(|(_, tail)| {
-        tail.chars()
-            .next()
-            .is_some_and(|first| first.is_ascii_digit())
+    component.match_indices('~').any(|(index, _)| {
+        component
+            .as_bytes()
+            .get(index + 1)
+            .is_some_and(u8::is_ascii_digit)
     })
 }
 
@@ -262,56 +358,84 @@ fn decide(path: &str, input: &PathInput, source_install_id: &str) -> PlannedPath
         .source_row
         .as_ref()
         .filter(|row| row.state == RowState::Present)
-        .map(|row| row.lineage.as_slice())
+        .map(CarryRow::checked_lineage)
         .unwrap_or_default();
-    let target_unchanged = |bytes: &str| {
+    // Portcove's own earlier placement from this source, interrupted before
+    // the switch completed (M1).
+    let placed_by_source = |bytes: &str| {
         input.target_row.as_ref().is_some_and(|row| {
             row.sha256 == bytes
-                && match &row.state {
-                    RowState::Present => true,
-                    RowState::Pending {
-                        source_install_id: source,
-                    } => source == source_install_id,
-                }
+                && matches!(&row.state, RowState::Pending { source_install_id: source } if source == source_install_id)
         })
     };
+    let recorded_unchanged = |bytes: &str| {
+        input
+            .target_row
+            .as_ref()
+            .is_some_and(|row| row.sha256 == bytes && row.state == RowState::Present)
+    };
+    // T's copy may be replaced or removed only when it is a recorded ancestor
+    // left unchanged, or Portcove's own interrupted placement from this source.
+    let stale =
+        |t: &str| (lineage.contains(&t.to_owned()) && recorded_unchanged(t)) || placed_by_source(t);
     let carried = |a: &str| {
-        let mut next = lineage.to_vec();
+        let mut next = lineage.clone();
         next.push(a.to_owned());
-        Some(CarryRow::present(a, next))
+        RowChange::Set(CarryRow::present(a, next))
     };
     let kept = |t: &str| {
-        Some(match &input.target_row {
+        RowChange::Set(match &input.target_row {
             Some(row) if row.sha256 == t && row.state == RowState::Present => {
-                CarryRow::present(t, row.lineage.clone())
+                CarryRow::present(t, row.checked_lineage())
             }
             _ => CarryRow::present(t, vec![t.to_owned()]),
         })
     };
+    let source_row = match &input.source {
+        SourceCopy::File { sha256 } => carried(sha256),
+        SourceCopy::Absent => RowChange::Delete,
+        SourceCopy::Unreadable => RowChange::Untouched,
+    };
     let (action, target_row) = match (&input.source, &input.target) {
-        (Some(a), TargetCopy::File { sha256: t }) if a == t => (CarryAction::Nothing, carried(a)),
-        (Some(a), TargetCopy::Absent) => (CarryAction::Copy, carried(a)),
-        (Some(a), TargetCopy::File { sha256: t }) => {
-            if lineage.contains(t) && target_unchanged(t) {
+        (_, TargetCopy::Blocked) => (
+            CarryAction::Excluded(Exclusion::TargetBlocked),
+            RowChange::Untouched,
+        ),
+        (SourceCopy::Unreadable, _) => (CarryAction::SourceUnreadable, RowChange::Untouched),
+        (_, TargetCopy::Unreadable) => (CarryAction::TargetUnreadable, RowChange::Untouched),
+        (SourceCopy::File { sha256: a }, TargetCopy::File { sha256: t }) if a == t => {
+            (CarryAction::Nothing, carried(a))
+        }
+        (SourceCopy::File { sha256: a }, TargetCopy::Absent) => (CarryAction::Copy, carried(a)),
+        (SourceCopy::File { sha256: a }, TargetCopy::File { sha256: t }) => {
+            if stale(t) {
                 (CarryAction::Replace, carried(a))
             } else {
                 (CarryAction::KeepSeparately, kept(t))
             }
         }
-        (None, TargetCopy::File { sha256: t }) => {
-            if input.source_row.is_some() && lineage.contains(t) && target_unchanged(t) {
-                (CarryAction::Remove, None)
+        (SourceCopy::Absent, TargetCopy::File { sha256: t }) => {
+            let deleted_descendant = input
+                .source_row
+                .as_ref()
+                .is_some_and(|row| row.state == RowState::Present);
+            if (deleted_descendant && stale(t)) || placed_by_source(t) {
+                (CarryAction::Remove, RowChange::Delete)
             } else {
                 (CarryAction::Leave, kept(t))
             }
         }
-        (None, TargetCopy::Absent) => (CarryAction::Nothing, None),
-        (_, TargetCopy::Blocked) => unreachable!("blocked targets are excluded"),
+        (SourceCopy::Absent, TargetCopy::Absent) => (CarryAction::Nothing, RowChange::Delete),
+    };
+    let source_row = match action {
+        CarryAction::Excluded(_) => RowChange::Untouched,
+        _ => source_row,
     };
     PlannedPath {
         path: path.to_owned(),
         action,
         target_row,
+        source_row,
     }
 }
 
