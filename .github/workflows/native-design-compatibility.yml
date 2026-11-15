@@ -73,11 +73,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - purpose: narrator
-            revision: 8b6044e7712d526527cf8d609a1c9ef5d785c457
-            executable: portcove-desktop
-          - purpose: snap64-keeper
-            revision: e239b574684a7fe7dacf6d4cb464f4325c5a2a83
+          - purpose: shipwright-profile
+            revision: 1e5071a052d99f3ed59b15dae8b6cc65ea5dd097
+            executable: portcove
+          - purpose: mmx4-core
+            revision: 98620937c0243a432569d331d6586b30856a5cad
             executable: portcove
     env:
       CARGO_INCREMENTAL: "0"
@@ -88,27 +88,29 @@ jobs:
           ref: ${{ matrix.revision }}
           persist-credentials: false
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-        if: matrix.purpose == 'narrator'
+        if: matrix.purpose == 'shipwright-profile'
         with:
           package_json_file: package.json
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: matrix.purpose == 'narrator'
+        if: matrix.purpose == 'shipwright-profile'
         with:
           node-version-file: .node-version
           package-manager-cache: false
       - uses: ./.github/actions/setup-rust
-      - name: Build the embedded accessibility candidate
-        if: matrix.purpose == 'narrator'
+      - name: Build the reviewed Shipwright profile candidate
+        if: matrix.purpose == 'shipwright-profile'
         shell: pwsh
         run: |
           pnpm install --frozen-lockfile
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           pnpm --dir apps/desktop build
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          cargo build --locked -p portcove-cli --bin portcove
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cargo build --locked -p portcove-desktop --features tauri/custom-protocol
-      - name: Build the retained Snap64 candidate
-        if: matrix.purpose == 'snap64-keeper'
-        run: cargo build --locked -p portcove-cli --bin portcove
+      - name: Build the private Core qualification CLI
+        if: matrix.purpose == 'mmx4-core'
+        run: cargo build --locked -p portcove-cli --bin portcove --features qualification-fixtures
       - name: Bind the executable to its exact source checkout
         shell: pwsh
         env:
@@ -121,12 +123,17 @@ jobs:
           $file = "target/debug/$($env:EXECUTABLE_NAME).exe"
           $hash = (Get-FileHash -LiteralPath $file -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash $file from $actual" | Set-Content -LiteralPath 'target/debug/native-build-identity.txt'
+          if (Test-Path -LiteralPath 'target/debug/portcove-desktop.exe') {
+            $desktopHash = (Get-FileHash -LiteralPath 'target/debug/portcove-desktop.exe' -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$desktopHash target/debug/portcove-desktop.exe from $actual" | Add-Content -LiteralPath 'target/debug/native-build-identity.txt'
+          }
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: owned-${{ matrix.purpose }}-${{ matrix.revision }}
           if-no-files-found: error
           path: |
             target/debug/${{ matrix.executable }}.exe
+            target/debug/portcove-desktop.exe
             target/debug/native-build-identity.txt
 
   linux-local-verification:
