@@ -2437,6 +2437,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn updater_switch_routes_pass_their_complete_upstream_switch() {
+        // The managed route is safe only while the game starts with this switch.
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("blacklabelhq-medievilrecomp").unwrap();
+        assert_eq!(port.launch_arguments, ["--disable-updated"]);
+    }
+
+    #[test]
     fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
         let catalog = Catalog::embedded().unwrap();
         // Only reviewed routes opt in; every other embedded port keeps the

@@ -93,12 +93,12 @@ implementation, rendering, audio, codecs, gameplay and bug fixes.
 
 Each installation has one owner for runtime replacement:
 
-| Offered route                  | Runtime replacement and updates    | Portcove's responsibility                                                                                                                                                                                                            |
-| ------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Managed official package       | Portcove                           | Accepted artifact identity, safe installation, documented input/setup invocation and launch; player-data protection for explicitly owned paths. Offer update, rollback, backup and removal only where established.                   |
-| Supported upstream preparation | Explicitly selected for the output | Delegate the substantive work to upstream's CLI, builder, extractor or setup window. If upstream retains an updater/launcher, use non-owning registration; its mutable runtime cannot also be a Portcove-owned immutable version.    |
-| Existing installation          | Player or upstream launcher        | Explicit selected executable, working directory and bounded arguments; register, launch, and remove the registration while preserving external files. User selection establishes execution intent, not curated package authenticity. |
-| No useful reasonable route     | Unoffered                          | Record the precise upstream dependency or product deferral and reconsideration condition on the canonical issue. Preserve research, patches and failures as evidence.                                                                |
+| Offered route                  | Runtime replacement and updates    | Portcove's responsibility                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Managed official package       | Portcove                           | Accepted artifact identity, safe installation, documented input/setup invocation and launch; player-data protection for explicitly owned paths. Offer update, rollback, backup and removal only where established.                                                                            |
+| Supported upstream preparation | Explicitly selected for the output | Delegate the substantive work to upstream's CLI, builder, extractor or setup window. If upstream retains an updater/launcher, use non-owning registration unless a complete upstream switch qualifies a managed route; its mutable runtime cannot also be a Portcove-owned immutable version. |
+| Existing installation          | Player or upstream launcher        | Explicit selected executable, working directory and bounded arguments; register, launch, and remove the registration while preserving external files. User selection establishes execution intent, not curated package authenticity.                                                          |
+| No useful reasonable route     | Unoffered                          | Record the precise upstream dependency or product deferral and reconsideration condition on the canonical issue. Preserve research, patches and failures as evidence.                                                                                                                         |
 
 A supported setup window is acceptable. Shared PSX preparation remains useful:
 it invokes upstream generation/rebuild rather than implementing each engine.
@@ -310,7 +310,8 @@ existing exact selection.
 It does not need a game-specific adapter. Setup provider and runtime update owner
 are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
-runtime instead uses the non-owning existing-installation route.
+runtime instead uses the non-owning existing-installation route, unless the
+updater switch described below qualifies it.
 
 Verify that the selected process stays alive through edition dispatch and
 settings-triggered restarts, or uses a supported tracked handoff. A launcher that
@@ -321,12 +322,19 @@ can be tracked; bypassing useful setup or settings is not a management fix.
 An upstream player with its own updater can take a managed route only when
 upstream provides a switch that removes every update path, meaning the startup
 check, manual checks and installing a download, and the route passes that
-switch through `launch_arguments` or `launch_environment`. Record source
+switch through `launch_arguments` or `launch_environment`. Record dated source
 evidence that the switch reaches each update entry point. A switch that only
 skips the startup check, such as an offline flag that leaves a manual check or
-an install button available, does not qualify; the route stays non-owning.
+an install button available, does not qualify; the route stays non-owning. The
+evidence is bound to the reviewed release: the route follows later releases by
+its asset hints and reviewed layout, which do not check the switch, so re-check
+it whenever a new release is reviewed. If a release dropped the switch, Core's
+immutable verification would hold the changed installation. The rule covers
+upstream's own update paths, not mods the player installs, and starting the
+managed program directly outside Portcove runs without the switch.
 MediEvilRecomp's `--disable-updated`, which upstream provides for an external
-manager, is the first such route.
+manager, is the first such route
+([MediEvilRecomp qualification](qualification/medievilrecomp-updater-switch-2026-11-15.md)).
 
 The supported tracked handoff is a reviewed Windows opt-in. A definition that
 declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
@@ -3570,9 +3578,10 @@ contract is useful when evidence establishes external storage; describe that
 location and its backup limits, and classify the main saves/settings as
 `external-user-owned`. Inspect emitted writes beyond the save folder, including
 first-run failure instructions, preference exports, registry settings and mod
-state. A self-updater or a setup kit that regenerates
-version-dependent runtime code needs the appropriate existing integration or
-non-owning handoff. Keep the player's installed contract unchanged when adding a
+state. A self-updater without a qualifying upstream switch (see
+[managed native portable packages](#managed-native-portable-packages)), or a setup
+kit that regenerates version-dependent runtime code, needs the appropriate
+existing integration or non-owning handoff. Keep the player's installed contract unchanged when adding a
 new route.
 
 The owned output directory is a resumable preparation checkpoint. Reuse it for
