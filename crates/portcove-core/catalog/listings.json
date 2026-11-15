@@ -19908,13 +19908,10 @@
     {
       "id": "danielgomesvieira2000-beetle-adventure-racing-recomp",
       "name": "Beetle Adventure Racing! / Beetle Adventure Racing! Recomp (danielgomesvieira2000)",
-      "summary": "Use a permitted Beetle Adventure Racing player and choose your own supported USA cartridge dump.",
+      "summary": "Native Beetle Adventure Racing! for Windows, using your own USA cartridge dump on first Play.",
       "project_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp",
       "issue_number": 1800,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
       "artwork": {
@@ -19937,12 +19934,12 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep a permitted Windows player",
-            "instruction": "Select beetle-adventure-racing-recomp.exe in your existing permitted copy and use its complete extracted folder as the working directory. Keep assets and all supplied companions together. The selected release is a Windows x64 alpha; debug-symbols ZIPs are not player packages."
+            "title": "Load your original game on first Play",
+            "instruction": "Choose Play, then Load ROM in the player and select your own USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and keeps its own copy of the selected game in its profile, so keep your original separately. The released player needs no decompilation build or separate game-generation step."
           },
           {
-            "title": "Load your original game on first Play",
-            "instruction": "Choose Play, then Load ROM in the player and select your own supported USA Beetle Adventure Racing cartridge dump. The player checks its expected game identity and caches the selected game. The released player needs no downstream decompilation build or separate game-generation step."
+            "title": "Keep a complete Windows player",
+            "instruction": "For a copy you manage yourself, extract the whole Windows x64 alpha ZIP and keep beetle-adventure-racing-recomp.exe with its assets and DLLs; debug-symbols ZIPs are not player packages. To add that copy to Portcove, select the player and its folder."
           }
         ],
         "warnings": [
@@ -19956,7 +19953,10 @@
             "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
           }
         ]
-      }
+      },
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "danilopaulinodasilva-kof98recomp",
@@ -51792,14 +51792,11 @@
     {
       "id": "snowboard-kids",
       "name": "Snowboard Kids (SnowboardKids-Recomp)",
-      "summary": "A native Snowboard Kids port with Windows and Linux beta packages. Select your own USA cartridge dump on first Play.",
+      "summary": "A native Snowboard Kids port for Windows and Linux. Select your own USA cartridge dump on first Play.",
+      "original_game_title": "Snowboard Kids",
       "project_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
       "issue_number": 1354,
       "listed_at": "2026-10-23",
-      "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
-      ],
       "availability": "packages",
       "setup_url": "https://github.com/HikariLucy/SnowboardKids-Recomp",
       "artwork": {
@@ -51814,22 +51811,17 @@
         "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
         "steps": [
           {
-            "title": "Keep the complete package for your system",
-            "instruction": "Keep the Snowboard Kids (HikariLucy) package files together. On Windows, that is SnowboardKidsEngine.exe, the matching modules/snowboardkids-us/SnowboardKidsGame.dll, assets and runtime DLLs; on Linux, SnowboardKidsEngine, modules/snowboardkids-us/SnowboardKidsGame.so and assets. The published beta has a precompiled module; normal players do not compile anything. If your copy instead requires module generation or repair, finish that supported preparation upstream before attachment."
-          },
-          {
             "title": "Select your own supported original on Play",
-            "instruction": "Choose your own supported Snowboard Kids (USA), game code NSKE, through the upstream ROM chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and supported N64 byte orders. Preserve that original separately. Portcove does not acquire, upload, copy, patch or authenticate the ROM through this attachment route."
+            "instruction": "Choose Play, then select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser. Upstream ROM-IDENTITY.md specifies its normalized identity and the supported N64 byte orders. The player remembers where your ROM is, so keep the original where you selected it."
           },
           {
-            "title": "Review the game, working folder and launch details",
-            "instruction": "Select the completed native SnowboardKidsEngine.exe (SnowboardKidsEngine on Linux) with the established package root as working directory and only its supported literal arguments. Review the launch details, add the game, then choose Play. Keep one upstream/player owner for preparation and runtime replacement. Removing the registration preserves every external file; Core supplies no external update, backup, rollback, conversion, migration or deletion."
+            "title": "Keep the complete package for your system",
+            "instruction": "For a copy you manage yourself, keep the whole package together: SnowboardKidsEngine.exe on Windows or SnowboardKidsEngine on Linux, the matching modules/snowboardkids-us game module, assets and runtime libraries. The published beta includes a precompiled module, so normal players compile nothing. To add that copy to Portcove, select the engine and its folder."
           }
         ],
         "warnings": [
           "The package includes a modified RecompFrontend fork by cdlewis that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files. Source and first-party checks do not confirm gameplay, real saves or installed behavior.",
-          "Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable.",
-          "An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override."
+          "This is an upstream beta. Portcove has not observed native setup, gameplay or saves. A game module left in the profile's modules folder overrides the packaged one."
         ],
         "references": [
           {
@@ -51849,7 +51841,11 @@
           "-Linux-x86_64.zip"
         ]
       },
-      "recommended_download_channel": "beta"
+      "recommended_download_channel": "beta",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ]
     },
     {
       "id": "snprecomp-wootbeer-sin-and-punishment",

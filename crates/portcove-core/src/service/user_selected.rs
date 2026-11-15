@@ -3043,21 +3043,18 @@ mod tests {
     }
 
     #[test]
+<<<<<<< HEAD
     fn snowboard_kids_frontend_license_player_route_1354() {
         assert_listing_only_player_route("snowboard-kids", Some(false));
+=======
+    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
+        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
+>>>>>>> 73ebd46eb (Manage HikariLucy's Snowboard Kids and Beetle Adventure Racing on the beta channel)
     }
 
     #[test]
     fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
         assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
-    }
-
-    #[test]
-    fn danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800() {
-        assert_listing_only_player_route(
-            "danielgomesvieira2000-beetle-adventure-racing-recomp",
-            Some(false),
-        );
     }
 
     #[test]
