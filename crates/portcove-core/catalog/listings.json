@@ -24689,6 +24689,56 @@
       "availability": "unknown"
     },
     {
+      "id": "empty-epsilon-native",
+      "name": "EmptyEpsilon",
+      "summary": "Run a spaceship bridge with friends, with separate crew roles, scenarios, and a Game Master mode.",
+      "project_url": "https://github.com/daid/EmptyEpsilon",
+      "issue_number": 6130,
+      "listed_at": "2026-11-14",
+      "original_game_title": "EmptyEpsilon",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Win32_EmptyEpsilon_",
+          ".zip"
+        ],
+        "linux-x86-64": [
+          "Linux_EmptyEpsilon_",
+          ".deb"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "help_url": "https://github.com/daid/EmptyEpsilon/releases/tag/EE-2024.12.08",
+        "steps": [
+          {
+            "title": "Start the Windows or Linux player",
+            "instruction": "On Windows x64, extract the full Win32 ZIP and open EmptyEpsilon.exe from its own folder. On Debian-compatible Linux x64, install the publisher’s .deb with your system package manager and open EmptyEpsilon. The Linux package depends on SDL2 and FreeType."
+          },
+          {
+            "title": "Use the upstream Android or Mac setup",
+            "instruction": "Choose the publisher’s ARM64 or ARM32 Android APK for your device. For Intel or Apple Silicon Mac, use the upstream source-build instructions. The release includes the standalone game and its scenarios."
+          },
+          {
+            "title": "Match the crew’s release",
+            "instruction": "Use the same EmptyEpsilon version on the host and on every player’s device before starting or joining a session. Use Tutorials to try the local controls."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your settings and custom scenarios",
+            "instruction": "Preserve options.ini, keybindings.json and your custom scripts, resources and packs in the .emptyepsilon folder in your home directory, or in the launcher folder if that is the configuration location you use. Keep the directory you selected if you set EE_CONF_DIR."
+          }
+        ]
+      }
+    },
+    {
       "id": "enchantedarmspc-iandrewjj-enchanted-arms",
       "name": "Enchanted Arms — EnchantedArmsPC (IAndrewJJ)",
       "original_game_title": "Enchanted Arms",
