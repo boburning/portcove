@@ -115,7 +115,7 @@ impl NativeToolEventBudget {
     pub(crate) fn limit(self) -> usize {
         match self {
             Self::Ordinary => 4096,
-            Self::ManagedBuilder => 32768,
+            Self::ManagedBuilder => 65_536,
         }
     }
 }
@@ -514,7 +514,7 @@ mod tests {
         ] {
             let spec = ChildProcessPolicy::native_tool_spec(class, "never-spawned.exe").unwrap();
             let expected = if class == ChildProcessClass::ManagedBuilder {
-                32768
+                65_536
             } else {
                 4096
             };

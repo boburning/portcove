@@ -1837,7 +1837,7 @@ mod native_control_tests {
         let program = crate::test_fixture::build_probe(native.path());
         for (class, limit) in [
             (ChildProcessClass::HostTool, 4096),
-            (ChildProcessClass::ManagedBuilder, 32768),
+            (ChildProcessClass::ManagedBuilder, 65_536),
         ] {
             let working = tempfile::tempdir().unwrap();
             let mut spec = ChildProcessPolicy::native_tool_spec(class, &program).unwrap();
@@ -1998,7 +1998,7 @@ mod native_control_tests {
         let program = crate::test_fixture::build_probe(native.path());
         for (class, limit) in [
             (ChildProcessClass::HostTool, 4096),
-            (ChildProcessClass::ManagedBuilder, 32768),
+            (ChildProcessClass::ManagedBuilder, 65_536),
         ] {
             let working = tempfile::tempdir().unwrap();
             let mut spec = ChildProcessPolicy::native_tool_spec(class, &program).unwrap();
@@ -3100,7 +3100,7 @@ mod proof_tests {
         .unwrap();
         assert_eq!(
             EncodedLaunch::new(&spec).unwrap().event_budget.limit(),
-            32768
+            65_536
         );
         spec.decoder_limits = Some(crate::process::DecoderLimits {
             memory_bytes: 1024,
@@ -3116,7 +3116,7 @@ mod proof_tests {
     fn event_budget_boundary_and_exhaustion_preserve_failure() {
         for (event_budget, limit) in [
             (NativeToolEventBudget::Ordinary, 4096),
-            (NativeToolEventBudget::ManagedBuilder, 32768),
+            (NativeToolEventBudget::ManagedBuilder, 65_536),
         ] {
             let mut proof = Proof {
                 event_budget,
