@@ -56840,14 +56840,14 @@
             }
           ],
           "warnings": [
-            "This alpha has upstream limitations; a published Windows package does not establish native/gameplay or Linux qualification.",
-            "portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+            "The package includes a modified RecompFrontend copy that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "This alpha has upstream limitations, and Portcove has not observed native setup, gameplay or saves. Linux is not offered."
           ],
           "help_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/974596dfa0493fe2c7c2446b3f5165dd11237020/README.md",
           "references": [
             {
               "title": "Preserve the current copy and Controller Pak data",
-              "instruction": "You or upstream provide updates. Back up the whole working folder and normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, including cached ROM, Controller Pak saves, settings and bindings. portable.txt or an unavailable profile directory can move writes beside the executable. Preserve the location actually used and keep the current copy until ready. These external files are outside Portcove backup, runtime rollback and deletion."
+              "instruction": "For a copy you manage yourself, back up the whole working folder and the profile, normally %LOCALAPPDATA%\\beetle-adventure-racing-recomp, before replacing the player: it holds the copied ROM, Controller Pak saves, settings and bindings. portable.txt beside the player, or an unavailable profile folder, moves these writes beside the executable."
             }
           ]
         },
@@ -69260,12 +69260,15 @@
           "SnowboardKidsEngine"
         ]
       },
+      "launch_environment": {
+        "PYTHONDONTWRITEBYTECODE": "1"
+      },
       "persistent_paths": [],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser; the player remembers its location, so keep the original where you selected it. Settings, Controller Pak saves, save states, logs and any user game modules go to the player's profile: %APPDATA%\\SnowboardKids on Windows, or $XDG_DATA_HOME/SnowboardKids, usually ~/.local/share/SnowboardKids, on Linux. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. A game module in the profile's modules folder takes precedence over the packaged one, so remove an old one after an update. Portcove replaces the player; you own the original and the profile.",
+        "manual_preparation": "On first Play, select your own Snowboard Kids (USA) ROM, game code NSKE, in the player's file chooser; the player remembers its location and may keep its own copy in the profile, so keep the original where you selected it. Settings, Controller Pak saves, save states, logs and any user game modules go to the player's profile: %APPDATA%\\SnowboardKids on Windows, or $XDG_DATA_HOME/SnowboardKids, usually ~/.local/share/SnowboardKids, on Linux. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. A game module in the profile's modules folder takes precedence over the packaged one, so remove an old one after an update. Portcove replaces the player; you own the original and the profile. If no compatible game module loads, the player can run its bundled Python module builder; Portcove starts it without writing Python bytecode into the managed copy.",
         "original_game_title": "Snowboard Kids",
         "manual_setup": {
           "help_url": "https://github.com/HikariLucy/SnowboardKids-Recomp/blob/4a7f9613114d308a31ad629584a9638c21a29a3b/LAUNCHER-INTEGRATION.md",
@@ -69286,7 +69289,7 @@
           "references": [
             {
               "title": "Preserve the actual profile and active module",
-              "instruction": "Keep the complete creating package, original and effective profile before maintenance. The normal Windows profile is %APPDATA%/SnowboardKids; SBK_USER_DATA_DIR can select another root, and resolver fallbacks must be preserved in their actual locations. Retain all configuration, remembered source paths, Controller Pak .mpk files, .sbks states, modules, logs and custom paths. Loading a savestate does not rewind Controller Pak storage. An explicit --module or SBK_GAME_MODULE and modules in the user-data directory take priority over the bundled module: review and preserve the actual selected module and compatible creating engine together. Package integrity does not certify an external override. Stop actual players before deliberate upstream replacement and review/relink a changed executable."
+              "instruction": "Back up the player's profile before changing versions: normally %APPDATA%\\SnowboardKids on Windows or ~/.local/share/SnowboardKids on Linux, unless SBK_USER_DATA_DIR selects another folder in a copy you manage yourself. It holds settings, the remembered ROM location, Controller Pak .mpk saves, .sbks save states, logs and any user game modules. Loading a save state does not rewind Controller Pak storage. A game module in that folder, or one named by --module or SBK_GAME_MODULE, takes priority over the packaged module, so remove an old one after updating. Close the player before replacing a copy you manage yourself."
             }
           ]
         },
