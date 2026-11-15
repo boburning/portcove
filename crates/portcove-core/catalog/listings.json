@@ -20147,20 +20147,17 @@
     {
       "id": "darkuni-lode-runner-2009-xbla-rexglue",
       "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
-      "summary": "Windows player for Lode Runner (2009) using its own Xbox 360 package.",
+      "summary": "Play Lode Runner with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/lode-runner-recomp",
       "original_game_title": "Lode Runner (2009)",
       "issue_number": 4216,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare your original in the upstream folder",
-            "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 5841085B beside lode_runner.exe. The tagged source identifies default.xex 0.0.1.2 and the 5841085B console export. The tagged player checks its 6,205,440-byte default.xex against the expected SHA-1."
+            "title": "Prepare your original beside the program",
+            "instruction": "Copy your own purchased full Lode Runner Xbox 360 LIVE package (title 5841085B, default.xex 0.0.1.2) beside lode_runner.exe as the complete 5841085B console export folder (5841085B/000D0000/<package>). Keep your original export separately."
           },
           {
             "title": "Use the documented Windows prerequisites",
@@ -20168,16 +20165,16 @@
           },
           {
             "title": "Complete first-run setup",
-            "instruction": "Start lode_runner.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+            "instruction": "Start lode_runner.exe and let it prepare assets from your package on first start."
           },
           {
-            "title": "Preserve the creating folder",
-            "instruction": "Keep the generated assets, lode_runner.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+            "title": "Keep your settings and saves",
+            "instruction": "Keep the generated assets, lode_runner.toml and the 5841085B folder with the program. Saves and the shader cache stay in Documents\\lode_runner."
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+          "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
           "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
         ],
         "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
@@ -20189,7 +20186,10 @@
           "-win-amd64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "darkuni-mylifedarklord-recomp",
@@ -20282,20 +20282,17 @@
     {
       "id": "darkuni-outrun-arcade-recomp",
       "name": "OutRun Online Arcade (darkuni Recomp)",
-      "summary": "Windows player for OutRun Online Arcade using its own Xbox 360 package.",
+      "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
       "original_game_title": "OutRun Online Arcade",
       "issue_number": 4133,
       "listed_at": "2026-11-08",
-      "platforms": [
-        "windows-x86-64"
-      ],
       "availability": "packages",
       "manual_setup": {
         "steps": [
           {
-            "title": "Prepare your original in the upstream folder",
-            "instruction": "Keep the Windows x64 package files together in a writable folder. Put your own Xbox 360 LIVE package for title 58410968 beside outrun_arcade.exe. The tagged source identifies default.xex 0.0.1.5. Keep the matching media files if using an already extracted assets folder."
+            "title": "Prepare your original beside the program",
+            "instruction": "Copy your own purchased full OutRun Online Arcade Xbox 360 LIVE package (title 58410968, default.xex 0.0.1.5) beside outrun_arcade.exe as the complete 58410968 console export folder (58410968/000D0000/<package>). Keep your original export separately."
           },
           {
             "title": "Use the documented Windows prerequisites",
@@ -20303,16 +20300,16 @@
           },
           {
             "title": "Complete first-run setup",
-            "instruction": "Start outrun_arcade.exe in that folder and let the upstream program prepare assets. Keep your original export separately."
+            "instruction": "Start outrun_arcade.exe and let it prepare assets from your package on first start."
           },
           {
-            "title": "Preserve the creating folder",
-            "instruction": "Keep the generated assets, outrun_arcade.toml and any game-created profile, saves or diagnostic files alongside the creating version."
+            "title": "Keep your settings and saves",
+            "instruction": "Keep the generated assets, outrun_arcade.toml and the 58410968 folder with the program. Saves and the shader cache stay in Documents\\outrun_arcade."
           }
         ],
         "warnings": [
-          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-          "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
+          "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own purchased full game package; the program always runs as the full game and does not grant or change an entitlement.",
+          "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
         ],
         "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
       },
@@ -20323,7 +20320,10 @@
           "-win-amd64.zip"
         ]
       },
-      "recommended_download_channel": "stable"
+      "recommended_download_channel": "stable",
+      "platforms": [
+        "windows-x86-64"
+      ]
     },
     {
       "id": "darkuni-poker-smash-recomp",
