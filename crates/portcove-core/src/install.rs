@@ -304,6 +304,70 @@ impl InstallQualification {
         )
     }
 
+    /// What a Tier 2 carry must never touch in `install`, every path
+    /// re-rooted to its persistence root, with that root (#5359 T2-2, M4).
+    /// Entries outside the persistence root are dropped: the carry never sees
+    /// them.
+    pub(crate) fn carry_exclusions(
+        &self,
+        install: &InstallRecord,
+    ) -> Result<(PathBuf, crate::carry_plan::CarryExclusions)> {
+        let selected = install.path.join(&install.selected_executable);
+        let persistent = self.persistence_root(&install.path, &selected);
+        let working = self.runtime_root(&install.path, &selected);
+        let reroot = |path: &Path| -> Option<String> {
+            let relative = path.strip_prefix(&persistent).ok()?;
+            let parts = relative
+                .components()
+                .map(|part| part.as_os_str().to_str().map(str::to_owned))
+                .collect::<Option<Vec<_>>>()?;
+            Some(parts.join("/"))
+        };
+        let working_directory = reroot(&working).filter(|directory| !directory.is_empty());
+        let declared_paths = self
+            .persistent_paths
+            .iter()
+            .filter_map(|relative| reroot(&persistent.join(relative)))
+            .chain(
+                self.runtime_mutable_paths
+                    .iter()
+                    .filter_map(|relative| reroot(&working.join(relative))),
+            )
+            .filter(|path| !path.is_empty())
+            .collect();
+        let declared_patterns = self
+            .persistent_file_patterns
+            .iter()
+            .map(|pattern| (None, pattern.clone()))
+            .chain(
+                self.runtime_mutable_file_patterns
+                    .iter()
+                    .map(|pattern| (working_directory.clone(), pattern.clone())),
+            )
+            .collect();
+        let target_members = verified_manifest(install)?
+            .files
+            .iter()
+            .filter_map(|file| reroot(&install.path.join(&file.path)))
+            .filter(|path| !path.is_empty())
+            .collect();
+        let generated_metadata = self
+            .generated_metadata
+            .iter()
+            .filter_map(|relative| reroot(&working.join(relative)))
+            .collect();
+        Ok((
+            persistent,
+            crate::carry_plan::CarryExclusions {
+                declared_paths,
+                declared_patterns,
+                target_members,
+                generated_metadata,
+                electron_resources: None,
+            },
+        ))
+    }
+
     fn generated_metadata_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
         let working = self.runtime_root(
             &install.path,

@@ -310,14 +310,22 @@ async fn harmless_unknown_files_do_not_hold_and_are_backed_up_separately() {
     let second = update(&service).await.unwrap();
     second_server.join().unwrap();
     assert_ne!(second.id, first.id);
-    // Tier 1 carries nothing: the unknown file stays in the old version.
+    // Tier 2 carries the harmless files to the new version and leaves the
+    // old version's copies in place (#5359).
     assert_eq!(
         fs::read(folder.join("settings/easy-access.ini")).unwrap(),
         b"lives=9"
     );
     let second_folder = second.path.join(&second.selected_executable);
     let second_folder = second_folder.parent().unwrap();
-    assert!(!second_folder.join("settings/easy-access.ini").exists());
+    assert_eq!(
+        fs::read(second_folder.join("settings/easy-access.ini")).unwrap(),
+        b"lives=9"
+    );
+    assert_eq!(
+        fs::read(second_folder.join("logs/replay.txt")).unwrap(),
+        b"replay"
+    );
     assert_eq!(
         fs::read(second_folder.join("config.yaml")).unwrap(),
         b"declared settings"
@@ -571,12 +579,26 @@ async fn configuration_beside_the_program_holds_launch_only_for_loader_names() {
     assert_eq!(service.create_backup(PORT).unwrap().unknown_file_count, 11);
     let (second_release, second_server) = release("2.0.0");
     *provider.0.lock().unwrap() = second_release;
-    update(&service).await.unwrap();
+    let second = update(&service).await.unwrap();
     second_server.join().unwrap();
+    // The three ordinary settings files carry; loader-read names never do.
+    let second_folder = second.path.join(&second.selected_executable);
+    let second_folder = second_folder.parent().unwrap();
+    for name in ["settings.ini", "config.toml", "profile.json"] {
+        assert_eq!(
+            fs::read(second_folder.join(name)).unwrap(),
+            b"player settings",
+            "{name}"
+        );
+    }
+    for name in LOADER_NAMES {
+        assert!(!second_folder.join(name).exists(), "{name}");
+        assert!(!second_folder.join("mods").join(name).exists(), "{name}");
+    }
     assert_eq!(service.rollback(PORT).unwrap().id, first.id);
     assert_eq!(
         service.preview_removal(PORT).unwrap().unknown_file_count,
-        11
+        14
     );
     assert!(service.prepare_launch(PORT, None).is_err());
 }

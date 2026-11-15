@@ -166,10 +166,12 @@ pub(crate) fn recover_published_install(
                 ));
             }
         } else {
-            let already_active = service
+            let current_active = service
                 .library
                 .status(&operation.port_id, install.channel)?
-                .active
+                .active;
+            let already_active = current_active
+                .as_ref()
                 .is_some_and(|active| active.id == install.id);
             if operation.activate && !already_active {
                 crate::managed_runtime_policy::require_managed_activation_available(
@@ -199,6 +201,10 @@ pub(crate) fn recover_published_install(
                         ));
                     }
                     _ => {}
+                }
+                // Tier 2 (#5359): the same carry step as an uninterrupted switch.
+                if let Some(active) = &current_active {
+                    service.carry_unknown_files(active, &install)?;
                 }
             }
             service
@@ -807,6 +813,9 @@ pub(crate) fn recover_activation(
             )?;
             let commit = activation.prepare_commit(service, operation)?;
             service.prepare_retained_install_data(&install)?;
+            if let Some(active) = &status.active {
+                service.carry_unknown_files(active, &install)?;
+            }
             service.library.activate_staged(&install.port_id)?;
             commit.persist(store)?;
         } else {

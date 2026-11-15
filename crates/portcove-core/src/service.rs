@@ -40,6 +40,7 @@ use crate::{
 };
 
 mod backups;
+mod carry;
 mod protection;
 use crate::AdapterKind;
 pub use protection::{InstallationProtection, PlayerDataProtection, ProtectionDeclaration};
@@ -3566,6 +3567,12 @@ impl PortcoveService {
             }
             reporter.operation.begin_publication()?;
             self.prepare_retained_install_data(&existing)?;
+            if activate
+                && let Some(active) = &status.active
+                && active.id != existing.id
+            {
+                self.carry_unknown_files(active, &existing)?;
+            }
             self.library.register_install(&existing, activate)?;
             existing.staged = !activate;
             return Ok(existing);
@@ -4087,6 +4094,7 @@ impl PortcoveService {
             if let Some(active) = &status.active {
                 self.adopt_additive_archive_data(active, &previous)?;
                 self.record_additive_rollback_baseline(active, &previous)?;
+                self.carry_unknown_files(active, &previous)?;
             }
             Installer::new(self.library.clone())?
                 .verify_critical_for_replacement(&previous, &qualification)?;
@@ -4275,6 +4283,11 @@ impl PortcoveService {
         store.put(&mut lifecycle)?;
         let result: Result<InstallRecord> = (|| {
             self.prepare_retained_install_data(&staged)?;
+            // Tier 2: carry harmless files the active version gained, after
+            // declared data and before the pointer changes (#5359).
+            if let Some(active) = &status.active {
+                self.carry_unknown_files(active, &staged)?;
+            }
             let commit = activation.prepare_commit(self, &mut lifecycle)?;
             let activated = self.library.activate_staged(port_id)?;
             commit.persist(&store)?;
