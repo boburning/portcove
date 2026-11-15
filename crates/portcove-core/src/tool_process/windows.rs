@@ -26,7 +26,7 @@ use std::{
 use super::ToolSpawnFailure;
 use crate::{
     PortcoveError,
-    process::{NativeToolEventBudget, NativeToolLaunchSpec},
+    process::{NativeToolEventBudget, NativeToolLaunchSpec, environment_names_equal},
 };
 use windows_sys::Win32::{
     Foundation::{
@@ -559,17 +559,31 @@ impl EncodedLaunch {
                 "native tool command exceeds the Windows argument bound",
             ));
         }
+        let event_budget = if spec.decoder_limits.is_some() {
+            NativeToolEventBudget::Ordinary
+        } else {
+            spec.event_budget
+        };
+        let standard_builder_heap = event_budget == NativeToolEventBudget::ManagedBuilder;
+        let heap_key = OsStr::new("_NO_DEBUG_HEAP");
         let mut environment = Vec::new();
         let mut entries = Vec::new();
-        for (key, value) in &spec.environment {
-            let key = wide(key)?;
+        for (name, value) in &spec.environment {
+            let key = wide(name)?;
             let value = wide(value)?;
             if key.len() <= 1 || key[..key.len() - 1].contains(&(b'=' as u16)) {
                 return Err(PortcoveError::launch(
                     "native tool environment name is invalid",
                 ));
             }
-            entries.push((key, value));
+            if !standard_builder_heap || !environment_names_equal(name, heap_key) {
+                entries.push((key, value));
+            }
+        }
+        // DEBUG_PROCESS tracks every child. The standard heap prevents its
+        // allocation checks from serializing a reviewed compiler or linker.
+        if standard_builder_heap {
+            entries.push((wide(heap_key)?, wide(OsStr::new("1"))?));
         }
         entries.sort_by(|(a, _), (b, _)| {
             use windows_sys::Win32::Globalization::{
@@ -597,11 +611,7 @@ impl EncodedLaunch {
             ));
         }
         Ok(Self {
-            event_budget: if spec.decoder_limits.is_some() {
-                NativeToolEventBudget::Ordinary
-            } else {
-                spec.event_budget
-            },
+            event_budget,
             application,
             command,
             environment,
@@ -3110,6 +3120,37 @@ mod proof_tests {
             EncodedLaunch::new(&spec).unwrap().event_budget.limit(),
             4096
         );
+    }
+
+    #[test]
+    fn encoded_standard_heap_override_is_scoped_to_managed_builders() {
+        let program = system_directory().unwrap().join("cmd.exe");
+        let mut builder = crate::ChildProcessPolicy::native_tool_spec(
+            crate::ChildProcessClass::ManagedBuilder,
+            &program,
+        )
+        .unwrap();
+        builder.env("_no_debug_heap", "0");
+        let heap_settings = |spec: &NativeToolLaunchSpec| {
+            String::from_utf16(&EncodedLaunch::new(spec).unwrap().environment)
+                .unwrap()
+                .split('\0')
+                .filter(|entry| entry.to_ascii_uppercase().starts_with("_NO_DEBUG_HEAP="))
+                .map(str::to_owned)
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(heap_settings(&builder), ["_NO_DEBUG_HEAP=1"]);
+        builder.decoder_limits = Some(crate::process::DecoderLimits {
+            memory_bytes: 1024,
+            file_bytes: 1024,
+        });
+        assert_eq!(heap_settings(&builder), ["_no_debug_heap=0"]);
+        let ordinary = crate::ChildProcessPolicy::native_tool_spec(
+            crate::ChildProcessClass::UpstreamSetup,
+            &program,
+        )
+        .unwrap();
+        assert!(heap_settings(&ordinary).is_empty());
     }
 
     #[test]
