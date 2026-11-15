@@ -197,13 +197,15 @@ function OfficialCatalogControls({ generation, disabled, onChanged }: OfficialCa
                   data-focusable
                   className="mt-0.5"
                   id={checkboxId}
+                  // Base UI's checkbox is not named by the wrapping label.
+                  aria-labelledby={`${checkboxId}-label`}
                   aria-describedby={`${checkboxId}-description`}
                   checked={automatic}
                   disabled={saving}
                   onCheckedChange={(checked) => void choose(checked)}
                 />
                 <span className="grid gap-0.5">
-                  <span className="font-bold text-pc-foreground">
+                  <span id={`${checkboxId}-label`} className="font-bold text-pc-foreground">
                     {t("catalog.automatic.label")}
                   </span>
                   <small id={`${checkboxId}-description`} className={mutedCopyClass}>
