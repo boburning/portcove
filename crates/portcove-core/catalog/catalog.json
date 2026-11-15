@@ -71300,7 +71300,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before first Play, copy your original DOS data file (SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA) or the six original Amiga files to ~/.local/share/freeserf, or to freeserf under XDG_DATA_HOME, and keep your originals separate. Without them FreeSerf stops with Could not load game data. The package is the GPL-3 engine with a GPL-2 SoundFont and contains no game data. The Linux x86-64 player needs glibc 2.38 or later. FreeSerf keeps saves, including Ctrl+Z quicksaves, in freeserf/saves under XDG_DATA_HOME or, when that is unset, under your home folder, and settings in freeserf.ini in its SDL preferences folder. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Core owns engine replacement; you own the original data, saves and settings.",
+        "manual_preparation": "Before first Play, copy your original DOS data file (SPAE.PA, SPAD.PA, SPAF.PA or SPAU.PA) or the six original Amiga files to ~/.local/share/freeserf, or to freeserf under XDG_DATA_HOME, not into Portcove's install folder, and keep your originals separate. Without them FreeSerf shows Could not find the game data. The package is the GPL-3 engine with a GPL-2 SoundFont and contains no game data. The Linux x86-64 player needs glibc 2.38 and a matching C++ runtime, for example Ubuntu 24.04 or later. FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME or, when that is unset, in ~/freeserf/saves. Settings are in freeserf.ini in ~/.local/share/freeserf or under XDG_DATA_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the engine; you own the original data, saves and settings.",
         "original_game_title": "The Settlers",
         "manual_setup": {
           "help_url": "https://github.com/freeserf/freeserf/blob/v0.5/README.md",
@@ -71315,7 +71315,7 @@
             },
             {
               "title": "Keep your saves and settings",
-              "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves, in freeserf/saves under XDG_DATA_HOME on Linux, or under your home folder when XDG_DATA_HOME is unset. On Windows it uses your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini in FreeSerf's preferences folder. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
+              "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME on Linux, or in ~/freeserf/saves when XDG_DATA_HOME is unset. On Windows it uses the freeserf folder in your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini: in ~/.local/share/freeserf or under XDG_DATA_HOME on Linux, in %APPDATA%\\freeserf on Windows, and in Library/Application Support/freeserf on Mac. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
             }
           ],
           "warnings": [

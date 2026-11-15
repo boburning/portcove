@@ -57792,7 +57792,7 @@
           },
           {
             "title": "Keep your saves and settings",
-            "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves, in freeserf/saves under XDG_DATA_HOME on Linux, or under your home folder when XDG_DATA_HOME is unset. On Windows it uses your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini in FreeSerf's preferences folder. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
+            "instruction": "FreeSerf keeps saves, including Ctrl+Z quicksaves and the optional autosave, in freeserf/saves under XDG_DATA_HOME on Linux, or in ~/freeserf/saves when XDG_DATA_HOME is unset. On Windows it uses the freeserf folder in your Saved Games folder, and on Mac Library/Application Support/freeserf/saves. Settings are in freeserf.ini: in ~/.local/share/freeserf or under XDG_DATA_HOME on Linux, in %APPDATA%\\freeserf on Windows, and in Library/Application Support/freeserf on Mac. These stay in place when the player is replaced. Use -l with a saved game file to reopen it."
           }
         ],
         "warnings": [
