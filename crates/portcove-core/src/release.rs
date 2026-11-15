@@ -5022,6 +5022,7 @@ mod tests {
         let page = serde_json::json!([
             with_assets("v4", "game-windows-x64.zip"),
             with_assets("v3-linux", "game-linux-x86_64.tar.gz"),
+            with_assets("portmaster-v3", "game-portmaster.zip"),
             with_assets("v3", "game-windows-x64.zip"),
             with_assets("v2", "game-windows-x64.zip"),
         ]);

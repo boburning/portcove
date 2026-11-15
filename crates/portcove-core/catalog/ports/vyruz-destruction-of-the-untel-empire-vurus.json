@@ -8,13 +8,11 @@
     "summary": "Run Vyruz in Vurus using your own original disc image or extracted game resources.",
     "issue_number": 6120,
     "listed_at": "2026-11-14",
-    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
     "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
     "download_asset_hints": {
-      "windows-x86-64": ["vurus-windows-amd64.zip"],
-      "linux-x86-64": ["vurus-linux.tar.gz"],
       "macos-x86-64": ["vurus-darwin-x86_64.zip"],
       "macos-aarch64": ["vurus-darwin-arm64.zip"]
     },
@@ -38,6 +36,40 @@
       "warnings": [
         "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
       ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["beta"],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "rzrbld/vurus",
+      "asset_hints": {
+        "windows-x86-64": ["vurus-windows-amd64.zip"],
+        "linux-x86-64": ["vurus-linux.tar.gz"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["vurus.exe"],
+      "linux-x86-64": ["vurus"]
+    },
+    "persistent_paths": ["data", "saves", "slot1.vzs", "options.cfg", "vz.sco"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own Vyruz ISO, or a single-BIN CUE with its BIN, into the managed Vurus folder beside the player. Keep the CUE and BIN together to import CD music, and keep your original separately. On first Play, Vurus shows its own setup screen, imports the disc into data/ beside the player and records the selected import in data/current.txt. Later starts reuse that import, so delete the copied image once the game has started. Without an image or import the game shows Game files not ready. The package is the clean-room engine only and contains no game data. The Linux x86-64 player needs glibc 2.35 or later, system SDL2 and OpenGL; Portcove starts the vurus program directly rather than launch.sh, which runs the same program from its own folder. Core preserves data/, saves/, slot1.vzs, options.cfg and vz.sco across updates and backups. Imports from older builds in the home folder are not moved. Paths chosen with --data or VYRUZ_DATA_DIR are outside Core backup and removal. Saves written by this build cannot be read by older builds, so rollback keeps current data without rewinding progress or guaranteeing compatibility. Core owns engine replacement; upstream owns disc import, settings and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": ["licenses"],
+        "executables": ["vurus-bench.exe", "vurus.exe"]
+      },
+      "linux-x86-64": {
+        "directories": ["licenses", "third_party"],
+        "executables": ["launch.sh", "vurus", "vurus-bench"]
+      }
     }
   }
 }

@@ -62613,12 +62613,6 @@
       "setup_url": "https://github.com/rzrbld/vurus/blob/v202610242327-beta/README.md#desktop-and-steam-deck",
       "release_url": "https://github.com/rzrbld/vurus/releases/tag/v202610242327-beta",
       "download_asset_hints": {
-        "windows-x86-64": [
-          "vurus-windows-amd64.zip"
-        ],
-        "linux-x86-64": [
-          "vurus-linux.tar.gz"
-        ],
         "macos-x86-64": [
           "vurus-darwin-x86_64.zip"
         ],
