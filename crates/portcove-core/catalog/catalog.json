@@ -68596,6 +68596,70 @@
       }
     },
     {
+      "id": "star-wars-atari-darkuni",
+      "name": "Star Wars (Atari arcade) / darkuni",
+      "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
+      "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "repository": "darkuni/starwars-arcade-recomp",
+        "asset_hints": {
+          "linux-x86-64": [
+            "StarWars-linux.tar.gz"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "starwars"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "Before first Play, put your own starwars.zip, matching the MAME starwars revision 2 set, in your home folder as ~/starwars.zip, not into Portcove's install folder, and keep a separate copy. The game checks the 13 ROM and PROM parts by content; without them it shows Star Wars ROMs not found or incomplete and lists the missing parts. The package is the publisher's hardware recreation only and contains no ROM data; the publisher does not provide a license for its code. The Linux x86-64 player needs glibc 2.38 or later, X11, ALSA and OpenGL. High scores (nvram.bin) and settings (settings.json) are in ~/.config/starwars, or starwars under XDG_CONFIG_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the ROM set, high scores and settings.",
+        "original_game_title": "Star Wars (Atari arcade)",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Prepare your own Star Wars arcade ROM set",
+              "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip; every player finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+            },
+            {
+              "title": "Start the Windows or Mac player",
+              "instruction": "Choose the release tagged V1.1.0b. On Windows, use starwars.exe; it also finds the ZIP beside it. On Intel Mac or Apple Silicon, extract the universal Star Wars.app and open it."
+            },
+            {
+              "title": "Keep your high scores and settings",
+              "instruction": "Back up nvram.bin and settings.json from the starwars folder under your user configuration directory. This is normally %APPDATA% on Windows, ~/.config or XDG_CONFIG_HOME on Linux and ~/Library/Application Support on Mac."
+            }
+          ],
+          "warnings": [
+            "The Linux x64 binary requires glibc 2.38 or later, X11 and ALSA libraries.",
+            "The publisher does not provide a license for its project code."
+          ],
+          "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [],
+          "executables": [
+            "starwars"
+          ]
+        }
+      }
+    },
+    {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
       "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
