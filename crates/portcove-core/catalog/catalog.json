@@ -68626,13 +68626,13 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before first Play, put your own starwars.zip, matching the MAME starwars revision 2 set, in your home folder as ~/starwars.zip, not into Portcove's install folder, and keep a separate copy. The game checks the 13 ROM and PROM parts by content; without them it shows Star Wars ROMs not found or incomplete and lists the missing parts. The package is the publisher's hardware recreation only and contains no ROM data; the publisher does not provide a license for its code. The Linux x86-64 player needs glibc 2.38 or later, X11, ALSA and OpenGL. High scores (nvram.bin) and settings (settings.json) are in ~/.config/starwars, or starwars under XDG_CONFIG_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the ROM set, high scores and settings.",
+        "manual_preparation": "Before first Play, put your own starwars.zip, matching the MAME starwars revision 2 set, in your home folder as ~/starwars.zip, not into Portcove's install folder, and keep a separate copy. The game checks the 13 ROM and PROM parts by content; without them it shows Star Wars ROMs not found or incomplete, lists the missing parts and suggests putting the ZIP next to the program; keep it in your home folder instead. The package is the publisher's hardware recreation only and contains no ROM data; the publisher does not provide a license for its code. The Linux x86-64 player needs glibc 2.38 or later, X11, ALSA and OpenGL. High scores (nvram.bin) and settings (settings.json) are in ~/.config/starwars, or starwars under XDG_CONFIG_HOME. Those stay outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the ROM set, high scores and settings.",
         "original_game_title": "Star Wars (Atari arcade)",
         "manual_setup": {
           "steps": [
             {
               "title": "Prepare your own Star Wars arcade ROM set",
-              "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip; every player finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
+              "instruction": "Use your own starwars.zip from Atari’s 1983 arcade game, matching the MAME starwars revision 2 set, and keep a separate copy. Put it in your home folder as starwars.zip (%USERPROFILE% on Windows); each Windows, Linux and Mac build finds it there. The game checks the 13 ROM and PROM parts by content. The tagged README lists their sizes, CRCs and accepted original-revision alternatives."
             },
             {
               "title": "Start the Windows or Mac player",
