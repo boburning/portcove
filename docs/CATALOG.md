@@ -865,7 +865,10 @@ network request, and ignores a DAT file that changed after it was added. A
 parsed DAT file is kept in memory for later inspections while its path, size,
 modification time and fingerprint are unchanged, so each one is read, hashed
 and parsed once rather than on every inspection; an edit that keeps both size
-and modification time is noticed only after one of them changes.
+and modification time is noticed only after one of them changes. The memory
+belongs to the running Portcove process, holds at most one million listed files
+in total, and skips any single DAT larger than that; adding the file again
+forces a fresh read.
 
 ### Saved-data behavior
 

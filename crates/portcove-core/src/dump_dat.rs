@@ -623,7 +623,10 @@ fn ready_document(
     let document = Arc::new(
         parse_dat(&bytes).map_err(|error| (DatReferenceState::Unreadable, Some(error.message)))?,
     );
+    // A document larger than the whole bound is used once and never cached, so
+    // it can't evict every other reference on each identification.
     if let Some(modified) = modified
+        && document.file_count() <= MAX_CACHED_DAT_FILES
         && let Ok(mut cache) = DAT_CACHE.lock()
     {
         cache.retain(|cached| cached.path != saved.path);
@@ -638,11 +641,8 @@ fn ready_document(
             .iter()
             .map(|cached| cached.document.file_count())
             .sum();
-        while total > MAX_CACHED_DAT_FILES && cache.len() > 1 {
+        while total > MAX_CACHED_DAT_FILES {
             total -= cache.remove(0).document.file_count();
-        }
-        if total > MAX_CACHED_DAT_FILES {
-            cache.clear();
         }
     }
     Ok(document)
