@@ -16,6 +16,7 @@ mod authorization;
 mod browsing_context;
 mod bug_report;
 mod cancellation;
+mod carry_plan;
 mod cartridge_build;
 mod catalog;
 mod catalog_media;
