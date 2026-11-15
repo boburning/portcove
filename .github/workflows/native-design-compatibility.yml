@@ -11,6 +11,7 @@ on:
           [
             compatibility,
             presentation,
+            preview-package,
             product-workflows,
             linux-namespace-preflight,
             linux-package-boundary,
@@ -63,6 +64,107 @@ env:
   pnpm_config_store_dir: ${{ github.workspace }}/work/pnpm-store
 
 jobs:
+  preview-dmg:
+    if: inputs.operation == 'preview-package' && (inputs.runner == 'macos-15' || inputs.runner == 'macos-15-intel') && !inputs.edge_driver_proof
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Verify the immutable Preview.2 disk image and open its application
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          sw_vers
+          $architecture = (& uname -m).Trim()
+          $dmg = Join-Path $env:RUNNER_TEMP 'Portcove_0.1.0-preview.2_universal.dmg'
+          $url = 'https://github.com/boburning/portcove/releases/download/v0.1.0-preview.2/Portcove_0.1.0-preview.2_universal.dmg'
+          curl --fail --location --max-time 120 --max-filesize 56730231 --output $dmg $url
+          if ($LASTEXITCODE -ne 0) { throw 'Could not download the exact published disk image' }
+          $actual = (Get-FileHash -LiteralPath $dmg -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -cne '9f8fa641f6cde3908ca9e88f0bef92e222551ac482dd3041c0edc9cbfb09f2ed') {
+            throw "Published disk image digest differs: $actual"
+          }
+          Write-Output "Preview.2 asset 749564189 SHA256 $actual on $architecture"
+          ./scripts/verify-macos-release.ps1 -DmgPath $dmg -Version '0.1.0-preview.2' -Architecture $architecture
+
+  preview-appimage:
+    if: inputs.operation == 'preview-package' && inputs.runner == 'ubuntu-24.04' && !inputs.edge_driver_proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        with:
+          package_json_file: package.json
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: ./.github/actions/setup-rust
+        with:
+          targets: x86_64-unknown-linux-gnu
+      - name: Check the release build prerequisites
+        timeout-minutes: 10
+        run: |
+          set -euo pipefail
+          ./scripts/install-linux-desktop-prerequisites.sh
+          pkg-config --modversion webkit2gtk-4.1
+          pkg-config --atleast-version=2.52.6 webkit2gtk-4.1
+      - run: pnpm install --frozen-lockfile
+      - name: Build the unsigned AppImage from the reviewed packaging candidate
+        run: |
+          set -euo pipefail
+          node scripts/app-release.mts stamp --version 0.1.0-preview.2
+          pnpm --dir apps/desktop tauri build --bundles appimage --target x86_64-unknown-linux-gnu
+      - name: Observe isolated native package startup and normal window close
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          sudo -n apt-get install -y --no-install-recommends xvfb xauth xdotool openbox dbus-x11
+          pkg-config --modversion webkit2gtk-4.1
+          artifact="$PWD/target/x86_64-unknown-linux-gnu/release/bundle/appimage/Portcove_0.1.0-preview.2_amd64.AppImage"
+          sha256sum "$artifact"
+          mkdir -p "$RUNNER_TEMP/appimage-proof"
+          cd "$RUNNER_TEMP/appimage-proof"
+          "$artifact" --appimage-extract >package-inventory.txt
+          grep -E 'lib(webkit2gtk|javascriptcoregtk)' package-inventory.txt
+          export PORTCOVE_LIBRARY="$PWD/library"
+          export XDG_CONFIG_HOME="$PWD/config" XDG_DATA_HOME="$PWD/data" XDG_CACHE_HOME="$PWD/cache"
+          mkdir -p "$PORTCOVE_LIBRARY"
+          dbus-run-session -- xvfb-run -a -s '-screen 0 1280x800x24' bash -euo pipefail <<'PROOF'
+            openbox >window-manager.log 2>&1 &
+            ./squashfs-root/AppRun >app.stdout 2>app.stderr &
+            app_pid=$!
+            trap 'if kill -0 "$app_pid" 2>/dev/null; then kill "$app_pid"; fi' EXIT
+            timeout 60s xdotool search --sync --onlyvisible --name "^Portcove$" >window.txt
+            for attempt in {1..60}; do
+              test -s "$PORTCOVE_LIBRARY/portcove.sqlite3" && break
+              kill -0 "$app_pid"
+              sleep 1
+            done
+            test -s "$PORTCOVE_LIBRARY/portcove.sqlite3"
+            window="$(head -1 window.txt)"
+            xdotool getwindowname "$window"
+            xdotool windowactivate --sync "$window"
+            xdotool key alt+F4
+            wait "$app_pid"
+          PROOF
+      - name: Retain the package launcher evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: preview-appimage-native-proof-${{ github.sha }}
+          if-no-files-found: ignore
+          path: |
+            ${{ runner.temp }}/appimage-proof/package-inventory.txt
+            ${{ runner.temp }}/appimage-proof/app.stdout
+            ${{ runner.temp }}/appimage-proof/app.stderr
+            ${{ runner.temp }}/appimage-proof/window.txt
+            ${{ runner.temp }}/appimage-proof/window-manager.log
   qualify:
     if: ${{ inputs.operation == 'compatibility' && !inputs.edge_driver_proof && inputs.runner != 'windows-2022' }}
     env:
