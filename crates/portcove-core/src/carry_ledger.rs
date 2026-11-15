@@ -179,17 +179,28 @@ pub(crate) fn load(
 }
 
 /// Replace an installation's row for a path. A pending row must name its
-/// source; `replaces` is kept only on a pending row.
+/// source; `replaces` is kept only on a pending row and must be a present
+/// row. Returns whether a row was written: `false` when a row of an unknown
+/// format occupies the path, which the caller treats as "kept separately".
 pub(crate) fn put(
     transaction: &Transaction<'_>,
     install_id: &str,
     path: &str,
     row: &CarryRow,
     replaces: Option<&CarryRow>,
-) -> Result<()> {
-    if !is_digest(&row.sha256) || row.lineage.last() != Some(&row.sha256) {
+) -> Result<bool> {
+    let well_formed =
+        |row: &CarryRow| is_digest(&row.sha256) && row.lineage.last() == Some(&row.sha256);
+    if !well_formed(row) {
         return Err(PortcoveError::state(
             "a carried-file record must end its lineage with its own digest",
+        ));
+    }
+    if replaces
+        .is_some_and(|replaced| replaced.state != RowState::Present || !well_formed(replaced))
+    {
+        return Err(PortcoveError::state(
+            "a displaced carried-file record must be a well-formed present record",
         ));
     }
     let (state, source, replaces) = match &row.state {
@@ -202,7 +213,7 @@ pub(crate) fn put(
     let replaces_lineage = replaces
         .map(|replaced| serde_json::to_string(&bounded_lineage(replaced.lineage.clone())))
         .transpose()?;
-    transaction.execute(
+    let written = transaction.execute(
         "INSERT INTO carried_files
             (install_id, path, state, sha256, source_install_id, replaces_sha256, replaces_lineage, lineage, format)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
@@ -225,16 +236,22 @@ pub(crate) fn put(
             ROW_FORMAT,
         ],
     )?;
-    Ok(())
+    Ok(written == 1)
 }
 
 /// Delete an installation's row for a path, unless its format is unknown.
-pub(crate) fn delete(transaction: &Transaction<'_>, install_id: &str, path: &str) -> Result<()> {
+/// Returns whether a row of an unknown format still occupies the path.
+pub(crate) fn delete(transaction: &Transaction<'_>, install_id: &str, path: &str) -> Result<bool> {
     transaction.execute(
         "DELETE FROM carried_files WHERE install_id=?1 AND path=?2 AND format=?3",
         params![install_id, path, ROW_FORMAT],
     )?;
-    Ok(())
+    let remaining: i64 = transaction.query_row(
+        "SELECT count(*) FROM carried_files WHERE install_id=?1 AND path=?2",
+        params![install_id, path],
+        |row| row.get(0),
+    )?;
+    Ok(remaining > 0)
 }
 
 /// The last switch's outcome for a port, as bounded JSON.

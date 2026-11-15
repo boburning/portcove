@@ -50,7 +50,9 @@ fn rows_round_trip_with_pending_replacements() {
     put(&transaction, "a", "settings.ini", &present, None).unwrap();
     put(&transaction, "b", "settings.ini", &pending, Some(&present)).unwrap();
     // A present row never keeps a replacement.
-    put(&transaction, "a", "other.ini", &present, Some(&present)).unwrap();
+    assert!(put(&transaction, "a", "other.ini", &present, Some(&present)).unwrap());
+    // A displaced record must itself be present.
+    assert!(put(&transaction, "b", "x.ini", &pending, Some(&pending)).is_err());
     transaction.commit().unwrap();
 
     let a = load(&connection, "a").unwrap();
@@ -83,8 +85,11 @@ fn malformed_and_unknown_format_rows_read_as_absent_and_are_never_rewritten() {
     assert!(load(&connection, "a").unwrap().is_empty());
     let transaction = connection.transaction().unwrap();
     let row = CarryRow::present(&digest("9"), vec![digest("9")]);
-    put(&transaction, "a", "future.ini", &row, None).unwrap();
-    delete(&transaction, "a", "future.ini").unwrap();
+    // Neither write lands, and both say so.
+    assert!(!put(&transaction, "a", "future.ini", &row, None).unwrap());
+    assert!(delete(&transaction, "a", "future.ini").unwrap());
+    assert!(put(&transaction, "a", "fresh.ini", &row, None).unwrap());
+    assert!(!delete(&transaction, "a", "fresh.ini").unwrap());
     transaction.commit().unwrap();
     let (format, sha): (i64, String) = connection
         .query_row(
