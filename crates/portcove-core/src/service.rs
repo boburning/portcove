@@ -19326,6 +19326,135 @@ fn main() {
     }
 
     #[tokio::test]
+    async fn mstan_snes_installations_update_with_the_disposable_preloaded_mod_state() {
+        const STATE: &str = "mods/preloaded/state.toml";
+        for (id, old_version, new_version) in [
+            ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
+            (
+                "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
+                "v0.6.1",
+                "v0.6.6",
+            ),
+        ] {
+            let mut document = Catalog::embedded().unwrap().authoritative_document();
+            let declared = document
+                .ports
+                .iter_mut()
+                .find(|port| port.id == id)
+                .unwrap();
+            if !cfg!(windows) {
+                // The Windows-only coordinate envelope cannot describe a host
+                // fixture; persistence ownership is independent of it.
+                declared.windows_runtime_path_policy = None;
+            }
+            crate::test_fixture::declare_host_platform(declared);
+            let current = Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap();
+            let port = current.port(id).unwrap().clone();
+            // Ready-archive installations carry a restore receipt, so the
+            // definition must keep their recorded persistence scope.
+            assert!(crate::persistence::requires_restore_receipt(&port), "{id}");
+            assert!(!port.persistent_paths.iter().any(|path| path == STATE));
+            assert!(port.runtime_mutable_paths.iter().any(|path| path == STATE));
+            // Installations created before this change recorded the definition
+            // without the disposable mod-state paths.
+            let mut earlier = port.clone();
+            earlier
+                .runtime_mutable_paths
+                .retain(|path| !path.starts_with("mods/preloaded/"));
+            let temporary = tempfile::tempdir().unwrap();
+            let library = Library::open(temporary.path().join("library")).unwrap();
+            let old = register_forward_install(
+                &library,
+                &earlier,
+                old_version,
+                true,
+                &[
+                    ("config.ini", b"player settings"),
+                    ("saves/slot1.srm", b"player progress"),
+                    ("mods/state.toml", b"old selection"),
+                    (LAUNCH_MARKER, b"1"),
+                ],
+            );
+            let new = register_forward_install(&library, &port, new_version, false, &[]);
+            let mut service = service_with_release(library.clone(), new_version);
+            service.replace_catalog_for_test(current);
+            // The newer runtime commits its package-default selection here on
+            // every start; managed play skips the launcher, so nothing a
+            // player chose lives in it.
+            fs::create_dir_all(old.path.join("mods/preloaded")).unwrap();
+            fs::write(old.path.join(STATE), b"package default").unwrap();
+            fs::write(old.path.join(format!("{STATE}.tmp")), b"partial").unwrap();
+
+            let contract = service.persistence_contract_for_install(&old).unwrap();
+            assert_eq!(contract.port.persistent_paths, port.persistent_paths);
+            let report = service.verify(id).unwrap();
+            assert!(!report.has_hazards(), "{id}: {:?}", report.failures);
+            assert!(
+                !report
+                    .unknown_files
+                    .iter()
+                    .any(|path| path.starts_with("mods/preloaded/")),
+                "{id}: {:?}",
+                report.unknown_files
+            );
+            service.collect_active_user_data_if_launched(id).unwrap();
+            let user = library.user_dir(id);
+            assert_eq!(
+                fs::read(user.join("saves/slot1.srm")).unwrap(),
+                b"player progress"
+            );
+            assert!(!user.join(STATE).exists(), "{id}");
+            let backup = service.create_backup(id).unwrap();
+            assert_eq!(
+                fs::read(backup.path.join("data/config.ini")).unwrap(),
+                b"player settings"
+            );
+            assert!(!backup.path.join("data").join(STATE).exists(), "{id}");
+            assert!(
+                !backup
+                    .path
+                    .join("unknown-files")
+                    .join(&old.id)
+                    .join(STATE)
+                    .exists(),
+                "{id}"
+            );
+
+            let updated = service.update(id, None, None, true, |_| {}).await.unwrap();
+            assert_eq!(updated.id, new.id, "{id}");
+            for (relative, bytes) in [
+                ("config.ini", b"player settings".as_slice()),
+                ("saves/slot1.srm", b"player progress"),
+                ("mods/state.toml", b"old selection"),
+            ] {
+                assert_eq!(
+                    fs::read(new.path.join(relative)).unwrap(),
+                    bytes,
+                    "{id}: {relative}"
+                );
+            }
+            // Disposable runtime output is not carried; the new runtime rewrites it.
+            assert!(!new.path.join(STATE).exists(), "{id}");
+
+            fs::create_dir_all(new.path.join("mods/preloaded")).unwrap();
+            fs::write(new.path.join(STATE), b"package default").unwrap();
+            fs::write(new.path.join("saves/slot1.srm"), b"newer progress").unwrap();
+            fs::write(new.path.join(LAUNCH_MARKER), b"1").unwrap();
+            service.collect_active_user_data_if_launched(id).unwrap();
+            assert!(!user.join(STATE).exists(), "{id}");
+            service.create_backup(id).unwrap();
+            // Rollback is not held by the leftover file and keeps the progress.
+            let rolled_back = service.rollback(id).unwrap();
+            assert_eq!(rolled_back.id, old.id, "{id}");
+            assert_eq!(
+                fs::read(old.path.join("saves/slot1.srm")).unwrap(),
+                b"newer progress",
+                "{id}"
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn ape_escape_whole_mods_installation_moves_to_the_split_mod_paths() {
         const ID: &str = "ape-escape-recompiled";
         let current = crate::test_fixture::host_declared_embedded_catalog(&[ID]);
