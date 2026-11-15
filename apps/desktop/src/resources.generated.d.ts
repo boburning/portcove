@@ -401,6 +401,7 @@ export default interface Resources {
     },
     "search": {
       "clear": "Clear search",
+      "cleared": "Search cleared.",
       "discover": "Search Discover",
       "library": "Search your library",
       "placeholder": "Game or port name"
