@@ -669,7 +669,7 @@ async fn expired_published_prior_still_advances_with_fresh_metadata() {
     let mut fixture = Fixture::new().await;
     let mut context = fixture.context_value();
     let soon = Timestamp::now()
-        .checked_add(Duration::from_secs(3))
+        .checked_add(Duration::from_secs(20))
         .unwrap()
         .to_string();
     context["expires"]["timestamp"] = json!(soon);
@@ -678,7 +678,11 @@ async fn expired_published_prior_still_advances_with_fresh_metadata() {
     assemble_definition_repository(&fixture.assembly("lapsing"))
         .await
         .unwrap();
-    tokio::time::sleep(Duration::from_secs(4)).await;
+    // Wait until the published timestamp has lapsed.
+    let lapse = soon.parse::<Timestamp>().unwrap();
+    while Timestamp::now() <= lapse {
+        tokio::time::sleep(Duration::from_millis(250)).await;
+    }
     let expires = Timestamp::now()
         .checked_add(Duration::from_secs(3600))
         .unwrap()

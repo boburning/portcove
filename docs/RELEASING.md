@@ -187,8 +187,9 @@ decided this on 2026-11-15 (#534), and there is no review gate.
   back from Pages.
 - **Offline keys:** the root and Targets keys stay offline with the owner. The
   offline Targets (`release/bootstrap-public-inputs/catalog/offline-targets.json`)
-  expire on 2027-01-30 and must be re-signed offline before then. Root v1
-  expires on 2027-10-30.
+  expire on 2027-01-30 and must be re-signed offline before then. Catalog
+  publication stops while they are expired and resumes once a re-signed version
+  is merged. Root v1 expires on 2027-10-30.
 
 ## Retired unattended release engine
 

@@ -216,7 +216,10 @@ pub(super) async fn inspect_prior(context: &Context, path: &Path) -> Result<File
     let roles = current_roles(&files)?;
     verify_history(context, &files)?;
     let top: Signed<Targets> = serde_json::from_slice(at(&roles, "targets.json")?)?;
-    policy::top(&context.root.signed, &top, context.at)?;
+    // The prior is history: its offline Targets keeps its key inventory check, but
+    // not its lifetime window, so a late offline re-sign can still be published.
+    // The new offline Targets is window-checked in load_context.
+    policy::top_key_inventory(&context.root.signed, &top)?;
     if context.online_targets && at(&roles, "targets.json")? != &context.top_bytes {
         return invalid("catalog online renewal base must equal actual current Targets bytes");
     }

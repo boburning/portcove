@@ -77,9 +77,13 @@ jobs:
         run: |
           set -euo pipefail
           # Fail closed: only a missing branch means nothing is published yet.
-          if git ls-remote --exit-code --heads origin gh-pages > /dev/null; then
+          # ls-remote exits 2 only for a missing branch; any other failure stops the run.
+          rc=0; git ls-remote --exit-code --heads origin gh-pages > /dev/null || rc=$?
+          if [ "$rc" = 0 ]; then
             git fetch --quiet origin refs/heads/gh-pages:refs/remotes/origin/gh-pages
             git worktree add --quiet --detach site refs/remotes/origin/gh-pages
+          elif [ "$rc" != 2 ]; then
+            echo "::error::Could not read gh-pages (git ls-remote exited $rc)"; exit 1
           fi
           if [ -d site/catalog ]; then echo "PRIOR=site/catalog" >> "$GITHUB_ENV"; else echo "PRIOR=none" >> "$GITHUB_ENV"; fi
       - name: Decide whether to publish
