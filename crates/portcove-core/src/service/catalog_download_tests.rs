@@ -2617,8 +2617,8 @@ async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
         "darkuni-chocobo-dungeon-recomp",
         "v1.1",
         "ChocoboDungeon-v1.1-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
