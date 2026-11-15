@@ -37440,28 +37440,15 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare the Mac toolchain and setup kit",
-              "instruction": "Install Xcode Command Line Tools, CMake, Ninja and Python 3. Verify that the tools are on PATH, then unpack the official Intel or Apple Silicon ZIP that matches your Mac into a separate writable folder."
+              "title": "Supply both Japanese discs and the BIOS",
+              "instruction": "Choose the folder with your two original Japanese CHDs and your retail SCPH-5500 BIOS. Name the CHDs so Disc 1 sorts before Disc 2. Portcove checks both discs and builds the game on this computer."
             },
             {
-              "title": "Supply your original files",
-              "instruction": "Use your original Japanese edition, Disc 1 SLPS-02020 then Disc 2 SLPS-02021. Keep the two disc images together and preserve their order. Use your own retail BIOS as the kit’s README-SETUP.txt names it, and follow that guide for the image format."
-            },
-            {
-              "title": "Build and add the prepared player",
-              "instruction": "From the unpacked folder, run Ace_Combat_3__Electrosphere__Japan__Recompiled and follow its Generate & rebuild wizard. In Portcove, select build-release/Ace_Combat_3__Electrosphere__Japan__Recompiled as the program and build-release as the start folder. Keep the external runtime and use upstream instructions for replacement."
+              "title": "Choose the disc before Play",
+              "instruction": "If the game asks for the other disc, close it and choose that disc beside Play before starting it again."
             }
           ],
-          "warnings": [
-            "Mac setup uses the upstream kit and your local toolchain. Mac build, gameplay and populated saves remain unobserved."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-recomp#readme",
-          "references": [
-            {
-              "title": "Updates and backups",
-              "instruction": "Preserve the entire working folder with its saves, settings, overlay captures, original disc files and any required BIOS. Keep a copy of the creating runtime before updating the kit."
-            }
-          ]
+          "warnings": []
         },
         "artwork": {
           "game_id": 14751,
@@ -40305,37 +40292,11 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Download and unpack the setup kit",
-              "instruction": "Extract the complete official ZIP for your system into a separate writable folder. On Linux, follow the kit’s requirements for CMake, Ninja, Python 3 and a C/C++ compiler. Use Linux tools for the Linux build."
-            },
-            {
-              "title": "Supply the matching original files",
-              "instruction": "For upstream setup use your own USA SLUS-00972 disc in the upstream kit’s supported image format. For CUE/BIN, keep the complete CUE and every referenced track. Use your own retail SCPH-1001 BIOS, as the kit’s README-SETUP.txt describes. Keep the complete original separately from generated files."
-            },
-            {
-              "title": "Prepare an independent Mac copy",
-              "instruction": "Choose the Intel or Apple Silicon setup ZIP for your Mac. Follow the upstream toolchain instructions for Python 3, CMake, Ninja and the selected Apple Clang and SDK. Finish the Generate & rebuild wizard outside Portcove with your own USA SLUS-00972 disc and the BIOS that the kit’s README-SETUP.txt names. Keep the completed build-release/Ace_Combat_3__Electrosphere__USA__Recompiled with its matching config and data. Mac runtime replacement remains upstream-owned."
-            },
-            {
-              "title": "Build the game and add it to Portcove",
-              "instruction": "Open the project’s launcher and follow its build instructions. Keep the completed game with its required program and compiler files. In Portcove, select the completed program or supported launcher and its start folder. Save the details, then choose Play."
+              "title": "Supply the USA disc and BIOS",
+              "instruction": "Choose your original single-track USA CHD and retail SCPH-1001 BIOS. Portcove checks these files and builds the game on this computer."
             }
           ],
-          "warnings": [
-            "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions.",
-            "Portcove has not confirmed setup or gameplay for this package."
-          ],
-          "help_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp#readme",
-          "references": [
-            {
-              "title": "Preserve the working player and external data",
-              "instruction": "You manage updates, original files, saves and settings; Portcove does not back up these external files. Keep a working copy and its data before changing versions."
-            },
-            {
-              "title": "Updates and backups",
-              "instruction": "Keep a working copy and its data before changing versions. Use the project’s tools for updates and back up your original files, saves and settings yourself."
-            }
-          ]
+          "warnings": []
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
