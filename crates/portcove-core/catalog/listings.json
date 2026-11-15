@@ -63013,6 +63013,62 @@
       }
     },
     {
+      "id": "warzone-2100-official-maintained-source-port",
+      "project_url": "https://github.com/Warzone2100/warzone2100",
+      "name": "Warzone 2100",
+      "original_game_title": "Warzone 2100",
+      "summary": "Play the official open-source Warzone 2100 release on Windows, Linux or Mac.",
+      "issue_number": 5800,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/Warzone2100/warzone2100/releases/tag/4.7.0",
+      "setup_url": "https://wz2100.net/download/",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "warzone2100_win_x64_archive.zip"
+        ],
+        "linux-x86-64": [
+          "warzone2100_ubuntu24.04_amd64.deb"
+        ],
+        "macos-x86-64": [
+          "warzone2100_macOS_universal_novideos.zip"
+        ],
+        "macos-aarch64": [
+          "warzone2100_macOS_universal_novideos.zip"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://wz2100.net/download/",
+        "steps": [
+          {
+            "title": "Open the Windows archive",
+            "instruction": "Choose the publisher archive for x64, ARM64 or x86 Windows. Extract it to its own writable folder, keep bin and data together and open bin/warzone2100.exe. To keep the game profile in the extracted tree, create an empty .portable file beside the executable before first launch."
+          },
+          {
+            "title": "Install through upstream on Linux",
+            "instruction": "Use the publisher's matching Ubuntu 22.04 or 24.04 x64 DEB through your package manager. For other Linux distributions, the publisher also offers the net.wz2100.wz2100 Flatpak for x64 and ARM64. Start Warzone 2100 through your desktop application menu."
+          },
+          {
+            "title": "Open the Mac application",
+            "instruction": "Extract the publisher's universal ZIP and open Warzone 2100.app on an Intel or Apple Silicon Mac. The Intel player targets macOS 10.14 or later. Apple Silicon and the bundled Vulkan renderer require macOS 11 or later."
+          },
+          {
+            "title": "Keep your campaign progress and custom content",
+            "instruction": "In Options, open the actual Configuration Directory and back it up before replacing the game. Keep savegames, config, custom maps, mods and replays together, including any custom profile location. Ubuntu DEBs and the no-video Mac archive omit the campaign videos. Follow the publisher's video instructions if you want them."
+          }
+        ],
+        "warnings": [
+          "The upstream desktop player can register a handler for Discord join links when it starts. Package replacement and backups are player-managed."
+        ]
+      }
+    },
+    {
       "id": "wave-race-64-recompiled",
       "name": "Wave Race 64 Recompiled",
       "summary": "Follow the Wave Race 64 recompilation prototype and preserve an already registered development copy.",
