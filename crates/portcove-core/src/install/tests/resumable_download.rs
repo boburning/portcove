@@ -957,10 +957,8 @@ fn expired_and_leftover_entries_are_removed_on_the_next_use() {
     }
     fs::write(root.join(".portcove-partial-leftover"), b"crash").unwrap();
     fs::write(root.join("unpaired.json"), b"{}").unwrap();
-    // An expired entry of the same asset is not continued either.
-    let lease = partials.lease(&asset_numbered(1, 1 << 20)).unwrap();
-    assert!(lease.resumed().is_none());
-    drop(lease);
+    // Using the store for another asset removes the expired entry and the
+    // leftovers.
     keep_entry(&partials, 2, 4);
     let names = stored_entries(&root);
     assert!(
@@ -969,5 +967,14 @@ fn expired_and_leftover_entries_are_removed_on_the_next_use() {
             .any(|name| name.starts_with(".portcove-partial-"))
     );
     assert!(!names.iter().any(|name| name == "unpaired.json"));
-    assert_eq!(parts(&root).len(), 2);
+    let kept = parts(&root);
+    assert_eq!(kept.len(), 1);
+    assert!(kept[0].starts_with(&asset_numbered(2, 1).sha256));
+    // An expired entry of the same asset is not continued either.
+    keep_entry(&partials, 3, 4);
+    for name in parts(&root) {
+        filetime::set_file_mtime(root.join(name), old).unwrap();
+    }
+    let lease = partials.lease(&asset_numbered(3, 1 << 20)).unwrap();
+    assert!(lease.resumed().is_none());
 }
