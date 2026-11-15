@@ -142,6 +142,7 @@ fn removal_review_keeps_exact_inventory_and_core_preservation_flag_without_claim
         persistent_data_will_be_preserved: true,
         unknown_file_count: 0,
         unknown_files: Vec::new(),
+        unknown_file_bytes: 0,
         preview_sha256: "f".repeat(64),
     };
     for preserves_data in [true, false] {
@@ -182,6 +183,11 @@ fn removal_review_keeps_exact_inventory_and_core_preservation_flag_without_claim
     assert!(text.contains("Removal copies them to a new backup first"));
     assert!(text.lines().any(|line| line == "  player/settings.ini"));
     assert!(text.contains("1 more unrecognized file is not listed."));
+    assert!(!text.contains("Backup size"));
+    preview.unknown_file_bytes = 3 * 1024 * 1024;
+    let text = removal_preview(&preview, &catalog);
+    assert!(text.contains("Backup size: "), "{text}");
+    assert!(text.contains("The backup stays until you delete it."));
     let review = text.find("Review SHA-256").unwrap();
     assert!(text.find("Unrecognized files").unwrap() < review);
     preview.managed_paths.clear();

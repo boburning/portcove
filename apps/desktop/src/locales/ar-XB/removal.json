@@ -49,5 +49,6 @@
   "title": "إلغاء تثبيت {{identity}}؟",
   "uninstallPort": "إلغاء تثبيت {{name}}",
   "unknownFiles": "ملفات لم يثبّتها Portcove: {{total, number}}. ربما أنشأتها اللعبة، مثل الإعدادات. ينسخها Portcove إلى نسخة احتياطية جديدة قبل إلغاء التثبيت. لا تعيدها استعادة النسخة الاحتياطية.",
+  "unknownFilesSize": "حجم النسخة الاحتياطية: {{size}}. تبقى النسخة الاحتياطية حتى تحذفها.",
   "unknownFilesUnlisted": "ملفات غير مدرجة هنا: {{total, number}}"
 }

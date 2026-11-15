@@ -407,13 +407,15 @@ only:
   its digest and `stored_in` and `stored_path`, the folder and path that hold
   the bytes. (T2-1b chose this over a content-addressed `objects/` store, which
   players couldn't browse.)
-- **The caps.** They count stored copies and their bytes, and are checked
-  first over one copy per (shared path, size), so hashing stays bounded. Only
-  copies with the same shared path and size are hashed. Each stored copy is
+- **The space check.** Owner decision, November 15, 2026: removal and explicit
+  backups have no caps and need only the free space for what they store (the
+  same reserve as section 7); automatic snapshots keep Tier 1's caps. The check
+  counts stored copies and their bytes. Only copies with the same shared path
+  and size are hashed. Each stored copy is
   re-hashed after copying, and each collapsed copy's source afterwards, so no
   copy changes unseen during the backup. A write after the backup and before
-  removal moves the folders is not covered, as in Tier 1. The removal review applies
-  the same collapsed caps.
+  removal moves the folders is not covered, as in Tier 1. The removal review
+  applies the same collapsed space check and shows the backup size.
 - **The shared path** comes from the selected executable, as verification
   reads it. A version whose root can't be read keeps its own keys and never
   collapses, so this adds no new hold.
@@ -441,7 +443,8 @@ backup doesn't put them back."
 
 - **Removal** (whole port, `library.rs:3461-3476`). Rows cascade with the
   installations. The backup is deduplicated as in section 5. The review still
-  lists every version's copy, and applies the collapsed caps.
+  lists every version's copy, applies the collapsed space check and shows the
+  backup size.
 - **Output relocation and library transfer.** They still refuse any unknown
   file (ARCHITECTURE line 2649). Tier 2 doesn't make that worse: a carried file
   already exists in its source version, which was already refused. Rows survive
@@ -471,9 +474,10 @@ backup doesn't put them back."
 - **Not enough room.** Portcove copies nothing and removes nothing, records
   `insufficient_space`, and the switch goes ahead. Nothing is held and nothing is
   truncated: all files stay in the version they came from.
-- **Tier 1's backup caps are unchanged.** They bound what a backup copies
-  (`unknown_files.rs:15-17`), not what is carried. Removal backups deduplicate
-  so Tier 2's own copies don't push them past those caps (§5, B3).
+- **Tier 1's caps bound only automatic snapshots** (`require_within_caps` in
+  `unknown_files.rs`), not what is carried. Removal and explicit backups need
+  only free space, and removal backups deduplicate so Tier 2's own copies need
+  no extra space (§5, B3).
 - **Disposable writers.** The reviewed lever is to declare them
   `runtime_mutable_paths`, as Sonic 2 does with `logs`
   (`crates/portcove-core/catalog/ports/sonic-the-hedgehog-2-recomp.json`).
@@ -616,11 +620,10 @@ tests for every outcome and both causes.
   duplicated per version. The reviewed lever is to declare it
   `runtime_mutable_paths`. When the drive is short of space, nothing is carried
   (`insufficient_space`, which is visible).
-- **Removal backups can still be held past Tier 1's caps (N3).** Deduplication
-  collapses identical bytes only; a large undeclared file with different bytes
-  in several versions can still exceed the 64 MiB / 1,024-file removal-backup
-  caps. Owner follow-up: decide whether removal-backup caps also move to a
-  free-space check under the same "no fixed caps" policy.
+- **Removal and explicit backups can grow large (N3).** Owner decision,
+  November 15, 2026: they have no fixed caps and hold only when the library
+  volume lacks space. The removal review shows the backup size, which stays
+  until the player deletes the backup. Automatic snapshots keep Tier 1's caps.
 - **Disk use grows with retained versions.** Each switch can leave another copy
   in a retained version, and nothing prunes retained versions; large carries
   are shown on the version's status (section 7).

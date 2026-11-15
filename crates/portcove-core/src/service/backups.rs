@@ -35,7 +35,7 @@ mod unknown_files;
 pub(super) use unknown_files::MAX_UNKNOWN_FILE_BYTES;
 pub(super) use unknown_files::{
     UnknownFileScope, UnknownRuntimeFile, deduplicate as deduplicate_unknown_files,
-    measure as measure_unknown_files,
+    measure as measure_unknown_files, require_space as require_unknown_file_space,
 };
 
 /// The newest this many automatic snapshots per game are kept.
@@ -728,6 +728,9 @@ impl PortcoveService {
         let selection = self.backup_unknown_files(port_id, unknown_scope)?;
         let unknown = selection.files;
         let unknown_duplicates = selection.duplicates;
+        if unknown_scope != UnknownFileScope::Automatic {
+            unknown_files::require_space(self.library.root(), &unknown)?;
+        }
         let unknown_files_left_in_place_v1 =
             (selection.left_in_place > 0).then_some(selection.left_in_place);
         if !source_exists && unknown.is_empty() {

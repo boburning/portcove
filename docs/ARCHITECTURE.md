@@ -2660,10 +2660,9 @@ recorded as `unknown_files_v2`, whose `file_count` counts every copy and
 that backup. Each stored copy is re-hashed after copying, and each collapsed
 copy's game-folder file is re-hashed afterwards too, so no copy changes
 unseen during the backup. A write after the backup and before removal moves the
-folders is not covered, as in Tier 1. The caps, in the removal review and in
-execution, count stored copies, so the copies Tier 2 places in several versions
-do not reach them. They are checked over one copy per (path, size) before any
-hashing. A backup whose `data/` is
+folders is not covered, as in Tier 1. The free-space check, in the removal
+review and in execution, counts stored copies, so the copies Tier 2 places in
+several versions need no extra space. A backup whose `data/` is
 empty, holding only unknown files, cannot be restored (restore and its review
 refuse it, and the restore assessment ignores it) and is never the latest
 protection in `BackupInventory.protection`.
@@ -2673,13 +2672,18 @@ checks still require an exact match and refuse any unknown file. That is
 intentionally strict for now: those paths copy or re-derive the whole runtime,
 and Tier 1 does not decide how unknown files travel with it.
 
-The caps bound only copying: 1,024 files, 16 MiB in one file and 64 MiB in
-total. Past a cap, an explicit backup and removal (review and execution) hold
-instead of truncating. An automatic snapshot before a version change, the
-restore safety backup and the portable-save import snapshot copy none of the
-unknown files and record `unknown_files_left_in_place_v1`, because those
-operations delete nothing. Update, rollback, collection and launch are never
-held by a cap. Declared
+An explicit backup and removal (review and execution) copy every unknown file
+and need only the space for it (owner decision, November 15, 2026): the
+library volume must keep the larger of 1 GiB and 2% of the volume free after
+the stored bytes, or they hold instead of truncating. The removal review
+reports those bytes as `PortRemovalPreview.unknown_file_bytes`, shown as the
+backup size, which stays until the player deletes the backup. The caps of
+1,024 files, 16 MiB in one file and 64 MiB in total bound only the automatic
+snapshot before a version change, the restore safety backup and the
+portable-save import snapshot: past one they copy none of the unknown files and
+record `unknown_files_left_in_place_v1`, because those operations delete
+nothing and run on every switch. Update, rollback, collection and launch are
+never held. Declared
 persistence, retained-scope receipts and canonical collection are unchanged.
 
 Elsewhere in this document, “atomic rename” describes namespace visibility and the operation's tested process-crash boundary unless an accompanying directory-sync step explicitly extends the claim to supported power-loss durability.

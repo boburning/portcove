@@ -579,10 +579,11 @@ async fn configuration_beside_the_program_holds_launch_only_for_loader_names() {
     assert!(service.prepare_launch(PORT, None).is_err());
 }
 
-/// The caps bound only what is copied: an explicit backup and removal hold,
-/// while update and rollback, which delete nothing, are not held.
+/// The caps bound only the automatic snapshot, which copies none past one.
+/// An explicit backup and removal copy every file when there is space, and
+/// update and rollback, which delete nothing, are never held.
 #[tokio::test]
-async fn unknown_files_past_a_cap_hold_only_backup_and_removal() {
+async fn unknown_files_past_a_cap_are_copied_by_backup_and_removal_only() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     let (first_release, first_server) = release("1.0.0");
@@ -600,13 +601,15 @@ async fn unknown_files_past_a_cap_hold_only_backup_and_removal() {
         .unwrap()
         .set_len(super::backups::MAX_UNKNOWN_FILE_BYTES + 1)
         .unwrap();
-    for error in [
-        service.create_backup(PORT).unwrap_err(),
-        service.preview_removal(PORT).unwrap_err(),
-    ] {
-        assert_eq!(error.code, crate::ErrorCode::Conflict);
-        assert_eq!(error.details["oversized_unknown_file"], "replay.dat");
-    }
+    let backup = service.create_backup(PORT).unwrap();
+    assert_eq!(backup.unknown_file_count, 1);
+    assert_eq!(
+        fs::metadata(unknown_area(&backup, &first).join("replay.dat"))
+            .unwrap()
+            .len(),
+        super::backups::MAX_UNKNOWN_FILE_BYTES + 1
+    );
+    assert_eq!(service.preview_removal(PORT).unwrap().unknown_file_count, 1);
     service.collect_active_user_data_if_launched(PORT).unwrap();
     service.prepare_launch(PORT, None).unwrap();
     // A safety snapshot (here the one restore takes) copies none past a cap
@@ -625,7 +628,4 @@ async fn unknown_files_past_a_cap_hold_only_backup_and_removal() {
     assert_ne!(second.id, first.id);
     assert_eq!(service.rollback(PORT).unwrap().id, first.id);
     assert!(oversized.is_file());
-    fs::remove_file(&oversized).unwrap();
-    service.preview_removal(PORT).unwrap();
-    service.create_backup(PORT).unwrap();
 }

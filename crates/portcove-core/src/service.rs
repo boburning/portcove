@@ -305,6 +305,10 @@ pub struct PortRemovalPreview {
     /// The first unknown file paths, each relative to its version folder.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unknown_files: Vec<String>,
+    /// Bytes the removal backup stores for those files, once identical copies
+    /// collapse. The free-space check covers this. Omitted when zero.
+    #[serde(default, skip_serializing_if = "crate::types::is_zero_count")]
+    pub unknown_file_bytes: u64,
     pub preview_sha256: String,
 }
 
@@ -4710,9 +4714,14 @@ impl PortcoveService {
             .iter()
             .map(|install| install.path.clone())
             .collect();
-        // Removal copies these before deleting the folders, so the caps apply
-        // to what it stores once identical copies collapse.
-        backups::deduplicate_unknown_files(keyed)?;
+        // Removal copies these before deleting the folders, so the library
+        // must have room for what it stores once identical copies collapse.
+        let stored = backups::deduplicate_unknown_files(keyed)?;
+        backups::require_unknown_file_space(self.library.root(), &stored.files)?;
+        let unknown_file_bytes = stored
+            .files
+            .iter()
+            .fold(0_u64, |total, file| total.saturating_add(file.size));
         let listed = unknown
             .iter()
             .map(|file| (file.install_id.as_str(), file.relative.as_str(), file.size))
@@ -4729,6 +4738,7 @@ impl PortcoveService {
             persistent_data_path: self.library.user_dir(port_id),
             persistent_data_will_be_preserved: true,
             unknown_file_count: unknown.len() as u64,
+            unknown_file_bytes,
             unknown_files: unknown
                 .iter()
                 .take(crate::install::REPORTED_UNKNOWN_FILES)

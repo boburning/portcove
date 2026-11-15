@@ -5136,6 +5136,11 @@ export interface OutputPortRemovalPreview {
   port_id: string;
   preview_sha256: string;
   /**
+   * Bytes the removal backup stores for those files, once identical copies
+   * collapse. The free-space check covers this. Omitted when zero.
+   */
+  unknown_file_bytes?: number;
+  /**
    * Unknown player-side files in the versions being removed (#5359).
    * Removal copies them to a new backup's separate area before it deletes
    * the version folders; restore does not put them back. Omitted when zero.

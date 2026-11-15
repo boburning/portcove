@@ -5,16 +5,18 @@
 //! beside itself. They do not hold managed operations. Backups copy them into
 //! a separate `unknown-files/<install-id>/` area with its own integrity
 //! record. Restore publishes only `data/`, so it never writes them into a
-//! declared path. The caps apply only where files are copied. Past a cap an
-//! explicit backup or a removal holds instead of truncating; an automatic
-//! snapshot before a version change or restore copies none and records how
-//! many it left in place, because those operations delete nothing.
+//! declared path. An explicit backup and the backup before removal copy
+//! every file and need only the free space for them (owner decision
+//! 2026-11-15); without it they hold instead of truncating. An automatic
+//! snapshot before a version change or restore keeps the caps: past one it
+//! copies none and records how many it left in place, because those
+//! operations delete nothing and run on every switch.
 //!
 //! A removal backup collects every version, and Tier 2 places identical
 //! copies in several of them, so it stores each distinct (path, bytes) once
 //! under the first installation that has it and lists every installation's
-//! copy in `unknown-files/index.json` (`unknown_files_v2`). The caps count
-//! what is stored.
+//! copy in `unknown-files/index.json` (`unknown_files_v2`). The space check
+//! counts what is stored.
 use super::*;
 use std::collections::BTreeMap;
 
@@ -22,6 +24,37 @@ pub(crate) const UNKNOWN_FILES_DIRECTORY: &str = "unknown-files";
 pub(crate) const MAX_UNKNOWN_FILES: usize = 1_024;
 pub(crate) const MAX_UNKNOWN_FILE_BYTES: u64 = 16 * 1024 * 1024;
 pub(crate) const MAX_UNKNOWN_TOTAL_BYTES: u64 = 64 * 1024 * 1024;
+/// Free space kept after copying, as for Tier 2 carries: the larger of this
+/// and a fiftieth of the volume.
+pub(crate) const UNKNOWN_FILES_RESERVE_BYTES: u64 = 1024 * 1024 * 1024;
+
+/// The bytes that must be free to copy `bytes`, or `None` when they fit.
+pub(crate) fn space_shortfall(bytes: u64, available: u64, total: u64) -> Option<u64> {
+    let required = bytes.saturating_add(UNKNOWN_FILES_RESERVE_BYTES.max(total / 50));
+    (required > available).then_some(required)
+}
+
+/// Hold an explicit or removal backup that the library volume can't hold.
+pub(crate) fn require_space(volume: &Path, files: &[UnknownRuntimeFile]) -> Result<()> {
+    if files.is_empty() {
+        return Ok(());
+    }
+    let bytes = files
+        .iter()
+        .fold(0_u64, |total, file| total.saturating_add(file.size));
+    let available = fs4::available_space(volume)?;
+    let total = fs4::total_space(volume)?;
+    match space_shortfall(bytes, available, total) {
+        None => Ok(()),
+        Some(required) => Err(PortcoveError::conflict(
+            "There isn't enough free space to back up the files Portcove didn't install. This operation stopped and every file stayed in place. Free up space on the drive that holds your Portcove library, then try again.",
+        )
+        .detail("unknown_file_count", files.len().to_string())
+        .detail("unknown_file_bytes", bytes.to_string())
+        .detail("required_bytes", required.to_string())
+        .detail("available_bytes", available.to_string())),
+    }
+}
 
 /// One unknown player-side file in one installed version.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -101,7 +134,7 @@ pub(crate) fn measure(
         .collect::<Result<Vec<_>>>()
 }
 
-/// Hold rather than back up only part of the unknown files.
+/// The automatic snapshot's caps: past one it copies no unknown file.
 pub(crate) fn require_within_caps(files: &[UnknownRuntimeFile]) -> Result<()> {
     let total = files
         .iter()
@@ -137,7 +170,6 @@ pub(super) fn copy_area(
     if files.is_empty() {
         return Ok(None);
     }
-    require_within_caps(files)?;
     let area = staging.join(UNKNOWN_FILES_DIRECTORY);
     let mut stats = BackupStats::default();
     for file in files {
@@ -168,11 +200,6 @@ pub(super) fn copy_area(
             &mut stats,
         )?;
     }
-    if stats.size > MAX_UNKNOWN_TOTAL_BYTES {
-        return Err(PortcoveError::conflict(
-            "Unrecognized files in the game folder grew while Portcove was backing them up. Nothing was changed; try again.",
-        ));
-    }
     Ok(Some(UnknownFilesArea {
         file_count: stats.file_count,
         size: stats.size,
@@ -181,26 +208,16 @@ pub(super) fn copy_area(
     }))
 }
 
-/// Collapse identical copies of one file across installations, then apply
-/// the caps to what is stored. `key` is the path the copies share, relative
-/// to each version's persistence root, which is how Tier 2 carries them.
-/// Only same-key, same-size copies are hashed. The caps are checked first
-/// over one copy per (key, size), which is at most what will be stored, so
-/// hashing stays within the caps' bytes per installation.
+/// Collapse identical copies of one file across installations. `key` is the
+/// path the copies share, relative to each version's persistence root, which
+/// is how Tier 2 carries them. Only same-key, same-size copies are hashed.
 pub(crate) fn deduplicate(
     files: Vec<(UnknownRuntimeFile, String)>,
 ) -> Result<UnknownFileSelection> {
     let mut groups = BTreeMap::<(&str, u64), usize>::new();
-    let mut representatives = Vec::new();
     for (file, key) in &files {
-        let count = groups.entry((key.as_str(), file.size)).or_default();
-        if *count == 0 {
-            representatives.push(file.clone());
-        }
-        *count += 1;
+        *groups.entry((key.as_str(), file.size)).or_default() += 1;
     }
-    require_within_caps(&representatives)?;
-    drop(representatives);
     let mut digests = Vec::with_capacity(files.len());
     for (file, key) in &files {
         digests.push(if groups[&(key.as_str(), file.size)] > 1 {
@@ -239,7 +256,6 @@ pub(crate) fn deduplicate(
             }
         }
     }
-    require_within_caps(&stored)?;
     Ok(UnknownFileSelection {
         files: stored,
         duplicates,
@@ -392,19 +408,18 @@ impl PortcoveService {
         for install in &installs {
             files.extend(self.portable_runtime_unknown_files(install)?);
         }
-        match (scope, require_within_caps(&files)) {
-            (_, Ok(())) => Ok(UnknownFileSelection {
-                files,
-                duplicates: Vec::new(),
-                left_in_place: 0,
-            }),
-            (UnknownFileScope::Automatic, Err(_)) => Ok(UnknownFileSelection {
+        if scope == UnknownFileScope::Automatic && require_within_caps(&files).is_err() {
+            return Ok(UnknownFileSelection {
                 left_in_place: files.len() as u64,
                 files: Vec::new(),
                 duplicates: Vec::new(),
-            }),
-            (_, Err(error)) => Err(error),
+            });
         }
+        Ok(UnknownFileSelection {
+            files,
+            duplicates: Vec::new(),
+            left_in_place: 0,
+        })
     }
 }
 
@@ -467,12 +482,14 @@ impl PortcoveService {
 /// Which versions' unknown files a backup copies, and what a cap does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum UnknownFileScope {
-    /// A backup the player asked for: the active version; past a cap, hold.
+    /// A backup the player asked for: the active version; every file, if
+    /// there is space.
     Explicit,
     /// A safety snapshot before a version change, restore or import, which
     /// deletes no unknown file: the active version; past a cap, copy none.
     Automatic,
-    /// The safety backup before removal: every version; past a cap, hold.
+    /// The safety backup before removal: every version; every file, if there
+    /// is space.
     Removal,
 }
 
@@ -684,7 +701,7 @@ mod tests {
     }
 
     #[test]
-    fn removal_caps_count_stored_copies() {
+    fn removal_collapses_copies_past_the_snapshot_caps() {
         let temporary = tempfile::tempdir().unwrap();
         let names = (0..MAX_UNKNOWN_FILES)
             .map(|index| format!("file-{index}.ini"))
@@ -695,18 +712,38 @@ mod tests {
             .collect::<Vec<_>>();
         let mut files = installation(temporary.path(), "install-a", &entries);
         files.extend(installation(temporary.path(), "install-b", &entries));
-        // Twice the count cap in copies, but within it once identical copies collapse.
+        // Twice the snapshot's count cap in copies; removal has no cap and
+        // stores each identical copy once.
         assert!(require_within_caps(&files).is_err());
         let selection = deduplicate(keyed(files.clone())).unwrap();
         assert_eq!(selection.files.len(), MAX_UNKNOWN_FILES);
         assert_eq!(selection.duplicates.len(), MAX_UNKNOWN_FILES);
-        // One differing copy is stored too, which passes the cap and holds.
         fs::write(temporary.path().join("install-b/file-0.ini"), b"diff").unwrap();
-        let error = deduplicate(keyed(files)).unwrap_err();
-        assert!(
-            error.details.contains_key("unknown_file_count"),
-            "{error:?}"
+        let selection = deduplicate(keyed(files)).unwrap();
+        assert_eq!(selection.files.len(), MAX_UNKNOWN_FILES + 1);
+    }
+
+    #[test]
+    fn space_check_keeps_the_larger_reserve_free() {
+        let gib = 1024 * 1024 * 1024;
+        // A 10 GiB volume keeps 1 GiB free; a 500 GiB volume keeps 10 GiB.
+        assert_eq!(space_shortfall(gib, 2 * gib, 10 * gib), None);
+        assert_eq!(
+            space_shortfall(gib + 1, 2 * gib, 10 * gib),
+            Some(2 * gib + 1)
         );
+        assert_eq!(space_shortfall(gib, 11 * gib, 500 * gib), None);
+        assert_eq!(space_shortfall(gib, 10 * gib, 500 * gib), Some(11 * gib));
+        assert_eq!(space_shortfall(u64::MAX, u64::MAX - 1, 0), Some(u64::MAX));
+        let temporary = tempfile::tempdir().unwrap();
+        let mut huge = installation(temporary.path(), "install-a", &[("replay.dat", b"x")]);
+        require_space(temporary.path(), &huge).unwrap();
+        require_space(temporary.path(), &[]).unwrap();
+        huge[0].size = u64::MAX / 2;
+        let error = require_space(temporary.path(), &huge).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert!(error.message.contains("every file stayed in place"));
+        assert!(error.details.contains_key("required_bytes"));
     }
 
     #[test]
@@ -753,14 +790,5 @@ mod tests {
         let error = copy_removal_area(&again, &selection.files, &selection.duplicates).unwrap_err();
         assert_eq!(error.code, crate::ErrorCode::Conflict);
         assert_eq!(error.details["path"], "settings.ini");
-        // An oversized file holds before anything is hashed.
-        let mut oversized = installation(temporary.path(), "install-c", &[("big.bin", b"x")]);
-        oversized[0].size = MAX_UNKNOWN_FILE_BYTES + 1;
-        assert!(
-            deduplicate(keyed(oversized))
-                .unwrap_err()
-                .details
-                .contains_key("oversized_unknown_file")
-        );
     }
 }

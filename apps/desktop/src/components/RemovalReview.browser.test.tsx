@@ -140,6 +140,7 @@ it("names unrecognized files and their backup before consent", async () => {
     ...review,
     unknown_file_count: 3,
     unknown_files: ["player/settings.ini", "player/logs/replay.txt"],
+    unknown_file_bytes: 3 * 1024 * 1024,
   });
   await root.rerender(
     <RemovalReviewDialog port={port} generation={7} apply={vi.fn()} close={vi.fn()} />,
@@ -151,6 +152,8 @@ it("names unrecognized files and their backup before consent", async () => {
     "copies them to a new backup before uninstalling",
     "Restoring a backup doesn't put them back.",
     "Files not listed here: 1",
+    "Backup size: 3",
+    "The backup stays until you delete it.",
   ])
     expect(dialog().textContent).toContain(text);
 });
@@ -162,6 +165,7 @@ it("omits unrecognized files when there are none", async () => {
   );
   await expect.poll(() => dialog().textContent).toContain(review.persistent_data_path);
   expect(dialog().textContent).not.toContain("didn't install");
+  expect(dialog().textContent).not.toContain("Backup size");
 });
 
 it("dismisses a removal review without applying it", async () => {
