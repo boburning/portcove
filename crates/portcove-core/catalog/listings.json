@@ -59085,6 +59085,49 @@
       }
     },
     {
+      "id": "touhou-4-lotus-land-story-portable64",
+      "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
+      "original_game_title": "Touhou Gensokyo: Lotus Land Story",
+      "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
+      "project_url": "https://github.com/N0zoM1z0/th04",
+      "issue_number": 6128,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/N0zoM1z0/th04/releases/tag/portable64-2026.10.27",
+      "setup_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+      "download_block_reason": "Open the publisher’s preview release for the Windows ZIP. On Linux, follow the pinned source build.",
+      "manual_setup": {
+        "help_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
+        "steps": [
+          {
+            "title": "Prepare the Windows preview",
+            "instruction": "Extract the x64 preview into a writable folder and check the release SHA-256. Put your own th04.hdi, FREECG98.BMP and ym2608_adpcm_rom.bin beside th04-port64.exe. Compare your files with the tested input identities in the upstream guide. Play.bat starts the ordinary game outside Portcove."
+          },
+          {
+            "title": "Register the Windows player",
+            "instruction": "Choose th04-port64.exe with its own folder as the working directory. Add these arguments as separate entries: --hdi th04.hdi --font-bmp FREECG98.BMP --save-dir save-normal --title --audio --pmd-driver pmd86 --opna-rom ym2608_adpcm_rom.bin. Save the launch details and choose Play."
+          },
+          {
+            "title": "Build a Linux x86-64 copy",
+            "instruction": "Follow the pinned Portable 64-bit Linux build with CMake, a C++17 compiler and SDL2 development files. Start the built th04-port64 from your prepared folder and set the input paths and save directory as shown in the upstream Linux command."
+          }
+        ],
+        "warnings": [
+          "The upstream preview offers an assisted mode with its own save directory. Use the ordinary player for regular play and keep both profiles separately."
+        ],
+        "references": [
+          {
+            "title": "Keep scores and settings",
+            "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
+          }
+        ]
+      }
+    },
+    {
       "id": "tox2-recomp-yuias-tales-of-xillia-2",
       "name": "Tales of Xillia 2 — TOX2-recomp (yuias)",
       "original_game_title": "Tales of Xillia 2",
