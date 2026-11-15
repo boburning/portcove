@@ -90,6 +90,10 @@ void test("a missing original game title can be supplied and lands after the sum
     (promoted.listing as { original_game_title: string }).original_game_title,
     "Example Game",
   );
+  assert.throws(
+    () => promotePort(listing(), { ...options, originalGameTitle: "Other" }),
+    /already names its original game/,
+  );
 });
 
 void test("promotion refuses incomplete, ambiguous or inconsistent inputs", () => {

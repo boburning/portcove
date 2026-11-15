@@ -83,6 +83,14 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
     throw new Error(
       "Kept paths need --saves: portcove-managed when the kept paths hold the normal saves, external-user-owned when they live in a profile outside the copy.",
     );
+  if (
+    options.originalGameTitle !== undefined &&
+    typeof listing.original_game_title === "string" &&
+    listing.original_game_title !== options.originalGameTitle
+  )
+    throw new Error(
+      `The listing already names its original game "${listing.original_game_title}"; edit it in the port file instead.`,
+    );
   const title = options.originalGameTitle ?? listing.original_game_title;
   if (typeof title !== "string" || !title.trim())
     throw new Error(
@@ -263,6 +271,11 @@ const VALUE_FLAGS = new Set([
 ]);
 const REPEATED = new Set(["--archive", "--executable", "--sha256", "--persistent", "--env"]);
 
+const isChannel = (value: string): value is "stable" | "beta" =>
+  value === "stable" || value === "beta";
+const isSaves = (value: string): value is SavesAndSettings =>
+  value === "external-user-owned" || value === "portcove-managed";
+
 /** Parse flags strictly: unknown flags, missing values and repeated single flags are errors. */
 export function parseArguments(args: string[]) {
   const values = new Map<string, string[]>();
@@ -298,10 +311,9 @@ export function parseArguments(args: string[]) {
   for (const platform of [...Object.keys(executables), ...Object.keys(digests)])
     if (!archives[platform as Platform]) throw new Error(`No --archive was given for ${platform}.`);
   const channel = one("--channel");
-  if (channel !== undefined && channel !== "stable" && channel !== "beta")
-    throw new Error("--channel is stable or beta.");
+  if (channel !== undefined && !isChannel(channel)) throw new Error("--channel is stable or beta.");
   const saves = one("--saves");
-  if (saves !== undefined && saves !== "external-user-owned" && saves !== "portcove-managed")
+  if (saves !== undefined && !isSaves(saves))
     throw new Error("--saves is external-user-owned or portcove-managed.");
   const environment: Record<string, string> = {};
   for (const value of all("--env")) {
@@ -377,9 +389,12 @@ function main() {
   if (fixture.changed) writeFileSync(fixturePath, fixture.text);
   if (download.changed) writeFileSync(downloadPath, download.text);
   if (selected.changed) writeFileSync(selectedPath, selected.text);
-  const edited = [portPath, fixturePath, downloadPath, selectedPath].map((path) =>
-    path.slice(root.length + 1),
-  );
+  const edited = [
+    portPath,
+    ...(fixture.changed ? [fixturePath] : []),
+    ...(download.changed ? [downloadPath] : []),
+    ...(selected.changed ? [selectedPath] : []),
+  ].map((path) => path.slice(root.length + 1));
   console.log(
     [
       `- ports/${id}.json: integration for ${options.platforms.join(", ")}`,
@@ -400,7 +415,11 @@ function main() {
       cwd: root,
       stdio: "inherit",
     });
-    execFileSync("cargo", ["fmt", "-p", "portcove-core"], { cwd: root, stdio: "inherit" });
+    const rustFiles = [downloadPath, selectedPath].filter((_path, index) =>
+      index === 0 ? download.changed : selected.changed,
+    );
+    if (rustFiles.length)
+      execFileSync("rustfmt", ["--edition", "2024", ...rustFiles], { cwd: root, stdio: "inherit" });
     execFileSync(process.execPath, [join(root, "scripts/generate-catalog.mts")], {
       cwd: root,
       stdio: "inherit",
