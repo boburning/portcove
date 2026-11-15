@@ -57425,6 +57425,10 @@
               "instruction": "Before first Play, copy DATA from your own supported Carmageddon installation beside the dethrace player, including GENERAL.TXT. Copy the optional GOG MUSIC folder there for CD audio. Keep the original installation; do not replace the player executable or SDL2.dll with old runtime files. An existing customized game folder can instead use the non-owning route."
             },
             {
+              "title": "Use the upstream Linux ARM64 player",
+              "instruction": "Download the official Linux ARM64 archive from the release page and extract it into its own writable folder. The v0.10.1 player needs glibc 2.38 or newer. Put a working copy of your supported Carmageddon DATA folder beside dethrace, including GENERAL.TXT, and run the player from that folder. Keep your originals separately. Before replacing the player, close it and back up the DATA folder and the Dethrace preferences directory it actually uses."
+            },
+            {
               "title": "Open Dethrace on Mac",
               "instruction": "Open the official universal Mac DMG and copy the complete Deth Race.app into a writable folder. The inspected app requires macOS 15 or later on Intel and Apple silicon. Put a copy of your own supported Carmageddon DATA folder, including GENERAL.TXT, in ~/Library/Application Support/dethrace. Keep optional GOG MUSIC there for CD audio. If you configure a different game folder, back up the folder Dethrace actually uses."
             }
