@@ -32056,7 +32056,9 @@
             "instruction": "Download the Mac ZIP from the Daggerfall Unity v1.1.1-cve-2025 release. Unpack DaggerfallUnity.app into a permanent folder separate from your DOS Daggerfall game. The current app executable is Intel x64. In the setup wizard choose the compatible game folder containing ARENA2."
           }
         ],
-        "warnings": [],
+        "warnings": [
+          "Use a short library path on Linux. If class names appear as placeholders, keep your existing saves, settings and originals before setting up a copy in a shorter library."
+        ],
         "help_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
         "references": [
           {
