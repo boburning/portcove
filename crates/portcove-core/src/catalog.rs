@@ -2449,6 +2449,7 @@ mod tests {
                 .map(|port| port.id.as_str())
                 .collect::<std::collections::BTreeSet<_>>(),
             std::collections::BTreeSet::from([
+                "cdlewis-snowboardkids-recomp",
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
                 "snap64-recomp",

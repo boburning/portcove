@@ -3048,11 +3048,6 @@ mod tests {
     }
 
     #[test]
-    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
-        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
-    }
-
-    #[test]
     fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
         assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
     }

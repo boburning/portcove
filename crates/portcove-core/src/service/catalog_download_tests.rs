@@ -2236,8 +2236,8 @@ async fn cdlewis_snowboardkids_recomp_upstream_release_download_1886() {
         "cdlewis-snowboardkids-recomp",
         "v1.0.9",
         "SnowboardKidsRecompiled-Windows.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
