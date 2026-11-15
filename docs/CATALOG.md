@@ -1582,8 +1582,12 @@ packages.
 The OpenGOAL family declares `data/iso_data`, `data/decompiler_out` and `data/out`,
 following the [extractor](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/extractor/main.cpp)
 and its [decompilation output](https://github.com/open-goal/jak-project/blob/ce97ce959b8c773097f593bf42f470555f6a6e2b/decompiler/decompilation_process.cpp)
-contract. Saves and `data/log` remain separately owned. These declarations are
-implementation facts, not new artifact or platform qualification.
+contract. The exact Windows Jak 1 extractor from OpenGOAL v0.3.9 also creates an
+[empty compiler directory tree](https://github.com/open-goal/jak-project/blob/b6c8430c0b0a5cb139b939bcf0ffd25285b896c7/goalc/build_actor/jak1/build_actor.cpp#L641-L647)
+at `out/jak1/obj`. After the extractor has settled, Portcove discards only that
+fresh empty tree in private staging. Existing data and unexpected entries stay
+subject to the normal output checks. Saves and `data/log` remain separately owned.
+These declarations are implementation facts, not new artifact or platform qualification.
 
 PaperBoat uses the same isolated preparation transaction through the
 Libultraship adapter. Portcove normalizes the registered Paper Mario source to a

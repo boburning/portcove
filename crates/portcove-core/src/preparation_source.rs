@@ -716,7 +716,7 @@ pub(crate) fn materialize(
         .setup_output_paths
         .extend([RECEIPT.into(), super::RECEIPT_FILE.into()]);
     owned.runtime_mutable_paths.clear();
-    super::execution::validate_outputs(&owned, payload, &before, &permissions)?;
+    super::execution::validate_outputs(&owned, payload, &before, &permissions, false)?;
     checkpoint()
 }
 
