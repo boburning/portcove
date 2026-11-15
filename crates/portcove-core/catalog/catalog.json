@@ -34520,6 +34520,7 @@
       "automated_tested_platforms": [],
       "manually_validated_platforms": [],
       "adapter": "n64-recomp-portable",
+      "windows_tracked_handoff": true,
       "release": {
         "repository": "JackandBeans/Snap64Recomp",
         "asset_hints": {
