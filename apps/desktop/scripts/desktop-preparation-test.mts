@@ -4060,7 +4060,7 @@ export async function preparationScenarios({
         ),
       );
       const channel = await browser.findElement(
-        By.css('section[aria-label="Game release channel"]'),
+        By.css('section[aria-label="Game update channel"]'),
       );
       await browser.wait(
         until.elementIsVisible(channel),
@@ -4115,7 +4115,7 @@ export async function preparationScenarios({
       "release-channel popup did not close after Escape",
     );
     const releaseChannelTrigger = By.css(
-      'section[aria-label="Game release channel"] button[data-slot="select-trigger"]',
+      'section[aria-label="Game update channel"] button[data-slot="select-trigger"]',
     );
     const restoredTrigger = await browser.wait(
       until.elementLocated(releaseChannelTrigger),
