@@ -1,19 +1,24 @@
 {
   "catalog": {
+    "automatic": {
+      "description": "Portcove comprueba al abrirse y aproximadamente una vez al día. Cada actualización se verifica con la clave del editor incluida en esta versión de Portcove. Las actualizaciones nunca instalan, cambian ni quitan juegos.",
+      "label": "Actualizar el catálogo automáticamente"
+    },
     "cancel": "Cancelar la actualización del catálogo",
     "cancelled": "Se canceló la actualización del catálogo.",
-    "confirmCancel": "Cancelar",
-    "confirmDescription": "Usa el editor del catálogo oficial incluido en esta versión de Portcove y, después, busca nuevas fichas. Las instalaciones de juegos siguen pasando por sus revisiones y comprobaciones de permisos habituales.",
-    "confirmEnable": "Activar actualizaciones",
-    "confirmTitle": "¿Activar las actualizaciones del catálogo oficial?",
+    "choiceFailed": "Portcove no pudo confirmar que se guardara tu elección. Vuelve a cargar los ajustes del catálogo para comprobarlo.",
     "description": "Obtén nuevas fichas de juegos, imágenes e información de configuración del editor oficial de Portcove.",
-    "enable": "Activar las actualizaciones del catálogo oficial",
     "loading": "Cargando los ajustes del catálogo…",
     "refresh": "Actualizar el catálogo oficial",
     "refreshed": "Catálogo oficial actualizado.",
     "reload": "Volver a cargar los ajustes del catálogo",
-    "reviewAgain": "Vuelve a revisar los ajustes del catálogo oficial antes de activar las actualizaciones.",
-    "setupIncomplete": "La configuración del catálogo oficial no se completó. Vuelve a cargar los ajustes para revisarla.",
+    "status": {
+      "current": "Última comprobación: {{time}}. Tu catálogo está actualizado.",
+      "notPublished": "Última comprobación: {{time}}. Todavía no se ha publicado ninguna actualización del catálogo.",
+      "off": "Las actualizaciones automáticas están desactivadas. Elige Actualizar el catálogo oficial para comprobarlo ahora.",
+      "pending": "Portcove busca actualizaciones del catálogo poco después de abrirse.",
+      "unavailable": "Portcove no pudo buscar actualizaciones del catálogo el {{time}}. Se sigue usando tu catálogo actual y Portcove volverá a intentarlo más tarde."
+    },
     "title": "Actualizaciones del catálogo oficial",
     "unavailable": "Las actualizaciones del catálogo oficial no están disponibles en esta versión."
   },

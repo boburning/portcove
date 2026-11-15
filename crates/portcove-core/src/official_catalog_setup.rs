@@ -176,20 +176,192 @@ impl Library {
     }
 }
 
+/// Installs this release's compiled anchor under the plan Core itself has just
+/// reviewed, so official catalog updates are on by default (owner decision on
+/// #534, 2026-11-15). The existing provisioning transaction rechecks that exact
+/// plan; an installed, different or advanced authority is never replaced.
+fn ensure_enabled(
+    library: &Library,
+    root: &[u8],
+    source: &[u8],
+    profile: InitialRootProfile,
+) -> Result<()> {
+    let authority = review(library, root, profile)?;
+    if !project_review(authority.clone(), source)?.configured {
+        return Err(PortcoveError::unsupported(
+            "this release has no configured official catalog",
+        ));
+    }
+    if authority.installed {
+        return Ok(());
+    }
+    match apply(library, root, &authority.expected_plan, profile) {
+        Ok(_) => Ok(()),
+        // A concurrent caller installed the same compiled anchor first.
+        Err(error)
+            if error.code == crate::ErrorCode::Conflict
+                && review(library, root, profile)?.installed =>
+        {
+            Ok(())
+        }
+        Err(error) => Err(error),
+    }
+}
+
+/// One official catalog refresh at a time in this process: a scheduled refresh
+/// skips while another runs, and a player's refresh waits for it.
+static REFRESH_GUARD: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum OfficialCatalogAutomaticOutcome {
+    /// The player turned automatic updates off; nothing was contacted or changed.
+    TurnedOff,
+    /// This build appoints no official catalog.
+    NotConfigured,
+    /// Another official catalog refresh is still running; this one was skipped.
+    AlreadyRunning,
+    /// The location served nothing that verified; nothing changed.
+    Unavailable,
+    /// The authenticated refresh completed through the existing listing delivery.
+    Refreshed,
+}
+
+/// The result of one scheduled official catalog refresh.
+#[derive(Debug, Clone, Serialize, JsonSchema)]
+pub struct OfficialCatalogAutomaticRefresh {
+    pub outcome: OfficialCatalogAutomaticOutcome,
+    /// What the location served, when `outcome` is `unavailable`.
+    pub serving: Option<DefinitionDeliveryServing>,
+    /// The resulting selection, when `outcome` is `refreshed`.
+    pub status: Option<crate::ListingDeliveryStatus>,
+}
+
+impl OfficialCatalogAutomaticRefresh {
+    fn skipped(outcome: OfficialCatalogAutomaticOutcome) -> Self {
+        Self {
+            outcome,
+            serving: None,
+            status: None,
+        }
+    }
+}
+
+async fn refresh_automatically<T, F>(
+    service: &PortcoveService,
+    preferences: &crate::HostPreferenceStore,
+    root: &[u8],
+    source: &[u8],
+    profile: InitialRootProfile,
+    connect: F,
+    emit: impl FnMut(crate::OperationEvent),
+) -> Result<OfficialCatalogAutomaticRefresh>
+where
+    T: tough::Transport + Send + Sync + 'static,
+    F: Fn() -> Result<(DefinitionRepositorySource, T)>,
+{
+    use OfficialCatalogAutomaticOutcome::*;
+    if !preferences.official_catalog_automatic_updates()? {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(TurnedOff));
+    }
+    if !review_setup(service.library(), root, source, profile)?.configured {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(NotConfigured));
+    }
+    let Ok(_guard) = REFRESH_GUARD.try_lock() else {
+        return Ok(OfficialCatalogAutomaticRefresh::skipped(AlreadyRunning));
+    };
+    ensure_enabled(service.library(), root, source, profile)?;
+    super::require_installed(service.library(), root, profile)?;
+    // Verify the signed metadata first. An outage, or a location that publishes
+    // nothing yet, then records no failed activity and changes nothing.
+    let (repository, transport) = connect()?;
+    let probe = tokio::time::timeout(
+        crate::definition_repository::ACQUISITION_TIMEOUT,
+        crate::definition_repository::load_repository(
+            root,
+            repository.metadata_base_url.clone(),
+            repository.targets_base_url.clone(),
+            transport,
+        ),
+    )
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "official catalog metadata check timed out",
+        ))
+    });
+    if let Err(error) = probe {
+        let serving = delivery_serving(&error);
+        tracing::info!(
+            serving = serving.as_str(),
+            error = %error.message,
+            message = "automatic official catalog refresh found no verified update"
+        );
+        return Ok(OfficialCatalogAutomaticRefresh {
+            outcome: Unavailable,
+            serving: Some(serving),
+            status: None,
+        });
+    }
+    let (repository, transport) = connect()?;
+    let status =
+        super::super::listing_delivery::refresh(service, &repository, root, transport, emit)
+            .await?;
+    Ok(OfficialCatalogAutomaticRefresh {
+        outcome: Refreshed,
+        serving: None,
+        status: Some(status),
+    })
+}
+
 impl PortcoveService {
-    /// Refresh using only the separately appointed compiled source. The existing
-    /// refresh path still requires its matching installed anchor and authenticates TUF.
+    /// Refresh using only the separately appointed compiled source. Official
+    /// updates are on by default, so this installs the compiled anchor when the
+    /// library has none; the existing refresh path then authenticates TUF.
     pub async fn refresh_official_catalog(
         &self,
         emit: impl FnMut(crate::OperationEvent),
     ) -> Result<crate::ListingDeliveryStatus> {
         let source = official_repository_source()?;
+        ensure_enabled(
+            self.library(),
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+        )?;
+        let _guard = REFRESH_GUARD.lock().await;
         self.refresh_listings(&source, emit).await
+    }
+
+    /// The scheduled refresh: skipped without I/O while the player has turned
+    /// automatic updates off, and quiet when the location serves nothing that
+    /// verifies. Prior state is kept on every failure.
+    pub async fn refresh_official_catalog_automatically(
+        &self,
+        preferences: &crate::HostPreferenceStore,
+        emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<OfficialCatalogAutomaticRefresh> {
+        refresh_automatically(
+            self,
+            preferences,
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+            || {
+                let source = official_repository_source()?;
+                let transport =
+                    crate::definition_repository::DefinitionHttpsTransport::new(&source)?;
+                Ok((source, transport))
+            },
+            emit,
+        )
+        .await
     }
 
     /// Check this known port's definition using the appointed fixed source.
     /// The existing refresh owns authority, policy, eligibility and atomic selection;
-    /// this does not install a game, provision trust or change runtime ownership.
+    /// this does not install a game or change runtime ownership. Like the catalog
+    /// refresh, it installs the compiled anchor when the library has none.
     pub async fn refresh_official_definition(
         &self,
         port_id: &str,
@@ -197,13 +369,43 @@ impl PortcoveService {
     ) -> Result<crate::DefinitionRefresh> {
         let stable_id = official_definition_id(self.catalog(), port_id)?;
         let source = official_repository_source()?;
-        if !self.library().review_official_catalog()?.enabled {
-            return Err(PortcoveError::conflict(
-                "Enable official catalog updates in Settings before checking setup availability.",
-            ));
-        }
+        ensure_enabled(
+            self.library(),
+            COMPILED_ROOT,
+            COMPILED_SOURCE,
+            compiled_profile()?,
+        )?;
         self.refresh_definition(&source, stable_id, emit).await
     }
+}
+
+#[cfg(test)]
+pub(crate) async fn automatic_refresh_fixture<T>(
+    service: &PortcoveService,
+    preferences: &crate::HostPreferenceStore,
+    root: &[u8],
+    source: &[u8],
+    repository: &DefinitionRepositorySource,
+    transport: T,
+) -> Result<OfficialCatalogAutomaticRefresh>
+where
+    T: tough::Transport + Clone + Send + Sync + 'static,
+{
+    refresh_automatically(
+        service,
+        preferences,
+        root,
+        source,
+        InitialRootProfile::SingleOwnerOneOfOneV1,
+        || Ok((repository.clone(), transport.clone())),
+        |_| {},
+    )
+    .await
+}
+
+#[cfg(test)]
+pub(crate) async fn hold_refresh_guard_fixture() -> tokio::sync::MutexGuard<'static, ()> {
+    REFRESH_GUARD.lock().await
 }
 
 #[cfg(test)]

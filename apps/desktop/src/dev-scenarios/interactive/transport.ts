@@ -123,6 +123,7 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
   // The library's snapshot setting, on by default like Core's.
   let automaticSnapshots = true;
   let readyNotices = true;
+  let officialCatalogAutomatic = true;
   let applicationUpdatePreferences: Awaited<
     ReturnType<typeof desktopApi.applicationUpdatePreferences>
   > = { channel: "beta", automatic_checks: false };
@@ -420,9 +421,20 @@ export function installInteractiveTransport(journey: Journey, refuse: (message: 
         source: null,
         expected_plan: null,
       }) satisfies Awaited<ReturnType<typeof desktopApi.officialCatalogReview>>,
-    enable_official_catalog: () => {
-      throw new Error("This scenario has no configured official catalog.");
+    get_official_catalog_automatic_updates: () => officialCatalogAutomatic,
+    set_official_catalog_automatic_updates: (args) => {
+      if (typeof args?.enabled !== "boolean")
+        return unsupported("set_official_catalog_automatic_updates (unexpected arguments)");
+      requireArgs("set_official_catalog_automatic_updates", args, { enabled: args.enabled });
+      officialCatalogAutomatic = args.enabled;
+      return officialCatalogAutomatic;
     },
+    refresh_official_catalog_automatically: () =>
+      ({
+        outcome: "not_configured",
+        serving: null,
+        status: null,
+      }) satisfies Awaited<ReturnType<typeof desktopApi.refreshOfficialCatalogAutomatically>>,
     refresh_official_catalog: () => {
       throw new Error("This scenario has no configured official catalog.");
     },

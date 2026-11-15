@@ -825,6 +825,10 @@ export type OutputListingStatuses = PortListingStatus[];
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
+export type OfficialCatalogAutomaticOutcome =
+  "turned_off" | "not_configured" | "already_running" | "unavailable" | "refreshed";
+export type DefinitionDeliveryServing =
+  "verified" | "not_served" | "incomplete" | "unreachable" | "expired" | "verification_failed" | "not_configured";
 /**
  * Versioned best-effort progress envelope. Durable activity history remains
  * authoritative after reconnect or restart.
@@ -1265,13 +1269,14 @@ export interface TransportOutputs {
   library_move_plan: OutputLibraryMovePlan;
   library_move_result: OutputLibraryMoveResult;
   library_selection: LibrarySelection;
-  listing_delivery_status: OutputListingDeliveryStatus;
+  listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   live_mods: LiveMods;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
   mod_setups_view: OutputModSetupsView;
+  official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
   official_catalog_setup: OutputOfficialCatalogSetup;
   operation_event: OutputOperationEvent;
@@ -4778,7 +4783,7 @@ export interface LibrarySelection {
   source: LibrarySelectionSource;
   [k: string]: unknown;
 }
-export interface OutputListingDeliveryStatus {
+export interface ListingDeliveryStatus {
   anchor_sha256: string | null;
   delivery_schema: number;
   expires_at: string | null;
@@ -5031,6 +5036,21 @@ export interface ProfileView {
 export interface OriginalStatus {
   availability: OriginalAvailability;
   binding: OriginalBinding;
+  [k: string]: unknown;
+}
+/**
+ * The result of one scheduled official catalog refresh.
+ */
+export interface OutputOfficialCatalogAutomaticRefresh {
+  outcome: OfficialCatalogAutomaticOutcome;
+  /**
+   * What the location served, when `outcome` is `unavailable`.
+   */
+  serving: DefinitionDeliveryServing | null;
+  /**
+   * The resulting selection, when `outcome` is `refreshed`.
+   */
+  status: ListingDeliveryStatus | null;
   [k: string]: unknown;
 }
 export interface OfficialCatalogReview {

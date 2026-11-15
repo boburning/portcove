@@ -324,7 +324,7 @@ impl PortcoveService {
     }
 }
 
-async fn refresh<T: Transport + Send + Sync + 'static>(
+pub(crate) async fn refresh<T: Transport + Send + Sync + 'static>(
     service: &PortcoveService,
     source: &DefinitionRepositorySource,
     root: &[u8],

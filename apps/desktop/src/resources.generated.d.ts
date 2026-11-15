@@ -415,20 +415,25 @@ export default interface Resources {
   },
   "catalogUpdates": {
     "catalog": {
+      "automatic": {
+        "description": "Portcove checks when it opens and about once a day. Each update is verified with the publisher key included in this version of Portcove. Updates never install, change or remove games.",
+        "label": "Update the catalog automatically"
+      },
       "cancel": "Cancel catalog refresh",
       "cancelled": "Catalog refresh cancelled.",
-      "confirmCancel": "Cancel",
-      "confirmDescription": "Use the official catalog publisher included in this version of Portcove, then check for new listings. Game installations continue through their usual review and permission checks.",
-      "confirmEnable": "Enable updates",
-      "confirmTitle": "Enable official catalog updates?",
+      "choiceFailed": "Portcove couldn’t confirm that your choice was saved. Reload catalog settings to check.",
       "description": "Get new game listings, artwork and setup information from Portcove’s official publisher.",
-      "enable": "Enable official catalog updates",
       "loading": "Loading catalog settings…",
       "refresh": "Refresh official catalog",
       "refreshed": "Official catalog refreshed.",
       "reload": "Reload catalog settings",
-      "reviewAgain": "Review official catalog settings again before enabling updates.",
-      "setupIncomplete": "Official catalog setup did not complete. Reload settings to review it.",
+      "status": {
+        "current": "Last checked {{time}}. Your catalog is up to date.",
+        "notPublished": "Last checked {{time}}. No catalog updates have been published yet.",
+        "off": "Automatic updates are off. Choose Refresh official catalog to check now.",
+        "pending": "Portcove checks for catalog updates shortly after it opens.",
+        "unavailable": "Portcove couldn’t check for catalog updates at {{time}}. Your current catalog stays in use, and Portcove will try again later."
+      },
       "title": "Official catalog updates",
       "unavailable": "Official catalog updates are unavailable in this release."
     },

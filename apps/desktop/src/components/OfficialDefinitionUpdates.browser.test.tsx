@@ -126,7 +126,6 @@ beforeEach(async () => {
   settings.mockReset();
   retryRefresh.mockReset().mockResolvedValue(undefined);
   vi.spyOn(desktopApi, "refreshOfficialDefinition").mockResolvedValue(selected);
-  vi.spyOn(desktopApi, "enableOfficialCatalog");
   vi.spyOn(desktopApi, "install");
   vi.spyOn(desktopApi, "importSource");
   vi.spyOn(desktopApi, "cancelOperation").mockResolvedValue({
@@ -158,7 +157,6 @@ it("checks only the exact selected identity on explicit intent and reloads setup
       ),
     )
     .toBeVisible();
-  expect(desktopApi.enableOfficialCatalog).not.toHaveBeenCalled();
   expect(desktopApi.install).not.toHaveBeenCalled();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
   await click(page.getByRole("button", { name: "Catalog update settings" }));
