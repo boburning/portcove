@@ -42688,6 +42688,14 @@
             "instruction": "Choose the stable x86-64 AppImage named for Red Alert, Tiberian Dawn or Dune 2000. Make the complete AppImage executable and open it outside Portcove to finish that game’s content setup. Each AppImage starts its own game by default. Keep server and utility commands for their separate tasks."
           },
           {
+            "title": "Use the OpenRA Windows ARM64 playtest",
+            "instruction": "Choose the official ARM64 Windows portable ZIP from a playtest release. Extract the whole ZIP and open RedAlert.exe, TiberianDawn.exe or Dune2000.exe from its own folder. The ARM64 package is a preview. Use the same OpenRA release as the other players if you play online."
+          },
+          {
+            "title": "Use the OpenRA Flatpak on Linux",
+            "instruction": "Install net.openra.OpenRA from Flathub on Linux x64 or ARM64. Use the desktop launcher for Red Alert, Tiberian Dawn or Dune 2000 and finish content setup in that player. Back up the game’s Flatpak app data separately and update it through Flatpak. Use the official x64 AppImage if you need to switch between official and community mods outside the Flatpak sandbox."
+          },
+          {
             "title": "Choose the matching OpenRA application on Mac",
             "instruction": "The stable upstream DMG contains a separate Red Alert, Tiberian Dawn and Dune 2000 application. The reviewed launchers include Intel and Apple Silicon. Copy the complete app you want out of the DMG and open it to finish content setup. Open that app directly to play and preserve its actual OpenRA profile."
           }
