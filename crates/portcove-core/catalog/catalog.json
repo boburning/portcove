@@ -61936,13 +61936,17 @@
         "keybinds.ini",
         "mods/packages",
         "mods/state.toml",
-        "hang_dump.log"
+        "hang_dump.log",
+        "hang_fp_tail.csv",
+        "hang_trace.csv",
+        "recomp_coverage_AFXE.json",
+        "recomp_master_misses_AFXE.toml.frag"
       ],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM in the player's file picker; the player rejects other files and remembers the path in rom.cfg, so keep the ROM where it is. Portcove keeps the battery save in saves, the launcher and input settings (rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini), imported mods in mods/packages with mods/state.toml, and hang_dump.log across updates, backups and rollback. Save-state slots are written beside your ROM, outside the managed copy, and are not backed up or rewound by Portcove. Portcove starts the player with its runtime self-heal compiler turned off, so it never compiles or loads extra code inside the managed copy; the game falls back to its built-in interpreter for any uncompiled code. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed.",
+        "manual_preparation": "On first Play, choose your own Final Fantasy Tactics Advance USA GBA ROM in the player's file picker; the player rejects other files and remembers the path in rom.cfg, so keep the ROM where it is. Portcove keeps the battery save in saves, the launcher and input settings (rom.cfg, bios.cfg, skip_launcher_on_boot, config.ini, keybinds.ini), imported mods in mods/packages with mods/state.toml, and the diagnostic files it writes beside itself (hang_dump.log, hang_fp_tail.csv, hang_trace.csv and its recompilation coverage reports) across updates, backups and rollback. Save-state slots are written beside your ROM, outside the managed copy, and are not backed up or rewound by Portcove. Portcove starts the player with its runtime self-heal compiler turned off, so it never compiles or loads extra code inside the managed copy; the game falls back to its built-in interpreter for any uncompiled code. The package includes the clean-room emibios replacement, so no Nintendo BIOS dump is needed.",
         "original_game_title": "Final Fantasy Tactics Advance",
         "manual_setup": {
           "help_url": "https://github.com/james2doyle/ffta-recomp",
