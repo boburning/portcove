@@ -253,9 +253,25 @@ async function observeHeldLaunch({
     held.launch_probe = await restoreActionHold(browser, "allowed");
   }
   await browser.wait(async () => {
-    const play = await browser.findElement(By.css(".detail-panel .primary-actions button"));
-    return (await play.getText()) === "Try launch" && (await play.isEnabled());
+    const play = await primaryActionState(browser);
+    return play?.text === "Try launch" && play.enabled;
   }, 10_000);
+}
+
+/**
+ * Reads the detail panel's primary action for a polling wait. Restoring a hold
+ * re-renders the panel, which can replace the located button between lookup and
+ * read (hosted run 43725858503); that poll reports "not yet" and the wait
+ * re-locates. Any other error still fails the wait.
+ */
+async function primaryActionState(browser: WebDriver) {
+  try {
+    const action = await browser.findElement(By.css(".detail-panel .primary-actions button"));
+    return { text: await action.getText(), enabled: await action.isEnabled() };
+  } catch (error) {
+    if (error instanceof Error && error.name === "StaleElementReferenceError") return undefined;
+    throw error;
+  }
 }
 
 async function observeHeldInstall({
@@ -623,16 +639,14 @@ export async function readinessScenario({
       until.elementLocated(By.css(".detail-panel .primary-actions button")),
       READINESS_REFRESH_MS,
     );
-    await browser.wait(
-      async () =>
-        (await browser.findElement(By.css(".detail-panel .primary-actions button")).getText()) ===
-        "Try launch",
-      READINESS_REFRESH_MS,
-    );
-    assert.equal(
-      await browser.findElement(By.css(".detail-panel .primary-actions button")).isEnabled(),
-      true,
-    );
+    let readyAction: Awaited<ReturnType<typeof primaryActionState>>;
+    await browser.wait(async () => {
+      readyAction = await primaryActionState(browser);
+      return readyAction?.text === "Try launch";
+    }, READINESS_REFRESH_MS);
+    // Assert the state the wait observed rather than re-locating a button a
+    // late refresh could replace.
+    assert.equal(required(readyAction).enabled, true);
     const readyImage = path.join(output, "native-ready-next-action.png");
     await writeFile(readyImage, await browser.takeScreenshot(), {
       encoding: "base64",
