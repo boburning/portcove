@@ -854,8 +854,10 @@ async function assertReviewedUpdateOutcomes({
         assert.equal(/^[a-f0-9]{64}$/.test(suppliedPlan.plan_sha256), false);
 
         await clickVisible(browser, applyAction);
-        // Hosted Windows observed the Apply channel once while the review was
-        // still busy at the former 5-second boundary (job 132672094402).
+        // Calibrated from 5 s (#4879): hosted Windows observed the Apply channel
+        // while the review was still busy (job 132672094402), and run 43680800015
+        // still showed "Updating…" 5 s after Apply while 12 s debug-build
+        // capability reads ran. Harness only.
         const outcome = await browser.wait(
           until.elementLocated(
             cancelled
@@ -865,10 +867,12 @@ async function assertReviewedUpdateOutcomes({
                 ),
           ),
           60_000,
+          "Supplied update outcome did not render after Apply",
         );
         await browser.wait(
           async () => (await outcome.getText()).includes(failure.presentation.summary),
-          5_000,
+          60_000,
+          "Supplied update outcome did not show its summary",
         );
         assert.equal(await outcome.getAttribute("role"), cancelled ? "status" : "alert");
         // A committed outcome states its consequence only in the banner ("Your
