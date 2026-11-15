@@ -1272,8 +1272,32 @@ honours the optional truncation record; as in the format itself, offset `0x454F4
 as the end marker.
 
 Identity is exact, so an original that carries a 512-byte copier header is a different file
-and is refused at registration. Accepting header variants of a pinned original needs
-header-aware source registration and is not part of this contract.
+and is refused at registration; the header-aware representation below applies only to
+copied SNES runtime files, not to ROM patch inputs.
+
+### SNES copier headers
+
+Some SNES dumps start with a 512-byte copier header. A source representation of kind
+`snes-copier-header-optional` identifies a raw SNES dump by its content: a file whose
+length is 512 bytes more than a multiple of 1024 (and at most 64 MiB) is identified by the
+bytes after those 512, and any other length is identified whole. Its identities use the
+`snes-headerless-content` scope, which is computed only for raw files, so no other
+profile's scopes change and a header inside a ZIP is not recognized. The header's bytes
+are never interpreted, and exactly one header is ever skipped.
+
+A port whose source profile uses this kind must use the `snes-headerless` materialization,
+and that materialization requires it. It reads the registered original, drops the header
+when the length shows one, checks the result against the single pinned
+`runtime_source_hashes` identity in memory and only then atomically writes the runtime
+file; the original is never changed. The registered source record keeps the file's own
+SHA-256 and size. Indexed definitions using either need staged-source capability 36
+([definition delivery](DEFINITION-DELIVERY.md)).
+
+The managed DKC3, F-Zero, Mega Man X2, Super Bomberman, Super Mario World, Super Metroid
+and A Link to the Past routes use it; their pinned content and runtime identities are
+unchanged. DKC2 hands the original to its user-prepared runtime without a materialization
+step and stays exact. Existing installations keep their retained `copy` contract until
+they are next installed or updated.
 
 An indexed definition that declares `runtime_rom_patch` must require
 `staged-source-portable` capability version 33 ([definition

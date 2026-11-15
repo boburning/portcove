@@ -5433,6 +5433,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -7303,6 +7304,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -7856,6 +7862,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -14649,6 +14675,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -15519,6 +15546,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -18879,6 +18907,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -21525,6 +21554,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -23228,6 +23258,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -24908,6 +24939,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -35025,6 +35057,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -39217,6 +39254,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -40875,6 +40913,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -49097,6 +49155,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -50967,6 +51026,11 @@
             "const": "rom-patch",
             "description": "Apply an exactly identified patch to an exactly identified original from a\nfile-set source and write the verified patched file; older engines reject this value.",
             "type": "string"
+          },
+          {
+            "const": "snes-headerless",
+            "description": "Write a raw SNES dump's content without its optional 512-byte copier header,\nverified before it replaces the runtime file; older engines reject this value.",
+            "type": "string"
           }
         ]
       },
@@ -51520,6 +51584,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -52176,6 +52260,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -52987,6 +53072,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -54576,6 +54662,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -55177,6 +55283,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -55666,6 +55773,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },
@@ -56232,6 +56359,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57176,6 +57304,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57495,6 +57624,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -57824,6 +57954,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -58887,6 +59018,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -60225,6 +60357,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -60868,6 +61020,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -62311,6 +62464,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -62783,6 +62956,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -63037,6 +63211,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -63424,6 +63599,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -64883,6 +65059,26 @@
             "type": "object"
           },
           {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
             "properties": {
               "identities": {
                 "items": {
@@ -65498,6 +65694,7 @@
           "original-container",
           "normalized-content",
           "canonical-n64-big-endian",
+          "snes-headerless-content",
           "archive-member",
           "gamecube-normalized-iso",
           "psx-normalized-track-set",
@@ -66931,6 +67128,26 @@
               },
               "kind": {
                 "const": "canonical-n64",
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind",
+              "identities"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "A raw SNES cartridge dump that may carry one 512-byte copier header. A\nfile whose length is 512 more than a multiple of 1024 is identified by the\nbytes after that header; any other length is identified whole. Identities\nuse the `snes-headerless-content` scope.",
+            "properties": {
+              "identities": {
+                "items": {
+                  "$ref": "#/$defs/DigestIdentity"
+                },
+                "type": "array"
+              },
+              "kind": {
+                "const": "snes-copier-header-optional",
                 "type": "string"
               }
             },

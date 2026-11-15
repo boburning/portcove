@@ -730,6 +730,17 @@ pub(crate) fn file_scan_extensions(
                             }
                         }
                     }
+                    SourceRepresentationKind::SnesCopierHeaderOptional { identities }
+                        if !identities.is_empty() =>
+                    {
+                        // Raw files only: a header inside a ZIP is not recognized.
+                        for extension in &representation.extensions {
+                            let extension = extension.to_ascii_lowercase();
+                            if extension != "zip" {
+                                raw.insert(extension);
+                            }
+                        }
+                    }
                     SourceRepresentationKind::ArchiveMember {
                         member_extensions,
                         identities,
@@ -2113,6 +2124,20 @@ pub(crate) fn registered_launch_assessment(
         )
         .map(|digest| digest.value.clone()),
         canonical_n64_size: canonical.map(|digest| digest.size),
+        // Durable digests keep the headerless pair; it differs from the whole
+        // file only when a header was present.
+        copier_headerless_sha256: digest(
+            SourceDigestAlgorithm::Sha256,
+            DigestScope::SnesHeaderlessContent,
+        )
+        .filter(|digest| digest.size < source.size)
+        .map(|digest| digest.value.clone()),
+        copier_headerless_sha1: digest(
+            SourceDigestAlgorithm::Sha1,
+            DigestScope::SnesHeaderlessContent,
+        )
+        .filter(|digest| digest.size < source.size)
+        .map(|digest| digest.value.clone()),
     };
     if (requires_n64_shape(catalog, profile_id, &identity) && canonical.is_none())
         || matching_compound_format(catalog, profile_id, &identity, &facts.digests).is_some()
@@ -2208,6 +2233,12 @@ fn representation_matches(
         SourceRepresentationKind::RawFile { identities } => identities,
         SourceRepresentationKind::CanonicalN64 { identities } => {
             if file.canonical_n64_sha256.is_none() {
+                return false;
+            }
+            identities
+        }
+        SourceRepresentationKind::SnesCopierHeaderOptional { identities } => {
+            if file.archive_member {
                 return false;
             }
             identities
@@ -2353,6 +2384,30 @@ fn observed_digests(identity: &FileIdentity) -> Vec<ObservedSourceDigest> {
             value: identity.storage_sha256.clone(),
             size: identity.storage_size,
         });
+    }
+    // A raw file's content without an optional SNES copier header: the bytes
+    // after the header when the length shows one, otherwise the whole file. This
+    // scope is read only by copier-header-optional representations.
+    if !identity.archive_member {
+        match (
+            &identity.copier_headerless_sha1,
+            &identity.copier_headerless_sha256,
+        ) {
+            (Some(sha1), Some(sha256)) => append_pair(
+                &mut values,
+                DigestScope::SnesHeaderlessContent,
+                identity.size - crate::source_file::SNES_COPIER_HEADER_BYTES,
+                sha1,
+                sha256,
+            ),
+            _ => append_pair(
+                &mut values,
+                DigestScope::SnesHeaderlessContent,
+                identity.size,
+                &identity.sha1,
+                &identity.sha256,
+            ),
+        }
     }
     if let (Some(sha1), Some(sha256), Some(size)) = (
         &identity.canonical_n64_sha1,

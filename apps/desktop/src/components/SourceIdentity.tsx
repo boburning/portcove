@@ -604,6 +604,7 @@ function expectedGroups(
   if (
     representation.kind === "raw-file" ||
     representation.kind === "canonical-n64" ||
+    representation.kind === "snes-copier-header-optional" ||
     representation.kind === "archive-member" ||
     representation.kind === "gamecube-normalized-iso" ||
     representation.kind === "optical-track-set" ||
@@ -853,6 +854,7 @@ function representationKindLabel(value: string) {
   const labels: Record<string, string> = {
     "raw-file": "Original file",
     "canonical-n64": "Normalized N64 file",
+    "snes-copier-header-optional": "SNES file, with or without a copier header",
     "archive-member": "File inside archive",
     "file-set": "Set of files",
     "relative-file-set": "Complete data folder",
@@ -881,6 +883,7 @@ function digestScopeLabel(value: string) {
     "original-container": "original container",
     "normalized-content": "normalized content",
     "canonical-n64-big-endian": "normalized N64 content",
+    "snes-headerless-content": "SNES content without a copier header",
     "archive-member": "file inside archive",
     "gamecube-normalized-iso": "normalized GameCube disc",
     "psx-normalized-track-set": "normalized PlayStation disc tracks",

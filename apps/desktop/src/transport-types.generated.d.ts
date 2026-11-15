@@ -460,7 +460,8 @@ export type RuntimeSourceMaterialization =
   | "regaiden-gbc"
   | "xdvdfs-directory"
   | "iso9660-directory"
-  | "rom-patch";
+  | "rom-patch"
+  | "snes-headerless";
 export type SupportTier = "stable" | "beta" | "rolling";
 /**
  * A declared upstream limitation, checked by Core rather than left to the game.
@@ -486,6 +487,11 @@ export type SourceRepresentation1 =
   | {
       identities: DigestIdentity[];
       kind: "canonical-n64";
+      [k: string]: unknown;
+    }
+  | {
+      identities: DigestIdentity[];
+      kind: "snes-copier-header-optional";
       [k: string]: unknown;
     }
   | {
@@ -555,6 +561,7 @@ export type DigestScope =
   | "original-container"
   | "normalized-content"
   | "canonical-n64-big-endian"
+  | "snes-headerless-content"
   | "archive-member"
   | "gamecube-normalized-iso"
   | "psx-normalized-track-set"
@@ -5454,6 +5461,7 @@ export interface DumpMatchedFile {
     | "original-container"
     | "normalized-content"
     | "canonical-n64-big-endian"
+    | "snes-headerless-content"
     | "archive-member"
     | "gamecube-normalized-iso"
     | "psx-normalized-track-set"

@@ -376,6 +376,17 @@ impl DefinitionContentIndex {
                 "ROM patching requires staged-source capability version 33",
             ));
         }
+        if port.runtime_source_materialization
+            == Some(crate::RuntimeSourceMaterialization::SnesHeaderless)
+            && !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "staged-source-portable"
+                    && requirement.minimum_version >= crate::adapter::SNES_COPIER_HEADER_CAPABILITY
+            })
+        {
+            return Err(PortcoveError::verification(
+                "a headerless SNES runtime file requires staged-source capability version 36",
+            ));
+        }
         if port.optional_game_source
             && !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "staged-source-portable"

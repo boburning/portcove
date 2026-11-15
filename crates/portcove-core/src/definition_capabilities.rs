@@ -247,6 +247,10 @@ impl EngineTemplateCapability {
             contract_version: crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
         });
         supported.push(Self {
+            template: AdapterKind::StagedSourcePortable,
+            contract_version: crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+        });
+        supported.push(Self {
             template: AdapterKind::NativePortable,
             contract_version: 15,
         });
@@ -1014,11 +1018,15 @@ mod tests {
         let catalog = crate::Catalog::embedded().unwrap();
         for (id, minimum) in [
             ("sonic-3-and-knuckles-recomp", 26),
+            // Copier-header-optional SNES sources need the newest staged-source reader.
             (
                 "super-metroid-recomp",
-                crate::managed_runtime_policy::EXACT_EXCLUSION_STAGED_CAPABILITY,
+                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
             ),
-            ("mega-man-x2-snes-recomp", 28),
+            (
+                "mega-man-x2-snes-recomp",
+                crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+            ),
             // Its v1.2.0 settings files append to the predecessor policy.
             (
                 "sonic-the-hedgehog-recomp",
@@ -1099,7 +1107,7 @@ mod tests {
         assert!(!n64.compatible);
         assert_eq!(n64.checks[0].installed_version, Some(6));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 36, 36)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 37, 37)).unwrap();
         assert!(!future.compatible);
     }
 

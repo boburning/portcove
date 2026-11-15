@@ -71,15 +71,15 @@
         {
           "role": "game",
           "profile_id": "f-zero-snes-usa",
-          "label": "F-Zero (USA) headerless SNES source",
+          "label": "F-Zero (USA) SNES source",
           "verification": "catalog-identity"
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Provide your own F-Zero (USA) .sfc file without a copier header. Existing managed Windows v1.8.3 installations keep their saves and settings separately from external copies. Fresh managed acquisition is paused while the successor package is reviewed. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location."
+      "manual_preparation": "Provide your own F-Zero (USA) .sfc or .smc file, with or without a copier header. Existing managed Windows v1.8.3 installations keep their saves and settings separately from external copies. Fresh managed acquisition is paused while the successor package is reviewed. This package enables BS Deluxe changes by default. Other mods, MSU music, developer tracing and capture setups are outside this reviewed route. Windows gameplay remains untested. This Windows build needs a short installation folder using basic Latin characters; original game files can stay in their existing location."
     },
     "runtime_source_filename": "fzero.sfc",
-    "runtime_source_materialization": "copy",
+    "runtime_source_materialization": "snes-headerless",
     "runtime_source_hashes": {
       "fzero.sfc": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2"
     },

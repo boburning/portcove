@@ -332,7 +332,10 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ("resident-evil-gaiden-recomp", 21),
         ("wave-race-64-racewave46", 21),
         ("render96ex", 20),
-        ("f-zero-snes-recomp", 23),
+        (
+            "f-zero-snes-recomp",
+            crate::adapter::SNES_COPIER_HEADER_CAPABILITY,
+        ),
         (
             "jgrennison-openttd-patches",
             crate::package_layout::NATIVE_CAPABILITY,
@@ -372,7 +375,29 @@ fn current_projection_routes_keep_distinct_capability_floors() {
 
 #[test]
 fn windows_runtime_path_policy_cannot_omit_its_engine_capability() {
-    let document = projection();
+    // The route as it was before #6212 (an exact raw file copied whole), whose
+    // floor came from its Windows runtime path policy alone.
+    let mut document = projection();
+    for port in document["catalog"]["ports"].as_array_mut().unwrap() {
+        if port["id"] == "f-zero-snes-recomp" {
+            port["runtime_source_materialization"] = json!("copy");
+        }
+    }
+    for identity in document["catalog"]["source_catalog"]["identities"]
+        .as_array_mut()
+        .unwrap()
+    {
+        if identity["id"] == "f-zero-snes-usa" {
+            for variant in identity["variants"].as_array_mut().unwrap() {
+                for representation in variant["representations"].as_array_mut().unwrap() {
+                    representation["kind"] = json!("raw-file");
+                    for digest in representation["identities"].as_array_mut().unwrap() {
+                        digest["scope"] = json!("original-file");
+                    }
+                }
+            }
+        }
+    }
     let position = document["catalog"]["ports"]
         .as_array()
         .unwrap()

@@ -8357,7 +8357,7 @@
       },
       {
         "id": "f-zero-snes-usa",
-        "label": "F-Zero (USA) headerless SNES source",
+        "label": "F-Zero (USA) SNES source",
         "kind": "file",
         "variants": [
           {
@@ -8370,12 +8370,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": "d3efd32b68f1fe37a82db9d9929b7ca7cc1a3af4",
                     "sha256": "bf16c3c867c58e2ab061c70de9295b6930d63f29f81cc986f5ecae03e0ad18d2",
                     "crc32": null
@@ -8439,7 +8440,7 @@
       },
       {
         "id": "dkc3-na-en-fr",
-        "label": "Donkey Kong Country 3 (North America, En/Fr) headerless SNES source",
+        "label": "Donkey Kong Country 3 (North America, En/Fr) SNES source",
         "kind": "file",
         "variants": [
           {
@@ -8452,12 +8453,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "2277a2d8dddb01fe5cb0ae9a0fa225d42b3a11adccaeafa18e3c339b3794a32b",
                     "crc32": null
@@ -9223,7 +9225,7 @@
       },
       {
         "id": "super-mario-world-snes-usa",
-        "label": "Super Mario World (USA) stock headerless SNES source",
+        "label": "Super Mario World (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -9236,12 +9238,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b",
                     "crc32": null
@@ -9263,7 +9266,7 @@
       },
       {
         "id": "a-link-to-the-past-snes-usa",
-        "label": "The Legend of Zelda: A Link to the Past (USA) stock headerless SNES source",
+        "label": "The Legend of Zelda: A Link to the Past (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -9276,12 +9279,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "66871d66be19ad2c34c927d6b14cd8eb6fc3181965b6e517cb361f7316009cfb",
                     "crc32": null
@@ -9629,7 +9633,7 @@
       },
       {
         "id": "super-metroid-snes-japan-usa",
-        "label": "Super Metroid (Japan, USA) exact headerless SNES original",
+        "label": "Super Metroid (Japan, USA) exact SNES original",
         "kind": "file",
         "variants": [
           {
@@ -9645,10 +9649,10 @@
                   "sfc",
                   "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": "da957f0d63d14cb441d215462904c4fa8519c613",
                     "sha256": null,
                     "crc32": null
@@ -9672,7 +9676,7 @@
       },
       {
         "id": "mega-man-x2-snes-usa",
-        "label": "Mega Man X2 (USA) exact headerless SNES original",
+        "label": "Mega Man X2 (USA) exact SNES original",
         "kind": "file",
         "variants": [
           {
@@ -9688,10 +9692,10 @@
                   "sfc",
                   "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": "637079014421563283cded6aeaa0604597b2e33c",
                     "sha256": null,
                     "crc32": null
@@ -10155,7 +10159,7 @@
       },
       {
         "id": "super-bomberman-snes-usa",
-        "label": "Super Bomberman (USA) stock headerless SNES source",
+        "label": "Super Bomberman (USA) stock SNES source",
         "kind": "file",
         "variants": [
           {
@@ -10168,12 +10172,13 @@
               {
                 "id": "headerless-sfc",
                 "extensions": [
-                  "sfc"
+                  "sfc",
+                  "smc"
                 ],
-                "kind": "raw-file",
+                "kind": "snes-copier-header-optional",
                 "identities": [
                   {
-                    "scope": "original-file",
+                    "scope": "snes-headerless-content",
                     "sha1": null,
                     "sha256": "4efab3f49cbe91ec77b6cba747ddfedfdc0b080c755a8b6ba51234f0676c000f",
                     "crc32": null

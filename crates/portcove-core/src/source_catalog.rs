@@ -127,6 +127,13 @@ pub enum SourceRepresentationKind {
     CanonicalN64 {
         identities: Vec<DigestIdentity>,
     },
+    /// A raw SNES cartridge dump that may carry one 512-byte copier header. A
+    /// file whose length is 512 more than a multiple of 1024 is identified by the
+    /// bytes after that header; any other length is identified whole. Identities
+    /// use the `snes-headerless-content` scope.
+    SnesCopierHeaderOptional {
+        identities: Vec<DigestIdentity>,
+    },
     ArchiveMember {
         member_extensions: Vec<String>,
         identities: Vec<DigestIdentity>,
@@ -246,6 +253,8 @@ pub enum DigestScope {
     OriginalContainer,
     NormalizedContent,
     CanonicalN64BigEndian,
+    // A raw SNES dump's content without an optional 512-byte copier header.
+    SnesHeaderlessContent,
     ArchiveMember,
     GamecubeNormalizedIso,
     PsxNormalizedTrackSet,
@@ -869,6 +878,7 @@ impl SourceIdentityProfile {
                 let kind = match &representation.kind {
                     SourceRepresentationKind::RawFile { identities }
                     | SourceRepresentationKind::CanonicalN64 { identities }
+                    | SourceRepresentationKind::SnesCopierHeaderOptional { identities }
                     | SourceRepresentationKind::ArchiveMember { identities, .. }
                     | SourceRepresentationKind::Compound { identities, .. } => {
                         append_digests(&mut legacy, identities);
@@ -1047,6 +1057,7 @@ impl SourceRepresentation {
         let identities = match &self.kind {
             SourceRepresentationKind::RawFile { identities }
             | SourceRepresentationKind::CanonicalN64 { identities }
+            | SourceRepresentationKind::SnesCopierHeaderOptional { identities }
             | SourceRepresentationKind::ArchiveMember { identities, .. }
             | SourceRepresentationKind::GamecubeNormalizedIso { identities }
             | SourceRepresentationKind::OpticalTrackSet { identities, .. }
@@ -1111,6 +1122,19 @@ impl SourceRepresentation {
             | SourceRepresentationKind::OpticalTrackSet { identities, .. }
             | SourceRepresentationKind::Compound { identities, .. } => {
                 validate_identities(identities)?;
+            }
+            SourceRepresentationKind::SnesCopierHeaderOptional { identities } => {
+                validate_identities(identities)?;
+                // The kind is only meaningful for its own headerless scope; any
+                // other scope would silently identify whole files instead.
+                if identities
+                    .iter()
+                    .any(|identity| identity.scope != DigestScope::SnesHeaderlessContent)
+                {
+                    return Err(PortcoveError::verification(
+                        "an optional-copier-header source identifies its headerless content only",
+                    ));
+                }
             }
             SourceRepresentationKind::ArchiveMember {
                 member_extensions,
