@@ -3849,6 +3849,10 @@ fn write_manifest_with_shape(
                 .as_ref()
                 .and_then(|proof| proof.release.uploader_continuity.clone()),
         },
+        // A fresh qualification is written by this version: its acquisition's
+        // release carries the decision whenever a GitHub resolution applied one.
+        // A reviewed legacy release is a Core plan re-made inside the port lock,
+        // and the review digest covers its decision.
         acquisition_facts_recorded: qualification
             .retained_acquisition
             .as_ref()

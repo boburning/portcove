@@ -127,6 +127,8 @@ export function capabilityActionReason(assessment: Assessment): string {
     );
   if (assessment.reason === "available")
     return "No current prerequisite is outstanding. Execution checks again.";
+  if (assessment.action === "rollback" && assessment.reason === "review_required")
+    return "Portcove can’t confirm who uploaded the previous version.";
   if (assessment.reason === "review_required") return "Review the operation before continuing.";
   if (assessment.reason === "not_installed")
     return "The installation or retained version required for this operation is absent.";

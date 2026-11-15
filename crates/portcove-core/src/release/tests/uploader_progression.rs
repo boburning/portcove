@@ -237,6 +237,9 @@ async fn a_held_update_check_leaves_the_installed_copy_active() {
     assert!(status.staged.is_none());
 }
 
+/// The fixtures below stand in for downloaded builds: `create_manifest` writes
+/// the same marker and facts a fresh install of this version would.
+///
 /// Rewrites a registered build's manifest as a version before #6209 wrote it,
 /// without the marker that acquisition facts are recorded.
 fn as_unrecorded(library: &Library, install: &crate::InstallRecord) -> crate::InstallRecord {

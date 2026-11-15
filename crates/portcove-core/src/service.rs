@@ -11071,6 +11071,49 @@ mod tests {
     }
 
     #[test]
+    fn activation_recovery_holds_a_staged_build_without_recorded_uploader_facts() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        register_zelda_install(&library, "v1", true);
+        register_zelda_install(&library, "v2", false);
+        let status = library
+            .status("zelda64-recomp", ReleaseChannel::Stable)
+            .unwrap();
+        let active = status.active.unwrap();
+        let mut staged = status.staged.unwrap();
+        // The staged build's manifest as a version before #6209 wrote it.
+        let manifest_path = staged.path.join(".portcove-manifest.json");
+        let mut manifest: serde_json::Value =
+            serde_json::from_slice(&fs::read(&manifest_path).unwrap()).unwrap();
+        assert_eq!(manifest["acquisition_facts_recorded"], true);
+        manifest
+            .as_object_mut()
+            .unwrap()
+            .remove("acquisition_facts_recorded");
+        let bytes = serde_json::to_vec_pretty(&manifest).unwrap();
+        fs::write(&manifest_path, &bytes).unwrap();
+        staged.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
+        library.update_install_manifest(&staged).unwrap();
+        let store = OperationStore::new(library.clone());
+        let mut operation = LifecycleOperation::new(
+            "unrecorded-activation",
+            LifecycleOperationKind::Activate,
+            "zelda64-recomp",
+        );
+        operation.install = Some(staged.clone());
+        store.put(&mut operation).unwrap();
+
+        let recovered = service_with_release(library.clone(), "v2");
+
+        let status = recovered.status("zelda64-recomp").unwrap();
+        assert_eq!(status.active.unwrap().id, active.id);
+        assert_eq!(status.staged.unwrap().id, staged.id);
+        let retained = store.get(&operation.id).unwrap().unwrap();
+        let error = retained.last_error.unwrap();
+        assert!(error.contains("holding back this version"), "{error}");
+    }
+
+    #[test]
     fn activation_recovery_refuses_foreign_family_before_mutation() {
         for phase in [LifecyclePhase::Preparing, LifecyclePhase::MetadataCommitted] {
             let temporary = tempfile::tempdir().unwrap();
