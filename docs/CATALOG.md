@@ -1537,8 +1537,9 @@ input, assembles the proposal per port and reconciles exact-image Gone observati
 from every operation into all records. Ports outside an explicit workset keep their
 unchanged input until that reconciliation, so each one a Gone image withdraws gets
 its fallback record and invalidated ID. Game-media records from earlier operations
-are relabelled when a later operation finds their selected image Gone. Those operations share one provider budget;
-that path neither adapts admission nor checkpoints progress. The prepare-port
+are relabelled when a later operation finds their selected image Gone. Those
+operations share one provider budget; that path neither adapts admission nor
+checkpoints progress. The prepare-port
 driver admits operations of at most 400
 selected IDs and adjusts subsequent admission using observed elapsed time,
 requests and image bytes. Completed identities are atomically checkpointed after
