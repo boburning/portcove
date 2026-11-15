@@ -576,6 +576,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "dat_reference_status",
+                serde_json::json!(schema_for_contract::<portcove_core::DatReferenceStatus>(
+                    contract
+                )),
+            ),
+            (
                 "host_tool_probe_result",
                 serde_json::json!(schema_for_contract::<portcove_core::HostToolProbeResult>(
                     contract

@@ -851,6 +851,18 @@ owns these conclusions; a filename or descriptive label cannot supply them.
 The [authoring procedure](#adding-or-changing-a-port) keeps presentation tied to
 the same source authority.
 
+Players may add their own Logiqx DAT files, such as No-Intro or Redump, as a
+host preference. Core compares the SHA-1 or SHA-256 and size it already
+observed for the selected files with the DAT entries and reports the matching
+entry name beside the catalog result, for example to say a rejected file is the
+Europe dump. A DAT file must list a size to match. An entry is complete only
+when every file that has a SHA-1 or SHA-256 and isn't a cue or gdi descriptor
+matches; CRC32- or MD5-only files can't be compared and don't count. A disc
+whose data track alone was checked stays partial, and the report says so. The match is informational: it never changes classification,
+admission, registration or a contract result, and a catalog identity does not
+depend on any DAT. Portcove saves a fingerprinted path, never a copy, makes no
+network request, and ignores a DAT file that changed after it was added.
+
 ### Saved-data behavior
 
 Explain how updates preserve saves and settings for the offered route. Declare

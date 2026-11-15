@@ -1211,6 +1211,62 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
 }
 
 #[test]
+fn dat_commands_save_list_and_forget_references_without_a_library() {
+    let temporary = tempfile::tempdir().unwrap();
+    let preferences = temporary.path().join("preferences.json");
+    let library = temporary.path().join("library");
+    let dat = temporary.path().join("Example - Console.dat");
+    std::fs::write(
+        &dat,
+        format!(
+            "<?xml version=\"1.0\"?><datafile><header><name>Example - Console</name></header><game name=\"Example (Europe)\"><rom name=\"Example (Europe).bin\" size=\"4\" sha1=\"{}\"/></game></datafile>",
+            "1".repeat(40)
+        ),
+    )
+    .unwrap();
+
+    let added = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "add", dat.to_str().unwrap()],
+    ));
+    assert_eq!(added["data"]["name"], "Example - Console");
+    assert_eq!(added["data"]["state"], "ready");
+    let id = added["data"]["id"].as_str().unwrap().to_owned();
+
+    let listed = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--jsonl", "dat", "list"],
+    ));
+    assert_eq!(listed["command"], "dat.list");
+    assert_eq!(listed["data"][0]["id"], id);
+
+    let invalid = temporary.path().join("invalid.dat");
+    std::fs::write(&invalid, "<datafile>").unwrap();
+    let refused = portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "add", invalid.to_str().unwrap()],
+    );
+    assert_ne!(refused.status.code(), Some(0));
+
+    let human = portcove_tool(&preferences, &library, &["dat", "list"]);
+    let human = String::from_utf8(human.stdout).unwrap();
+    assert!(human.contains("DAT files (1)"), "{human}");
+    assert!(human.contains("They don’t change which files a game accepts."));
+
+    let removed = json_stdout(&portcove_tool(
+        &preferences,
+        &library,
+        &["--json", "dat", "remove", &id],
+    ));
+    assert_eq!(removed["data"].as_array().unwrap().len(), 0);
+    assert!(dat.exists(), "removing a reference leaves the DAT file");
+    assert!(!library.exists());
+}
+
+#[test]
 fn library_preference_commands_are_library_free_recoverable_and_shared_with_startup() {
     let temporary = tempfile::tempdir().unwrap();
     let preferences = temporary.path().join("config/preferences.json");

@@ -13,6 +13,7 @@ import { controlFocus } from "./ui/control-style";
 import { ActionRow, Notice, SettingsRow } from "./ui/patterns";
 import { SourceRemovalControl } from "./SourceRemoval";
 import { AutomaticSnapshotsSetting } from "./AutomaticSnapshotsSetting";
+import { DatReferenceSettings } from "./DatReferences";
 import { ReportProblem } from "./ReportProblem";
 import { SteamGridDbSettings } from "./SteamGridDbSettings";
 import { SupportBundleExport } from "./SupportBundleExport";
@@ -1850,6 +1851,7 @@ export function SettingsView(props: SettingsViewProps) {
         onAdded={onSourceAdded}
         openEvidence={openSourceEvidence}
       />
+      <DatReferenceSettings />
       <HostReadiness
         doctor={doctor}
         busy={busy}

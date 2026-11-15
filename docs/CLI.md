@@ -1270,6 +1270,14 @@ portcove --library <path> --json source verify <profile-id>
 portcove --library <path> --json source verify --all
 ```
 
+To name the dump you selected, add a local No-Intro or Redump DAT file with
+`dat add PATH`. `dat list` shows each saved DAT file, its ID and whether it
+still matches the fingerprint saved when it was added; `dat remove DAT_ID`
+forgets it without changing the file. `source inspect` then includes a
+`dump_identification` with the matching DAT entries. DAT files only name
+files: they never change which files a game accepts
+([original game-file requirements](CATALOG.md#original-game-file-requirements)).
+
 Verification reruns the source profile validation and compares the current content and storage identities with the baseline stored by `source add`. It never replaces that baseline, changes source bytes, or writes an activity row. A missing or changed file fails a single-profile command with the normal structured error and exit code. `--all` returns one failure-isolated outcome per registered profile; completing the batch returns exit code 0, so consumers inspect each outcome's `ok`, `result`, and `error` fields. An empty registry returns an empty successful batch.
 
 `source remove <profile-id>` first returns or prints a preview containing the exact registered source, every catalog port that shares it, the currently installed dependents, and a confirmation token. Removal requires interactive confirmation or `--yes`; core rejects the token if the source identity or installed-dependent set changes before deletion. Only the reference is removed. Original source bytes and managed installs are never deleted.
