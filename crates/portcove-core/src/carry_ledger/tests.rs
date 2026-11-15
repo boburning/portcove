@@ -53,6 +53,13 @@ fn rows_round_trip_with_pending_replacements() {
     assert!(put(&transaction, "a", "other.ini", &present, Some(&present)).unwrap());
     // A displaced record must itself be present.
     assert!(put(&transaction, "b", "x.ini", &pending, Some(&pending)).is_err());
+    // A displaced record whose stored lineage lost its own bytes is repaired.
+    let malformed = CarryRow {
+        state: RowState::Present,
+        sha256: digest("2"),
+        lineage: vec![digest("1")],
+    };
+    assert!(put(&transaction, "b", "y.ini", &pending, Some(&malformed)).unwrap());
     transaction.commit().unwrap();
 
     let a = load(&connection, "a").unwrap();

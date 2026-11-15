@@ -273,7 +273,7 @@ pub(crate) fn required_bytes(
 
 /// Create the missing parents of `relative` one folder at a time, refusing to
 /// pass through a link, a case variant or a non-directory (review finding 2).
-fn create_parents(root: &Path, relative: &str) -> Result<PathBuf> {
+fn create_parents(root: &Path, relative: &str) -> Result<Option<PathBuf>> {
     let parts = relative.split('/').collect::<Vec<_>>();
     let mut directory = root.to_path_buf();
     let mut walked = Vec::new();
@@ -291,14 +291,14 @@ fn create_parents(root: &Path, relative: &str) -> Result<PathBuf> {
         }
         walked.push(*part);
         if exact_parents(root, &walked.join("/"), &Listings::default())? != Some(true) {
-            return Err(PortcoveError::conflict(
-                "a carried file's folder matches another folder's name in a different case",
-            ));
+            // The filesystem resolved the name to a differently named folder
+            // (a case alias): keep this file separately, never hold.
+            return Ok(None);
         }
         directory = next;
     }
     crate::path::refuse_symlink_ancestors(&member(root, relative))?;
-    Ok(directory)
+    Ok(Some(directory))
 }
 
 /// The sizes inspection found, for the space check and to bound each copy.
@@ -424,7 +424,10 @@ pub(crate) fn stage(
             .approved_source
             .as_deref()
             .ok_or_else(|| PortcoveError::state("a planned copy has no approved bytes"))?;
-        let parent = create_parents(target_root, &planned.path)?;
+        let Some(parent) = create_parents(target_root, &planned.path)? else {
+            staged.changed_targets.push(planned.path.clone());
+            continue;
+        };
         let mut output = tempfile::Builder::new()
             .prefix(STAGING_PREFIX)
             .tempfile_in(&parent)?;
@@ -556,7 +559,7 @@ fn verify(
         }
     }
     staged.removals = removals;
-    staged.changed_targets = changed;
+    staged.changed_targets.extend(changed);
     Ok(())
 }
 

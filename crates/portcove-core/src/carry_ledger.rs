@@ -197,12 +197,17 @@ pub(crate) fn put(
         ));
     }
     if replaces
-        .is_some_and(|replaced| replaced.state != RowState::Present || !well_formed(replaced))
+        .is_some_and(|replaced| replaced.state != RowState::Present || !is_digest(&replaced.sha256))
     {
         return Err(PortcoveError::state(
-            "a displaced carried-file record must be a well-formed present record",
+            "a displaced carried-file record must be a present record",
         ));
     }
+    // A stored row read back with a lineage not ending in its own bytes is
+    // repaired here rather than failing the switch.
+    let replaces =
+        replaces.map(|replaced| CarryRow::present(&replaced.sha256, replaced.checked_lineage()));
+    let replaces = replaces.as_ref();
     let (state, source, replaces) = match &row.state {
         RowState::Present => ("present", None, None),
         RowState::Pending { source_install_id } => {

@@ -55,7 +55,7 @@ impl CarryRow {
 
     /// The row's lineage, bounded and ending with its own bytes, whatever was
     /// read back from storage (L5).
-    fn checked_lineage(&self) -> Vec<String> {
+    pub(crate) fn checked_lineage(&self) -> Vec<String> {
         let mut lineage = self.lineage.clone();
         if lineage.last() != Some(&self.sha256) {
             lineage.push(self.sha256.clone());
