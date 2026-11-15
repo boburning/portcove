@@ -2710,6 +2710,11 @@ independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
 
+Use `integration.presentation.manual_setup` when Portcove-managed setup needs
+different steps or warnings from the upstream package in `listing.manual_setup`.
+The managed definition uses its own guide when present and otherwise inherits
+the listing guide. The discovery directory keeps the upstream guide.
+
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
 toolchain download fallback. Builder PATH contains only the owned toolchain and

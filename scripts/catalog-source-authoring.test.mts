@@ -300,6 +300,27 @@ void test("upstream package platforms extend only the descriptive listing", () =
   assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
 });
 
+void test("managed setup can use a guide distinct from the upstream listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "alexbeav-diablo-recomp";
+  const record = records.find((port) => port.listing.id === id)!;
+  const managed = catalog.ports.find((port) => port.id === id)?.presentation;
+  const listing = directory.listings.find((port) => port.id === id);
+  assert.match(JSON.stringify(managed?.manual_setup), /then builds the game on this computer/);
+  assert.match(JSON.stringify(listing?.manual_setup), /Choose the official Mac ZIP/);
+  const integration = { ...record.integration, presentation: {} };
+  const inherited = projectAuthoredPort(checkedAuthoredPort({ ...record, integration }));
+  assert.deepEqual(inherited?.presentation?.manual_setup, record.listing.manual_setup);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...record,
+        integration: { ...integration, presentation: { manual_setup: { steps: [] } } },
+      }),
+    /integration\.presentation\.manual_setup requires steps and warnings arrays/,
+  );
+});
+
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
   assert.throws(() => parseCatalogSource('{"id":"first","id":"second"}'), /duplicate JSON key/);
   assert.throws(

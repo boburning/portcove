@@ -475,6 +475,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "A download restriction cannot coexist with a managed integration; resolve the canonical acquisition condition before authoring that route.",
       );
     const presentation = integration.presentation;
+    if (isRecord(presentation) && presentation.manual_setup !== undefined)
+      checkPlayerGuideCopy(
+        listing.id,
+        "integration.presentation.manual_setup",
+        presentation.manual_setup,
+        false,
+      );
     if (isRecord(presentation) && listing.manual_setup === undefined)
       checkPlayerCopy(
         listing.id,
@@ -492,7 +499,9 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       );
     if (
       isRecord(presentation) &&
-      listingPresentationFields.some((field) => Object.hasOwn(presentation, field))
+      listingPresentationFields.some(
+        (field) => field !== "manual_setup" && Object.hasOwn(presentation, field),
+      )
     )
       throw new Error("Shared presentation fields belong to the listing.");
   }
@@ -548,6 +557,7 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   for (const field of listingPresentationFields) {
     if (Object.hasOwn(record.listing, field)) {
       const presentation = isRecord(integration.presentation) ? integration.presentation : {};
+      if (field === "manual_setup" && presentation.manual_setup != null) continue;
       presentation[field] = structuredClone(record.listing[field]);
       integration.presentation = presentation;
     }

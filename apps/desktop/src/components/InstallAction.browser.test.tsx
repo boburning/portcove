@@ -270,6 +270,29 @@ it("shows the Windows DKC3 setup first in the managed install review", async () 
   expect(setup.element().textContent).not.toContain("download the official Mac arm64 ZIP");
 });
 
+it("shows managed Diablo preparation in the Windows review without the upstream Mac guide", async () => {
+  const port = currentCatalogPort("alexbeav-diablo-recomp");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/diablo.chd"
+      biosPath="C:/Player/scph5552.bin"
+      setSourcePath={vi.fn()}
+      setBiosPath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain("Portcove checks your own single-track Diablo");
+  expect(dialog.element().textContent).toContain("Make a normal in-game save before updating.");
+  expect(dialog.element().textContent).not.toContain("Choose the official Mac ZIP");
+  expect(dialog.element().textContent).not.toContain("Portcove has not verified Mac setup");
+});
+
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
   const install = vi.fn();
