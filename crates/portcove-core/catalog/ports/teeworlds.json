@@ -1,0 +1,45 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "teeworlds",
+    "name": "Teeworlds",
+    "original_game_title": "Teeworlds",
+    "summary": "Swing through 2D arenas, play local and online matches, and create your own maps.",
+    "project_url": "https://github.com/teeworlds/teeworlds",
+    "issue_number": 6509,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://www.teeworlds.com/?page=downloads",
+    "setup_url": "https://www.teeworlds.com/?page=docs",
+    "download_block_reason": "Choose a download from the Teeworlds project or install the game through your package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install the client",
+          "instruction": "On Windows, extract the publisher ZIP and open teeworlds.exe. On Linux, install Teeworlds through your package manager or unpack the publisher archive and launch teeworlds from its folder. The community Flathub package is available on Linux x64 and ARM64. The publisher’s Mac disk image contains an Intel client."
+        },
+        {
+          "title": "Play and record a match",
+          "instruction": "The Teeworlds 0.7 client connects to Teeworlds 0.7 servers. In a match, press F1 and enter record followed by a demo name. Enter stoprecord to finish, then open the recording from Demos."
+        }
+      ],
+      "warnings": [
+        "Before moving your setup, close the game and copy the data folder with settings07.cfg, demos, custom maps, and any skins you want to keep."
+      ],
+      "references": [
+        {
+          "title": "Find your data folder",
+          "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
+        }
+      ],
+      "help_url": "https://www.teeworlds.com/?page=docs"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "teeworlds",
+    "origin": { "project_url": "https://github.com/teeworlds/teeworlds" },
+    "decisions": []
+  }
+}
