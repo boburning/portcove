@@ -678,77 +678,82 @@ function ModSetupPackages({
   const removeButton = useRef<HTMLButtonElement>(null);
   return (
     <div ref={packageArea} tabIndex={-1}>
-    {(selected.revision.packages ?? []).length === 0 ? (
-    <p className="text-sm">{t("mods.empty")}</p>
-  ) : (
-    <ul className="m-0 grid list-none gap-1 p-0">
-      {inOverrideOrder(selected).map((item) => (
-        <li key={item.native_id} className="grid gap-1">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
-              <Checkbox
-                checked={item.enabled}
-                disabled={disabled}
-                onCheckedChange={(value) => setEnabled(item.native_id, value)}
-              />
-              {item.provider ? (
-                <span>
-                  <Trans
-                    t={t}
-                    i18nKey="mods.fromProvider"
-                    components={{
-                      name: <bdi>{item.native_id}</bdi>,
-                      provider: <bdi>{item.provider.provider}</bdi>,
-                    }}
+      {(selected.revision.packages ?? []).length === 0 ? (
+        <p className="text-sm">{t("mods.empty")}</p>
+      ) : (
+        <ul className="m-0 grid list-none gap-1 p-0">
+          {inOverrideOrder(selected).map((item) => (
+            <li key={item.native_id} className="grid gap-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
+                  <Checkbox
+                    checked={item.enabled}
+                    disabled={disabled}
+                    onCheckedChange={(value) => setEnabled(item.native_id, value)}
                   />
-                </span>
-              ) : (
-                <bdi>{item.native_id}</bdi>
+                  {item.provider ? (
+                    <span>
+                      <Trans
+                        t={t}
+                        i18nKey="mods.fromProvider"
+                        components={{
+                          name: <bdi>{item.native_id}</bdi>,
+                          provider: <bdi>{item.provider.provider}</bdi>,
+                        }}
+                      />
+                    </span>
+                  ) : (
+                    <bdi>{item.native_id}</bdi>
+                  )}
+                </label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={disabled}
+                  aria-label={t("mods.remove.choose", { name: item.native_id })}
+                  onClick={(event) => {
+                    removeButton.current = event.currentTarget;
+                    setChoice({ nativeId: item.native_id, revision });
+                  }}
+                >
+                  {t("mods.remove.action")}
+                </Button>
+              </div>
+              {choice?.nativeId === item.native_id && choice.revision === revision && (
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm">{t("mods.remove.history")}</p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={disabled}
+                    onClick={() => {
+                      setChoice(undefined);
+                      packageArea.current?.focus();
+                      remove(choice.nativeId, choice.revision);
+                    }}
+                  >
+                    {t("mods.remove.confirm")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setChoice(undefined);
+                      if (removeButton.current?.disabled === false) removeButton.current.focus();
+                      else packageArea.current?.focus();
+                    }}
+                  >
+                    {t("mods.remove.cancel")}
+                  </Button>
+                </div>
               )}
-            </label>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={disabled}
-              aria-label={t("mods.remove.choose", { name: item.native_id })}
-              onClick={(event) => {
-                removeButton.current = event.currentTarget;
-                setChoice({ nativeId: item.native_id, revision });
-              }}
-            >
-              {t("mods.remove.action")}
-            </Button>
-          </div>
-          {choice?.nativeId === item.native_id && choice.revision === revision && (
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="text-sm">{t("mods.remove.history")}</p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={disabled}
-                onClick={() => {
-                  setChoice(undefined);
-                  packageArea.current?.focus();
-                  remove(choice.nativeId, choice.revision);
-                }}
-              >
-                {t("mods.remove.confirm")}
-              </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => {
-                  setChoice(undefined);
-                  if (removeButton.current?.disabled === false) removeButton.current.focus();
-                  else packageArea.current?.focus();
-                }}>
-                {t("mods.remove.cancel")}
-              </Button>
-            </div>
-          )}
-        </li>
-      ))}
-    </ul>
-  )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
