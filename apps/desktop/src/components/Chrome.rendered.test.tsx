@@ -137,6 +137,11 @@ describe("desktop components", () => {
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");
     expect(html).toContain("Open diagnostics");
+    // Players look for help under About; reporting starts there, not in Advanced.
+    const about = html.slice(html.indexOf('aria-label="About Portcove"'));
+    expect(about).toContain("<h3>Report a problem or send feedback</h3>");
+    expect(about).toMatch(/<button[^>]*>Report a problem or send feedback<\/button>/u);
+    expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
