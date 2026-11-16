@@ -121,6 +121,10 @@ export function checkRouteFacts(
       integration.runtime_source_set.length > 0 &&
       isRecord(integration.presentation) &&
       isRecord(integration.presentation.manual_setup);
+    if (integration?.source_profile != null && !verifiedOriginals)
+      throw new Error(
+        "Managed native facts require an integration without a Core source binding or an explicit original-file setup.",
+      );
     if (
       !text(managed.preparation.title, 256) ||
       !text(managed.preparation.instruction) ||
@@ -128,8 +132,7 @@ export function checkRouteFacts(
       integration?.adapter !== "native-portable" ||
       !isRecord(integration.release) ||
       integration.release.provider !== "github" ||
-      (!verifiedOriginals &&
-        (!Array.isArray(integration.persistent_paths) || integration.source_profile != null))
+      (!verifiedOriginals && !Array.isArray(integration.persistent_paths))
     )
       throw new Error(
         "Managed native facts require an existing native-portable GitHub contract with explicit preparation and ownership facts.",

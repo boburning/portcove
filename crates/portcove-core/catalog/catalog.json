@@ -16600,10 +16600,18 @@
         "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
         "live_review_url": null,
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
@@ -16623,10 +16631,18 @@
         "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
         "live_review_url": null,
         "evidence_gap": null,
-        "applicability": [],
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
         "aliases": [],
-        "tombstones": [],
-        "release_policy": "integration-contract-v1"
+        "tombstones": []
       },
       {
         "id": "shipwright-game-source",
