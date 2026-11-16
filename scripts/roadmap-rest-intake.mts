@@ -228,7 +228,7 @@ export class RestPortIntakeClient {
         number,
       });
       if (response.status !== 201) throw new Error("REST Project add was not confirmed");
-      item = object(object(response.body).value);
+      item = object(response.body);
     }
     const content = object(item.content);
     if (
