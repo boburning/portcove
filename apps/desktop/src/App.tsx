@@ -925,7 +925,7 @@ function useWorkspace(props: WorkspaceProps) {
     if (
       registered.profile_id !== profile.id ||
       JSON.stringify(registered) !== JSON.stringify(current) ||
-      (setup.accepted && JSON.stringify(setup.accepted) !== JSON.stringify(other))
+      JSON.stringify(setup.other) !== JSON.stringify(other)
     )
       return "The saved files have changed. Close this check and check the current files before continuing.";
 
@@ -944,7 +944,7 @@ function useWorkspace(props: WorkspaceProps) {
       else ui.setSourcePath("");
       openSourceIntake(portId, next.id, draft.trim() ? [draft] : [], {
         channel: setup.channel,
-        accepted: registered,
+        other: registered,
       });
       return;
     }
@@ -2006,7 +2006,12 @@ function SelectedPortPanel({
           model.port.id,
           profile.id,
           path.trim() ? [path] : [],
-          managedSetup ? { channel: status.channel } : undefined,
+          managedSetup
+            ? {
+                channel: status.channel,
+                other: profile.id === model.port.bios_source_profile ? model.source : model.bios,
+              }
+            : undefined,
         );
       }}
       openHostTool={openHostTool}

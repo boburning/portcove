@@ -34,7 +34,7 @@ export interface SourceIntakeRequest {
   paths: string[];
   setup?: {
     channel: ReleaseChannel;
-    accepted?: SourceRecord;
+    other: SourceRecord | undefined;
   };
 }
 

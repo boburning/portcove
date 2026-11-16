@@ -369,7 +369,7 @@ describe("source intake dialog", () => {
     const continueSetup = vi.fn();
     await root.rerender(
       <SourceIntakeDialog
-        request={{ ...request(["D:/Game.z64"]), setup: { channel: "stable" } }}
+        request={{ ...request(["D:/Game.z64"]), setup: { channel: "stable", other: undefined } }}
         close={vi.fn()}
         onAdded={refresh}
         onContinueSetup={continueSetup}
