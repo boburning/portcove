@@ -8,12 +8,7 @@
     "project_url": "https://github.com/Anuken/Mindustry",
     "issue_number": 6506,
     "listed_at": "2026-11-16",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "release_url": "https://anuke.itch.io/mindustry",
     "setup_url": "https://mindustrygame.github.io/wiki/",
