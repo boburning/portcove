@@ -58927,7 +58927,7 @@
           },
           {
             "title": "Keep your settings and creations",
-            "instruction": "Close the game before copying your files. On Windows, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. Also keep any separate folders you use for your own games or levels."
+            "instruction": "Close the game before copying your files. On Windows, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
           }
         ],
         "warnings": [],
