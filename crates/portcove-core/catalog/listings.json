@@ -12657,6 +12657,48 @@
       }
     },
     {
+      "id": "armagetron-advanced",
+      "name": "Armagetron Advanced",
+      "original_game_title": "Armagetron Advanced",
+      "summary": "Steer a lightcycle, avoid the trails, and outlast the other riders in local or online arenas.",
+      "project_url": "https://gitlab.com/armagetronad/armagetronad",
+      "issue_number": 6458,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://armagetronad.org/downloads.php",
+      "setup_url": "https://armagetronad.org/downloads.php",
+      "download_block_reason": "Get the game client from the official download page. The project serves these packages through Launchpad.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the game client for your computer",
+            "instruction": "On Windows, run the official 32-bit client installer. On Linux, choose the AppImage for your processor, make it executable, and start it. If FUSE is unavailable, try starting it with --appimage-extract-and-run. You can also install the Flathub edition through your app manager. On Intel Mac, mount the official disk image and copy the complete Armagetron Advanced.app into Applications. The download page has a separate section for dedicated servers."
+          },
+          {
+            "title": "Set up your rider and try a local game",
+            "instruction": "On first launch, choose a language, set your name, color and controls, and select Accept. Follow the welcome screen to enter the first local match against a computer rider."
+          },
+          {
+            "title": "Keep your profile before switching packages",
+            "instruction": "Close the game and copy the folder containing your profile, including var/user.cfg and any custom maps or resources. The Linux AppImage uses ~/.armagetronad by default. If your installation uses a different data folder, keep that folder as well. Update or remove the game through the installer, package manager, or files you selected."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check Apple Silicon and Android availability",
+            "instruction": "The publisher lists its Intel Mac client for use on Apple Silicon through Rosetta. Use the complete Intel app as supplied. The stable download page does not offer an Android client."
+          }
+        ],
+        "help_url": "https://armagetronad.org/downloads.php"
+      }
+    },
+    {
       "id": "army-of-two-recompilation-openportroid-army-of-two",
       "name": "Army of Two — Army of Two Recompilation (OpenPortroid)",
       "original_game_title": "Army of Two",
