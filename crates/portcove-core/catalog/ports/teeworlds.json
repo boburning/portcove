@@ -30,7 +30,7 @@
       "references": [
         {
           "title": "Find your data folder",
-          "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. If you changed storage.cfg, use its save location."
+          "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
         }
       ],
       "help_url": "https://www.teeworlds.com/?page=docs"
