@@ -1913,7 +1913,7 @@ Not assessed:
 The report is advisory and leaves launch available. For a recognized Visual C++
 v14 architecture, `download_page` identifies Microsoft's matching installer.
 The player opens the link and runs the installer in Windows, then uses Recheck
-from the same managed installation in Desktop.
+from the same installation in Desktop.
 
 ### Review and recover preparation
 
