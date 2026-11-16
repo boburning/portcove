@@ -57213,9 +57213,26 @@
         "macos-aarch64"
       ],
       "availability": "packages",
-      "release_url": "https://supertuxkart.net/Download.html",
+      "release_url": "https://github.com/supertuxkart/stk-code/releases",
       "setup_url": "https://supertuxkart.net/Download.html",
-      "download_block_reason": "Use the official installer, full portable package, or mobile release for your platform. The portable launchers set up the packaged game and runtime files.",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "supertuxkart-",
+          "-win.zip"
+        ],
+        "linux-x86-64": [
+          "supertuxkart-",
+          "-linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "supertuxkart-",
+          "-mac-signed.zip"
+        ],
+        "macos-aarch64": [
+          "supertuxkart-",
+          "-mac-signed.zip"
+        ]
+      },
       "manual_setup": {
         "steps": [
           {
