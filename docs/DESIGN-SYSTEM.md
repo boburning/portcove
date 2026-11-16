@@ -1002,7 +1002,9 @@ independently of that text.
 In Covers view each Discover card is one raised surface: the cover sits inside
 a padded, bordered card, hover and keyboard focus within the card highlight the card
 rather than lifting the cover, and the secondary "Why this port?" action aligns with
-the card's text edge. Rows view keeps its own geometry.
+the card's text edge. Library covers use the same card surface, padding and hover
+highlight, with the status/action footer pinned to the card bottom. Rows view keeps
+its own geometry.
 
 ### Game-data preparation review
 

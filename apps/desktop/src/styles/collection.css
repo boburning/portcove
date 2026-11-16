@@ -1117,3 +1117,66 @@
     }
   }
 }
+
+/* Library cover cards share Discover's raised card surface so the two catalogs
+   read as one family. Rows view keeps its own geometry. */
+@layer utilities {
+  .collection-covers:not(.discover-grid) .collection-cover {
+    --discover-card-pad: var(--space-3);
+    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad)));
+    padding: var(--discover-card-pad);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    transition:
+      border-color var(--duration-normal),
+      box-shadow var(--duration-normal);
+  }
+  .collection-covers:not(.discover-grid) .collection-cover:hover,
+  .collection-covers:not(.discover-grid) .collection-cover:focus-within {
+    border-color: var(--color-interactive-border);
+    box-shadow: var(--shadow-raised);
+  }
+  .collection-covers:not(.discover-grid)
+    .collection-cover
+    :is(.collection-identity, .collection-art) {
+    width: 100%;
+    max-width: none;
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .collection-main {
+    flex: 1 1 auto;
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .collection-personal-actions {
+    inset-block-start: calc(var(--discover-card-pad) + var(--space-2));
+    inset-inline-start: var(--discover-card-pad);
+    width: calc(100% - 2 * var(--discover-card-pad));
+  }
+  .collection-covers:not(.discover-grid)
+    .collection-cover
+    .collection-identity:hover
+    .collection-art {
+    transform: none;
+    box-shadow: none;
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .collection-title {
+    min-block-size: 0;
+    margin-block-start: var(--space-3);
+    line-height: 1.35;
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .collection-project {
+    min-block-size: 0;
+    margin-block-start: var(--space-1);
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .library-entry-chips {
+    min-block-size: 0;
+  }
+  .collection-covers:not(.discover-grid) .collection-cover .library-entry-footer {
+    width: 100%;
+    margin-block-start: var(--space-3);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .collection-covers:not(.discover-grid) .collection-cover {
+      transition: none;
+    }
+  }
+}
