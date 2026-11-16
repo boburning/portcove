@@ -220,6 +220,49 @@ fn parse_dependency(value: &Value) -> Option<ThunderstoreDependency> {
     })
 }
 
+fn parse_dependencies(values: &[Value]) -> Option<Vec<ThunderstoreDependency>> {
+    if values.len() > MAX_DEPENDENCIES {
+        return None;
+    }
+    let mut dependencies = values
+        .iter()
+        .map(parse_dependency)
+        .collect::<Option<Vec<_>>>()?;
+    dependencies.sort_unstable();
+    if dependencies.windows(2).any(|pair| pair[0] == pair[1]) {
+        return None;
+    }
+    Some(dependencies)
+}
+
+pub(crate) fn verify_wrapper_manifest(
+    bytes: &[u8],
+    project_id: &str,
+    file: &ProviderFileCandidate,
+) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct Manifest {
+        name: String,
+        version_number: String,
+        dependencies: Vec<Value>,
+    }
+    let error = || {
+        PortcoveError::verification(
+        "the Thunderstore wrapper manifest does not match the exact listing; check the provider listing and review again",
+    ).detail("project", project_id).detail("version", &file.file_id)
+    };
+    let manifest = serde_json::from_slice::<Manifest>(bytes).map_err(|_| error())?;
+    let (_, package) = project_id.split_once('-').ok_or_else(error)?;
+    let dependencies = parse_dependencies(&manifest.dependencies).ok_or_else(error)?;
+    if manifest.name != package
+        || manifest.version_number != file.file_id
+        || Some(&dependencies) != file.thunderstore_dependencies.as_ref()
+    {
+        return Err(error());
+    }
+    Ok(())
+}
+
 fn parse_version(
     value: &Value,
     namespace: &str,
@@ -240,14 +283,7 @@ fn parse_version(
     if !crate::profile::valid_native_id(&file_name) {
         return None;
     }
-    let dependency_values = value["dependencies"].as_array()?;
-    if dependency_values.len() > MAX_DEPENDENCIES {
-        return None;
-    }
-    let dependencies = dependency_values
-        .iter()
-        .map(parse_dependency)
-        .collect::<Option<Vec<_>>>()?;
+    let dependencies = parse_dependencies(value["dependencies"].as_array()?)?;
     Some(ProviderFileCandidate {
         file_id: version.to_owned(),
         file_name,

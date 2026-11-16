@@ -372,6 +372,21 @@ impl PortcoveService {
                 vec![(project, file)]
             }
         };
+        if mode == ProviderInstallMode::Automatic
+            && current
+                .packages
+                .iter()
+                .filter(|package| package.enabled)
+                .flat_map(|package| &package.provider_requires)
+                .any(|requirement| {
+                    requirement.provider.project == project_id
+                        && requirement.provider.file.as_deref() != Some(file_id)
+                })
+        {
+            return Err(PortcoveError::unsupported(
+                "another enabled mod needs the installed Thunderstore version; review the dependent mod first",
+            ));
+        }
         if mode == ProviderInstallMode::Automatic && projects.len() > 1 {
             return Err(PortcoveError::unsupported(
                 "a Thunderstore dependency set needs review before it can be installed",
@@ -434,6 +449,8 @@ impl PortcoveService {
                     extraction_budget,
                     MAX_MEMBERS - member_paths.len(),
                     projects.len(),
+                    matches!(client, ProviderClient::Thunderstore { .. })
+                        .then_some((project.project_id.as_str(), file)),
                 )?;
                 extraction_budget -= extracted.extracted_bytes;
                 ignored += extracted.ignored;

@@ -45,12 +45,18 @@ fn zip_bytes(entries: &[(&str, &[u8])]) -> Vec<u8> {
 }
 
 /// The Thunderstore package zip: a manifest, an icon and the `.nrm` inside.
-fn package_zip(file_name: &str, nrm: &[u8]) -> Vec<u8> {
-    zip_bytes(&[
-        ("manifest.json", b"{}"),
-        ("icon.png", b"png"),
-        (file_name, nrm),
-    ])
+fn wrapper(name: &str, version: &str, dependencies: &[&str], members: &[(&str, &[u8])]) -> Vec<u8> {
+    let manifest = serde_json::to_vec(&serde_json::json!({
+        "name": name, "version_number": version, "dependencies": dependencies,
+    }))
+    .unwrap();
+    let mut entries = vec![("manifest.json", manifest.as_slice()), ("icon.png", b"png")];
+    entries.extend_from_slice(members);
+    zip_bytes(&entries)
+}
+
+fn package_zip(version: &str, file_name: &str, nrm: &[u8]) -> Vec<u8> {
+    wrapper("Timer", version, &[], &[(file_name, nrm)])
 }
 
 /// Versions offered by the fake community: (version, created, zip bytes).
@@ -166,7 +172,16 @@ fn world_with_dependency(dependency: Option<Vec<u8>>) -> World {
     let versions: Versions = Arc::new(Mutex::new(vec![(
         "1.0.0".into(),
         "2026-11-01T00:00:00Z".into(),
-        package_zip("timer.nrm", &nrm("speed_timer", false)),
+        wrapper(
+            "Timer",
+            "1.0.0",
+            if dependency.is_some() {
+                &["Tools-Shared-2.1.0"]
+            } else {
+                &[]
+            },
+            &[("timer.nrm", &nrm("speed_timer", false))],
+        ),
     )]));
     let (root, requests, server) = serve(versions.clone(), dependency);
     let client = ProviderClient::Thunderstore {
@@ -233,7 +248,7 @@ async fn a_thunderstore_package_installs_by_manifest_id_and_its_update_is_discov
     w.versions.lock().unwrap().push((
         "1.1.0".into(),
         "2026-11-05T00:00:00Z".into(),
-        package_zip("timer.nrm", &nrm("speed_timer", false)),
+        package_zip("1.1.0", "timer.nrm", &nrm("speed_timer", false)),
     ));
     let observations = w
         .service
@@ -248,7 +263,8 @@ async fn a_thunderstore_package_installs_by_manifest_id_and_its_update_is_discov
 async fn code_from_thunderstore_needs_explicit_consent_and_never_updates_unattended() {
     let w = world();
     // Already named by its manifest ID, as many published packages are.
-    w.versions.lock().unwrap()[0].2 = package_zip("speed_timer.nrm", &nrm("speed_timer", true));
+    w.versions.lock().unwrap()[0].2 =
+        package_zip("1.0.0", "speed_timer.nrm", &nrm("speed_timer", true));
     let plan = w
         .service
         .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
@@ -280,7 +296,11 @@ async fn code_from_thunderstore_needs_explicit_consent_and_never_updates_unatten
     w.versions.lock().unwrap().push((
         "1.1.0".into(),
         "2026-11-05T00:00:00Z".into(),
-        package_zip("timer.nrm", &nrm_with("speed_timer", Some(b"\x02"))),
+        package_zip(
+            "1.1.0",
+            "timer.nrm",
+            &nrm_with("speed_timer", Some(b"\x02")),
+        ),
     ));
     let results = w
         .service
@@ -328,7 +348,7 @@ async fn recomp_plans_compare_no_asset_entries_and_unattended_updates_take_the_n
         w.versions.lock().unwrap().push((
             version.into(),
             created.into(),
-            package_zip("timer.nrm", &bytes),
+            package_zip(version, "timer.nrm", &bytes),
         ));
     }
     // An enabled Recomp mod's entries (mod.json and so on) are not conflicts.
@@ -381,7 +401,7 @@ fn a_backport_published_after_a_newer_release_is_not_an_update() {
 #[tokio::test]
 async fn a_plan_stripped_of_its_code_marking_cannot_install_code_without_consent() {
     let w = world();
-    w.versions.lock().unwrap()[0].2 = package_zip("timer.nrm", &nrm("speed_timer", true));
+    w.versions.lock().unwrap()[0].2 = package_zip("1.0.0", "timer.nrm", &nrm("speed_timer", true));
     let plan = w
         .service
         .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
@@ -432,10 +452,15 @@ async fn allowing_code_on_a_plan_without_code_installs_it_as_a_plain_review() {
 
 #[tokio::test]
 async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
-    let dependency = zip_bytes(&[
-        ("first.nrm", &nrm("shared_first", false)),
-        ("second.nrm", &nrm("shared_second", true)),
-    ]);
+    let dependency = wrapper(
+        "Shared",
+        "2.1.0",
+        &[],
+        &[
+            ("first.nrm", &nrm("shared_first", false)),
+            ("second.nrm", &nrm("shared_second", true)),
+        ],
+    );
     let w = world_with_dependency(Some(dependency));
     let plan = w
         .service
@@ -518,4 +543,25 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
         )
         .unwrap();
     assert!(remove(&disabled).is_ok());
+}
+
+#[tokio::test]
+async fn a_thunderstore_wrapper_disclosing_an_unlisted_requirement_has_no_review() {
+    let w = world();
+    w.versions.lock().unwrap()[0].2 = wrapper(
+        "Timer",
+        "1.0.0",
+        &["Tools-Shared-2.1.0"],
+        &[("timer.nrm", &nrm("speed_timer", false))],
+    );
+    let error = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap_err();
+    assert!(
+        error.message.contains("manifest does not match"),
+        "{error:?}"
+    );
+    assert!(live(&w).is_empty());
 }

@@ -205,7 +205,15 @@ fn extract_packages_capped(
     extensions: &[&str],
     max_total: u64,
 ) -> Result<ExtractedPackages> {
-    extract_provider_packages(archive, destination, extensions, max_total, MAX_MEMBERS, 1)
+    extract_provider_packages(
+        archive,
+        destination,
+        extensions,
+        max_total,
+        MAX_MEMBERS,
+        1,
+        None,
+    )
 }
 
 /// Divides raw ZIP parser budgets across the wrappers known before extraction.
@@ -216,6 +224,7 @@ pub(crate) fn extract_provider_packages(
     max_total: u64,
     max_members: usize,
     wrappers: usize,
+    manifest: Option<(&str, &crate::ProviderFileCandidate)>,
 ) -> Result<ExtractedPackages> {
     let limits = zip_read::Limits {
         entries: LIMITS.entries / wrappers,
@@ -228,6 +237,7 @@ pub(crate) fn extract_provider_packages(
     let mut files = Vec::new();
     let mut ignored = 0usize;
     let mut extracted_total = 0u64;
+    let mut manifest_seen = false;
     for index in 0..zip.len() {
         let (name, size, is_file) = {
             let entry = zip
@@ -248,6 +258,29 @@ pub(crate) fn extract_provider_packages(
                 .into_owned();
             (name, entry.size(), entry.is_file())
         };
+        if let Some((project_id, file)) = manifest
+            && name.eq_ignore_ascii_case("manifest.json")
+        {
+            const MAX_MANIFEST_BYTES: u64 = 32 * 1024;
+            if manifest_seen || name != "manifest.json" || !is_file || size > MAX_MANIFEST_BYTES {
+                return Err(invalid(
+                    "the Thunderstore wrapper manifest is ambiguous or too large",
+                ));
+            }
+            let mut entry = zip
+                .by_index(index)
+                .map_err(|error| invalid(&format!("invalid manifest entry: {error}")))?;
+            let mut bytes = Vec::new();
+            (&mut entry).take(size + 1).read_to_end(&mut bytes)?;
+            if bytes.len() as u64 != size {
+                return Err(invalid(
+                    "the Thunderstore wrapper manifest size disagrees with its header",
+                ));
+            }
+            crate::thunderstore::verify_wrapper_manifest(&bytes, project_id, file)?;
+            manifest_seen = true;
+            continue;
+        }
         let lower = name.to_ascii_lowercase();
         let matches = is_file
             && lower
@@ -289,6 +322,11 @@ pub(crate) fn extract_provider_packages(
             return Err(invalid("a package member's size disagrees with its header"));
         }
         files.push(path);
+    }
+    if manifest.is_some() && !manifest_seen {
+        return Err(invalid(
+            "the Thunderstore wrapper has no root manifest.json",
+        ));
     }
     Ok(ExtractedPackages {
         files,

@@ -2498,7 +2498,8 @@ as unverified claims. A displayed version label does not identify bytes; the fil
 and computed digest do.
 
 For Thunderstore, the selected version and its exact declared provider
-dependencies form one reviewed installation. The plan lists each wrapper's
+dependencies form one reviewed installation. Each wrapper's bounded root
+manifest must agree with the exact listing. The plan lists each wrapper's
 coordinate, computed digest and complete native member set. It refuses missing
 or ambiguous versions, incompatible version requests, cycles and wrappers with
 no supported packages. A native filename, installed label or bundled mod cannot

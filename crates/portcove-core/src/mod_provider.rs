@@ -30,7 +30,7 @@ pub struct Observed<T> {
 }
 
 /// One exact Thunderstore dependency coordinate from a version listing.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
 pub struct ThunderstoreDependency {
     pub namespace: String,
     pub package: String,
