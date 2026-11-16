@@ -1437,10 +1437,11 @@ does not register files or apply installation, or imply completed setup. Choosin
 Review requests a fresh plan for that item; plans are never batched into consent.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
-snapshot with a resumable frontier offers Continue scan; a required restart
-offers Start new scan. Both use the existing bounded scan command. Continuation
-preserves the fresh saved snapshot's limits, including a smaller CLI-created
-batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
+snapshot with a resumable frontier offers Continue scan. A retained scan ID
+also offers Finish scanning these folders. Core binds Finish to that scan ID,
+publishes each bounded batch, and retains those results if the player cancels.
+A required restart offers Start new scan. Continuation preserves the fresh
+saved snapshot's limits, including a smaller CLI-created batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
 folder guidance; a new scan retains Desktop's default budgets. Core revalidates
 the actual input and continuation fingerprints before execution.
 Exhausting the folder frontier does not erase skipped files or imply gameplay

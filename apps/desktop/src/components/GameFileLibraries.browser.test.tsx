@@ -1875,6 +1875,49 @@ it("finishes a retained scan of nine folders with the existing Core scan action"
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("starts one Finish action bound to the displayed saved scan", async () => {
+  const stored = storedMatchesSnapshot();
+  const resumed = { ...resumableSnapshot(), matches: stored.matches! };
+  let resolve!: (snapshot: GameFileScanSnapshot) => void;
+  const pending = new Promise<GameFileScanSnapshot>((done) => {
+    resolve = done;
+  });
+  const scan = vi.mocked(desktopApi.scanGameFileRoots);
+  scan.mockImplementation((_limits, _generation, emit) => {
+    emit?.({
+      schema_version: 3,
+      operation_id: "finish-scan",
+      parent_operation_id: null,
+      sequence: 2,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      target: null,
+      type: "progress",
+      phase: "saved_folder_scan_checkpoints",
+      phase_id: "saved_folder_scan_checkpoints",
+      unit: "items",
+      completed: 3,
+      total: null,
+    });
+    return pending;
+  });
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(resumed);
+  try {
+    await click("Refresh folders");
+    await click("Finish scanning these folders");
+    await expect.poll(() => document.body.textContent).toContain("3 batches saved.");
+    expect(scan).toHaveBeenCalledExactlyOnceWith(
+      resumed.limits,
+      1,
+      expect.any(Function),
+      stored.matches!.scan_id,
+    );
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => resolve(stored));
+  }
+});
+
 it("explains that all nine saved folders are unavailable without starting a scan", async () => {
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(rootsWithAvailability(0, 9));
   await root.rerender(

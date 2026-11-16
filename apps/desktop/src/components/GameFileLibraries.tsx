@@ -989,7 +989,7 @@ export function GameFileLibraries({
   const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
   const [busy, setBusy] = useState("");
   const scanState = useGameFileScanObserver(generation);
-  const { scanning, operationId, candidates: liveCandidates } = scanState;
+  const { scanning, operationId, completedBatches, candidates: liveCandidates } = scanState;
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
@@ -1234,6 +1234,10 @@ export function GameFileLibraries({
       </Button>
     </div>
   );
+  const finishScanId =
+    savedScanAction(snapshot, readConfirmed) === "Continue scan"
+      ? snapshot?.matches?.scan_id
+      : undefined;
   const renderScanActions = () => (
     <div className="actions flex flex-wrap gap-2">
       <Button
@@ -1256,6 +1260,16 @@ export function GameFileLibraries({
       >
         {savedScanAction(snapshot, readConfirmed)}
       </Button>
+      {finishScanId && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={Boolean(busy) || scanning}
+          onClick={() => void scanState.start(refreshRoots, finishScanId)}
+        >
+          Finish scanning these folders
+        </Button>
+      )}
     </div>
   );
   const renderLiveResults = () =>
@@ -1387,7 +1401,13 @@ export function GameFileLibraries({
       />
       {renderScanActions()}
       {busy && <p role="status">{busy}</p>}
-      {scanning && <p role="status">Scanning selected folders…</p>}
+      {scanning && (
+        <p role="status">
+          Scanning selected folders…
+          {completedBatches &&
+            ` ${completedBatches} ${completedBatches === 1 ? "batch" : "batches"} saved.`}
+        </p>
+      )}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
       {renderLiveResults()}
       {scanState.error && <p role="alert">{scanState.error}</p>}
