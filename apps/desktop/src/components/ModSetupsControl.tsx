@@ -674,12 +674,14 @@ function ModSetupPackages({
   const { t } = useAppTranslation("gameSettings");
   const [choice, setChoice] = useState<{ nativeId: string; revision: number }>();
   const revision = selected.profile.current_revision;
-  const list = useRef<HTMLUListElement>(null);
+  const packageArea = useRef<HTMLDivElement>(null);
   const removeButton = useRef<HTMLButtonElement>(null);
-  return (selected.revision.packages ?? []).length === 0 ? (
+  return (
+    <div ref={packageArea} tabIndex={-1}>
+    {(selected.revision.packages ?? []).length === 0 ? (
     <p className="text-sm">{t("mods.empty")}</p>
   ) : (
-    <ul ref={list} tabIndex={-1} className="m-0 grid list-none gap-1 p-0">
+    <ul className="m-0 grid list-none gap-1 p-0">
       {inOverrideOrder(selected).map((item) => (
         <li key={item.native_id} className="grid gap-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -728,7 +730,7 @@ function ModSetupPackages({
                 disabled={disabled}
                 onClick={() => {
                   setChoice(undefined);
-                  list.current?.focus();
+                  packageArea.current?.focus();
                   remove(choice.nativeId, choice.revision);
                 }}
               >
@@ -737,7 +739,7 @@ function ModSetupPackages({
               <Button type="button" variant="ghost" size="sm" onClick={() => {
                   setChoice(undefined);
                   if (removeButton.current?.disabled === false) removeButton.current.focus();
-                  else list.current?.focus();
+                  else packageArea.current?.focus();
                 }}>
                 {t("mods.remove.cancel")}
               </Button>
@@ -746,6 +748,8 @@ function ModSetupPackages({
         </li>
       ))}
     </ul>
+  )}
+    </div>
   );
 }
 
