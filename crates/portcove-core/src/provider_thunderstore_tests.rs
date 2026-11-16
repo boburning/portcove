@@ -82,6 +82,7 @@ fn serve(
             .to_owned();
         let web = format!("http://{host}");
         let path = request.split_whitespace().nth(1).unwrap_or("");
+        let dependency_url = format!("{web}/package/download/Tools/Shared/2.1.0/");
         let versions = versions.lock().unwrap();
         if path == format!("/c/{COMMUNITY}/api/v1/package/") {
             let mut listing = vec![serde_json::json!({
@@ -101,7 +102,7 @@ fn serve(
                     "versions": [{
                         "name": "Shared", "full_name": "Tools-Shared-2.1.0",
                         "version_number": "2.1.0", "dependencies": [],
-                        "download_url": format!("{web}/package/download/Tools/Shared/2.1.0/"),
+                        "download_url": dependency_url,
                         "date_created": "2026-11-10T00:00:00Z", "is_active": true,
                         "file_size": bytes.len(),
                     }],
@@ -114,7 +115,7 @@ fn serve(
             )
             .into_bytes();
         }
-        if path == "/package/download/Tools/Shared/2.1.0/"
+        if format!("{web}{path}") == dependency_url
             && let Some(bytes) = &dependency
         {
             let mut response = format!(
