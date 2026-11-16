@@ -2459,6 +2459,7 @@ mod tests {
             std::collections::BTreeSet::from([
                 "bstoney-yt-mercenaries-2-decompilation",
                 "cdlewis-snowboardkids-recomp",
+                "darkuni-afterburner-climax-recomp",
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
                 "snap64-recomp",

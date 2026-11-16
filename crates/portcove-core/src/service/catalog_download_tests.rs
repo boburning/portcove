@@ -2387,8 +2387,8 @@ async fn darkuni_afterburner_climax_recomp_upstream_release_download_4134() {
         "darkuni-afterburner-climax-recomp",
         "v1.1.0",
         "AfterBurnerClimax-v1.1.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
