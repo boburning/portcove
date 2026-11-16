@@ -282,12 +282,13 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
         (34, true, 34),
         (35, true, 35),
         (36, true, 36),
-        (37, false, 36),
-        (6, false, 36),
-        (7, false, 36),
-        (9, false, 36),
-        (13, false, 36),
-        (14, false, 36),
+        (37, true, 37),
+        (38, false, 37),
+        (6, false, 37),
+        (7, false, 37),
+        (9, false, 37),
+        (13, false, 37),
+        (14, false, 37),
     ] {
         std::fs::write(&requirements, serde_json::to_vec(&json!({
             "capability_contract_schema": 1,
@@ -306,7 +307,10 @@ fn advertised_engine_templates_match_negotiation_and_exported_schemas() {
             negotiated["schema_version"],
             portcove_core::API_SCHEMA_VERSION
         );
-        assert_eq!(negotiated["data"]["compatible"], compatible);
+        assert_eq!(
+            negotiated["data"]["compatible"], compatible,
+            "staged-source-portable version {version}"
+        );
         assert_eq!(
             negotiated["data"]["checks"][0]["installed_version"],
             installed_version
