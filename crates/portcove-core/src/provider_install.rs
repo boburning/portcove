@@ -282,10 +282,8 @@ fn retained_dependencies(
                 return Err(missing());
             }
             let path = layout.package(&package.sha256, &package.native_id);
-            if crate::path::refuse_symlink_ancestors(&path).is_err()
-                || !fs::symlink_metadata(&path)
-                    .is_ok_and(|metadata| metadata.is_file() && metadata.len() == package.size)
-                || !sha256_file(&path).is_ok_and(|digest| digest == package.sha256)
+            if !crate::external_runtime::hash_stable_regular(&path, package.size, &|| Ok(()))
+                .is_ok_and(|(digest, size)| size == package.size && digest == package.sha256)
             {
                 return Err(missing());
             }
