@@ -781,7 +781,9 @@ void test("game-update review binds Windows cleanup without first-play or wider 
       platform === "win32" ? "game-update-review" : "backup-focus",
     );
     assert.deepEqual(selection.setup_scenarios, []);
-    assert.equal(desktopHarnessDeadlineMs(selection), 180000);
+    // Its own hosted group (#4879): review, dispositions and three 60 s-bounded
+    // supplied outcomes after seeding an adopted installation.
+    assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
   }
 });
 

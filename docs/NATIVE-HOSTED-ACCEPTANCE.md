@@ -223,6 +223,10 @@ its offered release comes from the owned install fixture's direct manifest on
 keep the plain build and maintained catalog. Run 43743277016 showed the live
 anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
 local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
 The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
