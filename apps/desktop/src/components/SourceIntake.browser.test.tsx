@@ -388,6 +388,90 @@ describe("source intake dialog", () => {
     expect(imported).toHaveBeenCalledOnce();
   });
 
+  it("checks the exact store suggestion before offering to add originals", async () => {
+    const folder = "D:/Steam/steamapps/common/Classic/Game";
+    const selectedProfile = {
+      ...profile,
+      id: "dark-forces-pc-complete-installed-data",
+      kind: "file-set" as const,
+    };
+    vi.spyOn(desktopApi, "storeGameInstalls").mockResolvedValue({
+      checked_stores: ["steam"],
+      skipped_entries: 0,
+      limited: false,
+      installs: [
+        {
+          store: "steam",
+          title: "Dark Forces",
+          path: "D:/Steam/steamapps/common/Classic",
+          saved_root_id: null,
+          product_id: "32400",
+          original_folder: { profile_id: selectedProfile.id, path: folder },
+        },
+        {
+          store: "steam",
+          title: "Dark Forces Remaster",
+          path: "D:/Steam/steamapps/common/Remaster",
+          saved_root_id: null,
+          product_id: "2292260",
+        },
+      ],
+    });
+    const check = vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue({
+      schema_version: 1,
+      profile_id: selectedProfile.id,
+      input_count: 1,
+      state_code: "unrecognized_edition",
+      summary: "The stored folder lacks the required original files.",
+      next_action: "Choose a compatible copy.",
+    });
+    const pickerOpen = vi.spyOn(picker, "pickSourcePath");
+    const save = vi.spyOn(desktopApi, "importSource");
+    const transport = installInteractiveTransport("setup", (message) => {
+      throw new Error(message);
+    });
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
+      const snapshot = workspace("setup");
+      const target = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
+      target.source_profile = selectedProfile.id;
+      snapshot.catalog.source_profiles = [selectedProfile];
+      const status = snapshot.statuses.find((entry) => entry.port_id === target.id)!;
+      status.active = null;
+      status.staged = null;
+      status.readiness = { launchable: false, pending_setup: false, blockers: ["missing_source"] };
+      status.port_actions = [
+        { action: "install", availability: "waiting", reason: "missing_source" },
+      ];
+      return snapshot;
+    });
+    try {
+      localStorage.clear();
+      initializeLocalization(["en"]);
+      await root.rerender(
+        <LocalizationProvider api={desktopApi}>
+          <App />
+        </LocalizationProvider>,
+      );
+      await page.getByRole("button", { name: "Discover", exact: true }).click();
+      await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
+      await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
+      await page.getByRole("button", { name: "Choose game files", exact: true }).click();
+      await page
+        .getByRole("button", { name: "Check Dark Forces files from Steam", exact: true })
+        .click();
+      await expect
+        .element(page.getByText("The stored folder lacks the required original files."))
+        .toBeVisible();
+      expect(check).toHaveBeenCalledExactlyOnceWith(selectedProfile.id, [folder]);
+      expect(pickerOpen).not.toHaveBeenCalled();
+      expect(save).not.toHaveBeenCalled();
+    } finally {
+      await root.rerender(null);
+      transport.dispose();
+      localStorage.clear();
+    }
+  });
+
   it.each(["game", "bios", "changed BIOS"])(
     "checks the selected App setup handoff for %s",
     async (scenario) => {

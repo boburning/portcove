@@ -1,3 +1,4 @@
+import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -1854,6 +1856,22 @@ function SelectedPortPanel({
   openLibraryStorage: () => void;
   close: () => void;
 }) {
+  const storeSetupRequests = useRef(new LatestRequestGeneration());
+  const selectedRoute = model.port?.id;
+  const selectedChannel = model.status?.channel;
+  useLayoutEffect(() => {
+    const requests = storeSetupRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, [
+    libraryGeneration,
+    selectedRoute,
+    selectedChannel,
+    model.status?.active?.id,
+    model.status?.external_runtime?.id,
+    ui.sourcePath,
+  ]);
   if (!model.port) return null;
   const favoritePortId = model.port.id;
   const setSourcePath = (path: string) => {
@@ -1869,6 +1887,47 @@ function SelectedPortPanel({
         );
       }
     : undefined;
+  const port = model.port;
+  const status = model.status;
+  const inspectSource = (
+    profile: NonNullable<typeof model.sourceProfile>,
+    storeOriginals?: NonNullable<Parameters<typeof openSourceIntake>[3]>["storeOriginals"],
+  ) => {
+    const isBios = profile.id === port.bios_source_profile;
+    const path = isBios ? ui.biosPath : ui.sourcePath;
+    const managedSetup =
+      status &&
+      !status.active &&
+      !status.external_runtime &&
+      status.port_actions?.some(
+        (action) =>
+          action.action === "install" &&
+          (action.availability === "allowed" || action.availability === "waiting"),
+      );
+    openSourceIntake(
+      port.id,
+      profile.id,
+      path.trim() ? [path] : [],
+      managedSetup
+        ? { channel: status.channel, other: isBios ? model.source : model.bios, storeOriginals }
+        : undefined,
+    );
+  };
+  const originalProfile = model.sourceProfile;
+  const chooseSetupSource =
+    originalProfile?.kind === "file-set" && !ui.sourcePath.trim()
+      ? async () => {
+          const requests = storeSetupRequests.current;
+          const request = requests.begin();
+          const report = await desktopApi.storeGameInstalls(libraryGeneration).catch(() => null);
+          if (!requests.isCurrent(request)) return;
+          const matches = report?.installs.filter(
+            (install) => install.original_folder?.profile_id === originalProfile.id,
+          );
+          if (matches?.length) inspectSource(originalProfile, matches);
+          else await pickSource?.();
+        }
+      : undefined;
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
@@ -1990,30 +2049,8 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => {
-        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
-        const status = model.status;
-        const managedSetup =
-          status &&
-          !status.active &&
-          !status.external_runtime &&
-          status.port_actions?.some(
-            (action) =>
-              action.action === "install" &&
-              (action.availability === "allowed" || action.availability === "waiting"),
-          );
-        openSourceIntake(
-          model.port.id,
-          profile.id,
-          path.trim() ? [path] : [],
-          managedSetup
-            ? {
-                channel: status.channel,
-                other: profile.id === model.port.bios_source_profile ? model.source : model.bios,
-              }
-            : undefined,
-        );
-      }}
+      inspectSource={inspectSource}
+      chooseSetupSource={chooseSetupSource}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({

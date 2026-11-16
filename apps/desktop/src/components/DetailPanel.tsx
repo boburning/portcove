@@ -179,6 +179,7 @@ interface DetailPanelProps {
   sourcePath: string;
   setSourcePath: (path: string) => void;
   pickSource?: AsyncAction | undefined;
+  chooseSetupSource?: AsyncAction | undefined;
   pickSourceArchive?: (() => void) | undefined;
   bios?: SourceRecord | undefined;
   biosInspection?: SourceInspectionReport | undefined;
@@ -223,6 +224,7 @@ export function DetailPanel(props: DetailPanelProps) {
     sourcePath,
     setSourcePath,
     pickSource,
+    chooseSetupSource,
     pickSourceArchive,
     bios,
     biosInspection,
@@ -286,6 +288,7 @@ export function DetailPanel(props: DetailPanelProps) {
     sourcePath,
     setSourcePath,
     pickSource,
+    chooseSetupSource,
     pickSourceArchive,
     bios,
     biosInspection,
@@ -1746,6 +1749,7 @@ type SourceControls = Pick<
   | "sourcePath"
   | "setSourcePath"
   | "pickSource"
+  | "chooseSetupSource"
   | "pickSourceArchive"
   | "bios"
   | "biosInspection"
@@ -3572,7 +3576,7 @@ function UninstalledPrimaryActions(
       ready={model.launchReady}
       sourceReady={model.sourceReady}
       biosReady={model.biosReady}
-      pickSource={model.sources.pickSource}
+      pickSource={model.sources.chooseSetupSource ?? model.sources.pickSource}
       pickBios={model.sources.pickBios}
       sourceInputId={
         model.sources.port.source_profile
