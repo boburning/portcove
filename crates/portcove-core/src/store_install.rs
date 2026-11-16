@@ -4,7 +4,7 @@
 //! here writes, moves or deletes anything inside a store's folder.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
 };
 
@@ -140,7 +140,7 @@ pub(crate) fn default_host() -> std::sync::Arc<dyn StoreInstallHost> {
 struct Detection {
     report: StoreGameInstalls,
     protected: Vec<(GameStore, PathBuf)>,
-    seen: BTreeSet<String>,
+    seen: BTreeMap<String, Option<usize>>,
 }
 
 impl Detection {
@@ -149,6 +149,7 @@ impl Detection {
     }
 
     fn add(&mut self, store: GameStore, title: &str, path: &Path, product_id: Option<String>) {
+        let candidate = original_folder(store, product_id.as_deref(), path);
         let Some(path) = existing_folder(path) else {
             self.skip();
             return;
@@ -157,12 +158,21 @@ impl Detection {
             self.skip();
             return;
         };
-        if !self.seen.insert(path_key(&text)) {
+        let key = path_key(&text);
+        if let Some(index) = self.seen.get(&key) {
+            if let Some(row) = index.and_then(|index| self.report.installs.get_mut(index))
+                && row.store == store
+                && row.product_id != product_id
+            {
+                row.product_id = None;
+                row.original_folder = None;
+            }
             return;
         }
         // Protect the folder from a Move even past the listing bound.
         self.protected.push((store, path.clone()));
         if self.report.installs.len() >= MAX_INSTALLS {
+            self.seen.insert(key, None);
             self.report.limited = true;
             return;
         }
@@ -172,13 +182,14 @@ impl Detection {
                     .and_then(|name| clean_title(&name.to_string_lossy()))
             })
             .unwrap_or_default();
+        self.seen.insert(key, Some(self.report.installs.len()));
         self.report.installs.push(StoreGameInstall {
             store,
             product_id,
             title,
             path,
             saved_root_id: None,
-            original_folder: None,
+            original_folder: candidate,
         });
     }
 }
@@ -449,8 +460,7 @@ fn vdf_tokens(text: &str) -> Option<Vec<VdfToken>> {
 }
 
 /// Key/value string pairs with their nesting depth (1 = inside the root block).
-fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
-    let tokens = vdf_tokens(text)?;
+fn vdf_pairs(tokens: &[VdfToken]) -> Option<Vec<(usize, String, String)>> {
     let mut pairs = Vec::new();
     let mut depth = 0_usize;
     let mut index = 0;
@@ -476,7 +486,7 @@ fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
 /// current (`"path"` inside numbered blocks) and the older (numbered string
 /// values) layouts.
 fn steam_library_paths(text: &str) -> Vec<PathBuf> {
-    let Some(pairs) = vdf_pairs(text) else {
+    let Some(pairs) = vdf_tokens(text).and_then(|tokens| vdf_pairs(&tokens)) else {
         return Vec::new();
     };
     pairs
@@ -498,7 +508,8 @@ fn product_number(text: &str) -> Option<u64> {
 }
 
 fn steam_app_manifest(text: &str) -> Option<(String, String, Option<u64>)> {
-    let pairs = vdf_pairs(text)?;
+    let tokens = vdf_tokens(text)?;
+    let pairs = vdf_pairs(&tokens)?;
     let field = |name: &str| {
         pairs
             .iter()
@@ -510,20 +521,61 @@ fn steam_app_manifest(text: &str) -> Option<(String, String, Option<u64>)> {
         .iter()
         .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("appid"));
     let id = ids.next().and_then(|(_, _, value)| product_number(value));
-    let app_id = if ids.next().is_none() { id } else { None };
+    let unique_directory = pairs
+        .iter()
+        .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("installdir"))
+        .count()
+        == 1;
+    let app_id = if ids.next().is_none() && unique_directory && single_app_state(&tokens) {
+        id
+    } else {
+        None
+    };
     Some((field("name").unwrap_or_default(), installdir, app_id))
 }
 
-fn original_folder(install: &StoreGameInstall) -> Option<StoreOriginalFolder> {
+fn single_app_state(tokens: &[VdfToken]) -> bool {
+    let [
+        VdfToken::Text(name),
+        VdfToken::Open,
+        body @ ..,
+        VdfToken::Close,
+    ] = tokens
+    else {
+        return false;
+    };
+    if !name.eq_ignore_ascii_case("AppState") {
+        return false;
+    }
+    let mut depth = 1;
+    for token in body {
+        match token {
+            VdfToken::Open => depth += 1,
+            VdfToken::Close => depth -= 1,
+            VdfToken::Text(_) => {}
+        }
+        if depth == 0 {
+            return false;
+        }
+    }
+    depth == 1
+}
+
+fn original_folder(
+    store: GameStore,
+    product_id: Option<&str>,
+    install_path: &Path,
+) -> Option<StoreOriginalFolder> {
     // The Force Engine's reviewed upstream lookup distinguishes the 1995
     // Steam original (32400 / Game) from the remaster (2292260).
-    if install.store != GameStore::Steam || install.product_id.as_deref() != Some("32400") {
+    if store != GameStore::Steam || product_id != Some("32400") {
         return None;
     }
-    let directory = install.path.join("Game");
+    let directory = install_path.join("Game");
     crate::path::refuse_symlink_ancestors(&directory).ok()?;
+    let install = existing_folder(install_path)?;
     let path = existing_folder(&directory)?;
-    if !inside(&path, &install.path) {
+    if !inside(&path, &install) {
         return None;
     }
     Some(StoreOriginalFolder {
@@ -581,7 +633,6 @@ impl PortcoveService {
             .saturating_add(u32::try_from(before - report.installs.len()).unwrap_or(u32::MAX));
         let roots = self.library().game_file_roots()?;
         for install in &mut report.installs {
-            install.original_folder = original_folder(install);
             let key = path_key(&install.path.to_string_lossy());
             install.saved_root_id = roots
                 .iter()

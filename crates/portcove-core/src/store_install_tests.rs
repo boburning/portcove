@@ -325,6 +325,54 @@ fn classic_steam_original_hint_requires_matching_manifest_identity_and_a_folder(
 }
 
 #[test]
+fn conflicting_steam_metadata_keeps_the_folder_without_a_product_hint() {
+    for text in [
+        r#""AppState" { "appid" "32400" "installdir" "Classic" "installdir" "Other" }"#,
+        r#""AppState" { "appid" "32400" } "Other" { "installdir" "Classic" }"#,
+    ] {
+        let (_, folder, id) = steam_app_manifest(text).unwrap();
+        assert_eq!(folder, "Classic");
+        assert!(id.is_none());
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(&steam, 32400, "Dark Forces", "Classic", true);
+    steam_app(&steam, 42900, "Other game", "Classic", true);
+    fs::create_dir(steam.join("steamapps/common/Classic/Game")).unwrap();
+    let detection = detect(&FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    });
+    assert_eq!(detection.report.installs.len(), 1);
+    assert!(detection.report.installs[0].product_id.is_none());
+    assert!(detection.report.installs[0].original_folder.is_none());
+}
+
+#[cfg(unix)]
+#[test]
+fn linked_steam_install_is_protected_without_an_original_folder_hint() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    let elsewhere = temporary.path().join("elsewhere");
+    fs::create_dir_all(elsewhere.join("Game")).unwrap();
+    steam_app(&steam, 32400, "Dark Forces", "Classic", false);
+    std::os::unix::fs::symlink(&elsewhere, steam.join("steamapps/common/Classic")).unwrap();
+    let detection = detect(&FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    });
+    let row = &detection.report.installs[0];
+    assert_eq!(row.path, canonical(&elsewhere));
+    assert_eq!(row.product_id.as_deref(), Some("32400"));
+    assert!(row.original_folder.is_none());
+    assert!(
+        detection
+            .protected
+            .contains(&(GameStore::Steam, row.path.clone()))
+    );
+}
+
+#[test]
 fn unit_test_services_read_no_store_by_default() {
     let temporary = tempfile::tempdir().unwrap();
     let service =
