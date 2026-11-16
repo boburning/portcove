@@ -541,3 +541,78 @@ it("points held Thunderstore updates to the Thunderstore browser", async () => {
     ),
   ).toBe(true);
 });
+
+it("leaves the recipe review unchanged when the picker is cancelled", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.spyOn(picker, "pickModRecipePath").mockResolvedValue(null);
+  const inspect = vi.spyOn(desktopApi, "inspectModRecipe");
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  expect(inspect).not.toHaveBeenCalled();
+  await expect
+    .element(page.getByRole("heading", { name: "Recipe review" }))
+    .not.toBeInTheDocument();
+});
+
+it("opens an exact recipe review and creates a separately named setup", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
+  const plan = {
+    can_apply: true,
+    holds: [],
+    originals: [],
+    packages: [],
+    plan_sha256: "a".repeat(64),
+    recipe: {
+      identity_sha256: "a".repeat(64),
+      uncaptured: [],
+      packages: [],
+      orderings: [],
+      runtime: { platform: "windows-x86-64" },
+    },
+    runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+  } as unknown as Awaited<ReturnType<typeof desktopApi.inspectModRecipe>>;
+  const inspect = vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(plan);
+  const apply = vi
+    .spyOn(desktopApi, "applyModRecipe")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyModRecipe>>);
+  await render();
+  await page.getByRole("button", { name: "Open setup recipe…" }).click();
+  await expect.element(page.getByRole("heading", { name: "Recipe review" })).toHaveFocus();
+  expect(inspect).toHaveBeenCalledWith("shipwright", "/picked/setup.json", 7);
+  const create = page.getByRole("button", { name: "Create setup from recipe" });
+  await expect.element(create).toBeDisabled();
+  await page.getByRole("textbox", { name: "Name for the new setup" }).fill("Shared setup");
+  await create.click();
+  expect(apply).toHaveBeenCalledWith("shipwright", "Shared setup", plan, 7);
+  await expect.element(page.getByText("Created Shared setup with fresh progress.")).toBeVisible();
+});
+
+it("shows exact missing recipe inputs before any import is offered", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.spyOn(picker, "pickModRecipePath").mockResolvedValue("/picked/setup.json");
+  const plan = {
+    can_apply: false,
+    holds: ["Review the exact required provider version."],
+    originals: [],
+    packages: [{ name: "retro.o2r", status: "unavailable", detail: "Review project 1, file 2." }],
+    recipe: {
+      identity_sha256: "a".repeat(64),
+      uncaptured: [],
+      packages: [],
+      orderings: [],
+      runtime: { platform: "windows-x86-64" },
+    },
+    runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
+  } as unknown as Awaited<ReturnType<typeof desktopApi.inspectModRecipe>>;
+  vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(plan);
+  await render();
+  const open = page.getByRole("button", { name: "Open setup recipe…" });
+  await open.click();
+  await expect.element(page.getByText("Review the exact required provider version.")).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: "Create setup from recipe" }))
+    .not.toBeInTheDocument();
+  await page.getByRole("button", { name: "Close review" }).click();
+  await expect.element(open).toHaveFocus();
+});

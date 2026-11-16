@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mgrayd-fable2pubgames-recomp",
+    "artwork": {
+      "game_id": 21328,
+      "cover_id": 431477,
+      "image_id": "co98xh",
+      "image_sha256": "793f6e451b5b086d8c1ed7cb1a6a1b47f7894649dc6acbe01e54fc851044dec9",
+      "game_slug": "fable-ii-pub-games",
+      "match_kind": "underlying-game"
+    },
     "name": "Fable II Pub Games (MGRayd Recomp)",
     "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
     "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",

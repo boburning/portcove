@@ -278,6 +278,7 @@
   "alexbeav-dino-crisis-2-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
   "alexbeav-alien-resurrection-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
   "alexbeav-brave-fencer-musashi-recomp": "Select your own matching game files and the required BIOS. Portcove checks the files and builds the player.",
+  "super-mario-world-recomp": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Choose a short installation path using basic Latin characters. Your original file can stay where it is.",
   "the-force-engine-dark-forces": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player.",
   "resident-evil-gaiden-recomp": "Select your own Resident Evil Gaiden (USA) Game Boy Color original. Portcove checks the original and installs the managed Windows player.",
   "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp": "Choose your original single-track USA CHD and retail SCPH-1001 BIOS. Portcove checks these files and builds the game on this computer.",

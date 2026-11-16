@@ -511,3 +511,21 @@ fn a_recipe_enabling_two_packages_the_game_loads_as_one_mod_is_held() {
         plan.holds
     );
 }
+
+#[test]
+fn exported_recipe_files_round_trip_through_the_bounded_reader() {
+    let w = world();
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("setup.json");
+    let expected = w
+        .service
+        .export_profile_recipe("starship", &w.profile, None)
+        .unwrap();
+    w.service
+        .write_profile_recipe("starship", &w.profile, &path)
+        .unwrap();
+    assert_eq!(ProfileRecipe::read_file(&path).unwrap(), expected);
+    assert!(ProfileRecipe::read_file(directory.path()).is_err());
+    let oversize = std::io::repeat(b' ').take((MAX_RECIPE_BYTES + 1) as u64);
+    assert!(ProfileRecipe::read_document(oversize).is_err());
+}

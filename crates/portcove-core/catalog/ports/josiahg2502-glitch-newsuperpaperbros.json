@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "josiahg2502-glitch-newsuperpaperbros",
+    "artwork": {
+      "game_id": 2191,
+      "cover_id": 526324,
+      "image_id": "coba44",
+      "image_sha256": "d1bfd5538cf045c99228595c72a8bd73d224c9fb392bbe5f02a678185ef1d170",
+      "game_slug": "super-paper-mario",
+      "match_kind": "underlying-game"
+    },
     "name": "Super Paper Mario (New Super Paper Bros.)",
     "summary": "An experimental Super Paper Mario port with project-reported gameplay and enhancements. Windows 10/11 x64 uses Direct3D 12/Vulkan; new Linux 64-bit support needs glibc 2.35+ and Vulkan. Screenshot names do not establish macOS support. Use your own supported Wii disc and follow the project’s setup. Its source packager expects an HQ-music mod locally; that optional content is separate from engine requirements. You and the project manage installation and version changes. Exact original revision/hashes, BIOS/firmware needs and full platform/gameplay coverage are unconfirmed, and release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Super Paper Mario",

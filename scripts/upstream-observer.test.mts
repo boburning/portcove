@@ -363,6 +363,10 @@ void test("scheduled observation keeps the configured cadence, read-only authori
     workflow,
     /\n  observe:\n    needs: admit\n    if: .*needs\.admit\.outputs\.observe == 'true'/u,
   );
+  assert.match(
+    workflow,
+    /\n  report-package-drift:\n    needs: inspect-package-drift\n(?:    #[^\n]*\n)*    if: .*?!cancelled\(\) && needs\.inspect-package-drift\.result == 'success' && github\.repository == 'boburning\/portcove' && github\.ref == 'refs\/heads\/main'/u,
+  );
   assert.match(workflow, /\n    concurrency:\n      group: configured-upstream-observer-/u);
   assert.doesNotMatch(workflow, /\nconcurrency:/u);
   assert.match(workflow, /node scripts\/observer-push-admission\.mts/u);
