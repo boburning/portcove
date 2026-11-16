@@ -899,7 +899,15 @@ impl PortcoveService {
         plan_sha256: &str,
         emit: &mut impl FnMut(OperationEvent),
     ) -> Result<Option<InstallBatchRecord>> {
-        // Consent can be withdrawn while earlier games run.
+        // The earlier assessment may have preceded another game's install.
+        // A source that went offline in the meantime must not spend an attempt.
+        let Ok(plan) = self.plan_game_install(port_id).await else {
+            return Ok(None);
+        };
+        if plan.plan_sha256 != plan_sha256 || self.install_plan_hold(&plan).is_some() {
+            return Ok(None);
+        }
+        // Consent can be withdrawn while earlier games run or while replanning.
         let still_wanted = self.library.port_intent(port_id)?.is_some_and(|intent| {
             intent.mode == PortIntentMode::SetUpWhenReady
                 && intent.explicitly_uninstalled_at.is_none()
@@ -1290,6 +1298,54 @@ mod tests {
             service.status(PORT).unwrap().active.unwrap().id,
             installed.id
         );
+    }
+
+    #[tokio::test]
+    async fn a_disconnected_registered_original_waits_without_spending_attempts() {
+        let (temporary, configured, original) = crate::source_reuse::tests::fixture("ntsc-u-1-0");
+        let mut service = service_with_release(configured.library().clone(), "v1");
+        service.replace_catalog_for_test(configured.catalog().clone());
+        let choice = service
+            .set_port_intent(PORT, PortIntentMode::SetUpWhenReady)
+            .unwrap();
+
+        let connected = service.assess_port_intents().await.unwrap();
+        let PortReadiness::Ready { plan_sha256, .. } = &connected.assessments[0].readiness else {
+            panic!("expected ready: {connected:?}");
+        };
+        let offline = temporary.path().join("disconnected.z64");
+        std::fs::rename(&original, &offline).unwrap();
+
+        // The source can disappear after this game's initial assessment,
+        // while earlier games in the same pass are being installed.
+        assert!(
+            service
+                .standing_setup_one(PORT, plan_sha256, &mut |_| {})
+                .await
+                .unwrap()
+                .is_none()
+        );
+        for _ in 0..MAX_STANDING_SETUP_ATTEMPTS {
+            let pass = service.run_standing_setup(|_| {}).await.unwrap();
+            let PortReadiness::Waiting { reason } = &pass.assessments[0].readiness else {
+                panic!("expected waiting: {pass:?}");
+            };
+            assert!(reason.contains("available"), "{reason}");
+            assert!(pass.batches.is_empty());
+        }
+        let saved = service.library().port_intent(PORT).unwrap().unwrap();
+        assert_eq!(saved.sources, choice.sources);
+        assert_eq!(saved.mode, PortIntentMode::SetUpWhenReady);
+        assert_eq!(saved.failed_attempts, 0);
+        assert!(service.status(PORT).unwrap().active.is_none());
+
+        std::fs::rename(&offline, &original).unwrap();
+        let returned = service.assess_port_intents().await.unwrap();
+        assert!(matches!(
+            &returned.assessments[0].readiness,
+            PortReadiness::Ready { plan_sha256: returned_digest, .. }
+                if returned_digest == plan_sha256
+        ));
     }
 
     fn registered_copy(service: &PortcoveService, byte: char) -> crate::SourceRecord {
