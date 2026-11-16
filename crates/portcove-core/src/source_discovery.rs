@@ -676,6 +676,16 @@ impl PortcoveService {
         self.library().game_file_scan_match_page(query)
     }
 
+    /// Match current registrations against the full retained scan for setup
+    /// review. This reads evidence only and grants no setup authorization.
+    pub fn game_file_scan_registered_matches(
+        &self,
+        expected: &crate::GameFileScanMatchSummary,
+    ) -> Result<crate::GameFileScanRegisteredMatches> {
+        self.library()
+            .game_file_scan_registered_matches(expected, &catalog_sha256(self.catalog())?)
+    }
+
     /// The source profiles matched inside one saved folder by the current
     /// scan, so every choice the folder needs can be offered. Evidence only:
     /// nothing is registered or set up.
@@ -1523,20 +1533,28 @@ fn current_game_file_scan(
         snapshot.continuation = None;
         snapshot.matches = None;
     }
-    snapshot.freshness = if snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
-        && !snapshot
-            .coverage
-            .as_ref()
-            .is_some_and(|coverage| coverage.restart_required)
-        && snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
-        && snapshot.catalog_sha256 == catalog_sha256(catalog)?
-        && snapshot.roots == current_roots
+    snapshot.freshness = if snapshot.format_version == CURRENT_SCAN_FORMAT_VERSION
+        && scan_snapshot_inputs_match(&snapshot, &catalog_sha256(catalog)?, &current_roots)
     {
         GameFileScanFreshness::InputsMatch
     } else {
         GameFileScanFreshness::InputsChanged
     };
     Ok(Some(snapshot))
+}
+
+pub(crate) fn scan_snapshot_inputs_match(
+    snapshot: &GameFileScanSnapshot,
+    catalog_sha256: &str,
+    roots: &[crate::GameFileRoot],
+) -> bool {
+    snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
+        && !snapshot
+            .coverage
+            .as_ref()
+            .is_some_and(|coverage| coverage.restart_required)
+        && snapshot.catalog_sha256 == catalog_sha256
+        && snapshot.roots == roots
 }
 
 /// A complete current scan snapshot holding exactly `candidates`, for tests
