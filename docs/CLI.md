@@ -949,10 +949,13 @@ existing update check and update policy own those, and standing setup never
 updates a game.
 
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
-that is ready gets its own one-game batch. Before the batch starts, Portcove
-checks the choice still stands; then the game is re-planned and freshly
-authorized. It is never launched, and an installed game is never reinstalled or
-updated. A failed or interrupted attempt is not retried with the same plan; it
+that is ready gets its own one-game batch. If a required registered original
+is unavailable, its game waits without spending an attempt and can become
+ready again when the same file or folder returns. Before the batch starts,
+Portcove checks that the original is available and the choice still stands.
+The game is re-planned and freshly authorized for the batch. It is never
+launched, and an installed game is never reinstalled or updated. A failed or
+interrupted attempt is not retried with the same plan; it
 becomes eligible again when the plan changes. Uninstalling a game is
 remembered, so it is not set up or reported again until you choose a mode for it.
 Each pass first settles setup batches left mid-run by an interruption, against
