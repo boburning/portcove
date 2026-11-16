@@ -1497,6 +1497,7 @@ export default interface Resources {
     },
     "runtimes": {
       "aspnetCore": "ASP.NET Core Runtime {{version}}",
+      "checking": "Checking…",
       "directxJune2010": "DirectX End-User Runtime (June 2010)",
       "dotnetDesktop": ".NET Desktop Runtime {{version}}",
       "dotnetFramework": ".NET {{name}} {{version}}",
@@ -1505,7 +1506,10 @@ export default interface Resources {
       "item": "{{name}} ({{architecture}})",
       "label": "Microsoft runtimes",
       "missing": "Windows is most likely missing something this game needs to start:",
-      "nextAction": "Install what's listed from Microsoft, then start the game again.",
+      "nextAction": "Install the listed runtimes from Microsoft, then recheck here.",
+      "present": "The checked runtimes are installed. Select Play to try the game again.",
+      "recheck": "Recheck runtimes",
+      "unconfirmed": "Portcove could not confirm that all required runtimes are installed. You can recheck again.",
       "visualCpp2010": "Microsoft Visual C++ 2010 Redistributable",
       "visualCpp2012": "Microsoft Visual C++ 2012 Redistributable",
       "visualCpp2013": "Microsoft Visual C++ 2013 Redistributable",
@@ -1833,7 +1837,7 @@ export default interface Resources {
     "feedback": {
       "copied": "This feedback is too long for a link, so it was copied instead. Open the feedback form on GitHub and paste it in.",
       "copyFailed": "This feedback is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into the feedback form on GitHub.",
-      "description": "This is everything that will go into a GitHub feedback issue. Choose what you were trying to do and how far you got, then describe what happened in your own words. Nothing is sent until you choose how to send it, and folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub feedback issue. Choose what you were trying to do and how far you got, then describe what happened in your own words. Nothing is sent until you choose how to send it, and folder paths and your user name are replaced. Don't include original game files or saves.",
       "title": "Send feedback"
     },
     "problem": {
@@ -1841,7 +1845,7 @@ export default interface Resources {
       "close": "Close",
       "copied": "This report is too long for a link, so it was copied instead. Open a new bug report on GitHub and paste it in.",
       "copyFailed": "This report is too long for a link and could not be copied automatically. Select and copy the text below, then paste it into a new bug report on GitHub.",
-      "description": "This is everything that will go into a GitHub bug report. Nothing is sent until you choose how to send it: from your GitHub account if you're signed in, on GitHub, or as copied text. Folder paths and your user name are replaced.",
+      "description": "This is everything that will go into a GitHub bug report. Nothing is sent until you choose how to send it: from your GitHub account if you're signed in, on GitHub, or as copied text. Folder paths and your user name are replaced. Don't include original game files or saves.",
       "open": "Report a problem",
       "prepareFailed": "The report could not be prepared. Try again.",
       "submit": "Open on GitHub",

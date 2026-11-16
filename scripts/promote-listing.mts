@@ -125,7 +125,7 @@ export function promotePort(port: unknown, options: PromoteOptions): Json {
   const repository = options.repository ?? releaseRepository(listing);
   if (!repository)
     throw new Error(
-      "Name the GitHub repository; the listing's release URL is not a GitHub repository.",
+      "Name the GitHub repository; the listing's release URL is not a GitHub repository. Other hosts need an exactly pinned direct-manifest archive, written by hand.",
     );
   const assetHints: Json = {};
   const executableHints: Json = {};

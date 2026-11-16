@@ -191,7 +191,7 @@ or ports.
 ### Feedback and triage
 
 This route is permanent, not limited to the beta. Use **Report a problem or send
-feedback** in game details or **Settings > Advanced** and choose what to report,
+feedback** in game details or **Settings > About** and choose what to report,
 or **Report a problem** in the failed-launch notice. Either choice shows a
 reviewed draft that a player signed in to GitHub can submit from their own
 account; otherwise it opens a pre-filled GitHub form or copies the text for

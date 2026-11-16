@@ -692,10 +692,29 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 
 #[tokio::test]
 async fn gitlab_listings_offer_upstream_release_downloads() {
-    assert_embedded_listing_downloads_offered(&[
+    let ids = [
         "mario-kart-64-mariokart64recomp",
         "star-fox-64-starfox64recomp",
-    ]);
+    ];
+    assert_embedded_listing_downloads_offered(&ids);
+    // Both now install their managed Windows route from an exactly pinned GitLab package file.
+    let catalog = Catalog::embedded().unwrap();
+    for id in ids {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable, "{id}");
+        assert_eq!(
+            port.release.provider,
+            crate::ReleaseSource::DirectManifest,
+            "{id}"
+        );
+        assert!(
+            port.release.direct[&Platform::WindowsX86_64]
+                .url
+                .starts_with("https://gitlab.com/api/v4/projects/"),
+            "{id}"
+        );
+        assert_eq!(port.platforms, vec![Platform::WindowsX86_64], "{id}");
+    }
 }
 
 #[tokio::test]
@@ -2475,8 +2494,8 @@ async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
         "vibecodekun-shantaerecomp",
         "v0.2.0",
         "shantae-recomp-0.2.0-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

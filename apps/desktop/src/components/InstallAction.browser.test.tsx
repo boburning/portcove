@@ -293,6 +293,31 @@ it("shows managed Diablo preparation in the Windows review without the upstream 
   expect(dialog.element().textContent).not.toContain("Portcove has not verified Mac setup");
 });
 
+it.each([
+  ["zelda64-recomp", "North American Majora’s Mask", "Zelda64Recompiled.tar.gz"],
+  ["shipwright", "Ocarina of Time", "disk image"],
+  ["2ship2harkinian", "Majora’s Mask", "disk image"],
+])("shows the managed guide for %s in the Windows review", async (id, original, upstreamStep) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original.z64"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(original);
+  expect(setup.element().textContent).toContain("Select Play when setup is complete");
+  expect(dialog.element().textContent).not.toContain(upstreamStep);
+});
+
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
   const install = vi.fn();

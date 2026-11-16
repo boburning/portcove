@@ -9,6 +9,8 @@ import type {
   SourceImportPlan,
   SourceIntakeInspection,
   SourceProfile,
+  SourceRecord,
+  ReleaseChannel,
 } from "../types";
 import { errorText, isCancellation } from "../view-model";
 import { SourceIdentityPanel } from "./SourceIdentity";
@@ -30,12 +32,17 @@ export interface SourceIntakeRequest {
   profile: SourceProfile;
   purpose: SourcePickerPurpose;
   paths: string[];
+  setup?: {
+    channel: ReleaseChannel;
+    other: SourceRecord | undefined;
+  };
 }
 
 interface SourceIntakeDialogProps {
   request: SourceIntakeRequest;
   close: () => void;
   onAdded?: () => Promise<unknown>;
+  onContinueSetup?: ((registered: SourceRecord) => string | undefined) | undefined;
   returnFocus?: () => HTMLElement | null;
   openEvidence?: (evidenceId: string) => void;
   hostTools?: HostToolStatus[] | undefined;
@@ -72,7 +79,14 @@ export function SourceIntakeDialog(props: SourceIntakeDialogProps) {
   const { request } = props;
   return (
     <SourceIntakeSession
-      key={`${request.generation}:${request.portId}:${request.profile.id}:${request.purpose}:${JSON.stringify(request.paths)}`}
+      key={JSON.stringify([
+        request.generation,
+        request.portId,
+        request.profile.id,
+        request.purpose,
+        request.paths,
+        request.setup,
+      ])}
       {...props}
     />
   );
@@ -82,6 +96,7 @@ function useSourceIntakeSession({
   request,
   close,
   onAdded,
+  onContinueSetup,
   returnFocus,
   openEvidence,
   hostTools = [],
@@ -94,7 +109,7 @@ function useSourceIntakeSession({
   const [busy, setBusy] = useState(request.paths.length > 0 ? copy.checking : "");
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<SourceRecord>();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
   const selectedPathsRef = useRef(request.paths);
@@ -142,7 +157,7 @@ function useSourceIntakeSession({
       setNotice(undefined);
       setPlan(undefined);
       setResult(undefined);
-      setSaved(false);
+      setSaved(undefined);
       setRefreshFailed(false);
       await loadInspection(paths, current);
     },
@@ -224,7 +239,7 @@ function useSourceIntakeSession({
       if (!imported)
         setNotice("Move cancelled. The original files and saved location were left unchanged.");
       else {
-        setSaved(true);
+        setSaved(imported.registered);
         setNotice(sourceImportNotice(imported));
         try {
           await onAdded?.();
@@ -249,7 +264,11 @@ function useSourceIntakeSession({
       await onAdded?.();
       if (intent.current === current) {
         setRefreshFailed(false);
-        setNotice("Saved file location refreshed. Return to the game to continue setup or play.");
+        setNotice(
+          onContinueSetup
+            ? "Saved file location refreshed. Continue setup when you’re ready."
+            : "Saved file location refreshed. Return to the game to continue setup or play.",
+        );
       }
     } catch {
       if (intent.current === current)
@@ -297,6 +316,10 @@ function useSourceIntakeSession({
     saved,
     refreshFailed,
     dismiss,
+    continueSetup:
+      saved && !refreshFailed && onContinueSetup
+        ? () => setError(onContinueSetup(saved))
+        : undefined,
     choose,
     review,
     apply,
@@ -323,6 +346,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
     saved,
     refreshFailed,
     dismiss,
+    continueSetup,
     choose,
     review,
     apply,
@@ -357,7 +381,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             data-focusable
             variant="primary"
             type="button"
-            disabled={Boolean(busy) || saved}
+            disabled={Boolean(busy) || Boolean(saved)}
             onClick={() => {
               void choose();
             }}
@@ -480,8 +504,18 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               Retry refresh
             </Button>
           )}
+          {continueSetup && (
+            <Button
+              variant="primary"
+              data-focusable
+              disabled={Boolean(busy)}
+              onClick={continueSetup}
+            >
+              Continue setup
+            </Button>
+          )}
           <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
-            {saved && !refreshFailed ? "Return to game" : "Close"}
+            {saved && !refreshFailed && !continueSetup ? "Return to game" : "Close"}
           </Button>
         </DialogFooter>
       </DialogContent>
