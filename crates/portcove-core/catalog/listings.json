@@ -62942,7 +62942,7 @@
           }
         ],
         "warnings": [
-          "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes an unlicensed gbrecompiled engine fork and shaders under their own licences that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes recompiled game code without a licence grant, an unlicensed gbrecompiled engine fork, shaders under their own licences, and the Lato, Noto Sans Symbols 2 and OpenMoji fonts under the OFL and CC BY-SA licences. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Save and save-state compatibility is specific to this build; do not assume another gbrecompiled game or version can read them. Portcove has not observed native setup, gameplay or saves."
         ],
         "references": [

@@ -29,8 +29,13 @@ layout. Nothing from the package or source was executed.
   the parent exits, which Core cannot track; Linux stays a listing.
 - Shader preset check: `librashader_chain.cpp` (around 760-927) starts a hidden,
   below-normal-priority copy of `shantae.exe` with `GBRECOMP_SHADER_PROBE` to
-  test-compile a chosen preset and waits for or kills it. It is the same
-  in-install program in the same process tree.
+  test-compile a chosen preset. The game polls it without blocking, kills it
+  after 300 seconds (around 908-917), and cancels it on shutdown through
+  `gb_lrs_shutdown`, waiting up to five seconds (`platform_sdl.cpp` around 6709),
+  before the Return to Launcher hook runs. It is the same in-install program in
+  the same process tree. If the game crashes while a check is running, the hidden
+  helper can keep the tracked session open until it finishes; that is a tracked
+  in-install child, not an escape.
 - No updater, toolchain download or rebuild path is reachable. recomp-ui's
   RetComM and "Generate & rebuild" flows run only when the host sets
   `setup_wizard_supported`, which neither gbrecompiled nor this title sets; the
@@ -48,13 +53,25 @@ around 2154, with `shantae.toml` setting no prefix). The game writes
 `shader_presets/` and `shader_cache/` there; `shantae.rtc` is declared although
 this MBC5 cartridge has no clock. `borders/` and `cheats/` are read when the
 player adds them, and Game Boy printer output goes to `prints/`. All of these are
-persistent paths with `portcove-managed` saves and settings. The route uses
-`relative-file-max-path`: the longest package member path is 128 characters.
+persistent paths with `portcove-managed` saves and settings. The default-on
+interpreter fallback log `interp_fallbacks.log` (`gbrt.c` around 58,
+`interpreter.c` around 203) is written to the working directory and stays an
+undeclared diagnostic.
+
+The route uses `printable-ascii-max-path`. gbrecompiled finds its state and asset
+folders with the narrow `GetModuleFileNameA` (`gb_host_paths.c` around 78, and
+recomp-ui `launcher_model.c` around 1999). Saves, settings and save states then
+open those bytes with narrow `fopen`, while shader presets, the probe cache and
+`imgui.ini` read the same bytes as UTF-8. An install folder outside the system
+code page or outside ASCII would therefore break saving or shader paths. The
+longest package member path is 128 characters after unwrapping.
 
 ## Rights
 
-The title is PolyForm Noncommercial; the package includes an unlicensed
-gbrecompiled engine fork and shaders under their own licences. Under the rights
+The title is PolyForm Noncommercial; the package includes recompiled game code
+without a licence grant (`THIRD-PARTY-LICENSES.md`), an unlicensed gbrecompiled
+engine fork, shaders under their own licences, and the Lato and Noto Sans
+Symbols 2 (OFL) and OpenMoji (CC BY-SA 4.0) fonts. Under the rights
 basis these are recorded listing warnings, not holds.
 
 ## Limits

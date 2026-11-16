@@ -383,7 +383,8 @@ After Burner Climax (darkuni Recomp) opts in on Windows. For the World release,
 
 Shantae Recomp (vibecodekun) opts in on Windows. Return to Launcher starts the
 same executable again with `CreateProcessW` from an exit hook, and its shader
-preset check runs a hidden copy of the same program that the game waits for.
+preset check runs a hidden helper copy of the same program that the game stops
+before it exits.
 [Shantae qualification](qualification/shantae-recomp-tracked-handoff-2026-11-16.md).
 
 Adding this route does not adopt an existing external registration. Players can

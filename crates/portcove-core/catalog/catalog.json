@@ -74374,7 +74374,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "portcove-managed",
-        "manual_preparation": "On first Play, pick your own exact Shantae USA Game Boy Color ROM in the game's chooser; it accepts only that ROM and remembers its path in rom.cfg, so keep the ROM where it is. The game keeps its settings (rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini), the shantae.sav battery save, save states shantae.state1 to shantae.state10, shader presets and the shader cache in the game folder, and Portcove keeps them, with any borders, cheats and prints folders you add, across updates, backups and rollback. Return to Launcher and the shader preset check start the same program again from the game folder, and Portcove keeps tracking them. Use a library path that fits within the Windows path limit; Portcove refuses longer install folders before download. Portcove replaces the program; you own the ROM.",
+        "manual_preparation": "On first Play, pick your own exact Shantae USA Game Boy Color ROM in the game's chooser; it accepts only that ROM and remembers its path in rom.cfg, so keep the ROM where it is. The game keeps its settings (rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini), the shantae.sav battery save, save states shantae.state1 to shantae.state10, shader presets and the shader cache in the game folder, and Portcove keeps them, with any borders, cheats and prints folders you add, across updates, backups and rollback. Return to Launcher starts the same program again from the game folder, and Portcove keeps tracking it. The game finds its folder through a Windows API that cannot represent every character, so use a short library path with plain ASCII characters; Portcove refuses other install folders before download. Setting GBRECOMP_STATE_DIR or GBRECOMP_ASSET_DIR for your user account moves the game's data outside the managed copy. Portcove replaces the program; you own the ROM.",
         "original_game_title": "Shantae",
         "manual_setup": {
           "help_url": "https://github.com/vibecodekun/shantaerecomp",
@@ -74389,7 +74389,7 @@
             }
           ],
           "warnings": [
-            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes an unlicensed gbrecompiled engine fork and shaders under their own licences that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes recompiled game code without a licence grant, an unlicensed gbrecompiled engine fork, shaders under their own licences, and the Lato, Noto Sans Symbols 2 and OpenMoji fonts under the OFL and CC BY-SA licences. Portcove downloads it only from the project’s own releases. You need your own original game files.",
             "Save and save-state compatibility is specific to this build; do not assume another gbrecompiled game or version can read them. Portcove has not observed native setup, gameplay or saves."
           ],
           "references": [
@@ -74420,7 +74420,7 @@
         }
       },
       "windows_tracked_handoff": true,
-      "windows_runtime_path_policy": "relative-file-max-path"
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "vidanox-banjotooierecompiled",
