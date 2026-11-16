@@ -411,7 +411,20 @@ fn openomf_appimage_requires_27_in_fresh_and_retained_readers() {
 #[test]
 fn native_mac_bundle_tar_xz_requires_version_26_and_reviewed_bundle() {
     let catalog = crate::Catalog::embedded().unwrap();
-    let port = catalog.port("wolfenstein-3d-reflectionhle").unwrap();
+    // The embedded record now also opts its Linux layout into the program
+    // format classifier, which requires version 36 (covered by
+    // linux_program_format_classifier_requires_native_36_...). Check the Mac
+    // bundle contract on the record as it was before that opt-in.
+    let mut port = catalog
+        .port("wolfenstein-3d-reflectionhle")
+        .unwrap()
+        .clone();
+    let linux = port
+        .reviewed_package_layouts
+        .remove(&crate::Platform::LinuxX86_64)
+        .unwrap();
+    assert!(linux.classify_linux_programs_by_format);
+    let port = &port;
     let mut entry = entry_for_port(port);
     for minimum in [25, 26] {
         entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
