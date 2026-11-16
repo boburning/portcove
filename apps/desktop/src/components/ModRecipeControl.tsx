@@ -107,6 +107,18 @@ export function ModRecipeControl({
             {t("mods.recipe.review")}
           </h4>
           <p>{t(plan.can_apply ? "mods.recipe.ready" : "mods.recipe.held")}</p>
+          <p>{t("mods.recipe.platform", { platform: plan.recipe.runtime.platform })}</p>
+          {plan.recipe.packages.length > 0 && (
+            <ul className="list-disc pl-5" aria-label={t("mods.recipe.packages")}>
+              {plan.recipe.packages.map((pack) => (
+                <li key={pack.native_id}>
+                  {t(pack.enabled ? "mods.recipe.enabled" : "mods.recipe.disabled", {
+                    name: pack.native_id,
+                  })}
+                </li>
+              ))}
+            </ul>
+          )}
           <details open={!plan.can_apply}>
             <summary>{t("mods.recipe.details")}</summary>
             <ul className="list-disc pl-5">
@@ -119,6 +131,22 @@ export function ModRecipeControl({
                 <li key={detail}>{detail}</li>
               ))}
             </ul>
+            {plan.recipe.orderings.map((ordering) => (
+              <div key={ordering.domain} className="mt-2">
+                <p>{t("mods.recipe.order", { domain: ordering.domain })}</p>
+                <ol className="list-decimal pl-5">
+                  {ordering.native_ids.map((id) => (
+                    <li key={id}>{id}</li>
+                  ))}
+                </ol>
+              </div>
+            ))}
+            <p className="mt-2">
+              {t("mods.recipe.identity")}{" "}
+              <code className="break-all" dir="ltr">
+                {plan.recipe.identity_sha256}
+              </code>
+            </p>
           </details>
           {plan.can_apply && (
             <div className="grid gap-1">

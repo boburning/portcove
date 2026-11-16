@@ -148,6 +148,25 @@ fn identity(recipe: &ProfileRecipe) -> Result<String> {
 }
 
 impl ProfileRecipe {
+    /// Reads a regular recipe file without waiting on a special input stream.
+    pub fn read_file(path: &Path) -> Result<Self> {
+        if !std::fs::metadata(path)?.is_file() {
+            return Err(invalid("choose a regular recipe file"));
+        }
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.custom_flags(libc::O_NONBLOCK);
+        }
+        let file = options.open(path)?;
+        if !file.metadata()?.is_file() {
+            return Err(invalid("choose a regular recipe file"));
+        }
+        Self::read_document(file)
+    }
+
     /// Reads a local recipe or CLI JSON envelope with the same bound as inspection.
     pub fn read_document(reader: impl Read) -> Result<Self> {
         let mut bytes = Vec::new();
@@ -469,17 +488,17 @@ impl PortcoveService {
                     && build.installed_contract_sha256 == recipe.runtime.installed_contract_sha256
                     && build.platform == recipe.runtime.platform
                 {
-                    exact = Some(install.id.clone());
+                    exact = Some(install);
                     break;
                 }
             }
             match exact {
-                Some(id) => {
-                    install_id = Some(id);
+                Some(install) => {
+                    install_id = Some(install.id.clone());
                     RecipeInputPlan {
                         name: "runtime".into(),
                         status: RecipeInputStatus::Available,
-                        detail: "the exact runtime build is installed".into(),
+                        detail: format!("the exact runtime build {} is installed", install.version),
                     }
                 }
                 None => {
@@ -553,14 +572,53 @@ impl PortcoveService {
             .collect::<Vec<_>>();
         let user = self.library.user_dir(&recipe.port_id);
         let layout = crate::profile_deploy::Layout::for_user(&user);
+        let recomp_game = crate::native_mod_list::recomp_game(&recipe.port_id);
+        let code_consents = if recomp_game.is_some() {
+            crate::profile_deploy::consented_code(&layout).unwrap_or_default()
+        } else {
+            BTreeSet::new()
+        };
         let connection = self.library.connection()?;
         let packages = recipe
             .packages
             .iter()
             .map(|package| {
                 let stored = layout.package(&package.sha256, &package.native_id);
-                let present = stored.try_exists().unwrap_or(false)
-                    && sha256_file(&stored).is_ok_and(|sha| sha == package.sha256);
+                let exact_size = std::fs::symlink_metadata(&stored)
+                    .is_ok_and(|entry| entry.is_file() && entry.len() == package.size);
+                let present = if !exact_size {
+                    false
+                } else if let Some(game) = recomp_game {
+                    match crate::inspect_recomp_mod(&stored, game) {
+                        Ok(recomp)
+                            if recomp.sha256 == package.sha256
+                                && package.native_id == format!("{}.nrm", recomp.native_id)
+                                && package.native_version.as_ref().is_none_or(|version| {
+                                    version == &recomp.native_version
+                                }) =>
+                        {
+                            if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
+                                holds.push(format!("{} is for a different game", package.native_id));
+                            } else if let Err(error) =
+                                crate::profile_deploy::require_admissible_code(&recomp)
+                            {
+                                holds.push(format!("Portcove held {}. {}", package.native_id, error.message));
+                            } else if package.enabled
+                                && !recomp.execution.is_empty()
+                                && !code_consents.contains(&package.sha256)
+                            {
+                                holds.push(format!(
+                                    "{} needs permission in this library to run its exact code. Review the exact package locally before importing",
+                                    package.native_id
+                                ));
+                            }
+                            true
+                        }
+                        _ => false,
+                    }
+                } else {
+                    sha256_file(&stored).is_ok_and(|sha| sha == package.sha256)
+                };
                 let unrecorded_label = match &package.provider {
                     Some(provider) => !profile::provider_label_recorded(
                         &connection,

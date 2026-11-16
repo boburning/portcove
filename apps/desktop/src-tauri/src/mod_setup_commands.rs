@@ -106,7 +106,7 @@ pub(crate) async fn inspect_mod_recipe(
     let state = state.inner().clone();
     blocking_worker(move || {
         read_at_generation(&state, generation, |service| {
-            let recipe = ProfileRecipe::read_document(std::fs::File::open(path)?)?;
+            let recipe = ProfileRecipe::read_file(&path)?;
             require_recipe_port(&port_id, &recipe)?;
             service.plan_recipe_import(&recipe)
         })

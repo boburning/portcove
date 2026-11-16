@@ -563,7 +563,13 @@ it("opens an exact recipe review and creates a separately named setup", async ()
     originals: [],
     packages: [],
     plan_sha256: "a".repeat(64),
-    recipe: { uncaptured: [] },
+    recipe: {
+      identity_sha256: "a".repeat(64),
+      uncaptured: [],
+      packages: [],
+      orderings: [],
+      runtime: { platform: "windows-x86-64" },
+    },
     runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
   } as unknown as Awaited<ReturnType<typeof desktopApi.inspectModRecipe>>;
   const inspect = vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(plan);
@@ -590,7 +596,13 @@ it("shows exact missing recipe inputs before any import is offered", async () =>
     holds: ["Review the exact required provider version."],
     originals: [],
     packages: [{ name: "retro.o2r", status: "unavailable", detail: "Review project 1, file 2." }],
-    recipe: { uncaptured: [] },
+    recipe: {
+      identity_sha256: "a".repeat(64),
+      uncaptured: [],
+      packages: [],
+      orderings: [],
+      runtime: { platform: "windows-x86-64" },
+    },
     runtime: { name: "runtime", status: "available", detail: "The exact runtime is installed." },
   } as unknown as Awaited<ReturnType<typeof desktopApi.inspectModRecipe>>;
   vi.spyOn(desktopApi, "inspectModRecipe").mockResolvedValue(plan);
