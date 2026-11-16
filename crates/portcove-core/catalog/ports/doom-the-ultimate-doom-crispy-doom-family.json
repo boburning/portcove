@@ -5,6 +5,14 @@
     "name": "Doom / The Ultimate Doom (Crispy Doom family)",
     "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Doom / The Ultimate Doom",
+    "artwork": {
+      "game_id": 10192,
+      "cover_id": 182448,
+      "image_id": "co3ws0",
+      "image_sha256": "3e8f2c48dc86aaf6bf763ce257c48678435bf3ef04572074ef46ce21c02a7b57",
+      "game_slug": "the-ultimate-doom",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
     "availability": "packages",
     "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",

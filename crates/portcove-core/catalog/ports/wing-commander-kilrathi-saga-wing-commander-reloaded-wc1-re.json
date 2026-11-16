@@ -5,6 +5,14 @@
     "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
     "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
     "original_game_title": "Wing Commander (Kilrathi Saga)",
+    "artwork": {
+      "game_id": 50167,
+      "cover_id": 27896,
+      "image_id": "amf1oxlh21jfbdvpso8j",
+      "image_sha256": "8960e96afabb01890379af2654d19c28852d0935a3c98059afcf7b7c418a5e87",
+      "game_slug": "wing-commander-the-kilrahi-saga",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/neuromancer/wc1-re",
     "setup_url": "https://github.com/neuromancer/wc1-re",
     "issue_number": 2909,

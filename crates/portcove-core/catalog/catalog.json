@@ -55527,6 +55527,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 206672,
+          "cover_id": 572032,
+          "image_id": "coc9ds",
+          "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+          "game_slug": "vampire-savior-the-lord-of-vampire",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -58340,6 +58348,14 @@
               "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 10192,
+          "cover_id": 182448,
+          "image_id": "co3ws0",
+          "image_sha256": "3e8f2c48dc86aaf6bf763ce257c48678435bf3ef04572074ef46ce21c02a7b57",
+          "game_slug": "the-ultimate-doom",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -74486,6 +74502,14 @@
             "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
             "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
           ]
+        },
+        "artwork": {
+          "game_id": 50167,
+          "cover_id": 27896,
+          "image_id": "amf1oxlh21jfbdvpso8j",
+          "image_sha256": "8960e96afabb01890379af2654d19c28852d0935a3c98059afcf7b7c418a5e87",
+          "game_slug": "wing-commander-the-kilrahi-saga",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
