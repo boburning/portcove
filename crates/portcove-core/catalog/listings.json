@@ -14164,6 +14164,14 @@
       "name": "Uncharted: Drakes Fortune — PS4 remaster (bc160201983 Uncharted PC port)",
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Fortune. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted: Drakes Fortune",
+      "artwork": {
+        "game_id": 41878,
+        "cover_id": 86366,
+        "image_id": "co1un2",
+        "image_sha256": "b525931c961c2d511b9d6fea7df37b2036accc81e3f4bb0dde97818782b8aaae",
+        "game_slug": "uncharted-drakes-fortune-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "platforms": [
         "windows-x86-64"
@@ -14210,6 +14218,14 @@
       "name": "Uncharted2: Among Thieves — PS4 remaster (bc160201983 Uncharted PC port)",
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Among Thieves. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted2: Among Thieves",
+      "artwork": {
+        "game_id": 41877,
+        "cover_id": 86368,
+        "image_id": "co1un4",
+        "image_sha256": "8fb52d29479a98fc3594e34abae9a651e390481b04b247239887e0978b11a6c3",
+        "game_slug": "uncharted-2-among-thieves-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "platforms": [
         "windows-x86-64"
@@ -14256,6 +14272,14 @@
       "name": "Uncharted3: Drakes Deception — PS4 remaster (bc160201983 Uncharted PC port)",
       "summary": "Attach an independently permitted, prepared Windows Nathan Drake Collection installation starting Uncharted: Drake’s Deception. The BilalReloaded launcher keeps title-specific settings; upstream owns preparation, runtime replacement and external player data.",
       "original_game_title": "Uncharted3: Drakes Deception",
+      "artwork": {
+        "game_id": 41876,
+        "cover_id": 85167,
+        "image_id": "co1tpr",
+        "image_sha256": "8e58189719436a60d252ffba26b165fd5e9c1708e021bcef45f5be2b97d4c9c8",
+        "game_slug": "uncharted-3-drakes-deception-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/bc160201983/Uncharted-The-Nathan-Drake-Collection-PC-port",
       "platforms": [
         "windows-x86-64"
@@ -21559,6 +21583,14 @@
       "name": "Daytona USA (Sega Model 2 arcade) (Daytona USA static recompilation)",
       "summary": "Documented Windows Daytona USA arcade source-build route for your own daytona93 or daytona ROM set. Choose the completed matching native build; upstream/player owns rebuilding and separate per-set profiles.",
       "original_game_title": "Daytona USA (Sega Model 2 arcade)",
+      "artwork": {
+        "game_id": 17245,
+        "cover_id": 88401,
+        "image_id": "co1w7l",
+        "image_sha256": "83c63786cb9593fa69edddb970f522d5232ad325ccd51930507bca94dfcb5bb5",
+        "game_slug": "daytona-usa",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/alphanu1/daytona-arcade-recomp",
       "platforms": [],
       "availability": "unknown",
@@ -32080,6 +32112,14 @@
       "id": "gzport-johnnygentoo-godzilla-2015",
       "name": "GODZILLA (2015) — gzport (johnnygentoo)",
       "original_game_title": "GODZILLA (2015)",
+      "artwork": {
+        "game_id": 8731,
+        "cover_id": 134606,
+        "image_id": "co2vv2",
+        "image_sha256": "34f87fb136addc2e2d908f87acd4dc45f41cc910df1939ef0a480c3cd49abead",
+        "game_slug": "godzilla-the-game--1",
+        "match_kind": "underlying-game"
+      },
       "summary": "Upstream reports the full solo story, other modes and three-PC LAN play on Linux at 60 FPS. A higher-frame-rate patch is not written, and upscalers are experimental. Portcove has not confirmed completion, network play or performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/johnnygentoo/gzport",
       "listed_at": "2026-10-25",
@@ -35837,6 +35877,14 @@
       "project_url": "https://github.com/sacredbanana/lab3d-sdl",
       "name": "Ken’s Labyrinth / LAB3D/SDL",
       "original_game_title": "Ken’s Labyrinth",
+      "artwork": {
+        "game_id": 8743,
+        "cover_id": 419835,
+        "image_id": "co8zy3",
+        "image_sha256": "f0c00424aed86fefb0064e6f74e05cc449cee311ce294b70caced13af47229b3",
+        "game_slug": "kens-labyrinth",
+        "match_kind": "underlying-game"
+      },
       "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
       "issue_number": 6129,
       "listed_at": "2026-11-14",
@@ -38341,6 +38389,14 @@
       "id": "macross-vfx-2-recomp-omegakatana92-macross-vf-x2",
       "name": "Macross VF-X2 — Macross-VFX-2-Recomp (omegakatana92)",
       "original_game_title": "Macross VF-X2",
+      "artwork": {
+        "game_id": 44791,
+        "cover_id": 369919,
+        "image_id": "co7xfj",
+        "image_sha256": "1ea16401063d18cc458ccbe0788f573e416d0f06c6d86a397a33b78504c805a1",
+        "game_slug": "macross-vf-x-2",
+        "match_kind": "underlying-game"
+      },
       "summary": "Upstream reports working graphics, gameplay and performance while describing the project as unfinished. Full completion is unconfirmed; Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/omegakatana92/Macross-VFX-2-Recomp",
       "listed_at": "2026-10-25",
@@ -42126,6 +42182,14 @@
       "name": "Tetris (TetrisGBRecomp)",
       "summary": "A native Tetris Game Boy player for your own matching World v1.0 original. Includes a separate in-process launcher; the corrected upstream route and original requirements are described below.",
       "original_game_title": "Tetris",
+      "artwork": {
+        "game_id": 86490,
+        "cover_id": 132753,
+        "image_id": "co2ufl",
+        "image_sha256": "13709e58a224fd508c72879f477d43b8d10ead1e5d79633a41db0de94299fccf",
+        "game_slug": "tetris--1",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/mstan/TetrisGBRecomp",
       "platforms": [],
       "availability": "unknown",
@@ -44132,6 +44196,14 @@
       "name": "Seihou Densetsu: Shuusou Gyoku (GIAN07)",
       "summary": "Attach an independently permitted, prepared modern GIAN07 Windows x86 player for Shuusou Gyoku with your own original resources. Keep the modern SDL3 route separate from vintage binaries and replay tooling; the retained original README is not the current build contract.",
       "original_game_title": "Seihou Densetsu: Shuusou Gyoku",
+      "artwork": {
+        "game_id": 123608,
+        "cover_id": 267150,
+        "image_id": "co5q4u",
+        "image_sha256": "e3d6dfbca8e79e3ffb8efb402ddd8c1505d3b9868db8ff141daa9daf4f276702",
+        "game_slug": "shuusou-gyoku",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/nmlgc/ssg",
       "platforms": [],
       "availability": "unknown",
@@ -46371,6 +46443,14 @@
       "id": "pacific-rim-linux-recompilation-thefixinhixon-pacific-rim-the-video-game",
       "name": "Pacific Rim: The Video Game — Pacific Rim — Linux Recompilation (thefixinhixon)",
       "original_game_title": "Pacific Rim: The Video Game",
+      "artwork": {
+        "game_id": 3763,
+        "cover_id": 3926,
+        "image_id": "cebi19ssrt4annkpkiug",
+        "image_sha256": "bffd771e856c33ceaa52b35b67a80c052072dcc199f99a00710e34af189d8723",
+        "game_slug": "pacific-rim",
+        "match_kind": "underlying-game"
+      },
       "summary": "The project reports Linux gameplay, DLC and saves, with fault and shared-memory fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/thefixinhixon/PacificRimRecomp",
       "listed_at": "2026-10-25",
@@ -46477,6 +46557,14 @@
       "id": "paranoia-scape-recompiled-levonfrench-paranoia-scape",
       "name": "Paranoia Scape — Paranoia Scape Recompiled (LevonFrench)",
       "original_game_title": "Paranoia Scape",
+      "artwork": {
+        "game_id": 123266,
+        "cover_id": 131637,
+        "image_id": "co2tkl",
+        "image_sha256": "25296afe126eb84f8a3ef5487c7df3d72c6e831db93d4fd048a87cd7cb3f77f7",
+        "game_slug": "paranoiascape",
+        "match_kind": "underlying-game"
+      },
       "summary": "This early build is reported to boot and reach gameplay. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/LevonFrench/Paranoiascape-Recompiled",
       "listed_at": "2026-10-25",
@@ -49143,6 +49231,14 @@
       "name": "The Darkness (The Darkness Recomp)",
       "summary": "A Windows 10/11 x64 Direct3D 11 port of The Darkness with project-reported gameplay, audio, saves and controls. Use the player ZIP rather than the optional diagnostic-launcher ZIP. Release play needs no source toolchain; development/update builds separately use VS2022 Clang, CMake, Python, MSYS2 and LLVM, including XMA preparation. Supply your own complete extracted Xbox 360 game, including default.xex, Content, System and all companions; an ISO alone is insufficient. The player checks the supported executable and documented Russian localization internally, but this guide does not specify their exact hashes. XexTool preparation is unnecessary and no separate console BIOS input is specified. You and the project manage setup and replacement; Portcove has not qualified the package or confirmed gameplay.",
       "original_game_title": "The Darkness",
+      "artwork": {
+        "game_id": 1347,
+        "cover_id": 205434,
+        "image_id": "co4eii",
+        "image_sha256": "3eeac79492c259e9a56687a90787170addd43c228dee6b3acc0736e9bba9b8b1",
+        "game_slug": "the-darkness",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/portingpete/The-Darkness-Recomp",
       "platforms": [
         "windows-x86-64"
@@ -58724,6 +58820,14 @@
       "id": "supaplex-opensupaplex",
       "name": "OpenSupaplex",
       "original_game_title": "Supaplex",
+      "artwork": {
+        "game_id": 14418,
+        "cover_id": 253827,
+        "image_id": "co5fur",
+        "image_sha256": "e996680efe55bd7bd6788d77f091849bbcb43115507a8abd39af6180cd77bbd0",
+        "game_slug": "supaplex",
+        "match_kind": "underlying-game"
+      },
       "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
       "project_url": "https://github.com/sergiou87/open-supaplex",
       "issue_number": 5684,
@@ -59668,6 +59772,14 @@
       "name": "Uncharted: Drakes Fortune — PS4 remaster (Supermedo uncharted_pc)",
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Fortune before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted: Drakes Fortune",
+      "artwork": {
+        "game_id": 41878,
+        "cover_id": 86366,
+        "image_id": "co1un2",
+        "image_sha256": "b525931c961c2d511b9d6fea7df37b2036accc81e3f4bb0dde97818782b8aaae",
+        "game_slug": "uncharted-drakes-fortune-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Supermedo/uncharted_pc",
       "platforms": [
         "windows-x86-64"
@@ -59714,6 +59826,14 @@
       "name": "Uncharted2: Among Thieves — PS4 remaster (Supermedo uncharted_pc)",
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Among Thieves before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted2: Among Thieves",
+      "artwork": {
+        "game_id": 41877,
+        "cover_id": 86368,
+        "image_id": "co1un4",
+        "image_sha256": "8fb52d29479a98fc3594e34abae9a651e390481b04b247239887e0978b11a6c3",
+        "game_slug": "uncharted-2-among-thieves-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Supermedo/uncharted_pc",
       "platforms": [
         "windows-x86-64"
@@ -59760,6 +59880,14 @@
       "name": "Uncharted3: Drakes Deception — PS4 remaster (Supermedo uncharted_pc)",
       "summary": "Attach the prepared SuperMedo Windows collection launcher and explicitly choose Uncharted: Drake’s Deception before its Play action. These three title records share a mutable upstream launcher selection, not independent fixed command-line game selectors.",
       "original_game_title": "Uncharted3: Drakes Deception",
+      "artwork": {
+        "game_id": 41876,
+        "cover_id": 85167,
+        "image_id": "co1tpr",
+        "image_sha256": "8e58189719436a60d252ffba26b165fd5e9c1708e021bcef45f5be2b97d4c9c8",
+        "game_slug": "uncharted-3-drakes-deception-remastered",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Supermedo/uncharted_pc",
       "platforms": [
         "windows-x86-64"
@@ -61839,6 +61967,14 @@
       "name": "The Darkness (Xbox 360, 2007) (Estacado)",
       "summary": "Attach an independently permitted, prepared Estacado Windows player directly through TheDarkness.exe after upstream game setup. Preserve Saved Games or the existing portable/legacy layout, verified migration copies and original data; the separate settings launcher owns preparation and updates.",
       "original_game_title": "The Darkness (Xbox 360, 2007)",
+      "artwork": {
+        "game_id": 1347,
+        "cover_id": 205434,
+        "image_id": "co4eii",
+        "image_sha256": "3eeac79492c259e9a56687a90787170addd43c228dee6b3acc0736e9bba9b8b1",
+        "game_slug": "the-darkness",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/invinceble55-wq/Estacado-The-Darkness-Recomp",
       "platforms": [
         "windows-x86-64"
