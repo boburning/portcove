@@ -17,7 +17,7 @@
       "steps": [
         {
           "title": "Choose a desktop package",
-          "instruction": "On Windows x64, download and extract the standard ZIP, then open Powder.exe. For Windows on ARM, the current build page offers a separate ARM64 ZIP. On Linux x86-64, extract the archive and run powder. The current Linux build needs glibc 2.35 or later. On Mac, choose the disk image for Intel or Apple Silicon. If macOS rejects the app, use Play online on the publisher’s site."
+          "instruction": "On Windows x64, download and extract the standard ZIP, then open Powder.exe. For Windows on ARM, choose Older, then Browse and open the current build page. Extract the ARM64 ZIP and open Powder arm64.exe. On Linux x86-64, extract the archive and run powder. The current Linux build needs glibc 2.35 or later. On Mac, choose the disk image for Intel or Apple Silicon."
         },
         {
           "title": "Create and reopen a local stamp",
