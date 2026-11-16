@@ -72,7 +72,18 @@ it("loads generic component fixtures without reading the live catalog", async ()
 
 it("validates intentional source catalog fixtures without inventing missing claims", () => {
   const fixture = currentSourceCatalog();
-  expect(fixture.identities).toEqual(catalog.source_catalog.identities);
+  expect(fixture.identities).toEqual(
+    catalog.source_catalog.identities.map((identity) => ({
+      ...identity,
+      variants: identity.variants.map((variant) => ({
+        ...variant,
+        representations: variant.representations.map((representation) => ({
+          ...representation,
+          evidence_ids: "evidence_ids" in representation ? representation.evidence_ids : [],
+        })),
+      })),
+    })),
+  );
   expect(fixture.contracts).toEqual(catalog.source_catalog.contracts);
   expect(fixture.qualification).toEqual(catalog.source_catalog.qualification);
   for (const field of ["identities", "contracts", "qualification", "validators", "evidence"]) {

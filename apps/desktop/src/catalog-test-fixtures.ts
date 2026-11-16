@@ -109,16 +109,31 @@ export function currentCatalogPort(id: string): PortDefinition {
   return authoredPortFixture(authored);
 }
 
-/** Preserve omitted nullable evidence URLs without inventing source claims. */
+function mapFixtureEntries(
+  value: unknown,
+  project: (entry: Record<string, unknown>) => Record<string, unknown>,
+) {
+  return Array.isArray(value)
+    ? value.map((entry: unknown) => (isRecord(entry) ? project(entry) : entry))
+    : value;
+}
+
+/** Apply Core's serialization defaults without inventing source claims. */
 export function authoredSourceCatalogFixture(authored: unknown): SourceCatalog {
   if (!isRecord(authored)) throw new Error("Invalid authored source catalog fixture");
   const value: unknown = {
     ...authored,
-    evidence: Array.isArray(authored.evidence)
-      ? authored.evidence.map((entry: unknown) =>
-          isRecord(entry) ? { live_url: null, ...entry } : entry,
-        )
-      : authored.evidence,
+    evidence: mapFixtureEntries(authored.evidence, (entry) => ({ live_url: null, ...entry })),
+    identities: mapFixtureEntries(authored.identities, (identity) => ({
+      ...identity,
+      variants: mapFixtureEntries(identity.variants, (variant) => ({
+        ...variant,
+        representations: mapFixtureEntries(variant.representations, (representation) => ({
+          evidence_ids: [],
+          ...representation,
+        })),
+      })),
+    })),
   };
   if (!validateSources(value))
     throw new Error(`Invalid source catalog fixture: ${ajv.errorsText(validateSources.errors)}`);
