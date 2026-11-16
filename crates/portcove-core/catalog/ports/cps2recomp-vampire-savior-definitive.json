@@ -5,6 +5,14 @@
     "name": "Vampire Savior Definitive (CPS-2 Recomp)",
     "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
     "original_game_title": "Vampire Savior Definitive",
+    "artwork": {
+      "game_id": 206672,
+      "cover_id": 572032,
+      "image_id": "coc9ds",
+      "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+      "game_slug": "vampire-savior-the-lord-of-vampire",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/tmcleroy/cps2recomp",
     "availability": "packages",
     "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
