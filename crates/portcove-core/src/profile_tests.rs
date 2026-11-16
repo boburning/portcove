@@ -259,6 +259,43 @@ fn default_copy_and_recipe_follow_activation_and_rollback_while_custom_stays_pin
 }
 
 #[test]
+fn rollback_preserves_an_older_default_offer_when_its_registered_identity_changed() {
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let library = service.library();
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let second = install(library, "second", b"new runtime", true);
+
+    // Simulate a legacy record whose install ID now identifies a different
+    // manifest. Current bound-install writers already refuse this mutation.
+    let path = first.path.join(".portcove-manifest.json");
+    let mut bytes = std::fs::read(&path).unwrap();
+    bytes.push(b'\n');
+    std::fs::write(path, &bytes).unwrap();
+    let connection = library.connection().unwrap();
+    connection
+        .execute(
+            "UPDATE installs SET manifest_sha256=?2 WHERE id=?1",
+            params![first.id, hex::encode(Sha256::digest(bytes))],
+        )
+        .unwrap();
+
+    let error = library.rollback(port_id).unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let status = library
+        .status(port_id, crate::ReleaseChannel::Stable)
+        .unwrap();
+    assert_eq!(status.active.unwrap().id, second.id);
+    let revisions = service.profile_revisions(port_id, &default.id).unwrap();
+    assert_eq!(revisions.len(), 2);
+    assert_eq!(revisions[0].build.manifest_sha256, first.manifest_sha256);
+    let reference = crate::retained_build::reference_from(&connection, port_id, &default.id)
+        .unwrap()
+        .unwrap();
+    assert_eq!(reference.history[0].build, revisions[0].build);
+}
+
+#[test]
 fn default_refresh_repairs_a_legacy_active_pointer_without_rewriting_history() {
     let (_temporary, service, first) = fixture();
     let port_id = &first.port_id;

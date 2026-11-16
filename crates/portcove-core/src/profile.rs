@@ -589,16 +589,19 @@ pub(crate) fn follow_active_install(
     if next.build == build {
         return Ok(());
     }
-    if next.build.install_id == build.install_id {
-        return Err(PortcoveError::conflict(
-            "Default's registered build identity changed in place. Restore its exact runtime or install a separately identified build.",
-        ));
-    }
     let previous = crate::retained_build::reference_from(transaction, port_id, &profile.id)?
         .filter(|reference| reference.build == next.build)
         .ok_or_else(|| {
             PortcoveError::conflict("Default's retained binding differs from its revision")
         })?;
+    if previous
+        .retained_builds()
+        .any(|retained| retained.install_id == build.install_id && *retained != build)
+    {
+        return Err(PortcoveError::conflict(
+            "A runtime retained for Default changed in place. Restore its exact runtime or install a separately identified build.",
+        ));
+    }
     next.build = build;
     next.parent_revision = Some(profile.current_revision);
     next.revision = profile
