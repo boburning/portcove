@@ -497,7 +497,12 @@ sealed source receipts. Unapproved populated adoption and persistence changes st
 held. Preserving removal retains declared profile data and leaves external
 originals unchanged. Native1–5 definitions and older SourceOnly interpretations
 retain their existing semantics. Fresh and retained indexed entries with native
-source profiles require a Native6 lower bound.
+source profiles require a Native6 lower bound. Native capability 36
+also admits complete exact relative-file sets with SHA-256-bound Copy targets.
+Each observed relative path must map to a unique runtime destination. Preparation
+uses private staging beside the resolved player and retains the Native6 output
+ownership and publication checks. The relative-file-set verifier determines
+whether the original can be a ZIP or must be an installed folder.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence

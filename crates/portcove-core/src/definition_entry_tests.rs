@@ -2477,3 +2477,32 @@ fn native_originals_require_native6_in_fresh_and_retained_readers() {
             .compatible
     );
 }
+
+#[test]
+fn native_relative_originals_require_capability_36_in_fresh_and_retained_readers() {
+    let mut port = crate::native_temp::tests::port();
+    port.source_profile = Some("exact-relative-originals".into());
+    port.runtime_source_set.push(crate::RuntimeSourceTarget {
+        source_filenames: vec!["base/pak000.pk4".into()],
+        destination: "base/pak000.pk4".into(),
+        materialization: crate::RuntimeSourceMaterialization::Copy,
+    });
+    port.runtime_source_hashes
+        .insert("base/pak000.pk4".into(), "a".repeat(64));
+    let mut entry = entry_for_port(&port);
+    entry["required_capabilities"][0]["maximum_version"] = json!(36);
+    for minimum in [35, 36] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum == 35 {
+                assert!(result.unwrap_err().message.contains("version 36"));
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
+            }
+        }
+    }
+}

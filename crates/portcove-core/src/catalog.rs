@@ -1804,7 +1804,8 @@ impl Catalog {
                     }
                 }
                 None if !port.runtime_source_hashes.is_empty()
-                    && port.managed_initialization.is_none() =>
+                    && port.managed_initialization.is_none()
+                    && !crate::preparation::source::native_relative(port) =>
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
@@ -1882,7 +1883,8 @@ impl Catalog {
                         && matches_member;
                     let valid = valid
                         && (!relative_set
-                            || (port.managed_initialization.is_some()
+                            || ((port.managed_initialization.is_some()
+                                || crate::preparation::source::native_relative(port))
                                 && target.source_filenames.len() == 1
                                 && target.materialization == RuntimeSourceMaterialization::Copy
                                 && crate::archive::validate_relative_path(

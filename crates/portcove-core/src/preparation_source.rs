@@ -22,8 +22,14 @@ pub(crate) struct SourcePreparation {
 }
 
 /// Native6 opts in through the existing original-file source contract.
+pub(crate) const NATIVE_RELATIVE_SOURCE_CAPABILITY: u32 = 36;
+
 pub(crate) fn native(port: &PortDefinition) -> bool {
     port.adapter == AdapterKind::NativePortable && port.source_profile.is_some()
+}
+
+pub(crate) fn native_relative(port: &PortDefinition) -> bool {
+    native(port) && !port.runtime_source_hashes.is_empty() && !port.runtime_source_set.is_empty()
 }
 
 pub(crate) fn validate_native(catalog: &Catalog, port: &PortDefinition) -> Result<()> {
@@ -63,12 +69,18 @@ pub(crate) fn validate_native(catalog: &Catalog, port: &PortDefinition) -> Resul
             && contract.validator_contract_id.is_none()
             && contract.supported_variant_ids.len() == variants.len()
             && variants.iter().all(|variant| contract.supported_variant_ids.contains(&variant.id)));
+    let relative = native_relative(port);
+    let source_kind = if relative {
+        crate::SourceKind::RelativeFileSet
+    } else {
+        crate::SourceKind::FileSet
+    };
     if !complete_contract
         || !eligible(port)
-        || catalog.source_profile(profile_id)?.kind != crate::SourceKind::FileSet
+        || catalog.source_profile(profile_id)?.kind != source_kind
         || port.runtime_source_filename.is_some()
         || port.runtime_source_materialization.is_some()
-        || !port.runtime_source_hashes.is_empty()
+        || (!relative && !port.runtime_source_hashes.is_empty())
         || outputs(port).iter().any(|output| {
             let namespace = output.split('/').next().unwrap_or(output);
             port.persistent_paths
@@ -82,6 +94,25 @@ pub(crate) fn validate_native(catalog: &Catalog, port: &PortDefinition) -> Resul
         || variants.is_empty()
         || variants.iter().any(|variant| {
             variant.representations.iter().any(|representation| {
+                if relative {
+                    let crate::SourceRepresentationKind::RelativeFileSet { members } =
+                        &representation.kind
+                    else {
+                        return true;
+                    };
+                    return members.len() != port.runtime_source_set.len()
+                        || members.iter().any(|member| {
+                            port.runtime_source_set
+                                .iter()
+                                .filter(|target| {
+                                    target.materialization == RuntimeSourceMaterialization::Copy
+                                        && matches!(target.source_filenames.as_slice(), [path] if path.eq_ignore_ascii_case(&member.path))
+                                        && port.runtime_source_hashes.get(&target.destination)
+                                            .is_some_and(|hash| hash.eq_ignore_ascii_case(&member.sha256))
+                                })
+                                .count() != 1
+                        });
+                }
                 let crate::SourceRepresentationKind::FileSet { members } = &representation.kind
                 else {
                     return true;
@@ -635,19 +666,30 @@ pub(crate) fn materialize(
         }
     }
     materialize_single_source(port, inputs, working, checkpoint, process_quiesced)?;
-    for target in &port.runtime_source_set {
-        checkpoint()?;
-        let destination = working.join(&target.destination);
-        if let Some(parent) = destination.parent() {
-            fs::create_dir_all(parent)?;
+    if native_relative(port) {
+        let source = native_observation
+            .as_ref()
+            .ok_or_else(|| {
+                PortcoveError::verification("relative native originals lack inspection")
+            })?
+            .clone()
+            .require_admitted_record()?;
+        crate::relative_file_set::materialize_native(port, &source, working, checkpoint)?;
+    } else {
+        for target in &port.runtime_source_set {
+            checkpoint()?;
+            let destination = working.join(&target.destination);
+            if let Some(parent) = destination.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            crate::adapter::prepare_runtime_source_set_member(
+                &inputs.source.path,
+                &target.source_filenames,
+                &destination,
+                target.materialization,
+                checkpoint,
+            )?;
         }
-        crate::adapter::prepare_runtime_source_set_member(
-            &inputs.source.path,
-            &target.source_filenames,
-            &destination,
-            target.materialization,
-            checkpoint,
-        )?;
     }
     if let Some(observed) = native_observation {
         for target in &port.runtime_source_set {
@@ -676,7 +718,7 @@ pub(crate) fn materialize(
             if size != component.size
                 || !component.digests.iter().any(|expected| {
                     expected.algorithm == crate::SourceDigestAlgorithm::Sha256
-                        && expected.value == digest
+                        && expected.value.eq_ignore_ascii_case(&digest)
                 })
             {
                 return Err(PortcoveError::verification(

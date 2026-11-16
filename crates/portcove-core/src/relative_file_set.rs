@@ -669,12 +669,10 @@ fn inspect_with_limits_and_checkpoint(
     })
 }
 
-pub(crate) fn materialize(
+fn checked_runtime_members(
     port: &crate::PortDefinition,
     source: &crate::SourceRecord,
-    directory: &Path,
-    checkpoint: &dyn Fn() -> Result<()>,
-) -> Result<()> {
+) -> Result<Vec<RelativeSourceMemberIdentity>> {
     let facts = source.observed_identity.as_ref().ok_or_else(|| {
         PortcoveError::verification("relative runtime data needs checked source facts")
     })?;
@@ -686,11 +684,9 @@ pub(crate) fn materialize(
                 "relative runtime target needs one exact source path",
             ));
         };
-        if target.destination != format!("GameData/{name}")
-            || target.materialization != crate::RuntimeSourceMaterialization::Copy
-        {
+        if target.materialization != crate::RuntimeSourceMaterialization::Copy {
             return Err(PortcoveError::verification(
-                "relative runtime target changed its fixed GameData destination",
+                "relative runtime target requires an exact copy",
             ));
         }
         let component = facts
@@ -734,13 +730,57 @@ pub(crate) fn materialize(
             "relative runtime targets omit checked source components",
         ));
     }
-    if requires_directory(&members) {
-        return Err(PortcoveError::unsupported(
-            "large relative original data is not supported by this preparation route",
-        ));
+    Ok(members)
+}
+
+pub(crate) fn materialize_native(
+    port: &crate::PortDefinition,
+    source: &crate::SourceRecord,
+    directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    let members = checked_runtime_members(port, source)?;
+    let directory_only = requires_directory(&members);
+    let member_limit = if directory_only {
+        MAX_DIRECTORY_MEMBER_BYTES
+    } else {
+        MAX_MEMBER_BYTES
+    };
+    let mut input = Input::open_progress(
+        &source.path,
+        member_limit,
+        !directory_only,
+        4096,
+        &mut ReadLimits::default(),
+        checkpoint,
+        &mut |_| checkpoint(),
+    )?;
+    require_same_record(source, &members, &input)?;
+    for (target, member) in port.runtime_source_set.iter().zip(&members) {
+        checkpoint()?;
+        let (relative, _) = crate::archive::validate_relative_path(&target.destination, false)?;
+        let path = directory.join(relative);
+        crate::path::refuse_symlink_ancestors(&path)?;
+        let parent = path.parent().ok_or_else(|| {
+            PortcoveError::verification("relative runtime target has no parent directory")
+        })?;
+        fs::create_dir_all(parent)?;
+        let mut output = fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(path)?;
+        input.copy_verified(member, &mut output, checkpoint)?;
+        output.sync_all()?;
     }
-    let mut input = Input::open(&source.path, checkpoint)?;
-    let actual = record(&source.profile_id, &source.path, &members, &input);
+    Ok(())
+}
+
+fn require_same_record(
+    source: &crate::SourceRecord,
+    members: &[RelativeSourceMemberIdentity],
+    input: &Input,
+) -> Result<()> {
+    let actual = record(&source.profile_id, &source.path, members, input);
     if actual.sha256 != source.sha256
         || actual.size != source.size
         || actual.storage_sha256 != source.storage_sha256
@@ -750,6 +790,35 @@ pub(crate) fn materialize(
             "relative source changed after review",
         ));
     }
+    Ok(())
+}
+
+pub(crate) fn materialize(
+    port: &crate::PortDefinition,
+    source: &crate::SourceRecord,
+    directory: &Path,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<()> {
+    for target in &port.runtime_source_set {
+        let [name] = target.source_filenames.as_slice() else {
+            return Err(PortcoveError::verification(
+                "relative runtime target needs one exact source path",
+            ));
+        };
+        if target.destination != format!("GameData/{name}") {
+            return Err(PortcoveError::verification(
+                "relative runtime target changed its fixed GameData destination",
+            ));
+        }
+    }
+    let members = checked_runtime_members(port, source)?;
+    if requires_directory(&members) {
+        return Err(PortcoveError::unsupported(
+            "large relative original data is not supported by this preparation route",
+        ));
+    }
+    let mut input = Input::open(&source.path, checkpoint)?;
+    require_same_record(source, &members, &input)?;
     crate::path::refuse_symlink_ancestors(directory)?;
     let destination = directory.join("GameData");
     let reusable = verify_cache(&members, &destination, checkpoint)?;

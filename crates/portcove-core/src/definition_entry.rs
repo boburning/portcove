@@ -405,14 +405,19 @@ impl DefinitionContentIndex {
                 "versioned mod packages require staged-source capability version 24",
             ));
         }
-        if crate::preparation::source::native(&port)
-            && !document.required_capabilities.iter().any(|requirement| {
-                requirement.template == "native-portable" && requirement.minimum_version >= 6
-            })
-        {
-            return Err(PortcoveError::verification(
-                "verified native runtime originals require capability version 6",
-            ));
+        if crate::preparation::source::native(&port) {
+            let minimum = if crate::preparation::source::native_relative(&port) {
+                crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY
+            } else {
+                6
+            };
+            if !document.required_capabilities.iter().any(|requirement| {
+                requirement.template == "native-portable" && requirement.minimum_version >= minimum
+            }) {
+                return Err(PortcoveError::verification(format!(
+                    "verified native runtime originals require capability version {minimum}"
+                )));
+            }
         }
         if port.windows_temp_directory.is_some()
             && !document.required_capabilities.iter().any(|requirement| {

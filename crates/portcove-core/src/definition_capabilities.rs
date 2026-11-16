@@ -330,6 +330,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::launch::LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        });
         supported
     }
 }
