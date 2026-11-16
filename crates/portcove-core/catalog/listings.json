@@ -27170,14 +27170,14 @@
           },
           {
             "title": "Keep your players and high scores",
-            "instruction": "Close the game before copying your profile. On Windows, copy the config folder in the game’s installation folder. On Linux, copy the etr folder under your configuration directory, usually ~/.config/etr. If the game uses an existing ~/.etr folder, copy that folder instead. For Flatpak, check the app’s configuration under ~/.var/app/net.sourceforge.ExtremeTuxRacer. Restore using the same package and keep the backup until you can see your players and scores."
+            "instruction": "Close the game before copying your profile. On Windows, copy the config folder in the game’s installation folder. On Linux, copy the etr folder under your configuration directory, usually ~/.config/etr. If the game uses an existing ~/.etr folder, copy that folder instead. For Flatpak, copy ~/.var/app/net.sourceforge.ExtremeTuxRacer/.etr. Restore using the same package and keep the backup until you can see your players and scores."
           }
         ],
         "warnings": [],
         "references": [
           {
             "title": "Check Mac and Android availability",
-            "instruction": "The current desktop release has no Intel or Apple Silicon Mac package. The separately maintained Android fork offers an older APK on its GitHub releases page. It uses a separate profile, and device compatibility has not been verified."
+            "instruction": "The current desktop release has no Intel or Apple Silicon Mac package. The separate drodin/extremetuxracer project offers its older Android APK under release 0.8.107 on GitHub. It uses a separate profile, and device compatibility has not been verified."
           }
         ],
         "help_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/"
