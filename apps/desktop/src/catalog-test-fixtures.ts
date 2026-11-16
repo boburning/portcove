@@ -109,31 +109,37 @@ export function currentCatalogPort(id: string): PortDefinition {
   return authoredPortFixture(authored);
 }
 
-function mapFixtureEntries(
-  value: unknown,
-  project: (entry: Record<string, unknown>) => Record<string, unknown>,
-) {
-  return Array.isArray(value)
-    ? value.map((entry: unknown) => (isRecord(entry) ? project(entry) : entry))
-    : value;
-}
-
-/** Apply Core's serialization defaults without inventing source claims. */
+/** Apply Core's serialized defaults without adding source evidence. */
 export function authoredSourceCatalogFixture(authored: unknown): SourceCatalog {
   if (!isRecord(authored)) throw new Error("Invalid authored source catalog fixture");
   const value: unknown = {
     ...authored,
-    evidence: mapFixtureEntries(authored.evidence, (entry) => ({ live_url: null, ...entry })),
-    identities: mapFixtureEntries(authored.identities, (identity) => ({
-      ...identity,
-      variants: mapFixtureEntries(identity.variants, (variant) => ({
-        ...variant,
-        representations: mapFixtureEntries(variant.representations, (representation) => ({
-          evidence_ids: [],
-          ...representation,
-        })),
-      })),
-    })),
+    identities: Array.isArray(authored.identities)
+      ? authored.identities.map((identity: unknown) =>
+          isRecord(identity) && Array.isArray(identity.variants)
+            ? {
+                ...identity,
+                variants: identity.variants.map((variant: unknown) =>
+                  isRecord(variant) && Array.isArray(variant.representations)
+                    ? {
+                        ...variant,
+                        representations: variant.representations.map((representation: unknown) =>
+                          isRecord(representation)
+                            ? { evidence_ids: [], ...representation }
+                            : representation,
+                        ),
+                      }
+                    : variant,
+                ),
+              }
+            : identity,
+        )
+      : authored.identities,
+    evidence: Array.isArray(authored.evidence)
+      ? authored.evidence.map((entry: unknown) =>
+          isRecord(entry) ? { live_url: null, ...entry } : entry,
+        )
+      : authored.evidence,
   };
   if (!validateSources(value))
     throw new Error(`Invalid source catalog fixture: ${ajv.errorsText(validateSources.errors)}`);
