@@ -72,7 +72,11 @@ it("loads generic component fixtures without reading the live catalog", async ()
 
 it("validates intentional source catalog fixtures without inventing missing claims", () => {
   const fixture = currentSourceCatalog();
-  const expectedIdentities = catalog.source_catalog.identities.map((identity) => ({
+  // The authored JSON uses several nested variant shapes.
+  const authoredIdentities: {
+    variants: { representations: Record<string, unknown>[] }[];
+  }[] = catalog.source_catalog.identities;
+  const expectedIdentities = authoredIdentities.map((identity) => ({
     ...identity,
     variants: identity.variants.map((variant) => ({
       ...variant,
