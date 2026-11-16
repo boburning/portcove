@@ -756,6 +756,9 @@ async function writeFixtureCatalog({
     // The game update review needs an offered release without live GitHub: its
     // check and plan read this owned direct manifest instead of the anonymous
     // provider API, whose shared-runner rate limit is outside Portcove (#4879).
+    // Only the app and the preparation seed read this catalog. Other owned helpers
+    // in a combined local session keep the maintained definition; hosted runs
+    // isolate the review in its own group, so they never mix the two.
     const reviewed = baseCatalog.ports.find((item) => item.id === UPDATE_REVIEW_PORT_ID);
     const platforms = reviewed?.platforms;
     if (
@@ -764,6 +767,9 @@ async function writeFixtureCatalog({
       !platforms.every((item) => typeof item === "string")
     )
       throw new Error("Update review requires the maintained opengoal-jak1 definition");
+    // Core admits a direct manifest only on the stable channel.
+    if (JSON.stringify(reviewed.channels) !== JSON.stringify(["stable"]))
+      throw new Error("Update review's direct manifest requires a stable-only definition");
     const sha256 = createHash("sha256").update(artifact).digest("hex");
     reviewed.release = {
       provider: "direct-manifest",

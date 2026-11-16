@@ -221,7 +221,9 @@ and adoption/library/CLI handoff. The game update review has its own group becau
 its offered release comes from the owned install fixture's direct manifest on
 127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
 keep the plain build and maintained catalog. Run 43743277016 showed the live
-anonymous provider API failing that review with HTTP 403 on a shared runner. The fresh Steam group requires the retained singleton
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through
