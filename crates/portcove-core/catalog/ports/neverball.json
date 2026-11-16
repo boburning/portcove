@@ -40,7 +40,7 @@
         },
         {
           "title": "Find Neverputt on Mac",
-          "instruction": "If you use MacPorts, its neverball port installs Neverputt separately. Open Neverputt under Applications/MacPorts or start neverputt from a terminal. The older official disk image contains a 32-bit Intel and PowerPC Neverputt installer. The project’s mobile browser link is for Neverball."
+          "instruction": "If you use MacPorts, its neverball port installs Neverputt separately. Start neverputt from a terminal. The older official disk image contains a 32-bit Intel and PowerPC Neverputt installer. The project’s mobile browser link is for Neverball."
         }
       ],
       "help_url": "https://play.neverball.org/"
