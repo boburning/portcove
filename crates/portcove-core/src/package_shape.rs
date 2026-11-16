@@ -361,6 +361,22 @@ fn generated_table() -> &'static [GeneratedEntry] {
     TABLE.get_or_init(|| parse_table(GENERATED_TABLE).unwrap_or_default())
 }
 
+/// Exact, independently reviewed versions whose observations still apply to this route.
+pub(crate) fn reviewed_release_digests(
+    port: &PortDefinition,
+    platform: Platform,
+) -> Vec<(&'static str, &'static str)> {
+    generated_table()
+        .iter()
+        .filter(|entry| {
+            entry.port_id == port.id
+                && entry.platform == platform
+                && generated_inputs_match(entry, port) == Some(true)
+        })
+        .map(|entry| (entry.version.as_str(), entry.sha256.as_str()))
+        .collect()
+}
+
 fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
     let table: GeneratedTable = serde_json::from_str(text)?;
     if table.format != TABLE_FORMAT

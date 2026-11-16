@@ -2971,7 +2971,15 @@ the managed portable templates while the candidate is in its private staging
 directory. Drift against unreviewed local observations remains diagnostic. A bounded local
 observation retains the candidate identity, derivation inputs and observed
 shape. Later checks compare the exact candidate observation with the current
-applicable baseline. A successful install records its verdict in the optional
+applicable baseline. Exact reviewed fallback applies only to first installs.
+The provider verifies that the withheld latest package still matches the
+observation, then selects the newest independently reviewed artifact for the
+same channel and platform. It applies normal acquisition and uploader checks,
+and keeps this selection out of the ordinary release cache. A confirmed
+setup plan binds the selected package. If the first confirmed attempt detects
+drift, the next review shows the fallback. A direct install can retry after
+private cleanup under the same port lock. A successful install records its
+verdict in the optional
 `package_shape` field with the shape, the
 derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
