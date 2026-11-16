@@ -306,7 +306,7 @@ describe("desktop components", () => {
           source: "discovery",
           configuration_variable: "PORTCOVE_CHDMAN",
           purpose: "Check CHD game files and prepare disc images",
-          official_url: "https://docs.mamedev.org/tools/chdman.html",
+          official_url: "https://www.mamedev.org/release.html",
         },
         {
           id: "dolphin_tool",
@@ -353,11 +353,11 @@ describe("desktop components", () => {
     );
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
-    expect(html).toContain("Official site");
+    expect(html).toContain("Official downloads");
     expect(html).toContain("Locate Future tool…");
     expect(html).not.toContain("Locate DolphinTool…");
     expect(html).toContain("Recheck");
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official downloads<\/button>/u);
     expect(retained).toContain("Couldn’t check disc tools.");
     expect(retained).toContain("Showing the last successful host check.");
     expect(retained).toContain("C:/Tools/chdman.exe");

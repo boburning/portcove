@@ -2540,8 +2540,8 @@ export function HostToolRow({
       <small className="text-[var(--color-text-secondary)]">{tool.purpose}</small>
       {tool.state === "missing" && (
         <p>
-          Portcove couldn’t find {tool.display_name}. If it’s installed, choose its program file.
-          Otherwise, install it from its official site first.
+          Portcove couldn’t find {tool.display_name}. If you already have it, choose its program
+          file. Otherwise, open Official downloads to get the package first.
         </p>
       )}
       {tool.state === "misconfigured" &&
@@ -2584,7 +2584,7 @@ export function HostToolRow({
             void run("site", () => actions?.openOfficial(tool.id));
           }}
         >
-          Official site
+          Official downloads
         </Button>
         {configured && (
           <Button

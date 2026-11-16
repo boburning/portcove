@@ -90,7 +90,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             display_name: "chdman".into(),
             configuration_variable: "PORTCOVE_CHDMAN".into(),
             purpose: "Check CHD game files and prepare disc images".into(),
-            official_url: "https://docs.mamedev.org/tools/chdman.html".into(),
+            official_url: "https://www.mamedev.org/release.html".into(),
             supported_platforms: all.clone(),
             probe: HostToolProbePolicy {
                 arguments: vec!["-help".into()],
@@ -1025,7 +1025,8 @@ mod tests {
         assert!(validate_definitions(&registry).is_err());
 
         for url in [
-            "http://docs.mamedev.org/tools/chdman.html",
+            "http://www.mamedev.org/release.html",
+            "https://docs.mamedev.org/tools/chdman.html",
             "https://example.invalid/chdman",
         ] {
             let mut registry = definitions();
