@@ -788,6 +788,8 @@ export default interface Resources {
     },
     "identity": {
       "label": "Game and port identity",
+      "noChannel": "Update channel not applicable",
+      "noChannelReason": "This port is listed for discovery only. Portcove does not manage its releases, so it has no update channel.",
       "offeredChannel": "Offered update channel",
       "originalSystem": "Original system",
       "originalSystemUnspecified": "Original system not specified",

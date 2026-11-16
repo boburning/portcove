@@ -247,6 +247,25 @@ it("keeps unknown original systems explicit and shows every offered update chann
   expect(document.querySelector(".game-hero-background")).toBeNull();
 });
 
+it("marks the update channel not applicable when a listing has no managed channel", async () => {
+  await render(
+    <DetailLayout
+      port={{ ...portDefinition(), channels: [] }}
+      initialSection="overview"
+      readiness="Ready"
+      installation="Not installed"
+      close={vi.fn()}
+      action={() => null}
+    >
+      {() => ({ overview: null, files: null, saves: null, versions: null })}
+    </DetailLayout>,
+  );
+  const identity = page.getByRole("group", { name: "Game and port identity", exact: true });
+  await expect
+    .element(identity.getByText("Update channel not applicable", { exact: true }))
+    .toBeVisible();
+});
+
 it("composes About beside authored requirements and support without reserving absent media", async () => {
   await page.viewport(1280, 900);
   await render(

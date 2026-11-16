@@ -258,6 +258,11 @@ export function DetailLayout({
                 {releaseChannelPresentation(channel).label}
               </Chip>
             ))}
+            {!selectedChannel && !port.channels?.length && (
+              <Chip style={identityStyle("not-specified")} title={t("identity.noChannelReason")}>
+                {t("identity.noChannel")}
+              </Chip>
+            )}
           </div>
           <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-sm">
             <div data-detail-readiness className="detail-readiness">

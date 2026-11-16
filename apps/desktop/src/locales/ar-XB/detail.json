@@ -71,6 +71,8 @@
   },
   "identity": {
     "label": "هوية اللعبة والمنفذ",
+    "noChannel": "قناة التحديث غير منطبقة",
+    "noChannelReason": "هذا المنفذ مدرج للاكتشاف فقط. لا يدير Portcove إصداراته، لذا لا توجد له قناة تحديث.",
     "offeredChannel": "قناة التحديث المتاحة",
     "originalSystem": "النظام الأصلي",
     "originalSystemUnspecified": "النظام الأصلي غير محدد",

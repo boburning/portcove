@@ -71,6 +71,8 @@
   },
   "identity": {
     "label": "Identidad del juego y de la adaptación",
+    "noChannel": "Canal de actualización no aplicable",
+    "noChannelReason": "Esta adaptación solo figura para su descubrimiento. Portcove no gestiona sus versiones, por lo que no tiene canal de actualización.",
     "offeredChannel": "Canal de actualización ofrecido",
     "originalSystem": "Sistema original",
     "originalSystemUnspecified": "Sistema original no especificado",
