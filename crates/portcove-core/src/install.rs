@@ -4215,8 +4215,12 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     };
     let catalog = contract.catalog(&install.port_id)?;
     let port = catalog.port(&install.port_id)?;
+    let checks_immutable_originals = port.windows_runtime_path_policy
+        == Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && crate::preparation::source::native(port);
     if port.windows_runtime_path_policy
         != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+        && !checks_immutable_originals
     {
         return Ok(());
     }
