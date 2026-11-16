@@ -334,6 +334,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::runtime::LINUX_PACKAGED_LIBRARY_CAPABILITY,
+        });
         supported
     }
 }

@@ -315,7 +315,7 @@ async fn immutable_bytes_cannot_bypass_dynamic_runtime_provider_proof() {
 
 #[test]
 fn native10_appimage_requires_provider_selection_and_exact_retained_asset() {
-    let catalog = Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_devilutionx_appimage_catalog();
     let id = "diablo-devilutionx";
     let port = catalog.port(id).unwrap();
     let platform = Platform::LinuxX86_64;
