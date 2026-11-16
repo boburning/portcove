@@ -327,6 +327,24 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  setModUpdatePolicy: (
+    portId: string,
+    profileId: string,
+    policy: import("./types").ModUpdatePolicy,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("set_mod_update_policy", {
+      portId,
+      profileId,
+      policy,
+      generation,
+    }),
+  checkProviderModUpdates: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ProviderUpdateObservation[]>("check_provider_mod_updates", {
+      portId,
+      profileId,
+      generation,
+    }),
   browseProviderMods: (portId: string, page: number, generation: number) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,

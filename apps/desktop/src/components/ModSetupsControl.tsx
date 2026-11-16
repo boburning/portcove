@@ -344,6 +344,23 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   inUse={selected.profile.id === selectedId}
                   onBusyChange={setBrowserBusy}
                   disabled={working || !fresh || blocked}
+                  updates={{
+                    policy: selected.profile.intent?.update_policy ?? "review_updates",
+                    automaticChecks: (view.last_automatic_checks ?? []).filter(
+                      (check) => check.profile_id === selected.profile.id,
+                    ),
+                    setPolicy: (policy) =>
+                      void perform(
+                        () =>
+                          desktopApi.setModUpdatePolicy(
+                            portId,
+                            selected.profile.id,
+                            policy,
+                            generation,
+                          ),
+                        t("mods.updates.policySaved"),
+                      ),
+                  }}
                   onInstalled={refreshAfterProviderInstall}
                 />
               )}

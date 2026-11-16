@@ -33,6 +33,9 @@ use crate::{
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
 const MAX_REMEMBERED_HOLDS: usize = 256;
+const CHECKS_FILE: &str = "last-automatic-checks.json";
+const MAX_CHECKS: usize = 256;
+const MAX_CHECKS_BYTES: u64 = 512 * 1024;
 
 /// What one standing pass did about one installed provider file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -60,6 +63,58 @@ pub struct ProviderAutoUpdate {
     pub native_ids: Vec<String>,
     #[serde(flatten)]
     pub outcome: ProviderAutoUpdateOutcome,
+}
+
+/// The last automatic check of an installed provider file or setup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderAutoUpdateCheck {
+    pub checked_at: i64,
+    pub profile_id: String,
+    pub native_ids: Vec<String>,
+    pub project_id: Option<String>,
+    pub candidate_file_id: Option<String>,
+    /// None means a current observation offered no update.
+    pub result: Option<ProviderAutoUpdateOutcome>,
+}
+
+pub(crate) fn last_checks(
+    layout: &Layout,
+    inventory: &crate::ProfileInventory,
+) -> Vec<ProviderAutoUpdateCheck> {
+    let checks: Vec<ProviderAutoUpdateCheck> =
+        crate::path::read_bounded_regular(&layout.store().join(CHECKS_FILE), MAX_CHECKS_BYTES)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default();
+    checks
+        .into_iter()
+        .take(MAX_CHECKS)
+        .filter(|check| {
+            // Keep observed Unix timestamps within the portable date range.
+            (0..=253_402_300_799).contains(&check.checked_at)
+                && inventory.profiles.iter().any(|view| {
+                    view.profile.id == check.profile_id
+                        && view.profile.intent.update_policy
+                            == ProfileUpdatePolicy::AutomaticEligible
+                })
+        })
+        .collect()
+}
+
+fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Result<()> {
+    let path = layout.store().join(CHECKS_FILE);
+    if checks.is_empty() && !path.is_file() {
+        return Ok(());
+    }
+    let bytes = serde_json::to_vec(checks)?;
+    if bytes.len() as u64 > MAX_CHECKS_BYTES {
+        return Err(PortcoveError::state(
+            "automatic mod check results exceed their storage bound",
+        ));
+    }
+    std::fs::create_dir_all(layout.store())?;
+    crate::durability::write_bytes_atomically(&path, &bytes, true)?;
+    Ok(())
 }
 
 /// Packages installed from one provider file, and what the provider says about it.
@@ -433,21 +488,40 @@ impl PortcoveService {
             .map(|view| view.profile)
             .collect::<Vec<_>>();
         let mut results = Vec::new();
+        let mut checks = Vec::new();
         for setup in setups {
-            let result = |native_ids: Vec<String>, outcome| ProviderAutoUpdate {
-                port_id: port_id.into(),
-                profile_id: setup.id.clone(),
-                profile_name: setup.display_name.clone(),
-                native_ids,
-                outcome,
-            };
+            let mut record =
+                |native_ids: Vec<String>,
+                 project_id: Option<String>,
+                 candidate_file_id: Option<String>,
+                 outcome: Option<ProviderAutoUpdateOutcome>| {
+                    if checks.len() < MAX_CHECKS {
+                        checks.push(ProviderAutoUpdateCheck {
+                            checked_at: crate::Library::now(),
+                            profile_id: setup.id.clone(),
+                            native_ids: native_ids.clone(),
+                            project_id,
+                            candidate_file_id,
+                            result: outcome.clone(),
+                        });
+                    }
+                    if let Some(outcome) = outcome {
+                        results.push(ProviderAutoUpdate {
+                            port_id: port_id.into(),
+                            profile_id: setup.id.clone(),
+                            profile_name: setup.display_name.clone(),
+                            native_ids,
+                            outcome,
+                        });
+                    }
+                };
             let revision =
                 match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
                 }) {
                     Ok(revision) => revision,
                     Err(error) => {
-                        results.push(result(Vec::new(), classify(error)));
+                        record(Vec::new(), None, None, Some(classify(error)));
                         continue;
                     }
                 };
@@ -457,7 +531,7 @@ impl PortcoveService {
             {
                 Ok(observations) => observations,
                 Err(error) => {
-                    results.push(result(Vec::new(), classify(error)));
+                    record(Vec::new(), None, None, Some(classify(error)));
                     continue;
                 }
             };
@@ -467,13 +541,20 @@ impl PortcoveService {
                     .iter()
                     .map(|package| package.native_id.clone())
                     .collect::<Vec<_>>();
-                if let Some(outcome) = self
+                let outcome = self
                     .update_one(client, &layout, port_id, &setup.id, &installed)
-                    .await
-                {
-                    results.push(result(names, outcome));
-                }
+                    .await;
+                record(
+                    names,
+                    Some(installed.project.clone()),
+                    chosen_candidate(client, installed.observation)
+                        .map(|file| file.file_id.clone()),
+                    outcome,
+                );
             }
+        }
+        if let Err(error) = remember_checks(&layout, &checks) {
+            tracing::warn!(port_id, error = %error, "automatic mod check results could not be saved");
         }
         Ok(results)
     }

@@ -9,7 +9,9 @@ use crate::{
     DesktopResult, DesktopState, blocking_worker, game_settings_commands::read_at_generation,
     service_at_generation,
 };
-use portcove_core::{ModSetupsView, Profile, ProfileRevision};
+use portcove_core::{
+    ModSetupsView, Profile, ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation,
+};
 
 #[tauri::command]
 pub(crate) async fn get_mod_setups(
@@ -74,6 +76,43 @@ pub(crate) async fn use_mod_setup(
             .activate_profile(&port_id, &profile_id)
             .map_err(Into::into)
     })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn set_mod_update_policy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    policy: ProfileUpdatePolicy,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_profile_update_policy(&port_id, &profile_id, policy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn check_provider_mod_updates(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<ProviderUpdateObservation>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .check_provider_updates(&port_id, &profile_id)
+                .await
+                .map_err(Into::into)
+        },
+    )
     .await
 }
 

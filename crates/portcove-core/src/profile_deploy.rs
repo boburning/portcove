@@ -1627,6 +1627,9 @@ pub struct ModSetupsView {
     /// setup's current revision.
     #[serde(default)]
     pub held_updates: Vec<crate::HeldModUpdate>,
+    /// Results of the last automatic check, even after reopening the library.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub last_automatic_checks: Vec<crate::ProviderAutoUpdateCheck>,
     /// The mod provider this game has a reviewed binding for (`gamebanana` or
     /// `thunderstore`), if any.
     #[serde(default)]
@@ -1649,6 +1652,7 @@ impl PortcoveService {
                 inventory: None,
                 live: None,
                 held_updates: Vec::new(),
+                last_automatic_checks: Vec::new(),
                 provider: None,
                 current_install_id: None,
             });
@@ -1662,6 +1666,7 @@ impl PortcoveService {
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
         Ok(ModSetupsView {
             held_updates,
+            last_automatic_checks: crate::provider_auto_update::last_checks(&layout, &inventory),
             provider: crate::provider_install::bound_provider(port_id)
                 .map(|(provider, _)| provider.to_owned()),
             current_install_id,

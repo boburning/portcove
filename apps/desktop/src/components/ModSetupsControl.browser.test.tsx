@@ -541,3 +541,47 @@ it("points held Thunderstore updates to the Thunderstore browser", async () => {
     ),
   ).toBe(true);
 });
+
+it("saves the provider update policy on the selected setup", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ provider: "gamebanana" }));
+  const save = vi
+    .spyOn(desktopApi, "setModUpdatePolicy")
+    .mockResolvedValue(
+      setup("default", "Default", 3, []).profile as Awaited<
+        ReturnType<typeof desktopApi.setModUpdatePolicy>
+      >,
+    );
+  await render();
+
+  await page.getByRole("combobox", { name: "Mod updates" }).selectOptions("automatic_eligible");
+
+  expect(save).toHaveBeenCalledExactlyOnceWith("shipwright", "default", "automatic_eligible", 7);
+  await expect.element(page.getByText("Saved how this setup updates mods.")).toBeVisible();
+});
+
+it("opens review for the exact project named by a saved automatic hold", async () => {
+  const ready = view({
+    provider: "gamebanana",
+    last_automatic_checks: [
+      {
+        profile_id: "default",
+        native_ids: ["hd.o2r"],
+        project_id: "42",
+        candidate_file_id: "11",
+        checked_at: 1_700_000_000,
+        result: { outcome: "held", reason: "This update needs permission to run mod code." },
+      },
+    ],
+  });
+  const active = ready.inventory?.profiles[0];
+  if (!active) throw new Error("missing selected setup fixture");
+  active.profile.intent = { update_policy: "automatic_eligible" };
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(ready);
+  const project = vi.spyOn(desktopApi, "providerProject").mockRejectedValue(new Error("offline"));
+  await render();
+
+  await expect.element(page.getByText("Update needs review.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Review update files" }).click();
+
+  expect(project).toHaveBeenCalledExactlyOnceWith("shipwright", "42", 7);
+});

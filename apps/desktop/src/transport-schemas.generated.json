@@ -31493,6 +31493,134 @@
         ],
         "type": "object"
       },
+      "ProviderAutoUpdateCheck": {
+        "description": "The last automatic check of an installed provider file or setup.",
+        "properties": {
+          "candidate_file_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "checked_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "native_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "project_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ProviderAutoUpdateOutcome"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "None means a current observation offered no update."
+          }
+        },
+        "required": [
+          "checked_at",
+          "profile_id",
+          "native_ids",
+          "project_id",
+          "candidate_file_id",
+          "result"
+        ],
+        "type": "object"
+      },
+      "ProviderAutoUpdateOutcome": {
+        "oneOf": [
+          {
+            "description": "The newer file was installed as the setup's next revision.",
+            "properties": {
+              "file_id": {
+                "type": "string"
+              },
+              "outcome": {
+                "const": "applied",
+                "type": "string"
+              },
+              "revision": {
+                "format": "uint64",
+                "minimum": 0,
+                "type": "integer"
+              }
+            },
+            "required": [
+              "outcome",
+              "revision",
+              "file_id"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "An update exists but needs the player's review; nothing changed. The hold\nis not repeated until the setup or the provider's offer changes.",
+            "properties": {
+              "outcome": {
+                "const": "held",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Something temporary prevented the update, such as the game running or\nanother change in progress; a later pass tries again.",
+            "properties": {
+              "outcome": {
+                "const": "deferred",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          },
+          {
+            "description": "Whether an update exists could not be established; nothing changed.",
+            "properties": {
+              "outcome": {
+                "const": "unavailable",
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "outcome",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
       "ProviderPackageRef": {
         "additionalProperties": false,
         "description": "A provider's own coordinates. Provider IDs never double as native loader IDs.",
@@ -31752,6 +31880,13 @@
           }
         ],
         "description": "None until the installed game has its default setup."
+      },
+      "last_automatic_checks": {
+        "description": "Results of the last automatic check, even after reopening the library.",
+        "items": {
+          "$ref": "#/$defs/ProviderAutoUpdateCheck"
+        },
+        "type": "array"
       },
       "later_mods_take_priority": {
         "description": "True when reviewed loader source shows that the later of two mods changing\nthe same asset wins. False when the order is kept but which mod wins is not\nestablished.",

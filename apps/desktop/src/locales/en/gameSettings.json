@@ -130,6 +130,41 @@
     "reread": "Read setups again",
     "separator": ", ",
     "setups": "Setups",
+    "updates": {
+      "automatic": {
+        "applied": "Updated automatically.",
+        "current": "No newer file was offered.",
+        "deferred": "Update will be checked again.",
+        "held": "Update needs review.",
+        "unavailable": "Check unavailable. Portcove will try again."
+      },
+      "check": "Check for mod updates",
+      "checking": "Checking for mod updates…",
+      "detail": {
+        "automatic_eligible": "Portcove installs eligible mod updates while it’s open. Updates that need a decision wait for your review.",
+        "keep_current": "Portcove keeps your installed mods and skips automatic checks.",
+        "review_updates": "Check for newer files and review what they would change before you install them."
+      },
+      "heading": "Mod updates",
+      "lastAutomatic": "Last automatic check",
+      "manual": {
+        "current": "No newer file was offered.",
+        "installed_file_removed": "The provider stopped offering the installed file.",
+        "newer_files": "A newer file is available.",
+        "unavailable": "Check unavailable."
+      },
+      "manualResults": "Mod update check results",
+      "noAutomaticCheck": "No automatic check recorded for this setup yet.",
+      "noProviderMods": "This setup has no mods from its provider.",
+      "policy": {
+        "automatic_eligible": "Install eligible updates automatically",
+        "keep_current": "Keep installed versions",
+        "review_updates": "Review updates"
+      },
+      "policySaved": "Saved how this setup updates mods.",
+      "reviewFiles": "Review update files",
+      "setup": "This setup"
+    },
     "use": "Use {{name}}"
   },
   "panel": {

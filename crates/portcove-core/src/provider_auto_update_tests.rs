@@ -636,3 +636,45 @@ async fn revoking_automatic_policy_after_planning_does_not_apply_the_update() {
         .unwrap();
     assert_eq!(after.revision, before.revision + 1);
 }
+
+#[tokio::test]
+async fn current_check_survives_reopening_and_stays_distinct_from_an_unavailable_check() {
+    let w = world();
+    let payload = wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]);
+    w.install_first(&payload).await;
+    w.allow_automatic();
+    assert!(
+        w.pass_without_download(&[(10, payload.len())])
+            .await
+            .is_empty()
+    );
+
+    let library = crate::Library::open(w.service.library().root()).unwrap();
+    let mut reopened = PortcoveService::new_read_only(library).unwrap();
+    reopened.replace_catalog_for_test(w.service.catalog().clone());
+    let checks = reopened.mod_setups(PORT).unwrap().last_automatic_checks;
+    assert_eq!(checks.len(), 1);
+    assert_eq!(checks[0].profile_id, w.profile);
+    assert_eq!(checks[0].native_ids, ["hd-link.o2r"]);
+    assert!(
+        checks[0].result.is_none(),
+        "a current provider response was recorded"
+    );
+    assert!(checks[0].checked_at > 0);
+
+    let (root, _, server) = serve_http_bytes(vec![
+        b"HTTP/1.1 503 Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".to_vec(),
+    ]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    w.service
+        .run_eligible_provider_updates_with(&client, PORT)
+        .await
+        .unwrap();
+    server.join().unwrap();
+    let checks = reopened.mod_setups(PORT).unwrap().last_automatic_checks;
+    assert_eq!(checks.len(), 1);
+    assert!(matches!(
+        checks[0].result,
+        Some(ProviderAutoUpdateOutcome::Unavailable { .. })
+    ));
+}

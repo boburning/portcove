@@ -359,7 +359,9 @@ pub use profile::{
     TypedOrdering,
 };
 pub use profile_deploy::{LiveMods, ModCodeReview, ModSetupsView, NativeModListStatus};
-pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
+pub use provider_auto_update::{
+    HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
+};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
