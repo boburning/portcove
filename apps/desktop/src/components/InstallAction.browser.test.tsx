@@ -5,7 +5,7 @@ import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
-import type { ActivityRecord, InstallPlan } from "../types";
+import type { ActivityRecord, InstallPlan, PortDefinition } from "../types";
 import { StatusLayer } from "./Chrome";
 import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
@@ -532,10 +532,13 @@ it.each(["sample", "alexbeav-digimon-world-2003-recomp"])(
   "uses the generic managed review for older unscoped guidance on %s",
   async (id) => {
     const base = id === "sample" ? portDefinition() : currentCatalogPort(id);
-    const port = {
+    const port: PortDefinition = {
       ...base,
       presentation: {
-        ...base.presentation!,
+        installation_method: "portable-package",
+        saves_and_settings: "portcove-managed",
+        source_requirements: [],
+        ...base.presentation,
         manual_setup: {
           steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
           warnings: ["Back up the original save folder."],
