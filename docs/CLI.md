@@ -1155,11 +1155,16 @@ portcove --library <path> --json source roots add "<store game folder>"
 
 Each entry gives the `store` (`steam`, `gog` or `epic`), the store's `title`,
 the canonical existing folder `path` and `saved_root_id` when that exact folder
-is already a saved game-file folder. `checked_stores` names the stores whose
+is already a saved game-file folder. A known store product has an optional
+`product_id`. A reviewed product-to-profile mapping can add an
+`original_folder` with the source profile and candidate path. Desktop offers
+the classic Steam Dark Forces folder directly in The Force Engine setup.
+The normal source check still validates the original file set.
+`checked_stores` names the stores whose
 metadata this system can read; a store missing from it was not checked, which
 is different from having no games installed. Steam libraries come from the Steam
 client's `steamapps/libraryfolders.vdf` and each library's
-`appmanifest_*.acf` (`name`, `installdir`) on Windows (registry and Program
+`appmanifest_*.acf` (`appid`, `name`, `installdir`) on Windows (registry and Program
 Files locations), Linux (`~/.steam/steam`, `~/.local/share/Steam` and the
 Flatpak client) and macOS. A linked `steamapps` folder is read as the folder it
 resolves to. GOG installs come from the Windows `GOG.com\Games` registry
