@@ -2601,8 +2601,10 @@ Thunderstore-specific fields.
 An enabled dependant requires every recorded member of its exact provider
 dependencies to stay enabled. Disable the dependant before disabling or removing
 a required member. Recipes use format 2 when they include exact provider
-requirements. An automatic update that needs a multi-wrapper review waits
-for the player to confirm the affected content.
+requirements. An automatic update reuses an unchanged dependency set only
+when every previously reviewed member is still exact and enabled. It stages the
+new root file privately. A changed dependency graph, missing member, or new
+code waits for review.
 
 Library database schema 63 requires Desktop and CLI versions that preserve exact
 provider dependencies. Close older clients before the first open by a newer
