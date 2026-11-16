@@ -325,6 +325,63 @@ fn classic_steam_original_hint_requires_matching_manifest_identity_and_a_folder(
 }
 
 #[test]
+fn classic_doom_steam_hints_require_the_classic_product_and_layout() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(&steam, 9050, "DOOM 3", "Classic", true);
+    steam_app(&steam, 9070, "Resurrection of Evil", "Expansion", true);
+    steam_app(&steam, 208200, "DOOM 3", "BFG", true);
+    let common = steam.join("steamapps/common");
+    for folder in [
+        "Classic/base",
+        "Expansion/base",
+        "Expansion/d3xp",
+        "BFG/base",
+        "BFG/d3xp",
+    ] {
+        fs::create_dir(common.join(folder)).unwrap();
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam.clone()],
+            ..FixtureHost::default()
+        },
+    );
+    let hints = || {
+        service
+            .store_game_installs()
+            .unwrap()
+            .installs
+            .into_iter()
+            .filter_map(|row| row.original_folder)
+            .map(|hint| (hint.profile_id, hint.path))
+            .collect::<BTreeMap<_, _>>()
+    };
+    assert_eq!(
+        hints(),
+        BTreeMap::from([
+            (
+                "doom-3-classic-pc-131-pk4".into(),
+                canonical(&common.join("Classic"))
+            ),
+            (
+                "doom-3-roe-classic-pc-131-pk4".into(),
+                canonical(&common.join("Expansion"))
+            ),
+        ])
+    );
+    fs::remove_dir(common.join("Expansion/base")).unwrap();
+    assert!(!hints().contains_key("doom-3-roe-classic-pc-131-pk4"));
+    steam_app(&steam, 9070, "Resurrection of Evil", "Classic", false);
+    fs::create_dir(common.join("Classic/d3xp")).unwrap();
+    assert!(
+        hints().is_empty(),
+        "conflicting product identities must not offer a hint"
+    );
+}
+
+#[test]
 fn classic_gog_original_hint_uses_the_registered_root_and_preserves_move_protection() {
     let temporary = tempfile::tempdir().unwrap();
     let mut gog = Vec::new();

@@ -1185,6 +1185,12 @@ metadata, and a folder that is a filesystem root, your home folder or contains
 this Portcove library. `limited` reports a reached bound. A store that cannot be
 read leaves the list shorter rather than failing.
 
+Classic Steam DOOM 3 (9050) can suggest its install root when it contains
+`base`. Resurrection of Evil (9070) can suggest a root that contains both
+`base` and `d3xp`. The existing source check verifies the complete required
+PK4 set before registration. Use the file picker if the store provides no
+unambiguous compatible folder suggestion.
+
 Files inside a game a store installed can be copied into Portcove or used where
 they are, but not moved. A Move import is refused with a `conflict` error naming
 the store when its original is inside a listed game folder or a Steam library's

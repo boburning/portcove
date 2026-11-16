@@ -185,7 +185,7 @@ function useSourceIntakeSession({
       storeOriginals !== undefined ||
       (savedLocations && !savedLocationFailed) ||
       request.purpose !== "game" ||
-      request.profile.kind !== "file-set" ||
+      (request.profile.kind !== "file-set" && request.profile.kind !== "relative-file-set") ||
       request.paths.length !== 0
     )
       return;

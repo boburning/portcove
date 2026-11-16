@@ -1965,7 +1965,7 @@ function SelectedPortPanel({
             inspectSource(originalProfile, { savedOriginals });
             return;
           }
-          if (originalProfile.kind !== "file-set") {
+          if (originalProfile.kind !== "file-set" && originalProfile.kind !== "relative-file-set") {
             await pickSource?.();
             return;
           }
