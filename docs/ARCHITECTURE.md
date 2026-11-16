@@ -887,8 +887,10 @@ limits also apply; destination pixel allocation is checked explicitly. A separat
 library artwork lock serializes local import/thumbnail decoding, reset, cache
 publication/clearing and unused-original removal without holding a game's operation
 lock. Remote original reads, fetching and conversion use a separate process-wide
-two-worker budget; Core refuses excess work promptly instead of blocking a shared
-worker behind another image. Expected slot revisions reject stale changes, including
+budget of `IGDB_ARTWORK_WORK_LIMIT` (6) workers; Core refuses excess work promptly
+instead of blocking a shared worker behind another image. Each worker may transiently
+hold an original and its decoded pixels, so the worst-case bound is that limit times
+the original and decoded byte limits; real covers are far smaller. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -951,15 +953,17 @@ visible viewport plus at most 256 inactive previews (bounded by encoded size) pe
 generation. Local-choice reads run for up to four ports at once while each port's
 slots stay ordered; mutations and local thumbnail decoding run alone because Core
 refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
-two-request drain. Undispatched requests
+drain of `maximumRemoteRequests` requests, which must equal Core's limit because Core
+refuses rather than queues excess work. Cards prefetch 800px vertically ahead of the
+viewport, and an already-loaded image stays displayed while its card is offscreen. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
 The native adapter
 uses Core's resolved source to await remote admission asynchronously before
 dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
-game work do not wait on that remote gate. Its capacity matches Core's two-worker
-limit. A dispatched worker retains its permit even if its IPC waiter is cancelled.
+game work do not wait on that remote gate. Its capacity matches Core's
+`IGDB_ARTWORK_WORK_LIMIT`. A dispatched worker retains its permit even if its IPC waiter is cancelled.
 Library generation and slot revision are rechecked after admission. Queued renderer
 reads are discarded when their view no longer needs them, and stale completions
 cannot replace a changed choice or generation. Visible cards load asynchronously and preserve
@@ -2797,6 +2801,12 @@ Only a verified import changes its journal to published and becomes openable. Th
 ## Source discovery
 
 Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages, as do content-identified LIVE and PIRS packages. A four-byte probe (LIVE, or PIRS only when a selected profile declares a content identity) is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only an exact compound digest match or a declared content identity triggers the bounded structural and hash-tree validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
+
+One-off discovery accepts at most eight explicit roots. For saved folders, Core
+keeps the deduplicated available scope in one checkpoint and visits up to eight
+root trees per batch. Later batches retain the same match inventory and may
+continue after reopening the library. Checkpoint, match and I/O limits still
+apply. An unavailable saved folder is recorded once for that scan.
 
 Core also provides explicit bounded registered-source observation batches,
 separate from query evaluation. Readers cover ordinary raw files, uncompressed

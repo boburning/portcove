@@ -2889,63 +2889,89 @@ fn unavailable_saved_roots_do_not_consume_the_available_root_budget() {
 }
 
 #[test]
-fn unavailable_saved_root_budget_keeps_online_and_empty_failure_boundaries() {
-    for reconnect in [true, false] {
-        let temporary = tempfile::tempdir().unwrap();
-        let payload = b"synthetic supported source";
-        let catalog = catalog(payload);
-        let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        let first = temporary.path().join("selected-0");
-        fs::create_dir(&first).unwrap();
-        fs::write(first.join("source.z64"), payload).unwrap();
-        library.add_game_file_root(&first).unwrap();
-        let previous = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("previous-root-budget", None),
-        )
-        .unwrap();
-        library.replace_game_file_scan_snapshot(&previous).unwrap();
-        for index in 1..9 {
-            let root = temporary.path().join(format!("selected-{index}"));
-            fs::create_dir(&root).unwrap();
-            library.add_game_file_root(&root).unwrap();
-            if !reconnect {
-                fs::remove_dir(root).unwrap();
-            }
-        }
-        if !reconnect {
-            fs::remove_file(first.join("source.z64")).unwrap();
-            fs::remove_dir(&first).unwrap();
-        }
-        let error = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("failed-root-budget", None),
-        )
-        .unwrap_err();
-        assert_eq!(
-            error.code,
-            if reconnect {
-                ErrorCode::Usage
-            } else {
-                ErrorCode::SourceInvalid
-            }
-        );
-        assert!(
-            error
-                .message
-                .contains(if reconnect { "eight" } else { "no saved" })
-        );
-        assert_eq!(library.game_file_roots().unwrap().len(), 9);
-        assert_eq!(
-            serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap())
-                .unwrap(),
-            serde_json::to_value(&previous).unwrap()
-        );
+fn unavailable_saved_roots_preserve_the_previous_scan_when_none_are_online() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let first = temporary.path().join("selected-0");
+    fs::create_dir(&first).unwrap();
+    fs::write(first.join("source.z64"), payload).unwrap();
+    library.add_game_file_root(&first).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let previous = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for index in 1..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        fs::remove_dir(root).unwrap();
     }
+    fs::remove_file(first.join("source.z64")).unwrap();
+    fs::remove_dir(&first).unwrap();
+
+    let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    assert!(error.message.contains("no saved"));
+    assert_eq!(library.game_file_roots().unwrap().len(), 9);
+    assert_eq!(
+        serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap()).unwrap(),
+        serde_json::to_value(&previous).unwrap()
+    );
+}
+
+#[test]
+fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    for index in 0..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("source.z64"), payload).unwrap();
+        library.add_game_file_root(&root).unwrap();
+    }
+    let oversized = temporary.path().join("selected-0").join("oversized.z64");
+    fs::write(&oversized, [0; 64]).unwrap();
+    let oversized = fs::canonicalize(oversized).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let oversized_advisories = |report: &SourceDiscoveryReport| {
+        report
+            .issues
+            .iter()
+            .filter(|issue| {
+                issue.path.as_ref() == Some(&oversized)
+                    && issue.message == super::OVERSIZED_FILE_ISSUE
+            })
+            .count()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(oversized_advisories(&first.report), 1);
+    assert_eq!(first.report.searched_roots.len(), 9);
+    assert_eq!(first.report.files_hashed, 8);
+    let first_matches = first.matches.unwrap();
+    assert_eq!(first_matches.exact_matches, 16);
+    let coverage = first.coverage.unwrap();
+    assert!(coverage.can_resume);
+    assert!(!coverage.frontier_exhausted);
+    assert_eq!(coverage.pending_directories, 1);
+    drop(library);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let finished = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert_eq!(reopened.game_file_roots().unwrap().len(), 9);
+    assert_eq!(finished.report.files_hashed, 9);
+    assert_eq!(oversized_advisories(&finished.report), 1);
+    let matches = finished.matches.unwrap();
+    assert_eq!(matches.scan_id, first_matches.scan_id);
+    assert_eq!(matches.exact_matches, 18);
+    let coverage = finished.coverage.unwrap();
+    assert!(!coverage.can_resume);
+    assert!(coverage.frontier_exhausted);
 }
 
 #[test]

@@ -497,7 +497,7 @@ sealed source receipts. Unapproved populated adoption and persistence changes st
 held. Preserving removal retains declared profile data and leaves external
 originals unchanged. Native1–5 definitions and older SourceOnly interpretations
 retain their existing semantics. Fresh and retained indexed entries with native
-source profiles require a Native6 lower bound. Native capability 36
+source profiles require a Native6 lower bound. Native capability 37
 also admits complete exact relative-file sets with SHA-256-bound Copy targets.
 Each observed relative path must map to a unique runtime destination. Preparation
 uses private staging beside the resolved player and retains the Native6 output
@@ -2166,10 +2166,27 @@ with execute permission. Existing fingerprints continue to use their declared
 rules. The matching authoring observation is `catalog inspect-package-layout
 --ignore-verified-macos-libraries`.
 
+Linux x86-64 layouts may opt into `classify_linux_programs_by_format` when an
+upstream archive marks data, documentation or versioned shared libraries
+executable. An executable-mode file then counts only when it starts with an ELF
+or `#!` header, and a `.so` or `.so.N` file is excluded only when bounded header
+inspection finds an x86-64 ELF shared object with a dynamic segment and no
+program interpreter. A position-independent program, an ELF program named like
+a library and any program or script name above still count. Windows libraries
+remain outside the fingerprint, as on Windows. Two residuals follow from the
+rule. An executable-mode text file without `#!` is excluded, although a
+reviewed `.sh` launcher could still run it through the shell. A static
+position-independent ELF program named `*.so` has no interpreter and is
+excluded like a library. The gate has never fingerprinted file contents or
+libraries, so these residuals do not weaken an earlier guarantee. The matching
+authoring observation is `catalog inspect-package-layout
+--classify-linux-programs-by-format`.
+
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
 would ignore the field cannot accept them. The macOS library filter requires
-version 30. A selected independent definition
+version 30 and the Linux program format classifier version 36. A selected
+independent definition
 may replace a fingerprint after review but cannot remove one. The fingerprint
 applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`

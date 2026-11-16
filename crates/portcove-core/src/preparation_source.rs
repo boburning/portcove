@@ -22,7 +22,7 @@ pub(crate) struct SourcePreparation {
 }
 
 /// Native6 opts in through the existing original-file source contract.
-pub(crate) const NATIVE_RELATIVE_SOURCE_CAPABILITY: u32 = 36;
+pub(crate) const NATIVE_RELATIVE_SOURCE_CAPABILITY: u32 = 37;
 
 pub(crate) fn native(port: &PortDefinition) -> bool {
     port.adapter == AdapterKind::NativePortable && port.source_profile.is_some()

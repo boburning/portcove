@@ -78,6 +78,11 @@
       "windows-x86-64": {
         "directories": ["daggerfallunity_data", "monobleedingedge"],
         "executables": ["daggerfallunity.exe", "unitycrashhandler64.exe"]
+      },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": ["daggerfallunity_data"],
+        "executables": ["daggerfallunity.x86_64", "linuxplayer_s.debug", "unityplayer_s.debug"]
       }
     }
   }

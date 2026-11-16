@@ -202,6 +202,12 @@ starts without inheriting the job handle. Fresh and retained indexed Snap64
 entries that declare the tracked handoff require version 35. Previously
 admitted tracked definitions for other ports retain their original minimum.
 
+Native portable version 36 recognizes `classify_linux_programs_by_format` in
+reviewed Linux x86-64 package layouts. Fresh and retained entries using that
+option require version 36. Core still fingerprints ELF programs, `#!` scripts,
+program and script names, and any library-named file whose header is not a
+verified shared object.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted

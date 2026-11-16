@@ -20,7 +20,11 @@ export const maximumInactiveArtworkEntries = 256;
 /** Encoded preview characters retained for inactive entries, independently of the count. */
 export const maximumInactiveArtworkImageLength = 48 * 1024 * 1024;
 const maximumPngBytes = 1024 * 1024;
-const maximumRemoteRequests = 2;
+/**
+ * Cover retrieval is network-bound, so several requests overlap. Keep this equal to
+ * Core's `IGDB_ARTWORK_WORK_LIMIT`: Core refuses, rather than waits on, excess work.
+ */
+export const maximumRemoteRequests = 6;
 /**
  * Concurrent choice reads for different ports; mutations still run alone. Local
  * thumbnail decoding stays one at a time because Core refuses, rather than waits

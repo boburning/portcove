@@ -826,6 +826,7 @@ function useWorkspace(props: WorkspaceProps) {
                 </summary>
                 <div className="mt-4">
                   <SelfServiceSetup
+                    devicePlatform={model.queryContext.devicePlatform}
                     libraryRoot={bootstrap.library_root ?? undefined}
                     key={`${model.entry.id}:${bootstrap.generation}`}
                     entry={model.entry}

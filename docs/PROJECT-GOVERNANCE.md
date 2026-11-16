@@ -108,7 +108,10 @@ release campaign. Planned work remains selectable without committing speculative
 family-wide enhancement lists.
 
 `capture-port` creates the repository issue immediately, adds it to the Project,
-and initializes neutral Watchlist fields. A public New
+and initializes neutral Watchlist fields. After the creation receipt, it reads the
+exact issue’s active and archived memberships and verifies the selected Project
+item by its REST and opaque IDs. An unconfirmed attachment keeps the receipt for
+`normalize-port` recovery. A public New
 Port form submission enters the same contract when a maintainer runs
 `normalize-port --issue <number>`. Normalization preserves contributor content,
 requires the canonical `[Port]` title plus direct-upstream and lowercase
