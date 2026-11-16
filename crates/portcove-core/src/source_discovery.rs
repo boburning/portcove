@@ -613,6 +613,9 @@ impl PortcoveService {
         {
             return Err(PortcoveError::usage("scan identity is invalid"));
         }
+        if let Some(profile) = &query.profile_id {
+            self.catalog().source_profile(profile)?;
+        }
         self.library().game_file_scan_match_page(query)
     }
 

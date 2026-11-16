@@ -1503,6 +1503,9 @@ pub(crate) struct GameFileRootMatchesArgs {
     /// Only matches inside this saved folder ID from `source roots list`.
     #[arg(long = "root")]
     pub(crate) root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[arg(long = "profile")]
+    pub(crate) profile_id: Option<String>,
     /// Scan ID from an earlier page; a scan replaced since then is refused.
     #[arg(long)]
     pub(crate) scan_id: Option<String>,
@@ -1521,6 +1524,7 @@ impl GameFileRootMatchesArgs {
             offset: self.offset,
             limit: self.limit,
             root_id: self.root_id,
+            profile_id: self.profile_id,
         }
     }
 }

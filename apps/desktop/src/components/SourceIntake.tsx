@@ -38,6 +38,7 @@ export interface SourceIntakeRequest {
     channel: ReleaseChannel;
     other: SourceRecord | undefined;
     storeOriginals?: StoreGameInstalls["installs"] | undefined;
+    savedOriginals?: { paths: string[]; limited: boolean } | undefined;
   };
 }
 
@@ -115,8 +116,8 @@ function useSourceIntakeSession({
   const [saved, setSaved] = useState<SourceRecord>();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
-  const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"]>(
-    request.setup?.storeOriginals ?? [],
+  const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"] | undefined>(
+    request.setup?.storeOriginals,
   );
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
@@ -170,10 +171,19 @@ function useSourceIntakeSession({
     [copy.checking, loadInspection],
   );
 
+  const savedLocations = request.setup?.savedOriginals?.paths;
+  const savedLocationFailed = Boolean(
+    !saved &&
+    selectedPaths.length === 1 &&
+    savedLocations?.includes(selectedPaths[0]!) &&
+    (error || (result && !result.report?.inspection?.record)),
+  );
+
   useEffect(() => {
     if (
       !request.setup ||
-      request.setup.storeOriginals !== undefined ||
+      storeOriginals !== undefined ||
+      (savedLocations && !savedLocationFailed) ||
       request.purpose !== "game" ||
       request.profile.kind !== "file-set" ||
       request.paths.length !== 0
@@ -189,12 +199,14 @@ function useSourceIntakeSession({
             ),
           );
       },
-      () => {},
+      () => {
+        if (current) setStoreOriginals([]);
+      },
     );
     return () => {
       current = false;
     };
-  }, [request]);
+  }, [request, savedLocationFailed, savedLocations, storeOriginals]);
 
   useEffect(() => {
     if (request.paths.length > 0) {
@@ -354,7 +366,7 @@ function useSourceIntakeSession({
         : undefined,
     choose,
     inspect,
-    storeOriginals,
+    storeOriginals: storeOriginals ?? [],
     review,
     apply,
     retryRefresh,
@@ -429,6 +441,27 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             {request.profile.label}
           </small>
         </div>
+        {!saved && request.setup?.savedOriginals && (
+          <section aria-label="Originals found in saved folders" className="mt-3 grid gap-2">
+            {request.setup.savedOriginals.paths.map((path) => (
+              <div key={path} className="grid gap-1">
+                <code className="[overflow-wrap:anywhere] whitespace-normal">{path}</code>
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  className="justify-self-start"
+                  onClick={() => void inspect([path])}
+                >
+                  Check saved location
+                </Button>
+              </div>
+            ))}
+            {request.setup.savedOriginals.limited && (
+              <small>More matches are available under Saved folders.</small>
+            )}
+          </section>
+        )}
         {!saved && storeOriginals.length > 0 && (
           <section aria-label="Original files from installed games" className="mt-3 grid gap-2">
             {storeOriginals.map((install) => {
