@@ -2306,6 +2306,12 @@ portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
 
+`profile remove-package PORT_ID PROFILE_ID NATIVE_ID --expected-revision REVISION`
+removes the mod from this setup and the live mod folder when the setup is selected.
+Earlier revisions keep its exact package bytes. An enabled mod that depends on it
+or a changed package file holds removal. In Desktop, choose Remove beside the mod
+and confirm.
+
 `setups` is read-only and reports in one result whether the game has reviewed mod
 support (`supported`), the package types it loads, its profiles, what is live now
 and unattended updates held for review (`held_updates`, see
