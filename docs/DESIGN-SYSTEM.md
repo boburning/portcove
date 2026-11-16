@@ -999,6 +999,10 @@ Neighboring Discover cards share identity, metadata, observation and action band
 through a row subgrid; long identity or status text does not shift one card's
 actions into another card's metadata band. Artwork remains contained and bounded
 independently of that text.
+In Covers view each Discover card is one raised surface: the cover sits inside
+a padded, bordered card, hover and keyboard focus within the card highlight the card
+rather than lifting the cover, and the secondary "Why this port?" action aligns with
+the card's text edge. Rows view keeps its own geometry.
 
 ### Game-data preparation review
 

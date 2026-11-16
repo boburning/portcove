@@ -1046,3 +1046,74 @@
     }
   }
 }
+
+/* Discover cover cards: one raised surface per game so artwork, identity, status
+   and actions read as a unit. Rows keep their own geometry. */
+@layer utilities {
+  .discover-covers .discover-game {
+    --discover-card-pad: var(--space-3);
+    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad)));
+    padding: var(--discover-card-pad);
+    gap: var(--space-2);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-elevated);
+    transition:
+      border-color var(--duration-normal),
+      box-shadow var(--duration-normal);
+  }
+  .discover-covers .discover-game:hover,
+  .discover-covers .discover-game:focus-within {
+    border-color: var(--color-interactive-border);
+    box-shadow: var(--shadow-raised);
+  }
+  .discover-covers .discover-game .collection-art {
+    width: 100%;
+    max-width: none;
+  }
+  .discover-covers .collection-personal-actions {
+    inset-block-start: calc(var(--discover-card-pad) + var(--space-2));
+    inset-inline-start: var(--discover-card-pad);
+    width: min(calc(100% - 2 * var(--discover-card-pad)), var(--collection-overlay-limit, 100%));
+  }
+  /* The card is the hover target; the cover no longer lifts inside it. */
+  .discover-covers .discover-game-identity:hover .collection-art {
+    transform: none;
+    box-shadow: none;
+  }
+  .discover-covers .discover-game .collection-title {
+    min-block-size: 0;
+    margin-block-start: var(--space-3);
+    line-height: 1.35;
+  }
+  .discover-covers .discover-game .collection-project {
+    min-block-size: 0;
+    margin-block-start: var(--space-1);
+  }
+  .discover-covers .discover-game-metadata:empty {
+    display: none;
+  }
+  .discover-covers .discover-game-observation {
+    padding-block-start: var(--space-1);
+  }
+  .discover-covers .discover-game-actions {
+    gap: 0;
+    padding-block-start: var(--space-1);
+  }
+  .discover-covers .discover-game-actions > button:not(.discover-card-action) {
+    min-block-size: 2rem;
+    padding-inline: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--text-xs);
+  }
+  .discover-covers .discover-game-actions > button:not(.discover-card-action):hover {
+    background: transparent;
+    color: var(--color-interactive-text-strong);
+    text-decoration: underline;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .discover-covers .discover-game {
+      transition: none;
+    }
+  }
+}
