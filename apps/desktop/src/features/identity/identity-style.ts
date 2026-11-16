@@ -18,6 +18,7 @@ const aliases: Record<string, string> = {
   "sega-cd-mega-cd": "sega-cd",
   ps1: "playstation",
   "playstation-ps1": "playstation",
+  "nintendo-gamecube": "gamecube",
   psp: "playstation-portable",
   "playstation-portable-psp": "playstation-portable",
 };
