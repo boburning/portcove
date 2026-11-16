@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "daxter-recompiled-anthonyhfm-daxter",
+    "artwork": {
+      "game_id": 1533,
+      "cover_id": 79887,
+      "image_id": "co1pn3",
+      "image_sha256": "ba8adb1ce85f2d4c5c2727afe3ea8caca6a2047e50dc99e0e09f2a94e9c2faa0",
+      "game_slug": "daxter",
+      "match_kind": "underlying-game"
+    },
     "name": "Daxter — daxter-recompiled (anthonyhfm)",
     "original_game_title": "Daxter",
     "summary": "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",

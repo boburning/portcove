@@ -4708,6 +4708,14 @@
     },
     {
       "id": "40-winks-faderz48",
+      "artwork": {
+        "game_id": 5568,
+        "cover_id": 158221,
+        "image_id": "co3e31",
+        "image_sha256": "7199943a64e9e1cdf218094ccdbc72b4658f7793b84b66cca059a588be67c2e1",
+        "game_slug": "40-winks",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Faderz48/40-Winks-PC-Port",
       "name": "40 Winks / Faderz48",
       "summary": "Build and play 40 Winks on Windows or Linux with upstream’s setup tools and your own clean USA Nintendo 64 ROM.",
@@ -4762,6 +4770,14 @@
     },
     {
       "id": "abilliontokens-sims1-recomp",
+      "artwork": {
+        "game_id": 224864,
+        "cover_id": 394904,
+        "image_id": "co8gpk",
+        "image_sha256": "9455eb10df74f8cb2149d25be7fc6619643543ce2ce685447b13d2e25d608a59",
+        "game_slug": "the-sims--1",
+        "match_kind": "underlying-game"
+      },
       "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
       "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Sims",
@@ -4807,6 +4823,14 @@
     },
     {
       "id": "abilliontokens-sims2-recomp",
+      "artwork": {
+        "game_id": 225246,
+        "cover_id": 398030,
+        "image_id": "co8j4e",
+        "image_sha256": "d5b2ad513fb11755d2d63f43ffd9b5822083ae5a8a73f9b33aa92564f477ab89",
+        "game_slug": "the-sims-2--6",
+        "match_kind": "underlying-game"
+      },
       "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
       "summary": "Register an independently permitted prepared The Sims 2 original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Sims 2",
@@ -4852,6 +4876,14 @@
     },
     {
       "id": "abilliontokens-urbz-recomp",
+      "artwork": {
+        "game_id": 2158,
+        "cover_id": 92889,
+        "image_id": "co1zo9",
+        "image_sha256": "de98062b2e9ff0f3a1de9b182c99e1b94a87d16398229917174d668bdedd1d70",
+        "game_slug": "the-urbz-sims-in-the-city",
+        "match_kind": "underlying-game"
+      },
       "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
       "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
       "original_game_title": "The Urbz: Sims in the City",
@@ -5039,6 +5071,14 @@
     },
     {
       "id": "ace-combat-3-electrosphere-usa-ace-combat-3-usa-recomp",
+      "artwork": {
+        "game_id": 306600,
+        "cover_id": 391210,
+        "image_id": "co8duy",
+        "image_sha256": "23d0d34aa9c5e2ee1918c5808d28ad5c2475fc8dfc775c86adb467afcf6fb097",
+        "game_slug": "ace-combat-3-electrosphere--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Ace Combat 3: Electrosphere — USA / Ace Combat 3 USA Recomp",
       "summary": "Fly combat missions in Ace Combat 3 using your own matching USA PlayStation disc and retail SCPH-1001 BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/ace-combat-3-electrosphere-usa-recomp",
@@ -5518,6 +5558,14 @@
     },
     {
       "id": "ajncsystem-shadowofthecolossus-pc",
+      "artwork": {
+        "game_id": 37094,
+        "cover_id": 542253,
+        "image_id": "cobmel",
+        "image_sha256": "8741d264b41d69764967acfa1af0204b1ce0ff1d80b9fbf83a9ee5054868dd9b",
+        "game_slug": "shadow-of-the-colossus--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
       "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
       "original_game_title": "Shadow of the Colossus",
@@ -8822,6 +8870,14 @@
     },
     {
       "id": "alexbeav-men-in-black-the-game-recomp",
+      "artwork": {
+        "game_id": 12898,
+        "cover_id": 198885,
+        "image_id": "co49gl",
+        "image_sha256": "794f27cae235d7ad463b69d7f0a32614edb49002e1b36e80a4eb96e193f554ac",
+        "game_slug": "men-in-black-the-game",
+        "match_kind": "underlying-game"
+      },
       "name": "Men in Black: The Game / Alexbeav PSXRecomp",
       "summary": "Play Men in Black: The Game with a native player built from your matching original disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp",
@@ -10365,6 +10421,14 @@
     },
     {
       "id": "alexbeav-spyro-the-dragon-recomp",
+      "artwork": {
+        "game_id": 1576,
+        "cover_id": 166697,
+        "image_id": "co3kmh",
+        "image_sha256": "5051273a774f090c6dd2f40c494afb29fb905b9da6929c8fb539f8abf0167e9b",
+        "game_slug": "spyro-the-dragon",
+        "match_kind": "underlying-game"
+      },
       "name": "Spyro the Dragon / Alexbeav PSXRecomp",
       "summary": "Play Spyro the Dragon with a player built from your matching original PlayStation disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp",
@@ -12657,6 +12721,48 @@
       }
     },
     {
+      "id": "armagetron-advanced",
+      "name": "Armagetron Advanced",
+      "original_game_title": "Armagetron Advanced",
+      "summary": "Steer a lightcycle, avoid the trails, and outlast the other riders in local or online arenas.",
+      "project_url": "https://gitlab.com/armagetronad/armagetronad",
+      "issue_number": 6458,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://armagetronad.org/downloads.php",
+      "setup_url": "https://armagetronad.org/downloads.php",
+      "download_block_reason": "Get the game client from the official download page. The project serves these packages through Launchpad.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the game client for your computer",
+            "instruction": "On Windows, run the official 32-bit client installer. The stable Launchpad release also offers a 32-bit client ZIP. Extract it completely and run armagetronad.exe from that folder. On Linux, choose the x64 or x86 AppImage, make it executable, and start it. If FUSE is unavailable, try starting it with --appimage-extract-and-run. You can also install the Flathub edition through your app manager. On Intel Mac, follow the publisher’s current macOS requirements, mount the official disk image and copy the complete Armagetron Advanced.app into Applications. The download page has a separate section for dedicated servers."
+          },
+          {
+            "title": "Set up your rider and try a local game",
+            "instruction": "On first launch, choose a language, set your name, color and controls, and select Accept. Follow the welcome screen to enter the first local match against a computer rider."
+          },
+          {
+            "title": "Keep your profile before switching packages",
+            "instruction": "Close the game and copy the folder containing your profile, including var/user.cfg and any custom maps or resources. Check %APPDATA%/Armagetron on Windows, ~/.armagetronad for the Linux AppImage, or ~/Library/Application Support/Armagetron Advanced on Mac. If your build uses a different location, keep that profile folder instead. To restore settings for the same release, close the client and copy your backup into the profile location it uses. Keep the backup until you verify the settings."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check Apple Silicon and Android availability",
+            "instruction": "The publisher lists its Intel Mac client for use on Apple Silicon through Rosetta. Use the complete Intel app as supplied. The stable download page does not offer an Android client."
+          }
+        ],
+        "help_url": "https://armagetronad.org/downloads.php"
+      }
+    },
+    {
       "id": "army-of-two-recompilation-openportroid-army-of-two",
       "name": "Army of Two — Army of Two Recompilation (OpenPortroid)",
       "original_game_title": "Army of Two",
@@ -12886,6 +12992,14 @@
     },
     {
       "id": "astromenace-viewizard",
+      "artwork": {
+        "game_id": 187894,
+        "cover_id": 204660,
+        "image_id": "co4dx0",
+        "image_sha256": "521cbfe7aa4efb6f4a4af73712f66ecff6d0ce7ded2771efd0048307b7dcf4cd",
+        "game_slug": "astromenace",
+        "match_kind": "underlying-game"
+      },
       "name": "AstroMenace",
       "summary": "Fly a customizable fighter through a 3D space shooter from Viewizard.",
       "project_url": "https://github.com/viewizard/astromenace",
@@ -13046,6 +13160,14 @@
     },
     {
       "id": "athelas-the-fellowship-of-the-ring-xbox",
+      "artwork": {
+        "game_id": 2972,
+        "cover_id": 79153,
+        "image_id": "co1p2p",
+        "image_sha256": "718e8f9e2f7d7b3fd2574741e49dd9558014abb87d37c2c5b8c9589a53d41f28",
+        "game_slug": "the-lord-of-the-rings-the-fellowship-of-the-ring",
+        "match_kind": "underlying-game"
+      },
       "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
       "summary": "Use your own USA Xbox The Fellowship of the Ring through the complete Athelas launcher. Preserve its separate FOTR-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
@@ -13097,6 +13219,14 @@
     },
     {
       "id": "athelas-the-return-of-the-king-xbox",
+      "artwork": {
+        "game_id": 2973,
+        "cover_id": 94191,
+        "image_id": "co20of",
+        "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+        "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+        "match_kind": "underlying-game"
+      },
       "name": "The Lord of the Rings: The Return of the King — Original Xbox (Athelas ports/rotk-xbox)",
       "summary": "Use your own USA Xbox The Return of the King through the complete Athelas launcher. Preserve its separate ROTK-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Return of the King",
@@ -13149,6 +13279,14 @@
     },
     {
       "id": "athelas-the-two-towers-xbox",
+      "artwork": {
+        "game_id": 2965,
+        "cover_id": 615761,
+        "image_id": "cod74h",
+        "image_sha256": "def5162525d1bda7d9f3e3dd44ccb625fb593b24bdf12835ba72a8d055d349c1",
+        "game_slug": "the-lord-of-the-rings-the-two-towers",
+        "match_kind": "underlying-game"
+      },
       "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
       "summary": "Use your own USA Xbox The Two Towers through the complete Athelas launcher. Preserve its separate TT-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
@@ -13309,6 +13447,14 @@
     },
     {
       "id": "azkali-kameorecomp-azkali-kameo-elements-of-power",
+      "artwork": {
+        "game_id": 7029,
+        "cover_id": 87149,
+        "image_id": "co1v8t",
+        "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
+        "game_slug": "kameo-elements-of-power",
+        "match_kind": "underlying-game"
+      },
       "name": "Kameo: Elements of Power — Azkali KameoRecomp (Azkali)",
       "original_game_title": "Kameo: Elements of Power",
       "summary": "This early project generates code that can be linked into a Kameo player. Most Xbox system functions remain unfinished in src/hooks.cpp; startup and gameplay are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -13425,6 +13571,14 @@
     },
     {
       "id": "baldur-s-gate-ii-original-gemrb",
+      "artwork": {
+        "game_id": 6,
+        "cover_id": 329139,
+        "image_id": "co71yr",
+        "image_sha256": "43f883b7fc3d81c7edde48abc6be26739f0e4102e5192088d41efd1f25b4780a",
+        "game_slug": "baldurs-gate-ii-shadows-of-amn",
+        "match_kind": "underlying-game"
+      },
       "name": "Baldur's Gate II (original) (GemRB)",
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
@@ -13482,6 +13636,14 @@
     },
     {
       "id": "baldur-s-gate-original-gemrb",
+      "artwork": {
+        "game_id": 5,
+        "cover_id": 93899,
+        "image_id": "co20gb",
+        "image_sha256": "fb4d7aecfe6b9aa0159cc286af5be599be7bebd2ccf3a1884d7089b41b16c1d9",
+        "game_slug": "baldur-s-gate",
+        "match_kind": "underlying-game"
+      },
       "name": "Baldur's Gate (original) (GemRB)",
       "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
@@ -13539,6 +13701,14 @@
     },
     {
       "id": "ballance-ballanced",
+      "artwork": {
+        "game_id": 20895,
+        "cover_id": 458491,
+        "image_id": "co9trv",
+        "image_sha256": "a6b546db13d7aff7833f27ee87d2841b6c892fd04d2e1928366eecbeb206fac9",
+        "game_slug": "ballance",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/doyaGu/Ballanced",
       "name": "Ballance / Ballanced",
       "original_game_title": "Ballance",
@@ -14239,6 +14409,14 @@
     },
     {
       "id": "bitsandbreakpoints-d-psx-pc-recomp",
+      "artwork": {
+        "game_id": 4319,
+        "cover_id": 177440,
+        "image_id": "co3sww",
+        "image_sha256": "1a8fcc010dc5349850a391fc68476e0b3a37357952f06a11900b0ac4750acecb",
+        "game_slug": "d",
+        "match_kind": "underlying-game"
+      },
       "name": "D (D PC Port)",
       "summary": "Register an independently permitted complete D PlayStation Windows player with matching game.dll and your own USA three-disc set; retain executable-bound save states.",
       "original_game_title": "D",
@@ -14322,6 +14500,14 @@
     },
     {
       "id": "black-xbox-black-pc",
+      "artwork": {
+        "game_id": 5749,
+        "cover_id": 388910,
+        "image_id": "co8c32",
+        "image_sha256": "22a6b13aabf70f235c98cf1b33941a273b4eed5910197212b17d22a366cbd1f4",
+        "game_slug": "black",
+        "match_kind": "underlying-game"
+      },
       "name": "BLACK (Xbox) (black-pc)",
       "summary": "Attach an independently permitted, prepared BLACK Windows installation using Spark198rus’s title-specific original-x86 compatibility runtime. This is direct Xbox-code execution with replacement services, not static recompilation; Linux uses Wine rather than a native Linux player.",
       "original_game_title": "BLACK (Xbox)",
@@ -14362,6 +14548,14 @@
     },
     {
       "id": "black-xbox-black-xberecomp",
+      "artwork": {
+        "game_id": 5749,
+        "cover_id": 388910,
+        "image_id": "co8c32",
+        "image_sha256": "22a6b13aabf70f235c98cf1b33941a273b4eed5910197212b17d22a366cbd1f4",
+        "game_slug": "black",
+        "match_kind": "underlying-game"
+      },
       "name": "BLACK (Xbox) (BLACK-XBERecomp)",
       "summary": "An original-Xbox BLACK implementation separate from Spark198rus’s black-pc. Its Windows 10+ x86-64 Direct3D 12 package compiles game code locally on first start. Use your own USA or Europe ISO or complete extracted data in assets/. The separate manual source build specifically needs the USA default.xbe and matching data; this guide does not specify exact per-region executable hashes. Linux and macOS player routes are unconfirmed. Portcove has not confirmed setup or gameplay. Choose BLACK.exe after setup finishes.",
       "original_game_title": "BLACK (Xbox)",
@@ -15114,6 +15308,14 @@
     },
     {
       "id": "bloody-roar-extreme-xbe-recomp-bromurok-bloody-roar-extreme",
+      "artwork": {
+        "game_id": 225826,
+        "cover_id": 370358,
+        "image_id": "co7xrq",
+        "image_sha256": "66e691f50b234ffc4ad96941ea5266706433039397f7a834663801f573c4a412",
+        "game_slug": "bloody-roar-extreme",
+        "match_kind": "underlying-game"
+      },
       "name": "Bloody Roar Extreme — Bloody Roar Extreme - XBE Recomp (bromurok)",
       "original_game_title": "Bloody Roar Extreme",
       "summary": "Upstream claims stable60 gameplay and 2-player local versus; no Portcove runtime evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -15226,6 +15428,14 @@
     },
     {
       "id": "bodbdearg-psydoom",
+      "artwork": {
+        "game_id": 170995,
+        "cover_id": 179083,
+        "image_id": "co3u6j",
+        "image_sha256": "175f303e2c586c76fd610d2d1e5e191724dccb7f3332bf392cefa2753b31d9d7",
+        "game_slug": "doom--3",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom / PsyDoom (BodbDearg)",
       "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
       "project_url": "https://github.com/BodbDearg/PsyDoom",
@@ -15578,6 +15788,14 @@
     },
     {
       "id": "brawl-recompiled",
+      "artwork": {
+        "game_id": 1628,
+        "cover_id": 95972,
+        "image_id": "co221w",
+        "image_sha256": "8d4568cea0ba75745c55ed26b6dd99dd3d1fd60e5213c6b39cad02e55a7241a6",
+        "game_slug": "super-smash-bros-brawl",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Smash Bros. Brawl / BrawlRecompiled",
       "summary": "Keep the Brawl launcher, prepare your own Wii disc and preserve saves and mods in a permitted player copy.",
       "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
@@ -15634,6 +15852,14 @@
     },
     {
       "id": "brawmario-infinite-mario-64-ever",
+      "artwork": {
+        "game_id": 1074,
+        "cover_id": 329251,
+        "image_id": "co721v",
+        "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+        "game_slug": "super-mario-64",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario)",
       "summary": "Explore Super Mario 64 [Infinite Mario 64 Ever] / Infinite Mario 64 Ever (Brawmario) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/Brawmario/infinite-mario-64-ever",
@@ -15660,6 +15886,14 @@
     },
     {
       "id": "bstoney-yt-mercenaries-2-decompilation",
+      "artwork": {
+        "game_id": 2684,
+        "cover_id": 117510,
+        "image_id": "co2io6",
+        "image_sha256": "379b30b6eed6e6d693cb0526adae4a070a4602296dfd7e1815c2dffd7282e4a9",
+        "game_slug": "mercenaries-2-world-in-flames",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/bstoney-yt/Mercenaries-2-Decompilation",
       "name": "Mercenaries 2: World in Flames / Native beta",
       "original_game_title": "Mercenaries 2: World in Flames",
@@ -16128,6 +16362,14 @@
     },
     {
       "id": "burnout-xbox-burnout-recompilation",
+      "artwork": {
+        "game_id": 3838,
+        "cover_id": 298365,
+        "image_id": "co6e7x",
+        "image_sha256": "0a1035b40a1ccc60fee6b289cc8bf7d66ab12affa10e8773a7da68bc8f5b7e04",
+        "game_slug": "burnout",
+        "match_kind": "underlying-game"
+      },
       "name": "Burnout (Xbox) (Burnout Recompilation)",
       "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
       "original_game_title": "Burnout (Xbox)",
@@ -16337,6 +16579,14 @@
     },
     {
       "id": "c-dogs-sdl",
+      "artwork": {
+        "game_id": 23572,
+        "cover_id": 198190,
+        "image_id": "co48xa",
+        "image_sha256": "08b6432a441e3522504ffaf48863b834adb64808918d6671773450e78547a073",
+        "game_slug": "c-dogs",
+        "match_kind": "underlying-game"
+      },
       "name": "C-Dogs SDL",
       "original_game_title": "C-Dogs",
       "summary": "Play C-Dogs through your Linux distribution or a permitted existing desktop copy.",
@@ -16533,6 +16783,14 @@
     },
     {
       "id": "call-to-power-ii-apolyton-edition",
+      "artwork": {
+        "game_id": 11266,
+        "cover_id": 92908,
+        "image_id": "co1zos",
+        "image_sha256": "0aaf53621520405652f71610dfcf37f9d50cfc4b5ce8683b9d3988904ccfdaf7",
+        "game_slug": "call-to-power-ii",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/civctp2/civctp2",
       "name": "Call to Power II / Apolyton Edition",
       "original_game_title": "Call to Power II",
@@ -16638,6 +16896,14 @@
     },
     {
       "id": "cannon-fodder-open-fodder",
+      "artwork": {
+        "game_id": 5519,
+        "cover_id": 171195,
+        "image_id": "co3o3f",
+        "image_sha256": "2394e928556e1da5ad176cb85b929764b9ff10da02b4482cbd13a9d08ee1c5a4",
+        "game_slug": "cannon-fodder",
+        "match_kind": "underlying-game"
+      },
       "name": "Cannon Fodder (Open Fodder)",
       "summary": "Set up Cannon Fodder through its upstream openfodder player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Cannon Fodder",
@@ -16832,6 +17098,14 @@
     },
     {
       "id": "captain-claw-pjasicek-openclaw",
+      "artwork": {
+        "game_id": 2474,
+        "cover_id": 137550,
+        "image_id": "co2y4u",
+        "image_sha256": "202c18866c7e4f43b05fc1a5fe15fc17338e1385be46a0d89705444f924a8332",
+        "game_slug": "claw",
+        "match_kind": "underlying-game"
+      },
       "name": "Captain Claw / OpenClaw",
       "original_game_title": "Captain Claw",
       "summary": "Build OpenClaw with upstream instructions and use the CLAW.REZ archive from your own Captain Claw installation.",
@@ -17026,6 +17300,14 @@
     },
     {
       "id": "catacomb-3-d-the-descent-catacombgl",
+      "artwork": {
+        "game_id": 8705,
+        "cover_id": 161618,
+        "image_id": "co3gpe",
+        "image_sha256": "20ba52818fd79a353633c6d0a187802a3e956ef6551b6b45d6cc92e23c63016e",
+        "game_slug": "catacomb-3-d",
+        "match_kind": "underlying-game"
+      },
       "name": "Catacomb 3-D: The Descent (CatacombGL)",
       "summary": "Use Catacomb 3-D: The Descent with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Catacomb 3-D: The Descent",
@@ -17085,6 +17367,14 @@
     },
     {
       "id": "catacomb-3-d-the-descent-reflectionhle",
+      "artwork": {
+        "game_id": 8705,
+        "cover_id": 161618,
+        "image_id": "co3gpe",
+        "image_sha256": "20ba52818fd79a353633c6d0a187802a3e956ef6551b6b45d6cc92e23c63016e",
+        "game_slug": "catacomb-3-d",
+        "match_kind": "underlying-game"
+      },
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
       "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Catacomb 3-D: The Descent",
@@ -17328,6 +17618,14 @@
     },
     {
       "id": "celeste-64-fragments-of-the-mountain",
+      "artwork": {
+        "game_id": 284430,
+        "cover_id": 358960,
+        "image_id": "co7oz4",
+        "image_sha256": "98c0527ec93c5bfb4dfc0145123b11fba721b0f0d12a5b7d9f9ba351d21d7b31",
+        "game_slug": "celeste-64-fragments-of-the-mountain",
+        "match_kind": "underlying-game"
+      },
       "name": "Celeste 64: Fragments of the Mountain",
       "summary": "Explore a 3D mountain in a short standalone game from the Celeste developers.",
       "project_url": "https://github.com/EXOK/Celeste64",
@@ -18122,6 +18420,14 @@
     },
     {
       "id": "commander-keen-4-omnispeak",
+      "artwork": {
+        "game_id": 2443,
+        "cover_id": 100803,
+        "image_id": "co25s3",
+        "image_sha256": "1f70f40053df3da6afa38bb1286a556c0de4b13afded1581dccbb04573428b43",
+        "game_slug": "commander-keen-in-goodbye-galaxy-secret-of-the-oracle",
+        "match_kind": "underlying-game"
+      },
       "name": "Commander Keen 4 (Omnispeak)",
       "summary": "Play Commander Keen 4 using the official Omnispeak v1.1 packages with bundled EGA shareware. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 4",
@@ -18178,6 +18484,14 @@
     },
     {
       "id": "commander-keen-5-omnispeak",
+      "artwork": {
+        "game_id": 2445,
+        "cover_id": 100804,
+        "image_id": "co25s4",
+        "image_sha256": "8796a86f3e2722a7af5018e5d75b91879d334752596525c3785bb6ddd2455a63",
+        "game_slug": "commander-keen-in-goodbye-galaxy-the-armageddon-machine",
+        "match_kind": "underlying-game"
+      },
       "name": "Commander Keen 5 (Omnispeak)",
       "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 5",
@@ -18517,6 +18831,14 @@
     },
     {
       "id": "corepunch-openrealm-warcraft-3",
+      "artwork": {
+        "game_id": 132,
+        "cover_id": 90530,
+        "image_id": "co1xuq",
+        "image_sha256": "7fec1528a806a6d4db90c23cb07f077aece432e0f38ebe1a6fcb372b5ae045bd",
+        "game_slug": "warcraft-iii-reign-of-chaos",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/corepunch/open-realm",
       "name": "Warcraft III / OpenRealm",
       "original_game_title": "Warcraft III",
@@ -18674,6 +18996,14 @@
     },
     {
       "id": "cps2recomp-alien-vs-predator",
+      "artwork": {
+        "game_id": 13679,
+        "cover_id": 120224,
+        "image_id": "co2krk",
+        "image_sha256": "cbf8936cad25945fd10b997916370d33bc9c90cf1e9919b29c893eaeceaa1396",
+        "game_slug": "alien-vs-predator--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Alien vs. Predator (CPS-2 Recomp)",
       "summary": "Play Alien vs. Predator using your own matching arcade originals.",
       "original_game_title": "Alien vs. Predator",
@@ -18873,6 +19203,14 @@
     },
     {
       "id": "cps2recomp-street-fighter-alpha",
+      "artwork": {
+        "game_id": 6702,
+        "cover_id": 295597,
+        "image_id": "co6c31",
+        "image_sha256": "33863d0b345228cb96f795bb6db1418d0e1a028d37a1ed75d38c1bd2e008c791",
+        "game_slug": "street-fighter-alpha-warriors-dreams",
+        "match_kind": "underlying-game"
+      },
       "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
       "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha: Warriors Dreams",
@@ -18934,6 +19272,14 @@
     },
     {
       "id": "cps2recomp-street-fighter-alpha-2",
+      "artwork": {
+        "game_id": 6703,
+        "cover_id": 295068,
+        "image_id": "co6boc",
+        "image_sha256": "f8acb4b0e86aeb0a5c924275728733c4111e4079dda155e482a2c138654d5303",
+        "game_slug": "street-fighter-alpha-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
       "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
       "original_game_title": "Street Fighter Alpha2",
@@ -18995,6 +19341,14 @@
     },
     {
       "id": "cps2recomp-super-gem-fighter-mini-mix",
+      "artwork": {
+        "game_id": 39314,
+        "cover_id": 537176,
+        "image_id": "cobihk",
+        "image_sha256": "88c89b2b3eff8e4dff79dc0b77c74fd9b50f267e24840b0a8a5fb094c604114f",
+        "game_slug": "super-gem-fighter-mini-mix",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Gem Fighter Mini Mix (CPS-2 Recomp)",
       "summary": "Play Super Gem Fighter Mini Mix using your own matching arcade originals.",
       "original_game_title": "Super Gem Fighter Mini Mix",
@@ -19056,6 +19410,14 @@
     },
     {
       "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+      "artwork": {
+        "game_id": 20803,
+        "cover_id": 391720,
+        "image_id": "co8e94",
+        "image_sha256": "75a1f6d023c52e58a90df58df31473ad6fd54302661dabc17f602875c358125d",
+        "game_slug": "super-puzzle-fighter-ii-turbo",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
       "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
       "original_game_title": "Super Puzzle FighterII Turbo",
@@ -19117,6 +19479,14 @@
     },
     {
       "id": "cps2recomp-vampire-hunter-2",
+      "artwork": {
+        "game_id": 39697,
+        "cover_id": 126033,
+        "image_id": "co2p8x",
+        "image_sha256": "243859e4f548685adde6e95b00aac40faedc7335e254a0081f5f54e4b72a628c",
+        "game_slug": "vampire-hunter-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
       "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
       "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",
@@ -19178,6 +19548,14 @@
     },
     {
       "id": "cps2recomp-vampire-savior",
+      "artwork": {
+        "game_id": 206672,
+        "cover_id": 572032,
+        "image_id": "coc9ds",
+        "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+        "game_slug": "vampire-savior-the-lord-of-vampire",
+        "match_kind": "underlying-game"
+      },
       "name": "Vampire Savior: The Lord of Vampire (CPS-2 Recomp)",
       "summary": "Play Vampire Savior: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior: The Lord of Vampire",
@@ -19239,6 +19617,14 @@
     },
     {
       "id": "cps2recomp-vampire-savior-2",
+      "artwork": {
+        "game_id": 39696,
+        "cover_id": 277040,
+        "image_id": "co5xrk",
+        "image_sha256": "7a11bbfecdeb76bca796bf34c075df70c8f7c865a690686960adb3a33b732e5f",
+        "game_slug": "vampire-savior-2-the-lord-of-vampire",
+        "match_kind": "underlying-game"
+      },
       "name": "Vampire Savior2: The Lord of Vampire (CPS-2 Recomp)",
       "summary": "Play Vampire Savior2: The Lord of Vampire using your own matching arcade originals.",
       "original_game_title": "Vampire Savior2: The Lord of Vampire",
@@ -19430,6 +19816,14 @@
     },
     {
       "id": "crackdown-crackdown-recompiled",
+      "artwork": {
+        "game_id": 2896,
+        "cover_id": 88349,
+        "image_id": "co1w65",
+        "image_sha256": "12112227f54014af4c0298e143088587ee8f20673ce8ae60684b661aad9cb50d",
+        "game_slug": "crackdown",
+        "match_kind": "underlying-game"
+      },
       "name": "Crackdown (Crackdown Recompiled)",
       "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
       "original_game_title": "Crackdown",
@@ -19667,6 +20061,14 @@
     },
     {
       "id": "crash-team-racing-ctr-recompiled",
+      "artwork": {
+        "game_id": 1192,
+        "cover_id": 361766,
+        "image_id": "co7r52",
+        "image_sha256": "857ab4be415b6baf136a594b32afa654c830446c1e565cb8e047a9bd76bb18d6",
+        "game_slug": "crash-team-racing",
+        "match_kind": "underlying-game"
+      },
       "name": "Crash Team Racing (CTR Recompiled)",
       "summary": "An experimental Crash Team Racing port with critical post-race and ChangeLevel failures reported by the project. Windows, Linux and macOS setup packages use Generate & Build; exact host CPU architectures are unconfirmed. Use your own USA PlayStation SCUS-94426 CUE/BIN. The current game.toml requires data track 1 to be 605,698,800 bytes with SHA-1 1bb785082def3fe25f6b46be06d4eaf33c5bc772 and boot executable SCUS_944.26. Setup uses OpenBIOS unless you supply your own local SCPH BIOS. Original images and proprietary BIOS are not distributed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Crash Team Racing",
@@ -19710,6 +20112,14 @@
     },
     {
       "id": "crashrecomp-definitive-edition-vitomiguelf-crash-of-the-titans-xbox-360",
+      "artwork": {
+        "game_id": 1190,
+        "cover_id": 249956,
+        "image_id": "co5cv8",
+        "image_sha256": "8a43360fabec26329acc5a02f08d3250be015a878cd59a11889a8cb5f87270c9",
+        "game_slug": "crash-of-the-titans",
+        "match_kind": "underlying-game"
+      },
       "name": "Crash of the Titans (Xbox 360) — CrashRecomp: Definitive Edition (VitoMiguelF)",
       "original_game_title": "Crash of the Titans (Xbox 360)",
       "summary": "The project reports story, menus, saves and performance in specific v1.04 scenes; a complete campaign is unconfirmed. Newer source instructions describe 21:9, 32:9 and 16:10 display modes, GPU-dependent DLSS/FSR and an Intel UHD black-flicker problem with gpu_safe_mode and diagnostic workarounds. Windows 10/11 x64 and Vulkan 1.3 remain required; Linux through Proton is an unconfirmed goal. The v1.05 installer and layout were described before a public tag was available. Portcove has not tested that package or player. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -20456,6 +20866,14 @@
     },
     {
       "id": "darkuni-afterburner-climax-recomp",
+      "artwork": {
+        "game_id": 20085,
+        "cover_id": 117692,
+        "image_id": "co2it8",
+        "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+        "game_slug": "after-burner-climax",
+        "match_kind": "underlying-game"
+      },
       "name": "After Burner Climax (darkuni Recomp)",
       "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
@@ -20502,6 +20920,14 @@
     },
     {
       "id": "darkuni-chocobo-dungeon-recomp",
+      "artwork": {
+        "game_id": 18069,
+        "cover_id": 315284,
+        "image_id": "co6r9w",
+        "image_sha256": "b53f4826c68fcd2d8d13672a78b07a03c1bb0390b61a166bf396327d8b0a88f9",
+        "game_slug": "final-fantasy-fables-chocobos-dungeon",
+        "match_kind": "underlying-game"
+      },
       "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
       "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
       "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
@@ -20546,6 +20972,14 @@
     },
     {
       "id": "darkuni-lode-runner-2009-xbla-rexglue",
+      "artwork": {
+        "game_id": 166708,
+        "cover_id": 176489,
+        "image_id": "co3s6h",
+        "image_sha256": "36ad7bf39a153365f0bdd918780ec889d4b494d9d9a9dfe4dc26a236c43f638c",
+        "game_slug": "lode-runner--2",
+        "match_kind": "underlying-game"
+      },
       "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
       "summary": "Play Lode Runner with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/lode-runner-recomp",
@@ -20593,6 +21027,14 @@
     },
     {
       "id": "darkuni-mylifedarklord-recomp",
+      "artwork": {
+        "game_id": 41856,
+        "cover_id": 198218,
+        "image_id": "co48y2",
+        "image_sha256": "b672dc27272bfa474e920c658ae44da34c836d707a85cfcdbd5e549a78e3cbed",
+        "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+        "match_kind": "underlying-game"
+      },
       "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
       "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
       "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
@@ -20639,6 +21081,14 @@
     },
     {
       "id": "darkuni-mylifeking-recomp",
+      "artwork": {
+        "game_id": 21054,
+        "cover_id": 127210,
+        "image_id": "co2q5m",
+        "image_sha256": "30c780d62487c5466f220004a47b15461ac702a423e469f82ef1f5b6921d1bce",
+        "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+        "match_kind": "underlying-game"
+      },
       "name": "Final Fantasy Crystal Chronicles: My Life as a King (darkuni Recomp)",
       "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
       "project_url": "https://github.com/darkuni/mylifeking-recomp",
@@ -20681,6 +21131,14 @@
     },
     {
       "id": "darkuni-outrun-arcade-recomp",
+      "artwork": {
+        "game_id": 21204,
+        "cover_id": 352378,
+        "image_id": "co7jwa",
+        "image_sha256": "c9d0ec6eabc78a904fbd0bba158c2afe610ae46cbab6deb1404e8adb4138c3ab",
+        "game_slug": "outrun-online-arcade",
+        "match_kind": "underlying-game"
+      },
       "name": "OutRun Online Arcade (darkuni Recomp)",
       "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
@@ -20727,6 +21185,14 @@
     },
     {
       "id": "darkuni-poker-smash-recomp",
+      "artwork": {
+        "game_id": 21351,
+        "cover_id": 51143,
+        "image_id": "qao4hoonhugsw03xmifm",
+        "image_sha256": "ff66efc38bdde254be2944957a7dc48296c47a333e12b1c04ef29dd1df015aee",
+        "game_slug": "poker-smash",
+        "match_kind": "underlying-game"
+      },
       "name": "Poker Smash (darkuni Recomp)",
       "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/poker-smash-recomp",
@@ -20773,6 +21239,14 @@
     },
     {
       "id": "darkuni-target-terror-wii-recomp",
+      "artwork": {
+        "game_id": 5213,
+        "cover_id": 272083,
+        "image_id": "co5txv",
+        "image_sha256": "6cd058c5b3471cd965e8b12a1b90bc75c909329f2932c39c90be073f31bca8e2",
+        "game_slug": "target-terror",
+        "match_kind": "underlying-game"
+      },
       "name": "TARGET: Terror (darkuni Recomp)",
       "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
       "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
@@ -20815,6 +21289,14 @@
     },
     {
       "id": "daxter-recompiled-anthonyhfm-daxter",
+      "artwork": {
+        "game_id": 1533,
+        "cover_id": 79887,
+        "image_id": "co1pn3",
+        "image_sha256": "ba8adb1ce85f2d4c5c2727afe3ea8caca6a2047e50dc99e0e09f2a94e9c2faa0",
+        "game_slug": "daxter",
+        "match_kind": "underlying-game"
+      },
       "name": "Daxter — daxter-recompiled (anthonyhfm)",
       "original_game_title": "Daxter",
       "summary": "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -21635,6 +22117,14 @@
     },
     {
       "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+      "artwork": {
+        "game_id": 3874,
+        "cover_id": 227964,
+        "image_id": "co4vwc",
+        "image_sha256": "56383651e7531361d38f962b5b7a4fe0ff51ece1a0466676e42e114b1e1964b8",
+        "game_slug": "def-jam-vendetta",
+        "match_kind": "underlying-game"
+      },
       "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
       "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders.",
       "original_game_title": "Def Jam Vendetta (PlayStation 2)",
@@ -21897,6 +22387,14 @@
     },
     {
       "id": "descent-dxx-rebirth",
+      "artwork": {
+        "game_id": 1872,
+        "cover_id": 90240,
+        "image_id": "co1xmo",
+        "image_sha256": "5ba9d96e8ba1c8ac014ef5899b9d6f7ba04c2b4ad13bc8671cb45cbd67c98a4f",
+        "game_slug": "descent",
+        "match_kind": "underlying-game"
+      },
       "name": "Descent (DXX-Rebirth)",
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent",
@@ -21956,6 +22454,14 @@
     },
     {
       "id": "descent-ii-dxx-rebirth",
+      "artwork": {
+        "game_id": 668,
+        "cover_id": 565833,
+        "image_id": "coc4ll",
+        "image_sha256": "39ad11455f95ca1af43d6f066ab3e11074769815ebf1844352818d0670950279",
+        "game_slug": "descent-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "Descent II (DXX-Rebirth)",
       "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent II",
@@ -22015,6 +22521,14 @@
     },
     {
       "id": "destinity13-timesplitters-2-ps2-slus20314-native-linux",
+      "artwork": {
+        "game_id": 2143,
+        "cover_id": 515651,
+        "image_id": "cob1vn",
+        "image_sha256": "e58e9bf9bc151bd06b83e8ef20c7152da2a9ad11ba433b389f26b9faaeb8739a",
+        "game_slug": "timesplitters-2",
+        "match_kind": "underlying-game"
+      },
       "name": "TimeSplitters 2 — Destinity13 native recompilation",
       "original_game_title": "TimeSplitters 2",
       "summary": "Prepare a native Windows or Linux player from your own USA PlayStation 2 disc image.",
@@ -22146,6 +22660,14 @@
     },
     {
       "id": "diablo-devilutionx",
+      "artwork": {
+        "game_id": 125,
+        "cover_id": 161304,
+        "image_id": "co3ggo",
+        "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+        "game_slug": "diablo",
+        "match_kind": "underlying-game"
+      },
       "name": "Diablo (DevilutionX)",
       "summary": "Play Diablo through DevilutionX with your matching original game files.",
       "original_game_title": "Diablo",
@@ -22312,6 +22834,14 @@
     },
     {
       "id": "diegodedios-alienrerecomp",
+      "artwork": {
+        "game_id": 44995,
+        "cover_id": 504131,
+        "image_id": "coaszn",
+        "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+        "game_slug": "alien-resurrection",
+        "match_kind": "underlying-game"
+      },
       "name": "Alien Resurrection / AlienReRecomp",
       "original_game_title": "Alien Resurrection",
       "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
@@ -23064,6 +23594,14 @@
     },
     {
       "id": "doom-3-classic-dhewm3",
+      "artwork": {
+        "game_id": 280,
+        "cover_id": 86963,
+        "image_id": "co1v3n",
+        "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+        "game_slug": "doom-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom 3 (classic) (dhewm3)",
       "summary": "Use the official dhewm3 Windows player with your own classic Doom 3 files. Prepare originals separately and keep the external save profile backed up.",
       "original_game_title": "Doom 3 (classic)",
@@ -23127,6 +23665,14 @@
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
+      "artwork": {
+        "game_id": 280,
+        "cover_id": 86963,
+        "image_id": "co1v3n",
+        "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+        "game_slug": "doom-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
       "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "original_game_title": "Doom 3 (classic)",
@@ -23183,6 +23729,14 @@
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "artwork": {
+        "game_id": 672,
+        "cover_id": 98348,
+        "image_id": "co23vw",
+        "image_sha256": "5e6c08295efabf713d9d2a6cd3327091d38727bb8352e4d2cbd7fe9f1d950e90",
+        "game_slug": "doom-3-resurrection-of-evil",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
       "summary": "Use the official dhewm3 Windows player for classic Resurrection of Evil with your own base-game and expansion files. Keep its external profile backed up.",
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
@@ -23242,6 +23796,14 @@
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",
+      "artwork": {
+        "game_id": 672,
+        "cover_id": 98348,
+        "image_id": "co23vw",
+        "image_sha256": "5e6c08295efabf713d9d2a6cd3327091d38727bb8352e4d2cbd7fe9f1d950e90",
+        "game_slug": "doom-3-resurrection-of-evil",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom 3: Resurrection of Evil (classic) (DUDE — Doom 3 Unified Development Engine)",
       "summary": "Use the official DUDE Windows player with your own classic Doom 3 and Resurrection of Evil files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
@@ -23393,6 +23955,14 @@
     },
     {
       "id": "doom-ii-crispy-doom-family",
+      "artwork": {
+        "game_id": 312,
+        "cover_id": 303937,
+        "image_id": "co6iip",
+        "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+        "game_slug": "doom-ii-hell-on-earth",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom II (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom II",
@@ -24536,6 +25106,14 @@
     },
     {
       "id": "dreamcastrecomp-st44rplatinum-sonic-adventure-2-dreamcast",
+      "artwork": {
+        "game_id": 7858,
+        "cover_id": 547825,
+        "image_id": "cobqpd",
+        "image_sha256": "63d17724bbc4f8e5d8515f2cd41f24516fbd5448fe735e90cebd81039ddb7d07",
+        "game_slug": "sonic-adventure-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Sonic Adventure 2 (Dreamcast) — dreamcastRecomp (st44rplatinum)",
       "original_game_title": "Sonic Adventure 2 (Dreamcast)",
       "summary": "Experimental Sonic Adventure 2 Dreamcast source project. Upstream reports title and file-selection screens with sound; the first stage and GPU renderer are planned. Portcove has not confirmed setup or gameplay.",
@@ -24879,6 +25457,14 @@
     },
     {
       "id": "dune-ii-henricj-dune-legacy",
+      "artwork": {
+        "game_id": 86,
+        "cover_id": 227952,
+        "image_id": "co4vw0",
+        "image_sha256": "cb25d42a8639c7aacaa27f3d6da453412e74f9dccda5df71123b5cb1b44c09f9",
+        "game_slug": "dune-ii-the-building-of-a-dynasty",
+        "match_kind": "underlying-game"
+      },
       "name": "Dune II / Dune Legacy (henricj)",
       "original_game_title": "Dune II",
       "summary": "Play Dune II with henricj’s Dune Legacy fork using the PAK files from your original copy.",
@@ -25018,6 +25604,14 @@
     },
     {
       "id": "dungeon-siege-joshspeakman-macos",
+      "artwork": {
+        "game_id": 329,
+        "cover_id": 97352,
+        "image_id": "co2348",
+        "image_sha256": "916d34141868c80d9c7d178af505e52c6b11dfb42315484ce449310e98c08fd4",
+        "game_slug": "dungeon-siege",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
       "name": "Dungeon Siege / Dungeon Siege macOS",
       "original_game_title": "Dungeon Siege",
@@ -25507,6 +26101,14 @@
     },
     {
       "id": "egg-of-time-chrono-trigger-nds",
+      "artwork": {
+        "game_id": 20398,
+        "cover_id": 559554,
+        "image_id": "cobzr6",
+        "image_sha256": "55757603bbe6b50927765ead74b32e0be2ca36762e65490196d41a2c68e735bd",
+        "game_slug": "chrono-trigger--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Chrono Trigger (Nintendo DS) — Egg of Time",
       "original_game_title": "Chrono Trigger",
       "summary": "Build a native Chrono Trigger player from your own Nintendo DS cartridge dump using Egg of Time.",
@@ -25701,6 +26303,14 @@
     },
     {
       "id": "elf-bowling-recomp",
+      "artwork": {
+        "game_id": 51319,
+        "cover_id": 187084,
+        "image_id": "co40cs",
+        "image_sha256": "c2e32fabc42dfecbd3df1c16b759095bb0a448dde224c1586f388aa559f53728",
+        "game_slug": "elf-bowling",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
       "name": "Elf Bowling / Elf Bowling Recomp",
       "original_game_title": "Elf Bowling",
@@ -25747,6 +26357,14 @@
     },
     {
       "id": "elgus-kameorecomp-elguslml-kameo-elements-of-power",
+      "artwork": {
+        "game_id": 7029,
+        "cover_id": 87149,
+        "image_id": "co1v8t",
+        "image_sha256": "571fd0443f4a46cc879dc18a7abf7f3de88629ff3686406c376b9fcacb6af63a",
+        "game_slug": "kameo-elements-of-power",
+        "match_kind": "underlying-game"
+      },
       "name": "Kameo: Elements of Power — ElGus KameoRecomp (ElGuslml)",
       "original_game_title": "Kameo: Elements of Power",
       "summary": "Early Kameo port using your USA Xbox 360 ISO. Upstream reports playing Thorn’s Castle and the first Enchanted Kingdom areas; later levels are untested. Portcove has not confirmed setup or gameplay.",
@@ -26054,6 +26672,14 @@
     },
     {
       "id": "empty-epsilon-native",
+      "artwork": {
+        "game_id": 97604,
+        "cover_id": 72092,
+        "image_id": "co1jmk",
+        "image_sha256": "00dbfcb32b16ceda084fbb7e770984d897dba3294e520a6f0fd6183927b37d7a",
+        "game_slug": "emptyepsilon",
+        "match_kind": "underlying-game"
+      },
       "name": "EmptyEpsilon",
       "summary": "Run a spaceship bridge with friends, with separate crew roles, scenarios, and a Game Master mode.",
       "project_url": "https://github.com/daid/EmptyEpsilon",
@@ -26202,6 +26828,14 @@
     },
     {
       "id": "espn-nfl-2k5-remade",
+      "artwork": {
+        "game_id": 7881,
+        "cover_id": 136747,
+        "image_id": "co2xij",
+        "image_sha256": "c9d6a9b5fc2a419d2a65fb52d386656c74d00d73ba8b4fd81473a9efa31782b8",
+        "game_slug": "espn-nfl-2k5",
+        "match_kind": "underlying-game"
+      },
       "name": "ESPN NFL 2K5 Native PC",
       "summary": "Play ESPN NFL 2K5 on Windows using upstream setup and your own original Xbox game.",
       "project_url": "https://github.com/BeyondTomrrow/2K5Remade",
@@ -27367,6 +28001,14 @@
     },
     {
       "id": "final-doom-crispy-doom-family",
+      "artwork": {
+        "game_id": 8191,
+        "cover_id": 89960,
+        "image_id": "co1xew",
+        "image_sha256": "818dc625d986f4b81dd623712e2f07dfd4e0960f87cdbd09d6c0a1f58368b1f7",
+        "game_slug": "final-doom",
+        "match_kind": "underlying-game"
+      },
       "name": "Final Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Final Doom",
@@ -28096,6 +28738,58 @@
       }
     },
     {
+      "id": "freeorion",
+      "name": "FreeOrion",
+      "original_game_title": "FreeOrion",
+      "summary": "Explore the galaxy, develop colonies, and lead a space empire in turn-based strategy.",
+      "project_url": "https://github.com/freeorion/freeorion",
+      "issue_number": 6461,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/freeorion/freeorion/releases",
+      "setup_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "freeorion_",
+          "_win32_setup.exe"
+        ],
+        "macos-x86-64": [
+          "freeorion_",
+          "_macosx_",
+          "_x86_64.dmg"
+        ],
+        "macos-aarch64": [
+          "freeorion_",
+          "_macosx_",
+          "_arm64.dmg"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the stable client",
+            "instruction": "On 64-bit Windows, run the official setup program and follow its installer prompts. The 0.5.1.2 installer filename says Win32 and contains a 64-bit client. On Mac, choose the Intel or Apple Silicon disk image and copy the complete FreeOrion app into Applications. The current package needs macOS 10.15 or newer on Intel and macOS 11 or newer on Apple Silicon."
+          },
+          {
+            "title": "Use your Linux package manager",
+            "instruction": "Install org.freeorion.FreeOrion from Flathub, or use the FreeOrion package from your Linux distribution. Update the copy through the same package manager. The source archive in the project’s releases is for building the game."
+          },
+          {
+            "title": "Keep your saves and settings",
+            "instruction": "Close FreeOrion before backing up. Copy the FreeOrion folder under %APPDATA% on Windows or ~/Library/Application Support on Mac. On Linux, keep the freeorion folders under ~/.config and ~/.local/share, using your configured XDG folders if they differ. For Flathub, keep ~/.var/app/org.freeorion.FreeOrion. Also keep any separate save directory you chose in the game."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/freeorion/freeorion/blob/v0.5.1.2/README.md"
+      }
+    },
+    {
       "id": "freespace-2-freespace-open",
       "name": "FreeSpace 2 (FreeSpace Open)",
       "summary": "Prepare FreeSpace Open with your own FreeSpace 2 retail v1.2 files using the official installation guide. A separately licensed standalone campaign is a different setup. Windows, Linux and macOS engine downloads are separate from launchers; choose the correct CPU and stable or release-candidate channel. This guide uses Windows release candidate 26.2.0-RC3. Portcove has not confirmed setup or gameplay.",
@@ -28443,6 +29137,14 @@
     },
     {
       "id": "gamebreaker20xx-fullrumble-ps1-slus01068",
+      "artwork": {
+        "game_id": 44879,
+        "cover_id": 272958,
+        "image_id": "co5um6",
+        "image_sha256": "3cc64ee5ec218b9b3e56a1682e0c0039d40e35a848e46797bf781cd108908f86",
+        "game_slug": "nascar-rumble",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/GameBreaker20XX/FullRumble",
       "name": "NASCAR Rumble (Full Rumble)",
       "summary": "A Windows port of NASCAR Rumble. Set it up with your own original PlayStation disc image.",
@@ -28774,6 +29476,14 @@
     },
     {
       "id": "gh3-segovia-no-macos-recomp",
+      "artwork": {
+        "game_id": 2671,
+        "cover_id": 89086,
+        "image_id": "co1wqm",
+        "image_sha256": "7e4c63c739ddd3765504cc44ce30a30596ab17d6c81535b494301b0e7bce472b",
+        "game_slug": "guitar-hero-iii-legends-of-rock",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/segovia-no/GH3-macOS-Recomp",
       "name": "Guitar Hero III: Legends of Rock / GH3 macOS Recomp",
       "original_game_title": "Guitar Hero III: Legends of Rock",
@@ -29146,6 +29856,14 @@
     },
     {
       "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-chains-of-olympus",
+      "artwork": {
+        "game_id": 552,
+        "cover_id": 157489,
+        "image_id": "co3dip",
+        "image_sha256": "f27631e5feb36c07892e1e97918fef5efcb47f133433e42a1b33ab7e07c8c49a",
+        "game_slug": "god-of-war-chains-of-olympus",
+        "match_kind": "underlying-game"
+      },
       "name": "God of War: Chains of Olympus — God of War PSP native ports (DrummingBird1)",
       "original_game_title": "God of War: Chains of Olympus",
       "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -29175,6 +29893,14 @@
     },
     {
       "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-ghost-of-sparta",
+      "artwork": {
+        "game_id": 550,
+        "cover_id": 157488,
+        "image_id": "co3dio",
+        "image_sha256": "50840850fdc815d738747bce267ab7611fce3f6a0df8073ea718548e6791ed71",
+        "game_slug": "god-of-war-ghost-of-sparta",
+        "match_kind": "underlying-game"
+      },
       "name": "God of War: Ghost of Sparta — God of War PSP native ports (DrummingBird1)",
       "original_game_title": "God of War: Ghost of Sparta",
       "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -29636,6 +30362,14 @@
     },
     {
       "id": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
+      "artwork": {
+        "game_id": 551,
+        "cover_id": 157484,
+        "image_id": "co3dik",
+        "image_sha256": "703dd9f748b45c7796c74bb44fc3301b5c2c41229ebe5806637fcf2f2cae3cd1",
+        "game_slug": "god-of-war-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "God of War II — GoW2-nativo-PS2 (cxldsakeb)",
       "original_game_title": "God of War II",
       "summary": "Upstream reports the first playable area, cutscenes and saves at about 60 FPS. No player release is offered yet; Portcove has not confirmed performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -29850,6 +30584,14 @@
     },
     {
       "id": "grand-theft-auto-san-andreas-unity",
+      "artwork": {
+        "game_id": 732,
+        "cover_id": 120933,
+        "image_id": "co2lb9",
+        "image_sha256": "8f6a8446fea52cb23348258ffc8304e13324ea2366bb9b07d46bcc8171d4843e",
+        "game_slug": "grand-theft-auto-san-andreas",
+        "match_kind": "underlying-game"
+      },
       "name": "San Andreas Unity",
       "original_game_title": "Grand Theft Auto: San Andreas",
       "summary": "Explore San Andreas and use the project’s multiplayer features with game data from your own PC installation.",
@@ -30590,6 +31332,14 @@
     },
     {
       "id": "gunstar-heroes-gunstars",
+      "artwork": {
+        "game_id": 6405,
+        "cover_id": 181813,
+        "image_id": "co3wad",
+        "image_sha256": "f7e5092e239205de58efbd3bfeddd433cd49ae5ce454dcc10dbfaae97864573d",
+        "game_slug": "gunstar-heroes",
+        "match_kind": "underlying-game"
+      },
       "name": "Gunstar Heroes (gunstars)",
       "summary": "A native engine for Gunstar Heroes using your own original cartridge data.",
       "original_game_title": "Gunstar Heroes",
@@ -30815,6 +31565,14 @@
     },
     {
       "id": "halo-3-linux-systemlink-summers-aaron-halo-3-xbox-360",
+      "artwork": {
+        "game_id": 987,
+        "cover_id": 90048,
+        "image_id": "co1xhc",
+        "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
+        "game_slug": "halo-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Halo 3 — summers-aaron Halo3 Linux/SystemLink runtime family (summers-aaron)",
       "original_game_title": "Halo 3",
       "summary": "Upstream reports startup, menus, campaign progress from Arrival into Sierra 117 and beyond, and System Link across instances or machines. A full campaign is unconfirmed. The experimental native graphics path is separate from the default Xenos renderer; Portcove has not tested either route. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -31356,6 +32114,14 @@
     },
     {
       "id": "hedgewars",
+      "artwork": {
+        "game_id": 28346,
+        "cover_id": 116296,
+        "image_id": "co2hqg",
+        "image_sha256": "e5c79c72e0da09d5dd4659c88dd3464ac13d54093de12410a30a75eef49696f7",
+        "game_slug": "hedgewars",
+        "match_kind": "underlying-game"
+      },
       "name": "Hedgewars",
       "original_game_title": "Hedgewars",
       "summary": "Play turn-based artillery matches with hedgehog teams, campaigns, and local games.",
@@ -31544,6 +32310,14 @@
     },
     {
       "id": "heroes-of-might-and-magic-v-hommare",
+      "artwork": {
+        "game_id": 370,
+        "cover_id": 130420,
+        "image_id": "co2sms",
+        "image_sha256": "e04cfa7518d8c13e87dc54d50a12747c46e493fcdc75da76cce7f5a6e93008a5",
+        "game_slug": "heroes-of-might-and-magic-v",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/livmaster-dev/HommaRe-public",
       "name": "Heroes of Might and Magic V / HommaRe",
       "original_game_title": "Heroes of Might and Magic V",
@@ -31637,6 +32411,14 @@
     },
     {
       "id": "hexen-crispy-doom-family",
+      "artwork": {
+        "game_id": 3512,
+        "cover_id": 76354,
+        "image_id": "co1mwy",
+        "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+        "game_slug": "hexen-beyond-heretic",
+        "match_kind": "underlying-game"
+      },
       "name": "Hexen (Crispy Doom family)",
       "summary": "Install the official Crispy Hexen Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Hexen",
@@ -31894,6 +32676,14 @@
     },
     {
       "id": "hpcos-gc-ant0-blase-harry-potter-and-the-chamber-of-secrets",
+      "artwork": {
+        "game_id": 345276,
+        "cover_id": 467473,
+        "image_id": "coa0pd",
+        "image_sha256": "7477572bb61ba72f48d4f650b6b352083f8a02de8645232c36be9ec3552c4d84",
+        "game_slug": "harry-potter-and-the-chamber-of-secrets--5",
+        "match_kind": "underlying-game"
+      },
       "name": "Harry Potter and the Chamber of Secrets — HPCOS GC (ant0-blase)",
       "original_game_title": "Harry Potter and the Chamber of Secrets",
       "summary": "Upstream shows in-progress Burrow gameplay and widescreen support. A complete playthrough is not claimed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -32611,6 +33401,14 @@
     },
     {
       "id": "inliner495-bblit-remaster",
+      "artwork": {
+        "game_id": 3053,
+        "cover_id": 352705,
+        "image_id": "co7k5d",
+        "image_sha256": "869334deced87a6694a7c185dc3c4b87985b57798f9104f9b2d867348ad34d48",
+        "game_slug": "bugs-bunny-lost-in-time",
+        "match_kind": "underlying-game"
+      },
       "name": "Bugs Bunny: Lost in Time / BBLIT Remaster",
       "original_game_title": "Bugs Bunny: Lost in Time",
       "summary": "Use the upstream renderer and control enhancement with your existing Bugs Bunny: Lost in Time PC game.",
@@ -32797,6 +33595,14 @@
     },
     {
       "id": "iron-jay-banjo-tooie-xbla-recomp",
+      "artwork": {
+        "game_id": 201645,
+        "cover_id": 294815,
+        "image_id": "co6bhb",
+        "image_sha256": "58106f8aa52becd3cb47516bed37e056e96ad69a8ae8fd614a99d531d217cfca",
+        "game_slug": "banjo-tooie--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
       "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
       "original_game_title": "Banjo-Tooie",
@@ -32867,6 +33673,14 @@
     },
     {
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
+      "artwork": {
+        "game_id": 3515,
+        "cover_id": 196658,
+        "image_id": "co47qq",
+        "image_sha256": "bec62a26eda767c23915504667465e361cffb7057942016ee6f1d8e6cf442da6",
+        "game_slug": "international-superstar-soccer-2000",
+        "match_kind": "underlying-game"
+      },
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
       "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
@@ -33504,6 +34318,14 @@
     },
     {
       "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
+      "artwork": {
+        "game_id": 1355,
+        "cover_id": 353828,
+        "image_id": "co7l0k",
+        "image_sha256": "9054c68df441922e51b4fb4d22fd285b2d5531b2b1f14c04c223c26756ff16f9",
+        "game_slug": "jet-force-gemini",
+        "match_kind": "underlying-game"
+      },
       "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
       "original_game_title": "Jet Force Gemini",
       "summary": "Native Jet Force Gemini with a US ROM picker, portable packages and a separate Linux AppImage.",
@@ -34487,6 +35309,14 @@
     },
     {
       "id": "kibertoad-chaos-overlords-new-chrome",
+      "artwork": {
+        "game_id": 629,
+        "cover_id": 543952,
+        "image_id": "cobnps",
+        "image_sha256": "f7c8ab0a4a9775aa53f166b0056fbb2795eb0bfcc8427552004dc1603a8ae2cb",
+        "game_slug": "chaos-overlords",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
       "name": "Chaos Overlords / New Chrome",
       "original_game_title": "Chaos Overlords",
@@ -34591,6 +35421,14 @@
     },
     {
       "id": "killer-instinct-2-arcade-ultracombo",
+      "artwork": {
+        "game_id": 2930,
+        "cover_id": 227300,
+        "image_id": "co4vdw",
+        "image_sha256": "7a581f0456b54add4239e2b9ac0e24205636d1598d5db379aeae460365025c9c",
+        "game_slug": "killer-instinct-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Killer Instinct 2 (arcade) (UltraCombo)",
       "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct 2 arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
       "original_game_title": "Killer Instinct 2 (arcade)",
@@ -34652,6 +35490,14 @@
     },
     {
       "id": "killer-instinct-arcade-ultracombo",
+      "artwork": {
+        "game_id": 2907,
+        "cover_id": 100781,
+        "image_id": "co25rh",
+        "image_sha256": "1bdd5b9f331881dd465e4e02fbb59054b0e20706ca8bfc8e2d06d2dfac5f9be2",
+        "game_slug": "killer-instinct",
+        "match_kind": "underlying-game"
+      },
       "name": "Killer Instinct (arcade) (UltraCombo)",
       "summary": "Attach an independently permitted, prepared UltraCombo Windows player for Killer Instinct arcade, with your own matching ROMs and CHD. Upstream owns first-use native-module preparation; preserve per-game/version settings sectors and states.",
       "original_game_title": "Killer Instinct (arcade)",
@@ -34956,6 +35802,14 @@
     },
     {
       "id": "kingzmanh-alien-odyssey-pc",
+      "artwork": {
+        "game_id": 50325,
+        "cover_id": 276356,
+        "image_id": "co5x8k",
+        "image_sha256": "840cfba9d4dad5f1a6099af9cd60336c1c0245273e6fc2d1ecf4011cca01b4be",
+        "game_slug": "alien-odyssey",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/kingzmanh/alien-odyssey-pc",
       "name": "Alien Odyssey / Windows native",
       "original_game_title": "Alien Odyssey",
@@ -36130,6 +36984,14 @@
     },
     {
       "id": "little-fighter-2-lf2-port",
+      "artwork": {
+        "game_id": 8700,
+        "cover_id": 205763,
+        "image_id": "co4ern",
+        "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+        "game_slug": "little-fighter-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Little Fighter 2 / LF2 Port",
       "summary": "Run the original Little Fighter 2 v2.0a game data with LF2 Port's native Linux player.",
       "project_url": "https://github.com/SomeoneIsWorking/lf2-port",
@@ -36175,6 +37037,14 @@
     },
     {
       "id": "little-fighter-2-openlf2",
+      "artwork": {
+        "game_id": 8700,
+        "cover_id": 205763,
+        "image_id": "co4ern",
+        "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+        "game_slug": "little-fighter-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Little Fighter 2 / OpenLF2",
       "summary": "Play Little Fighter 2 in OpenLF2 with the original v2.0a installer as game data.",
       "project_url": "https://github.com/OpenLF2/OpenLF2",
@@ -36227,6 +37097,14 @@
     },
     {
       "id": "littlebigrecomp-benjidotsh-littlebigplanet",
+      "artwork": {
+        "game_id": 1058,
+        "cover_id": 219039,
+        "image_id": "co4p0f",
+        "image_sha256": "c6b433605cb359568c320a836808eaf2baee25c50cc749523db88b585f826e07",
+        "game_slug": "littlebigplanet",
+        "match_kind": "underlying-game"
+      },
       "name": "LittleBigPlanet — LittleBigRecomp (benjidotsh)",
       "original_game_title": "LittleBigPlanet",
       "summary": "Upstream reports first-start save creation and the Introduction level. Intermittent bright wedges and depth/stencil rendering bugs remain. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
@@ -36348,6 +37226,14 @@
     },
     {
       "id": "lords-of-the-realm-ii-open-lords2",
+      "artwork": {
+        "game_id": 19124,
+        "cover_id": 193649,
+        "image_id": "co45f5",
+        "image_sha256": "5b35a6646aae8ed0ba4fa41118ef0272474a98b862c02c3496fda4151c1c8c03",
+        "game_slug": "lords-of-the-realm-ii",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/brettins/open-lords2",
       "name": "Lords of the Realm II / Open Lords2",
       "original_game_title": "Lords of the Realm II",
@@ -36483,6 +37369,14 @@
     },
     {
       "id": "luanti",
+      "artwork": {
+        "game_id": 19437,
+        "cover_id": 435117,
+        "image_id": "co9bql",
+        "image_sha256": "40881a0c0f9bdacc6030f2fd94870cc1a8f6a7be3ee44949f6bf5261936e5b25",
+        "game_slug": "luanti",
+        "match_kind": "underlying-game"
+      },
       "name": "Luanti (formerly Minetest)",
       "original_game_title": "Luanti",
       "summary": "Create and explore voxel worlds with games and mods you choose.",
@@ -36882,6 +37776,14 @@
     },
     {
       "id": "marathon-2-durandal-aleph-one",
+      "artwork": {
+        "game_id": 8710,
+        "cover_id": 272195,
+        "image_id": "co5u0z",
+        "image_sha256": "ba04dcb1e56f2e3ea28b0546ba7a19421b0e8b3154227c033237c512aaf5a34a",
+        "game_slug": "marathon-2-durandal",
+        "match_kind": "underlying-game"
+      },
       "name": "Marathon 2: Durandal (Aleph One)",
       "summary": "Marathon 2: Durandal uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
       "original_game_title": "Marathon 2: Durandal",
@@ -36947,6 +37849,14 @@
     },
     {
       "id": "marathon-aleph-one",
+      "artwork": {
+        "game_id": 8709,
+        "cover_id": 272194,
+        "image_id": "co5u0y",
+        "image_sha256": "3bd435a19179213afd3b8d69bf4d1fcf670666365f73c08fc72663c1c127bb50",
+        "game_slug": "marathon",
+        "match_kind": "underlying-game"
+      },
       "name": "Marathon (Aleph One)",
       "summary": "Marathon uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
       "original_game_title": "Marathon",
@@ -37755,6 +38665,14 @@
     },
     {
       "id": "medal-of-honor-allied-assault-breakthrough-openmohaa",
+      "artwork": {
+        "game_id": 9229,
+        "cover_id": 117326,
+        "image_id": "co2ij2",
+        "image_sha256": "fdab78afeca54812c27d6b67ce16169392589401c01f1a0514a95ab0e155e24d",
+        "game_slug": "medal-of-honor-allied-assault-breakthrough",
+        "match_kind": "underlying-game"
+      },
       "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
       "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
@@ -37899,6 +38817,14 @@
     },
     {
       "id": "medal-of-honor-allied-assault-spearhead-openmohaa",
+      "artwork": {
+        "game_id": 9228,
+        "cover_id": 117327,
+        "image_id": "co2ij3",
+        "image_sha256": "5edafb96670c4028ebabeb0e5e2c0af732499003009610ba333a62bf89035319",
+        "game_slug": "medal-of-honor-allied-assault-spearhead",
+        "match_kind": "underlying-game"
+      },
       "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
       "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Spearhead",
@@ -38962,6 +39888,14 @@
     },
     {
       "id": "might-and-magic-ix-macos",
+      "artwork": {
+        "game_id": 7741,
+        "cover_id": 95063,
+        "image_id": "co21cn",
+        "image_sha256": "153c0c5aace95230420b910f2c4cd378070b77a36c03f46aa81e787084d8b77e",
+        "game_slug": "might-and-magic-ix",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
       "name": "Might and Magic IX / MM9 Native macOS",
       "original_game_title": "Might and Magic IX",
@@ -39582,6 +40516,14 @@
     },
     {
       "id": "mother-3-mother-3-recomp",
+      "artwork": {
+        "game_id": 3683,
+        "cover_id": 471402,
+        "image_id": "coa3qi",
+        "image_sha256": "0dd11eedd8cf9138786379089826f0dac7a8177b1ea7dfefea1ccb6058f816ba",
+        "game_slug": "mother-3",
+        "match_kind": "underlying-game"
+      },
       "name": "MOTHER 3 (MOTHER 3 Recomp)",
       "summary": "Attach an independently permitted, prepared MOTHER 3 Windows player with your own exact ROM, desktop GBA BIOS and any permitted translation already configured upstream. Preserve battery saves and patch derivatives; unknown patch outputs can use the compatibility interpreter and remain unqualified.",
       "original_game_title": "MOTHER 3",
@@ -40320,6 +41262,14 @@
     },
     {
       "id": "mstan-supermarioadvance4recomp",
+      "artwork": {
+        "game_id": 16748,
+        "cover_id": 96257,
+        "image_id": "co229t",
+        "image_sha256": "549d52069f2100f79c03ab5744e93ac495baa48caca51f95f22b71442b4fbc69",
+        "game_slug": "super-mario-advance-4-super-mario-bros-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Mario Advance 4: Super Mario Bros. 3 / Super Mario Advance 4 Recomp (mstan)",
       "summary": "Native Windows player using your own matching original GBA game and retail GBA BIOS.",
       "project_url": "https://github.com/mstan/SuperMarioAdvance4Recomp",
@@ -40784,6 +41734,14 @@
     },
     {
       "id": "n64hub-perfect-dark-recomp",
+      "artwork": {
+        "game_id": 1463,
+        "cover_id": 336883,
+        "image_id": "co77xv",
+        "image_sha256": "b4527efe3caaec5486b90fecdad0978574ce819f4024e5dd29f4565443871afc",
+        "game_slug": "perfect-dark",
+        "match_kind": "underlying-game"
+      },
       "name": "Perfect Dark (Perfect Dark: Recompiled)",
       "summary": "A Perfect Dark port with project-reported Defection mission progress and persistent saves. Linux WSL/Dozen GPU tests caused hangs and a host freeze; Windows audio was tested only with a disk driver and short plays. Full-game progress, long sessions and physical controllers remain unconfirmed. Windows/Linux x86-64 and browser routes are documented; Windows uses Direct3D 12. Use your own USA revision 1 N64 ROM, NPDE version 01, 32 MiB, MD5 e03b088b6ac9e0080440efed07c1e40f. Further accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Perfect Dark",
@@ -40825,6 +41783,14 @@
     },
     {
       "id": "n64hub-rayman-2-recomp-n64-usa",
+      "artwork": {
+        "game_id": 843,
+        "cover_id": 375214,
+        "image_id": "co81im",
+        "image_sha256": "d6927888c6f6184250267a1bf04115a97b1145679102e7627863df4b5de866d2",
+        "game_slug": "rayman-2-the-great-escape",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/n64hub/rayman-2-recomp",
       "name": "Rayman 2: The Great Escape (n64hub)",
       "summary": "A Windows port of Rayman 2: The Great Escape. Set it up with your original US Nintendo 64 game file.",
@@ -40887,6 +41853,14 @@
     },
     {
       "id": "n64hub-rush-2049-recomp",
+      "artwork": {
+        "game_id": 3596,
+        "cover_id": 182312,
+        "image_id": "co3wo8",
+        "image_sha256": "f682920014e6f237bb1f66d93560dfd7ddf5238aac2fd47d3fbeaec684673e15",
+        "game_slug": "san-francisco-rush-2049",
+        "match_kind": "underlying-game"
+      },
       "name": "San Francisco Rush 2049 (San Francisco Rush 2049: Recompiled)",
       "summary": "A San Francisco Rush 2049 N64 port, separate from ProjectR’s arcade game and the Dreamcast edition. The project reports Windows race, ghost, stunt and battle modes. Windows/Linux x86-64 RT64 packages and a WebGPU browser route are documented, with Linux-specific limits and full hardware/game coverage still unconfirmed. Use your own supported N64 ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "San Francisco Rush 2049",
@@ -40928,6 +41902,14 @@
     },
     {
       "id": "n64hub-super-mario-64-recomp",
+      "artwork": {
+        "game_id": 1074,
+        "cover_id": 329251,
+        "image_id": "co721v",
+        "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+        "game_slug": "super-mario-64",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Mario 64 (Super Mario 64: Recompiled)",
       "summary": "A Super Mario 64 recompilation separate from matching-decompilation ports. The project reports Bob-omb Battlefield through the King Bob-omb star and a return to the castle, rather than a complete campaign. Windows/Linux x86-64 packages and a WebGPU browser route are documented. Linux needs glibc 2.35+, Vulkan, GTK 3 and FreeType. Use your own USA N64 ROM with SHA-1 9bef1128717f958171a4afac3ed78ee2bb4e86ce. Further accepted revisions and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Super Mario 64",
@@ -40973,6 +41955,14 @@
     },
     {
       "id": "n64hub-super-smash-bros-n64-usa-recomp",
+      "artwork": {
+        "game_id": 1626,
+        "cover_id": 131928,
+        "image_id": "co2tso",
+        "image_sha256": "b8c0edf9685259b4e1cfb879e8d5275dd1c1aa124f98c9612ee4cd03f6ed0d9e",
+        "game_slug": "super-smash-bros",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
       "name": "Super Smash Bros. (Smash Bros. Recompiled)",
       "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",
@@ -41633,6 +42623,14 @@
     },
     {
       "id": "neverball",
+      "artwork": {
+        "game_id": 51247,
+        "cover_id": 459392,
+        "image_id": "co9ugw",
+        "image_sha256": "a8364602ac7aa851e9d78a9330f7cfa0085460be99201eaf475a60f2bcddd484",
+        "game_slug": "neverball",
+        "match_kind": "underlying-game"
+      },
       "name": "Neverball",
       "original_game_title": "Neverball",
       "summary": "Tilt the floor to roll a ball through obstacle courses and collect enough coins to open the goal.",
@@ -43271,6 +44269,14 @@
     },
     {
       "id": "openarena",
+      "artwork": {
+        "game_id": 77358,
+        "cover_id": 258514,
+        "image_id": "co5jgy",
+        "image_sha256": "c649311e6967a8ceb59c75f3ee7aabcbc7dd575cea88897a18e88a2cd37a9b7a",
+        "game_slug": "openarena",
+        "match_kind": "underlying-game"
+      },
       "name": "OpenArena",
       "original_game_title": "OpenArena",
       "summary": "Play OpenArena’s standalone maps and modes with the game data in its own release.",
@@ -43786,6 +44792,14 @@
     },
     {
       "id": "openspideyps1-gtteancum-spider-man",
+      "artwork": {
+        "game_id": 3603,
+        "cover_id": 137294,
+        "image_id": "co2xxq",
+        "image_sha256": "e8d0f7ad0d7ff43c0dda1bc8a77da8ba2ee4c5bc7d7ed511439c83351f5fb9ae",
+        "game_slug": "spider-man--5",
+        "match_kind": "underlying-game"
+      },
       "name": "Spider-Man — OpenSpideyPS1 (GTTeancum)",
       "original_game_title": "Spider-Man",
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -44026,6 +45040,14 @@
     },
     {
       "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
+      "artwork": {
+        "game_id": 21204,
+        "cover_id": 352378,
+        "image_id": "co7jwa",
+        "image_sha256": "c9d0ec6eabc78a904fbd0bba158c2afe610ae46cbab6deb1404e8adb4138c3ab",
+        "game_slug": "outrun-online-arcade",
+        "match_kind": "underlying-game"
+      },
       "name": "OutRun Online Arcade — OutRun Online Arcade — PC Recompilation (sp00nznet)",
       "original_game_title": "OutRun Online Arcade",
       "summary": "The build links, but crashes during guest global initialization before rendering or gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -44432,6 +45454,14 @@
     },
     {
       "id": "p3p3ds-endercodezz-persona-3-portable",
+      "artwork": {
+        "game_id": 11416,
+        "cover_id": 76535,
+        "image_id": "co1n1z",
+        "image_sha256": "cbbb713244506cfbcfd541a15de399f7a95c5580ad94e9779bd644c0f2089421",
+        "game_slug": "persona-3-portable",
+        "match_kind": "underlying-game"
+      },
       "name": "Persona 3 Portable — P3P3DS (endercodezz)",
       "original_game_title": "Persona 3 Portable",
       "summary": "The project reports an early playable New 3DS build at 28–30 FPS in the field and 16-25 FPS in battles. Sound and the opening movie are absent. Headless PC images do not establish a desktop player. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45127,6 +46157,14 @@
     },
     {
       "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
+      "artwork": {
+        "game_id": 1465,
+        "cover_id": 111118,
+        "image_id": "co2dqm",
+        "image_sha256": "3ea62380a30a8f2e3403e5ef90343a25891c27fc9a3c715b07e8fa3ca2d1bda8",
+        "game_slug": "perfect-dark-zero",
+        "match_kind": "underlying-game"
+      },
       "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
       "original_game_title": "Perfect Dark Zero",
       "summary": "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45207,6 +46245,14 @@
     },
     {
       "id": "perimeter-perimeter-community-engine",
+      "artwork": {
+        "game_id": 8964,
+        "cover_id": 114000,
+        "image_id": "co2fyo",
+        "image_sha256": "40edd16071877da61a3325fb0643a524ebb1309ab0b94296677b750d03fd82f2",
+        "game_slug": "perimeter",
+        "match_kind": "underlying-game"
+      },
       "name": "Perimeter (Perimeter community engine)",
       "summary": "Prepare Perimeter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Perimeter",
@@ -45287,6 +46333,14 @@
     },
     {
       "id": "pes-2017-android-xbox-360-arm64-recompilation-dzakyraf-pro-evolution-soccer-2017",
+      "artwork": {
+        "game_id": 22753,
+        "cover_id": 76385,
+        "image_id": "co1mxt",
+        "image_sha256": "13e078a4f3b5adecb61a10a0df73b8f17c9a1e7cfc8c0ead662ad62d0efe79e0",
+        "game_slug": "pro-evolution-soccer-2017",
+        "match_kind": "underlying-game"
+      },
       "name": "Pro Evolution Soccer 2017 — PES 2017 Android (Xbox 360 → ARM64 recompilation) (dzakyraf)",
       "original_game_title": "Pro Evolution Soccer 2017",
       "summary": "Work in progress: a match reportedly runs on a Galaxy S20 FE. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45316,6 +46370,14 @@
     },
     {
       "id": "petarov-alleycat-exe",
+      "artwork": {
+        "game_id": 23860,
+        "cover_id": 365732,
+        "image_id": "co7u78",
+        "image_sha256": "6f4f9f2d2032a22dd3a16faa261baec8ac4dfe0c217e9a011bbfc3210a613ee4",
+        "game_slug": "alley-cat",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/petarov/alleycat.exe",
       "name": "Alley Cat (Alley Cat x86-64 recomp)",
       "summary": "Alley Cat native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
@@ -45397,6 +46459,14 @@
     },
     {
       "id": "pgr1-recomp-hk21x-project-gotham-racing",
+      "artwork": {
+        "game_id": 3320,
+        "cover_id": 86421,
+        "image_id": "co1uol",
+        "image_sha256": "0dfad0a2edcbd276057c8536a3a23e874938bcba5b8abef496391409e39bb957",
+        "game_slug": "project-gotham-racing",
+        "match_kind": "underlying-game"
+      },
       "name": "Project Gotham Racing — pgr1-recomp (hk21x)",
       "original_game_title": "Project Gotham Racing",
       "summary": "Native title runtime and modern frontend described; the extent of working races and career progression has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45428,6 +46498,14 @@
     },
     {
       "id": "pgr2-recomp-hk21x-project-gotham-racing-2",
+      "artwork": {
+        "game_id": 3321,
+        "cover_id": 86420,
+        "image_id": "co1uok",
+        "image_sha256": "727a326bfe41b719324d18580ca6307b75de1d0c0a5adac956fa35e7396506f4",
+        "game_slug": "project-gotham-racing-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Project Gotham Racing 2 — pgr2-recomp (hk21x)",
       "original_game_title": "Project Gotham Racing 2",
       "summary": "Upstream reports boot, movies, menus, races in every mode tried, saves and System Link. This is not a demonstrated complete career/campaign. Sound-effect reverb/filters remain unmodeled; experimental 60 FPS races can dip in busy streets. The current README adds top-right Quit game and Alt+F4 exit controls. No Portcove setup, package, controller, networking or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45459,6 +46537,14 @@
     },
     {
       "id": "pgr3-recomp-jpneagle-project-gotham-racing-3",
+      "artwork": {
+        "game_id": 3322,
+        "cover_id": 86419,
+        "image_id": "co1uoj",
+        "image_sha256": "2341c1d07f2bfd348536ce65410833f962b885c5ca493c730ff2d217ada4afac",
+        "game_slug": "project-gotham-racing-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Project Gotham Racing 3 — PGR3-recomp (jpneagle)",
       "original_game_title": "Project Gotham Racing 3",
       "summary": "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45490,6 +46576,14 @@
     },
     {
       "id": "pgr3-stuken-project-gotham-racing-3",
+      "artwork": {
+        "game_id": 3322,
+        "cover_id": 86419,
+        "image_id": "co1uoj",
+        "image_sha256": "2341c1d07f2bfd348536ce65410833f962b885c5ca493c730ff2d217ada4afac",
+        "game_slug": "project-gotham-racing-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Project Gotham Racing 3 — pgr3 (stuken)",
       "original_game_title": "Project Gotham Racing 3",
       "summary": "A game-specific build and runtime exist. Complete progression has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -45775,6 +46869,14 @@
     },
     {
       "id": "pod-gold-sp00nznet-recomp",
+      "artwork": {
+        "game_id": 124943,
+        "cover_id": 84178,
+        "image_id": "co1sya",
+        "image_sha256": "92421e3938af0cb5afd9951b66bf3f6b6b267faefa939b26e1a5a0508ac75823",
+        "game_slug": "pod-gold",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/sp00nznet/pod-recomp",
       "name": "POD Gold / POD Gold Recomp",
       "original_game_title": "POD Gold",
@@ -45872,6 +46974,14 @@
     },
     {
       "id": "pokemon-blue-gen1recomp",
+      "artwork": {
+        "game_id": 1511,
+        "cover_id": 266335,
+        "image_id": "co5pi7",
+        "image_sha256": "da39e547225cadcd7350c01316cfcd15215e5209e848fe6c044dc2a386f4ed59",
+        "game_slug": "pokemon-blue-version",
+        "match_kind": "underlying-game"
+      },
       "name": "Pokémon Blue (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Blue",
@@ -46887,6 +47997,14 @@
     },
     {
       "id": "pokemon-yellow-gen1recomp",
+      "artwork": {
+        "game_id": 1512,
+        "cover_id": 266345,
+        "image_id": "co5pih",
+        "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
+        "game_slug": "pokemon-yellow-version-special-pikachu-edition",
+        "match_kind": "underlying-game"
+      },
       "name": "Pokémon Yellow (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact yellow original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Yellow",
@@ -46964,6 +48082,14 @@
     },
     {
       "id": "pokepark-2-recompiled-thibaudvb-poke-park-2-wonders-beyond",
+      "artwork": {
+        "game_id": 4559,
+        "cover_id": 156876,
+        "image_id": "co3d1o",
+        "image_sha256": "6693ab5f16958b468fcacf9305eb619dcfe787c753c34435e253bcc031c4f18c",
+        "game_slug": "pokepark-2-wonders-beyond",
+        "match_kind": "underlying-game"
+      },
       "name": "PokéPark 2: Wonders Beyond — Pokepark-2-Recompiled (ThibaudVB)",
       "original_game_title": "PokéPark 2: Wonders Beyond",
       "summary": "Upstream reaches title, save flow, opening cinematic and first playable area; cave route is approximately 30 presented FPS. Black surfaces, wall blur and slow transitions remain. Full game, gestures and Wiimote speaker support are unverified. Interpreter fallback remains for copied exception code. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -46995,6 +48121,14 @@
     },
     {
       "id": "populous-the-beginning-openpoptb",
+      "artwork": {
+        "game_id": 5525,
+        "cover_id": 100323,
+        "image_id": "co25er",
+        "image_sha256": "e41e163b6dc71ebbb75dedaa74cf7d8bfe14b66989166513cead45dd86863149",
+        "game_slug": "populous-the-beginning",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
       "name": "Populous: The Beginning / OpenPopTB",
       "original_game_title": "Populous: The Beginning",
@@ -47441,6 +48575,14 @@
     },
     {
       "id": "prince-of-persia-dos-sdlpop",
+      "artwork": {
+        "game_id": 284766,
+        "cover_id": 359491,
+        "image_id": "co7pdv",
+        "image_sha256": "02c24320961764545a7a51d2df13e9ab2d353b937d5ee73309c6483b8d946836",
+        "game_slug": "prince-of-persia--8",
+        "match_kind": "underlying-game"
+      },
       "name": "Prince of Persia (DOS) (SDLPoP)",
       "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
       "original_game_title": "Prince of Persia (DOS)",
@@ -47483,6 +48625,14 @@
     },
     {
       "id": "project-eleven-theplayer14-11eyes-crossover",
+      "artwork": {
+        "game_id": 47396,
+        "cover_id": 596594,
+        "image_id": "cocsc2",
+        "image_sha256": "5761136747fe8350e8a35bfde34d199faa5268c87fad78d1dc2ac791019dfdf3",
+        "game_slug": "11-eyes-crossover",
+        "match_kind": "underlying-game"
+      },
       "name": "11eyes CrossOver — project-eleven (ThePlayer14)",
       "original_game_title": "11eyes CrossOver",
       "summary": "Experimental project. Source-build instructions exist. The extent of boot and gameplay support is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -47949,6 +49099,14 @@
     },
     {
       "id": "psp-web-recomp-snuri00-god-of-war-chains-of-olympus",
+      "artwork": {
+        "game_id": 552,
+        "cover_id": 157489,
+        "image_id": "co3dip",
+        "image_sha256": "f27631e5feb36c07892e1e97918fef5efcb47f133433e42a1b33ab7e07c8c49a",
+        "game_slug": "god-of-war-chains-of-olympus",
+        "match_kind": "underlying-game"
+      },
       "name": "God of War: Chains of Olympus — PSP Web Recomp (snuri00)",
       "original_game_title": "God of War: Chains of Olympus",
       "summary": "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -47978,6 +49136,14 @@
     },
     {
       "id": "psp-web-recomp-snuri00-god-of-war-ghost-of-sparta",
+      "artwork": {
+        "game_id": 550,
+        "cover_id": 157488,
+        "image_id": "co3dio",
+        "image_sha256": "50840850fdc815d738747bce267ab7611fce3f6a0df8073ea718548e6791ed71",
+        "game_slug": "god-of-war-ghost-of-sparta",
+        "match_kind": "underlying-game"
+      },
       "name": "God of War: Ghost of Sparta — PSP Web Recomp (snuri00)",
       "original_game_title": "God of War: Ghost of Sparta",
       "summary": "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -48671,6 +49837,14 @@
     },
     {
       "id": "quake-ironwail",
+      "artwork": {
+        "game_id": 333,
+        "cover_id": 434745,
+        "image_id": "co9bg9",
+        "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+        "game_slug": "quake",
+        "match_kind": "underlying-game"
+      },
       "name": "Quake (Ironwail)",
       "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
@@ -48738,6 +49912,14 @@
     },
     {
       "id": "quake-vkquake",
+      "artwork": {
+        "game_id": 333,
+        "cover_id": 434745,
+        "image_id": "co9bg9",
+        "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+        "game_slug": "quake",
+        "match_kind": "underlying-game"
+      },
       "name": "Quake (vkQuake)",
       "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
@@ -49363,6 +50545,14 @@
     },
     {
       "id": "re-jeweled-thefixinhixon-bejeweled-blitz-live",
+      "artwork": {
+        "game_id": 21655,
+        "cover_id": 374259,
+        "image_id": "co80s3",
+        "image_sha256": "eda74480769526a344f3fddaa9ccd1e7d889fc88418b9f99d309469d1194efd5",
+        "game_slug": "bejeweled-blitz-live",
+        "match_kind": "underlying-game"
+      },
       "name": "Bejeweled Blitz Live — Re-Jeweled (thefixinhixon)",
       "original_game_title": "Bejeweled Blitz Live",
       "summary": "The project describes test build1b as playable. Full mode coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -49503,6 +50693,14 @@
     },
     {
       "id": "real-steel-linux-recompilation-thefixinhixon-real-steel",
+      "artwork": {
+        "game_id": 47447,
+        "cover_id": 157649,
+        "image_id": "co3dn5",
+        "image_sha256": "4bf0095a6f353ab9cf21f36864271b36beddecaa3666fb745dfac212322976f6",
+        "game_slug": "real-steel",
+        "match_kind": "underlying-game"
+      },
       "name": "Real Steel — Real Steel — Linux Recompilation (thefixinhixon)",
       "original_game_title": "Real Steel",
       "summary": "The project reports Linux boot, menus, robot builder and gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -49612,6 +50810,14 @@
     },
     {
       "id": "recompiled-steel-tokeneffortports-real-steel",
+      "artwork": {
+        "game_id": 47447,
+        "cover_id": 157649,
+        "image_id": "co3dn5",
+        "image_sha256": "4bf0095a6f353ab9cf21f36864271b36beddecaa3666fb745dfac212322976f6",
+        "game_slug": "real-steel",
+        "match_kind": "underlying-game"
+      },
       "name": "Real Steel — ReCompiled Steel (tokeneffortports)",
       "original_game_title": "Real Steel",
       "summary": "The project advertises Vulkan, multiplayer and mods. Complete-game coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -50047,6 +51253,14 @@
     },
     {
       "id": "retropulse03-winback-n64recomp",
+      "artwork": {
+        "game_id": 47680,
+        "cover_id": 78624,
+        "image_id": "co1oo0",
+        "image_sha256": "699ea0aab212fba7fdf8dbf33c333accca4a9c2491ddbf9a2faf9def215c7596",
+        "game_slug": "winback-covert-operations",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/RetroPulse03/WinBackRecomp",
       "name": "WinBack: Covert Operations (WinBack Recompiled)",
       "summary": "A Windows port of WinBack: Covert Operations. Set it up with your original US Nintendo 64 game file.",
@@ -50191,6 +51405,14 @@
     },
     {
       "id": "return-to-castle-wolfenstein-neortcw",
+      "artwork": {
+        "game_id": 281,
+        "cover_id": 90711,
+        "image_id": "co1xzr",
+        "image_sha256": "2f90e5db153b35a85ce7d066b1665e4048f8d31243ac2979298a960e9ca387bf",
+        "game_slug": "return-to-castle-wolfenstein",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/klaussilveira/neortcw",
       "name": "Return to Castle Wolfenstein / NeoRTCW",
       "original_game_title": "Return to Castle Wolfenstein",
@@ -50432,6 +51654,14 @@
     },
     {
       "id": "ring-racers",
+      "artwork": {
+        "game_id": 238878,
+        "cover_id": 380102,
+        "image_id": "co85ae",
+        "image_sha256": "e5f7e14e5d5bf87ef37f7d2dfbccf2da120f8d38f3d2ab86ac160f12a1c91c55",
+        "game_slug": "dr-robotniks-ring-racers",
+        "match_kind": "underlying-game"
+      },
       "name": "Dr. Robotnik's Ring Racers",
       "original_game_title": "Dr. Robotnik's Ring Racers",
       "summary": "Race karts through courses with items, drifting, and time trials.",
@@ -51003,6 +52233,14 @@
     },
     {
       "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
+      "artwork": {
+        "game_id": 7167,
+        "cover_id": 113093,
+        "image_id": "co2f9h",
+        "image_sha256": "2edfed3a2a23ef487538b5b89d2353d48ec14e9d69fc988dbc423b1d5d3550de",
+        "game_slug": "rumble-roses-xx",
+        "match_kind": "underlying-game"
+      },
       "name": "Rumble Roses XX — Rumble Roses XX — PC recomp (unofficial) (JesusTaylo)",
       "original_game_title": "Rumble Roses XX",
       "summary": "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -51578,6 +52816,14 @@
     },
     {
       "id": "sauerbraten",
+      "artwork": {
+        "game_id": 21615,
+        "cover_id": 116297,
+        "image_id": "co2hqh",
+        "image_sha256": "440b9f85fb11eec76bff5a5eb710b23033a9bd28fb4056919da5f6e36e0ceed3",
+        "game_slug": "cube-2-sauerbraten",
+        "match_kind": "underlying-game"
+      },
       "name": "Cube 2: Sauerbraten",
       "original_game_title": "Cube 2: Sauerbraten",
       "summary": "Play arena matches or edit maps in the standalone Cube 2 game.",
@@ -51624,6 +52870,14 @@
     },
     {
       "id": "scottjco-wetrix-n64-usa-rev0-recomp",
+      "artwork": {
+        "game_id": 3637,
+        "cover_id": 107662,
+        "image_id": "co2b2m",
+        "image_sha256": "20aea507d7fd38f5cc0b2d0e516ebeb994dfb6334bbca841799b5eb555829ed8",
+        "game_slug": "wetrix",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/scottjco/Wetrix_Recomp",
       "name": "Wetrix (Wetrix Recompiled)",
       "summary": "A Windows port of Wetrix. Set it up with your original US Nintendo 64 game file.",
@@ -51809,6 +53063,14 @@
     },
     {
       "id": "seal-team-sealteam-source-port",
+      "artwork": {
+        "game_id": 14510,
+        "cover_id": 329278,
+        "image_id": "co722m",
+        "image_sha256": "2c53f3d2789b52fcc90fea3b9ef7e6a0ed62ce750b006355219a0d6ae68b0885",
+        "game_slug": "seal-team",
+        "match_kind": "underlying-game"
+      },
       "name": "SEAL Team / SealTeam Source Port",
       "original_game_title": "SEAL Team",
       "summary": "Play the DOS game SEAL Team on a current desktop with the files from your own installation.",
@@ -52973,6 +54235,14 @@
     },
     {
       "id": "snprecomp-wootbeer-sin-and-punishment",
+      "artwork": {
+        "game_id": 1467,
+        "cover_id": 85687,
+        "image_id": "co1u47",
+        "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+        "game_slug": "sin-and-punishment",
+        "match_kind": "underlying-game"
+      },
       "name": "Sin and Punishment — snprecomp (wootbeer)",
       "original_game_title": "Sin and Punishment",
       "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
@@ -53669,6 +54939,14 @@
     },
     {
       "id": "sonic-ultimate-rivals-jackypendrag0n-sonic-rivals-2",
+      "artwork": {
+        "game_id": 19262,
+        "cover_id": 93153,
+        "image_id": "co1zvl",
+        "image_sha256": "70954bed93cd906b7108c716cfc6cb86134582b99fa7f05d6f0b671c05414b8c",
+        "game_slug": "sonic-rivals-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Sonic Rivals 2 — Sonic-Ultimate-Rivals (JackyPendrag0n)",
       "original_game_title": "Sonic Rivals 2",
       "summary": "The project claims a native runtime with high frame rates, split-screen and mods. Full race, story and multiplayer coverage remain unverified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -54217,6 +55495,14 @@
     },
     {
       "id": "spear-of-destiny-reflectionhle",
+      "artwork": {
+        "game_id": 6633,
+        "cover_id": 90725,
+        "image_id": "co1y05",
+        "image_sha256": "f8963aad889a000c3ce362c05e6fed2497d89393d07e25a7c08e1c7458a69e69",
+        "game_slug": "spear-of-destiny",
+        "match_kind": "underlying-game"
+      },
       "name": "Spear of Destiny (ReflectionHLE)",
       "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Spear of Destiny",
@@ -54625,6 +55911,14 @@
     },
     {
       "id": "ssx-3-playstation-2-ssx-3-native-rust-port",
+      "artwork": {
+        "game_id": 4174,
+        "cover_id": 77926,
+        "image_id": "co1o4m",
+        "image_sha256": "5967440316a59e9279e539e64369ea71840f44e8c2f989751e0b215dfe1bfffa",
+        "game_slug": "ssx-3",
+        "match_kind": "underlying-game"
+      },
       "name": "SSX 3 (PlayStation 2) (SSX 3 native Rust port)",
       "summary": "A source-only SSX 3 PlayStation 2 port: Python setup translates your own USA SLUS-20772 ISO, checking its executable hash, then Cargo builds the player. There are no GitHub releases. The project reports races, events and campaign play on Apple Silicon macOS. Ubuntu 24.04 Linux x86-64 setup/build/tests pass, but gameplay is untested. Windows native tools are documented with exact CPU target unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "SSX 3 (PlayStation 2)",
@@ -54718,6 +56012,14 @@
     },
     {
       "id": "star-control-ii-uqm-megamod",
+      "artwork": {
+        "game_id": 1046,
+        "cover_id": 110505,
+        "image_id": "co2d9l",
+        "image_sha256": "b4012c48e5e5f6e84b9c5352454dc81ec01052175df789a17421e977334682db",
+        "game_slug": "star-control-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "Star Control II / The Ur-Quan Masters MegaMod",
       "original_game_title": "Star Control II",
       "summary": "Explore the original Star Control II campaign with the standalone Ur-Quan Masters MegaMod and its optional graphics and audio packs.",
@@ -54916,6 +56218,14 @@
     },
     {
       "id": "star-wars-atari-darkuni",
+      "artwork": {
+        "game_id": 12858,
+        "cover_id": 136614,
+        "image_id": "co2xeu",
+        "image_sha256": "afe76c1966766a2dfc1b3cfb0913f98f6ee831d43b8c6427e7d9c0dc74f8a44a",
+        "game_slug": "star-wars",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/darkuni/starwars-arcade-recomp",
       "name": "Star Wars (Atari arcade) / darkuni",
       "original_game_title": "Star Wars (Atari arcade)",
@@ -55013,6 +56323,14 @@
     },
     {
       "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+      "artwork": {
+        "game_id": 152,
+        "cover_id": 90943,
+        "image_id": "co1y67",
+        "image_sha256": "e2a2b34daac0bfa6a3a0c8b679895a0ffe61bc8f4bdff30d23fc6fc248802d26",
+        "game_slug": "star-wars-jedi-knight-ii-jedi-outcast",
+        "match_kind": "underlying-game"
+      },
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
       "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
@@ -55090,6 +56408,14 @@
     },
     {
       "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-openjk-openjo",
+      "artwork": {
+        "game_id": 153,
+        "cover_id": 248980,
+        "image_id": "co5c44",
+        "image_sha256": "345b83219a614f9c5f4c6b3cb97f56eacc151aa47f71a92cc3864e2fb7f52128",
+        "game_slug": "star-wars-jedi-knight-jedi-academy",
+        "match_kind": "underlying-game"
+      },
       "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
       "summary": "Use the official OpenJK campaign player on Windows or Linux with your matching patched Jedi Academy data.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
@@ -55258,6 +56584,14 @@
     },
     {
       "id": "star-wars-the-clone-wars-pc-gtteancum-star-wars-the-clone-wars-xbox",
+      "artwork": {
+        "game_id": 3760,
+        "cover_id": 79113,
+        "image_id": "co1p1l",
+        "image_sha256": "dc22af9dde8156f9a4d6323963a4948f48daf98449d9be8418567c8f27e6fb80",
+        "game_slug": "star-wars-the-clone-wars",
+        "match_kind": "underlying-game"
+      },
       "name": "Star Wars: The Clone Wars (Xbox) — Star Wars: The Clone Wars — PC (GTTeancum)",
       "original_game_title": "Star Wars: The Clone Wars (Xbox)",
       "summary": "The project describes single-player as playable and refers to all 40 maps. Completion of the full game has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -55466,6 +56800,14 @@
     },
     {
       "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-openxvt",
+      "artwork": {
+        "game_id": 400431,
+        "cover_id": 560622,
+        "image_id": "coc0ku",
+        "image_sha256": "48fb01b4132a136ffc701224d19a905ae57df29a218fd948903db71dcb1774c8",
+        "game_slug": "star-wars-x-wing-vs-tie-fighter-balance-of-power-campaigns",
+        "match_kind": "underlying-game"
+      },
       "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
       "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
       "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
@@ -55638,6 +56980,14 @@
     },
     {
       "id": "street-alpha-3-dreamcast-recomp-irnutsmurt-street-fighter-alpha-3-dreamcast",
+      "artwork": {
+        "game_id": 242650,
+        "cover_id": 293643,
+        "image_id": "co6akr",
+        "image_sha256": "36fd4c3d6607aa8b0938ce6ef602f824a79f8bdf2b31206cf31e4918a7f0e28b",
+        "game_slug": "street-fighter-alpha-3--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Street Fighter Alpha 3 (Dreamcast) — Street-Alpha-3-Dreamcast-Recomp (irnutsmurt)",
       "original_game_title": "Street Fighter Alpha 3 (Dreamcast)",
       "summary": "The project describes native fighting, online play and controls. Complete character, mode and playthrough coverage have not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -56089,6 +57439,14 @@
     },
     {
       "id": "stunt-double-reignition-giangra-stuntman-ignition",
+      "artwork": {
+        "game_id": 2783,
+        "cover_id": 114299,
+        "image_id": "co2g6z",
+        "image_sha256": "22897864a39e57cd4d4b8a9dfb546b3a1df4067c56b00d5763f7477586996df6",
+        "game_slug": "stuntman-ignition",
+        "match_kind": "underlying-game"
+      },
       "name": "Stuntman: Ignition — Stunt Double: Reignition (giangra)",
       "original_game_title": "Stuntman: Ignition",
       "summary": "This early build reaches menus, career and races. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -57309,6 +58667,14 @@
     },
     {
       "id": "supertuxkart",
+      "artwork": {
+        "game_id": 10763,
+        "cover_id": 117991,
+        "image_id": "co2j1j",
+        "image_sha256": "ae9268429976f25014ad6928cc5f8dac58e987f2a33e14c7e6c1f2a8b9734a7a",
+        "game_slug": "supertuxkart",
+        "match_kind": "underlying-game"
+      },
       "name": "SuperTuxKart",
       "original_game_title": "SuperTuxKart",
       "summary": "Race open-source karts with an offline profile or join multiplayer races.",
@@ -57527,6 +58893,14 @@
     },
     {
       "id": "sylpheed-stuken-project-sylpheed-arc-of-deception",
+      "artwork": {
+        "game_id": 7136,
+        "cover_id": 377112,
+        "image_id": "co82zc",
+        "image_sha256": "e3314f6e1029094027dbbb6ddeedbe3702c36518dcc42e37476aa4587df24e7a",
+        "game_slug": "project-sylpheed",
+        "match_kind": "underlying-game"
+      },
       "name": "Project Sylpheed: Arc of Deception — sylpheed (stuken)",
       "original_game_title": "Project Sylpheed: Arc of Deception",
       "summary": "A game-specific native project exists. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -57976,6 +59350,14 @@
     },
     {
       "id": "tdrrmk2-uhexen2-tweaked",
+      "artwork": {
+        "game_id": 6637,
+        "cover_id": 123981,
+        "image_id": "co2nnx",
+        "image_sha256": "8cebb6f64cbae0c0fc025f79b1c752fbe67bbf0b225162563779a15060a2ec58",
+        "game_slug": "hexen-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "Hexen II / uHexen2 Tweaked",
       "original_game_title": "Hexen II",
       "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
@@ -58157,6 +59539,14 @@
     },
     {
       "id": "tekrantgaming-muppet-racemania-recompiled",
+      "artwork": {
+        "game_id": 3259,
+        "cover_id": 213837,
+        "image_id": "co4kzx",
+        "image_sha256": "ca8e2b9d66473b86d282d634f4e78fc0c30ded2504db2cc41d90055a1e0d4d6e",
+        "game_slug": "muppet-racemania",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/TekRantGaming/muppet-racemania-recompiled",
       "name": "Muppet RaceMania (TekRantGaming)",
       "summary": "A Windows port of Muppet RaceMania. Set it up with your own original PlayStation disc image.",
@@ -58488,6 +59878,14 @@
     },
     {
       "id": "tgp482-scda-xberecomp",
+      "artwork": {
+        "game_id": 182225,
+        "cover_id": 427358,
+        "image_id": "co95r2",
+        "image_sha256": "a83ee6fbb755065098680d01078edd13bc0155376470761e4235dceb0f9a9c41",
+        "game_slug": "tom-clancys-splinter-cell-double-agent",
+        "match_kind": "underlying-game"
+      },
       "name": "Tom Clancy's Splinter Cell: Double Agent (SCDA-XBERecomp)",
       "summary": "An original-Xbox Splinter Cell: Double Agent port, separate from the PC and Xbox 360 editions. The Windows 64-bit Direct3D 12/XAudio2 ZIP includes SCDA.exe, which compiles game code locally from your own Xbox files on first start and reuses that build later. The build.bat/Visual Studio source route is separate. Native Linux/macOS, exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Gameplay and networking are project claims; multiplayer hosting requires port forwarding, with controller/save coverage unconfirmed here. The project manages setup, replacement and networking; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Tom Clancy's Splinter Cell: Double Agent",
@@ -58536,6 +59934,14 @@
     },
     {
       "id": "thandor-the-invasion-open-thandor",
+      "artwork": {
+        "game_id": 54432,
+        "cover_id": 467799,
+        "image_id": "coa0yf",
+        "image_sha256": "07b0bed4de822a0e6f7219f69b923a6592e02cd83d059f3bd2f7708439ff547d",
+        "game_slug": "thandor-the-invasion",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/idkFoxes/open-thandor",
       "name": "Thandor: The Invasion / Open Thandor",
       "original_game_title": "Thandor: The Invasion",
@@ -58654,6 +60060,14 @@
     },
     {
       "id": "the-beatles-rock-band-for-pc-xbox-360-recomp-wip-0-6-1-mercurialw0rld-the-beatles-rock-band",
+      "artwork": {
+        "game_id": 2693,
+        "cover_id": 89088,
+        "image_id": "co1wqo",
+        "image_sha256": "84f4389339e059d341a3f871c4e06fb66c19ca59819982b3d92a9dbac4e71ebb",
+        "game_slug": "the-beatles-rock-band",
+        "match_kind": "underlying-game"
+      },
       "name": "The Beatles: Rock Band — The Beatles: Rock Band for PC (Xbox 360 recomp) — WIP 0.6.1 (mercurialw0rld)",
       "original_game_title": "The Beatles: Rock Band",
       "summary": "Experimental project. The project reports keyboard guitar and drum play near 60 FPS. Stutter, calibration issues and incomplete DLC and instrument testing remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -58815,6 +60229,14 @@
     },
     {
       "id": "the-catacomb-apocalypse-catacombgl",
+      "artwork": {
+        "game_id": 11046,
+        "cover_id": 161954,
+        "image_id": "co3gyq",
+        "image_sha256": "456243b4b772d56d1c293c82208121190f591a6b23c214e20c8bd05feec8e895",
+        "game_slug": "terror-of-the-catacombs",
+        "match_kind": "underlying-game"
+      },
       "name": "The Catacomb Apocalypse (CatacombGL)",
       "summary": "Use The Catacomb Apocalypse with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Apocalypse",
@@ -58874,6 +60296,14 @@
     },
     {
       "id": "the-catacomb-apocalypse-reflectionhle",
+      "artwork": {
+        "game_id": 11046,
+        "cover_id": 161954,
+        "image_id": "co3gyq",
+        "image_sha256": "456243b4b772d56d1c293c82208121190f591a6b23c214e20c8bd05feec8e895",
+        "game_slug": "terror-of-the-catacombs",
+        "match_kind": "underlying-game"
+      },
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
       "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Apocalypse",
@@ -58931,6 +60361,14 @@
     },
     {
       "id": "the-catacomb-armageddon-catacombgl",
+      "artwork": {
+        "game_id": 71138,
+        "cover_id": 161955,
+        "image_id": "co3gyr",
+        "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+        "game_slug": "curse-of-the-catacombs",
+        "match_kind": "underlying-game"
+      },
       "name": "The Catacomb Armageddon (CatacombGL)",
       "summary": "Use The Catacomb Armageddon with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Armageddon",
@@ -58990,6 +60428,14 @@
     },
     {
       "id": "the-catacomb-armageddon-reflectionhle",
+      "artwork": {
+        "game_id": 71138,
+        "cover_id": 161955,
+        "image_id": "co3gyr",
+        "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+        "game_slug": "curse-of-the-catacombs",
+        "match_kind": "underlying-game"
+      },
       "name": "The Catacomb Armageddon (ReflectionHLE)",
       "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Armageddon",
@@ -59450,6 +60896,14 @@
     },
     {
       "id": "the-maw-linux-recompilation-thefixinhixon-the-maw",
+      "artwork": {
+        "game_id": 3976,
+        "cover_id": 115417,
+        "image_id": "co2h21",
+        "image_sha256": "8aae612d8cd3a52325e7f760378888666d7528bf3713597fd333a457bba0d9c6",
+        "game_slug": "the-maw",
+        "match_kind": "underlying-game"
+      },
       "name": "The Maw — The Maw — Linux Recompilation (thefixinhixon)",
       "original_game_title": "The Maw",
       "summary": "The project describes Linux as playable, with cache and shared-memory files left after crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -59611,6 +61065,14 @@
     },
     {
       "id": "the-settlers-freeserf",
+      "artwork": {
+        "game_id": 124693,
+        "cover_id": 227126,
+        "image_id": "co4v92",
+        "image_sha256": "2a9ba0a6c3e5becfa3315f164e4ac001cde02c41604e4d576cbe3624aa5a010f",
+        "game_slug": "serf-city-life-is-feudal",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/freeserf/freeserf",
       "name": "The Settlers / FreeSerf",
       "original_game_title": "The Settlers",
@@ -60093,6 +61555,14 @@
     },
     {
       "id": "thimbleweed-park-engge2",
+      "artwork": {
+        "game_id": 10232,
+        "cover_id": 89067,
+        "image_id": "co1wq3",
+        "image_sha256": "a75e7a2a6ebc6a6f2bdcf3201b84378663b2f69fb8b27629da0d6e42b2d2bbc9",
+        "game_slug": "thimbleweed-park",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/scemino/engge2",
       "name": "Thimbleweed Park / engge2",
       "original_game_title": "Thimbleweed Park",
@@ -60295,6 +61765,14 @@
     },
     {
       "id": "tk22-26-jetforcegemini-recomp",
+      "artwork": {
+        "game_id": 1355,
+        "cover_id": 353828,
+        "image_id": "co7l0k",
+        "image_sha256": "9054c68df441922e51b4fb4d22fd285b2d5531b2b1f14c04c223c26756ff16f9",
+        "game_slug": "jet-force-gemini",
+        "match_kind": "underlying-game"
+      },
       "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
       "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
       "original_game_title": "Jet Force Gemini",
@@ -60411,6 +61889,14 @@
     },
     {
       "id": "tna-impact-recompiled-dotgrx-tna-impact",
+      "artwork": {
+        "game_id": 5228,
+        "cover_id": 430567,
+        "image_id": "co9887",
+        "image_sha256": "dbd3aa2ebebe03d6bdcfb7ed585b2e3c8c462cb160bde3c1d3bccff66949568a",
+        "game_slug": "tna-impact",
+        "match_kind": "underlying-game"
+      },
       "name": "TNA iMPACT! — TNA iMPACT! Recompiled (dotGrx)",
       "original_game_title": "TNA iMPACT!",
       "summary": "The player runtime and controls are documented. Campaign and match completion are unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -60442,6 +61928,14 @@
     },
     {
       "id": "tobal-2-tobal2recomp",
+      "artwork": {
+        "game_id": 1662,
+        "cover_id": 132433,
+        "image_id": "co2u6p",
+        "image_sha256": "08d7f103d74b0942761d440db123adf4c7f55a356be9c0fd3dc0fd0edbbb7faf",
+        "game_slug": "tobal-2",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/MatheusLeffa/Tobal2Recomp",
       "name": "Tobal 2 Recompiled",
       "summary": "Build Tobal 2 from your Japanese PlayStation disc using upstream’s Windows, Linux or Mac setup kit.",
@@ -60576,6 +62070,14 @@
     },
     {
       "id": "tom-clancy-s-rainbow-six-3-xbox-static-recompilation-phobos665-tom-clancy-s-rainbow-six-3-xbox",
+      "artwork": {
+        "game_id": 9891,
+        "cover_id": 79174,
+        "image_id": "co1p3a",
+        "image_sha256": "b8e870b592390d3fe00b18a101ad66f760fc289e84c934358eaa1d80ecb02a07",
+        "game_slug": "tom-clancys-rainbow-six-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Tom Clancy's Rainbow Six 3 (Xbox) — Tom Clancy's Rainbow Six 3 (Xbox) — static recompilation (phobos665)",
       "original_game_title": "Tom Clancy's Rainbow Six 3 (Xbox)",
       "summary": "macOS boot through movies/menus and online play are reported; widescreen is unchecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -61110,6 +62612,14 @@
     },
     {
       "id": "touhou-4-lotus-land-story-portable64",
+      "artwork": {
+        "game_id": 45964,
+        "cover_id": 217575,
+        "image_id": "co4nvr",
+        "image_sha256": "f32a4573b6f8f10dceacef3bbe57797253a94262417436d35f833df7d597f26c",
+        "game_slug": "touhou-gensoukyou-lotus-land-story",
+        "match_kind": "underlying-game"
+      },
       "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
       "original_game_title": "Touhou Gensokyo: Lotus Land Story",
       "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
@@ -61198,6 +62708,14 @@
     },
     {
       "id": "toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger",
+      "artwork": {
+        "game_id": 3619,
+        "cover_id": 182561,
+        "image_id": "co3wv5",
+        "image_sha256": "b3d1f8733df8d9ce0e36e973108a019b27bc570b4e827128fa0cd9dbbe22bc3e",
+        "game_slug": "toy-story-2-buzz-lightyear-to-the-rescue",
+        "match_kind": "underlying-game"
+      },
       "name": "Toy Story 2: Buzz Lightyear to the Rescue! (N64) (SpaceRanger)",
       "summary": "Play the Nintendo 64 version of Toy Story 2 with widescreen rendering and smoother motion.",
       "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue! (N64)",
@@ -61494,6 +63012,14 @@
     },
     {
       "id": "trials-hd-recompiled-snufflyyy-trials-hd",
+      "artwork": {
+        "game_id": 2145,
+        "cover_id": 234090,
+        "image_id": "co50mi",
+        "image_sha256": "10fdbc6aa94f00258fca8459bd10e5a3f015a1005de8361aa3dca4cbd0b1379d",
+        "game_slug": "trials-hd",
+        "match_kind": "underlying-game"
+      },
       "name": "Trials HD — Trials HD Recompiled (snufflyyy)",
       "original_game_title": "Trials HD",
       "summary": "The project claims controller and keyboard play. Browser storage, audio and gameplay checks remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -61868,6 +63394,14 @@
     },
     {
       "id": "tutikumo-aoyagi01-monster-hunter-portable-2nd-g",
+      "artwork": {
+        "game_id": 20427,
+        "cover_id": 592783,
+        "image_id": "cocpe7",
+        "image_sha256": "4f36e8170fbe53a32d39088379641617c06d047c92f785db334bad2181621f09",
+        "game_slug": "monster-hunter-freedom-unite",
+        "match_kind": "underlying-game"
+      },
       "name": "Monster Hunter Portable 2nd G — Tutikumo (Aoyagi01)",
       "original_game_title": "Monster Hunter Portable 2nd G",
       "summary": "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -62084,6 +63618,14 @@
     },
     {
       "id": "u4-sms-recompiled-alexdia25-ultima-iv-quest-of-the-avatar-master-system",
+      "artwork": {
+        "game_id": 400033,
+        "cover_id": 559883,
+        "image_id": "coc00b",
+        "image_sha256": "113f1248a88c6cbc30988a03f4da5db4289eaade31d17990ad34a611c564402c",
+        "game_slug": "ultima-iv",
+        "match_kind": "underlying-game"
+      },
       "name": "Ultima IV: Quest of the Avatar (Master System) — u4-sms-recompiled (alexdia25)",
       "original_game_title": "Ultima IV: Quest of the Avatar (Master System)",
       "summary": "The project describes native map, combat, shop, dungeon, audio and save systems with reference comparisons. Full-game completion has not been independently verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -62155,6 +63697,14 @@
     },
     {
       "id": "ufc-undisputed-3-recomp-360recomper-ufc-undisputed-3",
+      "artwork": {
+        "game_id": 7229,
+        "cover_id": 161056,
+        "image_id": "co3g9s",
+        "image_sha256": "dea7d47110ca740c27cb6b947e0039e9b8508d791ebbad052034500943d2382c",
+        "game_slug": "ufc-undisputed-3",
+        "match_kind": "underlying-game"
+      },
       "name": "UFC Undisputed 3 — UFC Undisputed 3 Recomp (360recomper)",
       "original_game_title": "UFC Undisputed 3",
       "summary": "The project claims career play from start to finish after fixing earlier fight-transition crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -62186,6 +63736,14 @@
     },
     {
       "id": "ufc-undisputed-3-ufc3mons-recomp-monscriser-ufc-undisputed-3",
+      "artwork": {
+        "game_id": 7229,
+        "cover_id": 161056,
+        "image_id": "co3g9s",
+        "image_sha256": "dea7d47110ca740c27cb6b947e0039e9b8508d791ebbad052034500943d2382c",
+        "game_slug": "ufc-undisputed-3",
+        "match_kind": "underlying-game"
+      },
       "name": "UFC Undisputed 3 — UFC UNDISPUTED 3 - UFC3MONS RECOMP (monscriser)",
       "original_game_title": "UFC Undisputed 3",
       "summary": "The project reports R9 Reborn Career sessions at 60 FPS on ROG Ally with Windows or Linux. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -62392,6 +63950,14 @@
     },
     {
       "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+      "artwork": {
+        "game_id": 24,
+        "cover_id": 547861,
+        "image_id": "cobqqd",
+        "image_sha256": "00ce468d682d7356d9b31166de01348e6175e342f39451ac4df729f9441e79fb",
+        "game_slug": "x-com-ufo-defense",
+        "match_kind": "underlying-game"
+      },
       "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
       "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
@@ -62452,6 +64018,14 @@
     },
     {
       "id": "ultima-vii-part-two-serpent-isle-exult",
+      "artwork": {
+        "game_id": 9574,
+        "cover_id": 139720,
+        "image_id": "co2zt4",
+        "image_sha256": "2dcd06eb9ea0098c0060e4ba19c5bc02789fdce48b7705d107ccdf0963a57cf3",
+        "game_slug": "ultima-vii-part-two-serpent-isle",
+        "match_kind": "underlying-game"
+      },
       "name": "Ultima VII Part Two: Serpent Isle (Exult)",
       "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
@@ -62768,6 +64342,14 @@
     },
     {
       "id": "ur-quan-masters",
+      "artwork": {
+        "game_id": 1046,
+        "cover_id": 110505,
+        "image_id": "co2d9l",
+        "image_sha256": "b4012c48e5e5f6e84b9c5352454dc81ec01052175df789a17421e977334682db",
+        "game_slug": "star-control-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "The Ur-Quan Masters",
       "original_game_title": "Star Control II",
       "summary": "Explore the original Star Control II campaign in The Ur-Quan Masters with the project's base game data.",
@@ -62927,6 +64509,14 @@
     },
     {
       "id": "usf4-nx-thorhax-ultra-street-fighter-iv",
+      "artwork": {
+        "game_id": 6656,
+        "cover_id": 88300,
+        "image_id": "co1w4s",
+        "image_sha256": "b64ee708f79de4a74f86435d3a507f4660e8de0a655eb7eb8444c3df4809452d",
+        "game_slug": "ultra-street-fighter-iv",
+        "match_kind": "underlying-game"
+      },
       "name": "Ultra Street Fighter IV — usf4-nx (Thorhax)",
       "original_game_title": "Ultra Street Fighter IV",
       "summary": "The project reports Windows Vulkan boot, menus and fights at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -62960,6 +64550,14 @@
     },
     {
       "id": "uzdoom-uzdoom",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom / UZDoom (UZDoom)",
       "summary": "Choose your own Doom-family game data and mods in UZDoom; the upstream launcher provides runtime updates.",
       "project_url": "https://github.com/UZDoom/UZDoom",
@@ -63301,6 +64899,14 @@
     },
     {
       "id": "v64recomp-nightmare-us-polaco1782-nightmare-creatures-n64",
+      "artwork": {
+        "game_id": 3414,
+        "cover_id": 258182,
+        "image_id": "co5j7q",
+        "image_sha256": "09a5818258730eb15ac2a392fff1c0a2b640a0e3a25bb4efe3bdbdf749edb84b",
+        "game_slug": "nightmare-creatures",
+        "match_kind": "underlying-game"
+      },
       "name": "Nightmare Creatures (N64) — v64recomp / nightmare-us (polaco1782)",
       "original_game_title": "Nightmare Creatures (N64)",
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -63434,6 +65040,14 @@
     },
     {
       "id": "v64recomp-quake-us-polaco1782-quake-n64",
+      "artwork": {
+        "game_id": 209418,
+        "cover_id": 232202,
+        "image_id": "co4z62",
+        "image_sha256": "84ddb07609e2353ff80e1d1067fdf692500e6914fc41c402608b22f6c31fa497",
+        "game_slug": "quake--2",
+        "match_kind": "underlying-game"
+      },
       "name": "Quake (N64) — v64recomp / quake-us (polaco1782)",
       "original_game_title": "Quake (N64)",
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -63473,6 +65087,14 @@
     },
     {
       "id": "v64recomp-quake2-us-polaco1782-quake-ii-n64",
+      "artwork": {
+        "game_id": 262016,
+        "cover_id": 337429,
+        "image_id": "co78d1",
+        "image_sha256": "a9e5612910490bb5b25838c9e2b58d12905065226699acf9643bd033a8ecd377",
+        "game_slug": "quake-ii--2",
+        "match_kind": "underlying-game"
+      },
       "name": "Quake II (N64) — v64recomp / quake2-us (polaco1782)",
       "original_game_title": "Quake II (N64)",
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -63559,6 +65181,14 @@
     },
     {
       "id": "v64recomp-re2-us-v1-polaco1782-resident-evil-2-n64",
+      "artwork": {
+        "game_id": 287844,
+        "cover_id": 364561,
+        "image_id": "co7tap",
+        "image_sha256": "49fd765cc726e81a2b42aa5e426fd384f78263cd0aaa3471421601cc4c2d2e65",
+        "game_slug": "resident-evil-2--5",
+        "match_kind": "underlying-game"
+      },
       "name": "Resident Evil 2 (N64) — v64recomp / re2-us-v1 (polaco1782)",
       "original_game_title": "Resident Evil 2 (N64)",
       "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -64420,6 +66050,14 @@
     },
     {
       "id": "virtualon-pc-drakenabarion-cyber-troopers-virtual-on-oratorio-tangram",
+      "artwork": {
+        "game_id": 9190,
+        "cover_id": 194111,
+        "image_id": "co45rz",
+        "image_sha256": "5d1b21e7c53691cd7d2bce5f67eca4bd6d40c90d097821a58b4d9eeba7110f52",
+        "game_slug": "cyber-troopers-virtual-on-oratorio-tangram",
+        "match_kind": "underlying-game"
+      },
       "name": "Cyber Troopers Virtual-On Oratorio Tangram — virtualon_pc (drakenabarion)",
       "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram",
       "summary": "Experimental project. The project reports ot boot, menus, matches and audio. Online play is unavailable. Completion has not been established, and Portcove has not confirmed this component. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -64452,6 +66090,14 @@
     },
     {
       "id": "viva-pin-ata-recomp-crabinacrabic-viva-pinata",
+      "artwork": {
+        "game_id": 7236,
+        "cover_id": 115414,
+        "image_id": "co2h1y",
+        "image_sha256": "4b5baa83ba39c483f79a36a87137de9e8fa3f909abf34644d8fd90afe881343e",
+        "game_slug": "viva-pinata",
+        "match_kind": "underlying-game"
+      },
       "name": "Viva Pinata — Viva Piñata Recomp (crabinacrabic)",
       "original_game_title": "Viva Pinata",
       "summary": "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -64639,6 +66285,14 @@
     },
     {
       "id": "voot-virtual-on-oratorio-tangram-xbox-360-static-recompilation-sp00nznet-cyber-troopers-virtual-on-o-229659f0d2",
+      "artwork": {
+        "game_id": 9190,
+        "cover_id": 194111,
+        "image_id": "co45rz",
+        "image_sha256": "5d1b21e7c53691cd7d2bce5f67eca4bd6d40c90d097821a58b4d9eeba7110f52",
+        "game_slug": "cyber-troopers-virtual-on-oratorio-tangram",
+        "match_kind": "underlying-game"
+      },
       "name": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360) — VOOT - Virtual On: Oratorio Tangram (Xbox 360) Static Recompilation (sp00nznet)",
       "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram (Xbox 360)",
       "summary": "This is a phase 1 foundation. Full gameplay remains unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -64752,6 +66406,14 @@
     },
     {
       "id": "vyruz-destruction-of-the-untel-empire-vurus",
+      "artwork": {
+        "game_id": 112224,
+        "cover_id": 382135,
+        "image_id": "co86uv",
+        "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+        "game_slug": "vyruz-destruction-of-the-untel-empire",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/rzrbld/vurus",
       "name": "Vyruz: Destruction of the Untel Empire / Vurus",
       "original_game_title": "Vyruz: Destruction of the Untel Empire",
@@ -64953,6 +66615,14 @@
     },
     {
       "id": "warzone-2100-official-maintained-source-port",
+      "artwork": {
+        "game_id": 51297,
+        "cover_id": 290237,
+        "image_id": "co67y5",
+        "image_sha256": "b822e6718c3e24ee79f6c50ef603e72b41e2057a9b0095e785fd653943ff2562",
+        "game_slug": "warzone-2100",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/Warzone2100/warzone2100",
       "name": "Warzone 2100",
       "original_game_title": "Warzone 2100",
@@ -65617,6 +67287,14 @@
     },
     {
       "id": "wing-commander-privateer-openprivateer",
+      "artwork": {
+        "game_id": 794,
+        "cover_id": 119872,
+        "image_id": "co2khs",
+        "image_sha256": "b4cbf3910c2d11a09e17b64edbc86b58b32bcf48b563007dc914b1a09bfe069e",
+        "game_slug": "wing-commander-privateer",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/schlangz/openprivateer-project",
       "name": "Wing Commander: Privateer / OpenPrivateer",
       "original_game_title": "Wing Commander: Privateer",
@@ -65834,6 +67512,14 @@
     },
     {
       "id": "wolfenstein-3d-reflectionhle",
+      "artwork": {
+        "game_id": 262516,
+        "cover_id": 325157,
+        "image_id": "co6yw5",
+        "image_sha256": "c6997e9d87f5abc5fa7603d6e6b2597e5d7913354c1705eb075c16851cc56c5a",
+        "game_slug": "wolfenstein-3d--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Wolfenstein 3D (ReflectionHLE)",
       "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Wolfenstein 3D",
@@ -66412,6 +68098,14 @@
     },
     {
       "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",
+      "artwork": {
+        "game_id": 3642,
+        "cover_id": 154512,
+        "image_id": "co3b80",
+        "image_sha256": "de9ed39d126526a08395b05d92623e8dfa8f40d2fd358d78f8b2182e0610aad1",
+        "game_slug": "world-driver-championship",
+        "match_kind": "underlying-game"
+      },
       "name": "World Driver Championship — worlddriverchampionship-recomp (alondero)",
       "original_game_title": "World Driver Championship",
       "summary": "Upstream Windows x64/Direct3D12 tests cover intro, menus and Hawaii practice driving: acceleration, steering, automatic gears and pause/resume. This remains an early development build with rendering glitches and experimental SDL audio. The frontend-enabled player now advertises rumble alongside persistent Controller Pak saves on port 1, with strength in General settings; physical controller compatibility and feel remain unverified. Linux/Android are unvalidated. No Portcove build, save, controller, audio or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66443,6 +68137,14 @@
     },
     {
       "id": "worms-revolution-native-pc-recompilation-sp00nznet-worms-revolution",
+      "artwork": {
+        "game_id": 9334,
+        "cover_id": 90392,
+        "image_id": "co1xqw",
+        "image_sha256": "4b59a0ce6a767414e9c3a6786b883a326e2c382113d319ad01701409a2b98562",
+        "game_slug": "worms-revolution--1",
+        "match_kind": "underlying-game"
+      },
       "name": "Worms Revolution — Worms Revolution — native PC recompilation (sp00nznet)",
       "original_game_title": "Worms Revolution",
       "summary": "The tutorial plays from start to finish, but text and UI are missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66592,6 +68294,14 @@
     },
     {
       "id": "wwe-12-pc-unofficial-native-port-imrburn-wwe-12",
+      "artwork": {
+        "game_id": 5294,
+        "cover_id": 365563,
+        "image_id": "co7u2j",
+        "image_sha256": "e113f222cf771a314608d0796bd6970c1ffaef0cab81b10f86ed5efbd4caa4ea",
+        "game_slug": "wwe-12",
+        "match_kind": "underlying-game"
+      },
       "name": "WWE '12 — WWE '12 PC — unofficial native port (iMrBurn)",
       "original_game_title": "WWE '12",
       "summary": "The 0.9.0-beta has coloured-block defects on some Intel and AMD GPUs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66702,6 +68412,14 @@
     },
     {
       "id": "wwe-2k16-pc-recomp-by-banshee-itsbybanshee-wwe-2k16",
+      "artwork": {
+        "game_id": 11057,
+        "cover_id": 90331,
+        "image_id": "co1xp7",
+        "image_sha256": "0350bc08c04ed7cca371cb1d6069a04ab100ba3c14e05444fd9feb113f50f007",
+        "game_slug": "wwe-2k16",
+        "match_kind": "underlying-game"
+      },
       "name": "WWE 2K16 — WWE 2K16 PC Recomp (By Banshee) (itsbybanshee)",
       "original_game_title": "WWE 2K16",
       "summary": "The project describes gameplay and entrances at 60 FPS. Broad progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66770,6 +68488,14 @@
     },
     {
       "id": "wwe-smackdown-vs-raw-2007-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2007",
+      "artwork": {
+        "game_id": 7252,
+        "cover_id": 212983,
+        "image_id": "co4kc7",
+        "image_sha256": "67695ffc1a9bc9a5b41ef3d1ce2df91b84223497b65b7ed1e351f43577744f1d",
+        "game_slug": "wwe-smackdown-vs-raw-2007",
+        "match_kind": "underlying-game"
+      },
       "name": "WWE SmackDown vs. Raw 2007 — WWE SmackDown vs. Raw 2007 — native PC, Linux & Steam Deck (nefariousjosiah)",
       "original_game_title": "WWE SmackDown vs. Raw 2007",
       "summary": "The project describes gameplay. Keyboard and widescreen behaviour have incomplete testing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66863,6 +68589,14 @@
     },
     {
       "id": "wwe-smackdown-vs-raw-2010-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2010",
+      "artwork": {
+        "game_id": 5300,
+        "cover_id": 198035,
+        "image_id": "co48sz",
+        "image_sha256": "1a3392a115064c27225261582f87ebd218bce593a1d881e5b83e7a4f7615c94b",
+        "game_slug": "wwe-smackdown-vs-raw-2010",
+        "match_kind": "underlying-game"
+      },
       "name": "WWE SmackDown vs. Raw 2010 — WWE SmackDown vs. Raw 2010 — native PC, Linux & Steam Deck (nefariousjosiah)",
       "original_game_title": "WWE SmackDown vs. Raw 2010",
       "summary": "The project describes gameplay. Keyboard input and alternate aspect ratios remain untested or experimental. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -67361,6 +69095,14 @@
     },
     {
       "id": "xonotic",
+      "artwork": {
+        "game_id": 9587,
+        "cover_id": 481674,
+        "image_id": "coabnu",
+        "image_sha256": "d5e7b6660b63c0165ae11c9ae5b94ccadc5286b2627ef27df64386f3a9eb9ac1",
+        "game_slug": "xonotic",
+        "match_kind": "underlying-game"
+      },
       "name": "Xonotic",
       "original_game_title": "Xonotic",
       "summary": "Play Xonotic's standalone arena shooter with the maps and game data included in its official release.",
@@ -67781,6 +69523,14 @@
     },
     {
       "id": "zdoom-gzdoom",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "name": "Doom / GZDoom (ZDoom)",
       "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
       "project_url": "https://github.com/ZDoom/gzdoom",

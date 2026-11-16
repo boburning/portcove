@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "n64hub-super-smash-bros-n64-usa-recomp",
+    "artwork": {
+      "game_id": 1626,
+      "cover_id": 131928,
+      "image_id": "co2tso",
+      "image_sha256": "b8c0edf9685259b4e1cfb879e8d5275dd1c1aa124f98c9612ee4cd03f6ed0d9e",
+      "game_slug": "super-smash-bros",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/n64hub/super-smash-bros-recomp",
     "name": "Super Smash Bros. (Smash Bros. Recompiled)",
     "summary": "A Windows port of the original Super Smash Bros. Set it up with your own US Nintendo 64 game file.",

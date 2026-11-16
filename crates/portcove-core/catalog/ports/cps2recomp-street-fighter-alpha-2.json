@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-street-fighter-alpha-2",
+    "artwork": {
+      "game_id": 6703,
+      "cover_id": 295068,
+      "image_id": "co6boc",
+      "image_sha256": "f8acb4b0e86aeb0a5c924275728733c4111e4079dda155e482a2c138654d5303",
+      "game_slug": "street-fighter-alpha-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Street Fighter Alpha2 (CPS-2 Recomp)",
     "summary": "Play Street Fighter Alpha2 using your own matching arcade originals.",
     "original_game_title": "Street Fighter Alpha2",

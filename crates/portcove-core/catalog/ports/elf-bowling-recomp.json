@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "elf-bowling-recomp",
+    "artwork": {
+      "game_id": 51319,
+      "cover_id": 187084,
+      "image_id": "co40cs",
+      "image_sha256": "c2e32fabc42dfecbd3df1c16b759095bb0a448dde224c1586f388aa559f53728",
+      "game_slug": "elf-bowling",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
     "name": "Elf Bowling / Elf Bowling Recomp",
     "original_game_title": "Elf Bowling",

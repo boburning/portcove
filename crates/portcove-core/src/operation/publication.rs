@@ -201,6 +201,20 @@ impl<'a> PublicationOperation<'a> {
         Ok(Self { record })
     }
 
+    pub(crate) fn defer_activation(&mut self, store: &OperationStore) -> Result<()> {
+        if self.record.kind != LifecycleOperationKind::Install
+            || self.record.phase != LifecyclePhase::PayloadPublished
+            || !self.record.activate
+            || self.record.external_registration_sha256.is_some()
+        {
+            return Err(PortcoveError::state("publication cannot defer activation"));
+        }
+        // Persist the inactive intent before committing metadata. A second
+        // interruption must never replay the refused activation.
+        self.record.activate = false;
+        store.put(self.record)
+    }
+
     pub(crate) fn advance(&mut self, next: LifecyclePhase, store: &OperationStore) -> Result<()> {
         if !matches!(
             (self.record.phase, next),

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "vyruz-destruction-of-the-untel-empire-vurus",
+    "artwork": {
+      "game_id": 112224,
+      "cover_id": 382135,
+      "image_id": "co86uv",
+      "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+      "game_slug": "vyruz-destruction-of-the-untel-empire",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/rzrbld/vurus",
     "name": "Vyruz: Destruction of the Untel Empire / Vurus",
     "original_game_title": "Vyruz: Destruction of the Untel Empire",

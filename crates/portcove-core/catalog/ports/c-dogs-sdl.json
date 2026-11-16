@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "c-dogs-sdl",
+    "artwork": {
+      "game_id": 23572,
+      "cover_id": 198190,
+      "image_id": "co48xa",
+      "image_sha256": "08b6432a441e3522504ffaf48863b834adb64808918d6671773450e78547a073",
+      "game_slug": "c-dogs",
+      "match_kind": "underlying-game"
+    },
     "name": "C-Dogs SDL",
     "original_game_title": "C-Dogs",
     "summary": "Play C-Dogs through your Linux distribution or a permitted existing desktop copy.",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "luanti",
+    "artwork": {
+      "game_id": 19437,
+      "cover_id": 435117,
+      "image_id": "co9bql",
+      "image_sha256": "40881a0c0f9bdacc6030f2fd94870cc1a8f6a7be3ee44949f6bf5261936e5b25",
+      "game_slug": "luanti",
+      "match_kind": "underlying-game"
+    },
     "name": "Luanti (formerly Minetest)",
     "original_game_title": "Luanti",
     "summary": "Create and explore voxel worlds with games and mods you choose.",

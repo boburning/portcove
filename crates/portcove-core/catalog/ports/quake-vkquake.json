@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "quake-vkquake",
+    "artwork": {
+      "game_id": 333,
+      "cover_id": 434745,
+      "image_id": "co9bg9",
+      "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+      "game_slug": "quake",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake (vkQuake)",
     "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",

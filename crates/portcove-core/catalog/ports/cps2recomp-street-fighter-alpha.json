@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-street-fighter-alpha",
+    "artwork": {
+      "game_id": 6702,
+      "cover_id": 295597,
+      "image_id": "co6c31",
+      "image_sha256": "33863d0b345228cb96f795bb6db1418d0e1a028d37a1ed75d38c1bd2e008c791",
+      "game_slug": "street-fighter-alpha-warriors-dreams",
+      "match_kind": "underlying-game"
+    },
     "name": "Street Fighter Alpha: Warriors Dreams (CPS-2 Recomp)",
     "summary": "Play Street Fighter Alpha: Warriors Dreams using your own matching arcade originals.",
     "original_game_title": "Street Fighter Alpha: Warriors Dreams",

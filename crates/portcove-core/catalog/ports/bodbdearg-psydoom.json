@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "bodbdearg-psydoom",
+    "artwork": {
+      "game_id": 170995,
+      "cover_id": 179083,
+      "image_id": "co3u6j",
+      "image_sha256": "175f303e2c586c76fd610d2d1e5e191724dccb7f3332bf392cefa2753b31d9d7",
+      "game_slug": "doom--3",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom / PsyDoom (BodbDearg)",
     "summary": "Play PlayStation Doom and Final Doom through PsyDoom using your own game-disc image.",
     "project_url": "https://github.com/BodbDearg/PsyDoom",

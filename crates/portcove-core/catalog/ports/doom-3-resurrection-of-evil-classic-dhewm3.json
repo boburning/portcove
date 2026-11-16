@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "doom-3-resurrection-of-evil-classic-dhewm3",
+    "artwork": {
+      "game_id": 672,
+      "cover_id": 98348,
+      "image_id": "co23vw",
+      "image_sha256": "5e6c08295efabf713d9d2a6cd3327091d38727bb8352e4d2cbd7fe9f1d950e90",
+      "game_slug": "doom-3-resurrection-of-evil",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
     "summary": "Use the official dhewm3 Windows player for classic Resurrection of Evil with your own base-game and expansion files. Keep its external profile backed up.",
     "original_game_title": "Doom 3: Resurrection of Evil (classic)",

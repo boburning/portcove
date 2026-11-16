@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "sauerbraten",
+    "artwork": {
+      "game_id": 21615,
+      "cover_id": 116297,
+      "image_id": "co2hqh",
+      "image_sha256": "440b9f85fb11eec76bff5a5eb710b23033a9bd28fb4056919da5f6e36e0ceed3",
+      "game_slug": "cube-2-sauerbraten",
+      "match_kind": "underlying-game"
+    },
     "name": "Cube 2: Sauerbraten",
     "original_game_title": "Cube 2: Sauerbraten",
     "summary": "Play arena matches or edit maps in the standalone Cube 2 game.",

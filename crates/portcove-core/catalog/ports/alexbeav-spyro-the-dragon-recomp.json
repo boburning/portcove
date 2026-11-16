@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "alexbeav-spyro-the-dragon-recomp",
+    "artwork": {
+      "game_id": 1576,
+      "cover_id": 166697,
+      "image_id": "co3kmh",
+      "image_sha256": "5051273a774f090c6dd2f40c494afb29fb905b9da6929c8fb539f8abf0167e9b",
+      "game_slug": "spyro-the-dragon",
+      "match_kind": "underlying-game"
+    },
     "name": "Spyro the Dragon / Alexbeav PSXRecomp",
     "summary": "Play Spyro the Dragon with a player built from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp",

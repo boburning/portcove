@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "neverball",
+    "artwork": {
+      "game_id": 51247,
+      "cover_id": 459392,
+      "image_id": "co9ugw",
+      "image_sha256": "a8364602ac7aa851e9d78a9330f7cfa0085460be99201eaf475a60f2bcddd484",
+      "game_slug": "neverball",
+      "match_kind": "underlying-game"
+    },
     "name": "Neverball",
     "original_game_title": "Neverball",
     "summary": "Tilt the floor to roll a ball through obstacle courses and collect enough coins to open the goal.",

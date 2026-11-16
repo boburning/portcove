@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "xonotic",
+    "artwork": {
+      "game_id": 9587,
+      "cover_id": 481674,
+      "image_id": "coabnu",
+      "image_sha256": "d5e7b6660b63c0165ae11c9ae5b94ccadc5286b2627ef27df64386f3a9eb9ac1",
+      "game_slug": "xonotic",
+      "match_kind": "underlying-game"
+    },
     "name": "Xonotic",
     "original_game_title": "Xonotic",
     "summary": "Play Xonotic's standalone arena shooter with the maps and game data included in its official release.",

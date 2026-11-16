@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "scottjco-wetrix-n64-usa-rev0-recomp",
+    "artwork": {
+      "game_id": 3637,
+      "cover_id": 107662,
+      "image_id": "co2b2m",
+      "image_sha256": "20aea507d7fd38f5cc0b2d0e516ebeb994dfb6334bbca841799b5eb555829ed8",
+      "game_slug": "wetrix",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/scottjco/Wetrix_Recomp",
     "name": "Wetrix (Wetrix Recompiled)",
     "summary": "A Windows port of Wetrix. Set it up with your original US Nintendo 64 game file.",

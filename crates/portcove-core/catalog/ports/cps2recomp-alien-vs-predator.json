@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-alien-vs-predator",
+    "artwork": {
+      "game_id": 13679,
+      "cover_id": 120224,
+      "image_id": "co2krk",
+      "image_sha256": "cbf8936cad25945fd10b997916370d33bc9c90cf1e9919b29c893eaeceaa1396",
+      "game_slug": "alien-vs-predator--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Alien vs. Predator (CPS-2 Recomp)",
     "summary": "Play Alien vs. Predator using your own matching arcade originals.",
     "original_game_title": "Alien vs. Predator",
