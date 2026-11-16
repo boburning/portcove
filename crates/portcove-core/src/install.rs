@@ -1473,16 +1473,19 @@ impl Installer {
             if let crate::package_shape::ShapeVerdict::Drifted { .. } = &shape.verdict
                 && crate::package_shape::enforcement_capability(port.adapter).is_some()
             {
-                return Err(PortcoveError::verification(format!(
-                    "{} {} is waiting for review because the package layout changed",
-                    port.name, request.release.version
-                ))
-                .with_known_cause(crate::failure::KnownFailureCause::PackageShapeDrift)
-                .detail("version", &request.release.version)
-                .detail("artifact_sha256", &artifact.sha256)
-                .detail(
-                    "package_shape_verdict",
-                    serde_json::to_string(&shape.verdict)?,
+                if let Err(error) = crate::package_shape::withheld::record(
+                    &self.library,
+                    port,
+                    platform,
+                    &request.release,
+                    &shape,
+                ) {
+                    tracing::warn!(%error, port_id = %port.id, "could not retain package shape refusal");
+                }
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &request.release,
+                    &shape.verdict,
                 ));
             }
             package_shape = Some(shape);
@@ -3882,7 +3885,7 @@ impl Installer {
     }
 
     /// The active installation's shape on the same platform and under the same derivation inputs.
-    fn local_shape_baseline(
+    pub(crate) fn local_shape_baseline(
         &self,
         port: &PortDefinition,
         platform: Platform,

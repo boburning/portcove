@@ -44,9 +44,8 @@ fn serve_archive(members: &[&str]) -> (crate::ReleaseAsset, std::thread::JoinHan
 }
 
 async fn install(installer: &Installer, library: &Library, version: &str, members: &[&str]) {
-    attempt_install(installer, library, version, members)
-        .await
-        .unwrap();
+    let (_, result) = attempt_install(installer, library, version, members).await;
+    result.unwrap();
 }
 
 async fn attempt_install(
@@ -54,18 +53,19 @@ async fn attempt_install(
     library: &Library,
     version: &str,
     members: &[&str],
-) -> Result<InstallRecord> {
+) -> (ResolvedRelease, Result<InstallRecord>) {
     let (asset, server) = serve_archive(members);
+    let release = ResolvedRelease {
+        version: version.into(),
+        channel: crate::ReleaseChannel::Stable,
+        published_at: None,
+        asset,
+        uploader_continuity: None,
+    };
     let request = InstallRequest {
         port_id: "sample".into(),
         output_root: library.versions_dir().join("sample"),
-        release: ResolvedRelease {
-            version: version.into(),
-            channel: crate::ReleaseChannel::Stable,
-            published_at: None,
-            asset,
-            uploader_continuity: None,
-        },
+        release: release.clone(),
         activate: true,
         managed: None,
         qualification: InstallQualification::test("sample-game.exe"),
@@ -74,7 +74,7 @@ async fn attempt_install(
         .install(request, &OperationCoordinator::new("install", None), |_| {})
         .await;
     server.join().unwrap();
-    result
+    (release, result)
 }
 
 fn recorded(installer: &Installer, version: &str) -> crate::package_shape::PackageShapeRecord {
@@ -145,14 +145,14 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
     assert_eq!(second.provenance, ShapeProvenance::Unreviewed);
 
     let active = install_record(&library, "v2");
-    let error = attempt_install(
+    let (release, result) = attempt_install(
         &installer,
         &library,
         "v3",
         &["sample-game.exe", "updater.exe", "data/level.dat"],
     )
-    .await
-    .unwrap_err();
+    .await;
+    let error = result.unwrap_err();
     assert!(matches!(
         error.known_cause(),
         Some(crate::failure::KnownFailureCause::PackageShapeDrift)
@@ -170,6 +170,14 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
         components,
         [ShapeComponent::Programs, ShapeComponent::ConfigFiles]
     );
+    let port = sample_definition();
+    let platform = Platform::WindowsX86_64;
+    let retained =
+        crate::package_shape::withheld::current(&library, &port, platform, &release, || {
+            installer.local_shape_baseline(&port, platform).unwrap()
+        })
+        .unwrap();
+    assert!(matches!(retained, Some(ShapeVerdict::Drifted { .. })));
     let shapes = installer.installed_package_shapes("sample").unwrap();
     assert_eq!(shapes.len(), 2);
     assert!(
