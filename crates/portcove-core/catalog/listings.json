@@ -21838,7 +21838,7 @@
           },
           {
             "title": "Choose the upstream Linux or Mac artifact",
-            "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D1X-Rebirth.AppImage on Linux x64 or D1X-Rebirth.app on Apple Silicon with macOS 14 or newer."
+            "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D1X-Rebirth.AppImage on Linux x64 or D1X-Rebirth.app on Apple Silicon with macOS 14 or newer. On Linux x64, make D1X-Rebirth.AppImage executable before selecting it and its containing folder in Portcove. If your host cannot mount the AppImage, add --appimage-extract-and-run as the first launch argument. Add -hogdir and the full original-data folder path as separate literal arguments."
           },
           {
             "title": "Point this engine at its own data",
@@ -21897,7 +21897,7 @@
           },
           {
             "title": "Choose the upstream Linux or Mac artifact",
-            "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D2X-Rebirth.AppImage on Linux x64 or D2X-Rebirth.app on Apple Silicon with macOS 14 or newer."
+            "instruction": "From a successful upstream DXX-Rebirth CI run, choose DXX-Rebirth-Linux-AppImage-x86_64 or DXX-Rebirth-MacOS14-arm64. Unpack the artifact and use D2X-Rebirth.AppImage on Linux x64 or D2X-Rebirth.app on Apple Silicon with macOS 14 or newer. On Linux x64, make D2X-Rebirth.AppImage executable before selecting it and its containing folder in Portcove. If your host cannot mount the AppImage, add --appimage-extract-and-run as the first launch argument. Add -hogdir and the full original-data folder path as separate literal arguments."
           },
           {
             "title": "Point this engine at its own data",
