@@ -2767,6 +2767,11 @@ export interface UserPreparedRuntimeSpec {
  */
 export interface ReviewedPackageLayout {
   /**
+   * Classify Linux executable-mode files by content: only files starting
+   * with an ELF or `#!` header count, and verified ELF shared libraries do not.
+   */
+  classify_linux_programs_by_format?: boolean;
+  /**
    * Lowercase top-level directory names of the package root, sorted.
    */
   directories: string[];

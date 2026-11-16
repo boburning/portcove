@@ -7236,6 +7236,10 @@
         "additionalProperties": false,
         "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
+          "classify_linux_programs_by_format": {
+            "description": "Classify Linux executable-mode files by content: only files starting\nwith an ELF or `#!` header count, and verified ELF shared libraries do not.",
+            "type": "boolean"
+          },
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
             "items": {
@@ -35500,6 +35504,10 @@
         "additionalProperties": false,
         "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
+          "classify_linux_programs_by_format": {
+            "description": "Classify Linux executable-mode files by content: only files starting\nwith an ELF or `#!` header count, and verified ELF shared libraries do not.",
+            "type": "boolean"
+          },
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
             "items": {
@@ -51567,6 +51575,10 @@
         "additionalProperties": false,
         "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
+          "classify_linux_programs_by_format": {
+            "description": "Classify Linux executable-mode files by content: only files starting\nwith an ELF or `#!` header count, and verified ELF shared libraries do not.",
+            "type": "boolean"
+          },
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
             "items": {
