@@ -508,14 +508,19 @@ describe("source intake dialog", () => {
     },
   );
 
-  it.each(["game", "bios", "changed BIOS", "store originals"])(
+  it.each(["game", "bios", "changed BIOS", "store originals", "GOG originals"])(
     "checks the selected App setup handoff for %s",
     async (scenario) => {
       const installedSources: SourceRecord[] = [];
       const first = scenario === "bios" ? "bios" : "game";
       const replaceBios = scenario === "changed BIOS";
-      const fromStore = scenario === "store originals";
-      const folder = "D:/Steam/steamapps/common/Dark Forces/Game";
+      const fromGog = scenario === "GOG originals";
+      const fromStore = scenario === "store originals" || fromGog;
+      const store = fromGog ? "gog" : "steam";
+      const storeRoot = fromGog
+        ? "D:/GOG Games/Dark Forces"
+        : "D:/Steam/steamapps/common/Dark Forces";
+      const folder = fromGog ? storeRoot : `${storeRoot}/Game`;
       const input = fromStore
         ? { ...profile, id: "dark-forces-pc-complete-installed-data", kind: "file-set" as const }
         : profile;
@@ -524,16 +529,16 @@ describe("source intake dialog", () => {
         .mockImplementation(async ({ id }) => `D:/${id}.z64`);
       if (fromStore) {
         vi.spyOn(desktopApi, "storeGameInstalls").mockResolvedValue({
-          checked_stores: ["steam"],
+          checked_stores: [store],
           skipped_entries: 0,
           limited: false,
           installs: [
             {
-              store: "steam",
-              product_id: "32400",
+              store,
+              product_id: fromGog ? "1421404433" : "32400",
               title: "Dark Forces",
               saved_root_id: null,
-              path: "D:/Steam/steamapps/common/Dark Forces",
+              path: storeRoot,
               original_folder: { path: folder, profile_id: input.id },
             },
           ],
@@ -658,7 +663,7 @@ describe("source intake dialog", () => {
           id === "bios"
             ? "Choose BIOS file to check"
             : fromStore
-              ? "Check Dark Forces files from Steam"
+              ? `Check Dark Forces files from ${fromGog ? "GOG" : "Steam"}`
               : "Choose game files to check";
         await page.getByRole("button", { name: label, exact: true }).click();
         await page.getByRole("button", { name: "Use current location", exact: true }).click();

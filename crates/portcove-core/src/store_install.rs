@@ -566,12 +566,13 @@ fn original_folder(
     product_id: Option<&str>,
     install_path: &Path,
 ) -> Option<StoreOriginalFolder> {
-    // The Force Engine's reviewed upstream lookup distinguishes the 1995
-    // Steam original (32400 / Game) from the remaster (2292260).
-    if store != GameStore::Steam || product_id != Some("32400") {
-        return None;
-    }
-    let directory = install_path.join("Game");
+    // The Force Engine identifies the classic edition by product and uses
+    // Steam's Game subfolder or the GOG registry install root.
+    let directory = match (store, product_id) {
+        (GameStore::Steam, Some("32400")) => install_path.join("Game"),
+        (GameStore::Gog, Some("1421404433")) => install_path.to_path_buf(),
+        _ => return None,
+    };
     crate::path::refuse_symlink_ancestors(&directory).ok()?;
     let install = existing_folder(install_path)?;
     let path = existing_folder(&directory)?;
