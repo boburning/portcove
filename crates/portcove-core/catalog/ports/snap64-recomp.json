@@ -48,11 +48,11 @@
         },
         {
           "title": "Keep the Android game folder",
-          "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you use the app’s own folder, keep an accessible backup before uninstalling or clearing app data. To move to the shared folder later, enable All files access or the storage permission for Snap64 Recomp, then open the game. It copies your private files without replacing existing files in Snap64. Check the shared saves before clearing the private folder. Install updates over the copy signed by the same upstream key."
+          "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you use the app’s own folder, keep an accessible backup before uninstalling or clearing app data. To move to the shared folder later, enable All files access or the storage permission for Snap64 Recomp, then open the game. It copies missing game files and keeps existing files in Snap64. Check the shared saves before clearing the private folder. Install updates over the copy signed by the same upstream key."
         },
         {
           "title": "Set up the game on Steam Deck",
-          "instruction": "Use the official Linux x64 tarball or Flatpak and follow the project’s Steam Deck guide to add it from Desktop Mode. The publisher tested both 1.1.8 packages on a Steam Deck OLED in Desktop Mode. The separate Gaming Mode gyro observations still include intermittent slow aim. Follow the guide’s controller settings for the gyro mode you choose."
+          "instruction": "Use the official Linux x64 tarball or Flatpak and follow the project’s Steam Deck guide to add it from Desktop Mode. The publisher tested both 1.1.8 packages on a Steam Deck OLED in Desktop Mode. Earlier builds with the 1.1.7 Deck fixes also ran in Gaming Mode, where gyro aim sometimes felt slow. Follow the guide’s controller settings for the gyro mode you choose."
         }
       ]
     }
