@@ -458,8 +458,8 @@ impl PortcoveService {
                     holds.push("the exact runtime build is not installed".to_owned());
                     RecipeInputPlan {
                         name: "runtime".into(),
-                        status: RecipeInputStatus::Acquirable,
-                        detail: "install the runtime through the ordinary setup path".into(),
+                        status: RecipeInputStatus::Unavailable,
+                        detail: "the recipe names an exact runtime and this library could not verify it. Locate that exact build before reviewing the import again".into(),
                     }
                 }
             }
@@ -559,13 +559,13 @@ impl PortcoveService {
                     )
                 } else if let Some((label, project, file)) = plannable {
                     holds.push(format!(
-                        "package {} must be acquired first",
+                        "package {} needs its exact bytes before import",
                         package.native_id
                     ));
                     (
-                        RecipeInputStatus::Acquirable,
+                        RecipeInputStatus::Unavailable,
                         format!(
-                            "review {label} project {project}, file {file} with `profile provider-plan`; the new profile keeps the recipe's label only if this library records exactly that label for those bytes"
+                            "availability has not been verified for the recipe's exact bytes. Review {label} project {project}, file {file} with `profile provider-plan` and compare its package digests with the recipe"
                         ),
                     )
                 } else if package.provider.is_some() {
