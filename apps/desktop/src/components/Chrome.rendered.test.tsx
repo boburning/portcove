@@ -348,9 +348,8 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain(
-      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
-    );
+    expect(html).toContain("Portcove couldn’t find Future tool.");
+    expect(html).toContain("Official downloads for installation options.");
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
     expect(html).toContain("Official downloads");
