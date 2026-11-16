@@ -17,7 +17,7 @@
       "steps": [
         {
           "title": "Choose the game client for your computer",
-          "instruction": "On Windows, run the official 32-bit client installer. On Linux, choose the AppImage for your processor, make it executable, and start it. If FUSE is unavailable, try starting it with --appimage-extract-and-run. You can also install the Flathub edition through your app manager. On Intel Mac, mount the official disk image and copy the complete Armagetron Advanced.app into Applications. The download page has a separate section for dedicated servers."
+          "instruction": "On Windows, run the official 32-bit client installer. The stable Launchpad release also offers a 32-bit client ZIP. Extract it completely and run armagetronad.exe from that folder. On Linux, choose the x64 or x86 AppImage, make it executable, and start it. If FUSE is unavailable, try starting it with --appimage-extract-and-run. You can also install the Flathub edition through your app manager. On Intel Mac, follow the publisher’s current macOS requirements, mount the official disk image and copy the complete Armagetron Advanced.app into Applications. The download page has a separate section for dedicated servers."
         },
         {
           "title": "Set up your rider and try a local game",
@@ -25,7 +25,7 @@
         },
         {
           "title": "Keep your profile before switching packages",
-          "instruction": "Close the game and copy the folder containing your profile, including var/user.cfg and any custom maps or resources. The Linux AppImage uses ~/.armagetronad by default. If your installation uses a different data folder, keep that folder as well. Update or remove the game through the installer, package manager, or files you selected."
+          "instruction": "Close the game and copy the folder containing your profile, including var/user.cfg and any custom maps or resources. Check %APPDATA%/Armagetron on Windows, ~/.armagetronad for the Linux AppImage, or ~/Library/Application Support/Armagetron Advanced on Mac. If your build uses a different location, keep that profile folder instead. To restore settings for the same release, close the client and copy your backup into the profile location it uses. Keep the backup until you verify the settings."
         }
       ],
       "warnings": [],
