@@ -1910,8 +1910,10 @@ Not assessed:
 - `DOTNET_ROLL_FORWARD` and `DOTNET_ROOT`;
 - delay-loaded and dynamically loaded DLLs.
 
-The report is advisory: it never blocks launch, and Portcove neither downloads
-nor runs Microsoft installers.
+The report is advisory and leaves launch available. For a recognized Visual C++
+v14 architecture, `download_page` identifies Microsoft's matching installer.
+The player opens the link and runs the installer in Windows, then uses Recheck
+from the same installation in Desktop.
 
 ### Review and recover preparation
 
