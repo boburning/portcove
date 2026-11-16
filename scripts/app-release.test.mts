@@ -996,7 +996,7 @@ type WorkflowJob = {
   secrets?: string | Record<string, string>;
   with?: Record<string, unknown>;
   env?: Record<string, unknown>;
-  environment?: string | { name?: string; url?: string };
+  environment?: string | { name?: string; url?: string; deployment?: boolean };
   permissions?: Record<string, string>;
   steps?: WorkflowStep[];
 };
@@ -1065,7 +1065,10 @@ void test("release workflows keep the signing key behind owner tags and main", a
   // The shared jobs check their inputs before the signing step runs.
   assert.deepEqual(Object.keys(build.on), ["workflow_call"]);
   const buildSteps = build.jobs.build!.steps!;
-  assert.equal(build.jobs.build!.environment, "${{ inputs.environment }}");
+  assert.deepEqual(build.jobs.build!.environment, {
+    name: "${{ inputs.environment }}",
+    deployment: false,
+  });
   const verify = buildSteps.findIndex((step) =>
     step.run?.includes("app-release.mts verify-inputs"),
   );
