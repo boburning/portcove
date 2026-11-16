@@ -12,7 +12,7 @@
 //! publishes, registers or activates anything.
 use std::{
     fs::{self, File, OpenOptions},
-    io::{Seek, SeekFrom},
+    io::{Read, Seek, SeekFrom, Write},
     path::{Path, PathBuf},
     time::{Duration, SystemTime},
 };
@@ -370,18 +370,36 @@ impl Lease {
     }
 
     /// Moves the complete bytes to `destination` and removes the entry.
-    pub(crate) fn finish(mut self, destination: &Path) -> Result<()> {
+    pub(crate) fn finish(
+        mut self,
+        destination: &Path,
+        checkpoint: impl Fn() -> Result<()>,
+        validate_destination: impl Fn() -> Result<()>,
+    ) -> Result<()> {
         {
             let _index = lock_index(&self.root)?;
+            checkpoint()?;
+            validate_destination()?;
             let _ = fs::remove_file(&self.record);
-            if fs::rename(&self.part, destination).is_ok() {
+            if crate::durability::rename_noreplace(&self.part, destination).is_ok() {
                 return Ok(());
             }
         }
         // A different volume still needs a copy. Keep the part locked but
         // leave the index available to other assets during that transfer.
         self.file.rewind()?;
-        std::io::copy(&mut self.file, &mut File::create(destination)?)?;
+        checkpoint()?;
+        validate_destination()?;
+        let mut output = File::create_new(destination)?;
+        let mut buffer = [0_u8; 128 * 1024];
+        loop {
+            checkpoint()?;
+            let count = self.file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            output.write_all(&buffer[..count])?;
+        }
         let _index = lock_index(&self.root)?;
         fs::remove_file(&self.part)?;
         Ok(())
