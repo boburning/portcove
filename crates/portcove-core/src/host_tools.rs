@@ -111,9 +111,14 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             supported_platforms: all,
             probe: HostToolProbePolicy {
                 arguments: vec!["--help".into()],
-                accepted_exit_codes: vec![0],
-                expected_output: "DolphinTool".into(),
-                required_output_markers: vec!["convert".into(), "verify".into()],
+                // DolphinTool prints its command list and exits 1 for top-level help.
+                accepted_exit_codes: vec![0, 1],
+                expected_output: "usage: dolphin-tool".into(),
+                required_output_markers: vec![
+                    "commands supported:".into(),
+                    "convert".into(),
+                    "verify".into(),
+                ],
                 timeout_millis: 5_000,
                 max_output_bytes: 64 * 1024,
             },
@@ -1126,6 +1131,11 @@ mod tests {
             probe_definition(&definition("chdman").unwrap(), &helper, || {}).state,
             HostToolProbeState::Success,
             "chdman's complete help is valid even though the tool exits 1"
+        );
+        assert_eq!(
+            probe_definition(&definition("dolphin_tool").unwrap(), &helper, || {}).state,
+            HostToolProbeState::Success,
+            "DolphinTool's complete command list is valid even though the tool exits 1"
         );
         for (argument, expected) in [
             ("--success", HostToolProbeState::Success),

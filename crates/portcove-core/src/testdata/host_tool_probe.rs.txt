@@ -125,6 +125,10 @@ fn main() {
             println!("chdman verify extractdvd");
             std::process::exit(1);
         }
+        Some("--help") => {
+            eprintln!("usage: dolphin-tool COMMAND -h\n\ncommands supported: [convert, verify, header, extract]");
+            std::process::exit(1);
+        }
         Some("--success") => println!("testtool verify convert"),
         Some("--nonzero") => std::process::exit(7),
         Some("--sleep") => {
