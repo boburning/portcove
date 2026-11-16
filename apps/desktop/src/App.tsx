@@ -1902,21 +1902,21 @@ function SelectedPortPanel({
     : undefined;
   const port = model.port;
   const status = model.status;
+  const managedSetup =
+    status &&
+    !status.active &&
+    !status.external_runtime &&
+    status.port_actions?.some(
+      (action) =>
+        action.action === "install" &&
+        (action.availability === "allowed" || action.availability === "waiting"),
+    );
   const inspectSource = (
     profile: NonNullable<typeof model.sourceProfile>,
     storeOriginals?: NonNullable<Parameters<typeof openSourceIntake>[3]>["storeOriginals"],
   ) => {
     const isBios = profile.id === port.bios_source_profile;
     const path = isBios ? ui.biosPath : ui.sourcePath;
-    const managedSetup =
-      status &&
-      !status.active &&
-      !status.external_runtime &&
-      status.port_actions?.some(
-        (action) =>
-          action.action === "install" &&
-          (action.availability === "allowed" || action.availability === "waiting"),
-      );
     openSourceIntake(
       port.id,
       profile.id,
@@ -1928,7 +1928,7 @@ function SelectedPortPanel({
   };
   const originalProfile = model.sourceProfile;
   const chooseSetupSource =
-    originalProfile?.kind === "file-set" && !ui.sourcePath.trim()
+    managedSetup && originalProfile?.kind === "file-set" && !ui.sourcePath.trim()
       ? async () => {
           const requests = storeSetupRequests.current;
           const request = requests.begin();
