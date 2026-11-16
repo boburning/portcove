@@ -30,6 +30,23 @@ never becomes a second copy of it.
 Reporting code never infers capability, compatibility or eligibility from issue
 closure, titles or tags. Those rules stay in Core.
 
+### Discovery executor checkpoints
+
+The hosted intake executor uses migration `0005` with its own PostgreSQL login
+in `portcove_maintenance_executor`, provided to the main-branch workflow as
+`PORTCOVE_DISCOVERY_DATABASE_URL`. The existing maintenance migration job applies
+the schema. Configure the login after that migration. The executor checks the
+active store and advances each batch by exact request hash, previous receipt and
+revision. GitHub comments remain the portable public receipts.
+
+The deployment activation row is local to the database being used for writes.
+Portable restore verifies the backup, applies pending migrations and clears
+discovery activation. Before reactivating a replacement or restored store,
+reconcile the retained candidate and receipt bindings against GitHub, including
+unconfirmed writes. The schema owner can then set the singleton
+`portcove_maintenance_meta.discovery_intake_activation.active` to true. An
+executor login has read-only access to that flag.
+
 ## Canonical identities
 
 `subject_key` is `<kind>:<identity>` using an existing canonical identity:
@@ -208,7 +225,7 @@ migration and every restore. It defines three `NOLOGIN` group roles:
 | Role                             | May write                                                                            |
 | -------------------------------- | ------------------------------------------------------------------------------------ |
 | `portcove_maintenance_collector` | Runs, observations, assessments, transitions, reconsiderations and new notifications |
-| `portcove_maintenance_executor`  | Operations and notification delivery state                                           |
+| `portcove_maintenance_executor`  | Operations, intake checkpoints and notification delivery state                       |
 | `portcove_maintenance_report`    | Nothing; read-only                                                                   |
 
 All three can read. None owns or alters the schema. Operators grant membership

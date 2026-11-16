@@ -20,6 +20,7 @@ import {
 import { portFieldInitialization, validateConfig } from "./roadmap.mts";
 import { DiscoveryRepositoryUnavailable } from "./daily-discovery-sources.mts";
 import { GitHubApiError } from "./github-operation.mts";
+import type { HostedIntakeCheckpointStore } from "./hosted-discovery-intake-checkpoint.mts";
 import { sdkRoadmap } from "./fixtures/roadmap-fixtures.mts";
 import { fixtureGitHub } from "./fixtures/github-sdk-fixtures.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -141,7 +142,11 @@ void test("real Project field writes use the complete API schema without CLI com
     },
   ]);
 });
-async function fixture(candidates = [candidate]) {
+async function fixture(
+  candidates = [candidate],
+  schemaVersion = 1,
+  checkpoints?: HostedIntakeCheckpointStore,
+) {
   const comments = new Map<
     number,
     { id: number; body: string; user: { login: string }; issue_url: string }
@@ -149,7 +154,7 @@ async function fixture(candidates = [candidate]) {
   const issueUrl = "https://api.github.com/repos/boburning/portcove/issues/177";
   const request = {
     id: 100,
-    body: encode({ ...proposal, candidates }),
+    body: encode({ ...proposal, schema_version: schemaVersion, candidates }),
     user: { login: "boburning" },
     issue_url: issueUrl,
   };
@@ -321,6 +326,9 @@ async function fixture(candidates = [candidate]) {
       observed_at: undefined,
     }),
     () => {},
+    undefined,
+    undefined,
+    checkpoints ? { checkpoints: () => checkpoints } : undefined,
   );
   client.completeProjectContext = async () => ({
     number: config.project.number,
@@ -505,8 +513,8 @@ void test("an existing canonical implementation is retained while unrelated new 
   assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
   assert.equal(f.comments.size, before);
 });
-async function existingOwnerFixture(candidates = [candidate]) {
-  const f = await fixture(candidates);
+async function existingOwnerFixture(candidates = [candidate], schemaVersion = 1) {
+  const f = await fixture(candidates, schemaVersion);
   const body = hostedBody({ ...candidate, port_key: "existing-key" }, 99);
   f.issues.push({
     id: "I150",
@@ -2058,4 +2066,141 @@ void test("a queue beyond the absolute ceiling fails before reading its pages", 
     /exceeded its budget/u,
   );
   assert.equal(budget.used, 1);
+});
+
+void test("explicit observations match exactly one immutable owner and never create on a mismatch", async () => {
+  const observation = {
+    ...candidate,
+    port_key: "existing-key",
+    intent: { kind: "observe-existing", issue: 150 },
+  };
+  const independent = {
+    ...candidate,
+    title: "Independent game",
+    game: "Independent game",
+    upstream: "https://github.com/example/independent",
+    repository_id: candidate.repository_id + 1,
+    port_key: "independent",
+    intent: { kind: "create" },
+  };
+  const f = await existingOwnerFixture([observation], 2);
+  f.issues[0]!.state = "CLOSED";
+  f.fields.Status = "Done";
+  const verified = await f.bridge.process(f.request, f.all());
+  assert.equal(f.creations, 0);
+  assert.equal(verified.delivery[0]?.status, "existing");
+  assert.equal(verified.delivery[0]?.canonical_issue, 150);
+  assert.equal(verified.delivery[0]?.item_id, "PVTI150");
+
+  const held = await existingOwnerFixture([observation, independent], 2);
+  held.issues[0]!.body = held.issues[0]!.body.replace(String(candidate.repository_id), "9001");
+  const result = await held.bridge.process(held.request, held.all());
+  assert.equal(result.status, "complete_with_holds");
+  assert.equal(held.creations, 1);
+  assert.equal(result.delivery[0]?.hold?.http_status, null);
+  assert.equal(result.delivery[0]?.created_comment, undefined);
+  assert.equal(result.delivery[1]?.status, "delivered");
+
+  const createExisting = { ...candidate, port_key: "existing-key", intent: { kind: "create" } };
+  const mustCreate = await existingOwnerFixture([createExisting], 2);
+  assert.equal(
+    (await mustCreate.bridge.process(mustCreate.request, mustCreate.all())).status,
+    "complete_with_holds",
+  );
+  assert.equal(mustCreate.creations, 0);
+  assert.equal(
+    [...mustCreate.comments.values()].some((c) => c.issue_url.endsWith("/150")),
+    false,
+  );
+});
+
+void test("an audit interruption preserves delivered candidates across upstream and unrelated Roadmap changes", async () => {
+  const candidates = Array.from({ length: 18 }, (_, i) => ({
+    ...candidate,
+    title: `Intake game ${i}`,
+    game: `Intake game ${i}`,
+    upstream: `${candidate.upstream}-${i}`,
+    repository_id: candidate.repository_id + i,
+    port_key: `intake-game-${i}`,
+    intent: { kind: "create" },
+  }));
+  let retained: ReturnType<HostedIntakeCheckpointStore["load"]> = null;
+  const store: HostedIntakeCheckpointStore = {
+    load: () => structuredClone(retained),
+    save(_id, hash, revision, body, previous, slots) {
+      assert.equal(revision, retained?.revision ?? 0);
+      assert.equal(previous?.body, retained?.receipt_body);
+      retained = {
+        revision: revision + 1,
+        request_sha256: hash,
+        receipt_body: body,
+        previous_receipt_sha256: previous?.hash ?? null,
+        candidates: structuredClone([...slots]),
+      };
+      return revision + 1;
+    },
+  };
+  const f = await fixture(candidates, 2, store);
+  const inventory = f.bridge.inventory.bind(f.bridge);
+  f.bridge.inventory = async (cache, full) => {
+    if (full) throw new GitHubApiError("inventory_changed", "Unrelated Roadmap edit");
+    return await inventory(cache, full);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Unrelated Roadmap edit/u);
+  assert.equal(f.creations, candidates.length);
+  const status = await f.bridge.status(f.request, f.all());
+  assert.equal(status.audit_pending, true);
+  const writes = f.writes;
+
+  f.changePrimary();
+  f.bridge.primary = async () => {
+    throw new Error("Audit must not reread upstream");
+  };
+  f.bridge.inventory = async (cache, full) => {
+    assert.equal(cache, undefined);
+    assert.equal(full, true);
+    return await inventory(cache, full);
+  };
+  let audits = 0;
+  f.bridge.auditRoadmap = async (_config, client, options) => {
+    assert(options?.inventory);
+    assert.equal(client, f.client);
+    const full = requireRoadmapInventory(options.inventory, config.repository, f.client);
+    audits++;
+    const { details, fields } = await f.client.completeProjectContext();
+    return {
+      number: config.project.number,
+      details,
+      fields,
+      views: [],
+      repositoryIssues: full.issues,
+      items: full.items,
+      diagnostics: [],
+      warnings: [],
+      inventory: full,
+      repositoryIssueInventoryAttempts: undefined,
+      projectInventorySource: "discovery-inventory",
+    };
+  };
+  // Lose the response after the exact final receipt was persisted in PostgreSQL.
+  const publish = f.bridge.persist.bind(f.bridge);
+  f.bridge.persist = async (...args) => {
+    if (args[0].status === "complete") throw new Error("Worker interrupted before projection");
+    return await publish(...args);
+  };
+  await assert.rejects(f.bridge.process(f.request, f.all()), /Worker interrupted/u);
+  f.bridge.persist = publish;
+  f.bridge.inventory = async () => {
+    throw new Error("Already verified audit must not repeat");
+  };
+  const completed = await f.bridge.process(f.request, f.all());
+  assert.equal(completed.status, "complete");
+  assert.equal(audits, 1);
+  assert.equal(f.creations, candidates.length);
+  assert.equal(f.writes, writes);
+  assert.equal((await f.bridge.status(f.request, f.all())).status, "complete");
+  assert.deepEqual(
+    completed.delivery.map((d) => d.created_issue),
+    f.issues.map((issue) => issue.number),
+  );
 });
