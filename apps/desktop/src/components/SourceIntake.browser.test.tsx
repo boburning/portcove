@@ -388,12 +388,157 @@ describe("source intake dialog", () => {
     expect(imported).toHaveBeenCalledOnce();
   });
 
-  it.each(["game", "bios", "changed BIOS"])(
+  it.each(["matched originals", "no match", "newer BIOS check"] as const)(
+    "scopes the setup store lookup to the current action for %s",
+    async (scenario) => {
+      const folder = "D:/Steam/steamapps/common/Classic/Game";
+      const selectedProfile = {
+        ...profile,
+        id: "dark-forces-pc-complete-installed-data",
+        kind: "file-set" as const,
+      };
+      const newCheck = scenario === "newer BIOS check";
+      const noMatch = scenario === "no match";
+      const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
+      const storeReport = {
+        checked_stores: ["steam"],
+        skipped_entries: 0,
+        limited: false,
+        installs: [
+          {
+            store: "steam",
+            title: "Dark Forces",
+            path: "D:/Steam/steamapps/common/Classic",
+            saved_root_id: null,
+            product_id: "32400",
+            original_folder: { profile_id: selectedProfile.id, path: folder },
+          },
+          {
+            store: "steam",
+            title: "Dark Forces Remaster",
+            path: "D:/Steam/steamapps/common/Remaster",
+            saved_root_id: null,
+            product_id: "2292260",
+          },
+        ],
+      } satisfies Awaited<ReturnType<typeof desktopApi.storeGameInstalls>>;
+      const pending = deferred<typeof storeReport>();
+      const lookup = vi.spyOn(desktopApi, "storeGameInstalls").mockImplementation(() => {
+        if (newCheck) return pending.promise;
+        return Promise.resolve(
+          noMatch ? { ...storeReport, installs: storeReport.installs.slice(1) } : storeReport,
+        );
+      });
+      const check = vi.spyOn(desktopApi, "inspectSourceIntake").mockResolvedValue({
+        schema_version: 1,
+        profile_id: selectedProfile.id,
+        input_count: 1,
+        state_code: "unrecognized_edition",
+        summary: "The stored folder lacks the required original files.",
+        next_action: "Choose a compatible copy.",
+      });
+      const pickerOpen = vi.spyOn(picker, "pickSourcePath").mockResolvedValue(null);
+      const save = vi.spyOn(desktopApi, "importSource");
+      const transport = installInteractiveTransport("setup", (message) => {
+        throw new Error(message);
+      });
+      vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
+        const snapshot = workspace("setup");
+        const target = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
+        target.source_profile = selectedProfile.id;
+        target.bios_source_profile = newCheck ? bios.id : null;
+        snapshot.catalog.source_profiles = newCheck ? [selectedProfile, bios] : [selectedProfile];
+        const status = snapshot.statuses.find((entry) => entry.port_id === target.id)!;
+        status.active = null;
+        status.staged = null;
+        status.readiness = {
+          launchable: false,
+          pending_setup: false,
+          blockers: ["missing_source"],
+        };
+        status.port_actions = [
+          { action: "install", availability: "waiting", reason: "missing_source" },
+        ];
+        return snapshot;
+      });
+      try {
+        localStorage.clear();
+        initializeLocalization(["en"]);
+        await root.rerender(
+          <LocalizationProvider api={desktopApi}>
+            <App />
+          </LocalizationProvider>,
+        );
+        await page.getByRole("button", { name: "Discover", exact: true }).click();
+        await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
+        await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
+        const installation = page.getByRole("region", { name: "Game actions", exact: true });
+        await installation
+          .getByRole("button", {
+            name: newCheck ? "Choose game files and BIOS" : "Choose game files",
+            exact: true,
+          })
+          .click();
+        expect(lookup).toHaveBeenCalledTimes(1);
+        if (newCheck) {
+          await page.getByRole("tab", { name: "Game files", exact: true }).click();
+          await page.getByRole("button", { name: "Check required BIOS", exact: true }).click();
+          await act(async () => pending.resolve(storeReport));
+        } else if (!noMatch) {
+          await page
+            .getByRole("button", { name: "Check Dark Forces files from Steam", exact: true })
+            .click();
+        }
+        const outcome = newCheck
+          ? page.getByRole("dialog", { name: "Check BIOS for Orchard Quest" })
+          : noMatch
+            ? installation.getByRole("button", { name: "Choose game files", exact: true })
+            : page.getByText("The stored folder lacks the required original files.");
+        await expect.element(outcome).toBeVisible();
+        await expect.poll(() => pickerOpen.mock.calls.length).toBe(noMatch ? 1 : 0);
+        expect(check.mock.calls).toEqual(
+          newCheck || noMatch ? [] : [[selectedProfile.id, [folder]]],
+        );
+        expect(save).not.toHaveBeenCalled();
+      } finally {
+        await root.rerender(null);
+        transport.dispose();
+        localStorage.clear();
+      }
+    },
+  );
+
+  it.each(["game", "bios", "changed BIOS", "store originals"])(
     "checks the selected App setup handoff for %s",
     async (scenario) => {
       const installedSources: SourceRecord[] = [];
       const first = scenario === "bios" ? "bios" : "game";
       const replaceBios = scenario === "changed BIOS";
+      const fromStore = scenario === "store originals";
+      const folder = "D:/Steam/steamapps/common/Dark Forces/Game";
+      const input = fromStore
+        ? { ...profile, id: "dark-forces-pc-complete-installed-data", kind: "file-set" as const }
+        : profile;
+      const pickerOpen = vi
+        .spyOn(picker, "pickSourcePath")
+        .mockImplementation(async ({ id }) => `D:/${id}.z64`);
+      if (fromStore) {
+        vi.spyOn(desktopApi, "storeGameInstalls").mockResolvedValue({
+          checked_stores: ["steam"],
+          skipped_entries: 0,
+          limited: false,
+          installs: [
+            {
+              store: "steam",
+              product_id: "32400",
+              title: "Dark Forces",
+              saved_root_id: null,
+              path: "D:/Steam/steamapps/common/Dark Forces",
+              original_folder: { path: folder, profile_id: input.id },
+            },
+          ],
+        });
+      }
       const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
       const transport = installInteractiveTransport("setup", (message) => {
         throw new Error(message);
@@ -403,12 +548,16 @@ describe("source intake dialog", () => {
       vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
         const snapshot = workspace("setup");
         const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
-        port.source_profile = profile.id;
-        port.bios_source_profile = bios.id;
-        snapshot.catalog.source_profiles = [profile, bios];
+        port.source_profile = input.id;
+        port.bios_source_profile = fromStore ? null : bios.id;
+        snapshot.catalog.source_profiles = fromStore ? [input] : [input, bios];
         snapshot.sources = [...installedSources];
         const has = (id: string) => installedSources.some((source) => source.profile_id === id);
-        const reason = !has(profile.id) ? "missing_source" : !has(bios.id) ? "missing_bios" : null;
+        const reason = !has(input.id)
+          ? "missing_source"
+          : !fromStore && !has(bios.id)
+            ? "missing_bios"
+            : null;
         const status = snapshot.statuses.find((status) => status.port_id === port.id)!;
         status.active = null;
         status.staged = null;
@@ -426,7 +575,6 @@ describe("source intake dialog", () => {
         ];
         return snapshot;
       });
-      vi.spyOn(picker, "pickSourcePath").mockImplementation(async ({ id }) => `D:/${id}.z64`);
       vi.spyOn(desktopApi, "inspectSourceIntake").mockImplementation(async (id, paths) => ({
         ...intake(paths[0]!),
         profile_id: id,
@@ -464,9 +612,9 @@ describe("source intake dialog", () => {
           };
         });
       const reuse = vi.spyOn(desktopApi, "reviewSourceReuse").mockImplementation(async () => ({
-        registration: installedSources.find((source) => source.profile_id === profile.id)!,
-        inspection: report("D:/game.z64"),
-        reference: { profile_id: profile.id, reference_sha256: "d".repeat(64) },
+        registration: installedSources.find((source) => source.profile_id === input.id)!,
+        inspection: { ...report(fromStore ? folder : "D:/game.z64"), profile_id: input.id },
+        reference: { profile_id: input.id, reference_sha256: "d".repeat(64) },
         applications: [],
       }));
       const review = vi.spyOn(desktopApi, "plan").mockResolvedValue({
@@ -506,12 +654,13 @@ describe("source intake dialog", () => {
       const install = vi.spyOn(desktopApi, "install");
       const launch = vi.spyOn(desktopApi, "launch");
       const register = async (id: string) => {
-        await page
-          .getByRole("button", {
-            name: id === "game" ? "Choose game files to check" : "Choose BIOS file to check",
-            exact: true,
-          })
-          .click();
+        const label =
+          id === "bios"
+            ? "Choose BIOS file to check"
+            : fromStore
+              ? "Check Dark Forces files from Steam"
+              : "Choose game files to check";
+        await page.getByRole("button", { name: label, exact: true }).click();
         await page.getByRole("button", { name: "Use current location", exact: true }).click();
         await page.getByRole("button", { name: "Use current location", exact: true }).click();
         await page.getByRole("button", { name: "Continue setup", exact: true }).click();
@@ -527,23 +676,36 @@ describe("source intake dialog", () => {
         await page.getByRole("button", { name: "Discover", exact: true }).click();
         await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
         await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
-        await page.getByRole("tab", { name: "Game files", exact: true }).click();
-        await page
-          .getByRole("button", {
-            name: first === "game" ? "Check game files" : "Check required BIOS",
-            exact: true,
-          })
-          .click();
+        if (fromStore) {
+          await page
+            .getByRole("region", { name: "Game actions", exact: true })
+            .getByRole("button", { name: "Choose game files", exact: true })
+            .click();
+        } else {
+          await page.getByRole("tab", { name: "Game files", exact: true }).click();
+          await page
+            .getByRole("button", {
+              name: first === "game" ? "Check game files" : "Check required BIOS",
+              exact: true,
+            })
+            .click();
+        }
         await register(first);
-        expect(review).not.toHaveBeenCalled();
-        if (!replaceBios) await register(first === "game" ? "bios" : "game");
+        const reviewsBeforeRemainingInput = fromStore ? null : review.mock.calls.length;
+        const next = first === "game" ? "bios" : "game";
+        if (!fromStore && !replaceBios) await register(next);
         const outcome = replaceBios
           ? page.getByText("The saved files have changed.", { exact: false })
           : page.getByRole("dialog", { name: "Review installation", exact: true });
         await expect.element(outcome).toBeVisible();
+        expect(reviewsBeforeRemainingInput).toBe(fromStore ? null : 0);
         expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
-        expect(save).toHaveBeenCalledTimes(replaceBios ? 1 : 2);
-        expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[profile.id, 1]]);
+        expect(save).toHaveBeenCalledTimes(replaceBios || fromStore ? 1 : 2);
+        expect(save.mock.calls[0]?.slice(0, 2)).toEqual(
+          fromStore ? [input.id, folder] : [first, `D:/${first}.z64`],
+        );
+        expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[input.id, 1]]);
+        expect(pickerOpen).toHaveBeenCalledTimes(fromStore ? 0 : replaceBios ? 1 : 2);
         expect(install).not.toHaveBeenCalled();
         expect(launch).not.toHaveBeenCalled();
       } finally {

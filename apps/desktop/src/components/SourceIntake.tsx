@@ -11,6 +11,7 @@ import type {
   SourceProfile,
   SourceRecord,
   ReleaseChannel,
+  StoreGameInstalls,
 } from "../types";
 import { errorText, isCancellation } from "../view-model";
 import { SourceIdentityPanel } from "./SourceIdentity";
@@ -21,6 +22,7 @@ import {
   sourceImportRefreshNotice,
 } from "./SourceDiscovery";
 import { HostToolRow, type HostToolActions } from "./Chrome";
+import { storeLabel } from "./StoreInstallChoices";
 import { Icon, NavigationHints } from "./ui";
 import { Button } from "./ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogTitle } from "./ui/dialog";
@@ -35,6 +37,7 @@ export interface SourceIntakeRequest {
   setup?: {
     channel: ReleaseChannel;
     other: SourceRecord | undefined;
+    storeOriginals?: StoreGameInstalls["installs"] | undefined;
   };
 }
 
@@ -112,6 +115,9 @@ function useSourceIntakeSession({
   const [saved, setSaved] = useState<SourceRecord>();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
+  const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"]>(
+    request.setup?.storeOriginals ?? [],
+  );
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
   const dismiss = () => {
@@ -163,6 +169,32 @@ function useSourceIntakeSession({
     },
     [copy.checking, loadInspection],
   );
+
+  useEffect(() => {
+    if (
+      !request.setup ||
+      request.setup.storeOriginals !== undefined ||
+      request.purpose !== "game" ||
+      request.profile.kind !== "file-set" ||
+      request.paths.length !== 0
+    )
+      return;
+    let current = true;
+    void desktopApi.storeGameInstalls(request.generation).then(
+      (report) => {
+        if (current)
+          setStoreOriginals(
+            report.installs.filter(
+              (install) => install.original_folder?.profile_id === request.profile.id,
+            ),
+          );
+      },
+      () => {},
+    );
+    return () => {
+      current = false;
+    };
+  }, [request]);
 
   useEffect(() => {
     if (request.paths.length > 0) {
@@ -321,6 +353,8 @@ function useSourceIntakeSession({
         ? () => setError(onContinueSetup(saved))
         : undefined,
     choose,
+    inspect,
+    storeOriginals,
     review,
     apply,
     retryRefresh,
@@ -348,6 +382,8 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
     dismiss,
     continueSetup,
     choose,
+    inspect,
+    storeOriginals,
     review,
     apply,
     retryRefresh,
@@ -393,6 +429,32 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             {request.profile.label}
           </small>
         </div>
+        {!saved && storeOriginals.length > 0 && (
+          <section aria-label="Original files from installed games" className="mt-3 grid gap-2">
+            {storeOriginals.map((install) => {
+              const folder = install.original_folder;
+              if (!folder) return null;
+              return (
+                <div key={folder.path} className="grid gap-1">
+                  <Button
+                    data-focusable
+                    variant="outline"
+                    disabled={Boolean(busy)}
+                    className="justify-self-start"
+                    onClick={() => void inspect([folder.path])}
+                  >
+                    Check {install.title} files from {storeLabel(install.store)}
+                  </Button>
+                  {storeOriginals.length > 1 && (
+                    <code className="[overflow-wrap:anywhere] whitespace-normal">
+                      {folder.path}
+                    </code>
+                  )}
+                </div>
+              );
+            })}
+          </section>
+        )}
         {busy && (
           <p className="mt-3" role="status">
             {busy}

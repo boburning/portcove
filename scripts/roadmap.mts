@@ -2387,6 +2387,44 @@ export class RoadmapClient {
     return await readCompleteConnection(this, query, variables, connection, identity);
   }
 
+  async issueProjectMemberships(issueId: string) {
+    const rows = await readCompleteConnection(
+      {
+        graphql: async (query, variables) => {
+          const data = await this.graphql(query, variables);
+          // A freshly created REST issue can briefly be invisible to GraphQL.
+          if (variables?.after === null && qualificationField(data, "node") === null)
+            return await this.graphql(query, variables);
+          return data;
+        },
+      },
+      `query RoadmapIssueProjectMemberships($id:ID!,$after:String){node(id:$id){...on Issue{id projectItems(first:100,after:$after,includeArchived:true){totalCount nodes{id databaseId isArchived project{id}} pageInfo{hasNextPage endCursor}}}}}`,
+      { id: issueId },
+      (data) => {
+        const node = qualificationField(data, "node");
+        if (qualificationField(node, "id") !== issueId)
+          throw new Error("incomplete GitHub inventory: Issue membership identity mismatch");
+        return qualificationField(node, "projectItems");
+      },
+      (node) => qualificationField(node, "id"),
+    );
+    return rows.map((row) => {
+      const { id } = identifiedProjectItem(row);
+      const projectId = qualificationField(qualificationField(row, "project"), "id");
+      const databaseId = qualificationField(row, "databaseId");
+      const isArchived = qualificationField(row, "isArchived");
+      if (
+        typeof projectId !== "string" ||
+        !projectId ||
+        typeof isArchived !== "boolean" ||
+        (databaseId !== null &&
+          (typeof databaseId !== "number" || !Number.isSafeInteger(databaseId) || databaseId < 1))
+      )
+        throw new Error("incomplete GitHub inventory: malformed Issue Project membership");
+      return { id, projectId, databaseId, isArchived };
+    });
+  }
+
   async listProjects() {
     const root = (await this.ownerType()) === "Organization" ? "organization" : "user";
     const rows = await this.readInventory(
@@ -4894,7 +4932,9 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
           );
         },
       });
-      const item = await RestPortIntakeClient.fromSDK(config, sdk).createPortIssue({
+      const item = await RestPortIntakeClient.fromSDK(config, sdk, (id) =>
+        client.issueProjectMemberships(id),
+      ).createPortIssue({
         title,
         upstream: url,
         catalogId:

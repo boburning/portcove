@@ -1,3 +1,4 @@
+import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -455,11 +457,19 @@ function useWorkspace(props: WorkspaceProps) {
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
   const applicationUpdate = useApplicationUpdate();
+  const storeSetupRequests = useRef(new LatestRequestGeneration());
   const {
     request: sourceIntake,
-    open: openSourceIntake,
+    open: openIntake,
     close: closeSourceIntake,
   } = useSourceIntakeState(data.catalog, bootstrap.generation);
+  const openSourceIntake = useCallback(
+    (...args: Parameters<typeof openIntake>) => {
+      storeSetupRequests.current.begin();
+      openIntake(...args);
+    },
+    [openIntake],
+  );
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
@@ -861,6 +871,7 @@ function useWorkspace(props: WorkspaceProps) {
           }}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
+          storeSetupRequests={storeSetupRequests}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
             ui.setSettingsCategory("library-storage");
@@ -1827,6 +1838,7 @@ function SelectedPortPanel({
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
+  storeSetupRequests,
   openHostTool,
   openLibraryStorage,
   close,
@@ -1851,10 +1863,28 @@ function SelectedPortPanel({
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
+  storeSetupRequests: { current: LatestRequestGeneration };
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
 }) {
+  const selectedRoute = model.port?.id;
+  const selectedChannel = model.status?.channel;
+  useLayoutEffect(() => {
+    const requests = storeSetupRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, [
+    libraryGeneration,
+    selectedRoute,
+    selectedChannel,
+    model.status?.active?.id,
+    model.status?.external_runtime?.id,
+    storeSetupRequests,
+    ui.sourcePath,
+    ui.biosPath,
+  ]);
   if (!model.port) return null;
   const favoritePortId = model.port.id;
   const setSourcePath = (path: string) => {
@@ -1863,6 +1893,7 @@ function SelectedPortPanel({
   };
   const pickSource = model.sourceProfile
     ? () => {
+        storeSetupRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           setSourcePath,
@@ -1870,9 +1901,51 @@ function SelectedPortPanel({
         );
       }
     : undefined;
+  const port = model.port;
+  const status = model.status;
+  const managedSetup =
+    status &&
+    !status.active &&
+    !status.external_runtime &&
+    status.port_actions?.some(
+      (action) =>
+        action.action === "install" &&
+        (action.availability === "allowed" || action.availability === "waiting"),
+    );
+  const inspectSource = (
+    profile: NonNullable<typeof model.sourceProfile>,
+    storeOriginals?: NonNullable<Parameters<typeof openSourceIntake>[3]>["storeOriginals"],
+  ) => {
+    const isBios = profile.id === port.bios_source_profile;
+    const path = isBios ? ui.biosPath : ui.sourcePath;
+    openSourceIntake(
+      port.id,
+      profile.id,
+      path.trim() ? [path] : [],
+      managedSetup
+        ? { channel: status.channel, other: isBios ? model.source : model.bios, storeOriginals }
+        : undefined,
+    );
+  };
+  const originalProfile = model.sourceProfile;
+  const chooseSetupSource =
+    managedSetup && originalProfile?.kind === "file-set" && !ui.sourcePath.trim()
+      ? async () => {
+          const requests = storeSetupRequests.current;
+          const request = requests.begin();
+          const report = await desktopApi.storeGameInstalls(libraryGeneration).catch(() => null);
+          if (!requests.isCurrent(request)) return;
+          const matches = report?.installs.filter(
+            (install) => install.original_folder?.profile_id === originalProfile.id,
+          );
+          if (matches?.length) inspectSource(originalProfile, matches);
+          else await pickSource?.();
+        }
+      : undefined;
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
+          storeSetupRequests.current.begin();
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
             setSourcePath,
@@ -1882,6 +1955,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
+        storeSetupRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
@@ -1991,30 +2065,8 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => {
-        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
-        const status = model.status;
-        const managedSetup =
-          status &&
-          !status.active &&
-          !status.external_runtime &&
-          status.port_actions?.some(
-            (action) =>
-              action.action === "install" &&
-              (action.availability === "allowed" || action.availability === "waiting"),
-          );
-        openSourceIntake(
-          model.port.id,
-          profile.id,
-          path.trim() ? [path] : [],
-          managedSetup
-            ? {
-                channel: status.channel,
-                other: profile.id === model.port.bios_source_profile ? model.source : model.bios,
-              }
-            : undefined,
-        );
-      }}
+      inspectSource={inspectSource}
+      chooseSetupSource={chooseSetupSource}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({

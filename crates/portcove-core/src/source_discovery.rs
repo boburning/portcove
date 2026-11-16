@@ -559,6 +559,30 @@ impl PortcoveService {
         limits: &SourceDiscoveryLimits,
         mut emit: impl FnMut(crate::OperationEvent),
     ) -> Result<GameFileScanSnapshot> {
+        self.run_saved_folder_scan(limits, None, &mut emit)
+    }
+
+    /// Finish the existing saved-folder search, persisting each bounded batch.
+    /// Only the matching retained scan may advance, even after another caller
+    /// publishes results while this operation is running.
+    pub fn finish_game_file_scan_with_progress(
+        &self,
+        scan_id: &str,
+        limits: &SourceDiscoveryLimits,
+        mut emit: impl FnMut(crate::OperationEvent),
+    ) -> Result<GameFileScanSnapshot> {
+        if uuid::Uuid::parse_str(scan_id).is_err() {
+            return Err(PortcoveError::usage("scan identity is invalid"));
+        }
+        self.run_saved_folder_scan(limits, Some(scan_id), &mut emit)
+    }
+
+    fn run_saved_folder_scan(
+        &self,
+        limits: &SourceDiscoveryLimits,
+        finish_scan_id: Option<&str>,
+        emit: &mut impl FnMut(crate::OperationEvent),
+    ) -> Result<GameFileScanSnapshot> {
         validate_limits(limits)?;
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
@@ -566,29 +590,59 @@ impl PortcoveService {
             None,
         )?;
         emit(operation.started());
-        let result = self.finish_activity(
-            activity,
-            build_game_file_scan_with_registry_events(
-                self.catalog(),
-                self.library(),
-                limits,
-                &operation,
-                &mut emit,
-            )
-            .and_then(|(snapshot, expected_outputs, expected_payload, matches)| {
-                publish_game_file_scan(
-                    self.library(),
-                    &operation,
+        let result = (|| {
+            let mut previous_checkpoint = None::<String>;
+            loop {
+                operation.checkpoint()?;
+                let (snapshot, outputs, expected_payload, matches) =
+                    prepare_saved_folder_scan_batch(
+                        self.catalog(),
+                        self.library(),
+                        limits,
+                        &operation,
+                        emit,
+                        finish_scan_id.map(|id| (id, previous_checkpoint.as_deref())),
+                    )?;
+                let keep_scanning = finish_scan_id.is_some()
+                    && snapshot
+                        .coverage
+                        .as_ref()
+                        .is_some_and(|coverage| coverage.can_resume);
+                if !keep_scanning {
+                    publish_game_file_scan(
+                        self.library(),
+                        &operation,
+                        &snapshot,
+                        &outputs,
+                        expected_payload.as_deref(),
+                        &matches,
+                    )?;
+                    if finish_scan_id.is_some() {
+                        emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+                        // This exact snapshot was committed. A new scan may
+                        // already have replaced the shared latest pointer.
+                        return Ok(snapshot);
+                    }
+                    return current_game_file_scan(self.catalog(), self.library())?.ok_or_else(
+                        || {
+                            PortcoveError::state(
+                                "game-file scan snapshot disappeared after publication",
+                            )
+                        },
+                    );
+                }
+                previous_checkpoint = Some(self.library().publish_game_file_scan_checkpoint(
                     &snapshot,
-                    &expected_outputs,
+                    &outputs,
+                    &snapshot.roots,
                     expected_payload.as_deref(),
                     &matches,
-                )?;
-                current_game_file_scan(self.catalog(), self.library())?.ok_or_else(|| {
-                    PortcoveError::state("game-file scan snapshot disappeared after publication")
-                })
-            }),
-        );
+                    Some(operation.operation_id()),
+                )?);
+                emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+            }
+        })();
+        let result = self.finish_activity(activity, result);
         emit(operation.finished(crate::OperationResult::from_result(&result)));
         result
     }
@@ -647,6 +701,21 @@ fn discovery_exclusions(
     Ok((exclusions, expected_outputs))
 }
 
+fn emit_saved_scan_checkpoint(
+    operation: &crate::OperationCoordinator,
+    snapshot: &GameFileScanSnapshot,
+    emit: &mut dyn FnMut(crate::OperationEvent),
+) {
+    if let Some(coverage) = &snapshot.coverage {
+        emit(operation.progress_with_unit(
+            "saved_folder_scan_checkpoints",
+            crate::ProgressUnit::Items,
+            u64::from(coverage.batches),
+            None,
+        ));
+    }
+}
+
 fn publish_game_file_scan(
     library: &crate::Library,
     operation: &crate::OperationCoordinator,
@@ -694,12 +763,24 @@ type PreparedGameFileScan = (
     GameFileScanMatchWrite,
 );
 
+#[cfg(test)]
 fn build_game_file_scan_with_registry_events(
     catalog: &Catalog,
     library: &crate::Library,
     limits: &SourceDiscoveryLimits,
     operation: &crate::OperationCoordinator,
     emit: &mut dyn FnMut(crate::OperationEvent),
+) -> Result<PreparedGameFileScan> {
+    prepare_saved_folder_scan_batch(catalog, library, limits, operation, emit, None)
+}
+
+fn prepare_saved_folder_scan_batch(
+    catalog: &Catalog,
+    library: &crate::Library,
+    limits: &SourceDiscoveryLimits,
+    operation: &crate::OperationCoordinator,
+    emit: &mut dyn FnMut(crate::OperationEvent),
+    expected_continuation: Option<(&str, Option<&str>)>,
 ) -> Result<PreparedGameFileScan> {
     let roots = library.game_file_roots()?;
     let expected_payload = library.stored_game_file_scan_payload()?;
@@ -711,6 +792,17 @@ fn build_game_file_scan_with_registry_events(
         .map(prior_scan_for_reuse)
         .transpose()?
         .flatten();
+    if let Some((scan_id, payload)) = expected_continuation
+        && (payload.is_some_and(|value| expected_payload.as_deref() != Some(value))
+            || previous.as_ref().is_none_or(|snapshot| {
+                snapshot.continuation.is_none()
+                    || scan_match_summary(snapshot).is_none_or(|summary| summary.scan_id != scan_id)
+            }))
+    {
+        return Err(PortcoveError::conflict(
+            "saved scan changed; reload its latest results",
+        ));
+    }
     let (exclusions, expected_outputs) = discovery_exclusions(library)?;
     let catalog_identity = catalog_sha256(catalog)?;
     let outputs_identity = output_registry_sha256(&expected_outputs)?;
@@ -938,6 +1030,17 @@ fn build_game_file_scan_with_registry_events(
     } else {
         None
     };
+    if expected_continuation.is_some()
+        && let Some(next) = continuation.as_ref()
+        && resumed
+            .and_then(|snapshot| snapshot.continuation.as_ref())
+            .and_then(|cursor| cursor.get("pending"))
+            == next.get("pending")
+    {
+        return Err(PortcoveError::conflict(
+            "saved scan made no progress; use narrower folders before trying again",
+        ));
+    }
     let matches = if prior_preview.is_some() {
         GameFileScanMatchWrite::Append {
             scan_id,

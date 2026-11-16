@@ -2816,6 +2816,15 @@ different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
 the listing guide. The discovery directory keeps the upstream guide.
 
+For a warning specific to one managed package, author
+`managed_setup_platform_warnings` in the port record by exact managed platform.
+Catalog generation emits this copy for Desktop separately from signed and retained
+definitions. The managed install review combines the authored managed guide with
+warnings for the platform in its install plan, including when a port definition
+still carries an older guide. The route-wide guide also serves readers without
+this Desktop copy.
+Keep upstream package warnings in the listing.
+
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
 toolchain download fallback. Builder PATH contains only the owned toolchain and
