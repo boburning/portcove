@@ -206,6 +206,18 @@
       ]
     }
   },
+  "perfect-dark": {
+    "note": "Select your own US Rev 1 Perfect Dark game file. Portcove checks the original and installs the managed player for this computer.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-x86-64": [
+        "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+      ],
+      "macos-aarch64": [
+        "Before choosing Play on this Mac, use the upstream Mac instructions to install SDL2.framework in /Library/Frameworks. You manage the system framework separately."
+      ]
+    }
+  },
   "snap64-recomp": {
     "note": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
     "warnings": [],
