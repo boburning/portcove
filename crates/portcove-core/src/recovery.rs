@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::{
-    ActivityStatus, ErrorCode, InstallRecord, Installer, PortcoveError, PortcoveService, Result,
+    ActivityStatus, InstallRecord, Installer, PortcoveError, PortcoveService, Result,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
     service::{RemovalOperation, RemovalPhase, RestorePhase, copy_tree},
 };
@@ -187,7 +187,7 @@ pub(crate) fn recover_published_install(
                 && !already_active
                 && let Err(error) = service.require_activation_gates(&install, None)
             {
-                if !is_recorded_uploader_hold(&error)
+                if !error.is_recorded_uploader_hold()
                     || operation.kind != LifecycleOperationKind::Install
                     || status
                         .staged
@@ -271,14 +271,6 @@ pub(crate) fn recover_published_install(
         store.remove(&operation.id)?;
     }
     held.map_or(Ok(()), Err)
-}
-
-fn is_recorded_uploader_hold(error: &PortcoveError) -> bool {
-    error.code == ErrorCode::Unsupported
-        && matches!(
-            error.details.get("reason").map(String::as_str),
-            Some("provider_uploader_not_observed" | "provider_uploader_not_continuous")
-        )
 }
 
 fn record_recovery_hold(service: &PortcoveService, operation_id: &str, error: &PortcoveError) {
@@ -843,7 +835,7 @@ pub(crate) fn recover_activation(
                 ));
             }
             if let Err(error) = service.require_activation_gates(&install, None) {
-                if is_recorded_uploader_hold(&error) {
+                if error.is_recorded_uploader_hold() {
                     // The target is already staged. Drop only the unfinished
                     // activation so a new Update can supply a fresh resolution.
                     let error = error.detail("recovery_action", "check_for_updates");

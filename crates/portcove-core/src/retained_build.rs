@@ -684,7 +684,8 @@ impl PortcoveService {
 }
 
 fn availability_for_error(error: &PortcoveError) -> RetainedBuildAvailability {
-    if error.details.contains_key("definition_reason")
+    if error.is_recorded_uploader_hold()
+        || error.details.contains_key("definition_reason")
         || error.details.contains_key("curated_artifact_reason")
     {
         return RetainedBuildAvailability::Held;

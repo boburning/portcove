@@ -583,6 +583,13 @@ impl PortcoveError {
         self.failure.known_cause.as_ref()
     }
 
+    pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RecordedUploaderHold)
+        )
+    }
+
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
         self.failure.known_cause = Some(cause);
         self
