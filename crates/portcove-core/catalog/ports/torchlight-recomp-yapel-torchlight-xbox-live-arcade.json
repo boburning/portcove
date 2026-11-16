@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "torchlight-xbox-live-arcade-xbox",
-          "title": "Torchlight (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "torchlight-xbox-live-arcade-xbox-360",
+          "title": "Torchlight (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
           ]

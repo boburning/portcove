@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "kameo-elements-of-power-xbox",
-          "title": "Kameo: Elements of Power (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "kameo-elements-of-power-xbox-360",
+          "title": "Kameo: Elements of Power (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/Azkali/KameoRecomp/blob/e41ee4b51248ab148e0d215ccdb50c0242eb0792/README.md"
           ]

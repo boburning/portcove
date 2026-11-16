@@ -4,23 +4,6 @@
     "id": "ufc4-native-windows-ayarem21-ayarem21-ea-sports-ufc-4",
     "name": "EA Sports UFC 4 — UFC4 native Windows (ayarem21) (ayarem21)",
     "original_game_title": "EA Sports UFC 4",
-    "original_game": {
-      "format_version": 1,
-      "id": "ea-sports-ufc-4",
-      "evidence_urls": [
-        "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS/blob/09353f7325f5a91e23df53c44bc747e381f1cbb4/README.md"
-      ],
-      "source_editions": [
-        {
-          "id": "ea-sports-ufc-4-xbox",
-          "title": "EA Sports UFC 4 (Xbox, region not specified)",
-          "system": "xbox",
-          "evidence_urls": [
-            "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS/blob/09353f7325f5a91e23df53c44bc747e381f1cbb4/README.md"
-          ]
-        }
-      ]
-    },
     "summary": "A native runtime is advertised. A full career has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS",
     "platforms": ["windows-x86-64"],

@@ -2171,9 +2171,9 @@
         ],
         "source_editions": [
           {
-            "id": "castlevania-symphony-of-the-night-xbox",
-            "title": "Castlevania: Symphony of the Night (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "castlevania-symphony-of-the-night-xbox-360",
+            "title": "Castlevania: Symphony of the Night (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/birabittoh/NocturneRecomp/blob/d409a67c6be29592e96524de038a03593c199e4b/README.md"
             ]
@@ -12446,7 +12446,7 @@
       "original_game_title": "Quake II",
       "original_game": {
         "format_version": 1,
-        "id": "quake-ii",
+        "id": "quake-ii-playstation",
         "evidence_urls": [
           "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
         ],
@@ -16951,9 +16951,9 @@
         ],
         "source_editions": [
           {
-            "id": "kameo-elements-of-power-xbox",
-            "title": "Kameo: Elements of Power (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "kameo-elements-of-power-xbox-360",
+            "title": "Kameo: Elements of Power (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/Azkali/KameoRecomp/blob/e41ee4b51248ab148e0d215ccdb50c0242eb0792/README.md"
             ]
@@ -19348,7 +19348,7 @@
       "original_game_title": "Doom",
       "original_game": {
         "format_version": 1,
-        "id": "doom",
+        "id": "doom-playstation",
         "evidence_urls": [
           "https://github.com/BodbDearg/PsyDoom/blob/2c50690b6e0ae26cbb83ad9039d24748f76275f8/README.md"
         ],
@@ -22944,9 +22944,9 @@
         ],
         "source_editions": [
           {
-            "id": "comix-zone-xbox-live-arcade-xbox",
-            "title": "Comix Zone (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "comix-zone-xbox-live-arcade-xbox-360",
+            "title": "Comix Zone (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/sp00nznet/comixzone/blob/c59735a4a2c18a98ea9c32075742a0f43a1a271f/README.md"
             ]
@@ -24928,9 +24928,9 @@
         ],
         "source_editions": [
           {
-            "id": "crazy-taxi-xbox-live-arcade-xbox",
-            "title": "Crazy Taxi (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "crazy-taxi-xbox-live-arcade-xbox-360",
+            "title": "Crazy Taxi (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/sp00nznet/ctxbla/blob/2a667e74f6533f2b9b9ab8debae5d5e252b4771f/README.md"
             ]
@@ -25057,9 +25057,9 @@
         ],
         "source_editions": [
           {
-            "id": "crystal-defenders-xbox-live-arcade-xbox",
-            "title": "Crystal Defenders (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "crystal-defenders-xbox-live-arcade-xbox-360",
+            "title": "Crystal Defenders (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/Claudio5702/Cristalis/blob/48b91cbfca58e222dda743c7d56cd433b3d5fa42/README.md"
             ]
@@ -28297,23 +28297,6 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Dirt Dash",
-      "original_game": {
-        "format_version": 1,
-        "id": "dirt-dash",
-        "evidence_urls": [
-          "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
-        ],
-        "source_editions": [
-          {
-            "id": "dirt-dash-pc",
-            "title": "Dirt Dash (PC, version not specified)",
-            "system": "pc",
-            "evidence_urls": [
-              "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
-            ]
-          }
-        ]
-      },
       "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -37842,9 +37825,9 @@
         ],
         "source_editions": [
           {
-            "id": "guardian-heroes-xbox-live-arcade-xbox",
-            "title": "Guardian Heroes (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "guardian-heroes-xbox-live-arcade-xbox-360",
+            "title": "Guardian Heroes (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/rashevskyv/guardian-heroes-recomp-public/blob/22ec653d69ba369f4749e721751bdb615cd82b45/README.md"
             ]
@@ -42112,9 +42095,9 @@
         ],
         "source_editions": [
           {
-            "id": "naruto-the-broken-bond-xbox",
-            "title": "Naruto: The Broken Bond (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "naruto-the-broken-bond-xbox-360",
+            "title": "Naruto: The Broken Bond (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/jorjbarbosa/broken-bond-recomp/blob/37b72e657c24022df8057f0cb1b718b81830c77a/README.md"
             ]
@@ -53337,7 +53320,7 @@
         "source_editions": [
           {
             "id": "one-must-fall-2097-pc",
-            "title": "One Must Fall: 2097 (PC, version not specified)",
+            "title": "One Must Fall 2097 (PC, version not specified)",
             "system": "pc",
             "evidence_urls": [
               "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
@@ -55611,23 +55594,6 @@
       "id": "peggle-2-for-mac-macprotips-peggle-2-xbox-live-arcade",
       "name": "Peggle 2 (Xbox Live Arcade) — Peggle 2 for Mac (macprotips)",
       "original_game_title": "Peggle 2 (Xbox Live Arcade)",
-      "original_game": {
-        "format_version": 1,
-        "id": "peggle-2-xbox-live-arcade",
-        "evidence_urls": [
-          "https://github.com/macprotips/peggle2-mac/blob/c19e48f7e62394e706762dda0412d4ea25798af4/README.md"
-        ],
-        "source_editions": [
-          {
-            "id": "peggle-2-xbox-live-arcade-xbox",
-            "title": "Peggle 2 (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
-            "evidence_urls": [
-              "https://github.com/macprotips/peggle2-mac/blob/c19e48f7e62394e706762dda0412d4ea25798af4/README.md"
-            ]
-          }
-        ]
-      },
       "summary": "This beta is reported to have been played through on the developers’ Macs; compatibility with other Macs is unconfirmed. It runs natively on ARM64 with Metal and CoreAudio. Windows and Linux support are not claimed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/macprotips/peggle2-mac",
       "platforms": [
@@ -55785,9 +55751,9 @@
         ],
         "source_editions": [
           {
-            "id": "perfect-dark-xbox-live-arcade-remaster-xbox",
-            "title": "Perfect Dark (Xbox Live Arcade remaster) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "perfect-dark-xbox-live-arcade-remaster-xbox-360",
+            "title": "Perfect Dark (Xbox Live Arcade remaster) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp/blob/ee8259b7c3417e90a565c76adb61049564ee5cc9/README.md"
             ]
@@ -59994,9 +59960,9 @@
         ],
         "source_editions": [
           {
-            "id": "plants-vs-zombies-xbox-live-arcade-xbox",
-            "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "plants-vs-zombies-xbox-live-arcade-xbox-360",
+            "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
             ]
@@ -61966,7 +61932,7 @@
         "source_editions": [
           {
             "id": "resident-evil-code-veronica-x-ps2-playstation-2",
-            "title": "Resident Evil CODE: Veronica X (PS2) (PlayStation 2, region not specified)",
+            "title": "Resident Evil Code: Veronica X (PS2) (PlayStation 2, region not specified)",
             "system": "playstation-2",
             "evidence_urls": [
               "https://github.com/Patt92/recvx-native/blob/cdc1af04c199627009e54b6d3cef8fe12a243360/README.md"
@@ -73625,9 +73591,9 @@
         ],
         "source_editions": [
           {
-            "id": "the-simpsons-arcade-xbox-live-arcade-xbox",
-            "title": "The Simpsons Arcade (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "the-simpsons-arcade-xbox-live-arcade-xbox-360",
+            "title": "The Simpsons Arcade (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/sp00nznet/simpsonsarcade/blob/527f163b697a3c72164d9330544777d9b0cd44db/README.md"
             ]
@@ -75200,9 +75166,9 @@
         ],
         "source_editions": [
           {
-            "id": "torchlight-xbox-live-arcade-xbox",
-            "title": "Torchlight (Xbox Live Arcade) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "torchlight-xbox-live-arcade-xbox-360",
+            "title": "Torchlight (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
             ]
@@ -75359,23 +75325,6 @@
       "id": "touhou-4-lotus-land-story-portable64",
       "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
       "original_game_title": "Touhou Gensokyo: Lotus Land Story",
-      "original_game": {
-        "format_version": 1,
-        "id": "touhou-gensokyo-lotus-land-story",
-        "evidence_urls": [
-          "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
-        ],
-        "source_editions": [
-          {
-            "id": "touhou-gensokyo-lotus-land-story-pc",
-            "title": "Touhou Gensokyo: Lotus Land Story (PC, version not specified)",
-            "system": "pc",
-            "evidence_urls": [
-              "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
-            ]
-          }
-        ]
-      },
       "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
       "project_url": "https://github.com/N0zoM1z0/th04",
       "issue_number": 6128,
@@ -76762,23 +76711,6 @@
       "id": "ufc4-native-windows-ayarem21-ayarem21-ea-sports-ufc-4",
       "name": "EA Sports UFC 4 — UFC4 native Windows (ayarem21) (ayarem21)",
       "original_game_title": "EA Sports UFC 4",
-      "original_game": {
-        "format_version": 1,
-        "id": "ea-sports-ufc-4",
-        "evidence_urls": [
-          "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS/blob/09353f7325f5a91e23df53c44bc747e381f1cbb4/README.md"
-        ],
-        "source_editions": [
-          {
-            "id": "ea-sports-ufc-4-xbox",
-            "title": "EA Sports UFC 4 (Xbox, region not specified)",
-            "system": "xbox",
-            "evidence_urls": [
-              "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS/blob/09353f7325f5a91e23df53c44bc747e381f1cbb4/README.md"
-            ]
-          }
-        ]
-      },
       "summary": "A native runtime is advertised. A full career has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ayarem21/UFC-4-PS4-PORT-WINDOWS",
       "platforms": [
@@ -78901,9 +78833,9 @@
         ],
         "source_editions": [
           {
-            "id": "virtua-fighter-2-xbox-live-arcade-2012-xbox",
-            "title": "Virtua Fighter 2 (Xbox Live Arcade, 2012) (Xbox, region not specified)",
-            "system": "xbox",
+            "id": "virtua-fighter-2-xbox-live-arcade-2012-xbox-360",
+            "title": "Virtua Fighter 2 (Xbox Live Arcade, 2012) (Xbox 360, region not specified)",
+            "system": "xbox-360",
             "evidence_urls": [
               "https://github.com/DonSlopenberg/VF2reKOmped/blob/9cef01e2b5c45ce34029da20cd48ad7ed2e16b02/README.md"
             ]

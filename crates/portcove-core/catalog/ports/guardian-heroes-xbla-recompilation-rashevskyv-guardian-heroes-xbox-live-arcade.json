@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "guardian-heroes-xbox-live-arcade-xbox",
-          "title": "Guardian Heroes (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "guardian-heroes-xbox-live-arcade-xbox-360",
+          "title": "Guardian Heroes (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/rashevskyv/guardian-heroes-recomp-public/blob/22ec653d69ba369f4749e721751bdb615cd82b45/README.md"
           ]

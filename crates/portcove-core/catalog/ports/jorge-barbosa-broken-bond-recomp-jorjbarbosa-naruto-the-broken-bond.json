@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "naruto-the-broken-bond-xbox",
-          "title": "Naruto: The Broken Bond (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "naruto-the-broken-bond-xbox-360",
+          "title": "Naruto: The Broken Bond (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/jorjbarbosa/broken-bond-recomp/blob/37b72e657c24022df8057f0cb1b718b81830c77a/README.md"
           ]

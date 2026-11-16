@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "plants-vs-zombies-xbox-live-arcade-xbox",
-          "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "plants-vs-zombies-xbox-live-arcade-xbox-360",
+          "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
           ]

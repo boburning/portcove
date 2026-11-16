@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "perfect-dark-xbox-live-arcade-remaster-xbox",
-          "title": "Perfect Dark (Xbox Live Arcade remaster) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "perfect-dark-xbox-live-arcade-remaster-xbox-360",
+          "title": "Perfect Dark (Xbox Live Arcade remaster) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp/blob/ee8259b7c3417e90a565c76adb61049564ee5cc9/README.md"
           ]

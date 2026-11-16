@@ -48,7 +48,7 @@
     "original_game_title": "Doom",
     "original_game": {
       "format_version": 1,
-      "id": "doom",
+      "id": "doom-playstation",
       "evidence_urls": [
         "https://github.com/BodbDearg/PsyDoom/blob/2c50690b6e0ae26cbb83ad9039d24748f76275f8/README.md"
       ],

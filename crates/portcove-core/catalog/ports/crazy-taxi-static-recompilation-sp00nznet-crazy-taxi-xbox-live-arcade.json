@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "crazy-taxi-xbox-live-arcade-xbox",
-          "title": "Crazy Taxi (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "crazy-taxi-xbox-live-arcade-xbox-360",
+          "title": "Crazy Taxi (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/sp00nznet/ctxbla/blob/2a667e74f6533f2b9b9ab8debae5d5e252b4771f/README.md"
           ]

@@ -33326,9 +33326,9 @@
           ],
           "source_editions": [
             {
-              "id": "castlevania-symphony-of-the-night-xbox",
-              "title": "Castlevania: Symphony of the Night (Xbox, region not specified)",
-              "system": "xbox",
+              "id": "castlevania-symphony-of-the-night-xbox-360",
+              "title": "Castlevania: Symphony of the Night (Xbox 360, region not specified)",
+              "system": "xbox-360",
               "evidence_urls": [
                 "https://github.com/birabittoh/NocturneRecomp/blob/d409a67c6be29592e96524de038a03593c199e4b/README.md"
               ]
@@ -50771,7 +50771,7 @@
         "original_game_title": "Quake II",
         "original_game": {
           "format_version": 1,
-          "id": "quake-ii",
+          "id": "quake-ii-playstation",
           "evidence_urls": [
             "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
           ],
@@ -57687,7 +57687,7 @@
         "original_game_title": "Doom",
         "original_game": {
           "format_version": 1,
-          "id": "doom",
+          "id": "doom-playstation",
           "evidence_urls": [
             "https://github.com/BodbDearg/PsyDoom/blob/2c50690b6e0ae26cbb83ad9039d24748f76275f8/README.md"
           ],
@@ -70360,7 +70360,7 @@
           "source_editions": [
             {
               "id": "one-must-fall-2097-pc",
-              "title": "One Must Fall: 2097 (PC, version not specified)",
+              "title": "One Must Fall 2097 (PC, version not specified)",
               "system": "pc",
               "evidence_urls": [
                 "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
@@ -79136,23 +79136,6 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Before Play, put your own th04.hdi PC-98 image, FREECG98.BMP font and ym2608_adpcm_rom.bin rhythm ROM beside th04-port64.exe in the managed game folder; nothing checks them, so compare them with the tested identities in the upstream guide. Portcove starts the ordinary player with those files and the save-normal save folder, and keeps the three files, save-normal and save-no-life-loss across updates, backups and rollback. The bundled Play.bat and assisted-mode launchers start the game outside Portcove. Use a library path that fits within the Windows path limit; Portcove refuses longer install folders before download.",
         "original_game_title": "Touhou Gensokyo: Lotus Land Story",
-        "original_game": {
-          "format_version": 1,
-          "id": "touhou-gensokyo-lotus-land-story",
-          "evidence_urls": [
-            "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
-          ],
-          "source_editions": [
-            {
-              "id": "touhou-gensokyo-lotus-land-story-pc",
-              "title": "Touhou Gensokyo: Lotus Land Story (PC, version not specified)",
-              "system": "pc",
-              "evidence_urls": [
-                "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
-              ]
-            }
-          ]
-        },
         "manual_setup": {
           "help_url": "https://github.com/N0zoM1z0/th04/blob/23a73b72ea89eaee96621e3c881815814b2bc03b/docs/PORTABLE.md",
           "steps": [

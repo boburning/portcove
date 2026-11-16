@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "crystal-defenders-xbox-live-arcade-xbox",
-          "title": "Crystal Defenders (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "crystal-defenders-xbox-live-arcade-xbox-360",
+          "title": "Crystal Defenders (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/Claudio5702/Cristalis/blob/48b91cbfca58e222dda743c7d56cd433b3d5fa42/README.md"
           ]

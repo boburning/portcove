@@ -12,9 +12,9 @@
       ],
       "source_editions": [
         {
-          "id": "comix-zone-xbox-live-arcade-xbox",
-          "title": "Comix Zone (Xbox Live Arcade) (Xbox, region not specified)",
-          "system": "xbox",
+          "id": "comix-zone-xbox-live-arcade-xbox-360",
+          "title": "Comix Zone (Xbox Live Arcade) (Xbox 360, region not specified)",
+          "system": "xbox-360",
           "evidence_urls": [
             "https://github.com/sp00nznet/comixzone/blob/c59735a4a2c18a98ea9c32075742a0f43a1a271f/README.md"
           ]

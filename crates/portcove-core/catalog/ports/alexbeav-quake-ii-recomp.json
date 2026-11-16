@@ -7,7 +7,7 @@
     "original_game_title": "Quake II",
     "original_game": {
       "format_version": 1,
-      "id": "quake-ii",
+      "id": "quake-ii-playstation",
       "evidence_urls": [
         "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
       ],
