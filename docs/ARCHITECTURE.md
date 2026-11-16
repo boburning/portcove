@@ -1117,7 +1117,7 @@ catalog limit and rejects unknown or discarded semantics. SQLite writer protocol
 60 raised that limit from 4 MiB: it rebuilds `catalog_state` with the larger BLOB
 checks and makes older clients, which refuse retained content above 4 MiB, refuse
 the library before they read or rewrite a manifest. A Core test and the CI size
-guard keep the catalog, its projection and the escaped retained copy below 85% of
+guard keep the catalog, its projection and the escaped retained copy below 90% of
 the 4 MiB floor ([size bounds](SIGNED-CATALOG.md#size-bounds-and-older-clients)).
 Core memoizes pure decoding of the most recently validated exact content string,
 bounded to one catalog. Each read still verifies the current manifest bytes and

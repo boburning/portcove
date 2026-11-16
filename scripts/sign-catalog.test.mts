@@ -335,7 +335,7 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   const bounds = catalogSizeBounds(
     readFileSync(new URL("../crates/portcove-core/src/signed_catalog.rs", import.meta.url), "utf8"),
   );
-  assert.deepEqual(bounds, { current: 16777216, legacy: 4194304, percent: 85 });
+  assert.deepEqual(bounds, { current: 16777216, legacy: 4194304, percent: 90 });
   assert.throws(
     () =>
       catalogSizeBounds(
@@ -349,17 +349,17 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   assert.deepEqual(
     passing.rows.map((row) => [row.name, row.basis, row.ceiling]),
     [
-      ["generated catalog.json bytes", "current bound", 14260633],
-      ["compact catalog bytes", "legacy floor", 3565158],
-      ["escaped signed envelope bytes (unsigned placeholder)", "legacy floor", 3565158],
+      ["generated catalog.json bytes", "current bound", 15099494],
+      ["compact catalog bytes", "legacy floor", 3774873],
+      ["escaped signed envelope bytes (unsigned placeholder)", "legacy floor", 3774873],
     ],
   );
   assert.match(
     formatCatalogSizeGuard(passing),
-    /^ok {3}compact catalog bytes: \d+ of 3565158 \(85% of the legacy floor 4194304\); headroom \d+;/mu,
+    /^ok {3}compact catalog bytes: \d+ of 3774873 \(90% of the legacy floor 4194304\); headroom \d+;/mu,
   );
   // Escaping alone can carry the envelope past the margin while the compact bytes still fit.
-  const escaped = { ports: [{ id: "one", summary: '"'.repeat(900000) }] };
+  const escaped = { ports: [{ id: "one", summary: '"'.repeat(1000000) }] };
   const failing = catalogSizeGuard(100, escaped, bounds);
   assert.equal(failing.ok, false);
   assert.deepEqual(
@@ -368,7 +368,7 @@ void test("catalog size guard reads Core bounds and fails above its stated margi
   );
   assert.ok(failing.rows[2]!.headroom < 0);
   assert.match(formatCatalogSizeGuard(failing), /^FAIL escaped signed envelope bytes/mu);
-  assert.equal(catalogSizeGuard(14260634, small, bounds).rows[0]!.ok, false);
+  assert.equal(catalogSizeGuard(15099495, small, bounds).rows[0]!.ok, false);
 
   const root = mkdtempSync(path.join(os.tmpdir(), "portcove-size-guard-"));
   t.after(() => rmSync(root, { recursive: true, force: true }));

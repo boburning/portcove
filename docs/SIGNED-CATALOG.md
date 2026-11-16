@@ -136,16 +136,22 @@ errors. They never accept or truncate larger content, but they would lose catalo
 updates that outgrow 4 MiB.
 
 Until the owner retires those clients (#5894), the repository keeps the bytes
-they receive at most 85% of the 4 MiB floor (3565158 bytes).
+they receive at most 90% of the 4 MiB floor (3774873 bytes).
 `node scripts/catalog-capacity.mts --check` measures the compact catalog and the
 escaped signed envelope against that ceiling, and the generated `catalog.json`
-against 85% of the current 16 MiB bound, printing each size and its headroom.
+against 90% of the current 16 MiB bound, printing each size and its headroom.
 Core's `catalog_growth_stays_within_the_legacy_compatibility_margin` test holds
 the serialized catalog projection, retained format-1 `catalog_json` and its
 JSON-escaped manifest copy to the same ceiling, because those bytes come from
 Core serialization rather than the source file. Both read the bounds and
 `CATALOG_GROWTH_CEILING_PERCENT` from `signed_catalog.rs`. A failure asks for
 fewer catalog bytes or an owner decision to move the floor, not a larger margin.
+
+Owner decision, November 16, 2026: the ceiling moved from 85% to 90% of the 4 MiB
+floor so the catalog can carry original-system identities for the installable
+ports (about 154 KB). The 4 MiB bound that older clients enforce is unchanged;
+the margin below it is smaller, so retiring those clients (#5894) is now closer
+to required than before.
 
 Measured November 14, 2026: generated `catalog.json` 3728878 bytes (88.9% of
 the old floor, 22.2% of the current bound), compact catalog 2895856 bytes (69.0%),
