@@ -116,11 +116,10 @@ product reports and requests. For port intake, open the
 `status:Inbox,Triage` for the current pass. Clearing the filter returns the
 complete inventory.
 
-The first Public beta application host commitment is **Windows x86-64**, qualified
-at the existing supported Windows/WebView2 baseline. Linux remains planned for a
-subsequent beta with its existing owners, implementation, support metadata and
-evidence retained. Existing before-1.0 commitments remain unchanged; no Linux
-release date is assigned. Shared trust, correctness and Windows-delivery checks
+The first Public beta application hosts are **Windows x86-64**, qualified at the
+existing supported Windows/WebView2 baseline, and **Linux x86-64** as an AppImage
+(owner decisions of 2026-11-14 on #534). macOS builds ship as experimental.
+Existing before-1.0 commitments remain unchanged. Shared trust, correctness and Windows-delivery checks
 remain required on their appropriate Linux/WSL/macOS or Windows hosts. See the
 [scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).
 

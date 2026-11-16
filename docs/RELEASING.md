@@ -206,25 +206,17 @@ and [protected tag/publication boundaries](#roadmap-readiness-snapshot) remain
 effective. Preparation, a successful rehearsal and an ordinary merge each retain
 their own scope; publication requires its existing explicit authority.
 
-The first public beta application release is Windows x86-64 only at the existing
-supported Windows/WebView2 baseline. Follow the
-[Windows/shared release boundary](DELIVERY.md#first-public-beta-host-boundary).
-Linux remains planned for a subsequent beta; retain its implementation, metadata
-and completed/unfinished evidence without requiring an unshipped Linux or macOS
-application artifact for this launch. Shared checks keep their appropriate hosts.
-The implemented `initial-beta-windows-x86_64-v1` reusable qualification profile
-has [explicit producer and consumer requirements](QUALITY.md#staged-audit-receipts).
-Its selection does not qualify actual candidate bytes or authorize publication.
-The `full` and historical `initial-beta-win-linux` paths retain their broader
-obligations. The Windows-first profile does not use the [#706 Linux disposition](releases/2026-10-14-linux-beta-risk-706.md).
-The original ordinary Linux x86-64 GNU scope permits one publication.
-The separate [initial-proof amendment](https://github.com/boburning/portcove/issues/706#issuecomment-6325645712)
-permits up to three total irreversible Linux public exposures only for its
-exact `initial-public-proof-three-total-v1` inputs and appointed controller.
-Both expire November 14, 2026 at 23:59 America/New_York
-(`2026-11-15T04:59:00Z`). Keep affected Linux candidates held while the finding
-remains unless they have an applicable disposition. Ordinary development
-continues under the separate scanner policy while #706 tracks remediation.
+The first public beta application release covers Windows x86-64 and Linux x86-64
+(AppImage), with experimental macOS builds, under the owner's 2026-11-14
+decisions on #534. Follow the
+[release boundary](DELIVERY.md#first-public-beta-host-boundary).
+Linux releases rely on the owner's
+[renewed GLib advisory acceptance](https://github.com/boburning/portcove/issues/706#issuecomment-6904321682)
+(originally [#706 disposition](releases/2026-10-14-linux-beta-risk-706.md)). It
+expires on 2027-01-14 at 23:59 America/New_York, or before the second ordinary
+Linux public beta release after 2026-11-15, whichever comes first. Each Linux
+release must keep the same GLib 0.18.5 dependency graph; #706 tracks
+remediation.
 
 ### Preflight
 

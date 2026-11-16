@@ -92,8 +92,8 @@ service.
 > activates or rolls back a version.
 
 Windows x64 is the primary beta platform. Linux x64 (AppImage) is part of the
-beta too. macOS builds are **experimental**: they are built and tested
-automatically, but nobody has tested them by hand yet.
+beta too. macOS builds are **experimental**: they are built and checked on
+GitHub's hosted Macs, but have not yet been tested on a real Mac.
 
 A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
 
@@ -125,13 +125,17 @@ system asks you to confirm the first launch. Application updates themselves are
 signed and verified by Portcove before they install.
 
 - **Windows:** if SmartScreen shows "Windows protected your PC", choose
-  **More info**, then **Run anyway**. Then follow the installer.
+  **More info**, then **Run anyway**. Then follow the installer. If Smart App
+  Control is on, Windows may block unsigned installers without offering
+  **Run anyway**.
 - **Linux:** make the AppImage executable (`chmod +x Portcove_*.AppImage`) and
-  run it. Some distributions need FUSE 2 (`libfuse2`) to run AppImages.
+  run it. Some distributions need FUSE 2 to run AppImages, for example
+  `libfuse2`, or `libfuse2t64` on Ubuntu 24.04 and later.
 - **macOS (experimental):** open the disk image and drag Portcove to
   Applications. The first time you open it, macOS blocks it. Open **System
   Settings › Privacy & Security** and choose **Open Anyway** for Portcove. If
-  macOS says the app "is damaged", run
+  macOS says the app "is damaged", and only for a copy you downloaded from
+  Portcove's GitHub release and checked against `SHA256SUMS`, run
   `xattr -dr com.apple.quarantine /Applications/Portcove.app` in Terminal and
   open it again.
 
@@ -143,7 +147,7 @@ signed and verified by Portcove before they install.
 - **The game catalog** updates automatically, shortly after Portcove opens and
   about once a day. Every catalog update is verified with the publisher key built
   into Portcove. Catalog updates never install, change or remove games. You can
-  turn them off in **Settings**.
+  turn them off in **Settings › Updates**.
 
 If you used an Alpha build, follow the [upgrade and recovery
 steps](docs/UPGRADING.md) before opening an existing library.
@@ -392,11 +396,13 @@ adapters; use small title-specific core code when it enables a bounded useful
 route without duplicating lifecycle authority. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
 
-## Optional signed catalog updates
+## Custom signed catalogs
 
-A signed catalog changes eligible catalog metadata; applying it does not install
-game updates or update Portcove itself. No publisher key or scheduled fetch is
-configured by default. Trusting a publisher is a separate explicit decision and
+This is separate from the official catalog updates described in
+[Updates](#updates), which are on by default. A custom signed catalog changes
+eligible catalog metadata; applying it does not install game updates or update
+Portcove itself. No custom publisher key or scheduled fetch is configured by
+default. Trusting a publisher is a separate explicit decision and
 permits changes such as release download locations within the implemented
 format's limits. A signature does not replace release checksum checks, source
 requirements or platform qualification. Read the [format-1 trust, review and
