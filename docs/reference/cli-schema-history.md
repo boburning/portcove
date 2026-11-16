@@ -56,6 +56,14 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API94 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
+results and corresponding `provider-apply` inputs. Preserve the whole plan when
+submitting it. Removing the wrapper review or its populated file observations
+invalidates the bound digest. Earlier Thunderstore plans must be reviewed
+again. GameBanana plans omit the Thunderstore fields. Recipe format 2 separately
+carries exact provider requirements, and library writer schema 63 fences older
+projection writers. Event schema remains 3.
+
 Within API93, the read-only `installation runtimes` command and its
 `runtime_prerequisite_report` result are additive and advertised in
 `capabilities`. The optional `runtime_prerequisites` field on `launch show` and
