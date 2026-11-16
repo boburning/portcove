@@ -17,12 +17,13 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
   "interactive fixtures publish no saved scan": ["get_game_file_scan_registered_matches"],
+  "interactive fixture catalogs have no paired cover mappings": ["get_companion_cover_thumbnail"],
   "mutation or native action the fixtures do not model; they never change the host": `
     apply_provider_install discard_provider_install
     choose_steamgriddb_artwork check_steamgriddb_listings set_steamgriddb_key
     clear_steamgriddb_key
     export_portable_saves import_portable_saves export_mod_recipe apply_mod_recipe
-    acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package
+    acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package apply_local_mod_package
     add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
     apply_steam_artwork apply_steam_entry begin_github_device_login
@@ -32,7 +33,7 @@ const unsupportedByReason: Record<string, string[]> = {
     create_support_bundle delete_backup discard_game_update_acquisition
     download_catalog_package export_library_metadata forget_pending_setup
     import_artwork import_library import_source install_application_update install_port logout_github
-    move_library open_bug_report open_external_url open_host_tool_official_site submit_report
+    move_library open_bug_report open_external_url open_provider_mod_project open_host_tool_official_site submit_report
     open_manual_setup_folder open_pending_setup_folder open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
     poll_github_device_login recheck_host_tool
@@ -47,7 +48,7 @@ const unsupportedByReason: Record<string, string[]> = {
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
     set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
-    set_mod_package_enabled
+    set_mod_package_enabled remove_mod_package
     set_output_location set_policy trust_catalog_key use_cached_catalog
     use_embedded_catalog use_mod_setup verify_port verify_sources
   `.split(/\s+/),
@@ -65,7 +66,7 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_mod_package_code review_source_reuse
+    plan_install_batch review_game_setting review_mod_package_code plan_local_mod_package review_source_reuse
     scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),

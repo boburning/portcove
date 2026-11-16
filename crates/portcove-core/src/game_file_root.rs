@@ -275,7 +275,7 @@ impl Library {
             .collect::<Vec<_>>();
         let root = roots
             .into_iter()
-            .filter(|root| path.starts_with(root))
+            .filter(|root| registered_path_inside_saved_root(path, root))
             .max_by_key(|root| root.components().count())?;
         (!std::fs::metadata(&root).is_ok_and(|metadata| metadata.is_dir())).then_some(root)
     }
@@ -982,6 +982,26 @@ fn require_available_root(path: &Path) -> Result<PathBuf> {
     Ok(path)
 }
 
+// A registration may preserve the spelling supplied by the player while
+// saved folders are canonicalized. The folder may be offline, so compare
+// path components without asking the filesystem to resolve either path.
+fn registered_path_inside_saved_root(path: &Path, root: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        let path = crate::path::comparable_windows_path(&path.to_string_lossy());
+        let root = crate::path::comparable_windows_path(&root.to_string_lossy());
+        let path = Path::new(&path);
+        !path
+            .components()
+            .any(|component| component == std::path::Component::ParentDir)
+            && path.starts_with(Path::new(&root))
+    }
+    #[cfg(not(windows))]
+    {
+        path.starts_with(root)
+    }
+}
+
 /// Whether `path` is the saved folder with this path key or inside it,
 /// compared as stored rows are (case-insensitively on Windows).
 pub(crate) fn key_inside(path: &Path, key: &str) -> bool {
@@ -1009,6 +1029,25 @@ fn validate_id(id: &str) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[cfg(windows)]
+    #[test]
+    fn reconnect_matches_ordinary_sources_under_canonical_windows_roots() {
+        let root = PathBuf::from(["", "", "?", "UNC", "Host", "Share", "Games"].join("\\"));
+        let share = PathBuf::from(["", "", "host", "share"].join("\\"));
+        assert!(registered_path_inside_saved_root(
+            &share.join(r"games\disc.chd"),
+            &root,
+        ));
+        assert!(!registered_path_inside_saved_root(
+            &share.join(r"games-old\disc.chd"),
+            &root,
+        ));
+        assert!(!registered_path_inside_saved_root(
+            &share.join(r"games\..\disc.chd"),
+            &root,
+        ));
+    }
 
     #[test]
     fn concurrent_root_registration_returns_one_durable_identity() {

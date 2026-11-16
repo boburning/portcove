@@ -3874,9 +3874,41 @@
       },
       "issue_number": 147,
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
-      "availability": "unknown"
+      "availability": "packages",
+      "release_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest",
+      "download_asset_hints": {
+        "linux-x86-64": [
+          "SuperMarioWorldRecomp-linux-",
+          "-x86_64.AppImage"
+        ]
+      },
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your own Super Mario World original",
+            "instruction": "Use your own stock Super Mario World (USA) SNES ROM. On Windows, select the original in Portcove. On Linux, run the publisher’s AppImage and select the original in its launcher."
+          },
+          {
+            "title": "Run the Linux x64 AppImage",
+            "instruction": "Choose the Linux x86-64 AppImage from the publisher’s release. Make it executable and start it from a writable folder dedicated to this game. It needs glibc 2.38 or later. If FUSE is unavailable, start it with --appimage-extract-and-run. Select Browse For ROM (built-in) when your desktop has no file picker. Keep the original where you store it."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep the upstream Linux profile together",
+            "instruction": "With the game closed, back up the working folder beside the AppImage, including saves, config.ini, keybinds.ini, rom.cfg, and your own Lua scripts and mods. The AppImage refreshes matching bundled mod files and makes entries in mods writable by their owner. Keep your working copy and its profile before trying a replacement AppImage. Portcove’s managed Windows backup does not include this Linux folder."
+          },
+          {
+            "title": "Check Mac and Android availability",
+            "instruction": "The current release offers Windows x64 and Linux x86-64 packages. It does not publish Intel Mac, Apple Silicon, Linux ARM64, or Android packages."
+          }
+        ],
+        "help_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest"
+      }
     },
     {
       "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -19717,6 +19749,14 @@
       "name": "Vampire Savior Definitive (CPS-2 Recomp)",
       "summary": "Play Vampire Savior Definitive using your own matching arcade originals.",
       "original_game_title": "Vampire Savior Definitive",
+      "artwork": {
+        "game_id": 206672,
+        "cover_id": 572032,
+        "image_id": "coc9ds",
+        "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+        "game_slug": "vampire-savior-the-lord-of-vampire",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/tmcleroy/cps2recomp",
       "availability": "packages",
       "setup_url": "https://github.com/tmcleroy/cps2recomp/blob/6f3c37f5808268e4525c81f1419f65dca43e6f39/games/vsav_definitive/README.md",
@@ -24342,6 +24382,14 @@
       "name": "Doom / The Ultimate Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom / The Ultimate Doom",
+      "artwork": {
+        "game_id": 10192,
+        "cover_id": 182448,
+        "image_id": "co3ws0",
+        "image_sha256": "3e8f2c48dc86aaf6bf763ce257c48678435bf3ef04572074ef46ce21c02a7b57",
+        "game_slug": "the-ultimate-doom",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -26798,6 +26846,51 @@
       }
     },
     {
+      "id": "endless-sky",
+      "name": "Endless Sky",
+      "original_game_title": "Endless Sky",
+      "summary": "Captain a ship, trade cargo, and explore a galaxy of stories in an open-source space adventure.",
+      "project_url": "https://github.com/endless-sky/endless-sky",
+      "issue_number": 6495,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/endless-sky/endless-sky/releases/latest",
+      "setup_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual",
+      "download_block_reason": "Choose the package for your system from the publisher or use your package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose a desktop package",
+            "instruction": "On Windows, extract the whole ZIP for your system and open Endless Sky.exe. On Linux x86-64, allow the publisher AppImage to run as a program and open it, or use your distribution’s package. Flathub also offers Linux x86-64 and ARM64. On Mac, open the publisher disk image and copy Endless Sky.app to Applications."
+          },
+          {
+            "title": "Start a pilot",
+            "instruction": "Choose New Pilot, then select a starting scenario. The game saves progress while you are landed."
+          }
+        ],
+        "warnings": [
+          "Before updating or moving the game, close it and copy the whole player-data folder, including saves, pilots, preferences, and plugins."
+        ],
+        "references": [
+          {
+            "title": "Find your player data",
+            "instruction": "The default folder is %APPDATA%/endless-sky on Windows, ~/Library/Application Support/endless-sky on Mac, and ~/.local/share/endless-sky on Linux. Linux uses XDG_DATA_HOME if you set it. A Flatpak profile lives under ~/.var/app/io.github.endless_sky.endless_sky/data/endless-sky. If you start the game with --config, keep the folder you selected there."
+          },
+          {
+            "title": "Find the separate Android port",
+            "instruction": "F-Droid carries a separately maintained Android port. Its versions and profile handling follow that port."
+          }
+        ],
+        "help_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual"
+      }
+    },
+    {
       "id": "erreib-pure-recomp",
       "name": "Wipeout Pure (pure-recomp)",
       "summary": "Register an independently permitted prepared Wipeout Pure Windows copy for your own US Greatest Hits v2.00 disc, keeping external saves, optional DLC and upstream maintenance separate.",
@@ -27164,6 +27257,47 @@
             "instruction": "Keep the entire separate EXIT folder and every effective external root. Its exit1.ini always lives in the working directory. Portable=True is the default: the inspected source puts user data in that working directory, cache in cache/ and runtime configuration in exit1.toml, overriding the normal platform user root. Portable=False and custom original/update paths can use external locations. Preserve all profiles, saves, owned DLC, settings, logs, screenshots, caches, backups and temporary files with the creating runtime; no cross-title or cross-version save compatibility is assumed."
           }
         ]
+      }
+    },
+    {
+      "id": "extreme-tux-racer",
+      "name": "Extreme Tux Racer",
+      "original_game_title": "Extreme Tux Racer",
+      "summary": "Race Tux down snowy slopes, collect herring, and try to beat your best time.",
+      "project_url": "https://sourceforge.net/projects/extremetuxracer/",
+      "issue_number": 6474,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
+      "setup_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/",
+      "download_block_reason": "Get the Windows x64 installer from the publisher or use your Linux package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the desktop game",
+            "instruction": "On Windows x64, open the stable release folder and run ExtremeTuxRacer.msi. Then use the Extreme Tux Racer Start menu shortcut. On Debian or Ubuntu, install extremetuxracer from your distribution and open Extreme Tux Racer. On Linux x86-64 or ARM64, you can also install the community package net.sourceforge.ExtremeTuxRacer from Flathub. Use the same package source for updates."
+          },
+          {
+            "title": "Start your first race",
+            "instruction": "Choose an existing player or select Register a new player. Choose your character and select Enter. Select Practice, choose Bunny Hill, then select Race!"
+          },
+          {
+            "title": "Keep your players and high scores",
+            "instruction": "Close the game before copying your profile. On Windows, copy the config folder in the game’s installation folder. On Linux, copy the etr folder under your configuration directory, usually ~/.config/etr. If the game uses an existing ~/.etr folder, copy that folder instead. For Flatpak, copy ~/.var/app/net.sourceforge.ExtremeTuxRacer/.etr. Restore using the same package and keep the backup until you can see your players and scores."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check Mac and Android availability",
+            "instruction": "The current desktop release has no Intel or Apple Silicon Mac package. The separate drodin/extremetuxracer project offers its older Android APK under release 0.8.107 on GitHub. It uses a separate profile, and device compatibility has not been verified."
+          }
+        ],
+        "help_url": "https://sourceforge.net/projects/extremetuxracer/files/releases/"
       }
     },
     {
@@ -28727,6 +28861,50 @@
         "macos-x86-64",
         "macos-aarch64"
       ]
+    },
+    {
+      "id": "freeciv",
+      "name": "Freeciv",
+      "original_game_title": "Freeciv",
+      "summary": "Build a civilization and compete against computer or human opponents in turn-based strategy.",
+      "project_url": "https://github.com/freeciv/freeciv",
+      "issue_number": 6502,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://www.freeciv.org/download.html",
+      "setup_url": "https://www.freeciv.org/download.html",
+      "download_block_reason": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the GTK4 client",
+            "instruction": "On Windows 10 or later, choose the x64 GTK4 installer. On Linux x86-64, allow the GTK4 AppImage to run as a program and open it. On Apple Silicon Mac, install freeciv with Homebrew and run freeciv-gtk4."
+          },
+          {
+            "title": "Start or restore a local game",
+            "instruction": "Choose Start New Game and then Start to play locally against the computer. Use Game → Save Game As to name and save your game. From the title screen, choose Load Saved Game, select your save, then choose Start in the lobby."
+          }
+        ],
+        "warnings": [
+          "Back up your save files, settings and custom rulesets before updating or moving the game. Use the current release when opening saves or scenarios from other players."
+        ],
+        "references": [
+          {
+            "title": "Find saves and settings",
+            "instruction": "The default profile is %APPDATA%/.freeciv on Windows and ~/.freeciv on Linux and Mac. Look in its saves folder for saved games. Keep the full profile for settings and custom data, and copy any other save location you configured."
+          },
+          {
+            "title": "Check other desktop builds",
+            "instruction": "Homebrew publishes a Linux ARM64 package. For Intel Mac, see the upstream source build instructions and check your package manager’s current availability."
+          }
+        ],
+        "help_url": "https://github.com/freeciv/freeciv/blob/main/INSTALL"
+      }
     },
     {
       "id": "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
@@ -36051,6 +36229,14 @@
       "listed_at": "2026-10-23",
       "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
       "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+      "artwork": {
+        "game_id": 1041,
+        "cover_id": 132049,
+        "image_id": "co2tw1",
+        "image_sha256": "3ff3d35904233a4f851bcbd553ab111589089d7b1f040916e8af46cec397c034",
+        "game_slug": "the-legend-of-zelda-oracle-of-ages",
+        "match_kind": "underlying-game"
+      },
       "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases",
       "platforms": [
         "windows-x86-64",
@@ -40087,6 +40273,55 @@
         "help_url": "https://github.com/Maxilure/MindOver-Recomp"
       },
       "issue_number": 3454
+    },
+    {
+      "id": "mindustry",
+      "name": "Mindustry",
+      "original_game_title": "Mindustry",
+      "summary": "Build factories, supply your defenses, and command units in an open-source tower-defense strategy game.",
+      "project_url": "https://github.com/Anuken/Mindustry",
+      "issue_number": 6506,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://anuke.itch.io/mindustry",
+      "setup_url": "https://mindustrygame.github.io/wiki/",
+      "download_block_reason": "Get Mindustry from the publisher or your package manager. That choice determines how you update the game.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your desktop download",
+            "instruction": "The publisher’s itch.io page has downloads for Windows x64, Linux x64, and Mac. Extract the whole ZIP and open its launcher. On Linux ARM64, use the community Flathub package."
+          },
+          {
+            "title": "Run the publisher’s Java download",
+            "instruction": "The GitHub release also offers Mindustry.jar for Windows x64, Linux x64, and Intel or Apple Silicon Mac. Use a matching 64-bit Java runtime. Build 160.7 requires Java 17 or later. On Windows or Linux, run java -jar Mindustry.jar. On Mac, run java -XstartOnFirstThread -jar Mindustry.jar."
+          },
+          {
+            "title": "Start and save a local game",
+            "instruction": "Choose Play, then Campaign or Custom Game. To save a custom game, open the pause menu, select Save Game, then New Save. Open Play and Load Game from the title screen to resume it."
+          }
+        ],
+        "warnings": [
+          "Before updating the game or moving it to a new computer, close it and copy the whole Mindustry data folder. Keep settings.bin with saves so named saves and preferences come across, and include any maps, schematics, and mods you want to keep."
+        ],
+        "references": [
+          {
+            "title": "Find your desktop data",
+            "instruction": "For the standalone game, look in %APPDATA%/Mindustry on Windows, ~/Library/Application Support/Mindustry on Mac, and ~/.local/share/Mindustry on Linux. On Linux, use $XDG_DATA_HOME/Mindustry if you set XDG_DATA_HOME. Flathub keeps the folder at ~/.var/app/com.github.Anuken.Mindustry/data/Mindustry."
+          },
+          {
+            "title": "Get the Android version",
+            "instruction": "The publisher links to Google Play and F-Droid from the Mindustry website and offers an APK on itch.io. Use the same store for future updates so the app keeps its signing identity."
+          }
+        ],
+        "help_url": "https://mindustrygame.github.io/"
+      }
     },
     {
       "id": "mka-sp00nznet-mario-kart-arcade-gp",
@@ -50965,6 +51200,54 @@
       "issue_number": 3253
     },
     {
+      "id": "red-alert-2-and-yuri-s-revenge-red-alert-2-recomp",
+      "name": "Red Alert 2 and Yuri's Revenge Recomp",
+      "original_game_title": "Command & Conquer: Red Alert 2 and Yuri's Revenge",
+      "summary": "Build native Red Alert 2 and Yuri’s Revenge players from your own PC release.",
+      "project_url": "https://github.com/sp00nznet/redalert2-recomp",
+      "issue_number": 5744,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/sp00nznet/redalert2-recomp/releases/latest",
+      "setup_url": "https://github.com/sp00nznet/redalert2-recomp#getting-started",
+      "download_block_reason": "The publisher’s installer builds both players from your own game files.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Open the installer for your system",
+            "instruction": "Use the publisher’s Windows x64 installer, Linux x86-64 archive, or Apple Silicon Mac ZIP. Extract the Linux or Mac archive before opening the installer."
+          },
+          {
+            "title": "Select your original game folder",
+            "instruction": "Use your installed Steam or EA App copy. If the installer does not find it, choose the folder containing Red Alert 2 game.exe version 1.006 and Yuri’s Revenge gamemd.exe version 1.001. On Linux, the folder picker needs Zenity or KDialog."
+          },
+          {
+            "title": "Build and start either game",
+            "instruction": "Choose a separate build folder and select Build my recomp. When the build finishes, use the installer’s Play actions or the matching Red Alert 2 or Yuri’s Revenge launcher it creates."
+          }
+        ],
+        "warnings": [
+          "The first build can take 30 to 60 minutes and needs about 6 GB. The installer may request permission to install build tools. The publisher documents unsigned installers, so your operating system may block them."
+        ],
+        "references": [
+          {
+            "title": "Keep the original and build folders",
+            "instruction": "The generated launchers use the build folder, and Linux and Mac setup links to your installed original. Keep both folders available. Back up existing saves and settings before rebuilding or moving either folder."
+          },
+          {
+            "title": "Check the Linux and Mac prerequisites",
+            "instruction": "Linux needs a 32-bit GCC toolchain plus the matching SDL2 and FFmpeg development libraries. The Apple Silicon route needs Homebrew and the Xcode command-line tools. See the publisher’s build guide for dependency details."
+          }
+        ],
+        "help_url": "https://github.com/sp00nznet/redalert2-recomp/blob/main/docs/building.md"
+      }
+    },
+    {
       "id": "redahm-destroy-all-humans-path-of-the-furon",
       "name": "reDAHM / Destroy All Humans! Path of the Furon",
       "summary": "Explore reDAHM / Destroy All Humans! Path of the Furon and follow the upstream project for requirements, downloads and setup.",
@@ -58900,6 +59183,47 @@
       }
     },
     {
+      "id": "surge-the-rabbit-opensurge",
+      "name": "Surge the Rabbit",
+      "original_game_title": "Surge the Rabbit",
+      "summary": "Play a retro platformer and build your own levels with the Open Surge engine.",
+      "project_url": "https://github.com/alemart/opensurge",
+      "issue_number": 6493,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/alemart/opensurge/releases/latest",
+      "setup_url": "https://opensurge2d.org/",
+      "download_block_reason": "Download and update the game through the publisher or your Linux package source.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install and open the game",
+            "instruction": "On Windows, extract the entire publisher ZIP into a folder you can write to and open opensurge.exe. The package includes the game and uses a 32-bit Windows executable. On Linux, install Open Surge from your distribution or install Surge Engine from Flathub for x86-64 or ARM64."
+          },
+          {
+            "title": "Start the bundled adventure",
+            "instruction": "Choose Start Game from the Surge the Rabbit title screen. The package already includes the levels and other game files. No separate game data is needed."
+          },
+          {
+            "title": "Keep your settings and creations",
+            "instruction": "Close the game before copying your files. On Windows, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Get the publisher’s Android build",
+            "instruction": "The publisher offers an Android APK for ARM64 and 32-bit ARM in the release downloads. Keep your own copies of any projects you import. The Android app stores its active data in its own app storage."
+          }
+        ],
+        "help_url": "https://wiki.opensurge2d.org/"
+      }
+    },
+    {
       "id": "svr07-recomp-wwe-smackdown-vs-raw-2007",
       "name": "SVR07 Recomp / WWE SmackDown vs. Raw 2007",
       "summary": "Explore SVR07 Recomp / WWE SmackDown vs. Raw 2007 and follow the upstream project for requirements, downloads and setup.",
@@ -59572,6 +59896,46 @@
       "platforms": [
         "windows-x86-64"
       ]
+    },
+    {
+      "id": "teeworlds",
+      "name": "Teeworlds",
+      "original_game_title": "Teeworlds",
+      "summary": "Swing through 2D arenas, play local and online matches, and create your own maps.",
+      "project_url": "https://github.com/teeworlds/teeworlds",
+      "issue_number": 6509,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://www.teeworlds.com/?page=downloads",
+      "setup_url": "https://www.teeworlds.com/?page=docs",
+      "download_block_reason": "Choose a download from the Teeworlds project or install the game through your package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the client",
+            "instruction": "On Windows, extract the publisher ZIP and open teeworlds.exe. On Linux, install Teeworlds through your package manager or unpack the publisher archive and launch teeworlds from its folder. The community Flathub package is available on Linux x64 and ARM64. The publisher’s Mac disk image contains an Intel client."
+          },
+          {
+            "title": "Play and record a match",
+            "instruction": "The Teeworlds 0.7 client connects to Teeworlds 0.7 servers. In a match, press F1 and enter record followed by a demo name. Enter stoprecord to finish, then open the recording from Demos."
+          }
+        ],
+        "warnings": [
+          "Before moving your setup, close the game and copy the data folder with settings07.cfg, demos, custom maps, and any skins you want to keep."
+        ],
+        "references": [
+          {
+            "title": "Find your data folder",
+            "instruction": "The defaults are %APPDATA%/Teeworlds on Windows, ~/Library/Application Support/Teeworlds on Mac, and ~/.local/share/teeworlds on Linux. On Linux, the game prefers an existing ~/.teeworlds folder or uses $XDG_DATA_HOME/teeworlds if XDG_DATA_HOME is set. For the Flathub installation, check ~/.var/app/com.teeworlds.Teeworlds/.teeworlds. If you changed storage.cfg, use its save location."
+          }
+        ],
+        "help_url": "https://www.teeworlds.com/?page=docs"
+      }
     },
     {
       "id": "tekken-3-tekken3recomp",
@@ -61233,6 +61597,53 @@
         "image_sha256": "544d18f4edcca4f00fbbf5accc8484fbce5d20ef517b824cd156248c06b25830",
         "game_slug": "the-order-1886",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "the-powder-toy",
+      "name": "The Powder Toy",
+      "original_game_title": "The Powder Toy",
+      "summary": "Draw with materials and experiment with weather, fluids, and circuits in a physics sandbox.",
+      "project_url": "https://github.com/The-Powder-Toy/The-Powder-Toy",
+      "issue_number": 6491,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://powdertoy.co.uk/Download/Platforms.html",
+      "setup_url": "https://powdertoy.co.uk/Download/Platforms.html",
+      "download_block_reason": "Choose the package for your system from the publisher’s download page.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose a desktop package",
+            "instruction": "On Windows x64, download and extract the standard ZIP, then open Powder.exe. For Windows on ARM, choose Older, then Browse and open the current build page. Extract the ARM64 ZIP and open Powder arm64.exe. On Linux x86-64, extract the archive and run powder. The current Linux build needs glibc 2.35 or later. On Mac, choose the disk image for Intel or Apple Silicon."
+          },
+          {
+            "title": "Create and reopen a local stamp",
+            "instruction": "Cancel the optional installation prompt to try the sandbox without registering file types. Draw in the canvas, press S, and drag around the area to keep. Press K to open your stamp library. Stamps work locally without a website account."
+          },
+          {
+            "title": "Keep your local data",
+            "instruction": "Use Open Data Folder in the game’s settings. Close the game before copying that folder, including local saves, stamps, scripts, and preferences. Keep a separate copy before updating. The game’s updater or the original package source handles runtime updates."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check Android and other Linux builds",
+            "instruction": "The publisher links the official Android app in Google Play. Its GitHub APKs are experimental. The tagged GitHub release has a Linux ARM64 build. See the publisher’s notes before using a non-website desktop build."
+          },
+          {
+            "title": "Check the current Mac packages",
+            "instruction": "The publisher supplies separate Intel and Apple Silicon disk images. The current Apple Silicon release has a signing limitation. macOS decides whether it can open either app. The publisher’s browser player is available from Play online."
+          }
+        ],
+        "help_url": "https://powdertoy.co.uk/FAQ.html"
       }
     },
     {
@@ -63616,6 +64027,74 @@
         "help_url": "https://github.com/Aoyagi01/Tutikumo"
       },
       "issue_number": 3106
+    },
+    {
+      "id": "tux-racer-sdl2-port",
+      "name": "Tux Racer (SDL2 Port)",
+      "original_game_title": "Tux Racer",
+      "summary": "Race down the original Tux Racer courses in this modern desktop port.",
+      "project_url": "https://github.com/labbej27/tuxracer",
+      "issue_number": 5797,
+      "listed_at": "2026-11-16",
+      "availability": "packages",
+      "release_url": "https://github.com/labbej27/tuxracer/releases/latest",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "TuxRacer-",
+          "-Windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "TuxRacer-",
+          "-Linux-x86_64.tar.gz"
+        ],
+        "macos-x86-64": [
+          "TuxRacer-",
+          "-macOS.zip"
+        ],
+        "macos-aarch64": [
+          "TuxRacer-",
+          "-macOS.zip"
+        ]
+      },
+      "recommended_download_channel": "stable",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start with the included courses",
+            "instruction": "The package is ready for Play. Press Enter at the title screen, select Practice, choose a course, and select Race. On Linux, install libGLU.so.1 from your distribution if needed."
+          },
+          {
+            "title": "Choose the package for your computer",
+            "instruction": "Use the Windows 10 or 11 x64 ZIP, the Linux x86-64 archive, or the universal macOS 11 or later ZIP for Intel and Apple Silicon. The Linux game needs glibc 2.35 or later and libGLU.so.1. Debian and Ubuntu provide the latter in libglu1-mesa."
+          },
+          {
+            "title": "Extract the whole package and start the game",
+            "instruction": "On Windows, run tuxracer.exe. On Linux, run tuxracer. Keep the data folder next to the player. On macOS, open the complete Tux Racer.app without moving files out of it."
+          },
+          {
+            "title": "Keep your original Tux Racer profile",
+            "instruction": "With the game closed, copy %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Keep that backup when replacing your extracted game folder. Extreme Tux Racer uses a different profile."
+          },
+          {
+            "title": "Keep captures you want to retain",
+            "instruction": "The game writes tux_sshot_*.ppm and its optional diagnostic_log.txt beside the player. In an extracted copy, keep those files when replacing the runtime. Move screenshots you want to keep before playing again, because the game restarts screenshot numbering at zero."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check other platforms",
+            "instruction": "The SDL2 port publishes an x86-64 Linux package and a universal Mac package. Its release page does not offer Linux ARM64 or Android packages."
+          }
+        ],
+        "help_url": "https://github.com/labbej27/tuxracer/blob/main/README.md"
+      },
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ]
     },
     {
       "id": "twistedmetal1234recomp-jcoker85-twisted-metal",
@@ -67505,6 +67984,14 @@
       "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
       "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
       "original_game_title": "Wing Commander (Kilrathi Saga)",
+      "artwork": {
+        "game_id": 50167,
+        "cover_id": 27896,
+        "image_id": "amf1oxlh21jfbdvpso8j",
+        "image_sha256": "8960e96afabb01890379af2654d19c28852d0935a3c98059afcf7b7c418a5e87",
+        "game_slug": "wing-commander-the-kilrahi-saga",
+        "match_kind": "underlying-game"
+      },
       "project_url": "https://github.com/neuromancer/wc1-re",
       "setup_url": "https://github.com/neuromancer/wc1-re",
       "issue_number": 2909,

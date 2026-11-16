@@ -210,6 +210,9 @@ pub struct ProfileView {
     pub profile: Profile,
     pub revision: ProfileRevision,
     pub build_availability: RetainedBuildAvailability,
+    /// Version of the exact installed runtime this setup resolves to.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub build_version: Option<String>,
     pub originals: Vec<OriginalStatus>,
 }
 
@@ -464,15 +467,20 @@ impl PortcoveService {
         let mut views = Vec::new();
         for profile in profiles_from(&connection, port_id)? {
             let revision = revision_from(&connection, &profile.id, profile.current_revision)?;
-            let build_availability = self
-                .resolve_retained_build(port_id, &profile.id)
+            let resolved = self.resolve_retained_build(port_id, &profile.id).ok();
+            let build_availability = resolved
+                .as_ref()
                 .map(|resolved| resolved.availability)
                 .unwrap_or(RetainedBuildAvailability::Unavailable);
+            let build_version = resolved
+                .and_then(|resolved| resolved.install)
+                .map(|install| install.version);
             views.push(ProfileView {
                 originals: original_statuses(&revision.originals, &sources),
                 profile,
                 revision,
                 build_availability,
+                build_version,
             });
         }
         Ok(ProfileInventory {

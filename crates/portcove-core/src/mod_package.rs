@@ -17,8 +17,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{PortcoveError, Result, zip_read};
 
+pub(crate) const MAX_ARCHIVE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const LIMITS: zip_read::Limits = zip_read::Limits {
-    bytes: 4 * 1024 * 1024 * 1024,
+    bytes: MAX_ARCHIVE_BYTES,
     entries: 100_000,
     metadata: 64 * 1024 * 1024,
     zip64: true,

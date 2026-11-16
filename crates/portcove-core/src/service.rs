@@ -16493,8 +16493,8 @@ fn main() {
         register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
         let folder = temporary.path().join("nas");
         fs::create_dir(&folder).unwrap();
-        let folder = library.add_game_file_root(&folder).unwrap().path;
         let source_path = folder.join("jak1.iso");
+        let folder = library.add_game_file_root(&folder).unwrap().path;
         fs::write(&source_path, b"registered source").unwrap();
         let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
         library
@@ -19631,6 +19631,7 @@ fn main() {
         const STATE: &str = "mods/preloaded/state.toml";
         for (id, old_version, new_version) in [
             ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
+            ("super-mario-world-recomp", "v0.15.9", "v0.15.10"),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "v0.6.1",

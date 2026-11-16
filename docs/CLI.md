@@ -380,8 +380,9 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from the advertised API and event schemas.
+current or retained listing. Read the active CLI API from
+`capabilities.schema_version`. The same response advertises the operation event
+schema, port capability schema and listing formats in their own fields.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -949,12 +950,21 @@ existing update check and update policy own those, and standing setup never
 updates a game.
 
 `games setup-ready` runs one standing-setup pass. Each set-up-when-ready game
-that is ready gets its own one-game batch. Before the batch starts, Portcove
-checks the choice still stands; then the game is re-planned and freshly
-authorized. It is never launched, and an installed game is never reinstalled or
-updated. A failed or interrupted attempt is not retried with the same plan; it
-becomes eligible again when the plan changes. Uninstalling a game is
-remembered, so it is not set up or reported again until you choose a mode for it.
+that is ready gets its own one-game batch. If a required registered original
+is unavailable, its game waits without spending an attempt and can become
+ready again when the same file or folder returns. Before the batch starts,
+Portcove checks that the original is available and the choice still stands.
+The game is re-planned and freshly authorized for the batch. Play remains an
+explicit action. Standing setup leaves installed games in place. After
+uninstalling, choose a mode again before the game can be set up or reported.
+
+Portcove retries a failed setup on a later pass while the game is ready, up to
+three failed attempts for the same plan. A changed plan becomes eligible again.
+If an earlier Portcove version spent all three attempts while your registered
+original was offline, reconnect it and repeat
+`games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed
+choice reuses the same registration.
+
 Each pass first settles setup batches left mid-run by an interruption, against
 committed state, before starting anything: an install that was committed counts
 as ready, and a game with nothing committed and no unfinished install or update
@@ -962,9 +972,8 @@ journal is marked interrupted. A game whose earlier work hasn't finished
 recovering stays in progress and waits with that reason; nothing new starts for
 it and nothing is counted. Only batches whose in-progress games are all
 set-up-when-ready games are settled this way; other interrupted batches stay in
-progress for you to continue with `games batch-resume`. For a set-up-when-ready
-game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
-pass, and repeated interruptions stop at the same three-attempt limit. Batches
+progress for you to continue with `games batch-resume`. An interruption for a
+set-up-when-ready game counts as one failed attempt for that plan. Batches
 another process is still running, and games another operation holds, are left
 alone.
 The same pass also applies eligible mod updates for setups that allow them; see
@@ -1820,6 +1829,10 @@ supported; game signals and post-exit save collection stay with the supervisor.
 
 Status objects include additive `readiness`, `last_launched_at`, `successful_launches`, and `last_update_check` fields. Readiness separates one-time upstream setup from the current game-source and BIOS states: `unregistered`, `current`, `missing`, `unreadable`, `changed`, or `not_checked`. Installed requirements are hashed against their registered storage baseline; uninstalled registrations use `not_checked` so catalog browsing does not imply a current-byte check. `current` means unchanged since registration, not that an informational or extension-only profile gained exact-revision evidence. Missing, unreadable, and changed requirements block launch and route Continue to setup. Install and launch still repeat the full catalog validation at their final use boundary. Launch history advances only after a child process exits successfully; a failed start, crash, or non-zero exit never becomes a Continue candidate. Both the CLI and desktop write the same SQLite record, so external frontends can use these fields without scraping GUI state.
 
+When a registered source is under an unavailable saved folder, readiness identifies
+that folder so the player can reconnect it. On Windows this works when the saved
+folder and source use equivalent ordinary and canonical path spellings.
+
 `last_update_check` contains the timestamped successful `UpdateCheck` most recently produced by `check`, `update`, or `reconcile`. It survives process and desktop restarts. Consumers should display it as current only when its channel equals the status channel and its `installed_version` equals the active version; Portcove's GUI applies both guards so activating a release or changing channels cannot leave a stale update badge. A failed network or release check does not overwrite the last successful snapshot, and its error remains available through the command result and applicable activity record.
 
 An additive optional `last_update_check.check.upstream_activity` carries the repository facts the GitHub provider reported while selecting that release: `repository` (the `owner/name` observed), `archived`, optional `last_change_at` (latest push, Unix seconds) and `observed_at`. Facts read before a later failure, such as an accepted release that is no longer published, stay with the preserved-location fallback. It is a maintenance observation, not a catalog declaration, and grants or revokes no update, install or catalog authority. A check that did not read the repository, such as applying a reviewed game update, keeps the previous observation and its original `observed_at` only while the port's catalog definition still names that GitHub repository; another repository or provider drops it, and Desktop applies the same rule. Absence means unknown, never active. Unlike the update badge, it describes the repository rather than the installed version, so it remains meaningful after the channel or active version changes. This additive output field keeps API schema 91.
@@ -2306,6 +2319,12 @@ portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
 
+`profile remove-package PORT_ID PROFILE_ID NATIVE_ID --expected-revision REVISION`
+removes the mod from this setup and the live mod folder when the setup is selected.
+Earlier revisions keep its exact package bytes. An enabled mod that depends on it
+or a changed package file holds removal. In Desktop, choose Remove beside the mod
+and confirm.
+
 `setups` is read-only and reports in one result whether the game has reviewed mod
 support (`supported`), the package types it loads, its profiles, what is live now
 and unattended updates held for review (`held_updates`, see
@@ -2589,6 +2608,29 @@ exactly that label for the same bytes and file name, so update checks never foll
 a label the recipe supplied. The plan says when a label is not kept; dropping one
 changes the identity of a later export. Otherwise a round trip reproduces the
 recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+
+#### Review a local mod file
+
+Use Add mod file in Desktop to review an exact archive before installing it.
+The review shows its native filename, replacements, shared assets when that
+comparison is supported, required packages, and any exact code permission.
+The setup list shows the game version and marks a held runtime. To return
+to an empty Default setup, choose Switch to clean play, then start the game
+from its regular Play action. Find mods can filter the current listing page
+by project, version or submitter. The project shows provider attribution and
+separates archived files from current variants.
+
+The versioned CLI offers the same exact local package review:
+
+```text
+portcove --library PATH --json profile package-plan PORT_ID PROFILE_ID FILE --expected-revision NUMBER
+portcove --library PATH --json profile package-apply PORT_ID PROFILE_ID FILE --expected-plan SHA256 --yes
+```
+
+Apply checks the file again under the port lock. If the review requests
+permission for the exact package's code, apply also requires
+`--allow-mod-code`. A reviewed replacement preserves its previous enabled
+state. Package store contents remain available to setup history.
 
 #### Unattended updates
 

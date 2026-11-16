@@ -891,10 +891,31 @@ impl Catalog {
                         )));
                     }
                 }
-                if let Some(artwork) = &presentation.artwork
-                    && (artwork.game_id == 0
+                if presentation
+                    .companion_cover
+                    .as_ref()
+                    .is_some_and(|companion| {
+                        presentation.artwork.as_ref().is_some_and(|primary| {
+                            primary.game_id == companion.game_id
+                                || primary.image_sha256 == companion.image_sha256
+                                || primary.image_id == companion.image_id
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} needs distinct primary and companion covers",
+                        port.id
+                    )));
+                }
+                for artwork in presentation
+                    .artwork
+                    .iter()
+                    .chain(&presentation.companion_cover)
+                {
+                    if artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
+                        || artwork.image_id.len() > 128
                         || artwork.image_sha256.len() != 64
                         || !artwork
                             .image_sha256
@@ -905,14 +926,16 @@ impl Catalog {
                             .bytes()
                             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
                         || artwork.game_slug.is_empty()
+                        || artwork.game_slug.len() > 512
                         || !artwork.game_slug.bytes().all(|byte| {
                             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                        }))
-                {
-                    return Err(PortcoveError::usage(format!(
-                        "{} has an invalid IGDB artwork mapping",
-                        port.id
-                    )));
+                        })
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid IGDB artwork mapping",
+                            port.id
+                        )));
+                    }
                 }
                 let expected_requirements = [
                     (
@@ -3275,7 +3298,10 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
+                matches!(
+                    id,
+                    "dkc3-recomp" | "sonic-3-and-knuckles-recomp" | "super-mario-world-recomp"
+                ),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -3412,11 +3438,18 @@ mod tests {
                         "v0.15.9",
                         "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
                     ),
-                ],
+                    (
+                        "v0.15.10",
+                        "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+                    ),
+                ]
+                .as_slice(),
                 [
                     "super-mario-world-recomp-0-12-0-source-contract",
                     "super-mario-world-recomp-0-15-9-source-contract",
-                ],
+                    "super-mario-world-recomp-0-15-10-source-contract",
+                ]
+                .as_slice(),
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -3430,11 +3463,13 @@ mod tests {
                         "v0.6.6",
                         "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
                     ),
-                ],
+                ]
+                .as_slice(),
                 [
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
-                ],
+                ]
+                .as_slice(),
             ),
         ] {
             let port = catalog.port(id).unwrap();

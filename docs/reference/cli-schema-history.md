@@ -56,7 +56,7 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
-API94 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
+API95 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
 results and corresponding `provider-apply` inputs. Preserve the whole plan when
 submitting it. Removing the wrapper review or its populated file observations
 invalidates the bound digest. Earlier Thunderstore plans must be reviewed

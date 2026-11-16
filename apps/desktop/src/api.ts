@@ -233,6 +233,20 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  companionCoverThumbnail: (
+    portId: string,
+    expectedPrimaryCacheId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_companion_cover_thumbnail", {
+      portId,
+      expectedPrimaryCacheId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
   catalogMediaThumbnail: (
     portId: string,
     mediaId: string,
@@ -347,6 +361,22 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  removeModPackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("remove_mod_package", {
+      portId,
+      profileId,
+      nativeId,
+      expectedRevision,
+      generation,
+    }),
+  openProviderModProject: (portId: string, projectId: string, generation: number) =>
+    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
   browseProviderMods: (portId: string, page: number, generation: number) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
@@ -409,6 +439,33 @@ export const desktopApi = {
       expectedRevision,
       generation,
       allowCodeSha256,
+    }),
+  planLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
+      "plan_local_mod_package",
+      { portId, profileId, path, expectedRevision, generation },
+    ),
+  applyLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedPlanSha256: string,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_local_mod_package", {
+      portId,
+      profileId,
+      path,
+      expectedPlanSha256,
+      generation,
+      allowCode,
     }),
   reviewModPackageCode: (portId: string, path: string, generation: number) =>
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {

@@ -2779,6 +2779,60 @@ fn igdb_cover(service: &PortcoveService, port_id: &str) -> Option<crate::IgdbArt
 }
 
 #[test]
+fn companion_cover_requires_current_default_and_uses_the_verified_igdb_cache() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut service = open_service(&temporary.path().join("library"));
+    let port_id = "kirby-letsgo-oracles-decomp";
+    let primary = retention_mapping("fixtureages", &coloured_jpeg([30, 30, 200]));
+    let bytes = coloured_jpeg([200, 30, 30]);
+    let mut companion = retention_mapping("fixtureseasons", &bytes);
+    companion.game_id += 1;
+    companion.cover_id += 1;
+    let mut document = service.catalog().document().clone();
+    let presentation = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == port_id)
+        .unwrap()
+        .presentation
+        .as_mut()
+        .unwrap();
+    presentation.artwork = Some(primary);
+    presentation.companion_cover = Some(companion.clone());
+    service.replace_catalog_for_test(crate::Catalog::from_document(document).unwrap());
+    let ArtworkResolvedSource::IgdbCover { cache_id, .. } = service
+        .artwork(port_id, ArtworkSlot::Cover)
+        .unwrap()
+        .resolved_source
+    else {
+        panic!("catalog default missing");
+    };
+    let cached = published_cover(&service, &companion, || Ok(bytes)).unwrap();
+    let get = |revision| {
+        service.companion_cover_thumbnail(port_id, &cache_id, &companion.image_sha256, revision)
+    };
+    let shown = get(0).unwrap();
+    assert_eq!(shown.asset_sha256, companion.image_sha256);
+    assert_eq!(shown.png, cached.png);
+    assert_eq!(
+        service
+            .companion_cover_thumbnail(port_id, "stale", &companion.image_sha256, 0)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    let local = image_file(temporary.path(), "local.png", image::ImageFormat::Png);
+    let selected = service
+        .import_artwork(port_id, ArtworkSlot::Cover, &local, 0)
+        .unwrap();
+    assert_eq!(get(0).unwrap_err().code, crate::ErrorCode::Conflict);
+    assert_eq!(
+        get(selected.choice.revision).unwrap_err().code,
+        crate::ErrorCode::Conflict
+    );
+}
+
+#[test]
 fn signed_cover_correction_and_withdrawal_retire_unreferenced_cached_originals() {
     let temporary = tempfile::tempdir().unwrap();
     let mut service =

@@ -1272,6 +1272,7 @@ export interface TransportOutputs {
   listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   live_mods: LiveMods;
+  local_mod_package_plan: OutputLocalModPackagePlan;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
@@ -2527,6 +2528,10 @@ export interface ReviewedHoldArtifact {
  */
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
+  /**
+   * Cover for the second game in a combined definition's Discover card.
+   */
+  companion_cover?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
@@ -4946,6 +4951,26 @@ export interface LiveMods {
   unmanaged: string[];
   [k: string]: unknown;
 }
+/**
+ * Exact review of a file chosen for one setup. Paths stay local to the caller.
+ */
+export interface OutputLocalModPackagePlan {
+  asset_count: number;
+  conflicts_truncated: boolean;
+  expected_revision: number;
+  missing_required_mods: string[];
+  native_id: string;
+  needs_code_permission: boolean;
+  overlapping_mods: string[];
+  plan_sha256: string;
+  profile_id: string;
+  replaces: string[];
+  replaces_enabled: boolean;
+  required_mods: string[];
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
 export interface OutputManagedRouteChangePreview {
   current_registration: ExternalRuntimeRecord;
   external_data_will_be_copied: boolean;
@@ -5052,6 +5077,10 @@ export interface ProfileInventory {
 }
 export interface ProfileView {
   build_availability: RetainedBuildAvailability;
+  /**
+   * Version of the exact installed runtime this setup resolves to.
+   */
+  build_version?: string | null;
   originals: OriginalStatus[];
   profile: Profile;
   revision: ProfileRevision;

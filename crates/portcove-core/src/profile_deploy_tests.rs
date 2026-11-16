@@ -87,6 +87,77 @@ fn installing_into_the_selected_profile_deploys_exact_bytes_and_records_a_revisi
 }
 
 #[test]
+fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
+    let w = world();
+    let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    let other = archive(&w.scratch, "ui.o2r", &[("ui/menu.bin", b"ui")]);
+    w.service
+        .install_mod_package("starship", &w.default, &removed, 1)
+        .unwrap();
+    let current = w
+        .service
+        .install_mod_package("starship", &w.default, &other, 2)
+        .unwrap();
+    let before = current
+        .packages
+        .iter()
+        .find(|package| package.native_id == "hd-link.o2r")
+        .unwrap();
+    let live = user(&w).join("mods/hd-link.o2r");
+    fs::write(&live, b"player changed this file").unwrap();
+    let error = w
+        .service
+        .remove_mod_package("starship", &w.default, "hd-link.o2r", current.revision)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(fs::read(&live).unwrap(), b"player changed this file");
+    assert_eq!(revision(&w, &w.default), current.revision);
+
+    fs::copy(&removed, &live).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    fs::write(
+        &config,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"hd-link|unmanaged|ui"}}}"#,
+    )
+    .unwrap();
+    let next = w
+        .service
+        .remove_mod_package("starship", &w.default, "hd-link.o2r", current.revision)
+        .unwrap();
+    assert_eq!(next.revision, current.revision + 1);
+    assert_eq!(live_mods(&w), ["ui.o2r"]);
+    assert_eq!(next.orderings[0].native_ids, ["ui.o2r"]);
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(config).unwrap()).unwrap();
+    assert_eq!(config["CVars"]["gSettings"]["EnabledMods"], "ui|unmanaged");
+    let history = w.service.profile_revisions("starship", &w.default).unwrap();
+    assert!(history[2].packages.contains(before));
+    let stored = Layout::for_user(&user(&w)).package(&before.sha256, &before.native_id);
+    assert_eq!(fs::read(stored).unwrap(), fs::read(removed).unwrap());
+}
+
+#[test]
+fn replacing_a_disabled_package_keeps_it_off() {
+    let w = world();
+    let package = archive(&w.scratch, "hd-link.otr", &[("objects/link.bin", b"old")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let disabled = w
+        .service
+        .set_mod_package_enabled("starship", &w.default, "hd-link.otr", false, 2)
+        .unwrap();
+    let replacement = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"new")]);
+    let next = w
+        .service
+        .install_mod_package("starship", &w.default, &replacement, disabled.revision)
+        .unwrap();
+    assert_eq!(next.packages.len(), 1);
+    assert_eq!(next.packages[0].native_id, "hd-link.o2r");
+    assert!(!next.packages[0].enabled);
+    assert!(live_mods(&w).is_empty());
+}
+
+#[test]
 fn disabling_removes_only_the_owned_file_and_enabling_restores_stored_bytes() {
     let w = world();
     let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
@@ -1644,4 +1715,52 @@ fn reviewing_a_package_reports_its_code_without_changing_anything() {
             .flatten(),
         None
     );
+}
+
+#[test]
+fn local_mod_review_binds_exact_bytes_and_reports_asset_overlap() {
+    let w = world();
+    let active = archive(&w.scratch, "active.otr", &[("assets/shared.png", b"old")]);
+    let local = archive(&w.scratch, "local.o2r", &[("assets/shared.png", b"local")]);
+    let mut installed = w
+        .service
+        .install_mod_package("starship", &w.default, &active, 1)
+        .unwrap();
+    let reviewed = w
+        .service
+        .plan_local_mod_package("starship", &w.default, &local, installed.revision)
+        .unwrap();
+    assert_eq!(reviewed.native_id, "local.o2r");
+    assert_eq!(reviewed.overlapping_mods, ["active.otr"]);
+    assert!(!reviewed.needs_code_permission);
+    assert!(!reviewed.conflicts_truncated);
+
+    let changed = archive(&w.scratch, "local.o2r", &[("assets/another.png", b"new")]);
+    let refused = w
+        .service
+        .apply_local_mod_package(
+            "starship",
+            &w.default,
+            &changed,
+            &reviewed.plan_sha256,
+            false,
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    let refreshed = w
+        .service
+        .plan_local_mod_package("starship", &w.default, &changed, installed.revision)
+        .unwrap();
+    installed = w
+        .service
+        .apply_local_mod_package(
+            "starship",
+            &w.default,
+            &changed,
+            &refreshed.plan_sha256,
+            false,
+        )
+        .unwrap();
+    assert_eq!(installed.revision, reviewed.expected_revision + 1);
+    assert_eq!(installed.packages.len(), 2);
 }

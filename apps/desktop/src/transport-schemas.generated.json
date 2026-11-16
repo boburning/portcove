@@ -6771,6 +6771,17 @@
               }
             ]
           },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -29791,6 +29802,90 @@
     "title": "LiveMods",
     "type": "object"
   },
+  "local_mod_package_plan": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Exact review of a file chosen for one setup. Paths stay local to the caller.",
+    "properties": {
+      "asset_count": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "conflicts_truncated": {
+        "type": "boolean"
+      },
+      "expected_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "missing_required_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "native_id": {
+        "type": "string"
+      },
+      "needs_code_permission": {
+        "type": "boolean"
+      },
+      "overlapping_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "profile_id": {
+        "type": "string"
+      },
+      "replaces": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "replaces_enabled": {
+        "type": "boolean"
+      },
+      "required_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "sha256": {
+        "type": "string"
+      },
+      "size": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "profile_id",
+      "expected_revision",
+      "native_id",
+      "sha256",
+      "size",
+      "asset_count",
+      "replaces",
+      "replaces_enabled",
+      "overlapping_mods",
+      "conflicts_truncated",
+      "needs_code_permission",
+      "required_mods",
+      "missing_required_mods",
+      "plan_sha256"
+    ],
+    "title": "LocalModPackagePlan",
+    "type": "object"
+  },
   "managed_route_change_preview": {
     "$defs": {
       "AcceptedSharedPreferencesBinding": {
@@ -31549,6 +31644,13 @@
         "properties": {
           "build_availability": {
             "$ref": "#/$defs/RetainedBuildAvailability"
+          },
+          "build_version": {
+            "description": "Version of the exact installed runtime this setup resolves to.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "originals": {
             "items": {
@@ -35295,6 +35397,17 @@
                 "type": "null"
               }
             ]
+          },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
@@ -42463,6 +42576,13 @@
         "properties": {
           "build_availability": {
             "$ref": "#/$defs/RetainedBuildAvailability"
+          },
+          "build_version": {
+            "description": "Version of the exact installed runtime this setup resolves to.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "originals": {
             "items": {
@@ -51490,6 +51610,17 @@
                 "type": "null"
               }
             ]
+          },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"

@@ -6,7 +6,9 @@ import { requestStandingSetup } from "../features/game-file-discovery/use-standi
 import { useAppTranslation } from "../localization";
 import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } from "../types";
 import { errorText, formatBytes } from "../view-model";
+import { ExternalLink } from "./ExternalLink";
 import { Button } from "./ui/button";
+import { Input } from "./ui/input";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -66,6 +68,7 @@ export function ModProviderBrowser(props: Props) {
   const provider = providerName(providerId);
   const { t } = useAppTranslation("gameSettings");
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
   const [page, setPage] = useState<ProviderBrowsePage>();
   const [project, setProject] = useState<ProviderProjectView>();
   const [plan, setPlan] = useState<ProviderInstallPlan>();
@@ -262,6 +265,9 @@ export function ModProviderBrowser(props: Props) {
       ) : project ? (
         <ProviderProjectFiles
           project={project}
+          openProject={() =>
+            desktopApi.openProviderModProject(portId, project.project.project_id, generation)
+          }
           projectStale={projectStale}
           provider={provider}
           locked={locked}
@@ -292,6 +298,8 @@ export function ModProviderBrowser(props: Props) {
       ) : page ? (
         <ProviderProjectList
           page={page}
+          query={query}
+          setQuery={setQuery}
           stale={pageStale}
           provider={provider}
           locked={locked}
@@ -437,6 +445,8 @@ function ProviderInstallDetails({
 
 function ProviderProjectList({
   page,
+  query,
+  setQuery,
   stale,
   provider,
   locked,
@@ -446,6 +456,8 @@ function ProviderProjectList({
   close,
 }: {
   page: ProviderBrowsePage;
+  query: string;
+  setQuery: (query: string) => void;
   stale: string | undefined;
   provider: string;
   locked: boolean;
@@ -455,14 +467,33 @@ function ProviderProjectList({
   close: () => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
+  const filterId = useId();
+  const normalized = query.trim().toLocaleLowerCase();
+  const matching = page.page.projects.filter((entry) =>
+    [entry.name, entry.submitter, entry.version].some((value) =>
+      value?.toLocaleLowerCase().includes(normalized),
+    ),
+  );
   return (
     <section aria-label={t("mods.browse.modsLabel", { provider })} className="grid gap-2">
       {stale && <p className="text-sm">{stale}</p>}
-      {page.page.projects.length === 0 ? (
-        <p className="text-sm">{t("mods.browse.noMods")}</p>
+      <label htmlFor={filterId} className="text-sm">
+        {t("mods.browse.filterPage")}
+      </label>
+      <Input
+        id={filterId}
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.currentTarget.value)}
+        maxLength={128}
+      />
+      {matching.length === 0 ? (
+        <p className="text-sm" role="status">
+          {t(normalized ? "mods.browse.noMatches" : "mods.browse.noMods")}
+        </p>
       ) : (
         <ul className="m-0 grid list-none gap-1 p-0">
-          {page.page.projects.map((entry) => (
+          {matching.map((entry) => (
             <li
               key={entry.project_id}
               className="flex flex-wrap items-center gap-2 text-sm [overflow-wrap:anywhere]"
@@ -514,6 +545,7 @@ function ProviderProjectList({
 function ProviderProjectFiles({
   project,
   projectStale,
+  openProject,
   provider,
   locked,
   working,
@@ -523,6 +555,7 @@ function ProviderProjectFiles({
 }: {
   project: ProviderProjectView;
   projectStale: string | undefined;
+  openProject: () => Promise<void>;
   provider: string;
   locked: boolean;
   working: boolean;
@@ -530,7 +563,9 @@ function ProviderProjectFiles({
   back: () => void;
   reviewFile: (file: ProviderProjectView["project"]["files"][number]) => void;
 }) {
-  const { t } = useAppTranslation("gameSettings");
+  const { t, i18n } = useAppTranslation("gameSettings");
+  const [showArchived, setShowArchived] = useState(false);
+  const files = project.project.files.filter((file) => showArchived || !file.archived);
   return (
     <section
       aria-label={t("mods.browse.filesLabel", { name: project.project.name })}
@@ -539,14 +574,45 @@ function ProviderProjectFiles({
       <p className="text-sm font-semibold">
         <bdi>{project.project.name}</bdi>
       </p>
+      {project.project.submitter && (
+        <p className="text-sm">
+          <Trans
+            t={t}
+            i18nKey="mods.browse.submittedBy"
+            components={{ name: <bdi>{project.project.submitter}</bdi> }}
+          />
+        </p>
+      )}
+      {project.project.profile_url && (
+        <ExternalLink href={project.project.profile_url} openUrl={openProject}>
+          {t("mods.browse.sourcePage", { provider })}
+        </ExternalLink>
+      )}
       {projectStale && <p className="text-sm">{projectStale}</p>}
       {project.project.obsolete && <p className="text-sm">{t("mods.browse.obsolete")}</p>}
-      {project.project.files.length === 0 ? (
-        <p className="text-sm">{t("mods.browse.noFiles")}</p>
+      {project.project.files.some((file) => file.archived) && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showArchived}
+            onChange={(event) => setShowArchived(event.currentTarget.checked)}
+          />
+          {t("mods.browse.showArchived")}
+        </label>
+      )}
+      {files.length === 0 ? (
+        <p className="text-sm">
+          {t(
+            showArchived || project.project.files.length === 0
+              ? "mods.browse.noFiles"
+              : "mods.browse.noActiveFiles",
+          )}
+        </p>
       ) : (
         <ul className="m-0 grid list-none gap-1 p-0">
-          {project.project.files.map((file) => {
+          {files.map((file) => {
             const installable = !file.archived && !project.project.obsolete && !projectStale;
+            const date = new Date(file.added_at * 1000);
             return (
               <li
                 key={file.file_id}
@@ -560,6 +626,19 @@ function ProviderProjectFiles({
                     components={{ file: <bdi>{file.file_name}</bdi> }}
                   />
                 </span>
+                <details className="text-sm">
+                  <summary>{t("mods.browse.fileDetails")}</summary>
+                  <p>{t("mods.browse.fileId", { id: file.file_id })}</p>
+                  {file.added_at > 0 && Number.isFinite(date.getTime()) && (
+                    <p>
+                      {t("mods.browse.filePublished", {
+                        date: new Intl.DateTimeFormat(i18n.resolvedLanguage, {
+                          dateStyle: "medium",
+                        }).format(date),
+                      })}
+                    </p>
+                  )}
+                </details>
                 {installable && (
                   <Button variant="outline" disabled={locked} onClick={() => reviewFile(file)}>
                     {t("mods.browse.review", { file: file.file_name })}
