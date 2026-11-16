@@ -376,6 +376,26 @@ impl Library {
         expected_payload: Option<&str>,
         matches: &GameFileScanMatchWrite,
     ) -> Result<()> {
+        self.publish_game_file_scan_checkpoint(
+            snapshot,
+            expected_outputs,
+            expected_roots,
+            expected_payload,
+            matches,
+            None,
+        )
+        .map(drop)
+    }
+
+    pub(crate) fn publish_game_file_scan_checkpoint(
+        &self,
+        snapshot: &GameFileScanSnapshot,
+        expected_outputs: &[crate::library::OutputRootRecord],
+        expected_roots: &[GameFileRoot],
+        expected_payload: Option<&str>,
+        matches: &GameFileScanMatchWrite,
+        cancellable_activity: Option<&str>,
+    ) -> Result<String> {
         let payload = serde_json::to_string(snapshot)?;
         if payload.len() > MAX_SCAN_SNAPSHOT_BYTES {
             return Err(
@@ -386,6 +406,9 @@ impl Library {
         }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(id) = cancellable_activity {
+            crate::cancellation::guard_checkpoint_publication(&transaction, id)?;
+        }
         if Self::output_roots_from(&transaction)? != expected_outputs {
             return Err(PortcoveError::conflict(
                 "game-output ownership changed during the game-file scan; retry the scan",
@@ -416,10 +439,10 @@ impl Library {
         transaction.execute(
             "INSERT INTO game_file_scan_state(singleton,snapshot_json) VALUES (1,?1)
              ON CONFLICT(singleton) DO UPDATE SET snapshot_json=excluded.snapshot_json",
-            [payload],
+            [&payload],
         )?;
         transaction.commit()?;
-        Ok(())
+        Ok(payload)
     }
 
     /// One page of the current scan's matches. The snapshot and its rows are

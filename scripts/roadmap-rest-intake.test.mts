@@ -185,7 +185,7 @@ function fixture(
       if (method === "POST" && path === `${root}/items`) {
         if (options.ambiguous) throw new Error("ambiguous provider write");
         attached = true;
-        return response({ value: item() }, {}, 201);
+        return response(item(), {}, 201);
       }
       if (method === "PATCH" && path === `${root}/items/100`) {
         for (const update of body.fields as { id: number; value: string }[]) {

@@ -14,7 +14,7 @@ const initial: HostToolStatus = {
   source: "saved",
   configuration_variable: "PORTCOVE_CHDMAN",
   purpose: "Check compressed discs",
-  official_url: "https://docs.mamedev.org/tools/chdman.html",
+  official_url: "https://www.mamedev.org/release.html",
 };
 const result: HostToolProbeResult = {
   tool_id: initial.id,

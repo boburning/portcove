@@ -1160,7 +1160,7 @@ the canonical existing folder `path` and `saved_root_id` when that exact folder
 is already a saved game-file folder. A known store product has an optional
 `product_id`. A reviewed product-to-profile mapping can add an
 `original_folder` with the source profile and candidate path. Desktop offers
-the classic Steam Dark Forces folder directly in The Force Engine setup.
+the classic Steam or Windows GOG Dark Forces folder directly in The Force Engine setup.
 The normal source check still validates the original file set.
 `checked_stores` names the stores whose
 metadata this system can read; a store missing from it was not checked, which

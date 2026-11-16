@@ -612,6 +612,7 @@ impl InboxScan<'_> {
             self.stats.issues.push(SourceDiscoveryIssue {
                 path,
                 profile_id: Some(self.profile.id.clone()),
+                direct_check_profiles: Vec::new(),
                 message: message.into(),
             });
         } else {

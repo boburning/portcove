@@ -278,7 +278,7 @@ impl PortcoveService {
         if mode == SourceImportMode::Move {
             self.refuse_store_install_move(profile_id, &source_path)?;
         }
-        let guard = source_guard(&source_path)?;
+        let guard = reviewed_source_guard(self, profile_id, &source_path, mode)?;
         let inspection = crate::source_inspection::inspect_with_checkpoint(
             self.catalog(),
             profile_id,
@@ -792,7 +792,10 @@ fn revalidate_source_with_checkpoint(
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<SourceRecord> {
     checkpoint()?;
-    if path == plan.source.path && source_guard(path)?.sha256 != plan.source_guard_sha256 {
+    if path == plan.source.path
+        && reviewed_source_guard(service, &plan.profile_id, path, plan.mode)?.sha256
+            != plan.source_guard_sha256
+    {
         return Err(PortcoveError::conflict(
             "source filesystem identity changed after import review",
         )
@@ -1353,7 +1356,31 @@ where
     Ok(copied)
 }
 
+fn reviewed_source_guard(
+    service: &PortcoveService,
+    profile_id: &str,
+    path: &Path,
+    mode: SourceImportMode,
+) -> Result<SourceGuard> {
+    if mode == SourceImportMode::UseCurrentLocation
+        && path
+            .extension()
+            .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
+        && crate::source_inspection::is_direct_ps2_iso_profile(
+            service.catalog(),
+            service.catalog().source_profile(profile_id)?,
+        )
+    {
+        return source_guard_with_root_limit(path, Some(crate::adapter::MAX_RUNTIME_SOURCE_BYTES));
+    }
+    source_guard(path)
+}
+
 fn source_guard(path: &Path) -> Result<SourceGuard> {
+    source_guard_with_root_limit(path, None)
+}
+
+fn source_guard_with_root_limit(path: &Path, root_limit: Option<u64>) -> Result<SourceGuard> {
     crate::path::refuse_symlink_ancestors(path)?;
     let limits = SourceDiscoveryLimits::default();
     let metadata = fs::symlink_metadata(path)?;
@@ -1377,7 +1404,7 @@ fn source_guard(path: &Path) -> Result<SourceGuard> {
         object_identity: root_identity.clone(),
     });
     if metadata.is_file() {
-        require_guard_file_size(metadata.len(), &limits)?;
+        require_guard_file_size(metadata.len(), root_limit.unwrap_or(limits.max_file_bytes))?;
         total = metadata.len();
     } else {
         let mut pending = VecDeque::from([path.to_path_buf()]);
@@ -1413,7 +1440,7 @@ fn source_guard(path: &Path) -> Result<SourceGuard> {
                 let entry_kind = if kind.is_dir() {
                     GuardKind::Directory
                 } else {
-                    require_guard_file_size(child_metadata.len(), &limits)?;
+                    require_guard_file_size(child_metadata.len(), limits.max_file_bytes)?;
                     total = total
                         .checked_add(child_metadata.len())
                         .ok_or_else(|| PortcoveError::source("source import size overflowed"))?;
@@ -1443,8 +1470,8 @@ fn source_guard(path: &Path) -> Result<SourceGuard> {
     })
 }
 
-fn require_guard_file_size(size: u64, limits: &SourceDiscoveryLimits) -> Result<()> {
-    if size == 0 || size > limits.max_file_bytes {
+fn require_guard_file_size(size: u64, maximum: u64) -> Result<()> {
+    if size == 0 || size > maximum {
         return Err(PortcoveError::source(
             "source import contains an empty or oversized file",
         ));

@@ -29705,9 +29705,7 @@
               "instruction": "Choose your own Donkey Kong 64 US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
             }
           ],
-          "warnings": [
-            "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified on Apple Silicon Mac for this package."
-          ],
+          "warnings": [],
           "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme"
         },
         "artwork": {
@@ -34952,9 +34950,7 @@
               "instruction": "Choose your own Duke Nukem: Zero Hour USA cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
             }
           ],
-          "warnings": [
-            "Native Play and populated saves are still unverified on Linux x64 and Mac for these managed packages. First-launch Gatekeeper behavior is also unverified on Mac."
-          ],
+          "warnings": [],
           "help_url": "https://github.com/sonicdcer/DNZHRecomp#readme"
         },
         "artwork": {
@@ -57566,7 +57562,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own Descent descent.hog and descent.pig. The documented PC/Mac Descent shareware is a limited alternative. Descent II data does not supply Descent. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d1x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable. Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use your own Descent descent.hog and descent.pig. The documented PC/Mac Descent shareware is a limited alternative. Descent II data does not supply Descent. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d1x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable. Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Keep your original DOS saves separately. Portcove leaves them unchanged. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
         "original_game_title": "Descent",
         "manual_setup": {
           "steps": [
@@ -57588,7 +57584,7 @@
             },
             {
               "title": "Point this engine at its own data",
-              "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+              "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
             },
             {
               "title": "Use the distribution package on Ubuntu",
@@ -57601,8 +57597,8 @@
           "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
           "references": [
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+              "title": "Build for a current Intel Mac",
+              "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D1X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
             },
             {
               "title": "Preserve this game’s profile",
@@ -57647,7 +57643,7 @@
         "installation_method": "user-prepared-runtime",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Use your own retail descent2.hog, descent2.ham, descent2.s22 and all six alien1/alien2/fire/groupa/ice/water PIG files. Optional movies stay optional. The separate documented PC/Mac Descent II demo uses its own complete demo set; Descent I shareware does not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable. Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
+        "manual_preparation": "Use your own retail descent2.hog, descent2.ham, descent2.s22 and all six alien1/alien2/fire/groupa/ice/water PIG files. Optional movies stay optional. The separate documented PC/Mac Descent II demo uses its own complete demo set; Descent I shareware does not supply this game. Keep your originals elsewhere unchanged; upstream handles its own data recognition and preparation. A Portcove registration does not authenticate original-game files. Use the upstream Windows DXX-Rebirth-Windows-x86_64 Actions artifact or a complete player prepared with upstream’s supported build instructions. The observed tagged releases do not provide a matching binary asset. Keep the package complete and select d2x-rebirth.exe, with its own player folder as the working directory. Put this game’s data beside that player, or use two argument lines, -hogdir then its full data-folder path. D1X and D2X are separate players; a source archive is not their native executable. Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Keep your original DOS saves separately. Portcove leaves them unchanged. Finish upstream setup first. Registration saves your selected executable, working directory and literal arguments; Play is a separate explicit action. You and upstream own this external runtime, original files and profile. Registration-only removal preserves them. Managed Update, Backup, Rollback, migration and deletion are not offered for these external files. Preserve a working copy and its data before upstream replacement. Other platforms require their own supported upstream application/native flow.",
         "original_game_title": "Descent II",
         "manual_setup": {
           "steps": [
@@ -57669,7 +57665,7 @@
             },
             {
               "title": "Point this engine at its own data",
-              "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+              "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
             },
             {
               "title": "Use the distribution package on Ubuntu",
@@ -57682,8 +57678,8 @@
           "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
           "references": [
             {
-              "title": "Keep the actual original and player data",
-              "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+              "title": "Build for a current Intel Mac",
+              "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D2X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
             },
             {
               "title": "Preserve this game’s profile",
@@ -62013,6 +62009,91 @@
       }
     },
     {
+      "id": "iss2000-djultra64-international-superstar-soccer-2000",
+      "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
+      "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
+      "project_url": "https://github.com/djultra64/ISS2000",
+      "support_tier": "beta",
+      "channels": [
+        "stable",
+        "beta"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "djultra64/ISS2000",
+        "asset_hints": {
+          "linux-x86-64": [
+            "ISS2000-Linux-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "launch.sh"
+        ]
+      },
+      "persistent_paths": [
+        "data",
+        "screenshots"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own Europe English/German revision 0 ROM when the game asks; it needs a desktop file-picker portal (xdg-desktop-portal FileChooser). The game copies the ROM into the data folder of the managed game folder, together with its graphics and input settings, Controller Pak saves and a diagnostic runtime.log; keep your original separately. Portcove starts the game through upstream's launch.sh, which loads the bundled libraries, and keeps data and screenshots across updates, backups and rollback. Mods placed in data/mods are kept too, but Portcove does not check them or guarantee they work with a newer version. The Linux package needs x86-64, Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. The project's GPL licence does not cover the recompiled game code; Portcove downloads it only from the project's own releases.",
+        "original_game_title": "International Superstar Soccer 2000",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your original game files on first start",
+              "instruction": "When the game asks, select your own Europe English/German revision 0 original as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy in its data folder, so keep your original separately."
+            },
+            {
+              "title": "Start a Windows x64 copy you manage yourself",
+              "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
+            },
+            {
+              "title": "Start a Linux x64 copy you manage yourself",
+              "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
+            }
+          ],
+          "warnings": [
+            "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery.",
+            "The project’s GPL licence does not cover the recompiled original game code. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          ],
+          "help_url": "https://github.com/djultra64/ISS2000",
+          "references": [
+            {
+              "title": "Keep the portable data folder",
+              "instruction": "The supported original is the Europe English/German revision 0 release, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf. The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "data",
+            "lib",
+            "licenses",
+            "screenshots"
+          ],
+          "executables": [
+            "iss2000",
+            "launch.sh",
+            "lib/libdbus-1.so.3",
+            "lib/libsdl2-2.0.so.0",
+            "lib/libsdl3.so.0"
+          ]
+        }
+      }
+    },
+    {
       "id": "jagged-alliance-2-ja2-stracciatella",
       "name": "Jagged Alliance 2 (JA2 Stracciatella)",
       "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
@@ -65895,8 +65976,12 @@
               "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; every edition works. OpenCE extracts its maps into the maps folder beside the player. Keep the disc image outside the game folder, because the game offers any image it finds there. Halo PC or Custom Edition maps do not replace these Xbox maps."
             },
             {
-              "title": "Use a copy you manage yourself",
-              "instruction": "Extract halo-windows-release.zip, or halo-linux-release.zip on Linux, into its own folder and start halo.exe (halo on Linux) from it with no arguments. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. OpenCE asks before installing its own updates and can replace its program files when you accept."
+              "title": "Run a Windows copy you manage yourself",
+              "instruction": "Extract halo-windows-release.zip into its own folder and start halo.exe with no arguments. Use the release package for playing. Debug builds stop at failed assertions, and symbol archives contain debug information. OpenCE asks before installing its own updates and can replace its program files when you accept."
+            },
+            {
+              "title": "Run the external Linux player",
+              "instruction": "Extract halo-linux-release.zip and keep libSDL3.so.0 beside halo. Make halo executable if needed with chmod u+x halo and run ./halo from that folder. Use a Linux host that can run 32-bit x86 programs. It needs 32-bit glibc 2.29 or newer, OpenGL and display libraries, and PipeWire or PulseAudio client libraries. Choose your own Xbox ISO or XISO on first launch. The file picker needs a desktop portal or zenity. If neither is available, start with a copy of the image beside halo. OpenCE handles updates for this external copy."
             }
           ],
           "warnings": [
@@ -65904,11 +65989,15 @@
             "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
             "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
           ],
-          "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
+          "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
           "references": [
             {
               "title": "Keep all actual data locations",
-              "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
+              "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and debug logs. The default profile, save and shader cache location is AppData/Roaming/halo on Windows and $XDG_DATA_HOME/halo-linux on Linux, usually ~/.local/share/halo-linux. If paths.saves or HALO_SAVE_ROOT overrides it, copy the configured location before an update."
+            },
+            {
+              "title": "Use the publisher’s Android release",
+              "instruction": "On a 64-bit ARM device with Android 9 or newer, extract app-release.apk from halo-android-release.zip and install it with Android’s package installer. Start OpenCE and choose your own Halo Xbox ISO or XISO with the system picker. Allow about 2 GB for the extracted maps. The app handles its own updates. Before uninstalling, copy your maps and the save/u profiles from Android/data/com.halo.decomp/files. That app folder also contains config.toml and mods."
             }
           ]
         },
@@ -73983,8 +74072,12 @@
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             },
             {
-              "title": "Choose an official nightly package",
-              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+              "title": "Choose the Windows nightly package",
+              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. On Windows x64 download the Windows artifact, then extract the inner win64 ZIP into a dedicated folder. Keep its DLLs and data directories with OpenXcom.exe and open the player from that folder. The same artifact offers a separate win32 ZIP and an upstream installer."
+            },
+            {
+              "title": "Choose the Linux or Mac nightly package",
+              "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
             },
             {
               "title": "Prepare this title’s original data",
@@ -74002,7 +74095,7 @@
             },
             {
               "title": "Back up the actual OpenXcom profile",
-              "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
+              "instruction": "On Linux back up the active user and config folders shown in openxcom.log. The user folder can be ~/.local/share/openxcom or ~/.openxcom. Also keep ~/.config/openxcom or any XDG or command-line overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
             }
           ]
         }
@@ -75451,8 +75544,12 @@
               "instruction": "Finish setup with the project’s tools before adding the game. Portcove saves your selected executable, working folder and launch arguments; choose Play separately when you are ready. You manage this game’s files, original files and profile. Removing its registration leaves those files in place. Portcove does not offer updates, backups, rollback, data migration or file deletion for this external copy. Keep a working copy and its data before changing versions. Other platforms need their own supported application and setup instructions."
             },
             {
-              "title": "Choose an official nightly package",
-              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. Download the Linux x64 or Mac artifact. On Linux unpack the ZIP and start the AppImage. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
+              "title": "Choose the Windows nightly package",
+              "instruction": "In OpenXcom’s Nightly GitHub workflow, choose a successful upstream run. On Windows x64 download the Windows artifact, then extract the inner win64 ZIP into a dedicated folder. Keep its DLLs and data directories with OpenXcom.exe and open the player from that folder. The same artifact offers a separate win32 ZIP and an upstream installer."
+            },
+            {
+              "title": "Choose the Linux or Mac nightly package",
+              "instruction": "In the same workflow run, download the matching artifact. On Linux unpack the ZIP and start the AppImage. If the loader reports libjack.so.0 missing, install your distribution’s JACK runtime package. On Mac unpack the outer ZIP and use Mac Archive Utility on the inner Mac ZIP, then open openxcom.app on Intel or Apple Silicon."
             },
             {
               "title": "Prepare this title’s original data",
@@ -75470,7 +75567,7 @@
             },
             {
               "title": "Back up the actual OpenXcom profile",
-              "instruction": "On Linux keep ~/.local/share/openxcom and ~/.config/openxcom or their XDG overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
+              "instruction": "On Linux back up the active user and config folders shown in openxcom.log. The user folder can be ~/.local/share/openxcom or ~/.openxcom. Also keep ~/.config/openxcom or any XDG or command-line overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
             }
           ]
         },
@@ -75689,7 +75786,7 @@
             },
             {
               "title": "Choose your original game",
-              "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate. For the Portcove-managed Windows player, add the folder that holds your own IWAD to GZDoom’s IWAD search paths in its settings instead of copying game files into the managed player folder."
+              "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
             }
           ],
           "warnings": [
@@ -75699,7 +75796,7 @@
           "references": [
             {
               "title": "Keep your profile and saved games",
-              "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
+              "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
             }
           ]
         }

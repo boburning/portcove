@@ -525,6 +525,73 @@ it("presents a required restart separately from another resumable batch", async 
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
 });
 
+it("keeps the reported large ISO actionable after finishing a saved scan", async () => {
+  const path = "D:/Games/original.iso";
+  const first = {
+    ...portDefinition(),
+    id: "jak1",
+    name: "Jak and Daxter",
+    source_profile: "opengoal-jak1-disc",
+  };
+  const second = {
+    ...portDefinition(),
+    id: "jak2",
+    name: "Jak II",
+    source_profile: "opengoal-jak2-disc",
+  };
+  const review = vi
+    .spyOn(desktopApi, "planSourceImport")
+    .mockRejectedValue(new Error("Fixture check finished"));
+  const resumed = resumableSnapshot();
+  const retained = {
+    ...resumed,
+    matches: storedMatchesSnapshot().matches!,
+    report: {
+      ...snapshot.report,
+      limits_reached: ["file_size"],
+      issues: [
+        {
+          path,
+          profile_id: null,
+          message: "File exceeds the scan size limit.",
+          direct_check_profiles: [first.source_profile, second.source_profile],
+        },
+      ],
+    },
+  } satisfies GameFileScanSnapshot;
+  const finished = {
+    ...retained,
+    coverage: { ...resumed.coverage!, can_resume: false, frontier_exhausted: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(retained);
+  const scan = vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(finished);
+    return finished;
+  });
+  await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
+  await click("Refresh folders");
+  await click("Finish scanning these folders");
+  expect(scan).toHaveBeenCalledExactlyOnceWith(
+    resumed.limits,
+    1,
+    expect.any(Function),
+    retained.matches.scan_id,
+  );
+  expect(button("Scan saved folders")).toBeDefined();
+  const summary = [...document.querySelectorAll("summary")].find(
+    (item) => item.textContent === "Check this file",
+  );
+  await act(async () => summary?.click());
+  await click("Check for Jak II");
+  expect(review).toHaveBeenCalledExactlyOnceWith(
+    second.source_profile,
+    path,
+    "use_current_location",
+  );
+  expect(picker.pickGameFileFolder).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("keeps exhausted coverage distinct from skipped files and gameplay support", async () => {
   const exhausted = resumableSnapshot();
   exhausted.coverage = {
@@ -1873,6 +1940,49 @@ it("finishes a retained scan of nine folders with the existing Core scan action"
   );
   expect(remove).not.toHaveBeenCalled();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("starts one Finish action bound to the displayed saved scan", async () => {
+  const stored = storedMatchesSnapshot();
+  const resumed = { ...resumableSnapshot(), matches: stored.matches! };
+  let resolve!: (snapshot: GameFileScanSnapshot) => void;
+  const pending = new Promise<GameFileScanSnapshot>((done) => {
+    resolve = done;
+  });
+  const scan = vi.mocked(desktopApi.scanGameFileRoots);
+  scan.mockImplementation((_limits, _generation, emit) => {
+    emit?.({
+      schema_version: 3,
+      operation_id: "finish-scan",
+      parent_operation_id: null,
+      sequence: 2,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      target: null,
+      type: "progress",
+      phase: "saved_folder_scan_checkpoints",
+      phase_id: "saved_folder_scan_checkpoints",
+      unit: "items",
+      completed: 3,
+      total: null,
+    });
+    return pending;
+  });
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(resumed);
+  try {
+    await click("Refresh folders");
+    await click("Finish scanning these folders");
+    await expect.poll(() => document.body.textContent).toContain("3 batches saved.");
+    expect(scan).toHaveBeenCalledExactlyOnceWith(
+      resumed.limits,
+      1,
+      expect.any(Function),
+      stored.matches!.scan_id,
+    );
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => resolve(stored));
+  }
 });
 
 it("explains that all nine saved folders are unavailable without starting a scan", async () => {

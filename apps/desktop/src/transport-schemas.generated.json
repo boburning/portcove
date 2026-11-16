@@ -16283,6 +16283,13 @@
       },
       "SourceDiscoveryIssue": {
         "properties": {
+          "direct_check_profiles": {
+            "description": "Profiles whose bounded direct inspection can check this skipped file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -56950,6 +56957,13 @@
   "source_discovery_issue": {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
     "properties": {
+      "direct_check_profiles": {
+        "description": "Profiles whose bounded direct inspection can check this skipped file.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
       "message": {
         "type": "string"
       },
@@ -57452,6 +57466,13 @@
       },
       "SourceDiscoveryIssue": {
         "properties": {
+          "direct_check_profiles": {
+            "description": "Profiles whose bounded direct inspection can check this skipped file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -59047,6 +59068,13 @@
       },
       "SourceDiscoveryIssue": {
         "properties": {
+          "direct_check_profiles": {
+            "description": "Profiles whose bounded direct inspection can check this skipped file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
