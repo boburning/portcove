@@ -111,7 +111,18 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay."
+      "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay.",
+      "manual_setup": {
+        "warnings": [
+          "The package contains recompiled game code; some bundled components have their own notices. Use only your own original game."
+        ],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs the managed Windows package. After installation, choose Play in Portcove, then Start Game in the launcher."
+          }
+        ]
+      }
     }
   }
 }
