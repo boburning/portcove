@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="#project-status">Project status</a> ·
-  <a href="https://github.com/boburning/portcove/releases">Download</a> ·
+  <a href="#download-the-beta">Download</a> ·
   <a href="#build-from-source">Build from source</a> ·
   <a href="docs/README.md">Documentation</a> ·
   <a href="https://github.com/users/boburning/projects/1">Roadmap</a>
@@ -24,8 +24,7 @@ installation rather than installing or updating files through Portcove.
 ![Portcove's actual catalog, with Ship of Harkinian ready to play](docs/media/first-play/catalog.png)
 
 _Windows development build, October 1, 2026: an installed game, available ports,
-and real mixed artwork. This is the application, not a mockup; the pictured
-design and default covers are newer than the published Alpha 2 preview._
+and real mixed artwork. This is the application, not a mockup._
 
 Existing Alpha 1 libraries can be carried forward with the documented
 [upgrade and recovery procedure](docs/UPGRADING.md).
@@ -86,66 +85,70 @@ service.
 
 ## Project status
 
-> [!WARNING]
-> **Latest technical preview: Alpha 2 — onboarding and storage**
->
-> Portcove is under active development. It is intended for maintainers and technically comfortable testers using disposable or fully backed-up libraries—not general users or irreplaceable setups.
+> [!NOTE]
+> **Portcove 0.1.0 is the first public beta.** It is ready for players who are
+> comfortable reporting problems. Keep backups of saves you care about; Portcove
+> also snapshots a game's managed saved data automatically before it updates,
+> activates or rolls back a version.
 
-[Portcove 0.1.0-alpha.2](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2)
-is released as an immutable prerelease. It adds first-play source onboarding,
-safe Copy and authorized Move intake, shared tool setup, library and per-game
-storage controls, recoverable relocation, and the documented Alpha 1 upgrade
-path. Alpha 1 remains available with its frozen release evidence.
+Windows x64 is the primary beta platform. Linux x64 (AppImage) is part of the
+beta too. macOS builds are **experimental**: they are built and tested
+automatically, but nobody has tested them by hand yet.
 
 A port appearing in the catalog does **not** mean every platform has completed hands-on testing. Upstream availability, automated checks, and Portcove's own manual testing are tracked separately for each port and platform.
 
 Current priorities and blockers live in the public [Portcove Roadmap](https://github.com/users/boburning/projects/1). The meaning of Alpha, Beta, RC, and V1 lives in [docs/ROADMAP.md](docs/ROADMAP.md). The catalog can continue growing without turning every newly discovered port into a V1 blocker.
 
-The **first public beta application release targets Windows x86-64 only**, at the
-existing supported Windows/WebView2 baseline. Linux is planned for a subsequent
-beta; its implementation, support data and completed evidence remain retained.
-Shared correctness and security checks still apply wherever they run. This changes
-the application host commitment, not the original platforms of the games in the
-catalog. The [release boundary](docs/DELIVERY.md#first-public-beta-host-boundary)
-describes the remaining qualification and publication requirements. No public beta
-or new platform qualification is claimed here.
+Found a problem? [Report it on GitHub](https://github.com/boburning/portcove/issues/new/choose).
+Include your Portcove version, operating system and the game involved. Never
+attach game files, ROMs or saves.
 
-## Download the technical alpha
+## Download the beta
 
-For the graphical app, choose a **Desktop** package for your operating system
-and processor from the [Alpha 2 release](https://github.com/boburning/portcove/releases/tag/v0.1.0-alpha.2).
-For terminal use, choose the separate **CLI** archive. The desktop app does not
-require that archive, and the CLI archive is not a graphical app. GitHub's
-generated **Source code** archives are for building Portcove yourself.
+Download Portcove from the [latest release](https://github.com/boburning/portcove/releases/latest).
+Choose the **Desktop** package for your system. The separate **CLI** archive is
+for terminal use only; the desktop app does not need it.
 
-| System                            | Desktop package                                                                                                                                                                                                                                                                                                                                                                                                                                          | Standalone CLI archive                                                                                                                |
-| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Windows x64                       | [Portcove_0.1.0-alpha.2_x64-setup.exe](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64-setup.exe)                                                                                                                                                                                                                                                                                                      | [portcove-windows-x86_64.zip](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-windows-x86_64.zip)     |
-| Linux x64, experimental           | [Portcove_0.1.0-alpha.2_amd64.AppImage](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.AppImage), [Portcove_0.1.0-alpha.2_amd64.deb](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_amd64.deb), or [Portcove-0.1.0-alpha.2-1.x86_64.rpm](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove-0.1.0-alpha.2-1.x86_64.rpm) | [portcove-linux-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-linux-x86_64.tar.gz)   |
-| macOS Intel, experimental         | [Portcove_0.1.0-alpha.2_x64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_x64.dmg)                                                                                                                                                                                                                                                                                                                  | [portcove-macos-x86_64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-x86_64.tar.gz)   |
-| macOS Apple silicon, experimental | [Portcove_0.1.0-alpha.2_aarch64.dmg](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/Portcove_0.1.0-alpha.2_aarch64.dmg)                                                                                                                                                                                                                                                                                                          | [portcove-macos-aarch64.tar.gz](https://github.com/boburning/portcove/releases/download/v0.1.0-alpha.2/portcove-macos-aarch64.tar.gz) |
+| System                                        | Desktop package                     | Standalone CLI archive                      |
+| --------------------------------------------- | ----------------------------------- | ------------------------------------------- |
+| Windows x64                                   | `Portcove_<version>_x64-setup.exe`  | `portcove-cli-<version>-windows-x86_64.zip` |
+| Linux x64                                     | `Portcove_<version>_amd64.AppImage` | Not published for the beta                  |
+| macOS (Intel and Apple silicon), experimental | `Portcove_<version>_universal.dmg`  | Not published for the beta                  |
 
-These are the published Alpha 2 choices; check the selected release page for
-later versions and their limitations. Application upgrades are manual. Before
-opening an existing library, follow the [upgrade and recovery
-steps](docs/UPGRADING.md). Read the [Alpha 2 release
-notes](docs/releases/0.1.0-alpha.2-release-notes.md) for package scope and
-known limitations.
+Each release lists a `SHA256SUMS` file for checking downloads. See
+[Downloads](docs/DOWNLOADS.md) for verification steps.
 
-Windows packages are unsigned; macOS packages are unsigned and not notarized.
-Keep operating-system security protections enabled. Linux and macOS remain
-experimental, with hosted build/test evidence and incomplete hands-on package
-qualification. [Verify the download and read the signing/SBOM limits](docs/DOWNLOADS.md)
-before opening it.
+### First launch on each system
+
+Portcove's packages are not signed with a paid code-signing certificate, so each
+system asks you to confirm the first launch. Application updates themselves are
+signed and verified by Portcove before they install.
+
+- **Windows:** if SmartScreen shows "Windows protected your PC", choose
+  **More info**, then **Run anyway**. Then follow the installer.
+- **Linux:** make the AppImage executable (`chmod +x Portcove_*.AppImage`) and
+  run it. Some distributions need FUSE 2 (`libfuse2`) to run AppImages.
+- **macOS (experimental):** open the disk image and drag Portcove to
+  Applications. The first time you open it, macOS blocks it. Open **System
+  Settings › Privacy & Security** and choose **Open Anyway** for Portcove. If
+  macOS says the app "is damaged", run
+  `xattr -dr com.apple.quarantine /Applications/Portcove.app` in Terminal and
+  open it again.
+
+### Updates
+
+- **Portcove itself** checks for updates and installs them when you choose to.
+  The beta follows the Beta channel. You can switch to the opt-in **Preview**
+  channel, which gets nightly builds, in **Settings › Updates**.
+- **The game catalog** updates automatically, shortly after Portcove opens and
+  about once a day. Every catalog update is verified with the publisher key built
+  into Portcove. Catalog updates never install, change or remove games. You can
+  turn them off in **Settings**.
+
+If you used an Alpha build, follow the [upgrade and recovery
+steps](docs/UPGRADING.md) before opening an existing library.
 
 ## Your first game
-
-Use a disposable or backed-up library for this technical preview.
-
-The screenshots show the current development build. In the published Alpha 2
-app, **Review install** presents the plan inline, and the launch action is
-**Play now** or **Complete setup and play**. The newer build uses the labels
-below and a separate installation-review dialog.
 
 1. Open **Portcove Desktop** and choose the local library you intend to use.
 2. Open **Discover**, choose a game, and check which original files the port
@@ -162,7 +165,7 @@ below and a separate installation-review dialog.
 This [captured Windows development-build journey](docs/media/first-play/README.md)
 shows Ship of Harkinian installing from a verified package, recognizing an exact
 Ocarina of Time source, preparing its game data, and reaching the title screen.
-It is separate from Alpha 2 package qualification and does not establish gameplay,
+It does not establish gameplay,
 audio, save compatibility or physical-controller behavior.
 
 ## Manage, check, update and recover
@@ -183,7 +186,7 @@ preview limitations.
 | Correct a moved game file   | Use Update file location in Game files, or the [reviewed relink route](docs/CLI.md#find-and-relink-game-files). | The new location must still match the registered content; relinking does not move files or accept changed bytes.                                                                                                                                          |
 | Recover an interrupted task | Read Activity and `portcove doctor`, then follow the operation's reported recovery action.                      | Diagnosis does not itself resume or clean up an operation. Retained files or an unknown outcome need the specific supported recovery.                                                                                                                     |
 | Report a problem            | Use Report a problem or send feedback in a game's details. You review the full text, then send it.              | Nothing is sent until you choose: from your GitHub account when signed in, on GitHub, or as copied text. Folder paths and your user name are replaced, and no saves or game files are attached.                                                           |
-| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Published Alpha 2 upgrades are manual. An application update is separate from a game update or catalog refresh.                                                                                                                                           |
+| Upgrade Portcove itself     | Follow [application upgrade and recovery](docs/UPGRADING.md).                                                   | Portcove checks for signed application updates; an application update is separate from a game update or catalog refresh.                                                                                                                                  |
 
 See [feedback and triage](docs/ROADMAP.md#feedback-and-triage) for reporting a
 problem or sending feedback from Portcove or directly on GitHub.
