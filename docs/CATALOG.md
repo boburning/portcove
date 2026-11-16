@@ -2348,7 +2348,10 @@ programs and top-level directories, and an unresolved declared executable, or a
 declared persistent path or pattern that cannot be located relative to the
 package root, leaves the persistent parts unknown.
 
-A known change in any compared part withholds the candidate before publication.
+A known change against a reviewed baseline withholds the candidate before
+publication. A local shape can supply that baseline when its reviewed or
+inherited provenance is retained. Comparisons against an unreviewed local
+shape remain visible as observations.
 The native portable, staged-source, N64 recompilation, libultraship, PSX
 recompilation and generated-cache templates advertise the capability. The
 embedded catalog uses the installed template capability. Indexed definitions

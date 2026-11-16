@@ -2966,8 +2966,9 @@ fingerprint or the active installation's recorded shape
 `compatible`, `drifted` with bounded per-part changes, or `unknown` with a
 reason (`no_baseline`, `incomplete_comparison`, `observation_failed`). Every
 observation or baseline failure, including an unverifiable active manifest,
-becomes `unknown`. Core withholds known drift for the managed portable templates
-while the candidate is in its private staging directory. A bounded local
+becomes `unknown`. Core withholds known drift against a reviewed baseline for
+the managed portable templates while the candidate is in its private staging
+directory. Drift against unreviewed local observations remains diagnostic. A bounded local
 observation retains the candidate identity, derivation inputs and observed
 shape. Later checks compare the exact candidate observation with the current
 applicable baseline. A successful install records its verdict in the optional

@@ -254,6 +254,15 @@ impl ShapeVerdict {
     }
 }
 
+/// An unreviewed local observation can explain drift, but cannot withhold a release.
+pub(crate) fn withholds_release(verdict: &ShapeVerdict) -> bool {
+    matches!(
+        verdict,
+        ShapeVerdict::Drifted { baseline, .. }
+            if !matches!(baseline, ShapeBaseline::Local { provenance: ShapeProvenance::Unreviewed, .. })
+    )
+}
+
 /// The shape and shadow verdict an installation records in its manifest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct PackageShapeRecord {

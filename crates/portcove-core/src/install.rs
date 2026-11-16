@@ -1470,7 +1470,7 @@ impl Installer {
                 &payload_root,
                 &artifact.sha256,
             );
-            if let crate::package_shape::ShapeVerdict::Drifted { .. } = &shape.verdict
+            if crate::package_shape::withholds_release(&shape.verdict)
                 && let Some(capability) =
                     crate::package_shape::selected_enforcement_capability(&catalog, port)?
             {

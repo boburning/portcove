@@ -729,6 +729,56 @@ mod tests {
         ) -> ResolvedRelease {
             self.release_with_files(version, revision, folder, program_name, &[])
         }
+        // Real route contracts keep their generated reviewed baseline. The
+        // transport fixtures supply inert files at those reviewed coordinates.
+        fn release_with_reviewed_layout(
+            &self,
+            version: &str,
+            revision: u8,
+            program_name: &str,
+        ) -> ResolvedRelease {
+            let files: &[(&str, &[u8])] = match program_name {
+                "SonicTheHedgehogRecomp.exe" => &[
+                    ("assets/fixture.dat", b"fixture"),
+                    ("docs/fixture.txt", b"fixture"),
+                    ("tools/fixture.txt", b"fixture"),
+                    ("build-info.json", b"{}"),
+                ],
+                "SuperMetroidSNESRecomp.exe" => &[
+                    ("assets/fixture.dat", b"fixture"),
+                    ("docs/fixture.txt", b"fixture"),
+                    ("config.ini", b"# fixture"),
+                    ("release-profile.json", b"{}"),
+                    (
+                        "mods/preloaded/packages/super-metroid.balance-fixes/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.combat/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.controls/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.map-hud/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.movement/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                    (
+                        "mods/preloaded/packages/super-metroid.pacing/1.0.0/manifest.toml",
+                        b"# fixture",
+                    ),
+                ],
+                _ => &[],
+            };
+            self.release_with_files(version, revision, "", program_name, files)
+        }
+
         fn release_with_files(
             &self,
             version: &str,
@@ -4554,7 +4604,7 @@ mod tests {
             None => fixed.clone(),
         };
         let package = |version: &str, revision| {
-            let mut release = server.release_in_folder(version, revision, "", executable);
+            let mut release = server.release_with_reviewed_layout(version, revision, executable);
             release.asset.name = if id == "super-metroid-recomp" {
                 format!("{prefix}{version}-windows-x64.zip")
             } else if id == "retropulse03-winback-n64recomp" {
@@ -5421,10 +5471,9 @@ mod tests {
                 .join(if sonic { "fixture.bin" } else { "fixture.sfc" });
             fs::write(&source, original).unwrap();
             let server = Server::new();
-            let provider = Arc::new(Provider(Mutex::new(server.release_in_folder(
+            let provider = Arc::new(Provider(Mutex::new(server.release_with_reviewed_layout(
                 &release.version,
                 1,
-                "",
                 executable,
             ))));
             let mut service = build_service(library.clone(), provider);
@@ -5690,7 +5739,7 @@ mod tests {
             let library = Library::open(temporary.path().join("library")).unwrap();
             let server = Server::new();
             let provider = Arc::new(Provider(Mutex::new(
-                server.release_in_folder(version, 2, "", executable),
+                server.release_with_reviewed_layout(version, 2, executable),
             )));
             let mut service = build_service(library.clone(), provider);
             service.replace_catalog_for_test(diagnostic_scope_fixture(id, true, original));

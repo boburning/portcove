@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     LocalBaseline, PackageShape, PackageShapeRecord, SHAPE_VERSION, ShapeVerdict,
-    derivation_inputs_sha256, evaluate,
+    derivation_inputs_sha256, evaluate, withholds_release,
 };
 use crate::{
     Library, Platform, PortDefinition, PortcoveError, ReleaseChannel, ResolvedRelease, Result,
@@ -129,7 +129,7 @@ pub(crate) fn current(
         &observation.shape,
         local().as_ref(),
     );
-    Ok(matches!(verdict, ShapeVerdict::Drifted { .. }).then_some(verdict))
+    Ok(withholds_release(&verdict).then_some(verdict))
 }
 
 pub(crate) fn refusal(
@@ -163,7 +163,7 @@ mod tests {
             record: PackageShapeRecord {
                 shape_version: SHAPE_VERSION,
                 shape: Some(shape),
-                provenance: ShapeProvenance::Unreviewed,
+                provenance: ShapeProvenance::Reviewed,
                 verdict: ShapeVerdict::Unknown {
                     baseline: None,
                     reason: ShapeUnknownReason::NoBaseline,

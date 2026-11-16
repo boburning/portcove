@@ -1120,9 +1120,9 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(6));
+        assert_eq!(n64.checks[0].installed_version, Some(7));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 37, 37)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 38, 38)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -1490,7 +1490,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(3));
+        assert_eq!(report.checks[1].installed_version, Some(4));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

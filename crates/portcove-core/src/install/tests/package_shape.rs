@@ -144,7 +144,11 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
     // The local baseline was itself unreviewed, so nothing is inherited.
     assert_eq!(second.provenance, ShapeProvenance::Unreviewed);
 
-    let active = install_record(&library, "v2");
+    // Model an independently reviewed prior package in this synthetic library.
+    let active = rewrite_manifest(&install_record(&library, "v2"), |manifest| {
+        manifest.get_mut("package_shape").unwrap()["provenance"] = serde_json::json!("reviewed");
+    });
+    library.update_install_manifest(&active).unwrap();
     let (release, result) = attempt_install(
         &installer,
         &library,
