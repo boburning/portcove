@@ -556,6 +556,7 @@ it("reviews removal before sending the exact setup revision to Core", async () =
   expect(request).not.toHaveBeenCalled();
   await page.getByRole("button", { name: "Cancel", exact: true }).click();
   expect(request).not.toHaveBeenCalled();
+  await expect.element(remove).toHaveFocus();
 
   await remove.click();
   await page.getByRole("button", { name: "Confirm removal" }).click();

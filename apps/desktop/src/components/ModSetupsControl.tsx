@@ -674,10 +674,12 @@ function ModSetupPackages({
   const { t } = useAppTranslation("gameSettings");
   const [choice, setChoice] = useState<{ nativeId: string; revision: number }>();
   const revision = selected.profile.current_revision;
+  const list = useRef<HTMLUListElement>(null);
+  const removeButton = useRef<HTMLButtonElement>(null);
   return (selected.revision.packages ?? []).length === 0 ? (
     <p className="text-sm">{t("mods.empty")}</p>
   ) : (
-    <ul className="m-0 grid list-none gap-1 p-0">
+    <ul ref={list} tabIndex={-1} className="m-0 grid list-none gap-1 p-0">
       {inOverrideOrder(selected).map((item) => (
         <li key={item.native_id} className="grid gap-1">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -708,7 +710,10 @@ function ModSetupPackages({
               size="sm"
               disabled={disabled}
               aria-label={t("mods.remove.choose", { name: item.native_id })}
-              onClick={() => setChoice({ nativeId: item.native_id, revision })}
+              onClick={(event) => {
+                removeButton.current = event.currentTarget;
+                setChoice({ nativeId: item.native_id, revision });
+              }}
             >
               {t("mods.remove.action")}
             </Button>
@@ -723,12 +728,17 @@ function ModSetupPackages({
                 disabled={disabled}
                 onClick={() => {
                   setChoice(undefined);
+                  list.current?.focus();
                   remove(choice.nativeId, choice.revision);
                 }}
               >
                 {t("mods.remove.confirm")}
               </Button>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setChoice(undefined)}>
+              <Button type="button" variant="ghost" size="sm" onClick={() => {
+                  setChoice(undefined);
+                  if (removeButton.current?.disabled === false) removeButton.current.focus();
+                  else list.current?.focus();
+                }}>
                 {t("mods.remove.cancel")}
               </Button>
             </div>

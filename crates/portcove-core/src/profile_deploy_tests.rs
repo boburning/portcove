@@ -114,6 +114,12 @@ fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     assert_eq!(revision(&w, &w.default), current.revision);
 
     fs::copy(&removed, &live).unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    fs::write(
+        &config,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"hd-link|unmanaged|ui"}}}"#,
+    )
+    .unwrap();
     let next = w
         .service
         .remove_mod_package("starship", &w.default, "hd-link.o2r", current.revision)
@@ -121,10 +127,34 @@ fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
     assert_eq!(next.revision, current.revision + 1);
     assert_eq!(live_mods(&w), ["ui.o2r"]);
     assert_eq!(next.orderings[0].native_ids, ["ui.o2r"]);
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(config).unwrap()).unwrap();
+    assert_eq!(config["CVars"]["gSettings"]["EnabledMods"], "ui|unmanaged");
     let history = w.service.profile_revisions("starship", &w.default).unwrap();
     assert!(history[2].packages.contains(before));
     let stored = Layout::for_user(&user(&w)).package(&before.sha256, &before.native_id);
     assert_eq!(fs::read(stored).unwrap(), fs::read(removed).unwrap());
+}
+
+#[test]
+fn replacing_a_disabled_package_keeps_it_off() {
+    let w = world();
+    let package = archive(&w.scratch, "hd-link.otr", &[("objects/link.bin", b"old")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let disabled = w
+        .service
+        .set_mod_package_enabled("starship", &w.default, "hd-link.otr", false, 2)
+        .unwrap();
+    let replacement = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"new")]);
+    let next = w
+        .service
+        .install_mod_package("starship", &w.default, &replacement, disabled.revision)
+        .unwrap();
+    assert_eq!(next.packages.len(), 1);
+    assert_eq!(next.packages[0].native_id, "hd-link.o2r");
+    assert!(!next.packages[0].enabled);
+    assert!(live_mods(&w).is_empty());
 }
 
 #[test]
