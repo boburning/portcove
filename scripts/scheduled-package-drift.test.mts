@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { test } from "node:test";
 import {
   collectDriftTargets,
+  completedInspections,
   driftNotices,
   driftTargetKey,
   scanDriftTargets,
@@ -190,4 +191,26 @@ test("publishes one scoped notice per issue from current drift evidence only", (
     driftNotices({ ...report, run: nextRun }, listings, nextRun)[0]?.identity,
     notices[0]?.identity,
   );
+});
+
+test("a changed inspector binary invalidates otherwise exact cached results", () => {
+  const key = "f".repeat(64);
+  const inspector_sha256 = "a".repeat(64);
+  const cache = {
+    format: 1,
+    inspector_sha256,
+    observations: [
+      {
+        key,
+        inspection: {
+          status: "compatible",
+          shapeVersion: 1,
+          derivationSha256: "c".repeat(64),
+          components: [],
+        },
+      },
+    ],
+  };
+  assert.equal(completedInspections(cache, inspector_sha256).get(key)?.status, "compatible");
+  assert.equal(completedInspections(cache, "b".repeat(64)).size, 0);
 });

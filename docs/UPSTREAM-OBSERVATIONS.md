@@ -440,7 +440,7 @@ The read-only inspection verifies size and SHA-256 before comparing the archive
 through `portcove catalog inspect-package-drift`, an alias for the verified
 package-shape inspector. Nothing from the archive runs. The inspection retains a
 bounded report and reuses finished comparisons only for matching package,
-definition and reviewed baseline inputs. Failed archive checks remain visible
+definition, reviewed baseline and built inspector bytes. Failed archive checks remain visible
 and can be retried in a later observation. Installed-state eligibility stays
 with Core.
 

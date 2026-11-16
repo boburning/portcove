@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
+import { createReadStream } from "node:fs";
 import { lstat, mkdtemp, readdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -364,9 +365,14 @@ async function readBoundedJson(file: string, maxBytes: number): Promise<unknown>
   return JSON.parse(await readFile(file, "utf8"));
 }
 
-function completedInspections(value: unknown): Map<string, Inspection> {
+export function completedInspections(
+  value: unknown,
+  inspectorSha256: string,
+): Map<string, Inspection> {
   const completed = new Map<string, Inspection>();
-  for (const item of records(value)) {
+  if (!isRecord(value) || value.format !== 1 || value.inspector_sha256 !== inspectorSha256)
+    return completed;
+  for (const item of records(value.observations)) {
     if (typeof item.key !== "string" || !digest.test(item.key) || !isRecord(item.inspection))
       continue;
     const { status, shapeVersion, derivationSha256, components } = item.inspection;
@@ -399,6 +405,10 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   }
   const run = { source_commit, run_id, run_attempt };
   const catalogRoot = path.resolve("crates/portcove-core/catalog");
+  const inspector = path.resolve(cli);
+  const fileHash = createHash("sha256");
+  for await (const chunk of createReadStream(inspector)) fileHash.update(chunk);
+  const inspector_sha256 = fileHash.digest("hex");
   const [catalog, listings, shapes, handoffFiles] = await Promise.all([
     readBoundedJson(path.join(catalogRoot, "catalog.json"), 32 * 1024 * 1024),
     readBoundedJson(path.join(catalogRoot, "listings.json"), 32 * 1024 * 1024),
@@ -416,44 +426,38 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
       handoffs.push(await readBoundedJson(source, 16 * 1024 * 1024));
     }
   }
-  const target = collectDriftTargets(catalog, listings, shapes, handoffs, run, Date.now());
-  let previous: unknown = [];
+  const targets = collectDriftTargets(catalog, listings, shapes, handoffs, run, Date.now());
+  let previous: unknown;
   try {
     previous = await readBoundedJson(checkpoint, 4 * 1024 * 1024);
   } catch (error) {
     if (!isRecord(error) || error.code !== "ENOENT") throw error;
   }
   const downloader = hostedDependencies();
-  const result = await scanDriftTargets(
-    target,
-    completedInspections(previous),
-    Date.now() + 20 * 60_000,
-    {
-      download: (asset, archive, deadline) =>
-        downloader.download(
-          { ...asset, digest: `sha256:${asset.sha256}` },
-          archive,
-          asset.size,
-          deadline,
-        ),
-      inspect: (archive, candidate, deadline) =>
-        inspect(archive, candidate, path.resolve(cli), deadline),
-    },
-  );
-  // Only current evidence goes to the notice job. Preserve earlier cache entries
-  // for routes that did not have a complete observation this run.
-  const cache = new Map(
-    records(previous).flatMap((entry) =>
-      typeof entry.key === "string" ? [[entry.key, entry] as const] : [],
-    ),
-  );
+  const cache = completedInspections(previous, inspector_sha256);
+  const result = await scanDriftTargets(targets, cache, Date.now() + 20 * 60_000, {
+    download: (asset, archive, deadline) =>
+      downloader.download(
+        { ...asset, digest: `sha256:${asset.sha256}` },
+        archive,
+        asset.size,
+        deadline,
+      ),
+    inspect: (archive, candidate, deadline) => inspect(archive, candidate, inspector, deadline),
+  });
+  // Only current evidence goes to the notice job. Preserve earlier comparisons
+  // for unobserved routes only while the same inspector bytes are in use.
   for (const item of result.observations) {
     if (item.inspection.status === "unknown") continue;
     cache.delete(item.key);
-    cache.set(item.key, { key: item.key, inspection: item.inspection });
+    cache.set(item.key, item.inspection);
   }
-  await writeJson(checkpoint, [...cache.values()].slice(-512));
-  await writeJson(output, { format: 1, run, ...result });
+  const observations = [...cache].slice(-512).map(([key, inspection]) => ({ key, inspection }));
+  await writeJson(checkpoint, { format: 1, inspector_sha256, observations });
+  await writeJson(output, { format: 1, run, inspector_sha256, ...result });
+  console.log(
+    `Compared ${result.observations.length} packages for ${targets.length} current routes. ${result.unassessed.length} were unassessed.`,
+  );
 }
 
 const noticeMarker = "<!-- portcove-scheduled-package-drift:v1 -->";
