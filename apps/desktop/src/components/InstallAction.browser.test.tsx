@@ -10,7 +10,7 @@ import { StatusLayer } from "./Chrome";
 import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
 import snap64 from "../../../../crates/portcove-core/catalog/ports/snap64-recomp.json";
-import { portStatus } from "../test-fixtures";
+import { portDefinition, portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
 import "../styles/index.css";
 
@@ -247,7 +247,7 @@ it("shows upstream first-run requirements and external backup limits before inst
   expect(install).toHaveBeenCalledOnce();
 });
 
-it("shows the Windows DKC3 setup first in the managed install review", async () => {
+it("shows the managed Windows DKC3 setup without the upstream Mac instructions", async () => {
   const port = currentCatalogPort("dkc3-recomp");
   await root.rerender(
     <DetailPanel
@@ -262,13 +262,13 @@ it("shows the Windows DKC3 setup first in the managed install review", async () 
   const dialog = page.getByRole("dialog");
   const setup = dialog.getByRole("region", { name: "Game setup" });
   await expect.element(setup).toBeVisible();
-  expect(setup.element().textContent).toContain(
-    "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove",
-  );
-  expect(setup.element().textContent).toContain(
-    "On Apple Silicon, use the upstream Mac app and its launcher.",
-  );
-  expect(setup.element().textContent).not.toContain("download the official Mac arm64 ZIP");
+  expect(setup.element().textContent).toContain("North American English/French DKC3 ROM");
+  await expect
+    .element(
+      dialog.getByText("Choose a short installation folder that uses basic Latin characters."),
+    )
+    .toBeVisible();
+  expect(dialog.element().textContent).not.toContain("Apple Silicon");
 });
 
 it("shows managed Diablo preparation in the Windows review without the upstream Mac guide", async () => {
@@ -527,6 +527,68 @@ it.each(["macos-x86-64", "macos-aarch64"] as const)(
       .toBeVisible();
   },
 );
+
+it.each(["sample", "alexbeav-digimon-world-2003-recomp"])(
+  "uses the generic managed review for older unscoped guidance on %s",
+  async (id) => {
+    const base = id === "sample" ? portDefinition() : currentCatalogPort(id);
+    const port = {
+      ...base,
+      presentation: {
+        ...base.presentation!,
+        manual_setup: {
+          steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
+          warnings: ["Back up the original save folder."],
+        },
+        manual_preparation: "Legacy technical notes for the full guide.",
+      },
+    };
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.chd"
+        setSourcePath={vi.fn()}
+        biosPath="C:/Player/original-bios.bin"
+        setBiosPath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect
+      .element(dialog.getByText(/See the game instructions for setup and save locations/u))
+      .toBeVisible();
+    await expect.element(dialog.getByText("Back up the original save folder.")).toBeVisible();
+    const copy = dialog.element().textContent;
+    expect(copy).not.toContain("Open the macOS disk image.");
+    expect(copy).not.toContain("Legacy technical notes for the full guide.");
+    expect(copy).not.toContain("Portcove checks the files and builds");
+  },
+);
+
+it("keeps SpaceRanger’s reset warning alongside the managed first-Play step", async () => {
+  const port = currentCatalogPort("toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  await expect
+    .element(dialog.getByText(/Choose Load ROM in the SpaceRanger title screen/u))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByText(/also removes settings and any Controller Pak data/u))
+    .toBeVisible();
+});
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
