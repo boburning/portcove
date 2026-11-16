@@ -28763,7 +28763,7 @@
         "original_game_title": "Super Mario 64",
         "original_game": {
           "format_version": 1,
-          "id": "super-mario-64",
+          "id": "super-mario-64-ghostship",
           "evidence_urls": [
             "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
           ],
@@ -41401,16 +41401,7 @@
             "https://github.com/sm64pc/sm64ex/blob/d7ca2c04364a6dd0dac58b47151e04e26887e6f0/README.md",
             "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
           ],
-          "source_editions": [
-            {
-              "id": "super-mario-64-n64",
-              "title": "Super Mario 64 (Nintendo 64, region not specified)",
-              "system": "nintendo-64",
-              "evidence_urls": [
-                "https://github.com/sm64-port/sm64-port/blob/2b17d081c9798b31b91dc71f37994b0da28cffc9/README.md"
-              ]
-            }
-          ]
+          "source_editions": []
         },
         "manual_setup": {
           "steps": [

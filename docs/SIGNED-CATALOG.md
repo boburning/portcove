@@ -150,9 +150,9 @@ fewer catalog bytes or an owner decision to move the floor, not a larger margin.
 Owner decision, November 16, 2026: the ceiling moved from 85% to 90% of the 4 MiB
 floor so the catalog can carry original-system identities for the installable
 ports (about 154 KB). The 4 MiB bound that older clients enforce is unchanged;
-the margin below it is smaller. Measured after the change: compact catalog 3205937
-bytes (76.4% of the floor, 568936 bytes of headroom under the 90% ceiling), escaped
-signed envelope 3372358 bytes (80.4%, 402515 bytes of headroom). This decision
+the margin below it is smaller. Measured after the change: compact catalog 3205721
+bytes (76.4% of the floor, 569152 bytes of headroom under the 90% ceiling), escaped
+signed envelope 3372126 bytes (80.4%, 402747 bytes of headroom). This decision
 consumed most of the headroom the 85% ceiling had left, so the ceiling does not move
 again before the owner retires those clients (#5894): when either measure passes
 85% of the floor again, a larger catalog needs that retirement decision or fewer
