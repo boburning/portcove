@@ -23,6 +23,24 @@ use crate::{ReleaseAsset, Result};
 
 const RECORD_BYTES: u64 = 16 * 1024;
 const TEMPORARY_PREFIX: &str = ".portcove-partial-";
+pub(super) const INDEX_LOCK: &str = "index.lock";
+
+/// Serializes pathname and record changes. Network transfers only hold the
+/// individual part lock. While holding this lock, a part lock must never wait.
+fn lock_index(root: &Path) -> std::io::Result<File> {
+    let path = root.join(INDEX_LOCK);
+    if fs::symlink_metadata(&path).is_ok_and(|metadata| !metadata.is_file()) {
+        return Err(std::io::Error::other("invalid partial download index lock"));
+    }
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)?;
+    file.lock()?;
+    Ok(file)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -56,6 +74,7 @@ pub(crate) struct PartialDownloads {
 #[derive(Debug)]
 pub(crate) struct Lease {
     file: File,
+    root: PathBuf,
     part: PathBuf,
     record: PathBuf,
     asset: ReleaseAsset,
@@ -120,6 +139,7 @@ impl PartialDownloads {
         {
             return None;
         }
+        let _index = lock_index(&self.root).ok()?;
         let (part, record) = self.paths(&key);
         if fs::symlink_metadata(&part).is_ok_and(|metadata| !metadata.is_file()) {
             return None;
@@ -143,6 +163,7 @@ impl PartialDownloads {
         self.sweep(&key, asset.size);
         Some(Lease {
             file,
+            root: self.root.clone(),
             part,
             record,
             asset: asset.clone(),
@@ -238,13 +259,25 @@ impl PartialDownloads {
     /// Removes an entry unless another transfer holds it.
     fn remove_unheld(&self, key: &str) -> bool {
         let (part, record) = self.paths(key);
-        let held = File::open(&part).is_ok_and(|file| file.try_lock().is_err());
-        if held {
-            return false;
-        }
+        let _file = match fs::symlink_metadata(&part) {
+            Ok(metadata) if metadata.is_file() => {
+                let Ok(file) = OpenOptions::new().read(true).write(true).open(&part) else {
+                    return false;
+                };
+                if file.try_lock().is_err() {
+                    return false;
+                }
+                Some(file)
+            }
+            Ok(_) => None,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => None,
+            Err(_) => return false,
+        };
         let _ = fs::remove_file(record);
-        let _ = fs::remove_file(part);
-        true
+        match fs::remove_file(part) {
+            Ok(()) => true,
+            Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        }
     }
 }
 
@@ -264,6 +297,9 @@ impl Lease {
     /// Records the representation the bytes now belong to. Without a strong
     /// validator they cannot continue, so no record is kept.
     pub(crate) fn describe(&self, validator: Option<&str>, length: Option<u64>) {
+        let Ok(_index) = lock_index(&self.root) else {
+            return;
+        };
         let _ = fs::remove_file(&self.record);
         let Some(validator) = validator else {
             return;
@@ -288,30 +324,36 @@ impl Lease {
 
     /// Drops the representation record before received bytes are discarded.
     pub(crate) fn forget(&self) {
-        let _ = fs::remove_file(&self.record);
+        if let Ok(_index) = lock_index(&self.root) {
+            let _ = fs::remove_file(&self.record);
+        }
     }
 
     /// Moves the complete bytes to `destination` and removes the entry.
-    pub(crate) fn finish(self, destination: &Path) -> Result<()> {
-        let _ = fs::remove_file(&self.record);
-        let Self { file, part, .. } = self;
-        // The lock and handle go before the file moves (Windows refuses
-        // renaming an open file).
-        drop(file);
-        if fs::rename(&part, destination).is_err() {
-            // A game output folder on another volume.
-            fs::copy(&part, destination)?;
-            fs::remove_file(&part)?;
+    pub(crate) fn finish(mut self, destination: &Path) -> Result<()> {
+        {
+            let _index = lock_index(&self.root)?;
+            let _ = fs::remove_file(&self.record);
+            if fs::rename(&self.part, destination).is_ok() {
+                return Ok(());
+            }
         }
+        // A different volume still needs a copy. Keep the part locked but
+        // leave the index available to other assets during that transfer.
+        self.file.rewind()?;
+        std::io::copy(&mut self.file, &mut File::create(destination)?)?;
+        let _index = lock_index(&self.root)?;
+        fs::remove_file(&self.part)?;
         Ok(())
     }
 
     /// Removes the entry and its bytes, for example after a rejected file.
     pub(crate) fn discard(self) {
+        let Ok(_index) = lock_index(&self.root) else {
+            return;
+        };
         let _ = fs::remove_file(&self.record);
         let _ = self.file.set_len(0);
-        let Self { file, part, .. } = self;
-        drop(file);
-        let _ = fs::remove_file(part);
+        let _ = fs::remove_file(&self.part);
     }
 }
