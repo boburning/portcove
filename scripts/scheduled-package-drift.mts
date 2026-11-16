@@ -46,6 +46,13 @@ function records(value: unknown): Record<string, unknown>[] {
   return Array.isArray(value) ? value.filter(isRecord) : [];
 }
 
+function isShapeComponentList(value: unknown): value is string[] {
+  return (
+    Array.isArray(value) &&
+    value.every((part: unknown) => typeof part === "string" && /^[a-z_]{1,48}$/.test(part))
+  );
+}
+
 function knownRoutes(catalog: unknown, listings: unknown, shapes: unknown) {
   if (!isRecord(catalog) || !isRecord(listings) || !isRecord(shapes)) {
     throw new Error("The managed catalog, listing projection and shape table are required");
@@ -275,14 +282,14 @@ function inspectionFromResponse(value: unknown, target: DriftTarget): Inspection
     throw new Error("Core returned an unrecognized shape verdict");
   }
   const components = records(data.verdict.changes).map((change) => change.component);
-  if (components.some((item) => typeof item !== "string" || !/^[a-z_]{1,48}$/.test(item))) {
+  if (!isShapeComponentList(components)) {
     throw new Error("Core returned an unrecognized shape component");
   }
   return {
     status,
     shapeVersion: data.shape_version,
     derivationSha256: data.derivation_inputs_sha256,
-    components: [...new Set(components as string[])].sort(),
+    components: [...new Set(components)].sort(),
   };
 }
 
@@ -381,8 +388,7 @@ export function completedInspections(
       !positiveInteger(shapeVersion) ||
       typeof derivationSha256 !== "string" ||
       !digest.test(derivationSha256) ||
-      !Array.isArray(components) ||
-      components.some((part) => typeof part !== "string" || !/^[a-z_]{1,48}$/.test(part))
+      !isShapeComponentList(components)
     )
       continue;
     completed.set(item.key, { status, shapeVersion, derivationSha256, components });
@@ -407,7 +413,10 @@ async function runScan(cli: string, directory: string, output: string, checkpoin
   const catalogRoot = path.resolve("crates/portcove-core/catalog");
   const inspector = path.resolve(cli);
   const fileHash = createHash("sha256");
-  for await (const chunk of createReadStream(inspector)) fileHash.update(chunk);
+  for await (const chunk of createReadStream(inspector)) {
+    if (!Buffer.isBuffer(chunk)) throw new Error("The inspector must be read as binary bytes");
+    fileHash.update(chunk);
+  }
   const inspector_sha256 = fileHash.digest("hex");
   const [catalog, listings, shapes, handoffFiles] = await Promise.all([
     readBoundedJson(path.join(catalogRoot, "catalog.json"), 32 * 1024 * 1024),
@@ -510,9 +519,8 @@ export function driftNotices(
       !positiveInteger(target.assetId) ||
       typeof key !== "string" ||
       !digest.test(key) ||
-      !Array.isArray(inspection.components) ||
-      inspection.components.length === 0 ||
-      inspection.components.some((part) => typeof part !== "string" || !/^[a-z_]{1,48}$/.test(part))
+      !isShapeComponentList(inspection.components) ||
+      inspection.components.length === 0
     )
       continue;
     const line = `- \`${target.portId}\` · ${target.platform} · ${target.channel} · \`${target.version}\` · release ${target.releaseId}, asset ${target.assetId} · SHA-256 \`${target.asset.sha256}\` · ${inspection.components.map((component) => component.replaceAll("_", " ")).join(", ")}`;

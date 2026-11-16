@@ -70,7 +70,7 @@ function observation() {
 const collect = (handoffs: unknown[]) =>
   collectDriftTargets(catalog, listings, table, handoffs, source, now);
 
-test("binds the inspected managed route to the exact Core projection and canonical issue", () => {
+void test("binds the inspected managed route to the exact Core projection and canonical issue", () => {
   const candidates = collect([observation(), observation()]);
   assert.equal(candidates.length, 1);
   assert.deepEqual(candidates[0], {
@@ -93,7 +93,7 @@ test("binds the inspected managed route to the exact Core projection and canonic
   assert.deepEqual(collect([observation(), conflict, observation()]), []);
 });
 
-test("excludes fallback, stale, cross-run, noncanonical and unreviewable route observations", () => {
+void test("excludes fallback, stale, cross-run, noncanonical and unreviewable route observations", () => {
   const snapshot = observation();
   const wrongAttempt = { ...snapshot, execution: { ...source, run_attempt: "2" } };
   const historical = {
@@ -118,7 +118,7 @@ test("excludes fallback, stale, cross-run, noncanonical and unreviewable route o
   );
 });
 
-test("preserves an exact prior inspection and reports failures and unknown separately", async () => {
+void test("preserves an exact prior inspection and reports failures and unknown separately", async () => {
   const [target] = collect([observation()]);
   assert.ok(target);
   const compatible = {
@@ -156,7 +156,7 @@ test("preserves an exact prior inspection and reports failures and unknown separ
   assert.equal(results.attempted_bytes, 200);
 });
 
-test("publishes one scoped notice per issue from current drift evidence only", () => {
+void test("publishes one scoped notice per issue from current drift evidence only", () => {
   const [target] = collect([observation()]);
   assert.ok(target);
   const inspection = {
@@ -193,7 +193,7 @@ test("publishes one scoped notice per issue from current drift evidence only", (
   );
 });
 
-test("a changed inspector binary invalidates otherwise exact cached results", () => {
+void test("a changed inspector binary invalidates otherwise exact cached results", () => {
   const key = "f".repeat(64);
   const inspector_sha256 = "a".repeat(64);
   const cache = {
