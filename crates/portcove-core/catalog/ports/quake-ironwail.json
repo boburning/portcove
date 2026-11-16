@@ -49,6 +49,11 @@
     },
     "decisions": []
   },
+  "managed_setup_platform_warnings": {
+    "linux-x86-64": [
+      "The Linux player needs OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123."
+    ]
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -105,7 +110,7 @@
         {
           "role": "game",
           "profile_id": "quake-classic-pc-pak-set",
-          "label": "Classic Quake PC PAK files",
+          "label": "Classic Quake PC original PAK files",
           "verification": "catalog-identity"
         }
       ],
@@ -114,7 +119,7 @@
         "steps": [
           {
             "title": "Choose your original Quake folder",
-            "instruction": "Choose the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation. Portcove checks both PAKs and keeps its copies apart from saves and settings. On Linux, keep ironwail.pak beside the player and install OpenGL 4.3, SDL2, libcurl, libvorbisfile and libmpg123. Managed saves and settings stay under id1. Back up a separate upstream profile where applicable."
+            "instruction": "Choose the id1 folder containing pak0.pak and pak1.pak from your own classic Quake installation. Portcove checks both PAKs and keeps its copies apart from saves and settings. Managed saves and settings stay under id1. Back up a separate upstream profile where applicable."
           }
         ],
         "warnings": [
