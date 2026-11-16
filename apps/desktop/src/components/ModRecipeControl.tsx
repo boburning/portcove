@@ -9,7 +9,7 @@ import { Input } from "./ui/input";
 
 type Props = {
   portId: string;
-  profileId?: string;
+  profileId: string | undefined;
   generation: number;
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
