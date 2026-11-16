@@ -151,6 +151,7 @@ function InstallationRuntimeNotice({
         className="justify-self-start"
         variant="outline"
         disabled={checking}
+        focusableWhenDisabled={checking}
         onClick={() => setAttempt(attempt + 1)}
       >
         {checking ? t("runtimes.checking") : t("runtimes.recheck")}

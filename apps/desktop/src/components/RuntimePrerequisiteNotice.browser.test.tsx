@@ -122,6 +122,7 @@ it("rechecks the same installation and distinguishes a failed read from confirme
     .mockResolvedValueOnce(report("missing"))
     .mockRejectedValueOnce(new Error("unavailable"))
     .mockResolvedValueOnce(report("unknown"))
+    .mockResolvedValueOnce({ ...report("present"), inspection: "partial" })
     .mockResolvedValueOnce(report("present"));
   await show(load, installed);
 
@@ -135,7 +136,9 @@ it("rechecks the same installation and distinguishes a failed read from confirme
   await recheck();
   expect(notice()?.textContent).toContain("could not confirm");
   await recheck();
-  expect(load.mock.calls).toEqual(Array.from({ length: 4 }, () => ["p", "i1", 1]));
+  expect(notice()?.textContent).toContain("could not confirm");
+  await recheck();
+  expect(load.mock.calls).toEqual(Array.from({ length: 5 }, () => ["p", "i1", 1]));
   expect(notice()?.textContent).toContain("Select Play to try the game again");
   expect(notice()?.querySelector("a")).toBeNull();
 });
