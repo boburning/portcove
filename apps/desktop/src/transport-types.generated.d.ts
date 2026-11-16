@@ -1325,7 +1325,7 @@ export interface TransportOutputs {
   source_assessment: SourceAssessment;
   source_batch_outcome: OutputSourceBatchOutcome;
   source_catalog: SourceCatalog;
-  source_discovery_issue: OutputSourceDiscoveryIssue;
+  source_discovery_issue: SourceDiscoveryIssue;
   source_discovery_limit: SourceDiscoveryLimit;
   source_discovery_limits: SourceDiscoveryLimits;
   source_discovery_report: SourceDiscoveryReport;
@@ -6069,12 +6069,6 @@ export interface SourceInspectionReport1 {
   schema_version: number;
   state_code: string;
   summary: string;
-  [k: string]: unknown;
-}
-export interface OutputSourceDiscoveryIssue {
-  message: string;
-  path: string | null;
-  profile_id: string | null;
   [k: string]: unknown;
 }
 export interface OutputSourceDiscoveryRequest {
