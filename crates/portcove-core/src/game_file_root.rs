@@ -1033,18 +1033,19 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn reconnect_matches_ordinary_sources_under_canonical_windows_roots() {
-        let root = Path::new(r"\\?\UNC\Host\Share\Games");
+        let root = PathBuf::from(["", "", "?", "UNC", "Host", "Share", "Games"].join("\\"));
+        let share = PathBuf::from(["", "", "host", "share"].join("\\"));
         assert!(registered_path_inside_saved_root(
-            Path::new(r"\\host\share\games\disc.chd"),
-            root,
+            &share.join(r"games\disc.chd"),
+            &root,
         ));
         assert!(!registered_path_inside_saved_root(
-            Path::new(r"\\host\share\games-old\disc.chd"),
-            root,
+            &share.join(r"games-old\disc.chd"),
+            &root,
         ));
         assert!(!registered_path_inside_saved_root(
-            Path::new(r"\\host\share\games\..\disc.chd"),
-            root,
+            &share.join(r"games\..\disc.chd"),
+            &root,
         ));
     }
 
