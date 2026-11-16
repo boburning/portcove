@@ -25,7 +25,7 @@
         },
         {
           "title": "Set your player name and choose a map",
-          "instruction": "Set a player name in DDNet and choose a server. For local practice, start the included DDNet-Server from a desktop archive and connect to that server from the DDNet client. Use the server’s local address and the port shown in its configuration."
+          "instruction": "Set a player name in DDNet and choose a server. For local practice, start the included DDNet-Server from a desktop archive and choose it in the DDNet client’s LAN tab. To connect manually, use the local server’s address and its actual listening port."
         },
         {
           "title": "Back up the profile you use",
