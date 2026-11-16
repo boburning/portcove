@@ -31,6 +31,14 @@
         {
           "title": "Keep the game folder's saves and settings",
           "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
+        },
+        {
+          "title": "Build a separate Linux demo player",
+          "instruction": "On Linux x86-64, build the test-1 tag from engine/hexen2 with make DEMO=1 h2 and the SDL 1.2, ALSA, libmad and Vorbis development libraries. The OpenGL source target needs a header missing from the tag. Put the resulting hexen2 executable beside the complete data1 folder from Hammer of Thyrion’s November 1997 Linux AMD64 demo package. Use the whole folder, including progs.dat. Open the folder and run ./hexen2."
+        },
+        {
+          "title": "Keep the Linux demo profile",
+          "instruction": "The Linux demo keeps its saves and settings in ~/.hexen2demo, separate from the Windows retail copy. Back up that profile before replacing your Linux build. The Tweaked publisher offers a Windows package. Intel and Apple Silicon Mac binaries and an Android package are unavailable for this fork’s release."
         }
       ]
     },
