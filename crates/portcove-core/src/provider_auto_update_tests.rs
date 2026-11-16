@@ -678,3 +678,35 @@ async fn current_check_survives_reopening_and_stays_distinct_from_an_unavailable
         Some(ProviderAutoUpdateOutcome::Unavailable { .. })
     ));
 }
+
+#[tokio::test]
+async fn changed_file_facts_reconsider_a_hold_at_the_same_provider_file_id() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let held_payload = wrapper(&[
+        ("hd-link.o2r", "objects/link.bin", b"v2"),
+        ("extra.o2r", "objects/extra.bin", b"extra mod"),
+    ]);
+    let held = w.pass_with_update(&held_payload).await;
+    assert!(matches!(
+        held[0].outcome,
+        ProviderAutoUpdateOutcome::Held { .. }
+    ));
+    let cached = w
+        .pass_without_download(&[(10, 1), (11, held_payload.len())])
+        .await;
+    assert_eq!(cached, held);
+
+    // The provider corrected the downloadable file without changing its ID or
+    // display label. Its new size triggers inspection and the ordinary review.
+    let corrected = wrapper(&[("hd-link.o2r", "objects/link.bin", b"corrected v2")]);
+    assert_ne!(corrected.len(), held_payload.len());
+    let updated = w.pass_with_update(&corrected).await;
+    assert!(matches!(
+        updated[0].outcome,
+        ProviderAutoUpdateOutcome::Applied { ref file_id, .. } if file_id == "11"
+    ));
+    assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
+}

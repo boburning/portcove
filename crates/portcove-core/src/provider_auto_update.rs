@@ -21,11 +21,12 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     ErrorCode, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
-    ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState, Result, asset_conflicts,
-    inspect_asset_archive, profile,
+    ProviderFileCandidate, ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState,
+    Result, asset_conflicts, inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
     provider_client::ProviderClient,
     provider_install::ProviderInstallMode,
@@ -276,11 +277,22 @@ fn hold_key(
     profile_id: &str,
     revision: u64,
     installed: &InstalledFile<'_>,
-    candidate: &str,
+    candidate: &ProviderFileCandidate,
 ) -> String {
+    // A provider may revise a file without changing its displayed version or ID.
+    // These claims only tell us when to check again. The plan inspects the bytes.
+    let observation = serde_json::json!([
+        candidate.file_name,
+        candidate.size,
+        candidate.added_at,
+        candidate.claimed_md5,
+        candidate.archived,
+        candidate.claimed_scan,
+    ]);
+    let fingerprint = hex::encode(Sha256::digest(observation.to_string()));
     format!(
-        "{profile_id}|{revision}|{}|{}|{candidate}",
-        installed.project, installed.file
+        "{profile_id}|{revision}|{}|{}|{}|{fingerprint}",
+        installed.project, installed.file, candidate.file_id
     )
 }
 
@@ -339,11 +351,13 @@ pub(crate) fn held_updates(
     held
 }
 
-/// The parts of a key `hold_key` built: profile, revision, project, installed
-/// file and candidate file. None for anything else.
+/// The display identity shared by current keys and legacy keys with no observed
+/// file facts. Legacy keys keep their explanation until the next fresh check.
 fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str)> {
     let parts = key.split('|').collect::<Vec<_>>();
-    let [profile, revision, project, file, candidate] = parts.as_slice() else {
+    let ([profile, revision, project, file, candidate]
+    | [profile, revision, project, file, candidate, _]) = parts.as_slice()
+    else {
         return None;
     };
     Some((profile, revision.parse().ok()?, project, file, candidate))
@@ -382,9 +396,8 @@ fn settle_holds(
 }
 
 fn read_holds(layout: &Layout) -> BTreeMap<String, String> {
-    std::fs::read(layout.store().join(HOLDS_FILE))
+    crate::path::read_bounded_regular(&layout.store().join(HOLDS_FILE), 256 * 1024)
         .ok()
-        .filter(|bytes| bytes.len() <= 256 * 1024)
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
 }
@@ -578,9 +591,7 @@ impl PortcoveService {
                 .connection()
                 .and_then(|connection| profile::current_revision(&connection, port_id, profile_id))
                 .ok()
-                .map(|revision| {
-                    hold_key(profile_id, revision.revision, installed, &candidate.file_id)
-                })
+                .map(|revision| hold_key(profile_id, revision.revision, installed, candidate))
                 .filter(|key| read_holds(layout).contains_key(key)),
             _ => None,
         };
@@ -664,7 +675,7 @@ impl PortcoveService {
                 reason: "the setup's installed mods changed while checking; check again".into(),
             });
         }
-        let key = hold_key(profile_id, revision.revision, installed, &candidate.file_id);
+        let key = hold_key(profile_id, revision.revision, installed, candidate);
         if let Some(reason) = read_holds(layout).get(&key) {
             return held(reason);
         }
@@ -688,6 +699,14 @@ impl PortcoveService {
             // fault, and the provider's flags are checked before any download.
             Err(error) => return Some(classify(error)),
         };
+        if &plan.file != candidate {
+            let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason:
+                    "the provider changed the offered file while planning the update; check again"
+                        .into(),
+            });
+        }
         if plan.expected_revision != revision.revision {
             let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
             return Some(ProviderAutoUpdateOutcome::Deferred {
