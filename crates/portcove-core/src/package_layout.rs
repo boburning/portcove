@@ -23,28 +23,57 @@ pub(crate) const EXECUTABLE_GRANT_CAPABILITY: u32 = 29;
 pub(crate) const MACOS_LIBRARY_FILTER_CAPABILITY: u32 = 30;
 pub(crate) const PORTABLE_DATA_LAYOUT_CAPABILITY: u32 = 32;
 pub(crate) const OPENMOHAA_PREPARED_LAYOUT_CAPABILITY: u32 = 33;
+pub(crate) const LINUX_PROGRAM_FORMAT_CAPABILITY: u32 = 36;
 
+/// The newest native-portable reader the route's reviewed layouts need.
 pub(crate) fn layout_capability(port: &PortDefinition) -> u32 {
-    if port
-        .reviewed_package_layouts
-        .keys()
-        .any(|&platform| crate::native_external_profile::openmohaa::requires_zip(port, platform))
-    {
-        OPENMOHAA_PREPARED_LAYOUT_CAPABILITY
-    } else if port.linux_portable_data_directory.is_some()
-        && port
-            .reviewed_package_layouts
-            .contains_key(&Platform::LinuxX86_64)
-    {
-        PORTABLE_DATA_LAYOUT_CAPABILITY
-    } else if port
-        .reviewed_package_layouts
-        .values()
-        .any(|layout| layout.ignore_verified_macos_libraries)
-    {
-        MACOS_LIBRARY_FILTER_CAPABILITY
-    } else {
-        NATIVE_CAPABILITY
+    let layouts = &port.reviewed_package_layouts;
+    [
+        (
+            layouts.keys().any(|&platform| {
+                crate::native_external_profile::openmohaa::requires_zip(port, platform)
+            }),
+            OPENMOHAA_PREPARED_LAYOUT_CAPABILITY,
+        ),
+        (
+            port.linux_portable_data_directory.is_some()
+                && layouts.contains_key(&Platform::LinuxX86_64),
+            PORTABLE_DATA_LAYOUT_CAPABILITY,
+        ),
+        (
+            layouts
+                .values()
+                .any(|layout| layout.ignore_verified_macos_libraries),
+            MACOS_LIBRARY_FILTER_CAPABILITY,
+        ),
+        (
+            layouts
+                .values()
+                .any(|layout| layout.classify_linux_programs_by_format),
+            LINUX_PROGRAM_FORMAT_CAPABILITY,
+        ),
+    ]
+    .into_iter()
+    .filter_map(|(applies, version)| applies.then_some(version))
+    .fold(NATIVE_CAPABILITY, u32::max)
+}
+
+/// Optional program classifiers a reviewed layout opts into.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct PackageProgramFilter {
+    /// Exclude verified macOS shared libraries.
+    pub ignore_verified_macos_libraries: bool,
+    /// On Linux, count an executable-mode file only when its content is a
+    /// program, and exclude verified ELF shared libraries.
+    pub classify_linux_programs_by_format: bool,
+}
+
+impl PackageProgramFilter {
+    pub(crate) fn of(layout: Option<&ReviewedPackageLayout>) -> Self {
+        layout.map_or_else(Self::default, |layout| Self {
+            ignore_verified_macos_libraries: layout.ignore_verified_macos_libraries,
+            classify_linux_programs_by_format: layout.classify_linux_programs_by_format,
+        })
     }
 }
 
@@ -81,32 +110,33 @@ pub fn inspect_package_archive(
         platform,
         expected_size,
         expected_sha256,
-        false,
+        PackageProgramFilter::default(),
     )
 }
 
-/// Inspect a verified archive with the optional macOS shared library filter.
+/// Inspect a verified archive with optional program classifiers.
 pub fn inspect_package_archive_with_program_filter(
     source: &Path,
     platform: Platform,
     expected_size: u64,
     expected_sha256: &str,
-    ignore_verified_macos_libraries: bool,
+    filter: PackageProgramFilter,
 ) -> Result<ReviewedPackageLayout> {
-    if ignore_verified_macos_libraries
+    if filter.ignore_verified_macos_libraries
         && !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
     {
         return Err(PortcoveError::usage(
             "the shared library filter requires macOS",
         ));
     }
+    if filter.classify_linux_programs_by_format && platform != Platform::LinuxX86_64 {
+        return Err(PortcoveError::usage(
+            "the Linux program format classifier requires Linux x86-64",
+        ));
+    }
     let (_workspace, payload) =
         extract_verified_archive(source, platform, expected_size, expected_sha256)?;
-    let layout = observe_root(
-        look_through_wrapper(&payload)?,
-        platform,
-        ignore_verified_macos_libraries,
-    )?;
+    let layout = observe_root(look_through_wrapper(&payload)?, platform, filter)?;
     if !valid_layout(&layout) {
         return Err(PortcoveError::verification(
             "package layout cannot be represented by a bounded reviewed declaration",
@@ -208,6 +238,9 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
             || (layout.ignore_verified_macos_libraries
                 && (port.adapter != crate::AdapterKind::NativePortable
                     || !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)))
+            || (layout.classify_linux_programs_by_format
+                && (port.adapter != crate::AdapterKind::NativePortable
+                    || *platform != Platform::LinuxX86_64))
             || crate::native_portable_data::directory_name(port, *platform).is_some_and(|name| {
                 layout
                     .directories
@@ -242,7 +275,7 @@ pub(crate) fn require_reviewed_layout(
     let mut observed = observe_root(
         root.clone(),
         platform,
-        reviewed.ignore_verified_macos_libraries,
+        PackageProgramFilter::of(Some(reviewed)),
     )?;
     if let Some(name) = portable_data
         .filter(|data| data.parent() == Some(root.as_path()))
@@ -260,7 +293,11 @@ pub(crate) fn require_reviewed_layout(
 
 #[cfg(test)]
 fn observe(root: &Path, platform: Platform) -> Result<ReviewedPackageLayout> {
-    observe_root(look_through_wrapper(root)?, platform, false)
+    observe_root(
+        look_through_wrapper(root)?,
+        platform,
+        PackageProgramFilter::default(),
+    )
 }
 
 pub(crate) fn native_mac_bundle_root(
@@ -285,7 +322,7 @@ pub(crate) fn native_mac_bundle_root(
 fn observe_root(
     root: PathBuf,
     platform: Platform,
-    ignore_verified_macos_libraries: bool,
+    filter: PackageProgramFilter,
 ) -> Result<ReviewedPackageLayout> {
     let mut directories = BTreeSet::new();
     for entry in fs::read_dir(&root)? {
@@ -310,9 +347,7 @@ fn observe_root(
             let relative = format!("{prefix}{}", lowercase_name(&entry.file_name()));
             if file_type.is_dir() {
                 pending.push((entry.path(), format!("{relative}/")));
-            } else if file_type.is_file()
-                && is_executable(&entry, platform, ignore_verified_macos_libraries)?
-            {
+            } else if file_type.is_file() && is_executable(&entry, platform, filter)? {
                 // Location matters: a launcher moved into a subfolder or a second
                 // program with the same name is a different layout.
                 executables.insert(relative);
@@ -320,7 +355,8 @@ fn observe_root(
         }
     }
     Ok(ReviewedPackageLayout {
-        ignore_verified_macos_libraries,
+        ignore_verified_macos_libraries: filter.ignore_verified_macos_libraries,
+        classify_linux_programs_by_format: filter.classify_linux_programs_by_format,
         directories: directories.into_iter().collect(),
         executables: executables.into_iter().collect(),
     })
@@ -331,9 +367,9 @@ fn observe_root(
 pub(crate) fn is_program_entry(
     entry: &fs::DirEntry,
     platform: Platform,
-    ignore_verified_macos_libraries: bool,
+    filter: PackageProgramFilter,
 ) -> Result<bool> {
-    is_executable(entry, platform, ignore_verified_macos_libraries)
+    is_executable(entry, platform, filter)
 }
 
 /// One wrapper directory with nothing beside it is the package root's container,
@@ -430,7 +466,7 @@ pub(crate) fn is_unknown_file_hazard(path: &Path) -> Result<bool> {
 fn is_executable(
     entry: &fs::DirEntry,
     platform: Platform,
-    ignore_verified_macos_libraries: bool,
+    filter: PackageProgramFilter,
 ) -> Result<bool> {
     let name = lowercase_name(&entry.file_name());
     let extension = Path::new(&name)
@@ -443,7 +479,22 @@ fn is_executable(
     {
         return Ok(false);
     }
-    if !ignore_verified_macos_libraries {
+    if filter.classify_linux_programs_by_format && platform == Platform::LinuxX86_64 {
+        // Linux runs ELF programs and `#!` scripts. An executable mode bit on
+        // data, or on a Windows library, does not make it a program; Windows
+        // programs still count by name.
+        let mut file = crate::external_runtime::open_single_link_file(&entry.path())?;
+        let Some(magic) = read_header_at::<4>(&mut file, 0)? else {
+            return Ok(false);
+        };
+        if magic != *b"\x7fELF" && !magic.starts_with(b"#!") {
+            return Ok(false);
+        }
+        let library_name = name.ends_with(".so") || name.contains(".so.");
+        let verified_library = library_name && is_elf_shared_library(&mut file)?;
+        return Ok(!verified_library);
+    }
+    if !filter.ignore_verified_macos_libraries {
         return Ok(true);
     }
     let verified_library = if extension == Some("dylib") {
@@ -453,6 +504,49 @@ fn is_executable(
         false
     };
     Ok(!verified_library)
+}
+
+/// A well-formed little-endian x86-64 ELF shared object: type `ET_DYN` with a
+/// dynamic segment and no program interpreter. A position-independent
+/// program declares an interpreter, so it still counts as a program. The
+/// entry point is not consulted because libraries may set one.
+fn is_elf_shared_library(file: &mut fs::File) -> io::Result<bool> {
+    const PT_DYNAMIC: u32 = 2;
+    const PT_INTERP: u32 = 3;
+    const PROGRAM_HEADER_SIZE: u64 = 56;
+    let Some(header) = read_header_at::<64>(file, 0)? else {
+        return Ok(false);
+    };
+    let half = |at: usize| u16::from_le_bytes([header[at], header[at + 1]]);
+    if header[..4] != *b"\x7fELF"
+        || header[4] != 2
+        || header[5] != 1
+        || half(16) != 3
+        || half(18) != 62
+        || u64::from(half(54)) != PROGRAM_HEADER_SIZE
+    {
+        return Ok(false);
+    }
+    let offset = u64::from_le_bytes(header[32..40].try_into().unwrap());
+    let count = u64::from(half(56));
+    if !(1..=128).contains(&count)
+        || offset < 64
+        || offset + count * PROGRAM_HEADER_SIZE > file.metadata()?.len()
+    {
+        return Ok(false);
+    }
+    let mut dynamic = false;
+    for index in 0..count {
+        let Some(kind) = read_header_at::<4>(file, offset + index * PROGRAM_HEADER_SIZE)? else {
+            return Ok(false);
+        };
+        match u32::from_le_bytes(kind) {
+            PT_INTERP => return Ok(false),
+            PT_DYNAMIC => dynamic = true,
+            _ => {}
+        }
+    }
+    Ok(dynamic)
 }
 
 fn read_header_at<const N: usize>(file: &mut fs::File, offset: u64) -> io::Result<Option<[u8; N]>> {
@@ -637,6 +731,25 @@ fn summarize(names: &[String]) -> String {
     shown
 }
 
+/// A minimal little-endian x86-64 ELF image of `kind` (2 program, 3 shared
+/// object) with the given program header types and a nonzero entry point.
+#[cfg(test)]
+pub(crate) fn elf_fixture(kind: u16, segments: &[u32]) -> Vec<u8> {
+    let mut bytes = vec![0_u8; 64 + segments.len() * 56];
+    bytes[..6].copy_from_slice(&[0x7f, b'E', b'L', b'F', 2, 1]);
+    bytes[16..18].copy_from_slice(&kind.to_le_bytes());
+    bytes[18..20].copy_from_slice(&62_u16.to_le_bytes());
+    bytes[24..32].copy_from_slice(&0x1040_u64.to_le_bytes());
+    bytes[32..40].copy_from_slice(&64_u64.to_le_bytes());
+    bytes[54..56].copy_from_slice(&56_u16.to_le_bytes());
+    bytes[56..58].copy_from_slice(&u16::try_from(segments.len()).unwrap().to_le_bytes());
+    for (index, segment) in segments.iter().enumerate() {
+        let at = 64 + index * 56;
+        bytes[at..at + 4].copy_from_slice(&segment.to_le_bytes());
+    }
+    bytes
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -743,6 +856,112 @@ mod tests {
         }
     }
 
+    const MACOS: PackageProgramFilter = PackageProgramFilter {
+        ignore_verified_macos_libraries: true,
+        classify_linux_programs_by_format: false,
+    };
+    const LINUX_FORMAT: PackageProgramFilter = PackageProgramFilter {
+        ignore_verified_macos_libraries: false,
+        classify_linux_programs_by_format: true,
+    };
+
+    use super::elf_fixture as elf;
+
+    #[cfg(unix)]
+    #[test]
+    fn linux_format_classifier_ignores_data_modes_and_versioned_libraries() {
+        let package = tempfile::tempdir().unwrap();
+        let root = package.path().to_path_buf();
+        let platform = Platform::LinuxX86_64;
+        let write_mode = |name: &str, bytes: &[u8]| {
+            let path = root.join(name);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(&path, bytes).unwrap();
+            crate::permissions::normalize_archive_entry(&path, false, true).unwrap();
+        };
+        // A PIE player declares an interpreter; libraries do not, whatever
+        // their entry point.
+        write_mode("Game", &elf(3, &[6, 3, 1, 2]));
+        write_mode("libGame.so.1.5.2", &elf(3, &[1, 2]));
+        write_mode("libSDL3.so", &elf(3, &[1, 2]));
+        write_mode("assets/level.dat", b"level data");
+        write_mode("LICENSE.txt", b"license text");
+        write_mode("Managed/Engine.dll", b"MZ managed assembly");
+        let reviewed = observe_root(root.clone(), platform, LINUX_FORMAT).unwrap();
+        assert_eq!(reviewed.executables, ["game"]);
+        assert!(reviewed.classify_linux_programs_by_format);
+        assert_eq!(
+            observe_root(root.clone(), platform, PackageProgramFilter::default())
+                .unwrap()
+                .executables,
+            [
+                "assets/level.dat",
+                "game",
+                "libgame.so.1.5.2",
+                "libsdl3.so",
+                "license.txt",
+                "managed/engine.dll"
+            ]
+        );
+        fs::rename(root.join("libGame.so.1.5.2"), root.join("libGame.so.1.6.0")).unwrap();
+        write_mode("assets/new-level.dat", b"more data");
+        assert_eq!(
+            observe_root(root.clone(), platform, LINUX_FORMAT).unwrap(),
+            reviewed
+        );
+        // Programs still count by content, by name or when named like a library.
+        write_mode("updater.so", &elf(3, &[6, 3, 1, 2]));
+        write_mode("launcher", b"#!/bin/sh\nexec ./Game\n");
+        write_mode("tools/patch.so.2", &elf(2, &[1, 2]));
+        write_mode("setup.sh", b"not even a script");
+        let drift = compare(
+            &reviewed,
+            &observe_root(root, platform, LINUX_FORMAT).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(
+            drift.added_executables,
+            ["launcher", "setup.sh", "tools/patch.so.2", "updater.so"]
+        );
+    }
+
+    #[test]
+    fn elf_library_verification_rejects_malformed_or_foreign_headers() {
+        let temporary = tempfile::tempdir().unwrap();
+        let check = |bytes: &[u8]| {
+            let path = temporary.path().join("lib.so");
+            fs::write(&path, bytes).unwrap();
+            is_elf_shared_library(&mut fs::File::open(path).unwrap()).unwrap()
+        };
+        assert!(check(&elf(3, &[1, 2])));
+        assert!(!check(&elf(3, &[1])), "no dynamic segment");
+        assert!(!check(&elf(2, &[1, 2])), "not ET_DYN");
+        let mut foreign = elf(3, &[1, 2]);
+        foreign[18] = 183;
+        assert!(!check(&foreign), "not x86-64");
+        let truncated = elf(3, &[1, 2]);
+        assert!(!check(&truncated[..100]), "program headers out of bounds");
+        assert!(!check(b"\x7fELF"));
+    }
+
+    #[test]
+    fn linux_format_classifier_is_limited_to_native_linux_layouts() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let mut port = catalog.port("bvschaik-julius").unwrap().clone();
+        assert!(layout_capability(&port) < LINUX_PROGRAM_FORMAT_CAPABILITY);
+        port.reviewed_package_layouts
+            .get_mut(&Platform::LinuxX86_64)
+            .unwrap()
+            .classify_linux_programs_by_format = true;
+        validate(&port).unwrap();
+        assert_eq!(layout_capability(&port), LINUX_PROGRAM_FORMAT_CAPABILITY);
+        port.reviewed_package_layouts
+            .get_mut(&Platform::WindowsX86_64)
+            .unwrap()
+            .classify_linux_programs_by_format = true;
+        assert!(validate(&port).is_err());
+    }
+
     #[cfg(unix)]
     #[test]
     fn verified_macos_libraries_may_change_names_but_programs_still_drift() {
@@ -766,7 +985,7 @@ mod tests {
         };
         write_program("Game", 2);
         write_program("libGame.1.1.dylib", 6);
-        let reviewed = observe_root(root.clone(), platform, true).unwrap();
+        let reviewed = observe_root(root.clone(), platform, MACOS).unwrap();
         assert_eq!(reviewed.executables, ["game"]);
         fs::rename(
             root.join("libGame.1.1.dylib"),
@@ -774,17 +993,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(
-            observe_root(root.clone(), platform, true).unwrap(),
+            observe_root(root.clone(), platform, MACOS).unwrap(),
             reviewed
         );
         assert_eq!(
-            observe_root(root.clone(), platform, false)
+            observe_root(root.clone(), platform, PackageProgramFilter::default())
                 .unwrap()
                 .executables,
             ["game", "libgame.1.2.dylib"]
         );
         write_program("Updater.dylib", 2);
-        let drift = compare(&reviewed, &observe_root(root, platform, true).unwrap()).unwrap();
+        let drift = compare(&reviewed, &observe_root(root, platform, MACOS).unwrap()).unwrap();
         assert_eq!(drift.added_executables, ["updater.dylib"]);
     }
 
@@ -821,6 +1040,7 @@ mod tests {
             reviewed(),
             ReviewedPackageLayout {
                 ignore_verified_macos_libraries: false,
+                classify_linux_programs_by_format: false,
                 directories: vec!["data".to_owned(), "lib".to_owned()],
                 executables: vec!["game.exe".to_owned()],
             }

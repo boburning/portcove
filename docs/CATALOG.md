@@ -2145,10 +2145,22 @@ with execute permission. Existing fingerprints continue to use their declared
 rules. The matching authoring observation is `catalog inspect-package-layout
 --ignore-verified-macos-libraries`.
 
+Linux x86-64 layouts may opt into `classify_linux_programs_by_format` when an
+upstream archive marks data, documentation or versioned shared libraries
+executable. An executable-mode file then counts only when it starts with an ELF
+or `#!` header, and a `.so` or `.so.N` file is excluded only when bounded header
+inspection finds an x86-64 ELF shared object with a dynamic segment and no
+program interpreter. A position-independent program, an ELF program named like
+a library and any program or script name above still count. Windows libraries
+remain outside the fingerprint, as on Windows. The matching authoring
+observation is `catalog inspect-package-layout
+--classify-linux-programs-by-format`.
+
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
 would ignore the field cannot accept them. The macOS library filter requires
-version 30. A selected independent definition
+version 30 and the Linux program format classifier version 36. A selected
+independent definition
 may replace a fingerprint after review but cannot remove one. The fingerprint
 applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`

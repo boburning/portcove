@@ -53492,6 +53492,13 @@
             "reflectionhle.exe"
           ]
         },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -55292,6 +55299,13 @@
           "directories": [],
           "executables": [
             "reflectionhle.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
           ]
         },
         "macos-x86-64": {
@@ -62043,6 +62057,17 @@
             "daggerfallunity.exe",
             "unitycrashhandler64.exe"
           ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [
+            "daggerfallunity_data"
+          ],
+          "executables": [
+            "daggerfallunity.x86_64",
+            "linuxplayer_s.debug",
+            "unityplayer_s.debug"
+          ]
         }
       }
     },
@@ -62666,6 +62691,13 @@
           "directories": [],
           "executables": [
             "reflectionhle.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
           ]
         },
         "macos-x86-64": {
@@ -66581,6 +66613,17 @@
           "executables": [
             "pilotwings64recomp.exe"
           ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [
+            "assets",
+            "licenses"
+          ],
+          "executables": [
+            "pilotwings64recomp",
+            "pilotwings64recomp.sh"
+          ]
         }
       }
     },
@@ -70454,6 +70497,13 @@
             "reflectionhle.exe"
           ]
         },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -71894,6 +71944,13 @@
             "reflectionhle.exe"
           ]
         },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -72564,6 +72621,13 @@
             "reflectionhle.exe"
           ]
         },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -72888,6 +72952,13 @@
             "reflectionhle.exe"
           ]
         },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
+          ]
+        },
         "macos-x86-64": {
           "directories": [
             "reflectionhle.app"
@@ -73210,6 +73281,13 @@
           "directories": [],
           "executables": [
             "reflectionhle.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
           ]
         },
         "macos-x86-64": {
@@ -74874,6 +74952,13 @@
           "directories": [],
           "executables": [
             "reflectionhle.exe"
+          ]
+        },
+        "linux-x86-64": {
+          "classify_linux_programs_by_format": true,
+          "directories": [],
+          "executables": [
+            "reflectionhle"
           ]
         },
         "macos-x86-64": {

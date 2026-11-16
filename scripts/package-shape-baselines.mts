@@ -113,7 +113,13 @@ function field(value: unknown, key: string): unknown {
  */
 export function derivationInputs(port: unknown, platform: string) {
   const subdirectory = field(field(port, "runtime_subdirectory_by_platform"), platform);
+  // Recorded only when declared, so digests of routes without it are unchanged.
+  const linuxFormat = field(
+    field(field(port, "reviewed_package_layouts"), platform),
+    "classify_linux_programs_by_format",
+  );
   return {
+    ...(linuxFormat === null ? {} : { classify_linux_programs_by_format: linuxFormat }),
     adapter: field(port, "adapter"),
     executable_hints: field(field(port, "executable_hints"), platform),
     external_profile_policy: field(port, "external_profile_policy"),

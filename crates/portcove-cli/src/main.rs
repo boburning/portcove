@@ -393,6 +393,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 size,
                 sha256,
                 ignore_verified_macos_libraries,
+                classify_linux_programs_by_format,
             },
     } = &cli.command
     {
@@ -406,7 +407,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 *size,
                 sha256,
-                *ignore_verified_macos_libraries,
+                portcove_core::PackageProgramFilter {
+                    ignore_verified_macos_libraries: *ignore_verified_macos_libraries,
+                    classify_linux_programs_by_format: *classify_linux_programs_by_format,
+                },
             )?,
             |layout| {
                 format!(
