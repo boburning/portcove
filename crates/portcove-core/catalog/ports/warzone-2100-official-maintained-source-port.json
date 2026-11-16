@@ -35,7 +35,7 @@
         },
         {
           "title": "Install through upstream on Linux",
-          "instruction": "On Ubuntu 26.04 x64, install warzone2100 from the Ubuntu package repository and open it from your app menu. On Ubuntu 22.04 or 24.04 x64, you can install the publisher’s matching DEB through your package manager. The publisher also offers the net.wz2100.wz2100 Flatpak for Linux x64 and ARM64."
+          "instruction": "On Ubuntu 26.04 x64 or ARM64, install warzone2100 from the Ubuntu package repository and open it from your app menu. On Ubuntu 22.04 or 24.04 x64, you can install the publisher’s matching DEB through your package manager. The publisher also offers the net.wz2100.wz2100 Flatpak for Linux x64 and ARM64."
         },
         {
           "title": "Open the Mac application",
