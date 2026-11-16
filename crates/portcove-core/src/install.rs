@@ -705,10 +705,6 @@ fn download_client(
         .map_err(|error| PortcoveError::network(error.to_string()))
 }
 
-pub(crate) fn default_download_client() -> Result<reqwest::Client> {
-    download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)
-}
-
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
         Ok(Self {
@@ -2124,11 +2120,6 @@ impl Installer {
         let partials = partial_download::PartialDownloads::new(
             self.library.downloads_dir().join("partial-v1"),
         );
-        let inside_library = destination
-            .parent()
-            .and_then(|parent| fs::canonicalize(parent).ok())
-            .zip(fs::canonicalize(self.library.root()).ok())
-            .is_some_and(|(parent, root)| parent.starts_with(root));
         transfer::download_resuming(
             &client,
             asset,
@@ -2136,7 +2127,45 @@ impl Installer {
             operation,
             emit,
             transfer::RESUME_POLICY,
-            inside_library.then_some(&partials),
+            self.is_library_staged(destination).then_some(&partials),
+        )
+        .await
+    }
+
+    fn is_library_staged(&self, destination: &Path) -> bool {
+        destination
+            .parent()
+            .and_then(|parent| fs::canonicalize(parent).ok())
+            .zip(fs::canonicalize(self.library.root()).ok())
+            .is_some_and(|(parent, root)| parent.starts_with(root))
+    }
+
+    /// The PSX acquisition lock serializes access to this store through the
+    /// final move to private staging. Ordinary release downloads cannot sweep it.
+    pub(crate) async fn download_psx_toolchain<F>(
+        &self,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
+        let partials = partial_download::PartialDownloads::new(
+            self.library
+                .downloads_dir()
+                .join("psx-toolchain-partial-v1"),
+        );
+        transfer::download_resuming(
+            &client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+            self.is_library_staged(destination).then_some(&partials),
         )
         .await
     }

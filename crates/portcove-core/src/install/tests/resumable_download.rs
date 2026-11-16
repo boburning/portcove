@@ -712,7 +712,8 @@ fn stored_entries(root: &Path) -> Vec<String> {
 #[tokio::test]
 async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     let temporary = tempfile::tempdir().unwrap();
-    let store_root = temporary.path().join("partial-v1");
+    let library = Library::open(temporary.path().join("library")).unwrap();
+    let store_root = library.downloads_dir().join("psx-toolchain-partial-v1");
     let partials = partial_download::PartialDownloads::new(store_root.clone());
     let digest = hex::encode(Sha256::digest(BODY));
     let server = Restarts::serve(vec![
@@ -726,11 +727,37 @@ async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     assert!(!first.exists());
     assert_eq!(stored_entries(&store_root).len(), 2);
 
-    // A later run of the same asset asks only for the rest.
-    let second = temporary.path().join("second.download");
-    let (result, file, messages) = server.transfer(&partials, &second, digest).await;
-    result.unwrap();
-    assert_eq!(file, BODY);
+    // A later run downloads the same asset into a fresh toolchain staging directory.
+    let staging = library
+        .staging_dir()
+        .join(format!("psx-toolchain-{}", uuid::Uuid::new_v4()));
+    fs::create_dir_all(&staging).unwrap();
+    let second = staging.join("second.download");
+    let _acquisition = library.try_lock_psx_toolchain_acquisition().unwrap();
+    assert!(matches!(
+        library.try_lock_psx_toolchain_acquisition(),
+        Err(error) if error.code == crate::ErrorCode::Conflict
+    ));
+    let installer = Installer::new(library).unwrap();
+    let operation = OperationCoordinator::new("psx_toolchain", None);
+    let mut messages = Vec::new();
+    tokio::time::timeout(
+        Duration::from_secs(30),
+        installer.download_psx_toolchain(
+            &server.asset(digest),
+            &second,
+            &operation,
+            &mut |event| {
+                if let crate::OperationEventKind::Message { message, .. } = event.event {
+                    messages.push(message);
+                }
+            },
+        ),
+    )
+    .await
+    .expect("transfer fixture exceeded thirty seconds")
+    .unwrap();
+    assert_eq!(fs::read(&second).unwrap(), BODY);
     assert!(messages[0].contains("Continuing the earlier download"));
     // A completed download leaves nothing behind.
     assert!(stored_entries(&store_root).is_empty());
