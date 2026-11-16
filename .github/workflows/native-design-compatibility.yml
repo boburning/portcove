@@ -146,13 +146,13 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: 98620937c0243a432569d331d6586b30856a5cad
+          ref: c4a4949b71bd70301ace07badea4dde199c82fd1
           persist-credentials: false
       - uses: ./.github/actions/setup-rust
-      - name: Build the ordinary G-Diffuser verification CLI
+      - name: Build the ordinary Wave Race Linux verification CLI
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD)" = 98620937c0243a432569d331d6586b30856a5cad
+          test "$(git rev-parse HEAD)" = c4a4949b71bd70301ace07badea4dde199c82fd1
           cargo build --locked -p portcove-cli --bin portcove
           sha256sum target/debug/portcove
           git rev-parse HEAD
@@ -162,8 +162,9 @@ jobs:
           } >target/debug/native-build-identity.txt
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: owned-gdiffuser-98620937c0243a432569d331d6586b30856a5cad
+          name: owned-wave-race-linux-c4a4949b71bd70301ace07badea4dde199c82fd1
           if-no-files-found: error
+          retention-days: 2
           path: |
             target/debug/portcove
             target/debug/native-build-identity.txt
