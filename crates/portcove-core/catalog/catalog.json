@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "debian-gdp89-classic-doom3-pk4-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_url": null,
+        "claim": "Debian game-data-packager 89 lists exact byte sizes and SHA-256 for the nine classic Doom 3 1.3.1 base PK4s and the two Resurrection of Evil expansion PK4s. The MD5 cross-check agrees with dhewm3. These are published identity data, without local retail or runtime observations.",
+        "reviewed_at": "2026-11-16"
+      },
+      {
         "id": "the-force-engine-complete-data-archive-2026-10-18",
         "role": "byte_identity",
         "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
@@ -4074,6 +4084,184 @@
       }
     ],
     "identities": [
+      {
+        "id": "doom-3-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "doom-3-roe-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  },
+                  {
+                    "id": "d3xp-pak000",
+                    "path": "d3xp/pak000.pk4",
+                    "size": 538385153,
+                    "sha256": "b5236ac25be28e1cb6021e54dfff595ac569eaea350c199f2eb5b6ba0df67f08"
+                  },
+                  {
+                    "id": "d3xp-pak001",
+                    "path": "d3xp/pak001.pk4",
+                    "size": 99336,
+                    "sha256": "2ba245254b8ed3440e252f6e2e24af2c6343d7c312f9a9a7e73509abdaf13e49"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": "ocarina-of-time",
         "label": "The Legend of Zelda: Ocarina of Time source",
@@ -16394,6 +16582,68 @@
       }
     ],
     "contracts": [
+      {
+        "id": "doom-3-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-roe-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
       {
         "id": "shipwright-game-source",
         "port_id": "shipwright",
@@ -58300,52 +58550,26 @@
       },
       "presentation": {
         "installation_method": "portable-package",
-        "source_requirements": [],
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "doom-3-classic-pc-131-pk4",
+            "label": "Classic Doom 3 1.3.1",
+            "verification": "catalog-identity"
+          }
+        ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow.",
         "original_game_title": "Doom 3 (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare your original game",
-              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods."
-            },
-            {
-              "title": "Keep an existing prepared copy",
-              "instruction": "For a separately prepared copy, read originals from another installation using three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. This custom option retains the external route and does not make Portcove manage or migrate its originals, saves or runtime."
-            },
-            {
-              "title": "Select the prepared Windows player",
-              "instruction": "Select dhewm3.exe and use its containing folder as the working directory. Leave arguments empty. Keep the complete independently permitted runtime and finish the title-specific preparation before Play."
+              "title": "Choose your original game folder",
+              "instruction": "Choose the folder containing base from your own classic Doom 3 installation patched to 1.3.1. Portcove checks and prepares the nine original PK4 files, then you can select Play. BFG Edition is a different product. Keep your original installation separately. On Windows, keep the managed library path short and use plain ASCII. On Linux, keep the packaged modules and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Keep backups of the external save and settings folders. Use a separately prepared copy for custom paths or native mods."
             }
           ],
           "warnings": [
-            "Back up that external profile and your original game separately before changing engines or versions.",
             "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",
             "Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow."
-          ],
-          "help_url": "https://dhewm3.org/#how-to-install",
-          "references": [
-            {
-              "title": "Choose your Linux setup",
-              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dhewm3 from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
-            },
-            {
-              "title": "Set up dhewm3 on Mac",
-              "instruction": "Use the universal Mac Source Ports build linked from dhewm3.org. Copy dhewm3.app out of its disk image. Put your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders under ~/Library/Application Support/dhewm3. Open the app directly. Preserve that profile, its saves, and all original-data locations."
-            },
-            {
-              "title": "Registration ownership and removal",
-              "instruction": "Portcove records the selected executable, working folder and literal arguments after review. Play is separate and only the selected process is supervised. You and upstream own replacement and updates; relink changed executable bytes after reviewing them. Removing this registration preserves every external file. Managed installation, backup, rollback, migration and deletion are not offered for this external copy."
-            },
-            {
-              "title": "Player-data ownership",
-              "instruction": "You and upstream own the external copy's data: saves, settings, screenshots, demos and logs in actual Documents/My Games/dhewm3 with separate base and d3xp scopes; original game installation and any custom external profile. Back up these locations separately; registration does not migrate or certify their compatibility."
-            },
-            {
-              "title": "Managed runtime ownership",
-              "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: base/pak000.pk4, base/pak001.pk4, base/pak002.pk4, base/pak003.pk4, base/pak004.pk4, base/pak005.pk4, base/pak006.pk4, base/pak007.pk4, base/pak008.pk4. Its backup does not include external profiles."
-            }
           ]
         }
       },
@@ -58357,17 +58581,6 @@
           "dhewm3"
         ]
       },
-      "persistent_paths": [
-        "base/pak000.pk4",
-        "base/pak001.pk4",
-        "base/pak002.pk4",
-        "base/pak003.pk4",
-        "base/pak004.pk4",
-        "base/pak005.pk4",
-        "base/pak006.pk4",
-        "base/pak007.pk4",
-        "base/pak008.pk4"
-      ],
       "windows_runtime_path_policy": "printable-ascii-max-path",
       "reviewed_package_layouts": {
         "windows-x86-64": {
@@ -58395,7 +58608,84 @@
           ]
         }
       },
-      "external_profile_policy": "doom3-linux-v1"
+      "external_profile_policy": "doom3-linux-v1",
+      "source_profile": "doom-3-classic-pc-131-pk4",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "base/pak000.pk4"
+          ],
+          "destination": "base/pak000.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak001.pk4"
+          ],
+          "destination": "base/pak001.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak002.pk4"
+          ],
+          "destination": "base/pak002.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak003.pk4"
+          ],
+          "destination": "base/pak003.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak004.pk4"
+          ],
+          "destination": "base/pak004.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak005.pk4"
+          ],
+          "destination": "base/pak005.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak006.pk4"
+          ],
+          "destination": "base/pak006.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak007.pk4"
+          ],
+          "destination": "base/pak007.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak008.pk4"
+          ],
+          "destination": "base/pak008.pk4",
+          "materialization": "copy"
+        }
+      ],
+      "runtime_source_hashes": {
+        "base/pak000.pk4": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce",
+        "base/pak001.pk4": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0",
+        "base/pak002.pk4": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c",
+        "base/pak003.pk4": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a",
+        "base/pak004.pk4": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3",
+        "base/pak005.pk4": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657",
+        "base/pak006.pk4": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1",
+        "base/pak007.pk4": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0",
+        "base/pak008.pk4": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+      }
     },
     {
       "id": "doom-3-classic-dude-doom-3-unified-development-engine",
@@ -58543,38 +58833,25 @@
       },
       "presentation": {
         "installation_method": "portable-package",
-        "source_requirements": [],
+        "source_requirements": [
+          {
+            "role": "game",
+            "profile_id": "doom-3-roe-classic-pc-131-pk4",
+            "label": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+            "verification": "catalog-identity"
+          }
+        ],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration. Portcove replaces its separate official managed runtime and preserves only the named local PK4 inputs during compatible replacement and backup, including inputs added before first Play. Its backup does not cover the external Documents/My Games/dhewm3 profile. Runtime rollback carries current declared inputs; it does not rewind saves or promise older-runtime, recorded-demo or mod compatibility. Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract. Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow. Existing external registrations retain every file and their user/upstream runtime owner; a catalog change never adopts them. Gameplay and populated-save compatibility remain unqualified. On managed Linux x86-64, keep the packaged modules together and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Back up the actual external dhewm3 config and save folders separately. Use a separately prepared copy for custom paths or native mods.",
         "original_game_title": "Doom 3: Resurrection of Evil (classic)",
         "manual_setup": {
           "steps": [
             {
-              "title": "Prepare your original game",
-              "instruction": "Before Play, copy only base/pak000.pk4 through base/pak008.pk4 from your own classic Doom 3 installation patched to 1.3.1 into the matching base folder beside dhewm3.exe on Windows or dhewm3 on Linux. Also copy your own Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 into d3xp beside the player. Both the complete base game and expansion are required; the maintained launch arguments select d3xp. Keep the original installation separately. BFG Edition is a different product; do not copy its files or old engine executables/DLLs over this runtime. Prepare these files yourself and check the edition against the upstream instructions; Portcove does not verify their original-game identity. The official Windows player is 32-bit and runs on 64-bit Windows through Windows compatibility support. Keep the package's own DLLs and resources together. Its optional mods and widescreen-GUI downloads are separate; customized runtime or mod layouts can keep an external registration."
-            },
-            {
-              "title": "Keep an existing prepared copy",
-              "instruction": "Keep a working custom copy registered with dhewm3.exe, its actual runtime folder as working directory, and its own launch details. To read originals from another installation, use three separate argument lines: +set, fs_basepath, then the absolute folder containing base and any d3xp data. Select Resurrection of Evil with three more separate lines: +set, fs_game, d3xp. You and upstream retain replacement and data ownership for that external copy; removing its registration preserves its files. This alternative does not make Portcove manage or migrate its originals, saves or runtime."
+              "title": "Choose your original game folder",
+              "instruction": "Choose the folder containing base and d3xp from your own classic Doom 3 and Resurrection of Evil installation patched to 1.3.1. Portcove checks and prepares the base and expansion PK4 files, then you can select Play. BFG Edition is a different product. Keep your original installation separately. On Windows, keep the managed library path short and use plain ASCII. On Linux, keep the packaged modules and install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries. Keep backups of the external save and settings folders. Use a separately prepared copy for custom paths or native mods."
             }
           ],
           "warnings": [
-            "Back up that external profile and your original game separately before changing engines or versions."
-          ],
-          "help_url": "https://dhewm3.org/#how-to-install",
-          "references": [
-            {
-              "title": "Keep your saves and existing copy",
-              "instruction": "Normal Windows saves, settings, screenshots, demos and logs are in your actual Documents/My Games/dhewm3 profile, with separate base and d3xp scopes. Back up that external profile and your original game separately before changing engines or versions. Existing customized copies keep their own launch details and runtime owner."
-            },
-            {
-              "title": "Choose your Linux setup",
-              "instruction": "Choose the official dhewm3 amd64 or arm64 game tarball. Extract the complete folder and keep its game libraries. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dhewm3 with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dhewm3 and ~/.local/share/dhewm3 or their XDG equivalents, plus any custom paths. Install SDL2, OpenAL, libcurl and the GNU C++ and GCC runtime libraries through your distribution. The inspected ARM64 executable needs glibc 2.38. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path."
-            },
-            {
-              "title": "Set up dhewm3 on Mac",
-              "instruction": "Use the universal Mac Source Ports build linked from dhewm3.org. Copy dhewm3.app out of its disk image. Put your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders under ~/Library/Application Support/dhewm3. With the app closed and installed in Applications, run open -a /Applications/dhewm3.app --args +set fs_game d3xp in Terminal to select the expansion. Preserve that profile, its saves, and all original-data locations."
-            }
+            "Use a separately prepared copy for custom paths, native mods or a dedicated server. Keep backups of your external saves and settings."
           ]
         }
       },
@@ -58586,19 +58863,6 @@
           "dhewm3"
         ]
       },
-      "persistent_paths": [
-        "base/pak000.pk4",
-        "base/pak001.pk4",
-        "base/pak002.pk4",
-        "base/pak003.pk4",
-        "base/pak004.pk4",
-        "base/pak005.pk4",
-        "base/pak006.pk4",
-        "base/pak007.pk4",
-        "base/pak008.pk4",
-        "d3xp/pak000.pk4",
-        "d3xp/pak001.pk4"
-      ],
       "windows_runtime_path_policy": "printable-ascii-max-path",
       "launch_arguments": [
         "+set",
@@ -58631,7 +58895,100 @@
           ]
         }
       },
-      "external_profile_policy": "doom3-linux-v1"
+      "external_profile_policy": "doom3-linux-v1",
+      "source_profile": "doom-3-roe-classic-pc-131-pk4",
+      "runtime_source_set": [
+        {
+          "source_filenames": [
+            "base/pak000.pk4"
+          ],
+          "destination": "base/pak000.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak001.pk4"
+          ],
+          "destination": "base/pak001.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak002.pk4"
+          ],
+          "destination": "base/pak002.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak003.pk4"
+          ],
+          "destination": "base/pak003.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak004.pk4"
+          ],
+          "destination": "base/pak004.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak005.pk4"
+          ],
+          "destination": "base/pak005.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak006.pk4"
+          ],
+          "destination": "base/pak006.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak007.pk4"
+          ],
+          "destination": "base/pak007.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "base/pak008.pk4"
+          ],
+          "destination": "base/pak008.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "d3xp/pak000.pk4"
+          ],
+          "destination": "d3xp/pak000.pk4",
+          "materialization": "copy"
+        },
+        {
+          "source_filenames": [
+            "d3xp/pak001.pk4"
+          ],
+          "destination": "d3xp/pak001.pk4",
+          "materialization": "copy"
+        }
+      ],
+      "runtime_source_hashes": {
+        "base/pak000.pk4": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce",
+        "base/pak001.pk4": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0",
+        "base/pak002.pk4": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c",
+        "base/pak003.pk4": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a",
+        "base/pak004.pk4": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3",
+        "base/pak005.pk4": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657",
+        "base/pak006.pk4": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1",
+        "base/pak007.pk4": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0",
+        "base/pak008.pk4": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7",
+        "d3xp/pak000.pk4": "b5236ac25be28e1cb6021e54dfff595ac569eaea350c199f2eb5b6ba0df67f08",
+        "d3xp/pak001.pk4": "2ba245254b8ed3440e252f6e2e24af2c6343d7c312f9a9a7e73509abdaf13e49"
+      }
     },
     {
       "id": "doom-3-resurrection-of-evil-classic-dude-doom-3-unified-development-engine",

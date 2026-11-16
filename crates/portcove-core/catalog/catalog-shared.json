@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "debian-gdp89-classic-doom3-pk4-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_url": null,
+        "claim": "Debian game-data-packager 89 lists exact byte sizes and SHA-256 for the nine classic Doom 3 1.3.1 base PK4s and the two Resurrection of Evil expansion PK4s. The MD5 cross-check agrees with dhewm3. These are published identity data, without local retail or runtime observations.",
+        "reviewed_at": "2026-11-16"
+      },
+      {
         "id": "the-force-engine-complete-data-archive-2026-10-18",
         "role": "byte_identity",
         "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
@@ -4074,6 +4084,184 @@
       }
     ],
     "identities": [
+      {
+        "id": "doom-3-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "doom-3-roe-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  },
+                  {
+                    "id": "d3xp-pak000",
+                    "path": "d3xp/pak000.pk4",
+                    "size": 538385153,
+                    "sha256": "b5236ac25be28e1cb6021e54dfff595ac569eaea350c199f2eb5b6ba0df67f08"
+                  },
+                  {
+                    "id": "d3xp-pak001",
+                    "path": "d3xp/pak001.pk4",
+                    "size": 99336,
+                    "sha256": "2ba245254b8ed3440e252f6e2e24af2c6343d7c312f9a9a7e73509abdaf13e49"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": "ocarina-of-time",
         "label": "The Legend of Zelda: Ocarina of Time source",
@@ -16394,6 +16582,68 @@
       }
     ],
     "contracts": [
+      {
+        "id": "doom-3-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-roe-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
       {
         "id": "shipwright-game-source",
         "port_id": "shipwright",

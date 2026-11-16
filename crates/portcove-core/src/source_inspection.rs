@@ -342,6 +342,15 @@ pub(crate) fn verify_registered_assessment_with_checkpoint(
     registered: &SourceRecord,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<SourceAssessment> {
+    verify_registered_source_with_checkpoint(catalog, registered, checkpoint)
+        .map(|(_, assessment)| assessment)
+}
+
+pub(crate) fn verify_registered_source_with_checkpoint(
+    catalog: &Catalog,
+    registered: &SourceRecord,
+    checkpoint: &dyn Fn() -> Result<()>,
+) -> Result<(SourceRecord, SourceAssessment)> {
     let profile_id = &registered.profile_id;
     checkpoint()?;
     let inspection = inspect_with_checkpoint(catalog, profile_id, &registered.path, checkpoint)?;
@@ -368,7 +377,7 @@ pub(crate) fn verify_registered_assessment_with_checkpoint(
         .detail("recorded_storage_size", registered.storage_size.to_string())
         .detail("actual_storage_size", actual.storage_size.to_string()));
     }
-    Ok(assessment)
+    Ok((actual, assessment))
 }
 
 pub(crate) fn inspect_file(

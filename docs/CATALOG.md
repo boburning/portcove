@@ -497,7 +497,12 @@ sealed source receipts. Unapproved populated adoption and persistence changes st
 held. Preserving removal retains declared profile data and leaves external
 originals unchanged. Native1–5 definitions and older SourceOnly interpretations
 retain their existing semantics. Fresh and retained indexed entries with native
-source profiles require a Native6 lower bound.
+source profiles require a Native6 lower bound. Native capability 37
+also admits complete exact relative-file sets with SHA-256-bound Copy targets.
+Each observed relative path must map to a unique runtime destination. Preparation
+uses private staging beside the resolved player and retains the Native6 output
+ownership and publication checks. The relative-file-set verifier determines
+whether the original can be a ZIP or must be an installed folder.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
@@ -1082,11 +1087,14 @@ sources. Directory reads retain no-follow, single-link and before/after object
 identity checks; cache revalidation uses the same streaming path. Cancellation
 is checked between chunks. A hash or size mismatch refuses admission/publication,
 and interrupted writes stay in the existing private staging/recovery boundary.
-The 128 MiB member, 512 MiB aggregate and 256-member capability limits remain:
-the current reviewed 48-member Dark Forces representation totals 68,386,776 bytes,
-with a largest member of 14,244,049 bytes (catalog measured 2026-10-27). No reviewed
-supported representation was demonstrated to need a larger bound. Streaming
-reduces scratch allocation; it does not expand source or archive authority.
+ZIP intake retains its 128 MiB member and 512 MiB declared aggregate limits.
+An exact schema-2 identity above either ZIP limit accepts an installed directory
+only, with at most 640 MiB per member and 2 GiB of declared members. Both shapes
+retain the 256-member limit, portable relative paths and caller hash budgets.
+A source identity cannot mix ZIP-compatible and large directory-only variants.
+The larger directory limits accommodate the classic Doom 3 and Resurrection of
+Evil PK4 sizes. An identity declaration alone does not qualify a port’s
+installation, preparation or retained-data transition.
 
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
@@ -1893,8 +1901,8 @@ caller-forwarded arguments are refused. This flag cannot combine with a position
 source extension, settings/shared-preferences selector, or the version-17 Windows
 positional-file path policy. Omitted/false retains previous behavior.
 
-The existing relative-file-set bounds and identity scope remain unchanged: exact
-declared members are authenticated; additional scanned files are not thereby
+The binding uses the relative-file-set verifier and its bounds. Exact declared
+members are authenticated; additional scanned files are not thereby
 authenticated as a complete original tree. This binding grants no runtime write
 protection, source ownership, assembly, acquisition or update authority. A source
 directory alone does not establish a safe title route. Opt-in registrations retain

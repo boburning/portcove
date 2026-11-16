@@ -1804,7 +1804,8 @@ impl Catalog {
                     }
                 }
                 None if !port.runtime_source_hashes.is_empty()
-                    && port.managed_initialization.is_none() =>
+                    && port.managed_initialization.is_none()
+                    && !crate::preparation::source::native_relative(port) =>
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
@@ -1882,7 +1883,8 @@ impl Catalog {
                         && matches_member;
                     let valid = valid
                         && (!relative_set
-                            || (port.managed_initialization.is_some()
+                            || ((port.managed_initialization.is_some()
+                                || crate::preparation::source::native_relative(port))
                                 && target.source_filenames.len() == 1
                                 && target.materialization == RuntimeSourceMaterialization::Copy
                                 && crate::archive::validate_relative_path(
@@ -9863,3 +9865,50 @@ mod tests {
 #[cfg(test)]
 #[path = "catalog_native_pin_tests.rs"]
 mod native_pin_tests;
+#[test]
+fn dhewm3_originals_apply_only_to_the_reviewed_player_packages() {
+    let catalog = Catalog::embedded().unwrap();
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    for id in [
+        "doom-3-classic-dhewm3",
+        "doom-3-resurrection-of-evil-classic-dhewm3",
+    ] {
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == id)
+            .unwrap();
+        assert!(contract.release_policy.is_none());
+        assert_eq!(contract.applicability.len(), 2);
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let tag = case["release"]["tag_name"].as_str().unwrap();
+        let mut reviewed = 0;
+        for asset in case["release"]["assets"].as_array().unwrap() {
+            let name = asset["name"].as_str().unwrap();
+            let Some(sha256) = asset["digest"]
+                .as_str()
+                .and_then(|value| value.strip_prefix("sha256:"))
+            else {
+                continue;
+            };
+            let expected = matches!(
+                name,
+                "dhewm3-1.5.5_Linux_amd64.tar.gz" | "dhewm3-1.5.5_win32.zip"
+            );
+            reviewed += usize::from(expected);
+            assert_eq!(contract.applies_to_release(tag, sha256), expected, "{name}");
+            assert!(!contract.applies_to_release("1.5.6", sha256));
+        }
+        assert_eq!(reviewed, 2);
+    }
+}

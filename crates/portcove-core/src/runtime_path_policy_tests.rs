@@ -1,6 +1,42 @@
 use super::*;
 
 #[test]
+fn windows_native_originals_preserve_the_narrow_path_guard() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut ports = catalog
+        .ports()
+        .iter()
+        .filter(|port| {
+            crate::preparation::source::native(port)
+                && port.windows_runtime_path_policy
+                    == Some(WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        })
+        .peekable();
+    assert!(
+        ports.peek().is_some(),
+        "fixture needs a guarded native original-file route"
+    );
+    for port in ports {
+        validate(port).unwrap();
+        let members = || {
+            port.runtime_source_set
+                .iter()
+                .map(|member| member.destination.as_str())
+        };
+        let long_root = "x".repeat(253);
+        check(port, Platform::WindowsX86_64, Path::new(&long_root)).unwrap();
+        check_package_paths(port, Platform::WindowsX86_64, Path::new("Games"), members()).unwrap();
+        for root in [Path::new("Gümes"), Path::new(&long_root)] {
+            assert!(check_package_paths(port, Platform::WindowsX86_64, root, members()).is_err());
+            check_package_paths(port, Platform::LinuxX86_64, root, members()).unwrap();
+        }
+        let mut invalid = port.clone();
+        invalid.runtime_source_set.clear();
+        assert!(validate(&invalid).is_err());
+    }
+}
+
+#[test]
 fn libultraship_relative_file_policy_is_windows_scoped_and_checks_all_members() {
     let catalog = crate::Catalog::embedded().unwrap();
     let mut port = catalog.port("2ship2harkinian").unwrap().clone();
