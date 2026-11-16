@@ -773,6 +773,13 @@
       ]
     },
     {
+      "file": "scripts/cleanup-retired-deployments.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7901],
+        ["repository-tools-2", 3701]
+      ]
+    },
+    {
       "file": "scripts/container-browser.test.mts",
       "memberships": [
         ["catalog-full-2", 200],
