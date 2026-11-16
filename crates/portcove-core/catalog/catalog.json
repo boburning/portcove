@@ -37328,6 +37328,7 @@
             }
           ],
           "warnings": [
+            "On Windows, a long library path can stop Diablo v0.1.6 from starting. Before building this version, use Change library location in Library and storage to review a shorter folder if needed.",
             "Save states may stop working after an update. Make a normal in-game save before updating."
           ]
         },
