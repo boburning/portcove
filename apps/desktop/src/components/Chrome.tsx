@@ -2541,7 +2541,7 @@ export function HostToolRow({
       {tool.state === "missing" && (
         <p>
           Portcove couldn’t find {tool.display_name}. If you already have it, choose its program
-          file. Otherwise, open Official downloads to get the package first.
+          file. Otherwise, open Official downloads for installation options.
         </p>
       )}
       {tool.state === "misconfigured" &&
