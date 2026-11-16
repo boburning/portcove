@@ -2527,6 +2527,10 @@ export interface ReviewedHoldArtifact {
  */
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
+  /**
+   * Cover for the second game in a combined definition's Discover card.
+   */
+  companion_cover?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;

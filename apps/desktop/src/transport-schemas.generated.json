@@ -6771,6 +6771,17 @@
               }
             ]
           },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -35192,6 +35203,17 @@
               }
             ]
           },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -51123,6 +51145,17 @@
                 "type": "null"
               }
             ]
+          },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"

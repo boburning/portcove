@@ -36124,6 +36124,14 @@
       "listed_at": "2026-10-23",
       "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
       "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+      "artwork": {
+        "game_id": 1041,
+        "cover_id": 132049,
+        "image_id": "co2tw1",
+        "image_sha256": "3ff3d35904233a4f851bcbd553ab111589089d7b1f040916e8af46cec397c034",
+        "game_slug": "the-legend-of-zelda-oracle-of-ages",
+        "match_kind": "underlying-game"
+      },
       "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases",
       "platforms": [
         "windows-x86-64",

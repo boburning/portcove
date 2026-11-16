@@ -31,6 +31,57 @@
     opacity: 0.5;
     pointer-events: none;
   }
+  .pair {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+    z-index: 1;
+  }
+  .half {
+    display: grid;
+    place-items: center;
+    min-width: 0;
+    padding-inline: 3.2cqi 1.8cqi;
+  }
+  .half + .half {
+    padding-inline: 1.8cqi 3.2cqi;
+  }
+  .half img {
+    display: block;
+    width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    box-shadow:
+      0 9px 20px var(--color-bg-overlay),
+      0 0 0 1px color-mix(in srgb, var(--color-art-text) 15%, transparent);
+    border-radius: 3px;
+    transform: translateY(-5.9cqi);
+  }
+  .half + .half img {
+    transform: translateY(5.9cqi);
+  }
+  .pairBackdropStart {
+    inset: -10% 23% -10% 0;
+    width: auto;
+    height: auto;
+    mask-image: repeating-linear-gradient(
+      to right,
+      var(--color-art-text) 0% 24%,
+      transparent 99% 100%
+    );
+  }
+  .pairBackdropEnd {
+    inset: -10% 0 -10% 23%;
+    width: auto;
+    height: auto;
+    mask-image: repeating-linear-gradient(
+      to left,
+      var(--color-art-text) 0% 24%,
+      transparent 99% 100%
+    );
+  }
   @media (prefers-reduced-transparency: reduce), (forced-colors: active) {
     .backdrop {
       display: none;

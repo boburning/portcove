@@ -891,10 +891,31 @@ impl Catalog {
                         )));
                     }
                 }
-                if let Some(artwork) = &presentation.artwork
-                    && (artwork.game_id == 0
+                if presentation
+                    .companion_cover
+                    .as_ref()
+                    .is_some_and(|companion| {
+                        presentation.artwork.as_ref().is_some_and(|primary| {
+                            primary.game_id == companion.game_id
+                                || primary.image_sha256 == companion.image_sha256
+                                || primary.image_id == companion.image_id
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} needs distinct primary and companion covers",
+                        port.id
+                    )));
+                }
+                for artwork in presentation
+                    .artwork
+                    .iter()
+                    .chain(&presentation.companion_cover)
+                {
+                    if artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
+                        || artwork.image_id.len() > 128
                         || artwork.image_sha256.len() != 64
                         || !artwork
                             .image_sha256
@@ -905,14 +926,16 @@ impl Catalog {
                             .bytes()
                             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
                         || artwork.game_slug.is_empty()
+                        || artwork.game_slug.len() > 512
                         || !artwork.game_slug.bytes().all(|byte| {
                             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                        }))
-                {
-                    return Err(PortcoveError::usage(format!(
-                        "{} has an invalid IGDB artwork mapping",
-                        port.id
-                    )));
+                        })
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid IGDB artwork mapping",
+                            port.id
+                        )));
+                    }
                 }
                 let expected_requirements = [
                     (

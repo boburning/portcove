@@ -13,7 +13,7 @@ import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
 import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
-import { useArtwork, useArtworkVisibility } from "../../artwork";
+import { useArtwork, useArtworkVisibility, useCompanionCover } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
 import { Button } from "../../components/ui/button";
 import { Chip } from "../../components/ui/chip";
@@ -179,6 +179,7 @@ export function GroupedDiscover({
             onTask={onTask}
             key={group.id}
             group={group}
+            showCompanion={layout === "covers"}
             statuses={statuses}
             descriptionPrefix={descriptionPrefix}
             nativeSourceDrag={nativeSourceDrag}
@@ -412,6 +413,7 @@ const DiscoverGameCard = memo(DiscoverGameCardView, (previous, next) => {
 
 function DiscoverGameCardView({
   group,
+  showCompanion,
   onTask,
   statuses,
   descriptionPrefix,
@@ -423,6 +425,7 @@ function DiscoverGameCardView({
   compare,
 }: {
   group: GameGroup;
+  showCompanion: boolean;
   onTask?: ((activityId?: string) => void) | undefined;
   statuses: ReadonlyMap<string, PortStatus>;
   descriptionPrefix: string;
@@ -449,6 +452,12 @@ function DiscoverGameCardView({
   const detailOrigin = `catalog:card:${first.id}`;
   const { element: artworkElement, visible } = useArtworkVisibility();
   const { display: artwork } = useArtwork(first.id, "cover", visible);
+  const companion = useCompanionCover(
+    first.id,
+    showCompanion ? first.presentation?.companion_cover?.image_sha256 : undefined,
+    artwork,
+    visible,
+  );
   const artworkNotice = artworkDisplayNotice(artwork);
   return (
     <article
@@ -506,6 +515,7 @@ function DiscoverGameCardView({
         <ArtworkFrame
           element={artworkElement}
           display={artwork}
+          companion={companion}
           identityArtwork
           className="collection-art"
         />

@@ -1520,6 +1520,12 @@ surface instead of a generated colored matte. Discover and Library cards draw
 an offline controller illustration whenever a usable cover is missing or fails
 to render.
 
+A managed definition for two games can also declare `integration.presentation.companion_cover`
+in its authored record. Verify the second game's IGDB identity and image digest
+independently. Discover's Covers layout shows both full images when the primary
+is the current catalog default and the companion loads. A missing companion
+leaves the primary visible. The usual local cover choice takes precedence.
+
 The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
 records the catalog-wide preparation, accepted port and original identities, and
 port-specific exceptions. It is dated evidence, not another scheduling tracker.
