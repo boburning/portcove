@@ -204,6 +204,44 @@ fn reviewed_bundle_program(
     Ok(Some(contents.join("MacOS").join(program)))
 }
 
+pub(super) fn resolve_selected_bundle(
+    selected: &Path,
+    working_directory: &Path,
+    platform: Platform,
+    hints: &[String],
+) -> Result<Option<(PathBuf, PathBuf)>> {
+    if !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+        || !selected
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("app"))
+    {
+        return Ok(None);
+    }
+    if !selected.is_absolute() {
+        return Err(PortcoveError::usage("choose an absolute application path"));
+    }
+    crate::path::refuse_symlink_ancestors(selected)?;
+    let program = reviewed_bundle_program(selected, platform, hints)?.ok_or_else(|| {
+        PortcoveError::usage("choose the game executable inside this application")
+    })?;
+    if !native_application(&program, platform)? {
+        return Err(PortcoveError::verification(
+            "the reviewed application does not contain a native executable for this host",
+        ));
+    }
+    let directory = if selected.parent() == Some(working_directory) {
+        program
+            .parent()
+            .ok_or_else(|| {
+                PortcoveError::state("reviewed application has no executable directory")
+            })?
+            .to_path_buf()
+    } else {
+        working_directory.to_path_buf()
+    };
+    Ok(Some((program, directory)))
+}
+
 fn inspect(
     root: &Path,
     platform: Platform,
@@ -441,6 +479,24 @@ mod tests {
             fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
         }
         let hints = ["OpenLoco.app/Contents/MacOS/OpenLoco".into()];
+        let bundle = root.join("OpenLoco.app");
+        let configured_directory = root.join("custom");
+        assert_eq!(
+            resolve_selected_bundle(&bundle, &root, Platform::MacosAarch64, &hints).unwrap(),
+            Some((program.clone(), directory.clone()))
+        );
+        assert_eq!(
+            resolve_selected_bundle(
+                &bundle,
+                &configured_directory,
+                Platform::MacosAarch64,
+                &hints
+            )
+            .unwrap(),
+            Some((program.clone(), configured_directory))
+        );
+        assert!(resolve_selected_bundle(&bundle, &root, Platform::MacosX86_64, &hints).is_err());
+        assert!(resolve_selected_bundle(&bundle, &root, Platform::MacosAarch64, &[]).is_err());
         let (targets, complete, entries) = inspect(&root, Platform::MacosAarch64, &hints).unwrap();
         assert!(complete);
         assert_eq!(entries, 1);
