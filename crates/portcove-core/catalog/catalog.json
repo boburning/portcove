@@ -38035,6 +38035,30 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
         "original_game_title": "Super Mario World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own Super Mario World original",
+              "instruction": "Use your own stock Super Mario World (USA) SNES ROM. On Windows, select the original in Portcove. On Linux, run the publisher’s AppImage and select the original in its launcher."
+            },
+            {
+              "title": "Run the Linux x64 AppImage",
+              "instruction": "Choose the Linux x86-64 AppImage from the publisher’s release. Make it executable and start it from a writable folder dedicated to this game. It needs glibc 2.38 or later. If FUSE is unavailable, start it with --appimage-extract-and-run. Select Browse For ROM (built-in) when your desktop has no file picker. Keep the original where you store it."
+            }
+          ],
+          "warnings": [],
+          "references": [
+            {
+              "title": "Keep the upstream Linux profile together",
+              "instruction": "With the game closed, back up the working folder beside the AppImage, including saves, config.ini, keybinds.ini, rom.cfg, and your own Lua scripts and mods. The AppImage refreshes matching bundled mod files and makes entries in mods writable by their owner. Keep your working copy and its profile before trying a replacement AppImage. Portcove’s managed Windows backup does not include this Linux folder."
+            },
+            {
+              "title": "Check Mac and Android availability",
+              "instruction": "The current release offers Windows x64 and Linux x86-64 packages. It does not publish Intel Mac, Apple Silicon, Linux ARM64, or Android packages."
+            }
+          ],
+          "help_url": "https://github.com/mstan/SuperMarioWorldRecomp/releases/latest"
+        },
         "artwork": {
           "game_id": 1070,
           "cover_id": 401336,
