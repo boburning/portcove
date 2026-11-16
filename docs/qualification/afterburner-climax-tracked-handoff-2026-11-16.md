@@ -21,11 +21,14 @@ executed.
 
 Source at the tag commit:
 
-- `src/after_burner_climax_app.h` `OnConfigurePaths` checks the extracted
-  `assets/default.xex` against two variants by SHA-1 and size: the original
-  release (1.0.0.0) for `after_burner_climax.exe` and the World release (0.0.1.2)
-  for `after_burner_climax_world.exe`. When the other program owns the variant,
-  `xex_variant_check` returns 2 and the process exits with 0 after the handoff.
+- `src/after_burner_climax_app.h` `OnConfigurePaths` calls `xex_variant_check`
+  (`src/package_setup.cpp`), which compares the extracted `assets/default.xex`
+  by SHA-1 and size with two variants: the original release (1.0.0.0) for
+  `after_burner_climax.exe` and the World release (0.0.1.2) for
+  `after_burner_climax_world.exe`. Any other file gets a message and exit code 1.
+  When the other program owns the variant and exists beside this one, the check
+  hands off and returns 2, and the process exits with 0; if the sibling is
+  missing it shows an error and exits with 1.
 - `src/package_setup.cpp` `relaunch_as` starts that sibling with
   `CreateProcessW`, the original command line, no inherited handles, creation
   flags `0` and the sibling's own folder as the working directory, then closes
@@ -46,8 +49,8 @@ the program. The route keeps `58410A06`, `assets` and `after_burner_climax.toml`
 as persistent paths with `external-user-owned` saves and settings, as the
 OutRun Online Arcade and Lode Runner routes do. The program sets
 `license_mask=1`, so it always runs as the full game; the guide requires the
-player's own purchased full package under the 2026-11-15 decision for full-unlock
-XBLA routes.
+player's own purchased full package, with the same wording as the managed
+OutRun Online Arcade and Lode Runner routes.
 
 ## Rights
 

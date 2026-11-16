@@ -57108,7 +57108,7 @@
     {
       "id": "darkuni-afterburner-climax-recomp",
       "name": "After Burner Climax (darkuni Recomp)",
-      "summary": "Windows player for After Burner Climax using its own Xbox 360 package.",
+      "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
       "support_tier": "beta",
       "channels": [
@@ -57142,7 +57142,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "Before first Play, copy your own purchased full After Burner Climax Xbox 360 LIVE package (title 58410A06) into the managed After Burner Climax folder as the complete 58410A06 console export folder (58410A06/000D0000/<package>), and keep your original separately. The original release (default.xex 1.0.0.0) and the World release (default.xex 0.0.1.2) are supported; the game checks the exact default.xex and refuses any other version. After Burner Climax always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside after_burner_climax.exe; without a package it explains what it needs and closes. For the World release it starts after_burner_climax_world.exe from the same folder and closes itself, and Portcove keeps tracking the game it started. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410A06 folder, assets and after_burner_climax.toml across updates and backups. Once the game has started, you can delete the copied 58410A06 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\after_burner_climax, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
+        "manual_preparation": "Before first Play, copy your own purchased full After Burner Climax Xbox 360 LIVE package (title 58410A06) into the managed After Burner Climax folder as the complete 58410A06 console export folder (58410A06/000D0000/<package>), and keep your original separately. The original release (default.xex 1.0.0.0) and the World release (default.xex 0.0.1.2) are supported; the game checks the exact default.xex and refuses any other version. If it says your files are a different version, delete assets, replace the 58410A06 folder with a supported package and start again. After Burner Climax always runs as the full game; that does not grant or change an entitlement, so use only a full package you own. On first Play, the game finds the package and extracts it into assets beside after_burner_climax.exe; without a package it explains what it needs and closes. For the World release it starts after_burner_climax_world.exe from the same folder and closes itself, and Portcove keeps tracking the game it started. This download is the recompiled program with its runtime and contains no game data; the project license does not cover the recompiled game code. Portcove preserves the 58410A06 folder, assets and after_burner_climax.toml across updates and backups. Once the game has started, you can delete the copied 58410A06 folder so it is not kept in backups; assets is all the game needs. Logs and crash reports beside the program are diagnostics. Saves and the shader cache are in Documents\\after_burner_climax, outside the managed copy, so Portcove neither backs them up nor removes them, and rollback does not rewind them. Install the Microsoft Visual C++ 2015–2022 Redistributable (x64) if the game does not start. Portcove replaces the program; upstream owns package import and save formats.",
         "original_game_title": "After Burner Climax",
         "manual_setup": {
           "steps": [
@@ -57156,7 +57156,7 @@
             },
             {
               "title": "Complete first-run setup",
-              "instruction": "Start after_burner_climax.exe and let it prepare assets from your package on first start. For the World release it starts after_burner_climax_world.exe and closes itself; keep both programs together."
+              "instruction": "Start after_burner_climax.exe and let it prepare assets from your package on first start. For the World release it starts after_burner_climax_world.exe and closes itself; keep both programs together. If it says your files are a different version, delete assets, replace the 58410A06 folder with a supported package and start again."
             },
             {
               "title": "Keep your settings and saves",

@@ -20219,7 +20219,7 @@
     {
       "id": "darkuni-afterburner-climax-recomp",
       "name": "After Burner Climax (darkuni Recomp)",
-      "summary": "Windows player for After Burner Climax using its own Xbox 360 package.",
+      "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
       "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
       "original_game_title": "After Burner Climax",
       "issue_number": 4134,
@@ -20237,7 +20237,7 @@
           },
           {
             "title": "Complete first-run setup",
-            "instruction": "Start after_burner_climax.exe and let it prepare assets from your package on first start. For the World release it starts after_burner_climax_world.exe and closes itself; keep both programs together."
+            "instruction": "Start after_burner_climax.exe and let it prepare assets from your package on first start. For the World release it starts after_burner_climax_world.exe and closes itself; keep both programs together. If it says your files are a different version, delete assets, replace the 58410A06 folder with a supported package and start again."
           },
           {
             "title": "Keep your settings and saves",
