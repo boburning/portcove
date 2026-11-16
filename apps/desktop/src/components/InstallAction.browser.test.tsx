@@ -328,16 +328,6 @@ it.each([
   expect(setup.element().textContent).toContain(original);
   expect(setup.element().textContent).toContain("Select Play when setup is complete");
   expect(dialog.element().textContent).not.toContain(upstreamStep);
-  const platformNotes: Record<string, string[]> = {
-    "donkey-kong-64-recompiled": ["still unverified on Apple Silicon Mac"],
-    "duke-nukem-zero-hour-recompiled": [
-      "still unverified on Linux x64 and Mac",
-      "Gatekeeper behavior is also unverified on Mac",
-    ],
-  };
-  for (const note of platformNotes[id] ?? []) {
-    expect(dialog.element().textContent).toContain(note);
-  }
 });
 
 it.each([
@@ -379,6 +369,38 @@ it.each([
     expect(copy.includes("no native Mac execution result")).toBe(macWarning);
     expect(copy).not.toContain("Flatpak");
     expect(copy).not.toContain("ARM64 tarball");
+  },
+);
+
+it.each([
+  ["donkey-kong-64-recompiled", "windows-x86-64", false, false],
+  ["donkey-kong-64-recompiled", "linux-x86-64", false, false],
+  ["donkey-kong-64-recompiled", "macos-aarch64", true, true],
+  ["duke-nukem-zero-hour-recompiled", "windows-x86-64", false, false],
+  ["duke-nukem-zero-hour-recompiled", "linux-x86-64", true, false],
+  ["duke-nukem-zero-hour-recompiled", "macos-x86-64", true, true],
+  ["duke-nukem-zero-hour-recompiled", "macos-aarch64", true, true],
+] as const)(
+  "scopes managed qualification notices for %s to %s",
+  async (id, platform, qualificationWarning, macWarning) => {
+    const port = currentCatalogPort(id);
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: id, active: null }}
+        installPlan={{ ...plan, port_id: id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect.element(dialog.getByRole("region", { name: "Game setup" })).toBeVisible();
+    const copy = dialog.element().textContent ?? "";
+    expect(copy.includes("populated saves are still unverified")).toBe(qualificationWarning);
+    expect(copy.includes("Gatekeeper")).toBe(macWarning);
+    expect(copy).not.toContain("Flatpak");
   },
 );
 
