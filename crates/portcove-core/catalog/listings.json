@@ -32627,7 +32627,7 @@
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
-      "summary": "Play the European International Superstar Soccer 2000 native port with your own cartridge dump.",
+      "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
       "project_url": "https://github.com/djultra64/ISS2000",
       "platforms": [
         "linux-x86-64",
@@ -32638,8 +32638,8 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Choose your own cartridge dump on first start",
-            "instruction": "When the game asks, select your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf, as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy of the ROM in its data folder, so keep your original separately."
+            "title": "Choose your original game files on first start",
+            "instruction": "When the game asks, select your own Europe English/German revision 0 original as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy in its data folder, so keep your original separately."
           },
           {
             "title": "Start a Windows x64 copy you manage yourself",
@@ -32658,7 +32658,7 @@
         "references": [
           {
             "title": "Keep the portable data folder",
-            "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
+            "instruction": "The supported original is the Europe English/German revision 0 release, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf. The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
           }
         ]
       },
