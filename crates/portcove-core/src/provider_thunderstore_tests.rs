@@ -515,11 +515,26 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
         live(&w),
         ["shared_first.nrm", "shared_second.nrm", "speed_timer.nrm"]
     );
+    let source = w._temporary.path().join("speed_timer.nrm");
+    fs::copy(
+        w.service
+            .library()
+            .user_dir(PORT)
+            .join("mods")
+            .join("speed_timer.nrm"),
+        &source,
+    )
+    .unwrap();
+    let revision = w
+        .service
+        .install_mod_package(PORT, &w.profile, &source, revision.revision)
+        .unwrap();
     let timer = revision
         .packages
         .iter()
         .find(|package| package.native_id == "speed_timer.nrm")
         .unwrap();
+    assert_eq!(timer.provider.as_ref(), Some(&plan.wrappers[1].provider));
     assert_eq!(
         timer.provider_requires[0].provider,
         plan.wrappers[0].provider

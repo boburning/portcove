@@ -1114,7 +1114,7 @@ impl PortcoveService {
                     ));
                 }
             }
-            let package = ResolvedPackage {
+            let mut package = ResolvedPackage {
                 native_id: inspection.file_name.clone(),
                 native_version: item.native_version.clone(),
                 provider: item.provider.clone(),
@@ -1124,6 +1124,19 @@ impl PortcoveService {
                 enabled: true,
                 requires: item.requires.clone(),
             };
+            // Reinstalling the same native ID and bytes keeps its provider review.
+            if package.provider.is_none()
+                && let Some(installed) = current.packages.iter().find(|installed| {
+                    installed.provider.is_some()
+                        && installed.native_id == package.native_id
+                        && installed.sha256 == package.sha256
+                })
+            {
+                package.provider.clone_from(&installed.provider);
+                package
+                    .provider_requires
+                    .clone_from(&installed.provider_requires);
+            }
             // A package the game loads as the same mod (for example `.otr` replaced
             // by `.o2r`) is replaced and keeps its place in the order.
             let named = native_mod_list::loader_list(port_id).is_some();
