@@ -23,16 +23,10 @@ fn windows_native_originals_preserve_the_narrow_path_guard() {
                 .iter()
                 .map(|member| member.destination.as_str())
         };
-        let long_root = format!("C:/{}", "x".repeat(250));
+        let long_root = "x".repeat(253);
         check(port, Platform::WindowsX86_64, Path::new(&long_root)).unwrap();
-        check_package_paths(
-            port,
-            Platform::WindowsX86_64,
-            Path::new("C:/Games"),
-            members(),
-        )
-        .unwrap();
-        for root in [Path::new("C:/Gümes"), Path::new(&long_root)] {
+        check_package_paths(port, Platform::WindowsX86_64, Path::new("Games"), members()).unwrap();
+        for root in [Path::new("Gümes"), Path::new(&long_root)] {
             assert!(check_package_paths(port, Platform::WindowsX86_64, root, members()).is_err());
             check_package_paths(port, Platform::LinuxX86_64, root, members()).unwrap();
         }
