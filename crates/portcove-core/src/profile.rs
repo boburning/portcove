@@ -629,7 +629,13 @@ pub(crate) fn validate_provider_requirements(
     requirements: &[ProviderRequirement],
     mut contains: impl FnMut(&ProviderPackageRef, &str, &str) -> bool,
 ) -> Result<()> {
-    if requirements.len() > MAX_PACKAGES {
+    if requirements.len() > crate::mod_package::MAX_MEMBERS
+        || requirements
+            .iter()
+            .map(|requirement| requirement.members.len())
+            .sum::<usize>()
+            > crate::mod_package::MAX_MEMBERS
+    {
         return Err(PortcoveError::verification(
             "too many provider requirements",
         ));
@@ -640,7 +646,6 @@ pub(crate) fn validate_provider_requirements(
             || provider.file.as_deref().is_none_or(str::is_empty)
             || provider.file != provider.version
             || requirement.members.is_empty()
-            || requirement.members.len() > MAX_PACKAGES
         {
             return Err(
                 PortcoveError::verification("invalid exact provider requirement")
@@ -1099,16 +1104,22 @@ fn profiles_from(connection: &Connection, port_id: &str) -> Result<Vec<Profile>>
     Ok(profiles)
 }
 
-/// Whether a stored revision of this port records exactly `provider` for these
-/// package bytes and file name. One query finds the revisions whose stored JSON
-/// names the digest; each is verified against its recorded identity.
-pub(crate) fn provider_label_recorded(
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProviderEvidence {
+    Unrecorded,
+    Matches,
+    RequirementsDiffer,
+}
+
+/// Matches a label and its requirements against exact package bytes from the
+/// port's retained history. Once a closure is known, a legacy empty record
+/// cannot authorize dropping that closure on import.
+pub(crate) fn provider_evidence(
     connection: &Connection,
     port_id: &str,
-    sha256: &str,
-    native_id: &str,
+    package: &crate::RecipePackage,
     provider: &ProviderPackageRef,
-) -> Result<bool> {
+) -> Result<ProviderEvidence> {
     let candidates = connection
         .prepare(
             "SELECT r.profile_id, r.revision FROM profile_revisions r
@@ -1116,21 +1127,37 @@ pub(crate) fn provider_label_recorded(
              WHERE p.port_id=?1 AND instr(r.revision_json, ?2) > 0
              ORDER BY r.profile_id, r.revision",
         )?
-        .query_map(params![port_id, sha256], |row| {
+        .query_map(params![port_id, package.sha256], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, u64>(1)?))
         })?
         .collect::<rusqlite::Result<Vec<_>>>()?;
+    let mut recorded = false;
+    let mut has_requirements = false;
     for (profile_id, revision) in candidates {
         let stored = revision_from(connection, &profile_id, revision)?;
-        if stored.packages.iter().any(|package| {
-            package.sha256 == sha256
-                && package.native_id == native_id
-                && package.provider.as_ref() == Some(provider)
-        }) {
-            return Ok(true);
+        for member in &stored.packages {
+            if member.sha256 != package.sha256
+                || member.native_id != package.native_id
+                || member.provider.as_ref() != Some(provider)
+            {
+                continue;
+            }
+            recorded = true;
+            if !member.provider_requires.is_empty() {
+                has_requirements = true;
+                if member.provider_requires == package.provider_requires {
+                    return Ok(ProviderEvidence::Matches);
+                }
+            }
         }
     }
-    Ok(false)
+    Ok(if !recorded {
+        ProviderEvidence::Unrecorded
+    } else if has_requirements || !package.provider_requires.is_empty() {
+        ProviderEvidence::RequirementsDiffer
+    } else {
+        ProviderEvidence::Matches
+    })
 }
 
 fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Profile>> {

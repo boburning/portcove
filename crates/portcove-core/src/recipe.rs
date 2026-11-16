@@ -548,21 +548,39 @@ impl PortcoveService {
                 let stored = layout.package(&package.sha256, &package.native_id);
                 let present = stored.try_exists().unwrap_or(false)
                     && sha256_file(&stored).is_ok_and(|sha| sha == package.sha256);
-                let unrecorded_label = match &package.provider {
-                    Some(provider) => !profile::provider_label_recorded(
+                let evidence = match &package.provider {
+                    Some(provider) => profile::provider_evidence(
                         &connection,
                         &recipe.port_id,
-                        &package.sha256,
-                        &package.native_id,
+                        package,
                         provider,
                     )?,
-                    None => false,
+                    None => profile::ProviderEvidence::Unrecorded,
                 };
+                let closure_member = !package.provider_requires.is_empty()
+                    || recipe.packages.iter().filter(|member| member.enabled).any(|member| {
+                        member.provider_requires.iter().any(|requirement| {
+                            requirement.members.contains_key(&package.native_id)
+                        })
+                    });
+                let closure_unverified = evidence == profile::ProviderEvidence::RequirementsDiffer
+                    || closure_member && evidence != profile::ProviderEvidence::Matches;
                 let plannable = package
                     .provider
                     .as_ref()
                     .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
-                let (status, detail) = if present && unrecorded_label {
+                let (status, detail) = if present && closure_unverified {
+                    holds.push(format!(
+                        "package {} needs an exact Thunderstore review before import",
+                        package.native_id
+                    ));
+                    (
+                        RecipeInputStatus::Unavailable,
+                        "review the exact Thunderstore wrapper set and match its native members and requirements to this recipe".to_owned(),
+                    )
+                } else if present && package.provider.is_some()
+                    && evidence == profile::ProviderEvidence::Unrecorded {
+
                     (
                         RecipeInputStatus::Available,
                         "its exact bytes are in the package store; its provider label is not recorded in this library for these bytes, so the new profile does not keep it".to_owned(),
@@ -718,13 +736,8 @@ impl PortcoveService {
         for package in &plan.recipe.packages {
             let kept = match &package.provider {
                 Some(provider)
-                    if profile::provider_label_recorded(
-                        &connection,
-                        &port_id,
-                        &package.sha256,
-                        &package.native_id,
-                        provider,
-                    )? =>
+                    if profile::provider_evidence(&connection, &port_id, package, provider)?
+                        == profile::ProviderEvidence::Matches =>
                 {
                     Some(provider.clone())
                 }
