@@ -887,8 +887,10 @@ limits also apply; destination pixel allocation is checked explicitly. A separat
 library artwork lock serializes local import/thumbnail decoding, reset, cache
 publication/clearing and unused-original removal without holding a game's operation
 lock. Remote original reads, fetching and conversion use a separate process-wide
-two-worker budget; Core refuses excess work promptly instead of blocking a shared
-worker behind another image. Expected slot revisions reject stale changes, including
+budget of `IGDB_ARTWORK_WORK_LIMIT` (6) workers; Core refuses excess work promptly
+instead of blocking a shared worker behind another image. Each worker may transiently
+hold an original and its decoded pixels, so the worst-case bound is that limit times
+the original and decoded byte limits; real covers are far smaller. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -951,15 +953,17 @@ visible viewport plus at most 256 inactive previews (bounded by encoded size) pe
 generation. Local-choice reads run for up to four ports at once while each port's
 slots stay ordered; mutations and local thumbnail decoding run alone because Core
 refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
-two-request drain. Undispatched requests
+drain of `maximumRemoteRequests` requests, which must equal Core's limit because Core
+refuses rather than queues excess work. Cards prefetch 800px vertically ahead of the
+viewport, and an already-loaded image stays displayed while its card is offscreen. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
 The native adapter
 uses Core's resolved source to await remote admission asynchronously before
 dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
-game work do not wait on that remote gate. Its capacity matches Core's two-worker
-limit. A dispatched worker retains its permit even if its IPC waiter is cancelled.
+game work do not wait on that remote gate. Its capacity matches Core's
+`IGDB_ARTWORK_WORK_LIMIT`. A dispatched worker retains its permit even if its IPC waiter is cancelled.
 Library generation and slot revision are rechecked after admission. Queued renderer
 reads are discarded when their view no longer needs them, and stale completions
 cannot replace a changed choice or generation. Visible cards load asynchronously and preserve

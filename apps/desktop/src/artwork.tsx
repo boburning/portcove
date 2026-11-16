@@ -77,7 +77,11 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
   useEffect(() => {
     let current = true;
-    if (visible) void cache?.load(portId, slot, !cache.read(portId, slot).image, () => current);
+    if (visible) {
+      // A loaded, current image is kept; a missing or stale one is read again.
+      const shown = cache?.read(portId, slot);
+      void cache?.load(portId, slot, !shown?.image || Boolean(shown.stale), () => current);
+    }
     return () => {
       current = false;
     };
@@ -93,7 +97,7 @@ export function useArtworkVisibility() {
     if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
-      { rootMargin: "800px 0px" },
+      { rootMargin: "800px 200px" },
     );
     observer.observe(element.current);
     return () => observer.disconnect();
