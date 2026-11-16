@@ -132,14 +132,14 @@ describe("desktop components", () => {
     expect(html).toContain("About Portcove");
     expect(html).toContain("Install, update, and play native game ports.");
     expect(html).toContain("/brand/icons/portcove-mascot-transparent.png");
-    expect(html).toMatch(/<h2[^>]*aria-label="About Portcove"[^>]*>Portcove<\/h2>/u);
+    expect(html).toMatch(/<h2[^>]*id="settings-about-heading"[^>]*>About Portcove<\/h2>/u);
     expect(html).toContain(`<h3>Portcove ${desktopPackage.version}</h3>`);
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");
     expect(html).toContain("Open diagnostics");
     // Players look for help under About; reporting starts there, not in Advanced.
-    const about = html.slice(html.indexOf('aria-label="About Portcove"'));
-    expect(about).toContain("<h3>Report a problem or send feedback</h3>");
+    const about = html.slice(html.indexOf('id="settings-about-heading"'));
+    expect(about).toContain("<h3>Feedback</h3>");
     expect(about).toMatch(/<button[^>]*>Report a problem or send feedback<\/button>/u);
     expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
@@ -615,7 +615,8 @@ describe("desktop components", () => {
       />,
     );
 
-    expect(html).toContain("Not signed in. Signing in increases the limit for release checks.");
+    expect(html).toContain("Not signed in");
+    expect(html).toContain("Signing in increases the limit for release checks.");
     expect(html).toContain("GitHub request limit unavailable");
     expect(html).toContain("Continue without signing in or use a personal access token");
     expect(html).toMatch(

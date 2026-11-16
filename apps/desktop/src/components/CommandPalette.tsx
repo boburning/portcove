@@ -158,11 +158,6 @@ function OpenCommandPalette({
           />
           <Shortcut>{escapeKeyName}</Shortcut>
         </label>
-        {filtered.length > 0 && (
-          <h3 className="m-0 px-5 pt-4 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]">
-            {query.trim() ? t("palette.results") : t("palette.quickActions")}
-          </h3>
-        )}
         <div
           className="palette-results max-h-[min(27rem,_58vh)] overflow-auto p-2"
           id="command-palette-results"
@@ -187,7 +182,7 @@ function OpenCommandPalette({
                 {group.label && (
                   <div
                     aria-hidden="true"
-                    className="px-3 pt-3 pb-2 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
+                    className="px-3 pt-2 pb-1 text-[length:var(--text-xs)] font-medium text-[var(--color-text-muted)]"
                   >
                     {group.label}
                   </div>

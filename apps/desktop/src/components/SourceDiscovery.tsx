@@ -1,5 +1,5 @@
 import { countMessage } from "../localization";
-import { useRef, useState } from "react";
+import { useRef, useState, type Ref } from "react";
 import { desktopApi } from "../api";
 import { pickInstallFolder } from "../file-picker";
 import type {
@@ -361,7 +361,7 @@ function DiscoveryResults({
           key={`${candidate.profile_id}:${candidate.path}`}
         >
           <div className="min-w-0">
-            <code className="mt-1 block overflow-hidden bg-transparent p-0 [overflow-wrap:anywhere] text-ellipsis whitespace-normal text-pc-muted-foreground">
+            <code dir="ltr" className="saved-file-path">
               {candidate.path}
             </code>
             <span>{formatBytes(candidate.size)}</span>
@@ -425,12 +425,14 @@ function DiscoveryResults({
 
 export function SourceImportReview({
   plan,
+  headingRef,
   profiles = [],
   busy,
   onCancel,
   onApply,
 }: {
   plan?: SourceImportPlan | undefined;
+  headingRef?: Ref<HTMLHeadingElement> | undefined;
   profiles?: Pick<SourceProfile, "id" | "label">[];
   busy: boolean;
   onCancel: () => void;
@@ -441,8 +443,13 @@ export function SourceImportReview({
   const admission = sourceAdmissionPresentation(plan.admission_mode);
   const profile = profiles.find((candidate) => candidate.id === plan.profile_id);
   return (
-    <section className="source-discovery-results mt-6 grid gap-3" aria-label="Source import review">
-      <h3>{presentation.label}</h3>
+    <section
+      className="source-discovery-results mt-6 grid gap-3 border-t border-pc-border pt-4"
+      aria-label="Source import review"
+    >
+      <h3 ref={headingRef} tabIndex={headingRef ? -1 : undefined}>
+        {presentation.label}
+      </h3>
       <p>{presentation.explanation}</p>
       <p>
         File requirement: <strong>{profile?.label ?? plan.profile_id}</strong>
@@ -450,14 +457,28 @@ export function SourceImportReview({
       <p role={admission.known ? undefined : "alert"}>
         <strong>File check: {admission.label}.</strong> {admission.explanation}
       </p>
-      <p>
-        Selected location:{" "}
-        <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.source.path}</code>
-      </p>
-      <p>
-        {plan.mode === "use_current_location" ? "Saved file location" : "Portcove game-file folder"}
-        : <code className="[overflow-wrap:anywhere] whitespace-normal">{plan.destination}</code>
-      </p>
+      <dl className="m-0 grid gap-3">
+        <div>
+          <dt className="font-medium">Selected location</dt>
+          <dd className="m-0">
+            <code dir="ltr" className="saved-file-path">
+              {plan.source.path}
+            </code>
+          </dd>
+        </div>
+        <div>
+          <dt className="font-medium">
+            {plan.mode === "use_current_location"
+              ? "Saved file location"
+              : "Portcove game-file folder"}
+          </dt>
+          <dd className="m-0">
+            <code dir="ltr" className="saved-file-path">
+              {plan.destination}
+            </code>
+          </dd>
+        </div>
+      </dl>
       {presentation.known && (
         <>
           {plan.mode !== "use_current_location" && plan.reuse_existing && (

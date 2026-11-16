@@ -77,7 +77,7 @@ function CandidateIdentity({
         {profiles.find((profile) => profile.id === candidate.profile_id)?.label ??
           candidate.profile_id}
       </strong>
-      <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+      <code dir="ltr" className="saved-file-path">
         {candidate.path}
       </code>
       <span>{formatBytes(candidate.size)}</span>
@@ -695,7 +695,7 @@ function SavedRootRows({
           data-game-file-root={root.id}
         >
           <div className="min-w-0">
-            <code className="mt-1 block overflow-hidden bg-transparent p-0 text-ellipsis whitespace-nowrap text-pc-muted-foreground">
+            <code dir="ltr" className="saved-file-path">
               {root.path}
             </code>
             <span>
@@ -1292,15 +1292,14 @@ export function GameFileLibraries({
       }
     });
   const renderHeading = () => (
-    <div className="settings-title flex items-center justify-between gap-[12px]">
+    <div className="settings-title flex flex-wrap items-center justify-between gap-3">
       <h2 className="m-0 flex items-center gap-2" ref={heading} id={headingId} tabIndex={-1}>
         Folders Portcove scans
       </h2>
       <Button
         data-focusable
         data-settings-control="add-game-file-root"
-        variant="outline"
-        size="sm"
+        variant={scanAfterAdd && !roots?.length ? "primary" : "outline"}
         disabled={Boolean(busy) || scanning || roots === undefined}
         onClick={() => void add()}
       >
@@ -1316,7 +1315,7 @@ export function GameFileLibraries({
     <div className="actions flex flex-wrap gap-2">
       <Button
         data-focusable
-        variant="outline"
+        variant="ghost"
         disabled={Boolean(busy) || scanning}
         onClick={() =>
           void run("Refreshing folders…", async () => {
@@ -1328,7 +1327,7 @@ export function GameFileLibraries({
       </Button>
       <Button
         data-focusable
-        variant="outline"
+        variant={scanAfterAdd && roots?.length && !finishScanId ? "primary" : "outline"}
         disabled={Boolean(busy) || scanning || !roots?.length}
         onClick={() => void scan()}
       >
@@ -1337,7 +1336,7 @@ export function GameFileLibraries({
       {finishScanId && (
         <Button
           data-focusable
-          variant="outline"
+          variant={scanAfterAdd ? "primary" : "outline"}
           disabled={Boolean(busy) || scanning}
           onClick={() => void scanState.start(refreshRoots, finishScanId)}
         >
@@ -1460,9 +1459,8 @@ export function GameFileLibraries({
         }
       }}
     >
-      <p className="mb-1.5 text-xs text-pc-muted-foreground">Saved folders</p>
       {renderHeading()}
-      <p>
+      <p className="max-w-[65ch] text-pc-muted-foreground">
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
         only saved folders. Searching does not change the game files or save their locations.
       </p>
@@ -1503,7 +1501,9 @@ export function GameFileLibraries({
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {renderCompletedScan()}
-      <ReadyNoticesSetting generation={generation} />
+      <div className="border-t border-pc-border pt-4">
+        <ReadyNoticesSetting generation={generation} />
+      </div>
       <ReadyGameNotices generation={generation} ports={ports} onOpenPort={openPort} />
       {renderSetupReviews()}
       {renderInstallBatch()}

@@ -184,7 +184,7 @@ export function DetailLayout({
     >
       <Button
         data-focusable
-        className="detail-back mb-5"
+        className="detail-back mb-3"
         variant="ghost"
         size="sm"
         data-detail-back
@@ -267,7 +267,7 @@ export function DetailLayout({
               {installation}
             </span>
           </div>
-          <div className="detail-header-actions mt-6 flex flex-wrap items-center gap-2">
+          <div className="detail-header-actions mt-4 flex flex-wrap items-center gap-2">
             {action(reveal)}
             {favoriteControl}
             <Menu.Root>
@@ -341,14 +341,14 @@ export function DetailLayout({
         <Tabs.List
           activateOnFocus={false}
           aria-label={t("section.label")}
-          className="detail-tab-list flex flex-wrap gap-x-7 gap-y-1 border-b border-pc-border"
+          className="detail-tab-list flex flex-wrap gap-x-3 gap-y-1 border-b border-pc-border"
         >
           {sections.map((section) => (
             <Tabs.Tab
               key={section}
               value={section}
               data-focusable
-              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-3 text-sm font-semibold text-pc-muted-foreground data-active:border-current data-active:bg-pc-selection data-active:text-pc-selection-foreground`}
+              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-pc-muted-foreground hover:bg-pc-surface data-active:border-current data-active:text-pc-selection-foreground`}
             >
               {sectionLabel(t, section)}
             </Tabs.Tab>
