@@ -28826,7 +28826,7 @@
           },
           {
             "title": "Start or restore a local game",
-            "instruction": "Choose Start New Game and then Start to play locally against the computer. Use Game → Save Game to keep your progress. From the title screen, choose Load Saved Game to resume."
+            "instruction": "Choose Start New Game and then Start to play locally against the computer. Use Game → Save Game As to name and save your game. From the title screen, choose Load Saved Game, select your save, then choose Start in the lobby."
           }
         ],
         "warnings": [
