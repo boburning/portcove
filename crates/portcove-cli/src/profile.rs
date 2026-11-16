@@ -97,21 +97,31 @@ pub(crate) enum ProfileCommand {
     },
     /// Review a local file and its effects in the specified setup.
     PackagePlan {
+        /// Catalog port ID for the game.
         port_id: String,
+        /// Setup ID shown by `profile setups`.
         profile_id: String,
+        /// Local package file to inspect.
         path: PathBuf,
+        /// Current setup revision shown by `profile setups`.
         #[arg(long)]
         expected_revision: u64,
     },
     /// Add a local file after the exact package review.
     PackageApply {
+        /// Catalog port ID used in the package review.
         port_id: String,
+        /// Setup ID used in the package review.
         profile_id: String,
+        /// The same local package file read by `profile package-plan`.
         path: PathBuf,
+        /// SHA-256 from `profile package-plan` for this file and setup.
         #[arg(long)]
         expected_plan: String,
+        /// Allow the exact reviewed mod code to run inside the game.
         #[arg(long)]
         allow_mod_code: bool,
+        /// Confirm applying the reviewed changes without a prompt.
         #[arg(long)]
         yes: bool,
     },
