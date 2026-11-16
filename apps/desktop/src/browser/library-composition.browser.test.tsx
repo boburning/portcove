@@ -779,15 +779,15 @@ it("keeps a singleton port review readable below its close control at narrow wid
 });
 
 it.each([
-  [1440, 900, 6, 180.7],
-  [1440, 768, 6, 180.7],
-  [1024, 800, 4, 177],
-  [1024, 801, 3, 220],
-  [1920, 800, 9, 167.1],
-  [1920, 801, 8, 190.5],
-  [740, 900, 3, 205.3],
-  [390, 844, 2, 143],
-  [320, 844, 1, 220],
+  [1440, 900, 6, 154.7],
+  [1440, 768, 6, 154.7],
+  [1024, 800, 4, 151],
+  [1024, 801, 3, 216.7],
+  [1920, 800, 9, 141.1],
+  [1920, 801, 8, 164.5],
+  [740, 900, 3, 179.3],
+  [390, 844, 2, 125],
+  [320, 844, 1, 210],
 ])(
   "preserves the prototype cover density at %ipx by %ipx",
   async (width, height, columns, artworkWidth) => {
@@ -798,7 +798,18 @@ it.each([
     const cover = grid.querySelector<HTMLElement>(".collection-cover")!;
     const art = cover.querySelector<HTMLElement>(".collection-art")!;
     const overlay = cover.querySelector<HTMLElement>(".collection-personal-actions")!;
-    expect(art.getBoundingClientRect().width).toBeCloseTo(cover.getBoundingClientRect().width, 0);
+    // The card is one raised surface; the cover fills its padded, bordered content box.
+    const surface = getComputedStyle(cover);
+    const inset =
+      parseFloat(surface.paddingLeft) +
+      parseFloat(surface.paddingRight) +
+      parseFloat(surface.borderLeftWidth) +
+      parseFloat(surface.borderRightWidth);
+    expect(inset).toBeGreaterThan(0);
+    expect(art.getBoundingClientRect().width).toBeCloseTo(
+      cover.getBoundingClientRect().width - inset,
+      0,
+    );
     expect(overlay.getBoundingClientRect().width).toBeCloseTo(art.getBoundingClientRect().width, 0);
     expect(art.getBoundingClientRect().height / art.getBoundingClientRect().width).toBeCloseTo(
       1.5,

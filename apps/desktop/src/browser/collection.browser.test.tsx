@@ -471,7 +471,12 @@ it.each(["dark", "light"])(
     await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(12);
     const cards = [...document.querySelectorAll<HTMLElement>(".discover-game")];
     for (const card of cards) {
-      const left = card.getBoundingClientRect().left;
+      // The card is a padded, bordered surface; its content shares one reading edge inside it.
+      const surface = getComputedStyle(card);
+      const left =
+        card.getBoundingClientRect().left +
+        parseFloat(surface.borderLeftWidth) +
+        parseFloat(surface.paddingLeft);
       for (const selector of [
         ".collection-art",
         ".collection-title",

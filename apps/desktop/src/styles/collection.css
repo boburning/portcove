@@ -1052,7 +1052,7 @@
 @layer utilities {
   .discover-covers .discover-game {
     --discover-card-pad: var(--space-3);
-    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad)));
+    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad) + 2px));
     padding: var(--discover-card-pad);
     gap: var(--space-2);
     border: 1px solid var(--color-border-subtle);
@@ -1123,7 +1123,7 @@
 @layer utilities {
   .collection-covers:not(.discover-grid) .collection-cover {
     --discover-card-pad: var(--space-3);
-    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad)));
+    width: min(100%, calc(var(--collection-art-limit) + 2 * var(--discover-card-pad) + 2px));
     padding: var(--discover-card-pad);
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-lg);
@@ -1160,7 +1160,7 @@
   }
   .collection-covers:not(.discover-grid) .collection-cover .collection-title {
     min-block-size: 0;
-    margin-block-start: var(--space-3);
+    margin-block-start: 0.625rem;
     line-height: 1.35;
   }
   .collection-covers:not(.discover-grid) .collection-cover .collection-project {
@@ -1177,6 +1177,16 @@
   @media (prefers-reduced-motion: reduce) {
     .collection-covers:not(.discover-grid) .collection-cover {
       transition: none;
+    }
+  }
+}
+
+/* Phone-width windows keep two-column covers readable with a tighter card inset. */
+@layer utilities {
+  @media (width <= 30rem) {
+    .discover-covers .discover-game,
+    .collection-covers:not(.discover-grid) .collection-cover {
+      --discover-card-pad: var(--space-2);
     }
   }
 }
