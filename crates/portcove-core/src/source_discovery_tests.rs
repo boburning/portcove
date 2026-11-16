@@ -3008,6 +3008,8 @@ fn finishing_saved_folders_preserves_published_batches_after_cancellation() {
             }
         })
         .unwrap();
+    let latest = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_ne!(latest.matches.unwrap().scan_id, scan_id);
     let matches = finished.matches.unwrap();
     assert_eq!((matches.scan_id, matches.exact_matches), (scan_id, 34));
     let coverage = finished.coverage.unwrap();
