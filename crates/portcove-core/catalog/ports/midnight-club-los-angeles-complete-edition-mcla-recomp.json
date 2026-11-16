@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "midnight-club-los-angeles-complete-edition-mcla-recomp",
+    "artwork": {
+      "game_id": 44581,
+      "cover_id": 282514,
+      "image_id": "co61zm",
+      "image_sha256": "dbf838b25db9e5be092917fbbf445e29254f57825261a51c2bfa4c8db43b4d58",
+      "game_slug": "midnight-club-los-angeles-complete-edition",
+      "match_kind": "underlying-game"
+    },
     "name": "Midnight Club: Los Angeles Complete Edition (MCLA Recomp)",
     "summary": "A Midnight Club: Los Angeles Complete Edition build kit that compiles locally, rather than a ready-made player. Windows x86-64 uses Direct3D 12; Linux native Vulkan source instructions have one project-reported free-roam test, with exact CPU support unconfirmed. A jailbroken PS5 route is separate. Use your own USA/Europe Complete Edition Xbox 360 ISO, title 545407F8. Setup extracts it, translates default.xex and builds locally. Base/non-Complete releases and other code revisions are not established compatible. No game code, data or keys are supplied. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Midnight Club: Los Angeles Complete Edition",

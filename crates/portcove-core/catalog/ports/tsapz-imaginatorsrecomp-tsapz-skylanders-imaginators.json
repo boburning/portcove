@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+    "artwork": {
+      "game_id": 19576,
+      "cover_id": 94971,
+      "image_id": "co21a3",
+      "image_sha256": "ceb090daa63dbc80e1f66f190a81872dc89faebd0552775eaab8c9103a5cddb4",
+      "game_slug": "skylanders-imaginators",
+      "match_kind": "underlying-game"
+    },
     "name": "Skylanders: Imaginators — tsapZ ImaginatorsRecomp (tsapZ)",
     "original_game_title": "Skylanders: Imaginators",
     "summary": "Firstlevelplays; later parts of the game have not been played; German PS3 text is optional,voices are experimental;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

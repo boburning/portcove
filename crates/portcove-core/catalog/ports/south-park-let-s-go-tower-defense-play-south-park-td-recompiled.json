@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+    "artwork": {
+      "game_id": 1260,
+      "cover_id": 125213,
+      "image_id": "co2om5",
+      "image_sha256": "1009f05680aafe27e69a1d183fa9ceca60e93c6f51c1b8ff449e107c310a64e0",
+      "game_slug": "south-park-let-s-go-tower-defense-play",
+      "match_kind": "underlying-game"
+    },
     "name": "South Park: Let's Go Tower Defense Play! (South Park TD Recompiled)",
     "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
     "original_game_title": "South Park: Let's Go Tower Defense Play!",
