@@ -2571,55 +2571,56 @@ fn distinct_cover_work_is_bounded_and_busy_is_not_negatively_cached() {
         sync::mpsc,
         time::{Duration, Instant},
     };
-    let first_root = tempfile::tempdir().unwrap();
-    let second_root = tempfile::tempdir().unwrap();
-    let third_root = tempfile::tempdir().unwrap();
-    let (first_service, first_artwork, _) = backoff_fixture(first_root.path());
-    let (second_service, second_artwork, second_bytes) = backoff_fixture(second_root.path());
-    let (third_service, third_artwork, third_bytes) = backoff_fixture(third_root.path());
+    let limit = crate::IGDB_ARTWORK_WORK_LIMIT;
+    let extra_root = tempfile::tempdir().unwrap();
+    let (extra_service, extra_artwork, extra_bytes) = backoff_fixture(extra_root.path());
+    let roots: Vec<_> = (0..limit).map(|_| tempfile::tempdir().unwrap()).collect();
     let now = Instant::now();
     let (started, waiting) = mpsc::channel();
-    let (release_first, first_released) = mpsc::channel();
-    let (release_second, second_released) = mpsc::channel();
+    let mut releases = Vec::new();
     std::thread::scope(|scope| {
-        let first_started = started.clone();
-        let first = scope.spawn(move || {
-            cover_with_fetch(&first_service, &first_artwork, now, || {
-                first_started.send(()).unwrap();
-                first_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Err(transient_cover_error())
-            })
-        });
-        let second = scope.spawn(move || {
-            cover_with_fetch(&second_service, &second_artwork, now, || {
-                started.send(()).unwrap();
-                second_released
-                    .recv_timeout(Duration::from_secs(10))
-                    .unwrap();
-                Ok(second_bytes)
-            })
-        });
-        for _ in 0..crate::IGDB_ARTWORK_WORK_LIMIT {
+        let mut workers = Vec::new();
+        for (index, root) in roots.iter().enumerate() {
+            let (service, artwork, bytes) = backoff_fixture(root.path());
+            let (release, released) = mpsc::channel();
+            releases.push(release);
+            let started = started.clone();
+            // The first worker fails transiently; the rest succeed.
+            workers.push(scope.spawn(move || {
+                cover_with_fetch(&service, &artwork, now, || {
+                    started.send(()).unwrap();
+                    released.recv_timeout(Duration::from_secs(10)).unwrap();
+                    if index == 0 {
+                        Err(transient_cover_error())
+                    } else {
+                        Ok(bytes)
+                    }
+                })
+            }));
+        }
+        for _ in 0..limit {
             waiting.recv_timeout(Duration::from_secs(10)).unwrap();
         }
-        let busy = cover_with_fetch(&third_service, &third_artwork, now, || {
+        let busy = cover_with_fetch(&extra_service, &extra_artwork, now, || {
             panic!("excess fetch")
         })
         .unwrap_err();
         assert_eq!(busy.code, crate::ErrorCode::Conflict);
         // No library operation lock is held by the artwork admission budget.
-        assert!(third_service.library().try_lock_artwork().is_ok());
-        release_first.send(()).unwrap();
-        release_second.send(()).unwrap();
-        assert_eq!(
-            first.join().unwrap().unwrap_err().code,
-            crate::ErrorCode::Network
-        );
-        assert!(second.join().unwrap().is_ok());
+        assert!(extra_service.library().try_lock_artwork().is_ok());
+        for release in &releases {
+            release.send(()).unwrap();
+        }
+        for (index, worker) in workers.into_iter().enumerate() {
+            let result = worker.join().unwrap();
+            if index == 0 {
+                assert_eq!(result.unwrap_err().code, crate::ErrorCode::Network);
+            } else {
+                assert!(result.is_ok());
+            }
+        }
     });
-    assert!(cover_with_fetch(&third_service, &third_artwork, now, || Ok(third_bytes)).is_ok());
+    assert!(cover_with_fetch(&extra_service, &extra_artwork, now, || Ok(extra_bytes)).is_ok());
 }
 
 #[test]

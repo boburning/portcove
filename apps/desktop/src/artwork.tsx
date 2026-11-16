@@ -69,13 +69,15 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
     [cache, portId, slot, visible],
   );
   const read = useCallback(
-    () => (visible ? (cache?.read(portId, slot) ?? unavailable) : unavailable),
-    [cache, portId, slot, visible],
+    // A retained image stays mounted after its card scrolls away, so scrolling back
+    // does not re-decode it. Only loading and live updates need visibility.
+    () => cache?.read(portId, slot) ?? unavailable,
+    [cache, portId, slot],
   );
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
   useEffect(() => {
     let current = true;
-    if (visible) void cache?.load(portId, slot, true, () => current);
+    if (visible) void cache?.load(portId, slot, !cache.read(portId, slot).image, () => current);
     return () => {
       current = false;
     };
@@ -91,7 +93,7 @@ export function useArtworkVisibility() {
     if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
-      { rootMargin: "200px" },
+      { rootMargin: "800px 0px" },
     );
     observer.observe(element.current);
     return () => observer.disconnect();
