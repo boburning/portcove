@@ -613,6 +613,12 @@ impl PortcoveService {
                         expected_payload.as_deref(),
                         &matches,
                     )?;
+                    if finish_scan_id.is_some() {
+                        emit_saved_scan_checkpoint(&operation, &snapshot, emit);
+                        // This exact snapshot was committed. A new scan may
+                        // already have replaced the shared latest pointer.
+                        return Ok(snapshot);
+                    }
                     return current_game_file_scan(self.catalog(), self.library())?.ok_or_else(
                         || {
                             PortcoveError::state(
@@ -629,19 +635,7 @@ impl PortcoveService {
                     &matches,
                     Some(operation.operation_id()),
                 )?);
-                emit(
-                    operation.progress_with_unit(
-                        "saved_folder_scan_checkpoints",
-                        crate::ProgressUnit::Items,
-                        u64::from(
-                            snapshot
-                                .coverage
-                                .as_ref()
-                                .map_or(0, |coverage| coverage.batches),
-                        ),
-                        None,
-                    ),
-                );
+                emit_saved_scan_checkpoint(&operation, &snapshot, emit);
             }
         })();
         let result = self.finish_activity(activity, result);
@@ -701,6 +695,21 @@ fn discovery_exclusions(
         kind: DiscoveryExclusionKind::ManagedOutput,
     }));
     Ok((exclusions, expected_outputs))
+}
+
+fn emit_saved_scan_checkpoint(
+    operation: &crate::OperationCoordinator,
+    snapshot: &GameFileScanSnapshot,
+    emit: &mut dyn FnMut(crate::OperationEvent),
+) {
+    if let Some(coverage) = &snapshot.coverage {
+        emit(operation.progress_with_unit(
+            "saved_folder_scan_checkpoints",
+            crate::ProgressUnit::Items,
+            u64::from(coverage.batches),
+            None,
+        ));
+    }
 }
 
 fn publish_game_file_scan(

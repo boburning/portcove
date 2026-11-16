@@ -1875,7 +1875,7 @@ it("finishes a retained scan of nine folders with the existing Core scan action"
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("starts one cancellable Finish action bound to the displayed saved scan", async () => {
+it("starts one Finish action bound to the displayed saved scan", async () => {
   const stored = storedMatchesSnapshot();
   const resumed = { ...resumableSnapshot(), matches: stored.matches! };
   let resolve!: (snapshot: GameFileScanSnapshot) => void;
