@@ -2,6 +2,10 @@ import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import {
+  onStandingSetupPass,
+  requestStandingSetup,
+} from "../features/game-file-discovery/use-standing-setup";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
 import type { LiveMods, ModCodeReview, ModSetupView, ModSetupsView } from "../types";
@@ -85,6 +89,11 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     };
   }, [portId, generation, busy, request]);
 
+  useEffect(() => {
+    if (busy) return;
+    return onStandingSetupPass(() => setRequest((value) => value + 1));
+  }, [busy]);
+
   const reread = () => {
     setFailure(undefined);
     setRequest((value) => value + 1);
@@ -100,6 +109,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
       await action();
       setOutcome(success);
       succeeded = true;
+      requestStandingSetup();
     } catch (failure) {
       setFailure({ text: errorText(failure) });
     } finally {
@@ -113,6 +123,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   const refreshAfterProviderInstall = (message: string) => {
     setOutcome(message);
     setFresh(false);
+    requestStandingSetup();
     setRequest((value) => value + 1);
   };
   return {

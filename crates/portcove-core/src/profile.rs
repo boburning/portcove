@@ -1044,7 +1044,11 @@ fn default_profile(connection: &Connection, port_id: &str) -> Result<Option<Prof
         .find(|profile| profile.is_default))
 }
 
-fn profile_from(connection: &Connection, port_id: &str, profile_id: &str) -> Result<Profile> {
+pub(crate) fn profile_from(
+    connection: &Connection,
+    port_id: &str,
+    profile_id: &str,
+) -> Result<Profile> {
     profiles_from(connection, port_id)?
         .into_iter()
         .find(|profile| profile.id == profile_id)

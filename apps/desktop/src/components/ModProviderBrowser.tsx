@@ -2,6 +2,7 @@ import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
 import { useAppTranslation } from "../localization";
 import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } from "../types";
 import { errorText, formatBytes } from "../view-model";
@@ -131,7 +132,10 @@ export function ModProviderBrowser(props: Props) {
     void run(
       t("mods.browse.checking", { provider }),
       () => desktopApi.providerProject(portId, projectId, generation),
-      setProject,
+      (next) => {
+        setProject(next);
+        if (next.freshness !== "stale") requestStandingSetup();
+      },
     );
 
   const cancelPlan = () => {

@@ -2556,12 +2556,14 @@ recipe's identity exactly; that is not evidence of gameplay or save compatibilit
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
 (`games setup-ready`) install a newer provider file for that setup without asking
-again. Desktop runs the same pass only while at least one game is set to install
-when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
-(`review-updates`, the default, and `keep-current`) are never contacted. The policy
-is consent, not authorization: each pass checks for updates again, plans the newer
-file with the same checks as `provider-plan`, and authorizes and applies that exact
-plan at once.
+again. While Desktop is open, the shared pass runs after the library opens,
+when the library changes (including a supervised game exit), after a mod setup
+change or a current provider project refresh, and every 15 minutes. A deferred
+update gets one earlier retry after 30 seconds. The CLI can run the pass with
+`games setup-ready`. Setups with the other policies (`review-updates`, the default,
+and `keep-current`) are never contacted. Each pass checks for updates again, plans
+the newer file with the same checks as `provider-plan`, and verifies the policy
+and exact setup revision under the port lock before applying the plan.
 
 Updates are decided per installed provider file. One is applied only when the
 observation is current, the provider offers exactly one newer file (for Thunderstore,
