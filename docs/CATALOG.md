@@ -381,6 +381,11 @@ After Burner Climax (darkuni Recomp) opts in on Windows. For the World release,
 `CreateProcessW` and exits.
 [After Burner Climax qualification](qualification/afterburner-climax-tracked-handoff-2026-11-16.md).
 
+Shantae Recomp (vibecodekun) opts in on Windows. Return to Launcher starts the
+same executable again with `CreateProcessW` from an exit hook, and its shader
+preset check runs a hidden copy of the same program that the game waits for.
+[Shantae qualification](qualification/shantae-recomp-tracked-handoff-2026-11-16.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;

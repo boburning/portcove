@@ -74318,6 +74318,111 @@
       }
     },
     {
+      "id": "vibecodekun-shantaerecomp",
+      "name": "Shantae / shantaerecomp (vibecodekun)",
+      "summary": "Play the Shantae recompilation with your own exact USA Game Boy Color ROM.",
+      "project_url": "https://github.com/vibecodekun/shantaerecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "vibecodekun/shantaerecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "shantae-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "shantae.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rom.cfg",
+        "runtime_prefs.ini",
+        "imgui.ini",
+        "keybinds.ini",
+        "shantae.ini",
+        "librashader_probe.txt",
+        "shantae.sav",
+        "shantae.rtc",
+        "shantae.state1",
+        "shantae.state2",
+        "shantae.state3",
+        "shantae.state4",
+        "shantae.state5",
+        "shantae.state6",
+        "shantae.state7",
+        "shantae.state8",
+        "shantae.state9",
+        "shantae.state10",
+        "shader_presets",
+        "shader_cache",
+        "borders",
+        "cheats",
+        "prints"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, pick your own exact Shantae USA Game Boy Color ROM in the game's chooser; it accepts only that ROM and remembers its path in rom.cfg, so keep the ROM where it is. The game keeps its settings (rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini), the shantae.sav battery save, save states shantae.state1 to shantae.state10, shader presets and the shader cache in the game folder, and Portcove keeps them, with any borders, cheats and prints folders you add, across updates, backups and rollback. Return to Launcher and the shader preset check start the same program again from the game folder, and Portcove keeps tracking them. Use a library path that fits within the Windows path limit; Portcove refuses longer install folders before download. Portcove replaces the program; you own the ROM.",
+        "original_game_title": "Shantae",
+        "manual_setup": {
+          "help_url": "https://github.com/vibecodekun/shantaerecomp",
+          "steps": [
+            {
+              "title": "Choose your original ROM on first start",
+              "instruction": "Start the game and pick your own exact Shantae USA Game Boy Color ROM in its chooser: SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. World, Switch and Limited Run Games releases are different ROMs. The chooser enables Play only for the accepted original and remembers its path in rom.cfg, so keep the ROM where it is."
+            },
+            {
+              "title": "Use a copy you manage yourself",
+              "instruction": "Keep the complete package for your system together with its libraries, assets, shaders and notices, and start shantae.exe on Windows or shantae on Linux from its own folder with no arguments. Return to Launcher closes the game and starts the same program again."
+            }
+          ],
+          "warnings": [
+            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes an unlicensed gbrecompiled engine fork and shaders under their own licences that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Save and save-state compatibility is specific to this build; do not assume another gbrecompiled game or version can read them. Portcove has not observed native setup, gameplay or saves."
+          ],
+          "references": [
+            {
+              "title": "Keep the game folder's data",
+              "instruction": "By default the game keeps rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, the shantae.sav battery save, shantae.state1 to shantae.state10, shader_presets and shader_cache beside the program; GBRECOMP_STATE_DIR moves them elsewhere. In a copy you manage yourself, back these up before replacing the program."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 8432,
+          "cover_id": 103146,
+          "image_id": "co27l6",
+          "image_sha256": "7df41a67e947e2e6179f7fc876f2e4ce2671e6f7c1b485844ad49bfec6be7fb3",
+          "game_slug": "shantae",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "shaders"
+          ],
+          "executables": [
+            "shantae.exe"
+          ]
+        }
+      },
+      "windows_tracked_handoff": true,
+      "windows_runtime_path_policy": "relative-file-max-path"
+    },
+    {
       "id": "vidanox-banjotooierecompiled",
       "name": "Banjo-Tooie / Banjo-Tooie: Recompiled (Vidanox)",
       "summary": "Use the Banjo-Tooie player package and select your own USA cartridge dump.",

@@ -2494,8 +2494,8 @@ async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
         "vibecodekun-shantaerecomp",
         "v0.2.0",
         "shantae-recomp-0.2.0-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

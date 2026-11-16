@@ -3197,11 +3197,6 @@ mod tests {
     }
 
     #[test]
-    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
-        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(false));
-    }
-
-    #[test]
     fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
         // The managed Windows route keeps the independent prepared-copy route.
         let id = "monster-hunter-portable-3rd-hd-yakumo";
