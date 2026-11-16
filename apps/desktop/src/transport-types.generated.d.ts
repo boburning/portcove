@@ -4731,6 +4731,9 @@ export interface ResolvedPackage {
   sha256: string;
   size: number;
 }
+/**
+ * One exact provider wrapper and the complete set of native members it supplied.
+ */
 export interface ProviderRequirement {
   members: {
     [k: string]: string;
@@ -5700,6 +5703,9 @@ export interface ProviderFileCandidate {
   thunderstore_dependencies?: ThunderstoreDependency[] | null;
   [k: string]: unknown;
 }
+/**
+ * One exact Thunderstore dependency coordinate from a version listing.
+ */
 export interface ThunderstoreDependency {
   namespace: string;
   package: string;

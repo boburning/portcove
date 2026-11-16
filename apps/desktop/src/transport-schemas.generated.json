@@ -22749,6 +22749,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -24340,6 +24341,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -26163,6 +26165,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -31599,6 +31602,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -42512,6 +42516,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -42942,6 +42947,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -43430,6 +43436,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
@@ -43894,6 +43901,7 @@
         "type": "object"
       },
       "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
         "properties": {
           "namespace": {
             "type": "string"
@@ -44168,6 +44176,7 @@
         ]
       },
       "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
         "properties": {
           "namespace": {
             "type": "string"
@@ -44441,6 +44450,7 @@
         "type": "object"
       },
       "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
         "properties": {
           "namespace": {
             "type": "string"
@@ -44630,6 +44640,7 @@
         ]
       },
       "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
         "properties": {
           "namespace": {
             "type": "string"
@@ -44967,6 +44978,7 @@
       },
       "ProviderRequirement": {
         "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
         "properties": {
           "members": {
             "additionalProperties": {
