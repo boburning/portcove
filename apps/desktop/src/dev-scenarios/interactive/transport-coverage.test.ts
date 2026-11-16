@@ -43,7 +43,7 @@ const unsupportedByReason: Record<string, string[]> = {
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_artwork reset_output_location restore_backup revoke_catalog_key
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
-    set_port_intent acknowledge_port_readiness run_standing_setup
+    set_port_intent acknowledge_port_readiness
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
     set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference

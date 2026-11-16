@@ -28,6 +28,7 @@ use crate::{
     inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
     provider_client::ProviderClient,
+    provider_install::ProviderInstallMode,
 };
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
@@ -77,11 +78,10 @@ fn installed_files<'a>(
     for observation in observations {
         let project = observation.provider.project.clone();
         let file = observation.provider.file.clone().unwrap_or_default();
-        let Some(package) = revision
-            .packages
-            .iter()
-            .find(|package| package.native_id == observation.native_id)
-        else {
+        let Some(package) = revision.packages.iter().find(|package| {
+            package.native_id == observation.native_id
+                && package.provider.as_ref() == Some(&observation.provider)
+        }) else {
             continue;
         };
         groups
@@ -175,7 +175,7 @@ fn hold_reason(
     if crate::native_mod_list::recomp_game(&plan.port_id).is_some() {
         return None;
     }
-    let staged = layout.staged(&plan.plan_sha256);
+    let staged = ProviderInstallMode::Automatic.staging(layout, &plan.plan_sha256);
     let replacement = plan
         .members
         .iter()
@@ -441,16 +441,6 @@ impl PortcoveService {
                 native_ids,
                 outcome,
             };
-            let observations = match self
-                .check_provider_updates_via(client, port_id, &setup.id)
-                .await
-            {
-                Ok(observations) => observations,
-                Err(error) => {
-                    results.push(result(Vec::new(), classify(error)));
-                    continue;
-                }
-            };
             let revision =
                 match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
@@ -461,6 +451,16 @@ impl PortcoveService {
                         continue;
                     }
                 };
+            let observations = match self
+                .check_provider_updates_for_revision(client, &revision)
+                .await
+            {
+                Ok(observations) => observations,
+                Err(error) => {
+                    results.push(result(Vec::new(), classify(error)));
+                    continue;
+                }
+            };
             for installed in installed_files(&revision, &observations) {
                 let names = installed
                     .packages
@@ -574,6 +574,15 @@ impl PortcoveService {
             Ok(revision) => revision,
             Err(error) => return Some(classify(error)),
         };
+        if installed
+            .packages
+            .iter()
+            .any(|package| !revision.packages.contains(package))
+        {
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason: "the setup's installed mods changed while checking; check again".into(),
+            });
+        }
         let key = hold_key(profile_id, revision.revision, installed, &candidate.file_id);
         if let Some(reason) = read_holds(layout).get(&key) {
             return held(reason);
@@ -583,12 +592,13 @@ impl PortcoveService {
             return Some(ProviderAutoUpdateOutcome::Deferred { reason });
         }
         let plan = match self
-            .plan_provider_install_via(
+            .plan_provider_install_in_mode(
                 client,
                 port_id,
                 profile_id,
                 &installed.project,
                 &candidate.file_id,
+                ProviderInstallMode::Automatic,
             )
             .await
         {
@@ -597,6 +607,12 @@ impl PortcoveService {
             // fault, and the provider's flags are checked before any download.
             Err(error) => return Some(classify(error)),
         };
+        if plan.expected_revision != revision.revision {
+            let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason: "the setup changed while planning the update; check again".into(),
+            });
+        }
         let outcome = match hold_reason(layout, &plan, &revision, installed) {
             Some(reason) => {
                 remember_hold(layout, key, &reason);
@@ -604,8 +620,9 @@ impl PortcoveService {
             }
             None => match self
                 .authorize_provider_install(&plan)
-                .and_then(|authorization| self.apply_provider_install(&plan, &authorization.token))
-            {
+                .and_then(|authorization| {
+                    self.apply_automatic_provider_install(&plan, &authorization.token)
+                }) {
                 Ok(applied) => {
                     return Some(ProviderAutoUpdateOutcome::Applied {
                         revision: applied.revision,
@@ -615,7 +632,7 @@ impl PortcoveService {
                 Err(error) => classify(error),
             },
         };
-        let _ = self.discard_provider_install(&plan);
+        let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
         Some(outcome)
     }
 }

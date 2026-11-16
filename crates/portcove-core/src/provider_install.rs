@@ -7,19 +7,19 @@
 //! authorization bound to the plan digest, rechecks the staged bytes and the
 //! profile revision under the port lock, then installs through the ordinary
 //! profile path. Bytes that differ from the plan invalidate it.
-use std::fs;
+use std::{fs, path::PathBuf};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProviderFileCandidate,
-    ProviderFreshness, ProviderPackageRef, RecompExecution, Result, asset_conflicts,
-    inspect_asset_archive,
+    AssetConflict, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
+    ProviderFileCandidate, ProviderFreshness, ProviderPackageRef, RecompExecution, Result,
+    asset_conflicts, inspect_asset_archive,
     mod_package::extract_packages,
     profile,
-    profile_deploy::{CodePolicy, adapter_extensions, inspect_for_port, sha256_file},
+    profile_deploy::{CodePolicy, Layout, adapter_extensions, inspect_for_port, sha256_file},
     provider_client::ProviderClient,
 };
 
@@ -102,6 +102,28 @@ pub struct ProviderInstallPlan {
     pub plan_sha256: String,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ProviderInstallMode {
+    Reviewed,
+    Automatic,
+}
+
+impl ProviderInstallMode {
+    fn staging_root(self, layout: &Layout) -> PathBuf {
+        layout.store().join(match self {
+            Self::Reviewed => "staged",
+            Self::Automatic => "automatic-staged",
+        })
+    }
+
+    pub(crate) fn staging(self, layout: &Layout, digest: &str) -> PathBuf {
+        match self {
+            Self::Reviewed => layout.staged(digest),
+            Self::Automatic => self.staging_root(layout).join(digest),
+        }
+    }
+}
+
 pub(crate) fn digest(plan: &ProviderInstallPlan) -> Result<String> {
     let mut copy = plan.clone();
     copy.plan_sha256.clear();
@@ -160,6 +182,26 @@ impl PortcoveService {
         profile_id: &str,
         project_id: &str,
         file_id: &str,
+    ) -> Result<ProviderInstallPlan> {
+        self.plan_provider_install_in_mode(
+            client,
+            port_id,
+            profile_id,
+            project_id,
+            file_id,
+            ProviderInstallMode::Reviewed,
+        )
+        .await
+    }
+
+    pub(crate) async fn plan_provider_install_in_mode(
+        &self,
+        client: &ProviderClient,
+        port_id: &str,
+        profile_id: &str,
+        project_id: &str,
+        file_id: &str,
+        mode: ProviderInstallMode,
     ) -> Result<ProviderInstallPlan> {
         let layout = self.deploy_layout(port_id)?;
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
@@ -417,8 +459,8 @@ impl PortcoveService {
         };
         plan.plan_sha256 = digest(&plan)?;
 
-        self.prune_staged(&layout.store().join("staged"));
-        let staged = layout.staged(&plan.plan_sha256);
+        self.prune_staged(&mode.staging_root(&layout));
+        let staged = mode.staging(&layout, &plan.plan_sha256);
         if staged.exists() {
             fs::remove_dir_all(&staged)?;
         }
@@ -507,6 +549,23 @@ impl PortcoveService {
         plan: &ProviderInstallPlan,
         token: &str,
     ) -> Result<ProfileRevision> {
+        self.apply_provider_install_in_mode(plan, token, ProviderInstallMode::Reviewed)
+    }
+
+    pub(crate) fn apply_automatic_provider_install(
+        &self,
+        plan: &ProviderInstallPlan,
+        token: &str,
+    ) -> Result<ProfileRevision> {
+        self.apply_provider_install_in_mode(plan, token, ProviderInstallMode::Automatic)
+    }
+
+    fn apply_provider_install_in_mode(
+        &self,
+        plan: &ProviderInstallPlan,
+        token: &str,
+        mode: ProviderInstallMode,
+    ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(&plan.port_id)?;
         // A plan is caller-supplied data: re-establish what planning established.
         if bound_provider(&plan.port_id)
@@ -525,6 +584,20 @@ impl PortcoveService {
             .library
             .try_lock_port(&plan.port_id, "apply-provider-install")?;
         self.recover_switch_locked(&plan.port_id, &layout)?;
+        if mode == ProviderInstallMode::Automatic {
+            let setup = profile::profile_from(
+                &self.library.connection()?,
+                &plan.port_id,
+                &plan.profile_id,
+            )?;
+            if setup.intent.update_policy != ProfileUpdatePolicy::AutomaticEligible
+                || setup.current_revision != plan.expected_revision
+            {
+                return Err(PortcoveError::conflict(
+                    "the setup or its automatic update policy changed; check again",
+                ));
+            }
+        }
         if digest(plan)? != plan.plan_sha256 {
             return Err(PortcoveError::verification(
                 "the plan does not match its recorded digest",
@@ -534,6 +607,11 @@ impl PortcoveService {
             .members
             .iter()
             .any(|member| !member.runs_code.is_empty());
+        if mode == ProviderInstallMode::Automatic && runs_code {
+            return Err(PortcoveError::usage(
+                "automatic updates do not grant permission to run mod code",
+            ));
+        }
         self.library.consume_authorization(
             token,
             if runs_code { ACTION_WITH_CODE } else { ACTION },
@@ -541,7 +619,7 @@ impl PortcoveService {
             &plan.plan_sha256,
         )?;
         let recorded = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
-        let staged_dir = layout.staged(&plan.plan_sha256);
+        let staged_dir = mode.staging(&layout, &plan.plan_sha256);
         let mut staged = Vec::new();
         for member in &plan.members {
             let path = staged_dir.join(&member.file_name);
@@ -588,6 +666,14 @@ impl PortcoveService {
 
     /// Discards a reviewed plan's private staging.
     pub fn discard_provider_install(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        self.discard_provider_install_in_mode(plan, ProviderInstallMode::Reviewed)
+    }
+
+    pub(crate) fn discard_provider_install_in_mode(
+        &self,
+        plan: &ProviderInstallPlan,
+        mode: ProviderInstallMode,
+    ) -> Result<()> {
         // The plan is caller-supplied: its digest names a directory only when it
         // is the digest of the plan itself.
         if digest(plan)? != plan.plan_sha256 {
@@ -596,7 +682,7 @@ impl PortcoveService {
             ));
         }
         let layout = self.deploy_layout(&plan.port_id)?;
-        let staged = layout.staged(&plan.plan_sha256);
+        let staged = mode.staging(&layout, &plan.plan_sha256);
         if staged.exists() {
             fs::remove_dir_all(staged)?;
         }
