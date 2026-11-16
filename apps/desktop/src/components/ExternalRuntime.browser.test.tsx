@@ -449,7 +449,13 @@ it("reviews the resolved Mac bundle program and preserves an explicitly selected
     shared_preferences: null,
   });
   await root.rerender(
-    <UserSelectedRuntimeControl port={entry} status={portStatus()} generation={7} busy={false} />,
+    <UserSelectedRuntimeControl
+      port={entry}
+      devicePlatform="macos-aarch64"
+      status={portStatus()}
+      generation={7}
+      busy={false}
+    />,
   );
   await click("Choose game executable…");
   const startFolder = page.getByRole("textbox", { name: "Start in folder", exact: true });

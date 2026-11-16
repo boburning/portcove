@@ -285,6 +285,7 @@ type SelectedLaunch = { executable: string; workingDirectory: string; arguments:
 
 type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   port: CatalogEntry;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
 };
@@ -307,6 +308,7 @@ export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
 
 function useUserSelectedRuntimeEditor({
   port,
+  devicePlatform,
   status,
   generation,
   busy,
@@ -389,10 +391,15 @@ function useUserSelectedRuntimeEditor({
       const path = await pickHostToolExecutable("game", executable || workingDirectory);
       if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
         const parent = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
-        const directory =
-          path.startsWith("/") && path.toLowerCase().endsWith(".app")
-            ? `${path}/Contents/MacOS`
-            : parent;
+        const platform = devicePlatform ?? registered?.platform;
+        const bundle = path.slice(parent.length + 1);
+        const reviewedBundle =
+          (platform === "macos-aarch64" || platform === "macos-x86-64") &&
+          path.startsWith("/") &&
+          port.definition?.executable_hints?.[platform]?.some((hint) =>
+            hint.startsWith(`${bundle}/Contents/MacOS/`),
+          );
+        const directory = reviewedBundle ? `${path}/Contents/MacOS` : parent;
         setExecutable(path);
         setWorkingDirectory(directory);
         rememberSetup({ executable: path, workingDirectory: directory });
