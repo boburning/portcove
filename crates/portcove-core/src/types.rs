@@ -206,6 +206,9 @@ pub struct PortPresentation {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Cover for the second game in a combined definition's Discover card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub companion_cover: Option<IgdbArtwork>,
     /// Absent legacy metadata may use the directory; an explicit empty list clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<Vec<crate::CatalogMediaAsset>>,

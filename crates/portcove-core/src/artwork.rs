@@ -403,6 +403,15 @@ impl PortcoveService {
         for listing in self.catalog().listings() {
             add(&mut referenced, listing);
         }
+        for port in self.catalog().ports() {
+            if let Some(cover) = port
+                .presentation
+                .as_ref()
+                .and_then(|p| p.companion_cover.as_ref())
+            {
+                referenced.insert(cover.image_sha256.clone());
+            }
+        }
         let connection = self.library().connection()?;
         let mut retained: BTreeSet<String> = Library::installs_from(&connection)?
             .into_iter()
@@ -1131,6 +1140,62 @@ impl PortcoveService {
         crate::artwork_store::write_choice(&transaction, port_id, slot, expected_revision, None)?;
         transaction.commit()?;
         self.artwork_for_listing(&port, slot)
+    }
+
+    /// Retrieve the companion only for the current, unmodified primary cover.
+    pub fn companion_cover_thumbnail(
+        &self,
+        port_id: &str,
+        expected_primary_cache_id: &str,
+        expected_sha256: &str,
+        expected_revision: u64,
+    ) -> Result<ArtworkThumbnail> {
+        let listing = self.artwork_port(port_id)?;
+        let primary = listing
+            .artwork
+            .as_ref()
+            .ok_or_else(|| PortcoveError::not_found("this listing has no primary cover"))?;
+        if igdb_cache_id(primary) != expected_primary_cache_id {
+            return Err(PortcoveError::conflict(
+                "the primary artwork mapping changed",
+            ));
+        }
+        let companion = self
+            .catalog()
+            .port(port_id)?
+            .presentation
+            .as_ref()
+            .filter(|presentation| presentation.artwork.as_ref() == Some(primary))
+            .and_then(|presentation| presentation.companion_cover.as_ref())
+            .filter(|cover| cover.image_sha256 == expected_sha256)
+            .ok_or_else(|| {
+                PortcoveError::not_found("this listing has no matching companion cover")
+            })?;
+        let require_default = || {
+            let connection = self.library().connection()?;
+            let current = crate::artwork_store::require_revision(
+                &connection,
+                port_id,
+                ArtworkSlot::Cover,
+                expected_revision,
+            )?;
+            if current.asset_sha256.is_some() {
+                return Err(PortcoveError::conflict(
+                    "the primary artwork choice changed",
+                ));
+            }
+            Ok(())
+        };
+        require_default()?;
+        let mut thumbnail =
+            igdb_thumbnail(self.library(), companion, expected_revision, |original| {
+                let _guard = self.library().try_lock_artwork()?;
+                require_default()?;
+                self.publish_igdb_original(companion, original)
+            })?;
+        require_default()?;
+        thumbnail.asset_sha256 = companion.image_sha256.clone();
+        Ok(thumbnail)
     }
 
     pub fn artwork_thumbnail(
