@@ -449,6 +449,7 @@ fn a_missing_target_package_fails_before_any_departing_mod_is_removed() {
         size: 1,
         enabled: true,
         requires: Vec::new(),
+        provider_requires: Vec::new(),
     };
     let request = ProfileRevisionRequest {
         expected_revision: 1,
@@ -1423,6 +1424,7 @@ fn code_revision_request(expected: u64, sha: &str, size: u64) -> crate::ProfileR
             size,
             enabled: true,
             requires: Vec::new(),
+            provider_requires: Vec::new(),
         }]),
         ..Default::default()
     }

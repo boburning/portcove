@@ -424,6 +424,23 @@ fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
             clean(&plan.download_sha256)
         ),
     ];
+    if plan.wrappers.len() > 1 {
+        for wrapper in &plan.wrappers {
+            lines.push(format!(
+                "  {} {} ({} bytes, SHA-256 {}): {}",
+                clean(&wrapper.provider.project),
+                clean(&wrapper.file.file_id),
+                wrapper.download_size,
+                clean(&wrapper.download_sha256),
+                wrapper
+                    .members
+                    .keys()
+                    .map(|id| clean(id))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ));
+        }
+    }
     for member in &plan.members {
         lines.push(format!(
             "  package {} ({} assets, {} bytes, SHA-256 {}){}",
@@ -1030,6 +1047,7 @@ mod provider_text_tests {
                 claimed_md5: None,
                 archived,
                 claimed_scan: Some("clean".into()),
+                thunderstore_dependencies: None,
             }],
             unreadable_files: unreadable,
         }

@@ -58,6 +58,8 @@ pub struct RecipePackage {
     pub size: u64,
     pub enabled: bool,
     pub requires: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_requires: Vec<crate::ProviderRequirement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -281,6 +283,18 @@ impl ProfileRecipe {
             .filter(|package| package.enabled)
             .map(|package| (package.native_id.as_str(), package))
             .collect::<BTreeMap<_, _>>();
+        for package in &self.packages {
+            crate::profile::validate_provider_requirements(
+                &package.native_id,
+                package.enabled,
+                &package.provider_requires,
+                |required, id, hash| {
+                    enabled.get(id).is_some_and(|member| {
+                        member.sha256 == hash && member.provider.as_ref() == Some(required)
+                    })
+                },
+            )?;
+        }
         for package in enabled.values() {
             if let Some(missing) = package
                 .requires
@@ -395,6 +409,7 @@ impl PortcoveService {
                     size: package.size,
                     enabled: package.enabled,
                     requires: package.requires.clone(),
+                    provider_requires: package.provider_requires.clone(),
                 })
                 .collect(),
             orderings: revision.orderings.clone(),
@@ -730,6 +745,7 @@ impl PortcoveService {
                 size: package.size,
                 enabled: package.enabled,
                 requires: package.requires.clone(),
+                provider_requires: package.provider_requires.clone(),
             })
             .collect::<Vec<_>>();
         let base = crate::ProfileRevision {

@@ -312,6 +312,18 @@ it("names Thunderstore and asks before installing a reviewed mod that runs code"
     project_name: "Timer",
     replaces: [],
     unverified_claims: [],
+    wrappers: [
+      {
+        provider: { provider: "thunderstore", project: "Tools-Shared", file: "2.1.0" },
+        file: { file_id: "2.1.0" },
+        members: { "shared.nrm": "b".repeat(64) },
+      },
+      {
+        provider: { provider: "thunderstore", project: "Owner-Timer", file: "1.1.0" },
+        file: { file_id: "1.1.0" },
+        members: { "speed_timer.nrm": "a".repeat(64) },
+      },
+    ],
     members: [
       {
         file_name: "speed_timer.nrm",
@@ -335,7 +347,9 @@ it("names Thunderstore and asks before installing a reviewed mod that runs code"
   await act(async () => button(host, "Review Owner-Timer-1.1.0.zip").click());
   expect(planned).toHaveBeenCalledWith("zelda64-recomp", "default", "Owner-Timer", "1.1.0", 7);
   expect(host.textContent).toContain("speed_timer.nrm runs its own code inside the game");
-  expect(host.textContent).toContain("speed_timer.nrm");
+  expect(host.textContent).toContain("Tools-Shared (2.1.0)");
+  expect(host.textContent).toContain("Owner-Timer (1.1.0)");
+  expect(host.textContent).toContain("shared.nrm");
   expect([...host.querySelectorAll("button")].some((b) => b.textContent === "Install")).toBe(false);
 
   await act(async () => button(host, "Allow its code and install").click());

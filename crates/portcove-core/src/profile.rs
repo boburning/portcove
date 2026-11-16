@@ -111,6 +111,14 @@ pub struct LoaderContractRef {
     pub version: String,
 }
 
+/// One exact provider wrapper and the complete set of native members it supplied.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProviderRequirement {
+    pub provider: ProviderPackageRef,
+    pub members: BTreeMap<String, String>,
+}
+
 /// Exact package bytes plus its separate identities. A local import carries no
 /// provider coordinates but still has its own native ID and digest.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -127,6 +135,8 @@ pub struct ResolvedPackage {
     /// Native IDs this package requires, from native metadata (not provider claims).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub requires: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_requires: Vec<ProviderRequirement>,
 }
 
 /// One precedence domain. A loader may need several; no universal number exists.
@@ -306,6 +316,26 @@ impl PortcoveService {
         let _guard = self
             .library
             .try_lock_port(port_id, "create-profile-revision")?;
+        if let Some(packages) = &request.packages {
+            let current = current_revision(&self.library.connection()?, port_id, profile_id)?;
+            for installed in current
+                .packages
+                .iter()
+                .filter(|package| !package.provider_requires.is_empty())
+            {
+                if packages.iter().any(|package| {
+                    package.native_id == installed.native_id
+                        && package.sha256 == installed.sha256
+                        && (package.provider != installed.provider
+                            || package.provider_requires != installed.provider_requires)
+                }) {
+                    return Err(PortcoveError::verification(
+                        "review a provider install before changing its recorded requirements",
+                    )
+                    .detail("package", &installed.native_id));
+                }
+            }
+        }
         self.create_profile_revision_locked(port_id, profile_id, request)
     }
 
@@ -593,6 +623,56 @@ fn hash(value: &str) -> bool {
     value.len() == 64 && value.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
+pub(crate) fn validate_provider_requirements(
+    native_id: &str,
+    enabled: bool,
+    requirements: &[ProviderRequirement],
+    mut contains: impl FnMut(&ProviderPackageRef, &str, &str) -> bool,
+) -> Result<()> {
+    if requirements.len() > MAX_PACKAGES {
+        return Err(PortcoveError::verification(
+            "too many provider requirements",
+        ));
+    }
+    for requirement in requirements {
+        let provider = &requirement.provider;
+        if provider.provider != crate::thunderstore::PROVIDER
+            || provider.file.as_deref().is_none_or(str::is_empty)
+            || provider.file != provider.version
+            || requirement.members.is_empty()
+            || requirement.members.len() > MAX_PACKAGES
+        {
+            return Err(
+                PortcoveError::verification("invalid exact provider requirement")
+                    .detail("package", native_id),
+            );
+        }
+        text(&provider.project, "provider requirement project")?;
+        text(
+            provider.file.as_deref().unwrap_or_default(),
+            "provider requirement version",
+        )?;
+        for (id, digest) in &requirement.members {
+            if !valid_native_id(id) || id == native_id || !hash(digest) {
+                return Err(
+                    PortcoveError::verification("invalid required package member")
+                        .detail("package", native_id),
+                );
+            }
+            if enabled && !contains(provider, id, digest) {
+                return Err(PortcoveError::conflict(
+                    "an enabled package needs every member of an exact Thunderstore version enabled",
+                )
+                .detail("package", native_id)
+                .detail("requires", id)
+                .detail("project", &provider.project)
+                .detail("version", provider.version.as_deref().unwrap_or_default()));
+            }
+        }
+    }
+    Ok(())
+}
+
 pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
     if revision.revision == 0
         || revision
@@ -640,6 +720,21 @@ pub(crate) fn validate_revision(revision: &ProfileRevision) -> Result<()> {
             .detail("package", &package.native_id)
             .detail("requires", missing));
         }
+    }
+    for package in &revision.packages {
+        validate_provider_requirements(
+            &package.native_id,
+            package.enabled,
+            &package.provider_requires,
+            |required, id, hash| {
+                revision.packages.iter().any(|member| {
+                    member.enabled
+                        && member.native_id == id
+                        && member.sha256 == hash
+                        && member.provider.as_ref() == Some(required)
+                })
+            },
+        )?;
     }
     let mut domains = BTreeSet::new();
     for ordering in &revision.orderings {

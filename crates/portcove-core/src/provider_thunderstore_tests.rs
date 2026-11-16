@@ -58,6 +58,7 @@ type Versions = Arc<Mutex<Vec<(String, String, Vec<u8>)>>>;
 
 fn serve(
     versions: Versions,
+    dependency: Option<Vec<u8>>,
 ) -> (
     String,
     std::sync::mpsc::Receiver<String>,
@@ -77,22 +78,46 @@ fn serve(
         let path = request.split_whitespace().nth(1).unwrap_or("");
         let versions = versions.lock().unwrap();
         if path == format!("/c/{COMMUNITY}/api/v1/package/") {
-            let listing = serde_json::json!([{
+            let mut listing = vec![serde_json::json!({
                 "name": "Timer", "full_name": "Owner-Timer", "owner": "Owner",
                 "date_updated": "2026-11-10T00:00:00Z", "is_deprecated": false,
                 "versions": versions.iter().map(|(version, created, bytes)| serde_json::json!({
                     "name": "Timer", "full_name": format!("Owner-Timer-{version}"),
-                    "version_number": version, "dependencies": [],
+                    "version_number": version, "dependencies": if dependency.is_some() { vec!["Tools-Shared-2.1.0"] } else { vec![] },
                     "download_url": format!("{web}/package/download/Owner/Timer/{version}/"),
                     "date_created": created, "is_active": true, "file_size": bytes.len(),
                 })).collect::<Vec<_>>(),
-            }])
-            .to_string();
+            })];
+            if let Some(bytes) = &dependency {
+                listing.push(serde_json::json!({
+                    "name": "Shared", "full_name": "Tools-Shared", "owner": "Tools",
+                    "date_updated": "2026-11-10T00:00:00Z", "is_deprecated": false,
+                    "versions": [{
+                        "name": "Shared", "full_name": "Tools-Shared-2.1.0",
+                        "version_number": "2.1.0", "dependencies": [],
+                        "download_url": format!("{web}/package/download/Tools/Shared/2.1.0/"),
+                        "date_created": "2026-11-10T00:00:00Z", "is_active": true,
+                        "file_size": bytes.len(),
+                    }],
+                }));
+            }
+            let listing = serde_json::to_string(&listing).unwrap();
             return format!(
                 "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{listing}",
                 listing.len()
             )
             .into_bytes();
+        }
+        if path == "/package/download/Tools/Shared/2.1.0/"
+            && let Some(bytes) = &dependency
+        {
+            let mut response = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+                bytes.len()
+            )
+            .into_bytes();
+            response.extend_from_slice(bytes);
+            return response;
         }
         for (version, _, bytes) in versions.iter() {
             if path == format!("/package/download/Owner/Timer/{version}/") {
@@ -129,6 +154,10 @@ struct World {
 }
 
 fn world() -> World {
+    world_with_dependency(None)
+}
+
+fn world_with_dependency(dependency: Option<Vec<u8>>) -> World {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
     install_port(&library, PORT, "first", b"recomp runtime", true);
@@ -139,7 +168,7 @@ fn world() -> World {
         "2026-11-01T00:00:00Z".into(),
         package_zip("timer.nrm", &nrm("speed_timer", false)),
     )]));
-    let (root, requests, server) = serve(versions.clone());
+    let (root, requests, server) = serve(versions.clone(), dependency);
     let client = ProviderClient::Thunderstore {
         client: ThunderstoreClient::with_root(&root, None).unwrap(),
         community: COMMUNITY,
@@ -339,6 +368,7 @@ fn a_backport_published_after_a_newer_release_is_not_an_update() {
         claimed_md5: None,
         archived: false,
         claimed_scan: None,
+        thunderstore_dependencies: None,
     };
     let installed = file("2.0.0", 10);
     assert!(!client.newer_than(&file("1.9.1", 20), "2.0.0", Some(&installed)));
@@ -398,4 +428,94 @@ async fn allowing_code_on_a_plan_without_code_installs_it_as_a_plain_review() {
         .token;
     w.service.apply_provider_install(&plan, &token).unwrap();
     assert_eq!(live(&w), ["speed_timer.nrm"]);
+}
+
+#[tokio::test]
+async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
+    let dependency = zip_bytes(&[
+        ("first.nrm", &nrm("shared_first", false)),
+        ("second.nrm", &nrm("shared_second", true)),
+    ]);
+    let w = world_with_dependency(Some(dependency));
+    let plan = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    assert!(live(&w).is_empty());
+    assert_eq!(plan.wrappers.len(), 2);
+    assert_eq!(plan.wrappers[0].provider.project, "Tools-Shared");
+    assert_eq!(plan.wrappers[0].members.len(), 2);
+    assert_eq!(plan.wrappers[1].provider.project, "Owner-Timer");
+    assert!(
+        w.service.authorize_provider_install(&plan).is_err(),
+        "a dependency runs code"
+    );
+
+    let token = w
+        .service
+        .authorize_provider_install_allowing_code(&plan)
+        .unwrap()
+        .token;
+    let revision = w.service.apply_provider_install(&plan, &token).unwrap();
+    assert_eq!(
+        live(&w),
+        ["shared_first.nrm", "shared_second.nrm", "speed_timer.nrm"]
+    );
+    let timer = revision
+        .packages
+        .iter()
+        .find(|package| package.native_id == "speed_timer.nrm")
+        .unwrap();
+    assert_eq!(
+        timer.provider_requires[0].provider,
+        plan.wrappers[0].provider
+    );
+    assert_eq!(timer.provider_requires[0].members, plan.wrappers[0].members);
+    assert!(
+        w.service
+            .set_mod_package_enabled(
+                PORT,
+                &w.profile,
+                "shared_second.nrm",
+                false,
+                revision.revision,
+            )
+            .is_err()
+    );
+    let remove = |revision: &crate::ProfileRevision| {
+        let mut packages = revision.packages.clone();
+        packages.retain(|package| package.native_id != "shared_first.nrm");
+        let mut orderings = revision.orderings.clone();
+        for order in &mut orderings {
+            order.native_ids.retain(|id| id != "shared_first.nrm");
+        }
+        w.service.create_profile_revision(
+            PORT,
+            &w.profile,
+            &crate::ProfileRevisionRequest {
+                expected_revision: revision.revision,
+                packages: Some(packages),
+                orderings: Some(orderings),
+                ..Default::default()
+            },
+        )
+    };
+    assert!(remove(&revision).is_err());
+    assert_eq!(
+        live(&w),
+        ["shared_first.nrm", "shared_second.nrm", "speed_timer.nrm"]
+    );
+
+    let disabled = w
+        .service
+        .set_mod_package_enabled(
+            PORT,
+            &w.profile,
+            "speed_timer.nrm",
+            false,
+            revision.revision,
+        )
+        .unwrap();
+    assert!(remove(&disabled).is_ok());
 }

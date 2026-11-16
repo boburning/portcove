@@ -153,6 +153,7 @@ fn dependency_conflicts_and_cycles_are_refused_with_concrete_reasons() {
         size: 1,
         enabled: true,
         requires: requires.iter().map(|r| r.to_string()).collect(),
+        provider_requires: Vec::new(),
     };
     let mut missing = recipe.clone();
     missing.packages = vec![package("a.o2r", &["b.o2r"])];

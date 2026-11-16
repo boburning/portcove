@@ -42,6 +42,7 @@ fn package(id: &str, requires: &[&str]) -> ResolvedPackage {
         size: 10,
         enabled: true,
         requires: requires.iter().map(|r| r.to_string()).collect(),
+        provider_requires: Vec::new(),
     }
 }
 

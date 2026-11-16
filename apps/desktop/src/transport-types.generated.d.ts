@@ -4723,12 +4723,19 @@ export interface ResolvedPackage {
   native_id: string;
   native_version?: string | null;
   provider?: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   /**
    * Native IDs this package requires, from native metadata (not provider claims).
    */
   requires?: string[];
   sha256: string;
   size: number;
+}
+export interface ProviderRequirement {
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
 }
 /**
  * One binding per (port, setup). The caller supplies a stable opaque setup ID,
@@ -5588,6 +5595,7 @@ export interface RecipePackage {
   native_id: string;
   native_version: string | null;
   provider: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   requires: string[];
   sha256: string;
   size: number;
@@ -5685,6 +5693,17 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Exact provider coordinates, independent of native loader requirements.
+   * Absent for providers that do not supply this field.
+   */
+  thunderstore_dependencies?: ThunderstoreDependency[] | null;
+  [k: string]: unknown;
+}
+export interface ThunderstoreDependency {
+  namespace: string;
+  package: string;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputProviderInstallPlan {
@@ -5719,6 +5738,10 @@ export interface OutputProviderInstallPlan {
    * What this plan relies on without verifying.
    */
   unverified_claims: string[];
+  /**
+   * Exact Thunderstore wrapper closure in dependency-first order.
+   */
+  wrappers?: ProviderWrapper[];
   [k: string]: unknown;
 }
 /**
@@ -5745,6 +5768,16 @@ export interface PlanMember {
   runs_code?: RecompExecution[];
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface ProviderWrapper {
+  download_sha256: string;
+  download_size: number;
+  file: ProviderFileCandidate;
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
   [k: string]: unknown;
 }
 export interface OutputProviderProjectView {
