@@ -1051,9 +1051,10 @@ export function desktopHarnessDeadlineMs(
     // Harness only; individual waits and product deadlines are unchanged.
     // Moving the update review to its own group (#4879) left owned-ready at eight
     // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
-    // release-channel restart journey keeps the allowance regardless of count.
+    // release-channel restart journey keeps the allowance from eight executed.
     (executed > 8 ||
-      selection.selected_scenarios.includes("native-release-channel-selection-and-restart")) &&
+      (executed === 8 &&
+        selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
       ? 1_200_000

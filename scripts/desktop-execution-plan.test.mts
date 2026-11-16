@@ -768,7 +768,36 @@ void test("preliminary review is isolated and retains positive cleanup without s
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }), /Windows/);
 });
 
-void test("game-update review binds Windows cleanup without first-play or wider deadlines", () => {
+void test("owned-ready keeps its 20-minute allowance without the update review", () => {
+  // The hosted owned-ready group (#4879) runs seven scenarios plus the preparation
+  // journey; branch run 43781898959 stopped it at the 180 s default.
+  const selection = resolveDesktopSelection({
+    scenarios: [
+      "native-external-cli-reconciliation",
+      "native-ready-detail-composition",
+      "native-game-return-continuity",
+      "native-missing-readiness-recovery",
+      "native-retained-contract-repair-state",
+      "native-update-settings-save-without-execution",
+      "native-release-channel-selection-and-restart",
+    ],
+    platform: "win32",
+  });
+  assert.equal(selection.selected_scenarios.length + selection.setup_scenarios.length, 8);
+  assert.equal(desktopHarnessDeadlineMs(selection), 1_200_000);
+  // Alone, the release-channel journey keeps the ordinary allowance.
+  assert.equal(
+    desktopHarnessDeadlineMs(
+      resolveDesktopSelection({
+        scenarios: ["native-release-channel-selection-and-restart"],
+        platform: "win32",
+      }),
+    ),
+    180_000,
+  );
+});
+
+void test("game-update review binds Windows cleanup and its own finite deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({
       scenarios: ["native-game-update-review"],
