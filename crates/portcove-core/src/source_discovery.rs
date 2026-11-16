@@ -1546,7 +1546,7 @@ fn current_game_file_scan(
 pub(crate) fn scan_snapshot_inputs_match(
     snapshot: &GameFileScanSnapshot,
     catalog_sha256: &str,
-    roots: &[GameFileRoot],
+    roots: &[crate::GameFileRoot],
 ) -> bool {
     snapshot.continuation.as_ref() != Some(&serde_json::Value::Null)
         && !snapshot
