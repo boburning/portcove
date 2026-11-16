@@ -35484,7 +35484,7 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation. Portcove installs and updates the official package on Windows and Linux.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official packages on Windows and Linux.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "support_tier": "beta",
       "channels": [
@@ -35520,6 +35520,9 @@
           "WaveRace64Recomp"
         ]
       },
+      "runtime_subdirectory_by_platform": {
+        "linux-x86-64": "WaveRace64Recomp-1.0.2-linux-x86_64"
+      },
       "portable_marker": true,
       "persistent_paths": [
         "wr64.us.rev1.z64",
@@ -35540,7 +35543,26 @@
         "hud.json",
         "hud.json.bak",
         "water.json",
-        "water.json.bak"
+        "water.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/wr64.us.rev1.z64",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/saves",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mod_config",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/texture_packs",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/general.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/general.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/graphics.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/controls.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/sound.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/mods.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/hud.json.bak",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/water.json",
+        "WaveRace64Recomp-1.0.2-linux-x86_64/water.json.bak"
       ],
       "runtime_mutable_paths": [
         "wr64.log"

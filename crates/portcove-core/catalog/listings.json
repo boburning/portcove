@@ -2571,7 +2571,7 @@
     {
       "id": "wave-race-64-recomp",
       "name": "Wave Race 64: Recompiled",
-      "summary": "Native Wave Race 64 recompilation. Portcove installs and updates the official package on Windows and Linux.",
+      "summary": "Native Wave Race 64 recompilation. Portcove installs the official packages on Windows and Linux.",
       "project_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp",
       "original_game_title": "Wave Race 64",
       "manual_setup": {
