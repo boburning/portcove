@@ -39,5 +39,18 @@
         "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
       ]
     }
+  },
+  "quake-vkquake": {
+    "note": "After installation, copy the id1 folder with pak0.pak and pak1.pak from your original Quake installation into the managed player’s working folder before choosing Play. Keep your original copy.",
+    "warnings": [
+      "Use a Vulkan-capable GPU and driver.",
+      "Use a separately prepared copy for store discovery, rerelease data, expansions, mods, multiuser settings or custom base directories.",
+      "Save compatibility across vkQuake versions is still unverified."
+    ],
+    "platform_warnings": {
+      "linux-x86-64": [
+        "For vkQuake 1.37.0, the publisher requires glibc 2.35 or later and FUSE to run the AppImage. Check these before installing. Keep the AppImage intact and use lowercase id1 and PAK filenames."
+      ]
+    }
   }
 }
