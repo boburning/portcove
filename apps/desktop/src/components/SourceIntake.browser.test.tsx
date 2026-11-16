@@ -388,7 +388,7 @@ describe("source intake dialog", () => {
     expect(imported).toHaveBeenCalledOnce();
   });
 
-  it.each(["matched originals", "no match", "newer BIOS check"] as const)(
+  it.each(["matched originals", "no match", "newer BIOS check", "saved match"] as const)(
     "scopes the setup store lookup to the current action for %s",
     async (scenario) => {
       const folder = "D:/Steam/steamapps/common/Classic/Game";
@@ -399,6 +399,47 @@ describe("source intake dialog", () => {
       };
       const newCheck = scenario === "newer BIOS check";
       const noMatch = scenario === "no match";
+      const fromSaved = scenario === "saved match";
+      const savedPath = "D:/Originals/Dark Forces";
+      const scanId = "00000000-0000-4000-8000-000000000007";
+      const savedMatches = vi.spyOn(desktopApi, "gameFileScanMatches");
+      if (fromSaved) {
+        vi.spyOn(desktopApi, "gameFileScanSnapshot").mockResolvedValue({
+          format_version: 13,
+          catalog_sha256: "a".repeat(64),
+          completed_at: 1,
+          freshness: "inputs_match",
+          limits: null,
+          roots: [],
+          report: {
+            searched_roots: [],
+            searched_profiles: [selectedProfile.id],
+            candidates: [],
+            entries_examined: 64,
+            files_hashed: 32,
+            hash_bytes: 1024,
+            symlinks_skipped: 0,
+            limits_reached: [],
+            issues: [],
+            issues_omitted: 0,
+          },
+          matches: {
+            scan_id: scanId,
+            exact_matches: 128,
+            preliminary_selections: 0,
+            preview_complete: false,
+          },
+        });
+        savedMatches.mockResolvedValue({
+          scan_id: scanId,
+          offset: 0,
+          kind: "exact",
+          total: 1,
+          next_offset: null,
+          candidates: [{ ...record(savedPath), profile_id: selectedProfile.id }],
+          preliminary_selections: [],
+        });
+      }
       const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
       const storeReport = {
         checked_stores: ["steam"],
@@ -479,14 +520,18 @@ describe("source intake dialog", () => {
             exact: true,
           })
           .click();
-        expect(lookup).toHaveBeenCalledTimes(1);
+        await expect.poll(() => lookup.mock.calls.length + savedMatches.mock.calls.length).toBe(1);
+        const storeReadsBeforeCheck = lookup.mock.calls.length;
         if (newCheck) {
           await page.getByRole("tab", { name: "Game files", exact: true }).click();
           await page.getByRole("button", { name: "Check required BIOS", exact: true }).click();
           await act(async () => pending.resolve(storeReport));
         } else if (!noMatch) {
           await page
-            .getByRole("button", { name: "Check Dark Forces files from Steam", exact: true })
+            .getByRole("button", {
+              name: fromSaved ? "Check saved location" : "Check Dark Forces files from Steam",
+              exact: true,
+            })
             .click();
         }
         const outcome = newCheck
@@ -495,9 +540,31 @@ describe("source intake dialog", () => {
             ? installation.getByRole("button", { name: "Choose game files", exact: true })
             : page.getByText("The stored folder lacks the required original files.");
         await expect.element(outcome).toBeVisible();
+        expect(storeReadsBeforeCheck).toBe(fromSaved ? 0 : 1);
+        await expect.poll(() => lookup.mock.calls.length).toBe(1);
+        const fallback = fromSaved
+          ? page.getByRole("button", { name: "Check Dark Forces files from Steam", exact: true })
+          : outcome;
+        await expect.element(fallback).toBeVisible();
+        expect(savedMatches.mock.calls).toEqual(
+          fromSaved
+            ? [
+                [
+                  {
+                    scan_id: scanId,
+                    offset: 0,
+                    kind: "exact",
+                    limit: 32,
+                    profile_id: selectedProfile.id,
+                  },
+                  1,
+                ],
+              ]
+            : [],
+        );
         await expect.poll(() => pickerOpen.mock.calls.length).toBe(noMatch ? 1 : 0);
         expect(check.mock.calls).toEqual(
-          newCheck || noMatch ? [] : [[selectedProfile.id, [folder]]],
+          newCheck || noMatch ? [] : [[selectedProfile.id, [fromSaved ? savedPath : folder]]],
         );
         expect(save).not.toHaveBeenCalled();
       } finally {

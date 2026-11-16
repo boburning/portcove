@@ -95,6 +95,9 @@ pub struct GameFileScanMatchQuery {
     /// Only matches inside this saved folder.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -521,23 +524,39 @@ impl Library {
                     (Some(key), Some(prefix))
                 })
                 .unwrap_or_default();
-            let filter = "scan_id=?1 AND kind=?2
-                 AND (?3 IS NULL OR path_key=?3 OR substr(path_key,1,length(?4))=?4)";
+            let profile_filter = if query.profile_id.is_some() {
+                "profile_id=?5"
+            } else {
+                "?5 IS NULL"
+            };
+            let filter = format!(
+                "scan_id=?1 AND kind=?2
+                 AND (?3 IS NULL OR path_key=?3 OR substr(path_key,1,length(?4))=?4)
+                 AND {profile_filter}"
+            );
             let kind = query.kind.row_kind();
             let total: i64 = transaction.query_row(
                 &format!("SELECT count(*) FROM game_file_scan_matches WHERE {filter}"),
-                params![scan_id, kind, key, prefix],
+                params![scan_id, kind, key, prefix, query.profile_id],
                 |row| row.get(0),
             )?;
             page.total = u32::try_from(total)
                 .map_err(|_| PortcoveError::state("stored scan match count is invalid"))?;
             let mut statement = transaction.prepare(&format!(
                 "SELECT record_json FROM game_file_scan_matches WHERE {filter}
-                 ORDER BY ordinal LIMIT ?5 OFFSET ?6"
+                 ORDER BY ordinal LIMIT ?6 OFFSET ?7"
             ))?;
             let records = statement
                 .query_map(
-                    params![scan_id, kind, key, prefix, query.limit, query.offset],
+                    params![
+                        scan_id,
+                        kind,
+                        key,
+                        prefix,
+                        query.profile_id,
+                        query.limit,
+                        query.offset
+                    ],
                     |row| row.get::<_, String>(0),
                 )?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
@@ -567,7 +586,13 @@ impl Library {
                         .report
                         .candidates
                         .into_iter()
-                        .filter(|record| inside(&record.path))
+                        .filter(|record| {
+                            inside(&record.path)
+                                && query
+                                    .profile_id
+                                    .as_ref()
+                                    .is_none_or(|id| record.profile_id == *id)
+                        })
                         .collect::<Vec<_>>();
                     page.total = all.len() as u32;
                     page.candidates = all.into_iter().take(end).skip(start).collect();
@@ -578,7 +603,13 @@ impl Library {
                         .report
                         .preliminary_selections
                         .into_iter()
-                        .filter(|selection| inside(&selection.path))
+                        .filter(|selection| {
+                            inside(&selection.path)
+                                && query
+                                    .profile_id
+                                    .as_ref()
+                                    .is_none_or(|id| selection.profile_id == *id)
+                        })
                         .collect::<Vec<_>>();
                     page.total = all.len() as u32;
                     page.preliminary_selections = all.into_iter().take(end).skip(start).collect();

@@ -4699,6 +4699,7 @@ fn paged_exact_matches(library: &crate::Library, limit: u32) -> Vec<crate::Sourc
                 offset: start,
                 limit,
                 root_id: None,
+                profile_id: None,
             })
             .unwrap();
         assert_eq!(page.offset, start);
@@ -6945,7 +6946,8 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
     let catalog = catalog(payload);
     let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
     let scan_id = snapshot.matches.as_ref().unwrap().scan_id.clone();
-    let service = PortcoveService::new(library).unwrap();
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
     let query = |offset, limit, root_id: Option<&str>, scan_id: Option<&str>| {
         service.game_file_scan_matches(&crate::GameFileScanMatchQuery {
             scan_id: scan_id.map(str::to_owned),
@@ -6953,6 +6955,7 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
             offset,
             limit,
             root_id: root_id.map(str::to_owned),
+            profile_id: None,
         })
     };
     let all = query(0, 512, None, Some(&scan_id)).unwrap();
@@ -6962,6 +6965,21 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
         serde_json::to_value(&all.candidates).unwrap(),
         serde_json::to_value(&snapshot.report.candidates).unwrap()
     );
+    let selected_profile = &all.candidates.last().unwrap().profile_id;
+    let filtered = service
+        .game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: Some(scan_id.clone()),
+            kind: crate::GameFileScanMatchKind::Exact,
+            offset: 0,
+            limit: 1,
+            root_id: Some(first_root.id.clone()),
+            profile_id: Some(selected_profile.clone()),
+        })
+        .unwrap();
+    assert_eq!(filtered.total, 2);
+    assert_eq!(filtered.next_offset, Some(1));
+    assert_eq!(&filtered.candidates[0].profile_id, selected_profile);
+    assert!(filtered.candidates[0].path.starts_with(&first_root.path));
     let page = query(2, 3, None, Some(&scan_id)).unwrap();
     assert_eq!(page.next_offset, Some(5));
     assert_eq!(
@@ -6988,6 +7006,7 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
             offset: 0,
             limit: 10,
             root_id: None,
+            profile_id: None,
         })
         .unwrap();
     assert_eq!(preliminary.total, 0);
