@@ -5787,7 +5787,12 @@ mod tests {
             assert!(service.prepare_retained_install_data(&staged).is_err());
             assert!(service.activate_staged(id).is_err());
             assert!(!receipt.exists());
-            assert!(!staged.path.join(config).exists());
+            let staged_config = staged.path.join(config);
+            if id == "super-metroid-recomp" {
+                assert_eq!(fs::read(staged_config).unwrap(), b"# fixture");
+            } else {
+                assert!(!staged_config.exists());
+            }
             assert_eq!(
                 fs::read(library.user_dir(id).join(config)).unwrap(),
                 b"unknown creating runtime"
