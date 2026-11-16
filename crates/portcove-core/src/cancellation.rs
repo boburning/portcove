@@ -189,6 +189,20 @@ fn cancellation_state_on(
     }
 }
 
+/// Check cancellation inside the transaction publishing a resumable checkpoint.
+pub(crate) fn guard_checkpoint_publication(
+    connection: &rusqlite::Connection,
+    id: &str,
+) -> Result<()> {
+    match cancellation_state_on(connection, id)? {
+        Some(state) if state.phase == CancellationPhase::Preparing && state.requested => {
+            Err(cancelled(id))
+        }
+        Some(state) if state.phase == CancellationPhase::Preparing => Ok(()),
+        _ => Err(PortcoveError::conflict("scan is no longer preparing")),
+    }
+}
+
 pub(crate) fn close_preparation(library: &Library, id: &str) -> Result<()> {
     let connection = database::connect(library.root())?;
     let changed = connection.execute(
