@@ -388,15 +388,18 @@ describe("source intake dialog", () => {
     expect(imported).toHaveBeenCalledOnce();
   });
 
-  it.each(["game", "bios"])(
-    "continues the selected App setup from %s to the other input and requests review once",
-    async (first) => {
+  it.each(["game", "bios", "changed BIOS"])(
+    "checks the selected App setup handoff for %s",
+    async (scenario) => {
       const installedSources: SourceRecord[] = [];
+      const first = scenario === "bios" ? "bios" : "game";
+      const replaceBios = scenario === "changed BIOS";
       const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
       const transport = installInteractiveTransport("setup", (message) => {
         throw new Error(message);
       });
       const selectedRecord = (id: string, path: string) => ({ ...record(path), profile_id: id });
+      if (replaceBios) installedSources.push(selectedRecord("bios", "D:/original-bios.z64"));
       vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
         const snapshot = workspace("setup");
         const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
@@ -446,6 +449,7 @@ describe("source intake dialog", () => {
         .spyOn(desktopApi, "importSource")
         .mockImplementation(async (id, path, mode) => {
           const registered = selectedRecord(id, path);
+          if (replaceBios) installedSources[0] = selectedRecord("bios", "D:/replacement-bios.z64");
           installedSources.push(registered);
           return {
             import_id: `imported-${id}`,
@@ -465,9 +469,40 @@ describe("source intake dialog", () => {
         reference: { profile_id: profile.id, reference_sha256: "d".repeat(64) },
         applications: [],
       }));
-      const review = vi
-        .spyOn(desktopApi, "plan")
-        .mockRejectedValue(new Error("Fixture reached install review"));
+      const review = vi.spyOn(desktopApi, "plan").mockResolvedValue({
+        port_id: "orchard",
+        channel: "stable",
+        platform: "windows-x86-64",
+        bundled_runtime: null,
+        action: "download",
+        source_requirements: [],
+        download_bytes: 1024,
+        release: {
+          version: "2.0",
+          channel: "stable",
+          published_at: null,
+          asset: {
+            name: "orchard.zip",
+            url: "https://example.com/orchard.zip",
+            size: 1024,
+            sha256: "a".repeat(64),
+          },
+        },
+        storage: {
+          library_root: "D:/Portcove",
+          volume_total_bytes: 1024 ** 4,
+          volume_available_bytes: 512 * 1024 ** 3,
+        },
+        output_location: {
+          port_id: "orchard",
+          library_root: "D:/Portcove",
+          configured_output_directory: null,
+          default_output_directory: "D:/Portcove/versions/orchard",
+          effective_output_directory: "D:/Portcove/versions/orchard",
+          selection_source: "library_default",
+          user_data_root: "D:/Portcove/user/orchard",
+        },
+      });
       const install = vi.spyOn(desktopApi, "install");
       const launch = vi.spyOn(desktopApi, "launch");
       const register = async (id: string) => {
@@ -503,10 +538,14 @@ describe("source intake dialog", () => {
           .click();
         await register(first);
         expect(review).not.toHaveBeenCalled();
-        await register(first === "game" ? "bios" : "game");
-        await expect.poll(() => review.mock.calls).toEqual([["orchard", "stable"]]);
-        expect(save).toHaveBeenCalledTimes(2);
-        expect(reuse).toHaveBeenCalledWith(profile.id, 1);
+        if (!replaceBios) await register(first === "game" ? "bios" : "game");
+        const outcome = replaceBios
+          ? page.getByText("The saved files have changed.", { exact: false })
+          : page.getByRole("dialog", { name: "Review installation", exact: true });
+        await expect.element(outcome).toBeVisible();
+        expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
+        expect(save).toHaveBeenCalledTimes(replaceBios ? 1 : 2);
+        expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[profile.id, 1]]);
         expect(install).not.toHaveBeenCalled();
         expect(launch).not.toHaveBeenCalled();
       } finally {
