@@ -118,14 +118,6 @@
     "on_one": "{{count}} mod on",
     "on_other": "{{count}} mods on",
     "otherBuild": "This setup stays on the game version it was made with, so game updates don’t change it. To try these mods with the game’s current version, copy the setup onto it. This setup and its saves stay as they are.",
-    "remove": {
-      "action": "Remove",
-      "cancel": "Cancel",
-      "choose": "Remove {{name}} from this setup",
-      "confirm": "Confirm removal",
-      "history": "Earlier revisions keep this mod for recovery.",
-      "removed": "Removed {{name}} from this setup."
-    },
     "outcome": {
       "added": "Added a mod to {{name}}.",
       "copied": "Created {{name}} with the same mods, no saves and default settings.",
@@ -134,6 +126,14 @@
       "turnedOff": "Turned off {{name}}.",
       "turnedOn": "Turned on {{name}}.",
       "using": "Now using {{name}}."
+    },
+    "remove": {
+      "action": "Remove",
+      "cancel": "Cancel",
+      "choose": "Remove {{name}} from this setup",
+      "confirm": "Confirm removal",
+      "history": "Earlier revisions keep this mod for recovery.",
+      "removed": "Removed {{name}} from this setup."
     },
     "reread": "Read setups again",
     "separator": ", ",
