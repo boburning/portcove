@@ -297,6 +297,17 @@ it.each([
   ["zelda64-recomp", "North American Majora’s Mask", "Zelda64Recompiled.tar.gz"],
   ["shipwright", "Ocarina of Time", "disk image"],
   ["2ship2harkinian", "Majora’s Mask", "disk image"],
+  ["banjo-recomp", "Banjo-Kazooie US 1.0", "BanjoRecompiled from the extracted folder"],
+  ["harvest-moon-64-recomp", "Harvest Moon 64 US", "HarvestMoon64Recompiled.tar.gz"],
+  ["donkey-kong-64-recompiled", "Donkey Kong 64 US 1.0", "DK64Recompiled.tar.gz"],
+  ["aerogauge-recompiled", "AeroGauge US", "aerogauge-recomp-linux-arm64.zip"],
+  ["snowboard-kids-2-recomp", "Snowboard Kids 2 US", "SnowboardKids2Recompiled.tar.gz"],
+  [
+    "diddy-kong-racing-golden-balloon",
+    "Diddy Kong Racing US 1.1 or European 1.1",
+    "mark it executable and open it",
+  ],
+  ["duke-nukem-zero-hour-recompiled", "Duke Nukem: Zero Hour USA", "DNZHRecompiled.tar.gz"],
 ])("shows the managed guide for %s in the Windows review", async (id, original, upstreamStep) => {
   const port = currentCatalogPort(id);
   await root.rerender(
@@ -316,6 +327,16 @@ it.each([
   expect(setup.element().textContent).toContain(original);
   expect(setup.element().textContent).toContain("Select Play when setup is complete");
   expect(dialog.element().textContent).not.toContain(upstreamStep);
+  const platformNotes: Record<string, string[]> = {
+    "donkey-kong-64-recompiled": ["still unverified on Apple Silicon Mac"],
+    "duke-nukem-zero-hour-recompiled": [
+      "still unverified on Linux x64 and Mac",
+      "Gatekeeper behavior is also unverified on Mac",
+    ],
+  };
+  for (const note of platformNotes[id] ?? []) {
+    expect(dialog.element().textContent).toContain(note);
+  }
 });
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
