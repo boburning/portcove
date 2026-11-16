@@ -84,4 +84,23 @@ describe("organization controls localization", () => {
     expect(markup).not.toContain("Collections");
     expect(markup).not.toContain("Add to favorites");
   });
+
+  it("keeps the port-level Favorite available without organization choices", () => {
+    const favorites = {
+      ids: new Set<string>(),
+      only: false,
+      busy: false,
+      toggle: async () => true,
+      setOnly: () => {},
+      refresh: async () => true,
+      failure: undefined,
+    };
+    const port = portDefinition();
+    const withFavorites = renderToStaticMarkup(
+      <FavoriteGameButton card port={port} favorites={favorites} />,
+    );
+    expect(withFavorites).toContain('aria-label="Favorite ');
+    expect(withFavorites).not.toMatch(/\sdisabled(=|\s|>)/u);
+    expect(renderToStaticMarkup(<FavoriteGameButton card port={port} />)).toBe("");
+  });
 });

@@ -375,9 +375,13 @@ export function FavoriteGameButton({
   favorites?: ReturnType<typeof useFavorites> | undefined;
 }) {
   const { t } = useAppTranslation("organization");
-  if (!organization) return null;
+  // Without organization choices, the port-level Favorite remains available.
+  if (!organization && !favorites) return null;
   const gameId = savedGameId(port);
   const favorite = groupPorts.some((entry) => favoriteForPort(organization, favorites?.ids, entry));
+  const unavailable = organization
+    ? !organization.snapshot || organization.busy || Boolean(favorites?.busy)
+    : !favorites?.ids || Boolean(favorites?.busy);
   return (
     <Button
       size={card ? "icon-sm" : "sm"}
@@ -387,7 +391,7 @@ export function FavoriteGameButton({
       data-focusable
       aria-pressed={favorite}
       aria-label={t("favorite.label", { game: gameIdentityLabel(port) })}
-      disabled={!organization.snapshot || organization.busy || Boolean(favorites?.busy)}
+      disabled={unavailable}
       onClick={(event) => {
         const button = event.currentTarget;
         const root = button.closest("[data-focus-region=workspace]") ?? document;
@@ -413,16 +417,21 @@ export function FavoriteGameButton({
 }
 
 async function changeFavorite(
-  organization: Organization,
+  organization: Organization | undefined,
   favorites: ReturnType<typeof useFavorites> | undefined,
   gameId: string,
   groupPorts: readonly CatalogEntry[],
   favorite: boolean,
 ): Promise<boolean> {
   const legacyPortIds = groupPorts.map((entry) => entry.id);
+  if (!organization) {
+    if (!favorites) return false;
+    // Port-level only: add the first port, or remove every port that shows the game.
+    if (favorite) return favorites.toggle(legacyPortIds[0]!);
+  }
   const savedChoice = groupPorts.some((entry) => savedForPort(organization, entry));
   // Adding stores the game-level choice. Removing clears every choice that shows the game.
-  if (favorite || savedChoice) {
+  if (organization && (favorite || savedChoice)) {
     const accepted = await organization.commit({
       kind: "set_saved_group",
       game_id: gameId,
