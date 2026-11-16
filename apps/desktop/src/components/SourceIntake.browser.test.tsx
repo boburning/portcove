@@ -548,11 +548,15 @@ describe("source intake dialog", () => {
         const snapshot = workspace("setup");
         const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
         port.source_profile = input.id;
-        port.bios_source_profile = bios.id;
-        snapshot.catalog.source_profiles = [input, bios];
+        port.bios_source_profile = fromStore ? null : bios.id;
+        snapshot.catalog.source_profiles = fromStore ? [input] : [input, bios];
         snapshot.sources = [...installedSources];
         const has = (id: string) => installedSources.some((source) => source.profile_id === id);
-        const reason = !has(input.id) ? "missing_source" : !has(bios.id) ? "missing_bios" : null;
+        const reason = !has(input.id)
+          ? "missing_source"
+          : !fromStore && !has(bios.id)
+            ? "missing_bios"
+            : null;
         const status = snapshot.statuses.find((status) => status.port_id === port.id)!;
         status.active = null;
         status.staged = null;
@@ -672,9 +676,7 @@ describe("source intake dialog", () => {
         await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
         await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
         if (fromStore) {
-          await page
-            .getByRole("button", { name: "Choose game files and BIOS", exact: true })
-            .click();
+          await page.getByRole("button", { name: "Choose game files", exact: true }).click();
         } else {
           await page.getByRole("tab", { name: "Game files", exact: true }).click();
           await page
@@ -685,16 +687,21 @@ describe("source intake dialog", () => {
             .click();
         }
         await register(first);
-        expect(review).not.toHaveBeenCalled();
-        if (!replaceBios) await register(first === "game" ? "bios" : "game");
+        const reviewsBeforeRemainingInput = fromStore ? null : review.mock.calls.length;
+        const next = first === "game" ? "bios" : "game";
+        if (!fromStore && !replaceBios) await register(next);
         const outcome = replaceBios
           ? page.getByText("The saved files have changed.", { exact: false })
           : page.getByRole("dialog", { name: "Review installation", exact: true });
         await expect.element(outcome).toBeVisible();
+        expect(reviewsBeforeRemainingInput).toBe(fromStore ? null : 0);
         expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
-        expect(save).toHaveBeenCalledTimes(replaceBios ? 1 : 2);
+        expect(save).toHaveBeenCalledTimes(replaceBios || fromStore ? 1 : 2);
+        expect(save.mock.calls[0]?.slice(0, 2)).toEqual(
+          fromStore ? [input.id, folder] : [first, `D:/${first}.z64`],
+        );
         expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[input.id, 1]]);
-        expect(pickerOpen).toHaveBeenCalledTimes(replaceBios || fromStore ? 1 : 2);
+        expect(pickerOpen).toHaveBeenCalledTimes(fromStore ? 0 : replaceBios ? 1 : 2);
         expect(install).not.toHaveBeenCalled();
         expect(launch).not.toHaveBeenCalled();
       } finally {
