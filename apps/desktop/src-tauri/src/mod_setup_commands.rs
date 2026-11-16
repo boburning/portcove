@@ -219,6 +219,49 @@ pub(crate) async fn add_mod_package(
     .await
 }
 
+#[tauri::command]
+pub(crate) async fn plan_local_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+    expected_revision: u64,
+) -> DesktopResult<portcove_core::LocalModPackagePlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_local_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+    expected_plan_sha256: String,
+    allow_code: bool,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .apply_local_mod_package(
+                &port_id,
+                &profile_id,
+                &path,
+                &expected_plan_sha256,
+                allow_code,
+            )
+            .map_err(Into::into)
+    })
+    .await
+}
+
 /// Read-only: what a chosen package would run, shown before the player allows it.
 #[tauri::command]
 pub(crate) async fn review_mod_package_code(
@@ -233,6 +276,25 @@ pub(crate) async fn review_mod_package_code(
             .review_mod_package_code(&port_id, &path)
             .map_err(Into::into)
     })
+    .await
+}
+
+/// Opens the canonical URL of a project admitted for this game's provider.
+#[tauri::command]
+pub(crate) async fn open_provider_mod_project(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    project_id: String,
+) -> DesktopResult<()> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            let reviewed = service.provider_project(&port_id, &project_id).await?;
+            crate::open_host_target(std::ffi::OsStr::new(&reviewed.project.profile_url))
+        },
+    )
     .await
 }
 

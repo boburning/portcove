@@ -446,35 +446,42 @@ it("offers a copy on the current version only for a customized setup on another 
   }
 });
 
+const localPlan: Awaited<ReturnType<typeof desktopApi.planLocalModPackage>> = {
+  profile_id: "default",
+  expected_revision: 3,
+  native_id: "speedrun_timer.nrm",
+  sha256: "b".repeat(64),
+  size: 4096,
+  asset_count: 0,
+  replaces: [],
+  replaces_enabled: true,
+  overlapping_mods: [],
+  conflicts_truncated: false,
+  required_mods: [],
+  missing_required_mods: [],
+  needs_code_permission: true,
+  plan_sha256: "c".repeat(64),
+};
+
 it("asks before adding a mod that runs code and binds the choice to the reviewed file", async () => {
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
   vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/timer.nrm");
-  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue({
-    native_id: "speedrun_timer",
-    display_name: "Speedrun Timer",
-    runs: ["recompiled_code"],
-    sha256: "b".repeat(64),
-    already_allowed: false,
-  });
+  const review = vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
   const add = vi
-    .spyOn(desktopApi, "addModPackage")
-    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+    .spyOn(desktopApi, "applyLocalModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyLocalModPackage>>);
   const host = await render();
   await act(async () => button(host, "Add mod file…").click());
-  expect(review).toHaveBeenCalledWith("shipwright", "/mods/timer.nrm", 7);
+  expect(review).toHaveBeenCalledWith("shipwright", "default", "/mods/timer.nrm", 3, 7);
   expect(add).not.toHaveBeenCalled();
-  expect(host.textContent).toContain(
-    "Speedrun Timer (speedrun_timer) runs its own code inside the game",
-  );
-  expect(host.textContent).toContain("(speedrun_timer)");
+  expect(host.textContent).toContain("This exact mod runs its own code inside the game");
+  expect(host.textContent).toContain("speedrun_timer.nrm");
   expect([...host.querySelectorAll("code[dir=ltr]")].map((code) => code.textContent)).toContain(
     "b".repeat(64),
   );
 
-  // Declining adds nothing.
   await act(async () => button(host, "Don’t add").click());
   expect(add).not.toHaveBeenCalled();
-  expect(host.textContent).not.toContain("runs its own code");
 
   await act(async () => button(host, "Add mod file…").click());
   await act(async () => button(host, "Allow its code and add").click());
@@ -482,39 +489,41 @@ it("asks before adding a mod that runs code and binds the choice to the reviewed
     "shipwright",
     "default",
     "/mods/timer.nrm",
-    3,
+    "c".repeat(64),
     7,
-    "b".repeat(64),
+    true,
   );
 });
 
-it("adds a mod without code, or code allowed before, without asking", async () => {
-  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view({ package_types: ["nrm"] }));
-  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.nrm");
-  const review = vi.spyOn(desktopApi, "reviewModPackageCode").mockResolvedValue(null);
+it("reviews a disabled replacement before adding a local file", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.o2r");
+  vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue({
+    ...localPlan,
+    native_id: "ui.o2r",
+    asset_count: 4,
+    overlapping_mods: [],
+    replaces: ["ui.otr"],
+    replaces_enabled: false,
+    needs_code_permission: false,
+  });
   const add = vi
-    .spyOn(desktopApi, "addModPackage")
-    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.addModPackage>>);
+    .spyOn(desktopApi, "applyLocalModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.applyLocalModPackage>>);
   const host = await render();
   await act(async () => button(host, "Add mod file…").click());
-  expect(add).toHaveBeenLastCalledWith("shipwright", "default", "/mods/ui.nrm", 3, 7, null);
-  review.mockResolvedValue({
-    native_id: "speedrun_timer",
-    display_name: "Speedrun Timer",
-    runs: ["recompiled_code"],
-    sha256: "c".repeat(64),
-    already_allowed: true,
-  });
-  await act(async () => button(host, "Add mod file…").click());
-  expect(add).toHaveBeenLastCalledWith(
+  expect(host.textContent).toContain("The replacement stays off.");
+  expect(host.textContent).toContain("Replaces ui.otr");
+  expect(add).not.toHaveBeenCalled();
+  await act(async () => button(host, "Add reviewed file").click());
+  expect(add).toHaveBeenCalledWith(
     "shipwright",
     "default",
-    "/mods/ui.nrm",
-    3,
-    7,
+    "/mods/ui.o2r",
     "c".repeat(64),
+    7,
+    false,
   );
-  expect(host.textContent).not.toContain("runs its own code");
 });
 
 it("points held Thunderstore updates to the Thunderstore browser", async () => {
@@ -562,6 +571,58 @@ it("reviews removal before sending the exact setup revision to Core", async () =
   await page.getByRole("button", { name: "Confirm removal" }).click();
   expect(request).toHaveBeenCalledWith("shipwright", "default", "hd.o2r", 3, 7);
   await expect.element(page.getByText("Removed hd.o2r from this setup.")).toBeVisible();
+});
+
+it("shows the exact runtime and offers a direct switch to clean play", async () => {
+  const data = view({
+    inventory: {
+      port_id: "shipwright",
+      profiles: [
+        {
+          ...setup("default", "Default", 3, []),
+          build_version: "9.3.1",
+          build_availability: "verified",
+        },
+        {
+          ...setup("custom", "Customized", 1, [["hd.o2r", true]]),
+          build_version: "9.3.0",
+          build_availability: "held",
+        },
+      ],
+    },
+  } as Partial<ModSetupsView>);
+  if (!data.live) throw new Error("The fixture must have a live setup.");
+  data.live.profile_id = "custom";
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(data);
+  const use = vi
+    .spyOn(desktopApi, "useModSetup")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.useModSetup>>);
+  await render();
+  await expect.element(page.getByText("Game version 9.3.1")).toBeVisible();
+  await expect.element(page.getByText("Game version 9.3.0")).toBeVisible();
+  await expect.element(page.getByText("This setup’s runtime needs attention.")).toBeVisible();
+  await page.getByRole("button", { name: "Switch to clean play" }).click();
+  expect(use).toHaveBeenCalledWith("shipwright", "default", 7);
+});
+
+it("keeps setup changes disabled during a file picker and leaves a dismissed picker alone", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  let closePicker: (value: null) => void = () => {};
+  vi.mocked(picker.pickModPackagePath).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        closePicker = resolve;
+      }),
+  );
+  const review = vi.spyOn(desktopApi, "planLocalModPackage");
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+  expect(button(host, "Use Clean").disabled).toBe(true);
+  expect(button(host, "Open setup recipe…").disabled).toBe(true);
+  await act(async () => closePicker(null));
+  expect(button(host, "Use Clean").disabled).toBe(false);
+  expect(button(host, "Open setup recipe…").disabled).toBe(false);
+  expect(review).not.toHaveBeenCalled();
 });
 
 it("leaves the recipe review unchanged when the picker is cancelled", async () => {

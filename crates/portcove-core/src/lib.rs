@@ -358,7 +358,9 @@ pub use profile::{
     ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
     TypedOrdering,
 };
-pub use profile_deploy::{LiveMods, ModCodeReview, ModSetupsView, NativeModListStatus};
+pub use profile_deploy::{
+    LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
+};
 pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan};
@@ -494,7 +496,7 @@ pub use windows_runtime::{
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-pub const API_SCHEMA_VERSION: u32 = 93;
+pub const API_SCHEMA_VERSION: u32 = 94;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

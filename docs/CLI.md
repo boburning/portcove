@@ -2569,6 +2569,29 @@ a label the recipe supplied. The plan says when a label is not kept; dropping on
 changes the identity of a later export. Otherwise a round trip reproduces the
 recipe's identity exactly; that is not evidence of gameplay or save compatibility.
 
+#### Review a local mod file
+
+Use Add mod file in Desktop to review an exact archive before installing it.
+The review shows its native filename, replacements, shared assets when that
+comparison is supported, required packages, and any exact code permission.
+The setup list shows the game version and marks a held runtime. To return
+to an empty Default setup, choose Switch to clean play, then start the game
+from its regular Play action. Find mods can filter the current listing page
+by project, version or submitter. The project shows provider attribution and
+separates archived files from current variants.
+
+The versioned CLI offers the same exact local package review:
+
+```text
+portcove --library PATH --json profile package-plan PORT_ID PROFILE_ID FILE --expected-revision NUMBER
+portcove --library PATH --json profile package-apply PORT_ID PROFILE_ID FILE --expected-plan SHA256 --yes
+```
+
+Apply checks the file again under the port lock. If the review requests
+permission for the exact package's code, apply also requires
+`--allow-mod-code`. A reviewed replacement preserves its previous enabled
+state. Package store contents remain available to setup history.
+
 #### Unattended updates
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass

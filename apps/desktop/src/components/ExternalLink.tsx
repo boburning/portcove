@@ -9,16 +9,18 @@ export function ExternalLink({
   href,
   className,
   children,
+  openUrl = desktopApi.openExternalUrl,
 }: {
   href: string;
   className?: string;
   children: ReactNode;
+  openUrl?: (href: string) => Promise<void>;
 }) {
   const [error, setError] = useState<string>();
   const { t } = useAppTranslation("common");
   const open = () => {
     setError(undefined);
-    void desktopApi.openExternalUrl(href).catch((value) => setError(errorText(value)));
+    void openUrl(href).catch((value) => setError(errorText(value)));
   };
   return (
     <>

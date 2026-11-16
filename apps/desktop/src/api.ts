@@ -361,6 +361,8 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  openProviderModProject: (portId: string, projectId: string, generation: number) =>
+    invoke<void>("open_provider_mod_project", { portId, projectId, generation }),
   browseProviderMods: (portId: string, page: number, generation: number) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,
@@ -423,6 +425,33 @@ export const desktopApi = {
       expectedRevision,
       generation,
       allowCodeSha256,
+    }),
+  planLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputLocalModPackagePlan>(
+      "plan_local_mod_package",
+      { portId, profileId, path, expectedRevision, generation },
+    ),
+  applyLocalModPackage: (
+    portId: string,
+    profileId: string,
+    path: string,
+    expectedPlanSha256: string,
+    generation: number,
+    allowCode: boolean,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_local_mod_package", {
+      portId,
+      profileId,
+      path,
+      expectedPlanSha256,
+      generation,
+      allowCode,
     }),
   reviewModPackageCode: (portId: string, path: string, generation: number) =>
     invoke<import("./types").ModCodeReview | null>("review_mod_package_code", {
