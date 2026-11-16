@@ -32673,37 +32673,38 @@
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
-      "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
+      "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
       "project_url": "https://github.com/djultra64/ISS2000",
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "windows-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/djultra64/ISS2000",
       "manual_setup": {
         "steps": [
           {
-            "title": "Check the required game files",
-            "instruction": "Use your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf."
+            "title": "Choose your original game files on first start",
+            "instruction": "When the game asks, select your own Europe English/German revision 0 original as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy in its data folder, so keep your original separately."
           },
           {
-            "title": "Start the Windows x64 package",
+            "title": "Start a Windows x64 copy you manage yourself",
             "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
           },
           {
-            "title": "Start the Linux x64 package",
+            "title": "Start a Linux x64 copy you manage yourself",
             "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
           }
         ],
         "warnings": [
-          "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery."
+          "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery.",
+          "The project’s GPL licence does not cover the recompiled original game code. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/djultra64/ISS2000",
         "references": [
           {
             "title": "Keep the portable data folder",
-            "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
+            "instruction": "The supported original is the Europe English/German revision 0 release, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf. The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
           }
         ]
       },
