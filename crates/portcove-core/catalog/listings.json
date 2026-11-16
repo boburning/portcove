@@ -24934,7 +24934,7 @@
         "steps": [
           {
             "title": "Add your own disc or Games-on-Demand files",
-            "instruction": "Before the first start, put exactly one supported ISO of your own Xbox 360 disc or converted Games-on-Demand copy beside DoDonPachi SaiDaiOuJou.exe, with its matching Title Update 1 data. Disc default.xex SHA-256 is 709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5 and its TU1 file is 598,016 bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The Games-on-Demand default.xex is 41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707 and needs CA022100.binp, CA022110.binp and default.xexp instead. On first start the game checks them, extracts game_data and applies the update; keep your originals separately and delete the copies afterwards."
+            "instruction": "Before the first start, put exactly one supported ISO of your own Xbox 360 disc or converted Games-on-Demand copy beside the game program, with its matching Title Update 1 data. Disc default.xex SHA-256 is 709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5 and its TU1 file is 598,016 bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The Games-on-Demand default.xex is 41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707 and needs CA022100.binp, CA022110.binp and default.xexp instead. On first start the game checks them, extracts game_data and applies the update; keep your originals separately and delete the copies afterwards."
           },
           {
             "title": "Use a copy you manage yourself",
@@ -42739,13 +42739,13 @@
         "warnings": [
           "OpenCE is a port of a Halo: Combat Evolved decompilation; the project’s AGPL licence does not cover the original game code. Portcove downloads it only from the project’s own releases. You need your own original game files.",
           "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
-          "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove. Close any game started that way before updating or rolling back in Portcove."
+          "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
         ],
         "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
         "references": [
           {
             "title": "Keep all actual data locations",
-            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, logs and crash reports. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
+            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
           }
         ]
       },

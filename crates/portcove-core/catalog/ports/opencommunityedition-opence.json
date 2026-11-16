@@ -34,13 +34,13 @@
       "warnings": [
         "OpenCE is a port of a Halo: Combat Evolved decompilation; the project’s AGPL licence does not cover the original game code. Portcove downloads it only from the project’s own releases. You need your own original game files.",
         "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
-        "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove. Close any game started that way before updating or rolling back in Portcove."
+        "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
       ],
       "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
       "references": [
         {
           "title": "Keep all actual data locations",
-          "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, logs and crash reports. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
+          "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
         }
       ]
     },
@@ -73,18 +73,25 @@
       "maps",
       "custom_maps",
       "mcc_maps",
+      "mcc_staging",
       "mods",
       "load_order.toml",
       "screenshots",
-      "logs",
-      "captures",
       "crashes",
       "init.txt",
       "menus",
       "bans.txt",
-      "player.key"
+      "cheaters.txt",
+      "player.key",
+      "debug.txt",
+      "debug.old.txt",
+      "halo.log"
     ],
     "persistent_file_patterns": [
+      {
+        "prefix": "netlist-",
+        "suffix": ".bin"
+      },
       {
         "prefix": "pass-",
         "suffix": ".bin"
@@ -94,7 +101,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; OpenCE extracts about 2 GB of maps into the maps folder of the managed game folder. Keep the disc image outside the game folder. Portcove starts OpenCE with its automatic updates and dedicated-server updates turned off, so only Portcove replaces the managed program. Portcove keeps config.toml, maps, custom_maps, mcc_maps, mods, load_order.toml, screenshots, logs, captures, crash reports, init.txt, menus, bans.txt, player.key and the pass files across updates, backups and rollback. Profiles, saves and the shader cache stay in %APPDATA%\\halo, which Portcove does not back up or roll back. After a crash, OpenCE's crash reporter may stay open asking whether to send a report, and Portcove keeps tracking it. Internet play registers Halo and Discord invite links that start OpenCE directly, outside Portcove and without the update setting. Close a game started from an invite before updating or rolling back; if you accept an update in a game started that way, Portcove holds the changed copy until you repair it. Turning off CHECK FOR UPDATES in OpenCE's settings also protects those launches. The program is 32-bit Windows."
+      "manual_preparation": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; OpenCE extracts about 2 GB of maps into the maps folder of the managed game folder. Keep the disc image outside the game folder. Portcove starts OpenCE with its automatic updates and dedicated-server updates turned off, so only Portcove offers newer builds and replaces the managed program. Portcove keeps config.toml, the maps, custom_maps, mcc_maps and mods folders, load_order.toml, screenshots, crash reports, OpenCE's server lists, your player key and pass files (pass-*.bin) and its debug logs across updates, backups and rollback. Profiles, saves and the shader cache stay in %APPDATA%\\halo, which Portcove does not back up or roll back. After a crash, OpenCE's crash reporter may stay open asking whether to send a report, and Portcove keeps tracking it. Internet play registers Halo and Discord invite links that start OpenCE directly, outside Portcove and without its update setting, and they point at the version that last registered them. After updating or rolling back, start OpenCE from Portcove once before using an invite, and close a game started from an invite before updating or rolling back. Make sure CHECK FOR UPDATES is OFF in OpenCE's settings so those launches do not offer updates; if you accept one anyway, Portcove detects the changed program files and holds that copy, offering to keep it as an external copy or back it up before reinstalling. OpenCE finds its folder through Windows APIs that cannot represent every character, so use a short library path with plain ASCII characters; Portcove refuses other install folders before download. The program is 32-bit Windows."
     },
     "reviewed_package_layouts": {
       "windows-x86-64": {
@@ -102,6 +109,7 @@
         "executables": ["halo.exe"]
       }
     },
-    "windows_tracked_handoff": true
+    "windows_tracked_handoff": true,
+    "windows_runtime_path_policy": "printable-ascii-max-path"
   }
 }

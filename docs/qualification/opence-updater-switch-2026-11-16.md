@@ -41,9 +41,13 @@ handler pointing at the managed `halo.exe` (`win32_p2p.c:59-81`,
 `p2p_discord.c:330-334`). An invite clicked while the game is closed starts that
 program through the shell without the environment switch. If the player accepts
 an update there, Core's immutable verification holds the changed installation
-until it is repaired. Turning off CHECK FOR UPDATES in the game writes
-`update.auto = false` to the kept `config.toml`, which also protects those
-launches; the guide says so.
+and offers to keep it as an external copy or back it up before reinstalling.
+CHECK FOR UPDATES set OFF in the game keeps `update.auto = false` in the kept
+`config.toml`, which also protects those launches; the guide asks players to
+keep it OFF. The registration stores the version-specific `halo.exe`
+(`win32_p2p.c:66-79`), so after an update or rollback an invite starts the
+previous version until the next Portcove launch re-registers it; the guide asks
+players to start OpenCE from Portcove once first.
 
 ## Process lifetime
 
@@ -55,10 +59,22 @@ job and can keep a consent dialog open for up to ten minutes, writing
 ## Writes and data
 
 Beside the program: `config.toml`, the extracted Xbox `maps`, `custom_maps`,
-`mcc_maps`, `mods`, `load_order.toml`, `screenshots`, `logs`, `captures`,
-`crashes`, `init.txt`, `menus`, `bans.txt`, `player.key` and `pass-*.bin`, all
-declared persistent. Profiles, saves and the shader cache stay in
-`%APPDATA%\halo` (`external-user-owned`).
+`mcc_maps`, `mcc_staging` (`mcc_share_stage.c:253`), `mods`, `load_order.toml`,
+`screenshots`, `crashes`, `init.txt`, `menus`, `bans.txt`, `cheaters.txt`,
+`player.key`, `netlist-*.bin` (`server_netlist.c:321`), `pass-*.bin`, and the
+logs `debug.txt` and `debug.old.txt` (`errors.c:169,260`) and `halo.log`
+(`win32_posix.c:60`), all declared persistent. `brokers.txt`, `masters.txt` and
+`gametypes/` ship in the package and are only read on a desktop host; the
+dedicated-server web panel can write `gametypes/` only in `--server` mode.
+`%LOCALAPPDATA%\halo-ce-universal.key` (`win32_p2p.c:94`) is player state
+outside the folder. Profiles, saves and the shader cache stay in `%APPDATA%\halo`
+(`external-user-owned`).
+
+The route uses `printable-ascii-max-path`. OpenCE locates its data folder and
+first-Play extraction target through `GetModuleFileNameA` (`win32_posix.c:481`,
+`xbox_files.c:78-121`), opens `config.toml` with `fopen` on a UTF-8 path
+(`port_config.c:1448-1457`), and has no UTF-8 code-page manifest, so a non-ASCII
+install folder would break setup and settings.
 
 ## Rights
 
@@ -70,5 +86,4 @@ recorded listing warning. No game data ships in the package.
 
 The switch evidence is bound to `build-374`. OpenCE publishes frequent builds;
 re-check the switch whenever a new release is reviewed. No real install, update
-refusal, crash report or gameplay under Portcove has been observed. Path-API
-behaviour for non-ASCII install folders was not assessed.
+refusal, crash report or gameplay under Portcove has been observed.
