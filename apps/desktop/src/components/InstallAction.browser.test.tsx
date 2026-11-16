@@ -331,6 +331,36 @@ it.each([
 });
 
 it.each([
+  ["windows-x86-64", false],
+  ["linux-x86-64", false],
+  ["macos-x86-64", true],
+  ["macos-aarch64", true],
+] as const)(
+  "shows the Apple SDK prerequisite only on managed Mac plans (%s)",
+  async (platform, mac) => {
+    const port = currentCatalogPort("mortal-kombat-4-recompiled");
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/mk4.chd"
+        biosPath="C:/Player/scph1001.bin"
+        setSourcePath={vi.fn()}
+        setBiosPath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+    const dialog = page.getByRole("dialog");
+    const setup = dialog.getByRole("region", { name: "Game setup" });
+    await expect.element(setup).toBeVisible();
+    expect(setup.element().textContent).toContain("Mortal Kombat 4 (USA) CHD");
+    expect(setup.element().textContent).toContain("retail SCPH-1001 BIOS");
+    expect(dialog.element().textContent?.includes("Apple Command Line Tools or Xcode")).toBe(mac);
+  },
+);
+
+it.each([
   ["windows-x86-64", false, false],
   ["linux-x86-64", true, false],
   ["macos-x86-64", false, true],
