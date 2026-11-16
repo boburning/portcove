@@ -48,7 +48,24 @@
         }
       ]
     },
-    "original_game_title": "Dragon Ball Z: Buu's Fury"
+    "original_game_title": "Dragon Ball Z: Buu's Fury",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-buu-s-fury",
+      "evidence_urls": [
+        "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-buu-s-fury-game-boy-advance",
+          "title": "Dragon Ball Z: Buu's Fury (Game Boy Advance, region not specified)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+          ]
+        }
+      ]
+    }
   },
   "gba_staged_archive_v1": { "game_code": "BG3E", "versioned_mods": true },
   "integration": {

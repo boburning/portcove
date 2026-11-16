@@ -4,6 +4,23 @@
     "id": "pangya-recomp-kromossomom-debug-pangya-fantasy-golf",
     "name": "Pangya: Fantasy Golf — pangya-recomp (kromossomom-debug)",
     "original_game_title": "Pangya: Fantasy Golf",
+    "original_game": {
+      "format_version": 1,
+      "id": "pangya-fantasy-golf",
+      "evidence_urls": [
+        "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pangya-fantasy-golf-playstation-portable",
+          "title": "Pangya: Fantasy Golf (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Static native title code with HLE/fallback; no broad gameplay or full completion established. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/kromossomom-debug/pangya-recomp",
     "platforms": ["linux-x86-64"],

@@ -4,6 +4,23 @@
     "id": "hg2-kunodemetries-haunting-ground",
     "name": "Haunting Ground — hg2 (KunoDemetries)",
     "original_game_title": "Haunting Ground",
+    "original_game": {
+      "format_version": 1,
+      "id": "haunting-ground",
+      "evidence_urls": [
+        "https://github.com/KunoDemetries/hg2/blob/e42f415adef1d3ab445c7371399e5cd80dcd676d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "haunting-ground-playstation-2",
+          "title": "Haunting Ground (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/KunoDemetries/hg2/blob/e42f415adef1d3ab445c7371399e5cd80dcd676d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This project uses its own ahead-of-time tools and runtime, without PS2Recomp. A menu and 6,300-frame diagnostic run do not establish playable gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/KunoDemetries/hg2",
     "platforms": [],

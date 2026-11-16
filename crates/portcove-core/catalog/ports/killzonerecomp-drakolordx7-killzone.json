@@ -4,6 +4,23 @@
     "id": "killzonerecomp-drakolordx7-killzone",
     "name": "Killzone — KillzoneRecomp (drakolordx7)",
     "original_game_title": "Killzone",
+    "original_game": {
+      "format_version": 1,
+      "id": "killzone",
+      "evidence_urls": [
+        "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "killzone-playstation-2",
+          "title": "Killzone (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This project recompiles EE game code with emulator-derived device libraries. A latest-build download is linked, but the README’s player-feature claims have not been confirmed by Portcove. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
     "platforms": ["windows-x86-64"],

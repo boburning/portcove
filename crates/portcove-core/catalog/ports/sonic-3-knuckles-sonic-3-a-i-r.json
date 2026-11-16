@@ -64,6 +64,23 @@
       ]
     },
     "original_game_title": "Sonic 3 & Knuckles",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-3-knuckles",
+      "evidence_urls": [
+        "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-3-knuckles-mega-drive-genesis",
+          "title": "Sonic 3 & Knuckles (Mega Drive/Genesis, region not specified)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
       "linux-x86-64": ["sonic3air_game.tar.gz"],

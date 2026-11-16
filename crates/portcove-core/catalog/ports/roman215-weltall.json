@@ -5,6 +5,23 @@
     "name": "Xenogears (Weltall)",
     "summary": "Attach an independently permitted, prepared Weltall Windows native game with your own supported Xenogears discs. Preserve the full Unreal Engine package, original disc representations and LocalAppData saves/settings; optional undubs and translations retain separate terms.",
     "original_game_title": "Xenogears",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/Roman215/Weltall/blob/03452af61707b574c310cad2ba057d3577d10a30/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "xenogears-playstation",
+          "title": "Xenogears (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Roman215/Weltall/blob/03452af61707b574c310cad2ba057d3577d10a30/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Roman215/Weltall",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

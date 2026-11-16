@@ -4,6 +4,23 @@
     "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
     "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
     "original_game_title": "Perfect Dark Zero",
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark-zero",
+      "evidence_urls": [
+        "https://github.com/nikolaygorb/PerfectDarkZeroRecomp/blob/9d51d3d52a50743f620dd4015f5c8f0b17bb52dd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-zero-xbox-360",
+          "title": "Perfect Dark Zero (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/PerfectDarkZeroRecomp/blob/9d51d3d52a50743f620dd4015f5c8f0b17bb52dd/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
     "listed_at": "2026-10-25",

@@ -4,6 +4,23 @@
     "id": "castlevania-cod-recomp-neguchads-castlevania-curse-of-darkness",
     "name": "Castlevania: Curse of Darkness — Castlevania-COD-Recomp (Neguchads)",
     "original_game_title": "Castlevania: Curse of Darkness",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-curse-of-darkness",
+      "evidence_urls": [
+        "https://github.com/Neguchads/Castlevania-COD-Recomp/blob/026d4cf0ad4a9990a364da57c9bb3ff21aa4d1cb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-curse-of-darkness-playstation-2",
+          "title": "Castlevania: Curse of Darkness (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Neguchads/Castlevania-COD-Recomp/blob/026d4cf0ad4a9990a364da57c9bb3ff21aa4d1cb/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This experimental project reports menus and game hooks. Full-campaign testing and fixes for texture bands, translation and the save-room arrow remain unfinished. Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
     "platforms": [],

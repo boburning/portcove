@@ -4,6 +4,23 @@
     "id": "doritos-crash-course-native-pc-portingpete-doritos-crash-course",
     "name": "Doritos Crash Course — Doritos Crash Course — Native PC (portingpete)",
     "original_game_title": "Doritos Crash Course",
+    "original_game": {
+      "format_version": 1,
+      "id": "doritos-crash-course",
+      "evidence_urls": [
+        "https://github.com/portingpete/DoritosCrashCourse/blob/fed996e162ae5398506e0acc428c5662841ffa66/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doritos-crash-course-xbox-360",
+          "title": "Doritos Crash Course (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/portingpete/DoritosCrashCourse/blob/fed996e162ae5398506e0acc428c5662841ffa66/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Doritos Crash Course port. Upstream reports that all 15 courses load in version 0.1.0; course completion has not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/portingpete/DoritosCrashCourse",
     "platforms": ["windows-x86-64"],

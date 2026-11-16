@@ -8,6 +8,23 @@
     "project_url": "https://github.com/mstan/MegaManX5Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Mega Man X5",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x5",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-x5-playstation",
+          "title": "Mega Man X5 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 413319,
       "cover_id": 603636,

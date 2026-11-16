@@ -5,6 +5,23 @@
     "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
     "summary": "Play your own MHP3rd HD disc image with Yakumo. Portcove can manage a separate Windows x86-64 copy or launch one you prepared.",
     "original_game_title": "Monster Hunter Portable 3rd HD Ver.",
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-portable-3rd-hd-ver",
+      "evidence_urls": [
+        "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-hunter-portable-3rd-hd-ver-playstation-3",
+          "title": "Monster Hunter Portable 3rd HD Ver. (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/TeamGDB/Yakumo",
     "issue_number": 1120,
     "listed_at": "2026-10-23",

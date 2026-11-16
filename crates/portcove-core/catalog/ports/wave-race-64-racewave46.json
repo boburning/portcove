@@ -8,6 +8,23 @@
     "project_url": "https://github.com/DomazinUS/RaceWave46",
     "listed_at": "2026-10-23",
     "original_game_title": "Wave Race 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-64",
+      "evidence_urls": [
+        "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wave-race-64-nintendo-64",
+          "title": "Wave Race 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3629,
       "cover_id": 478764,

@@ -5,6 +5,23 @@
     "name": "Forza Motorsport 4 (Forza Motorsport 4 Recompiled)",
     "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
     "original_game_title": "Forza Motorsport 4",
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-motorsport-4",
+      "evidence_urls": [
+        "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "forza-motorsport-4-xbox-360",
+          "title": "Forza Motorsport 4 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Alexbeav/fm4-recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

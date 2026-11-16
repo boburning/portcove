@@ -4,6 +4,23 @@
     "id": "deep-sea-ah64-dll-the-legend-of-zelda-the-wind-waker",
     "name": "The Legend of Zelda: The Wind Waker — Deep Sea (AH64-dll)",
     "original_game_title": "The Legend of Zelda: The Wind Waker",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-the-wind-waker",
+      "evidence_urls": [
+        "https://github.com/AH64-dll/DeepSea/blob/a343c138a3bb990667a70bf1b91cae34ee7b0892/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-the-wind-waker-gamecube",
+          "title": "The Legend of Zelda: The Wind Waker (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/AH64-dll/DeepSea/blob/a343c138a3bb990667a70bf1b91cae34ee7b0892/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes native 60 FPS play and widescreen. A complete quest is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/AH64-dll/DeepSea",
     "platforms": ["windows-x86-64"],

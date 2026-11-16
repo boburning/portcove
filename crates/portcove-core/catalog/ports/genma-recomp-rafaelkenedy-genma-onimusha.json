@@ -4,6 +4,23 @@
     "id": "genma-recomp-rafaelkenedy-genma-onimusha",
     "name": "Genma Onimusha — genma-recomp (rafaelkenedy)",
     "original_game_title": "Genma Onimusha",
+    "original_game": {
+      "format_version": 1,
+      "id": "genma-onimusha",
+      "evidence_urls": [
+        "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "genma-onimusha-xbox",
+          "title": "Genma Onimusha (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Native Windows player route and modern camera-relative controls documented. Upstream v0.5.1 fixes analog movement through camera cuts by retaining the character’s actual heading through small stick adjustments and clearing retention on guard or other action states. D-pad tank controls and native directional guard steps/dodges remain. Full campaign/completion and package/runtime behavior remain unverified by Portcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/rafaelkenedy/genma-recomp",
     "listed_at": "2026-10-25",

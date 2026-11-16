@@ -4,6 +4,23 @@
     "id": "alter-echo-recomp-wnbdev-alter-echo",
     "name": "Alter Echo — Alter Echo Recomp (WNBDEV)",
     "original_game_title": "Alter Echo",
+    "original_game": {
+      "format_version": 1,
+      "id": "alter-echo",
+      "evidence_urls": [
+        "https://github.com/WNBDEV/alter-echo-recomp/blob/284133bc633b775c10d2d2958ec70ae2ddb66e12/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "alter-echo-xbox",
+          "title": "Alter Echo (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/WNBDEV/alter-echo-recomp/blob/284133bc633b775c10d2d2958ec70ae2ddb66e12/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports a start-to-finish Linux playthrough, with demanding scenes dropping below 60 FPS. It has not tested the port on a real Windows PC. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/WNBDEV/alter-echo-recomp",
     "platforms": [],

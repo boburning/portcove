@@ -5,6 +5,23 @@
     "name": "Wipeout Pure (pure-recomp)",
     "summary": "Register an independently permitted prepared Wipeout Pure Windows copy for your own US Greatest Hits v2.00 disc, keeping external saves, optional DLC and upstream maintenance separate.",
     "original_game_title": "Wipeout Pure",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-pure",
+      "evidence_urls": [
+        "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-pure-playstation-portable",
+          "title": "Wipeout Pure (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/erreib/pure-recomp",
     "platforms": [],
     "availability": "unknown",

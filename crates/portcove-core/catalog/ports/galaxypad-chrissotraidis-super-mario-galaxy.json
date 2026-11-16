@@ -4,6 +4,23 @@
     "id": "galaxypad-chrissotraidis-super-mario-galaxy",
     "name": "Super Mario Galaxy — GalaxyPad (chrissotraidis)",
     "original_game_title": "Super Mario Galaxy",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-galaxy",
+      "evidence_urls": [
+        "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-galaxy-wii",
+          "title": "Super Mario Galaxy (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports an experimental iPhone 14 build running at about 60 FPS. A complete playthrough has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/chrissotraidis/galaxypad",
     "listed_at": "2026-10-25",

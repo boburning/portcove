@@ -4,6 +4,23 @@
     "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",
     "name": "World Driver Championship — worlddriverchampionship-recomp (alondero)",
     "original_game_title": "World Driver Championship",
+    "original_game": {
+      "format_version": 1,
+      "id": "world-driver-championship",
+      "evidence_urls": [
+        "https://github.com/alondero/worlddriverchampionship-recomp/blob/76d6ae0596de7464e0f7264cf46a278f8d60af59/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "world-driver-championship-nintendo-64",
+          "title": "World Driver Championship (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/worlddriverchampionship-recomp/blob/76d6ae0596de7464e0f7264cf46a278f8d60af59/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream Windows x64/Direct3D12 tests cover intro, menus and Hawaii practice driving: acceleration, steering, automatic gears and pause/resume. This remains an early development build with rendering glitches and experimental SDL audio. The frontend-enabled player now advertises rumble alongside persistent Controller Pak saves on port 1, with strength in General settings; physical controller compatibility and feel remain unverified. Linux/Android are unvalidated. No Portcove build, save, controller, audio or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/alondero/worlddriverchampionship-recomp",
     "listed_at": "2026-10-25",

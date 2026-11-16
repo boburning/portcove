@@ -4,6 +4,23 @@
     "id": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
     "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
     "original_game_title": "Valkyrie Profile 2: Silmeria",
+    "original_game": {
+      "format_version": 1,
+      "id": "valkyrie-profile-2-silmeria",
+      "evidence_urls": [
+        "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "valkyrie-profile-2-silmeria-playstation-2",
+          "title": "Valkyrie Profile 2: Silmeria (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TheBozos/VP2S_Recomp",
     "platforms": [],

@@ -5,6 +5,23 @@
     "name": "Metroid Dread (Metroid-Dread-Recomp)",
     "summary": "An early Metroid Dread port translating AArch64 code ahead of time to C, with native Vulkan/OpenGL services. The 0.x previews have setup problems, crashes and hardware limits; a proper 1.0 release is planned. The Windows x64 ZIP launcher bundles GCC/Python and compiles locally on first start, then manages updates and undo. Linux/Steam Deck scripts exist, but exact native Linux build and test coverage are unconfirmed. Use your own Metroid Dread 2.1.0 ExeFS, including main/main.npdm and companions, with complete update-merged RomFS. RomFS alone is insufficient; separate base/update dumps are accepted. No separate keys/firmware input is described after extraction, and region/executable hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Metroid Dread",
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-dread",
+      "evidence_urls": [
+        "https://github.com/yozander2009-stack/Metroid-Dread-Recomp/blob/c791bc9db174f3209213347e7b10a536605c32a8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metroid-dread-nintendo-switch",
+          "title": "Metroid Dread (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/yozander2009-stack/Metroid-Dread-Recomp/blob/c791bc9db174f3209213347e7b10a536605c32a8/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
     "platforms": [],
     "availability": "unknown",

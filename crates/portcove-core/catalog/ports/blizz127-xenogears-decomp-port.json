@@ -20,6 +20,23 @@
     },
     "release_url": "https://github.com/Blizz127/xenogears-decomp-port/releases",
     "original_game_title": "Xenogears",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/Blizz127/xenogears-decomp-port/blob/7c729166cbcf076cd5a30872a7022171fc7f6bbb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "xenogears-playstation",
+          "title": "Xenogears (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Blizz127/xenogears-decomp-port/blob/7c729166cbcf076cd5a30872a7022171fc7f6bbb/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["xenogears-port-linux-x86_64-", ".tar.gz"]
     },

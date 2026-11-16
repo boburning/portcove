@@ -4,6 +4,23 @@
     "id": "v64recomp-conker-us-polaco1782-conker-s-bad-fur-day",
     "name": "Conker's Bad Fur Day — v64recomp / conker-us (polaco1782)",
     "original_game_title": "Conker's Bad Fur Day",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],

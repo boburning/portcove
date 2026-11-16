@@ -4,6 +4,23 @@
     "id": "bluestingerrecomp-rodrigo-mendonca-blue-stinger",
     "name": "Blue Stinger — BlueStingerRecomp (rodrigo-mendonca)",
     "original_game_title": "Blue Stinger",
+    "original_game": {
+      "format_version": 1,
+      "id": "blue-stinger",
+      "evidence_urls": [
+        "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blue-stinger-dreamcast",
+          "title": "Blue Stinger (Dreamcast, region not specified)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/DCRecomp/BlueStingerRecomp",
     "platforms": ["windows-x86-64"],

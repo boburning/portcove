@@ -4,6 +4,23 @@
     "id": "celosia-henrykun55-shadow-of-the-colossus",
     "name": "Shadow of the Colossus — Celosia (HenryKun55)",
     "original_game_title": "Shadow of the Colossus",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": [
+        "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This independent USA port uses different original files from LightVelox’s PAL port. Check this project’s status guide for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/HenryKun55/celosia",
     "listed_at": "2026-10-25",

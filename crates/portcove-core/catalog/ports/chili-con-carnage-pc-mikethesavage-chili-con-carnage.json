@@ -4,6 +4,23 @@
     "id": "chili-con-carnage-pc-mikethesavage-chili-con-carnage",
     "name": "Chili Con Carnage — chili-con-carnage-pc (MikeTheSavage)",
     "original_game_title": "Chili Con Carnage",
+    "original_game": {
+      "format_version": 1,
+      "id": "chili-con-carnage",
+      "evidence_urls": [
+        "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "chili-con-carnage-playstation-portable",
+          "title": "Chili Con Carnage (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a native player and setup for the USA disc only. Check its known issues for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
     "platforms": ["windows-x86-64"],

@@ -4,6 +4,23 @@
     "id": "tenchu-z-recomp-8bitninja64-tenchu-z",
     "name": "Tenchu Z — Tenchu Z Recomp (8bitninja64)",
     "original_game_title": "Tenchu Z",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-z",
+      "evidence_urls": [
+        "https://github.com/8bitninja64/TenchuZ-PC/blob/b638841a8a2a46cfa2a531b639022003429bf59d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tenchu-z-xbox-360",
+          "title": "Tenchu Z (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/8bitninja64/TenchuZ-PC/blob/b638841a8a2a46cfa2a531b639022003429bf59d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream boots/movies/audio/menus/hideout/missions with native D3D11 at the original 30 FPS and 60 FPS or higher options. New HDR10/AO/sharpening/MSAA8x/controller settings/cheats are feature claims; wider than 16:9 and achievements unfinished. the existing 75–80 FPS mission example on an RTX 3070 laptop is upstream-only; no full campaign or Portcove gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/8bitninja64/TenchuZ-PC",
     "platforms": ["windows-x86-64"],

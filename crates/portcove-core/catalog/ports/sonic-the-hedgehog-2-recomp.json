@@ -8,6 +8,23 @@
     "project_url": "https://github.com/mstan/SonicTheHedgehog2Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Sonic the Hedgehog 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "sonic-the-hedgehog-2",
+      "evidence_urls": [
+        "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "sonic-the-hedgehog-2-mega-drive-genesis",
+          "title": "Sonic the Hedgehog 2 (Mega Drive/Genesis, region not specified)",
+          "system": "mega-drive-genesis",
+          "evidence_urls": [
+            "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 4438,
       "cover_id": 259939,

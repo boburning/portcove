@@ -141,6 +141,23 @@
       "project_url": "https://github.com/HarbourMasters/SpaghettiKart",
       "listed_at": "2026-10-23",
       "original_game_title": "Mario Kart 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-kart-64",
+        "evidence_urls": [
+          "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-kart-64-nintendo-64",
+            "title": "Mario Kart 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 350955,
         "cover_id": 468175,
@@ -164,6 +181,23 @@
       "summary": "Native Super Mario 64 port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Ghostship",
       "original_game_title": "Super Mario 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-mario-64",
+        "evidence_urls": [
+          "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-mario-64-nintendo-64",
+            "title": "Super Mario 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 1074,
         "cover_id": 329251,
@@ -264,6 +298,23 @@
       "summary": "Native Star Fox 64 port from HarbourMasters.",
       "project_url": "https://github.com/HarbourMasters/Starship",
       "original_game_title": "Star Fox 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-fox-64",
+        "evidence_urls": [
+          "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-fox-64-nintendo-64",
+            "title": "Star Fox 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 2591,
         "cover_id": 524514,
@@ -1565,6 +1616,23 @@
       "project_url": "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp",
       "listed_at": "2026-10-23",
       "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
+      "original_game": {
+        "format_version": 1,
+        "id": "yu-gi-oh-forbidden-memories",
+        "evidence_urls": [
+          "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/blob/90cc0a9f894386856986b0cafb058c8588674d95/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "yu-gi-oh-forbidden-memories-playstation",
+            "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/blob/90cc0a9f894386856986b0cafb058c8588674d95/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 4108,
         "cover_id": 86189,
@@ -1702,6 +1770,23 @@
       "project_url": "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp",
       "listed_at": "2026-10-23",
       "original_game_title": "WCW vs. nWo: World Tour",
+      "original_game": {
+        "format_version": 1,
+        "id": "wcw-vs-nwo-world-tour",
+        "evidence_urls": [
+          "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp/blob/abfa6acee4651f0a4b4376903358fed9ed4bfe6b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wcw-vs-nwo-world-tour-nintendo-64",
+            "title": "WCW vs. nWo: World Tour (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp/blob/abfa6acee4651f0a4b4376903358fed9ed4bfe6b/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 3635,
         "cover_id": 277081,
@@ -1723,6 +1808,23 @@
       "project_url": "https://github.com/jessetbh/VPW64Recomp",
       "listed_at": "2026-10-23",
       "original_game_title": "Virtual Pro Wrestling 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "virtual-pro-wrestling-64",
+        "evidence_urls": [
+          "https://github.com/jessetbh/VPW64Recomp/blob/3bdbb0d5517824c9bc9398879e31bf17263bfbd2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "virtual-pro-wrestling-64-nintendo-64",
+            "title": "Virtual Pro Wrestling 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/jessetbh/VPW64Recomp/blob/3bdbb0d5517824c9bc9398879e31bf17263bfbd2/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 3626,
         "cover_id": 322381,
@@ -1744,6 +1846,23 @@
       "project_url": "https://github.com/jessetbh/WCWnWoRevengeRecomp",
       "listed_at": "2026-10-23",
       "original_game_title": "WCW/nWo Revenge",
+      "original_game": {
+        "format_version": 1,
+        "id": "wcw-nwo-revenge",
+        "evidence_urls": [
+          "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wcw-nwo-revenge-nintendo-64",
+            "title": "WCW/nWo Revenge (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 3636,
         "cover_id": 154513,
@@ -1765,6 +1884,23 @@
       "project_url": "https://github.com/jessetbh/WWFWrestleMania2000Recomp",
       "listed_at": "2026-10-23",
       "original_game_title": "WWF WrestleMania 2000",
+      "original_game": {
+        "format_version": 1,
+        "id": "wwf-wrestlemania-2000",
+        "evidence_urls": [
+          "https://github.com/jessetbh/WWFWrestleMania2000Recomp/blob/d6e407496f7dd1b5200ed4c4f54acdee2ae16c0b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wwf-wrestlemania-2000-nintendo-64",
+            "title": "WWF WrestleMania 2000 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/jessetbh/WWFWrestleMania2000Recomp/blob/d6e407496f7dd1b5200ed4c4f54acdee2ae16c0b/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 3646,
         "cover_id": 576157,
@@ -2327,6 +2463,23 @@
       "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
       "listed_at": "2026-10-23",
       "original_game_title": "Perfect Dark",
+      "original_game": {
+        "format_version": 1,
+        "id": "perfect-dark",
+        "evidence_urls": [
+          "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "perfect-dark-nintendo-64",
+            "title": "Perfect Dark (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+            ]
+          }
+        ]
+      },
       "manual_setup": {
         "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
         "warnings": [],
@@ -2525,6 +2678,23 @@
       "summary": "Native Super Smash Bros. 64 port.",
       "project_url": "https://github.com/JRickey/BattleShip",
       "original_game_title": "Super Smash Bros.",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros",
+        "evidence_urls": [
+          "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-nintendo-64",
+            "title": "Super Smash Bros. (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 1626,
         "cover_id": 131928,
@@ -2694,6 +2864,23 @@
       "project_url": "https://github.com/open-goal/jak-project",
       "listed_at": "2026-10-23",
       "original_game_title": "Jak and Daxter: The Precursor Legacy",
+      "original_game": {
+        "format_version": 1,
+        "id": "jak-and-daxter-the-precursor-legacy",
+        "evidence_urls": [
+          "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jak-and-daxter-the-precursor-legacy-playstation-2",
+            "title": "Jak and Daxter: The Precursor Legacy (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 206008,
         "cover_id": 298993,
@@ -2718,6 +2905,23 @@
       "project_url": "https://github.com/open-goal/jak-project",
       "listed_at": "2026-10-23",
       "original_game_title": "Jak II",
+      "original_game": {
+        "format_version": 1,
+        "id": "jak-ii",
+        "evidence_urls": [
+          "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jak-ii-playstation-2",
+            "title": "Jak II (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 275306,
         "cover_id": 341811,
@@ -2742,6 +2946,23 @@
       "project_url": "https://github.com/open-goal/jak-project",
       "listed_at": "2026-10-23",
       "original_game_title": "Jak 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "jak-3",
+        "evidence_urls": [
+          "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jak-3-playstation-2",
+            "title": "Jak 3 (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 396702,
         "cover_id": 553369,
@@ -2989,6 +3210,23 @@
       "project_url": "https://github.com/akratch/goldenballoon",
       "listed_at": "2026-10-23",
       "original_game_title": "Diddy Kong Racing",
+      "original_game": {
+        "format_version": 1,
+        "id": "diddy-kong-racing",
+        "evidence_urls": [
+          "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "diddy-kong-racing-nintendo-64",
+            "title": "Diddy Kong Racing (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 412063,
         "cover_id": 588536,
@@ -3050,6 +3288,23 @@
       "project_url": "https://github.com/kandowontu2/starfox-enhanced",
       "listed_at": "2026-10-23",
       "original_game_title": "Star Fox",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-fox",
+        "evidence_urls": [
+          "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-fox-super-nintendo",
+            "title": "Star Fox (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+            ]
+          }
+        ]
+      },
       "variant_label": "SNES",
       "artwork": {
         "game_id": 8581,
@@ -3185,6 +3440,23 @@
       "project_url": "https://github.com/mstan/MegaManX5Recomp",
       "listed_at": "2026-10-23",
       "original_game_title": "Mega Man X5",
+      "original_game": {
+        "format_version": 1,
+        "id": "mega-man-x5",
+        "evidence_urls": [
+          "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mega-man-x5-playstation",
+            "title": "Mega Man X5 (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 413319,
         "cover_id": 603636,
@@ -3366,6 +3638,23 @@
       "project_url": "https://github.com/DomazinUS/RaceWave46",
       "listed_at": "2026-10-23",
       "original_game_title": "Wave Race 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "wave-race-64",
+        "evidence_urls": [
+          "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wave-race-64-nintendo-64",
+            "title": "Wave Race 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 3629,
         "cover_id": 478764,
@@ -4918,6 +5207,23 @@
       "project_url": "https://github.com/mstan/ZeldaAlttPSNESRecomp",
       "listed_at": "2026-10-23",
       "original_game_title": "The Legend of Zelda: A Link to the Past",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-a-link-to-the-past",
+        "evidence_urls": [
+          "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+            "title": "The Legend of Zelda: A Link to the Past (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 1026,
         "cover_id": 181427,
@@ -5016,6 +5322,23 @@
       "project_url": "https://github.com/mstan/SonicTheHedgehog2Recomp",
       "listed_at": "2026-10-23",
       "original_game_title": "Sonic the Hedgehog 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-the-hedgehog-2",
+        "evidence_urls": [
+          "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-the-hedgehog-2-mega-drive-genesis",
+            "title": "Sonic the Hedgehog 2 (Mega Drive/Genesis, region not specified)",
+            "system": "mega-drive-genesis",
+            "evidence_urls": [
+              "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+            ]
+          }
+        ]
+      },
       "artwork": {
         "game_id": 4438,
         "cover_id": 259939,
@@ -5335,6 +5658,23 @@
       "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
       "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
       "original_game_title": "Resident Evil Gaiden",
+      "original_game": {
+        "format_version": 1,
+        "id": "resident-evil-gaiden",
+        "evidence_urls": [
+          "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "resident-evil-gaiden-game-boy-color",
+            "title": "Resident Evil Gaiden (Game Boy Color, region not specified)",
+            "system": "game-boy-color",
+            "evidence_urls": [
+              "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+            ]
+          }
+        ]
+      },
       "issue_number": 342,
       "listed_at": "2026-10-23",
       "artwork": {
@@ -5440,6 +5780,23 @@
       "summary": "Use the exact stock Windows runtime with disabled mods and separately reviewed shared game data.",
       "project_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public",
       "original_game_title": "Super Mario Bros.",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-mario-bros",
+        "evidence_urls": [
+          "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-mario-bros-nes",
+            "title": "Super Mario Bros. (NES, region not specified)",
+            "system": "nes",
+            "evidence_urls": [
+              "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+            ]
+          }
+        ]
+      },
       "manual_setup": {
         "steps": [
           {
@@ -5838,6 +6195,23 @@
       "id": "3-on-3-nhl-arcade-pc-port-wndwsqrrl-3-on-3-nhl-arcade",
       "name": "3 on 3 NHL Arcade — 3 on 3 NHL Arcade – PC Port (Wndwsqrrl)",
       "original_game_title": "3 on 3 NHL Arcade",
+      "original_game": {
+        "format_version": 1,
+        "id": "3-on-3-nhl-arcade",
+        "evidence_urls": [
+          "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "3-on-3-nhl-arcade-xbox-360",
+            "title": "3 on 3 NHL Arcade (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "A gameplay screenshot is available. Complete matches and saving are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
       "platforms": [
@@ -6687,6 +7061,23 @@
       "id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
       "name": "Aegis Wing — Aegis Wing XBLA PC Recomp (CaiusCodes)",
       "original_game_title": "Aegis Wing",
+      "original_game": {
+        "format_version": 1,
+        "id": "aegis-wing",
+        "evidence_urls": [
+          "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "aegis-wing-xbox-360",
+            "title": "Aegis Wing (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project claims 60 FPS and high-resolution play. Complete levels and co-op are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp",
       "platforms": [
@@ -6729,6 +7120,23 @@
       "id": "after-burner-climax-pc-recompilation-sp00nznet-after-burner-climax",
       "name": "After Burner Climax — After Burner Climax — PC Recompilation (sp00nznet)",
       "original_game_title": "After Burner Climax",
+      "original_game": {
+        "format_version": 1,
+        "id": "after-burner-climax",
+        "evidence_urls": [
+          "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "after-burner-climax-xbox-360",
+            "title": "After Burner Climax (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Code generation is available; a completed build and game startup remain unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/sp00nznet/afterburner",
       "platforms": [
@@ -6854,6 +7262,23 @@
       "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
       "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
       "original_game_title": "Shadow of the Colossus",
+      "original_game": {
+        "format_version": 1,
+        "id": "shadow-of-the-colossus",
+        "evidence_urls": [
+          "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "shadow-of-the-colossus-playstation-2",
+            "title": "Shadow of the Colossus (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
       "platforms": [
         "windows-x86-64"
@@ -15059,6 +15484,23 @@
       "id": "alter-echo-recomp-wnbdev-alter-echo",
       "name": "Alter Echo — Alter Echo Recomp (WNBDEV)",
       "original_game_title": "Alter Echo",
+      "original_game": {
+        "format_version": 1,
+        "id": "alter-echo",
+        "evidence_urls": [
+          "https://github.com/WNBDEV/alter-echo-recomp/blob/284133bc633b775c10d2d2958ec70ae2ddb66e12/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "alter-echo-xbox",
+            "title": "Alter Echo (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/WNBDEV/alter-echo-recomp/blob/284133bc633b775c10d2d2958ec70ae2ddb66e12/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports a start-to-finish Linux playthrough, with demanding scenes dropping below 60 FPS. It has not tested the port on a real Windows PC. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/WNBDEV/alter-echo-recomp",
       "platforms": [],
@@ -15897,6 +16339,23 @@
       "id": "ata-recomp-ryah-aero-the-acro-bat",
       "name": "Aero the Acro-Bat — ATA-Recomp (Ryah)",
       "original_game_title": "Aero the Acro-Bat",
+      "original_game": {
+        "format_version": 1,
+        "id": "aero-the-acro-bat",
+        "evidence_urls": [
+          "https://github.com/Ryah/ATA-Recomp/blob/a091dec32fe3fcf2922cb824b96b562cb10900e8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "aero-the-acro-bat-mega-drive-genesis",
+            "title": "Aero the Acro-Bat (Mega Drive/Genesis, region not specified)",
+            "system": "mega-drive-genesis",
+            "evidence_urls": [
+              "https://github.com/Ryah/ATA-Recomp/blob/a091dec32fe3fcf2922cb824b96b562cb10900e8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports movement, jumping, landing and music in the first circus stage of v0.1.1. A full campaign, bosses, physical controllers and the complete soundtrack are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Ryah/ATA-Recomp",
       "listed_at": "2026-10-25",
@@ -16743,6 +17202,23 @@
       "id": "battle-arena-toshinden-recompiled-njh-1001-battle-arena-toshinden",
       "name": "Battle Arena Toshinden — Battle Arena Toshinden Recompiled (NJH-1001)",
       "original_game_title": "Battle Arena Toshinden",
+      "original_game": {
+        "format_version": 1,
+        "id": "battle-arena-toshinden",
+        "evidence_urls": [
+          "https://github.com/NJH-1001/BATRecomp/blob/a27984137226dc23bc0ab75eb38b108262257995/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "battle-arena-toshinden-playstation",
+            "title": "Battle Arena Toshinden (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/NJH-1001/BATRecomp/blob/a27984137226dc23bc0ab75eb38b108262257995/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project offers playable setup packages. Coverage of every fighter and mode is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/NJH-1001/BATRecomp",
       "listed_at": "2026-10-25",
@@ -17879,6 +18355,23 @@
       "name": "Blast Corps (Power Dozer)",
       "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
       "original_game_title": "Blast Corps",
+      "original_game": {
+        "format_version": 1,
+        "id": "blast-corps",
+        "evidence_urls": [
+          "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "blast-corps-nintendo-64",
+            "title": "Blast Corps (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/djultra64/Power-Dozer",
       "issue_number": 2557,
       "listed_at": "2026-10-25",
@@ -18155,6 +18648,23 @@
       },
       "release_url": "https://github.com/Blizz127/xenogears-decomp-port/releases",
       "original_game_title": "Xenogears",
+      "original_game": {
+        "format_version": 1,
+        "id": "xenogears",
+        "evidence_urls": [
+          "https://github.com/Blizz127/xenogears-decomp-port/blob/7c729166cbcf076cd5a30872a7022171fc7f6bbb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "xenogears-playstation",
+            "title": "Xenogears (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Blizz127/xenogears-decomp-port/blob/7c729166cbcf076cd5a30872a7022171fc7f6bbb/README.md"
+            ]
+          }
+        ]
+      },
       "download_asset_hints": {
         "linux-x86-64": [
           "xenogears-port-linux-x86_64-",
@@ -18429,6 +18939,23 @@
       "id": "bluestingerrecomp-rodrigo-mendonca-blue-stinger",
       "name": "Blue Stinger — BlueStingerRecomp (rodrigo-mendonca)",
       "original_game_title": "Blue Stinger",
+      "original_game": {
+        "format_version": 1,
+        "id": "blue-stinger",
+        "evidence_urls": [
+          "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "blue-stinger-dreamcast",
+            "title": "Blue Stinger (Dreamcast, region not specified)",
+            "system": "dreamcast",
+            "evidence_urls": [
+              "https://github.com/DCRecomp/BlueStingerRecomp/blob/fbc6761d49fa701f3c90e2444f7f98a6b5e61687/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Actual game/native audio/Vulkan rendering described; intermittent AMD device-lost and unfixed fog/modifier volumes; remaster work not implemented. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/DCRecomp/BlueStingerRecomp",
       "platforms": [
@@ -18701,6 +19228,23 @@
       "id": "bomberman-generation-moderngekko-nikeymikey-bomberman-generation",
       "name": "Bomberman Generation — bomberman-generation-moderngekko (nikeymikey)",
       "original_game_title": "Bomberman Generation",
+      "original_game": {
+        "format_version": 1,
+        "id": "bomberman-generation",
+        "evidence_urls": [
+          "https://github.com/nikeymikey/bomberman-generation-moderngekko/blob/6c073a5cf1df0eda3724a6adc437cdde720cf6a3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "bomberman-generation-gamecube",
+            "title": "Bomberman Generation (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/nikeymikey/bomberman-generation-moderngekko/blob/6c073a5cf1df0eda3724a6adc437cdde720cf6a3/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream calls it playable with controller support, widescreen, save states, netplay and a Battle bomb-count mod. No full-story completion result is established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko",
       "platforms": [],
@@ -19230,6 +19774,23 @@
       "id": "bugsbunnylostintimerecomp-periblugaming-bugs-bunny-lost-in-time",
       "name": "Bugs Bunny: Lost in Time — BugsBunnyLostinTimeRecomp (PeriBluGaming)",
       "original_game_title": "Bugs Bunny: Lost in Time",
+      "original_game": {
+        "format_version": 1,
+        "id": "bugs-bunny-lost-in-time",
+        "evidence_urls": [
+          "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp/blob/fca728da98dc350e84083d9939f663311fa99214/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "bugs-bunny-lost-in-time-playstation",
+            "title": "Bugs Bunny: Lost in Time (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp/blob/fca728da98dc350e84083d9939f663311fa99214/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes a native PSXRecomp player. Release descriptions do not establish full-game coverage, and Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/PeriBluGaming/BugsBunnyLostinTimeRecomp",
       "platforms": [],
@@ -19459,6 +20020,23 @@
       "id": "burnout-crash-pc-recompilation-kiesxoxo-burnout-crash",
       "name": "Burnout CRASH! — Burnout CRASH! — PC recompilation (kiesxoxo)",
       "original_game_title": "Burnout CRASH!",
+      "original_game": {
+        "format_version": 1,
+        "id": "burnout-crash",
+        "evidence_urls": [
+          "https://github.com/kiesxoxo/burnout-crash-recomp/blob/ac11bd1043e13db61bd0a8171043ac053a1ac88f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "burnout-crash-xbox-360",
+            "title": "Burnout CRASH! (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/kiesxoxo/burnout-crash-recomp/blob/ac11bd1043e13db61bd0a8171043ac053a1ac88f/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "One-PC testing with limited further coverage; broad completion unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/kiesxoxo/burnout-crash-recomp",
       "platforms": [
@@ -19498,6 +20076,23 @@
       "id": "burnout-dominator-reversed-literalynn-burnout-dominator",
       "name": "Burnout Dominator — Burnout Dominator Reversed (literalynn)",
       "original_game_title": "Burnout Dominator",
+      "original_game": {
+        "format_version": 1,
+        "id": "burnout-dominator",
+        "evidence_urls": [
+          "https://github.com/literalynn/BurnoutDominatorReversed/blob/4813d8adb218b74c2f35013d5643ffd300314db3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "burnout-dominator-playstation-2",
+            "title": "Burnout Dominator (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/literalynn/BurnoutDominatorReversed/blob/4813d8adb218b74c2f35013d5643ffd300314db3/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream claims start-to-finish playability; Windows setup requires local C++ compilation/Visual Studio, 20 GB and Vulkan. IOP emulation remains. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/literalynn/BurnoutDominatorReversed",
       "platforms": [],
@@ -19535,6 +20130,23 @@
       "id": "burnout-revenge-secretpray-burnout-revenge-xbox-360",
       "name": "Burnout Revenge (Xbox 360) — burnout-revenge (secretpray)",
       "original_game_title": "Burnout Revenge (Xbox 360)",
+      "original_game": {
+        "format_version": 1,
+        "id": "burnout-revenge-xbox-360",
+        "evidence_urls": [
+          "https://github.com/secretpray/burnout-revenge/blob/0a6751f1ced138a2b2caaa6d51b4e1a891f1ff0d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "burnout-revenge-xbox-360-xbox-360",
+            "title": "Burnout Revenge (Xbox 360) (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/secretpray/burnout-revenge/blob/0a6751f1ced138a2b2caaa6d51b4e1a891f1ff0d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes racing and Crash modes on Apple Silicon. Its v0.1.25 notes mention controller-slot recovery, Xbox USB vibration, background My Music indexing and soundtrack recovery. This guide does not identify or confirm a new release package. Two physical local controllers and multiplayer between two Macs remain untested; Portcove has not confirmed gameplay or a complete playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/secretpray/burnout-revenge",
       "platforms": [
@@ -20463,6 +21075,23 @@
       "id": "castlevania-cod-recomp-neguchads-castlevania-curse-of-darkness",
       "name": "Castlevania: Curse of Darkness — Castlevania-COD-Recomp (Neguchads)",
       "original_game_title": "Castlevania: Curse of Darkness",
+      "original_game": {
+        "format_version": 1,
+        "id": "castlevania-curse-of-darkness",
+        "evidence_urls": [
+          "https://github.com/Neguchads/Castlevania-COD-Recomp/blob/026d4cf0ad4a9990a364da57c9bb3ff21aa4d1cb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "castlevania-curse-of-darkness-playstation-2",
+            "title": "Castlevania: Curse of Darkness (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Neguchads/Castlevania-COD-Recomp/blob/026d4cf0ad4a9990a364da57c9bb3ff21aa4d1cb/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This experimental project reports menus and game hooks. Full-campaign testing and fixes for texture bands, translation and the save-room arrow remain unfinished. Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Neguchads/Castlevania-COD-Recomp",
       "platforms": [],
@@ -20962,6 +21591,23 @@
       "id": "celosia-henrykun55-shadow-of-the-colossus",
       "name": "Shadow of the Colossus — Celosia (HenryKun55)",
       "original_game_title": "Shadow of the Colossus",
+      "original_game": {
+        "format_version": 1,
+        "id": "shadow-of-the-colossus",
+        "evidence_urls": [
+          "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "shadow-of-the-colossus-playstation-2",
+            "title": "Shadow of the Colossus (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/HenryKun55/celosia/blob/17a05d57a910ea50e9c073ffc560293fc16b16da/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This independent USA port uses different original files from LightVelox’s PAL port. Check this project’s status guide for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/HenryKun55/celosia",
       "listed_at": "2026-10-25",
@@ -21163,6 +21809,23 @@
       "id": "chibi-robo-pc-armandpro12-armandpro12-chibi-robo-plug-into-adventure",
       "name": "Chibi-Robo! Plug Into Adventure! — Chibi Robo PC (Armandpro12) (Armandpro12)",
       "original_game_title": "Chibi-Robo! Plug Into Adventure!",
+      "original_game": {
+        "format_version": 1,
+        "id": "chibi-robo-plug-into-adventure",
+        "evidence_urls": [
+          "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "chibi-robo-plug-into-adventure-gamecube",
+            "title": "Chibi-Robo! Plug Into Adventure! (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports the title screen, new game and prologue with real-time sound for both regions. A complete playthrough, videos and setup on a clean system are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Armandpro12/chibi-robo-pc",
       "platforms": [
@@ -21202,6 +21865,23 @@
       "id": "chili-con-carnage-pc-mikethesavage-chili-con-carnage",
       "name": "Chili Con Carnage — chili-con-carnage-pc (MikeTheSavage)",
       "original_game_title": "Chili Con Carnage",
+      "original_game": {
+        "format_version": 1,
+        "id": "chili-con-carnage",
+        "evidence_urls": [
+          "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "chili-con-carnage-playstation-portable",
+            "title": "Chili Con Carnage (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/MikeTheSavage/chili-con-carnage-pc/blob/3bf54521d55d05b884293cbce61831c22959128c/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes a native player and setup for the USA disc only. Check its known issues for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/MikeTheSavage/chili-con-carnage-pc",
       "platforms": [
@@ -23327,6 +24007,23 @@
         "help_url": "https://github.com/craigshaw/FZeroRecomp#readme"
       },
       "original_game_title": "F-Zero",
+      "original_game": {
+        "format_version": 1,
+        "id": "f-zero",
+        "evidence_urls": [
+          "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "f-zero-super-nintendo",
+            "title": "F-Zero (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -23367,6 +24064,23 @@
       "availability": "unknown",
       "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
       "original_game_title": "Crash Bandicoot",
+      "original_game": {
+        "format_version": 1,
+        "id": "crash-bandicoot",
+        "evidence_urls": [
+          "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "crash-bandicoot-playstation",
+            "title": "Crash Bandicoot (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+            ]
+          }
+        ]
+      },
       "manual_setup": {
         "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
         "steps": [
@@ -24090,6 +24804,23 @@
       },
       "release_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases",
       "original_game_title": "Conker's Bad Fur Day",
+      "original_game": {
+        "format_version": 1,
+        "id": "conker-s-bad-fur-day",
+        "evidence_urls": [
+          "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "conker-s-bad-fur-day-nintendo-64",
+            "title": "Conker's Bad Fur Day (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+            ]
+          }
+        ]
+      },
       "download_asset_hints": {
         "windows-x86-64": [
           "ConkerBFDReloaded-",
@@ -25260,6 +25991,23 @@
       "id": "dead-or-alive-4-recomp-redc0rvus-dead-or-alive-4",
       "name": "Dead or Alive 4 — Dead or Alive 4 Recomp (redC0rvus)",
       "original_game_title": "Dead or Alive 4",
+      "original_game": {
+        "format_version": 1,
+        "id": "dead-or-alive-4",
+        "evidence_urls": [
+          "https://github.com/redC0rvus/doa4-recomp-suite/blob/469dba09da3a24e08fe9da1883821e851aa7caf2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dead-or-alive-4-xbox-360",
+            "title": "Dead or Alive 4 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/redC0rvus/doa4-recomp-suite/blob/469dba09da3a24e08fe9da1883821e851aa7caf2/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Boot/mode-select smoke checks exist; complete mode coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/redC0rvus/doa4-recomp-suite",
       "platforms": [
@@ -25691,6 +26439,23 @@
       "id": "deep-sea-ah64-dll-the-legend-of-zelda-the-wind-waker",
       "name": "The Legend of Zelda: The Wind Waker — Deep Sea (AH64-dll)",
       "original_game_title": "The Legend of Zelda: The Wind Waker",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-the-wind-waker",
+        "evidence_urls": [
+          "https://github.com/AH64-dll/DeepSea/blob/a343c138a3bb990667a70bf1b91cae34ee7b0892/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-the-wind-waker-gamecube",
+            "title": "The Legend of Zelda: The Wind Waker (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/AH64-dll/DeepSea/blob/a343c138a3bb990667a70bf1b91cae34ee7b0892/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes native 60 FPS play and widescreen. A complete quest is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/AH64-dll/DeepSea",
       "platforms": [
@@ -26030,6 +26795,23 @@
       "id": "demonssoulsrecomp-jonathandc64-demon-s-souls",
       "name": "Demon's Souls — DemonsSoulsRecomp (JonathanDC64)",
       "original_game_title": "Demon's Souls",
+      "original_game": {
+        "format_version": 1,
+        "id": "demon-s-souls",
+        "evidence_urls": [
+          "https://github.com/JonathanDC64/Soulbrandt/blob/a3d260f4757d1af3906f4682654a44fdd3b937ba/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "demon-s-souls-playstation-3",
+            "title": "Demon's Souls (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/JonathanDC64/Soulbrandt/blob/a3d260f4757d1af3906f4682654a44fdd3b937ba/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports early play of Boletarian Palace 1-1. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/JonathanDC64/Soulbrandt",
       "listed_at": "2026-10-25",
@@ -26382,6 +27164,23 @@
       "id": "devil-may-cry-recomp-web-native-awest813-devil-may-cry",
       "name": "Devil May Cry — Devil May Cry Recomp (web/native) (awest813)",
       "original_game_title": "Devil May Cry",
+      "original_game": {
+        "format_version": 1,
+        "id": "devil-may-cry",
+        "evidence_urls": [
+          "https://github.com/awest813/DMC-Recomp/blob/6e97a140d7ddf0d219adee629eeccacb367ff915/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "devil-may-cry-playstation-2",
+            "title": "Devil May Cry (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/awest813/DMC-Recomp/blob/6e97a140d7ddf0d219adee629eeccacb367ff915/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports startup through Mission 1 on the dmc-port branch, natively and in a browser at 60 FPS. Gran Turismo 4 and God of War II reports do not establish Devil May Cry coverage. Full-game completion and stability remain unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/awest813/DMC-Recomp",
       "listed_at": "2026-10-25",
@@ -26702,6 +27501,23 @@
       "id": "digimonworld3-recomp-mikeravenelle-digimon-world-3",
       "name": "Digimon World 3 — DigimonWorld3-Recomp (MikeRavenelle)",
       "original_game_title": "Digimon World 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "digimon-world-3",
+        "evidence_urls": [
+          "https://github.com/ArmDucks/DigimonWorld3-Recomp/blob/95a7149635a225c23f0ae21fcae4670b893274d9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "digimon-world-3-playstation",
+            "title": "Digimon World 3 (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/ArmDucks/DigimonWorld3-Recomp/blob/95a7149635a225c23f0ae21fcae4670b893274d9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes a beta that starts and plays, with known rough edges. A complete campaign is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/ArmDucks/DigimonWorld3-Recomp",
       "platforms": [
@@ -27107,6 +27923,23 @@
       "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
       "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
       "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
+      "original_game": {
+        "format_version": 1,
+        "id": "clayfighter63andonethird-clayfighter64-fusion-edition",
+        "evidence_urls": [
+          "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "clayfighter63andonethird-clayfighter64-fusion-edition-nintendo-64",
+            "title": "ClayFighter63andOneThird: ClayFighter64 fusion edition (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/djultra64/ClayFighter64",
       "platforms": [],
       "availability": "unknown",
@@ -27412,6 +28245,23 @@
       "id": "dokodemo-native-senya01-doko-demo-issyo-portable",
       "name": "Doko Demo Issyo Portable — dokodemo-native (Senya01)",
       "original_game_title": "Doko Demo Issyo Portable",
+      "original_game": {
+        "format_version": 1,
+        "id": "doko-demo-issyo-portable",
+        "evidence_urls": [
+          "https://github.com/Senya01/dokodemo-native/blob/8e5d86c2c6d6cd7a32ea36565e84aa5386caf5b9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doko-demo-issyo-portable-playstation-portable",
+            "title": "Doko Demo Issyo Portable (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/Senya01/dokodemo-native/blob/8e5d86c2c6d6cd7a32ea36565e84aa5386caf5b9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Build this incomplete Doko Demo Issyo port from source. Room, conversation and interface support is limited; starting a player session and continuing between rooms have not been confirmed. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Senya01/dokodemo-native",
       "platforms": [
@@ -28087,6 +28937,23 @@
       "id": "doritos-crash-course-native-pc-portingpete-doritos-crash-course",
       "name": "Doritos Crash Course — Doritos Crash Course — Native PC (portingpete)",
       "original_game_title": "Doritos Crash Course",
+      "original_game": {
+        "format_version": 1,
+        "id": "doritos-crash-course",
+        "evidence_urls": [
+          "https://github.com/portingpete/DoritosCrashCourse/blob/fed996e162ae5398506e0acc428c5662841ffa66/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doritos-crash-course-xbox-360",
+            "title": "Doritos Crash Course (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/portingpete/DoritosCrashCourse/blob/fed996e162ae5398506e0acc428c5662841ffa66/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental Doritos Crash Course port. Upstream reports that all 15 courses load in version 0.1.0; course completion has not been confirmed. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/portingpete/DoritosCrashCourse",
       "platforms": [
@@ -28126,6 +28993,23 @@
       "id": "dotr-recomp-glasena-yu-gi-oh-the-duelists-of-the-roses",
       "name": "Yu-Gi-Oh! The Duelists of the Roses — dotr-recomp (Glasena)",
       "original_game_title": "Yu-Gi-Oh! The Duelists of the Roses",
+      "original_game": {
+        "format_version": 1,
+        "id": "yu-gi-oh-the-duelists-of-the-roses",
+        "evidence_urls": [
+          "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "yu-gi-oh-the-duelists-of-the-roses-playstation-2",
+            "title": "Yu-Gi-Oh! The Duelists of the Roses (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Build this early Yu-Gi-Oh! The Duelists of the Roses port locally on Linux using your USA disc. Upstream describes movie, story, duel and map support. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Glasena/dotr-recomp",
       "platforms": [],
@@ -28798,6 +29682,23 @@
       "id": "drakengard3recompile-k1gs-k1gs-drakengard-3",
       "name": "Drakengard 3 — Drakengard3Recompile (k1gs) (k1gs)",
       "original_game_title": "Drakengard 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "drakengard-3",
+        "evidence_urls": [
+          "https://github.com/k1gs/Drakengard3Recompile/blob/1819c47ec9f61edab0d9cb2aa2fb6dcec42d9019/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "drakengard-3-playstation-3",
+            "title": "Drakengard 3 (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/k1gs/Drakengard3Recompile/blob/1819c47ec9f61edab0d9cb2aa2fb6dcec42d9019/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental Drakengard 3 source project. Upstream reports the intro, audio, title and main menu; gameplay with working controls has not been confirmed. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/k1gs/Drakengard3Recompile",
       "platforms": [
@@ -30636,6 +31537,23 @@
       "name": "Wipeout Pure (pure-recomp)",
       "summary": "Register an independently permitted prepared Wipeout Pure Windows copy for your own US Greatest Hits v2.00 disc, keeping external saves, optional DLC and upstream maintenance separate.",
       "original_game_title": "Wipeout Pure",
+      "original_game": {
+        "format_version": 1,
+        "id": "wipeout-pure",
+        "evidence_urls": [
+          "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wipeout-pure-playstation-portable",
+            "title": "Wipeout Pure (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/erreib/pure-recomp/blob/aaa1726d52a1fa25c74fd8c8cedc008f2b1b655d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/erreib/pure-recomp",
       "platforms": [],
       "availability": "unknown",
@@ -31661,6 +32579,23 @@
       "name": "God of War III Remastered (gow3_pc)",
       "summary": "Attach a prepared SpartanPort Windows installation for your independently permitted God of War III Remastered PS4 dump. The current Rust launcher owns upstream preparation; keep its saved settings, user data and legacy gow3 migration roots.",
       "original_game_title": "God of War III Remastered",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-war-iii-remastered",
+        "evidence_urls": [
+          "https://github.com/FelipePrado0/SpartanPort/blob/6f73077a3eaed10d6bbca034321a4c29e051d12a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "god-of-war-iii-remastered-playstation-3",
+            "title": "God of War III Remastered (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/FelipePrado0/SpartanPort/blob/6f73077a3eaed10d6bbca034321a4c29e051d12a/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/FelipePrado0/SpartanPort",
       "platforms": [
         "windows-x86-64"
@@ -31858,6 +32793,23 @@
       "id": "ff7ccrecomp-adamfull-crisis-core-final-fantasy-vii",
       "name": "Crisis Core: Final Fantasy VII — ff7ccrecomp (AdamFull)",
       "original_game_title": "Crisis Core: Final Fantasy VII",
+      "original_game": {
+        "format_version": 1,
+        "id": "crisis-core-final-fantasy-vii",
+        "evidence_urls": [
+          "https://github.com/AdamFull/ff7ccrecomp/blob/09c775d49bf1dbde4d8df860f19169d68d134ea0/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "crisis-core-final-fantasy-vii-playstation-portable",
+            "title": "Crisis Core: Final Fantasy VII (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/AdamFull/ff7ccrecomp/blob/09c775d49bf1dbde4d8df860f19169d68d134ea0/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This source project includes recompiled and progressively decompiled code with a runtime. The README does not state how much gameplay works. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/AdamFull/ff7ccrecomp",
       "platforms": [],
@@ -32453,6 +33405,23 @@
       "id": "folklore-native-pc-recompilation-mava-b-mava-b-folklore",
       "name": "Folklore — Folklore native PC recompilation (Mava-b) (Mava-b)",
       "original_game_title": "Folklore",
+      "original_game": {
+        "format_version": 1,
+        "id": "folklore",
+        "evidence_urls": [
+          "https://github.com/Mava-b/folklore-decomp/blob/a828b4bbe63c8b4b37696e5ce65bff3e6ac47480/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "folklore-playstation-3",
+            "title": "Folklore (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/Mava-b/folklore-decomp/blob/a828b4bbe63c8b4b37696e5ce65bff3e6ac47480/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The author reports gameplay and motion captures on one Windows 11 PC with a Ryzen 7800X3D. Higher frame rates are experimental; other hardware and complete gameplay remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Mava-b/folklore-decomp",
       "platforms": [
@@ -32669,6 +33638,23 @@
       "id": "forza-motorsport-2-native-pc-port-0herculabs-forza-motorsport-2",
       "name": "Forza Motorsport 2 — Forza Motorsport 2 — Native PC Port (0herculabs)",
       "original_game_title": "Forza Motorsport 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "forza-motorsport-2",
+        "evidence_urls": [
+          "https://github.com/0herculabs/hl360-Forza2/blob/19400fe359214ce62f56cd4fa1f6c3605dca4b8e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "forza-motorsport-2-xbox-360",
+            "title": "Forza Motorsport 2 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/0herculabs/hl360-Forza2/blob/19400fe359214ce62f56cd4fa1f6c3605dca4b8e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream describes v0.3.1 as playable and still in development, with race-loading fixes and crash diagnostics. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/0herculabs/hl360-Forza2",
       "platforms": [
@@ -32708,6 +33694,23 @@
       "id": "forza-motorsport-2-regpu-zer0ducksgiven-forza-motorsport-2",
       "name": "Forza Motorsport 2 — Forza Motorsport 2 ReGPU (zer0ducksgiven)",
       "original_game_title": "Forza Motorsport 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "forza-motorsport-2",
+        "evidence_urls": [
+          "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU/blob/feaef3259cf038a3e0236591beed9b8d882073ec/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "forza-motorsport-2-xbox-360",
+            "title": "Forza Motorsport 2 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU/blob/feaef3259cf038a3e0236591beed9b8d882073ec/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports startup, intro, menus, races and save profiles, with hardware-specific performance. High-frame-rate, 4K and ultrawide claims have not been confirmed by Portcove. Racing-wheel support is beta. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/zer0ducksgiven/Forza-Motorsport-2-ReGPU",
       "platforms": [
@@ -32811,6 +33814,23 @@
       "name": "Forza Motorsport 4 (Forza Motorsport 4 Recompiled)",
       "summary": "Attach the prepared official Forza Motorsport 4 Windows alpha player for the exact Europe GOTY Disc 1 inputs. Preserve its explicit game/user/cache roots and independent originals; current native-player packaging supersedes older builder-first instructions.",
       "original_game_title": "Forza Motorsport 4",
+      "original_game": {
+        "format_version": 1,
+        "id": "forza-motorsport-4",
+        "evidence_urls": [
+          "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "forza-motorsport-4-xbox-360",
+            "title": "Forza Motorsport 4 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Alexbeav/fm4-recomp/blob/e2108085cdf28a4a289bc03aa1212b314911ff1c/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Alexbeav/fm4-recomp",
       "platforms": [
         "windows-x86-64"
@@ -32907,6 +33927,23 @@
       "id": "freedomuniterecompandroid-pateeerq-monster-hunter-freedom-unite",
       "name": "Monster Hunter Freedom Unite — FreedomUniteRecomp (PateeerQ)",
       "original_game_title": "Monster Hunter Freedom Unite",
+      "original_game": {
+        "format_version": 1,
+        "id": "monster-hunter-freedom-unite",
+        "evidence_urls": [
+          "https://github.com/PateeerQ/FreedomUniteRecomp/blob/3951c17ba6851a6dee2659bb71aa06ba3930b42c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "monster-hunter-freedom-unite-playstation-portable",
+            "title": "Monster Hunter Freedom Unite (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/PateeerQ/FreedomUniteRecomp/blob/3951c17ba6851a6dee2659bb71aa06ba3930b42c/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The retained README reports desktop startup and language selection. ATRAC and MPEG decoders are missing: audio and music are silent, and movies are black. Native Android execution has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/PateeerQ/FreedomUniteRecomp",
       "platforms": [],
@@ -33159,6 +34196,23 @@
       "id": "fzerogx-recomp-ethannicholas-ethannicholas-f-zero-gx",
       "name": "F-Zero GX — fzerogx-recomp (ethannicholas) (ethannicholas)",
       "original_game_title": "F-Zero GX",
+      "original_game": {
+        "format_version": 1,
+        "id": "f-zero-gx",
+        "evidence_urls": [
+          "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "f-zero-gx-gamecube",
+            "title": "F-Zero GX (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream claims complete desktop and VR support with no known issues. Portcove has not confirmed those claims. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ethannicholas/fzerogx-recomp",
       "platforms": [
@@ -33295,6 +34349,23 @@
       "id": "galaxypad-chrissotraidis-super-mario-galaxy",
       "name": "Super Mario Galaxy — GalaxyPad (chrissotraidis)",
       "original_game_title": "Super Mario Galaxy",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-mario-galaxy",
+        "evidence_urls": [
+          "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-mario-galaxy-wii",
+            "title": "Super Mario Galaxy (Wii, region not specified)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/galaxypad/blob/0e50202541bd13a1b4a44c2abc1e9008bd62383a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports an experimental iPhone 14 build running at about 60 FPS. A complete playthrough has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/chrissotraidis/galaxypad",
       "listed_at": "2026-10-25",
@@ -33362,6 +34433,23 @@
       "id": "gd-s-melee-gurekamdhillon-super-smash-bros-melee",
       "name": "Super Smash Bros. Melee — GD's Melee (GurekamDhillon)",
       "original_game_title": "Super Smash Bros. Melee",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros-melee",
+        "evidence_urls": [
+          "https://github.com/GurekamDhillon/gd-melee-workspace/blob/7965c3080edab5a30d50cc24ad4ad84bb695cc76/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-melee-gamecube",
+            "title": "Super Smash Bros. Melee (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/GurekamDhillon/gd-melee-workspace/blob/7965c3080edab5a30d50cc24ad4ad84bb695cc76/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This public beta offers rollback, modding and Lua features. Full compatibility has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
       "platforms": [],
@@ -33433,6 +34521,23 @@
       "id": "gears-of-war-2-native-pc-port-unofficial-santiquiroz-gears-of-war-2",
       "name": "Gears of War 2 — Gears of War 2 — native PC port (unofficial) (santiquiroz)",
       "original_game_title": "Gears of War 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "gears-of-war-2",
+        "evidence_urls": [
+          "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "gears-of-war-2-xbox-360",
+            "title": "Gears of War 2 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/santiquiroz/gears-of-war-2-pc-port/blob/3afa1439539686d254a8bedd6f9f07d04ad7eeed/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports Act 1 gameplay. Android slows heavily under sustained load, and internet co-op remains experimental. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/santiquiroz/gears-of-war-2-pc-port",
       "platforms": [
@@ -33512,6 +34617,23 @@
       "id": "genma-recomp-rafaelkenedy-genma-onimusha",
       "name": "Genma Onimusha — genma-recomp (rafaelkenedy)",
       "original_game_title": "Genma Onimusha",
+      "original_game": {
+        "format_version": 1,
+        "id": "genma-onimusha",
+        "evidence_urls": [
+          "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "genma-onimusha-xbox",
+            "title": "Genma Onimusha (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/rafaelkenedy/genma-recomp/blob/33fee19ef4aec490b8970d4472fadd6c4bc99aa2/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Native Windows player route and modern camera-relative controls documented. Upstream v0.5.1 fixes analog movement through camera cuts by retaining the character’s actual heading through small stick adjustments and clearing retention on guard or other action states. D-pad tank controls and native directional guard steps/dodges remain. Full campaign/completion and package/runtime behavior remain unverified by Portcove. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/rafaelkenedy/genma-recomp",
       "listed_at": "2026-10-25",
@@ -33544,6 +34666,23 @@
       "name": "Geometry Wars: Retro Evolved 2 (Geometry Wars 2 Recompiled)",
       "summary": "Prepared Geometry Wars 2 copy, from the Windows package or Linux AppImage, using your own matching XBLA package. Upstream owns setup, runtime replacement and portable player data; Portcove can record the ordinary native player separately from Play.",
       "original_game_title": "Geometry Wars: Retro Evolved 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "geometry-wars-retro-evolved-2",
+        "evidence_urls": [
+          "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled/blob/cad0b7ccb4ad8502b76b67e5507bd4348df0de86/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "geometry-wars-retro-evolved-2-xbox-360",
+            "title": "Geometry Wars: Retro Evolved 2 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled/blob/cad0b7ccb4ad8502b76b67e5507bd4348df0de86/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/saulob/geometry-wars-retro-evolved-2-recompiled",
       "platforms": [
         "windows-x86-64",
@@ -33937,6 +35076,23 @@
       "name": "Go Go Ackman (Go Go Ackman Recompiled)",
       "summary": "Use an already permitted Go Go Ackman v1.0 Windows player with your own exact Japanese ROM. The project combines compiled game code with an interpreter; full-game compatibility is unconfirmed. Fresh downloads remain conditional on permission for embedded translation content. Portcove has not confirmed setup or gameplay. Linux Flatpak is a separate upstream package.",
       "original_game_title": "Go Go Ackman",
+      "original_game": {
+        "format_version": 1,
+        "id": "go-go-ackman",
+        "evidence_urls": [
+          "https://github.com/catmidori/gogoackman1recomp/blob/db9f16b5ae51719f0ec81f3f4bae63a5ef84348c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "go-go-ackman-super-nintendo",
+            "title": "Go Go Ackman (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/catmidori/gogoackman1recomp/blob/db9f16b5ae51719f0ec81f3f4bae63a5ef84348c/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/catmidori/gogoackman1recomp",
       "platforms": [],
       "availability": "unknown",
@@ -33987,6 +35143,23 @@
       "id": "god-hand-rearmed-kris-c-anderson-god-hand",
       "name": "God Hand — God Hand: Rearmed (kris-c-anderson)",
       "original_game_title": "God Hand",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-hand",
+        "evidence_urls": [
+          "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "god-hand-playstation-2",
+            "title": "God Hand (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed",
       "listed_at": "2026-10-25",
@@ -34016,6 +35189,23 @@
       "id": "god-hand-recompiled-lasvola-god-hand",
       "name": "God Hand — God Hand Recompiled (LasVola)",
       "original_game_title": "God Hand",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-hand",
+        "evidence_urls": [
+          "https://github.com/LasVola/godhand-recomp/blob/14e956a1274332440273845fbab2c1f1e30c4a5a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "god-hand-playstation-2",
+            "title": "God Hand (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/LasVola/godhand-recomp/blob/14e956a1274332440273845fbab2c1f1e30c4a5a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports playing into stage 3 from a source build. Later stages and endings remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/LasVola/godhand-recomp",
       "listed_at": "2026-10-25",
@@ -35447,6 +36637,23 @@
       "id": "gta-iii-re3",
       "name": "Grand Theft Auto III / re3",
       "original_game_title": "Grand Theft Auto III",
+      "original_game": {
+        "format_version": 1,
+        "id": "grand-theft-auto-iii",
+        "evidence_urls": [
+          "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-iii-playstation-2",
+            "title": "Grand Theft Auto III (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted existing re3 player with your own original PC game data.",
       "project_url": "https://github.com/leanndroguedes/re3-19feb21",
       "issue_number": 2852,
@@ -35494,6 +36701,23 @@
       "id": "gta-vice-city-revc",
       "name": "Grand Theft Auto: Vice City / reVC",
       "original_game_title": "Grand Theft Auto: Vice City",
+      "original_game": {
+        "format_version": 1,
+        "id": "grand-theft-auto-vice-city",
+        "evidence_urls": [
+          "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-vice-city-playstation-2",
+            "title": "Grand Theft Auto: Vice City (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted existing reVC player with your own original PC game data.",
       "project_url": "https://github.com/leanndroguedes/re3-19feb21",
       "issue_number": 2853,
@@ -36379,6 +37603,23 @@
       "id": "harmonyrecomp-dojutsu-castlevania-harmony-of-despair",
       "name": "Castlevania: Harmony of Despair — HarmonyRecomp (Dojutsu)",
       "original_game_title": "Castlevania: Harmony of Despair",
+      "original_game": {
+        "format_version": 1,
+        "id": "castlevania-harmony-of-despair",
+        "evidence_urls": [
+          "https://github.com/Dojutsu/Harmony-of-Despair/blob/92137f4d30fed76f42ed56eeeddd65d8dd6b6931/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "castlevania-harmony-of-despair-xbox-360",
+            "title": "Castlevania: Harmony of Despair (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Dojutsu/Harmony-of-Despair/blob/92137f4d30fed76f42ed56eeeddd65d8dd6b6931/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream documents packages and Play/Join controls. Full-campaign, platform and network compatibility remain unknown. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Dojutsu/Harmony-of-Despair",
       "platforms": [
@@ -36476,6 +37717,23 @@
       "id": "hauntingground-recomp-lasvola-haunting-ground",
       "name": "Haunting Ground — hauntingground-recomp (LasVola)",
       "original_game_title": "Haunting Ground",
+      "original_game": {
+        "format_version": 1,
+        "id": "haunting-ground",
+        "evidence_urls": [
+          "https://github.com/LasVola/hauntingground-recomp/blob/85e49ffaa0f580ff86379d044a0bcf16cc4a2445/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "haunting-ground-playstation-2",
+            "title": "Haunting Ground (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/LasVola/hauntingground-recomp/blob/85e49ffaa0f580ff86379d044a0bcf16cc4a2445/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports the start and early castle gameplay. Saving, Hewie, later chapters and endings remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/LasVola/hauntingground-recomp",
       "platforms": [],
@@ -36621,6 +37879,23 @@
       "id": "haze-recomp-zdiemer-haze",
       "name": "Haze — Haze Recomp (zdiemer)",
       "original_game_title": "Haze",
+      "original_game": {
+        "format_version": 1,
+        "id": "haze",
+        "evidence_urls": [
+          "https://github.com/zdiemer/haze-recomp/blob/b87190a85980024037e4346d48f43ba00d2fcce9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "haze-playstation-3",
+            "title": "Haze (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/zdiemer/haze-recomp/blob/b87190a85980024037e4346d48f43ba00d2fcce9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream demonstrates menus, opening gameplay, audio and checkpoints. A full campaign is unconfirmed; co-op uses two local instances only. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/zdiemer/haze-recomp",
       "listed_at": "2026-10-25",
@@ -37106,6 +38381,23 @@
       "id": "hg2-kunodemetries-haunting-ground",
       "name": "Haunting Ground — hg2 (KunoDemetries)",
       "original_game_title": "Haunting Ground",
+      "original_game": {
+        "format_version": 1,
+        "id": "haunting-ground",
+        "evidence_urls": [
+          "https://github.com/KunoDemetries/hg2/blob/e42f415adef1d3ab445c7371399e5cd80dcd676d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "haunting-ground-playstation-2",
+            "title": "Haunting Ground (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/KunoDemetries/hg2/blob/e42f415adef1d3ab445c7371399e5cd80dcd676d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This project uses its own ahead-of-time tools and runtime, without PS2Recomp. A menu and 6,300-frame diagnostic run do not establish playable gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/KunoDemetries/hg2",
       "platforms": [],
@@ -37714,6 +39006,23 @@
       "name": "Mario Party 6 (Starlit Party)",
       "summary": "Attach an independently permitted, prepared Starlit Party Windows player for your own Mario Party 6 USA disc. Preserve its actual working-directory saves and content root; limited minigame coverage and title-specific launcher/font permission scope remain explicit.",
       "original_game_title": "Mario Party 6",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-party-6",
+        "evidence_urls": [
+          "https://github.com/iirg4x/mp6-native-port/blob/d438e67ca9b17366ad7bf957d01bbcdab9dafb42/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-party-6-gamecube",
+            "title": "Mario Party 6 (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/iirg4x/mp6-native-port/blob/d438e67ca9b17366ad7bf957d01bbcdab9dafb42/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/iirg4x/mp6-native-port",
       "platforms": [
         "windows-x86-64"
@@ -38046,6 +39355,23 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Infinite Undiscovery",
+      "original_game": {
+        "format_version": 1,
+        "id": "infinite-undiscovery",
+        "evidence_urls": [
+          "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "infinite-undiscovery-xbox-360",
+            "title": "Infinite Undiscovery (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
       "recommended_download_channel": "beta",
       "download_asset_hints": {
@@ -38340,6 +39666,23 @@
       "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
       "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
       "original_game_title": "Banjo-Tooie",
+      "original_game": {
+        "format_version": 1,
+        "id": "banjo-tooie",
+        "evidence_urls": [
+          "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "banjo-tooie-nintendo-64",
+            "title": "Banjo-Tooie (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
       "platforms": [],
       "availability": "unknown",
@@ -38409,6 +39752,23 @@
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
+      "original_game": {
+        "format_version": 1,
+        "id": "international-superstar-soccer-2000",
+        "evidence_urls": [
+          "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "international-superstar-soccer-2000-nintendo-64",
+            "title": "International Superstar Soccer 2000 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
       "project_url": "https://github.com/djultra64/ISS2000",
       "platforms": [
@@ -40619,6 +41979,23 @@
       "id": "killzonerecomp-drakolordx7-killzone",
       "name": "Killzone — KillzoneRecomp (drakolordx7)",
       "original_game_title": "Killzone",
+      "original_game": {
+        "format_version": 1,
+        "id": "killzone",
+        "evidence_urls": [
+          "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "killzone-playstation-2",
+            "title": "Killzone (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/drakolordx7/KillzoneRecomp/blob/a81c3309c846e12e54883295a871a95fc020b6fe/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This project recompiles EE game code with emulator-derived device libraries. A latest-build download is linked, but the README’s player-feature claims have not been confirmed by Portcove. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/drakolordx7/KillzoneRecomp",
       "platforms": [
@@ -40658,6 +42035,23 @@
       "id": "killzonerecomp-extended-tzeentchnet-killzone",
       "name": "Killzone — KillzoneRecomp-Extended (Tzeentchnet)",
       "original_game_title": "Killzone",
+      "original_game": {
+        "format_version": 1,
+        "id": "killzone",
+        "evidence_urls": [
+          "https://github.com/Tzeentchnet/KillzoneRecomp-Extended/blob/ac422c13036eee8929e158287a960068bda223dd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "killzone-playstation-2",
+            "title": "Killzone (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Tzeentchnet/KillzoneRecomp-Extended/blob/ac422c13036eee8929e158287a960068bda223dd/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports startup, movies, profile selection, first-mission gameplay, Quit/Continue/load, and timing/input checks. Later 14/14 checks without an ISO test the harness rather than campaign completion. Intermittently cut-off combat effects and dialogue remain tracked as AUDIO-01. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Tzeentchnet/KillzoneRecomp-Extended",
       "platforms": [
@@ -40937,6 +42331,23 @@
       "id": "kirby-amazing-mirror-recomp-felipe-gomes-amorim-kirby-the-amazing-mirror",
       "name": "Kirby & The Amazing Mirror — kirby-amazing-mirror-recomp (Felipe-Gomes-Amorim)",
       "original_game_title": "Kirby & The Amazing Mirror",
+      "original_game": {
+        "format_version": 1,
+        "id": "kirby-the-amazing-mirror",
+        "evidence_urls": [
+          "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp/blob/2bb49d0631cb54d928d70f97e6aacf79a4b15fb6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "kirby-the-amazing-mirror-game-boy-advance",
+            "title": "Kirby & The Amazing Mirror (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp/blob/2bb49d0631cb54d928d70f97e6aacf79a4b15fb6/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream’s reported test covers only the first area and 8,000 frames. Deeper levels, bosses and abilities remain untested, and timing is approximate. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Felipe-Gomes-Amorim/kirby-amazing-mirror-recomp",
       "platforms": [],
@@ -41351,6 +42762,23 @@
       "id": "kula-world-recompiled-zap0xfce2-kula-world",
       "name": "Kula World — Kula World Recompiled (zap0xfce2)",
       "original_game_title": "Kula World",
+      "original_game": {
+        "format_version": 1,
+        "id": "kula-world",
+        "evidence_urls": [
+          "https://github.com/zap0xfce2/Kula-World-Recompiled/blob/42cfe96daa2c4d81f9b86d0edc4ec0700f8100b3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "kula-world-playstation",
+            "title": "Kula World (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/zap0xfce2/Kula-World-Recompiled/blob/42cfe96daa2c4d81f9b86d0edc4ec0700f8100b3/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports reaching all ten worlds through Level Select and the ending movie. That does not establish a complete playthrough. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/zap0xfce2/Kula-World-Recompiled",
       "listed_at": "2026-10-25",
@@ -41465,6 +42893,23 @@
       "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
       "summary": "Attach an independently permitted, prepared Tony Hawk’s Pro Skater Windows installation using the LANCommander port. Keep its extracted game data and separate Saved Games tree; upstream owns preparation, restarts and runtime replacement.",
       "original_game_title": "Tony Hawk's Pro Skater",
+      "original_game": {
+        "format_version": 1,
+        "id": "tony-hawk-s-pro-skater",
+        "evidence_urls": [
+          "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tony-hawk-s-pro-skater-playstation",
+            "title": "Tony Hawk's Pro Skater (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/LANCommander/TonyWasAProSkater/blob/2e9d7f83379307c2ba4a9af257c6be715b672db7/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
       "platforms": [
         "windows-x86-64"
@@ -42465,6 +43910,23 @@
       "id": "lufia-ii-recompiled-cellenseres-lufia-ii-rise-of-the-sinistrals",
       "name": "Lufia II: Rise of the Sinistrals — Lufia II Recompiled (Cellenseres)",
       "original_game_title": "Lufia II: Rise of the Sinistrals",
+      "original_game": {
+        "format_version": 1,
+        "id": "lufia-ii-rise-of-the-sinistrals",
+        "evidence_urls": [
+          "https://github.com/Cellenseres/Lufia2SNESRecomp/blob/d31533e8a88880e24ec463a18cad68084fe87405/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "lufia-ii-rise-of-the-sinistrals-super-nintendo",
+            "title": "Lufia II: Rise of the Sinistrals (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/Cellenseres/Lufia2SNESRecomp/blob/d31533e8a88880e24ec463a18cad68084fe87405/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream reports the intro, title, gameplay, battles, audio, saves and launcher. A full playthrough is not claimed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Cellenseres/Lufia2SNESRecomp",
       "platforms": [],
@@ -43445,6 +44907,23 @@
       "id": "mariokartdd-recomp-ethannicholas-ethannicholas-mario-kart-double-dash",
       "name": "Mario Kart: Double Dash!! — MarioKartDD Recomp (ethannicholas) (ethannicholas)",
       "original_game_title": "Mario Kart: Double Dash!!",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-kart-double-dash",
+        "evidence_urls": [
+          "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-kart-double-dash-gamecube",
+            "title": "Mario Kart: Double Dash!! (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/mariokartdd-recomp/blob/bd36eb982ea58c6651584cc48264876d1aba9546/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports reaching menus and a Grand Prix race with sound. Completion of the full game has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ethannicholas/mariokartdd-recomp",
       "platforms": [
@@ -43826,6 +45305,23 @@
       "id": "mechassault2-recomp-legendaryxp-mechassault-2-lone-wolf",
       "name": "MechAssault 2: Lone Wolf — MechAssault2 Recomp (LegendaryXP)",
       "original_game_title": "MechAssault 2: Lone Wolf",
+      "original_game": {
+        "format_version": 1,
+        "id": "mechassault-2-lone-wolf",
+        "evidence_urls": [
+          "https://github.com/LegendaryXP/Mechassault2-recomp/blob/5f26860c46ab1a88e2c7d65ec1134bad7eca7cea/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mechassault-2-lone-wolf-xbox",
+            "title": "MechAssault 2: Lone Wolf (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/LegendaryXP/Mechassault2-recomp/blob/5f26860c46ab1a88e2c7d65ec1134bad7eca7cea/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes native input and widescreen features and maintainer gameplay tests. It does not claim a completed campaign. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/LegendaryXP/Mechassault2-recomp",
       "platforms": [],
@@ -44270,6 +45766,23 @@
       "id": "melee-macos-recompilation-mcdandle-mcdandle-super-smash-bros-melee",
       "name": "Super Smash Bros. Melee — Melee macOS Recompilation (McDandle) (McDandle)",
       "original_game_title": "Super Smash Bros. Melee",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros-melee",
+        "evidence_urls": [
+          "https://github.com/McDandle/melee-macos-recomp/blob/39e30dec9fa7d90fba960ca9189b573a7938e3df/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-melee-gamecube",
+            "title": "Super Smash Bros. Melee (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/McDandle/melee-macos-recomp/blob/39e30dec9fa7d90fba960ca9189b573a7938e3df/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports native gameplay at about 60 FPS in strict mode. Build this source-only port using your own matching disc. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/McDandle/melee-macos-recomp",
       "platforms": [
@@ -44371,6 +45884,23 @@
       "id": "meleepad-chrissotraidis-super-smash-bros-melee",
       "name": "Super Smash Bros. Melee — MeleePad (chrissotraidis)",
       "original_game_title": "Super Smash Bros. Melee",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros-melee",
+        "evidence_urls": [
+          "https://github.com/chrissotraidis/meleepad/blob/54e0c4f2462214e89da71e5aa055422b86deb544/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-melee-gamecube",
+            "title": "Super Smash Bros. Melee (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/chrissotraidis/meleepad/blob/54e0c4f2462214e89da71e5aa055422b86deb544/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports native gameplay in Preview 7. Private Slippi online play has separate requirements. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/chrissotraidis/meleepad",
       "platforms": [
@@ -44660,6 +46190,23 @@
       "name": "Metroid Dread (Metroid-Dread-Recomp)",
       "summary": "An early Metroid Dread port translating AArch64 code ahead of time to C, with native Vulkan/OpenGL services. The 0.x previews have setup problems, crashes and hardware limits; a proper 1.0 release is planned. The Windows x64 ZIP launcher bundles GCC/Python and compiles locally on first start, then manages updates and undo. Linux/Steam Deck scripts exist, but exact native Linux build and test coverage are unconfirmed. Use your own Metroid Dread 2.1.0 ExeFS, including main/main.npdm and companions, with complete update-merged RomFS. RomFS alone is insufficient; separate base/update dumps are accepted. No separate keys/firmware input is described after extraction, and region/executable hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Metroid Dread",
+      "original_game": {
+        "format_version": 1,
+        "id": "metroid-dread",
+        "evidence_urls": [
+          "https://github.com/yozander2009-stack/Metroid-Dread-Recomp/blob/c791bc9db174f3209213347e7b10a536605c32a8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "metroid-dread-nintendo-switch",
+            "title": "Metroid Dread (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/yozander2009-stack/Metroid-Dread-Recomp/blob/c791bc9db174f3209213347e7b10a536605c32a8/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/yozander2009-stack/Metroid-Dread-Recomp",
       "platforms": [],
       "availability": "unknown",
@@ -44879,6 +46426,23 @@
       "id": "mhforever-mango77x-monster-hunter-freedom-unite",
       "name": "Monster Hunter Freedom Unite — MHForever (Mango77x)",
       "original_game_title": "Monster Hunter Freedom Unite",
+      "original_game": {
+        "format_version": 1,
+        "id": "monster-hunter-freedom-unite",
+        "evidence_urls": [
+          "https://github.com/Mango77x/MHForever/blob/a62d8c6f21e5207f06077a383c1b5ca7d35a06e9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "monster-hunter-freedom-unite-playstation-portable",
+            "title": "Monster Hunter Freedom Unite (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/Mango77x/MHForever/blob/a62d8c6f21e5207f06077a383c1b5ca7d35a06e9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Only the European Monster Hunter Freedom Unite is supported by this project. The project describes it as playable; other planned games and regions are not supported targets. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Mango77x/MHForever",
       "platforms": [],
@@ -45160,6 +46724,23 @@
       "id": "midtown-madness-3-static-recompilation-taxidriverhk-midtown-madness-3",
       "name": "Midtown Madness 3 — Midtown Madness 3 — Static Recompilation (taxidriverhk)",
       "original_game_title": "Midtown Madness 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "midtown-madness-3",
+        "evidence_urls": [
+          "https://github.com/xbox-games-recomp/mm3recomp/blob/199bfc1045db39bfc0ccc9845c97c7177e8f740b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "midtown-madness-3-xbox",
+            "title": "Midtown Madness 3 (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/xbox-games-recomp/mm3recomp/blob/199bfc1045db39bfc0ccc9845c97c7177e8f740b/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream estimates roughly 80%; boots, movies, loading screens and full Paris/Washington races with audio/gamepad at about 40–50 FPS and 2x internal resolution; ten-minute sessions claimed. New supersampling/FXAA, resizable 4:3 window, cached background shader compilation and rumble forwarding remain upstream claims. Loading/results hitches, occasional missing colour grade, 43 unchecked caller-flag-sensitive functions and unconfirmed physical rumble remain; networking stubbed out. No full progression/completion or Portcove runtime qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/xbox-games-recomp/mm3recomp",
       "platforms": [
@@ -45640,6 +47221,23 @@
       "name": "Monster Hunter Portable 3rd HD Ver. Yakumo",
       "summary": "Play your own MHP3rd HD disc image with Yakumo. Portcove can manage a separate Windows x86-64 copy or launch one you prepared.",
       "original_game_title": "Monster Hunter Portable 3rd HD Ver.",
+      "original_game": {
+        "format_version": 1,
+        "id": "monster-hunter-portable-3rd-hd-ver",
+        "evidence_urls": [
+          "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "monster-hunter-portable-3rd-hd-ver-playstation-3",
+            "title": "Monster Hunter Portable 3rd HD Ver. (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/TeamGDB/Yakumo",
       "issue_number": 1120,
       "listed_at": "2026-10-23",
@@ -46441,6 +48039,23 @@
         ]
       },
       "original_game_title": "Dragon Ball Z: Buu's Fury",
+      "original_game": {
+        "format_version": 1,
+        "id": "dragon-ball-z-buu-s-fury",
+        "evidence_urls": [
+          "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-buu-s-fury-game-boy-advance",
+            "title": "Dragon Ball Z: Buu's Fury (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -46497,6 +48112,23 @@
         ]
       },
       "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
+      "original_game": {
+        "format_version": 1,
+        "id": "dragon-ball-z-the-legacy-of-goku-ii",
+        "evidence_urls": [
+          "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-the-legacy-of-goku-ii-game-boy-advance",
+            "title": "Dragon Ball Z: The Legacy of Goku II (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -46743,6 +48375,23 @@
         ]
       },
       "original_game_title": "Super Mario Advance 2: Super Mario World",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-mario-advance-2-super-mario-world",
+        "evidence_urls": [
+          "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dc3c31f2454e962dd5a628891e0dfe7b9dcb1dea/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-mario-advance-2-super-mario-world-game-boy-advance",
+            "title": "Super Mario Advance 2: Super Mario World (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dc3c31f2454e962dd5a628891e0dfe7b9dcb1dea/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -47309,6 +48958,23 @@
       "id": "n3-recompiled-wk2d-n3-ninety-nine-nights",
       "name": "N3: Ninety-Nine Nights — N3 Recompiled (WK2D)",
       "original_game_title": "N3: Ninety-Nine Nights",
+      "original_game": {
+        "format_version": 1,
+        "id": "n3-ninety-nine-nights",
+        "evidence_urls": [
+          "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp/blob/d1416e56cf3066e4b07d0bd50fa8dbd1bd1e590d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "n3-ninety-nine-nights-xbox-360",
+            "title": "N3: Ninety-Nine Nights (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp/blob/d1416e56cf3066e4b07d0bd50fa8dbd1bd1e590d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports the opening mission, following cutscene and save/load. Full-game compatibility has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/WK2D/N3-Ninety-Nine-Nights-Recomp",
       "platforms": [
@@ -49008,6 +50674,23 @@
       "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
       "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
       "original_game_title": "Wipeout XL",
+      "original_game": {
+        "format_version": 1,
+        "id": "wipeout-xl",
+        "evidence_urls": [
+          "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wipeout-xl-playstation",
+            "title": "Wipeout XL (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
       "issue_number": 1908,
       "listed_at": "2026-10-23",
@@ -49123,6 +50806,23 @@
         "help_url": "https://github.com/NoahVl/Birdman64/blob/v1.5.1/README.md"
       },
       "original_game_title": "Pilotwings 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "pilotwings-64",
+        "evidence_urls": [
+          "https://github.com/NoahVl/Birdman64/blob/18c64ac3c85c77500751a1a9080f73b666fd9bb3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pilotwings-64-nintendo-64",
+            "title": "Pilotwings 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/NoahVl/Birdman64/blob/18c64ac3c85c77500751a1a9080f73b666fd9bb3/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -49550,6 +51250,23 @@
       "id": "oceantrirecomp-krisztsa-monster-hunter-tri",
       "name": "Monster Hunter Tri — OceanTriRecomp (krisztsa)",
       "original_game_title": "Monster Hunter Tri",
+      "original_game": {
+        "format_version": 1,
+        "id": "monster-hunter-tri",
+        "evidence_urls": [
+          "https://github.com/krisztsa/OceanTriRecomp/blob/986f25e8f461dc3b04cac6187b21d05d75d694b4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "monster-hunter-tri-wii",
+            "title": "Monster Hunter Tri (Wii, region not specified)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/krisztsa/OceanTriRecomp/blob/986f25e8f461dc3b04cac6187b21d05d75d694b4/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream presents a native game runtime with integrated graphics, controls and save management; this README does not give a complete-playthrough result. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/krisztsa/OceanTriRecomp",
       "platforms": [
@@ -50036,6 +51753,23 @@
       "id": "open-halo-2-andrewnakas-halo-2",
       "name": "Halo 2 — Open Halo 2 (andrewnakas)",
       "original_game_title": "Halo 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "halo-2",
+        "evidence_urls": [
+          "https://github.com/andrewnakas/openhalo2/blob/ba9f9b33031e3ad8664ba02f470fdaac11f3855d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "halo-2-xbox",
+            "title": "Halo 2 (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/andrewnakas/openhalo2/blob/ba9f9b33031e3ad8664ba02f470fdaac11f3855d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The README describes launch and online-room/OpenLive procedures. Console 640×480 output and DSP reverb are absent, and no complete campaign is claimed. Mac, Linux and browser versions are planned only. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/andrewnakas/openhalo2",
       "platforms": [],
@@ -50073,6 +51807,23 @@
       "id": "open-halo-3-mythic-gtteancum-halo-3-mythic-odst-multiplayer-disc",
       "name": "Halo 3 Mythic (ODST multiplayer disc) — Open Halo 3 Mythic (GTTeancum)",
       "original_game_title": "Halo 3 Mythic (ODST multiplayer disc)",
+      "original_game": {
+        "format_version": 1,
+        "id": "halo-3-mythic-odst-multiplayer-disc",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/OpenH3M/blob/d93f056d3aaa703987b080e4d1747a5d4fbcb6bd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "halo-3-mythic-odst-multiplayer-disc-xbox-360",
+            "title": "Halo 3 Mythic (ODST multiplayer disc) (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/OpenH3M/blob/d93f056d3aaa703987b080e4d1747a5d4fbcb6bd/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Custom Games/Forge/1–4-player split-screen work; Theater recording/playback incompletely validated. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/OpenH3M",
       "listed_at": "2026-10-25",
@@ -50313,6 +52064,23 @@
       "id": "openkai2-7v0biscuit-dragon-ball-z-budokai-2",
       "name": "Dragon Ball Z: Budokai 2 — OpenKai2 (7v0biscuit)",
       "original_game_title": "Dragon Ball Z: Budokai 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "dragon-ball-z-budokai-2",
+        "evidence_urls": [
+          "https://github.com/7v0biscuit/OpenKai2/blob/71850e8857a654452bdde0276990df05157e29f3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dragon-ball-z-budokai-2-playstation-2",
+            "title": "Dragon Ball Z: Budokai 2 (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/7v0biscuit/OpenKai2/blob/71850e8857a654452bdde0276990df05157e29f3/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The Windows runtime reaches level selection. Complete matches, performance and gameplay have not been confirmed. It uses a CPU renderer; stable 60 FPS during play is unverified. All host audio is disabled, including movies, menus and fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/7v0biscuit/OpenKai2",
       "platforms": [
@@ -50538,6 +52306,23 @@
       "id": "openratchet-nikityyy-ratchet-clank",
       "name": "Ratchet & Clank — OpenRatchet (Nikityyy)",
       "original_game_title": "Ratchet & Clank",
+      "original_game": {
+        "format_version": 1,
+        "id": "ratchet-clank",
+        "evidence_urls": [
+          "https://github.com/Nikityyy/OpenRatchet/blob/07c78d3da5022f6d147549c343e0d775b99a950a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ratchet-clank-playstation-2",
+            "title": "Ratchet & Clank (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/Nikityyy/OpenRatchet/blob/07c78d3da5022f6d147549c343e0d775b99a950a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The native app replaces platform services but retains PS2Recomp’s fallback game executor. Level 0, rendering and overlay checks do not establish complete gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Nikityyy/OpenRatchet",
       "listed_at": "2026-10-25",
@@ -50812,6 +52597,23 @@
       "id": "oratan-recomp-kitaaaaaa-cyber-troopers-virtual-on-oratorio-tangram-m-s-b-s-ver-5-66",
       "name": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66 — Oratan-recomp (kitaaaaaa)",
       "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66",
+      "original_game": {
+        "format_version": 1,
+        "id": "cyber-troopers-virtual-on-oratorio-tangram-m-s-b-s-ver-5-66",
+        "evidence_urls": [
+          "https://github.com/kitaaaaaa/Oratan-recomp/blob/762ea1a785ab658cb2dca4d3c7f4a9c7735f2306/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "cyber-troopers-virtual-on-oratorio-tangram-m-s-b-s-ver-5-66-xbox-360",
+            "title": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/kitaaaaaa/Oratan-recomp/blob/762ea1a785ab658cb2dca4d3c7f4a9c7735f2306/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports playing the alpha from start to finish. Split-screen is experimental, and online play is unsupported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/kitaaaaaa/Oratan-recomp",
       "listed_at": "2026-10-25",
@@ -50882,6 +52684,23 @@
       "id": "outrun-online-arcade-pc-recompilation-sp00nznet-outrun-online-arcade",
       "name": "OutRun Online Arcade — OutRun Online Arcade — PC Recompilation (sp00nznet)",
       "original_game_title": "OutRun Online Arcade",
+      "original_game": {
+        "format_version": 1,
+        "id": "outrun-online-arcade",
+        "evidence_urls": [
+          "https://github.com/sp00nznet/outrun/blob/286656e8d6c1d97930d59359bf26f24036fd9d8e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "outrun-online-arcade-xbox-360",
+            "title": "OutRun Online Arcade (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/outrun/blob/286656e8d6c1d97930d59359bf26f24036fd9d8e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The build links, but crashes during guest global initialization before rendering or gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/sp00nznet/outrun",
       "listed_at": "2026-10-25",
@@ -51416,6 +53235,23 @@
       "id": "pangya-recomp-kromossomom-debug-pangya-fantasy-golf",
       "name": "Pangya: Fantasy Golf — pangya-recomp (kromossomom-debug)",
       "original_game_title": "Pangya: Fantasy Golf",
+      "original_game": {
+        "format_version": 1,
+        "id": "pangya-fantasy-golf",
+        "evidence_urls": [
+          "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pangya-fantasy-golf-playstation-portable",
+            "title": "Pangya: Fantasy Golf (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/kromossomom-debug/pangya-recomp/blob/9e903a3fc3ea2f55ecbe76b76f586110b1bc0ba9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. Static native title code with HLE/fallback; no broad gameplay or full completion established. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/kromossomom-debug/pangya-recomp",
       "platforms": [
@@ -51995,6 +53831,23 @@
       "id": "peggle-xbox-360-para-pc-recompilacio-n-esta-tica-con-rexglue-josuemora918-peggle-xbox-live-arcade",
       "name": "Peggle (Xbox Live Arcade) — Peggle (Xbox 360) para PC — recompilación estática con ReXGlue (JosueMora918)",
       "original_game_title": "Peggle (Xbox Live Arcade)",
+      "original_game": {
+        "format_version": 1,
+        "id": "peggle-xbox-live-arcade",
+        "evidence_urls": [
+          "https://github.com/JosueMora918/peggle360-decomp/blob/a7aa481afcb42c1966f7b981b16422a9bdb72c13/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "peggle-xbox-live-arcade-xbox-360",
+            "title": "Peggle (Xbox Live Arcade) (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/JosueMora918/peggle360-decomp/blob/a7aa481afcb42c1966f7b981b16422a9bdb72c13/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports gameplay and local multiplayer, with user-data write failures and gradual memory growth. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/JosueMora918/peggle360-decomp",
       "platforms": [
@@ -52136,6 +53989,23 @@
       "id": "perfectdarkzerorecomp-nikolaygorb-perfect-dark-zero",
       "name": "Perfect Dark Zero — PerfectDarkZeroRecomp (nikolaygorb)",
       "original_game_title": "Perfect Dark Zero",
+      "original_game": {
+        "format_version": 1,
+        "id": "perfect-dark-zero",
+        "evidence_urls": [
+          "https://github.com/nikolaygorb/PerfectDarkZeroRecomp/blob/9d51d3d52a50743f620dd4015f5c8f0b17bb52dd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "perfect-dark-zero-xbox-360",
+            "title": "Perfect Dark Zero (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/nikolaygorb/PerfectDarkZeroRecomp/blob/9d51d3d52a50743f620dd4015f5c8f0b17bb52dd/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes the game as fully playable with audio, achievements and saves. Its Linux test statements conflict, and Portcove has not confirmed them. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/nikolaygorb/PerfectDarkZeroRecomp",
       "listed_at": "2026-10-25",
@@ -52536,6 +54406,23 @@
       "id": "pgr3-recomp-jpneagle-project-gotham-racing-3",
       "name": "Project Gotham Racing 3 — PGR3-recomp (jpneagle)",
       "original_game_title": "Project Gotham Racing 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "project-gotham-racing-3",
+        "evidence_urls": [
+          "https://github.com/jpneagle/PGR3-recomp/blob/1f2f8794f2e77508f50840909cd96c4c13d7f6a9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "project-gotham-racing-3-xbox-360",
+            "title": "Project Gotham Racing 3 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/jpneagle/PGR3-recomp/blob/1f2f8794f2e77508f50840909cd96c4c13d7f6a9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/jpneagle/PGR3-recomp",
       "listed_at": "2026-10-25",
@@ -53639,6 +55526,23 @@
       "name": "Pokémon Legends: Z-A (PokeZ-ARecomp)",
       "summary": "An experimental Pokémon Legends: Z-A port derived from LAS, translating AArch64 code to C/x64 with Vulkan. The project reports only Windows/NVIDIA play, with partial Lumiose exploration and battles. Black flashes and night-wall stripes remain; a complete playthrough is unconfirmed. The Windows ZIP launcher is described as a game-free player, generator, importer and compiler that imports and recompiles your own files locally once. Windows 10 v1903+/11 x64 needs Vulkan 1.3; AVX2 is preferred, with a slower SSE4.2 fallback. Inherited Linux/Mac builds are untested for Z-A. Use your own version 1.0.0 base XCI/NSP, optional 2.0.0 update and owned DLC, with prod.keys/title.keys. Firmware fonts are optional; the Windows fallback lacks button icons. Back up before save conversion: 2.0.0 saves cannot load on 1.0.0. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Pokémon Legends: Z-A",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-legends-z-a",
+        "evidence_urls": [
+          "https://github.com/Hexveil404/PokeZ-ARecomp/blob/280098af357b302ba0b22fcd4127eed47c69cdc3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-legends-z-a-nintendo-switch",
+            "title": "Pokémon Legends: Z-A (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/Hexveil404/PokeZ-ARecomp/blob/280098af357b302ba0b22fcd4127eed47c69cdc3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Hexveil404/PokeZ-ARecomp",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -53659,6 +55563,23 @@
       "name": "Pokémon: Let’s Go, Eevee! (letsgo-recomp)",
       "summary": "An in-development Pokémon: Let’s Go port translating AArch64 code to C with an LAS-based Vulkan player. Eevee 1.0.0 has more testing than Pikachu; a full playthrough is unconfirmed. Online, Poké Ball Plus and player 2 are unsupported. Higher frame rates, frame generation and wild battles are experimental. The Windows ZIP launcher imports, copies and recompiles your game locally once; keep one folder per game. Windows 10/11 x64 needs SSE4.2 and Vulkan 1.3, with AVX2 recommended. Other native desktop routes are unconfirmed. Supply your own corresponding Eevee or Pikachu extracted ExeFS/RomFS from any region. Base 1.0.0 enables all options; 1.0.1/1.0.2 have fewer options and less testing. Extract XCI/NSP externally first. No separate keys/firmware input is described after extraction. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Pokémon: Let’s Go, Eevee!",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-lets-go-eevee",
+        "evidence_urls": [
+          "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-lets-go-eevee-nintendo-switch",
+            "title": "Pokémon: Let’s Go, Eevee! (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/raulzrrs/letsgo-recomp",
       "platforms": [],
       "availability": "unknown",
@@ -53679,6 +55600,23 @@
       "name": "Pokémon: Let’s Go, Pikachu! (letsgo-recomp)",
       "summary": "An in-development Pokémon: Let’s Go port translating AArch64 code to C with an LAS-based Vulkan player. Eevee 1.0.0 has more testing than Pikachu; a full playthrough is unconfirmed. Online, Poké Ball Plus and player 2 are unsupported. Higher frame rates, frame generation and wild battles are experimental. The Windows ZIP launcher imports, copies and recompiles your game locally once; keep one folder per game. Windows 10/11 x64 needs SSE4.2 and Vulkan 1.3, with AVX2 recommended. Other native desktop routes are unconfirmed. Supply your own corresponding Eevee or Pikachu extracted ExeFS/RomFS from any region. Base 1.0.0 enables all options; 1.0.1/1.0.2 have fewer options and less testing. Extract XCI/NSP externally first. No separate keys/firmware input is described after extraction. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Pokémon: Let’s Go, Pikachu!",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-lets-go-pikachu",
+        "evidence_urls": [
+          "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-lets-go-pikachu-nintendo-switch",
+            "title": "Pokémon: Let’s Go, Pikachu! (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/letsgo-recomp/blob/342ebd71f1ed99f881b9fa7d4feda47df1f0acbf/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/raulzrrs/letsgo-recomp",
       "platforms": [],
       "availability": "unknown",
@@ -54132,6 +56070,23 @@
       "name": "Pokémon Sword (swsh-recomp)",
       "summary": "An experimental Pokémon Sword port translating AArch64 code to C with LetsGo/LAS-derived Vulkan services. The project reports Sword 1.3.2 with DLC on one PC, with memory growth, title flicker and experimental 60 FPS. Online play, trades and raids are unavailable; a full playthrough is unconfirmed. The Windows ZIP imports, copies and recompiles locally, estimated at 40 minutes on 20 threads; DLC setup is not automated. Windows 10/11 x64 needs AVX2/FMA/BMI2 and Vulkan 1.3; only RTX 3080 is tested, with AMD/Intel/integrated graphics untested. Supply your own already-extracted updated 1.3.2 exefs/romfs and optional matching owned DLC. Extract XCI/NSP externally first; the launcher describes no keys input. No other desktop route is offered. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Pokémon Sword",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-sword",
+        "evidence_urls": [
+          "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-sword-nintendo-switch",
+            "title": "Pokémon Sword (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/raulzrrs/swsh-recomp/blob/784eaa5762edd0ccb77ffb20e80809c73783c8f3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/raulzrrs/swsh-recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -54758,6 +56713,23 @@
       "id": "prime-recomp-ethannicholas-ethannicholas-metroid-prime",
       "name": "Metroid Prime — prime-recomp (ethannicholas) (ethannicholas)",
       "original_game_title": "Metroid Prime",
+      "original_game": {
+        "format_version": 1,
+        "id": "metroid-prime",
+        "evidence_urls": [
+          "https://github.com/ethannicholas/prime-recomp/blob/aee55ab6d2e73bfd800ac60756c94d422acc74eb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "metroid-prime-gamecube",
+            "title": "Metroid Prime (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/ethannicholas/prime-recomp/blob/aee55ab6d2e73bfd800ac60756c94d422acc74eb/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project claims the whole game is complete without significant bugs. Development focuses on VR. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ethannicholas/prime-recomp",
       "listed_at": "2026-10-25",
@@ -56006,6 +57978,23 @@
       "name": "Quake 4 (Xbox 360 edition) (Xbox 360 Quake 4 decomp/recomp)",
       "summary": "An Xbox 360 Quake 4 development route that builds locally from your own ISO/default.xex. The Windows setup EXE is not a prebuilt playable game. The project has tested only early levels; later levels are rough and audio testing is limited. The native Direct3D 11 renderer and legacy executable are separate outputs. Exact Windows host CPU architecture is unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Quake 4 (Xbox 360 edition)",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-4-xbox-360-edition",
+        "evidence_urls": [
+          "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/4373d66191307d1f6c839343d7bc7b0008eec5f0/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-4-xbox-360-edition-xbox-360",
+            "title": "Quake 4 (Xbox 360 edition) (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/cyberheater/Xbox-360-Quake4-decomp/blob/4373d66191307d1f6c839343d7bc7b0008eec5f0/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/cyberheater/Xbox-360-Quake4-decomp",
       "platforms": [],
       "availability": "unknown",
@@ -56599,6 +58588,23 @@
       "id": "rages4calm-earthbound-companion",
       "name": "EarthBound Companion",
       "original_game_title": "EarthBound",
+      "original_game": {
+        "format_version": 1,
+        "id": "earthbound",
+        "evidence_urls": [
+          "https://github.com/rages4calm/earthbound-companion/blob/0bf84bb2b80f1f7f3bc23101775a33140b7b7809/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "earthbound-super-nintendo",
+            "title": "EarthBound (Super Nintendo, region not specified)",
+            "system": "super-nintendo",
+            "evidence_urls": [
+              "https://github.com/rages4calm/earthbound-companion/blob/0bf84bb2b80f1f7f3bc23101775a33140b7b7809/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted existing Companion launcher with your own clean USA EarthBound ROM.",
       "project_url": "https://github.com/rages4calm/earthbound-companion",
       "issue_number": 2861,
@@ -57035,6 +59041,23 @@
       "id": "re-jeweled-thefixinhixon-bejeweled-blitz-live",
       "name": "Bejeweled Blitz Live — Re-Jeweled (thefixinhixon)",
       "original_game_title": "Bejeweled Blitz Live",
+      "original_game": {
+        "format_version": 1,
+        "id": "bejeweled-blitz-live",
+        "evidence_urls": [
+          "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "bejeweled-blitz-live-xbox-360",
+            "title": "Bejeweled Blitz Live (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes test build1b as playable. Full mode coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/thefixinhixon/Re-Jeweled",
       "listed_at": "2026-10-25",
@@ -58055,6 +60078,23 @@
       "name": "Ridge Racer 6 (Ridge Racer 6 Recomp)",
       "summary": "Attach an independently permitted, prepared Ridge Racer 6 Windows native game with its exact USA executable and explicit prepared game folder. Preserve the actual Documents data root; the official asset’s internal TestBuild-09 folder label differs from its 0.1.5 release tag.",
       "original_game_title": "Ridge Racer 6",
+      "original_game": {
+        "format_version": 1,
+        "id": "ridge-racer-6",
+        "evidence_urls": [
+          "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/50d1c9d3268eff1ada34a413b026697a02331e0a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ridge-racer-6-xbox-360",
+            "title": "Ridge Racer 6 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Sirhalo23/RidgeRacer6-Recompilation/blob/50d1c9d3268eff1ada34a413b026697a02331e0a/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Sirhalo23/RidgeRacer6-Recompilation",
       "platforms": [
         "windows-x86-64"
@@ -58309,6 +60349,23 @@
       "name": "Vagrant Story (Vagrant Story Recompiled)",
       "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Vagrant Story",
+      "original_game": {
+        "format_version": 1,
+        "id": "vagrant-story",
+        "evidence_urls": [
+          "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/d2d82f58125268183ecd3de5f369119438541ba8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "vagrant-story-playstation",
+            "title": "Vagrant Story (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/riotashley81-jpg/vagrantstory_recomp/blob/d2d82f58125268183ecd3de5f369119438541ba8/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/riotashley81-jpg/vagrantstory_recomp",
       "platforms": [
         "windows-x86-64"
@@ -58733,6 +60790,23 @@
       "name": "Xenogears (Weltall)",
       "summary": "Attach an independently permitted, prepared Weltall Windows native game with your own supported Xenogears discs. Preserve the full Unreal Engine package, original disc representations and LocalAppData saves/settings; optional undubs and translations retain separate terms.",
       "original_game_title": "Xenogears",
+      "original_game": {
+        "format_version": 1,
+        "id": "xenogears",
+        "evidence_urls": [
+          "https://github.com/Roman215/Weltall/blob/03452af61707b574c310cad2ba057d3577d10a30/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "xenogears-playstation",
+            "title": "Xenogears (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/Roman215/Weltall/blob/03452af61707b574c310cad2ba057d3577d10a30/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Roman215/Weltall",
       "platforms": [
         "windows-x86-64"
@@ -58944,6 +61018,23 @@
       "id": "rumble-roses-xx-pc-recomp-unofficial-jesustaylo-rumble-roses-xx",
       "name": "Rumble Roses XX — Rumble Roses XX — PC recomp (unofficial) (JesusTaylo)",
       "original_game_title": "Rumble Roses XX",
+      "original_game": {
+        "format_version": 1,
+        "id": "rumble-roses-xx",
+        "evidence_urls": [
+          "https://github.com/JesusTaylo/rumble-roses-xx-recomp/blob/7c60384935b5391cf9e76fb1c162abac865575c2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rumble-roses-xx-xbox-360",
+            "title": "Rumble Roses XX (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/JesusTaylo/rumble-roses-xx-recomp/blob/7c60384935b5391cf9e76fb1c162abac865575c2/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The alpha reaches full matches on one IntelUHD PC. GPU-TDR and crash concerns remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/JesusTaylo/rumble-roses-xx-recomp",
       "listed_at": "2026-10-25",
@@ -61211,6 +63302,23 @@
       "id": "socom-native-blvckburn-socom-u-s-navy-seals",
       "name": "SOCOM: U.S. Navy SEALs — socom-native (BLVCKBURN)",
       "original_game_title": "SOCOM: U.S. Navy SEALs",
+      "original_game": {
+        "format_version": 1,
+        "id": "socom-u-s-navy-seals",
+        "evidence_urls": [
+          "https://github.com/BLVCKBURN/socom-native/blob/fb83e2d02e600a3328df8d89e9fa781d2380d74f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "socom-u-s-navy-seals-playstation-2",
+            "title": "SOCOM: U.S. Navy SEALs (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/BLVCKBURN/socom-native/blob/fb83e2d02e600a3328df8d89e9fa781d2380d74f/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Only native initialization and a checkpoint are established. A game-specific runtime exists, but working gameplay is not guaranteed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/BLVCKBURN/socom-native",
       "listed_at": "2026-10-25",
@@ -61356,6 +63464,23 @@
         ]
       },
       "original_game_title": "Sonic 3 & Knuckles",
+      "original_game": {
+        "format_version": 1,
+        "id": "sonic-3-knuckles",
+        "evidence_urls": [
+          "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "sonic-3-knuckles-mega-drive-genesis",
+            "title": "Sonic 3 & Knuckles (Mega Drive/Genesis, region not specified)",
+            "system": "mega-drive-genesis",
+            "evidence_urls": [
+              "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -62233,6 +64358,23 @@
       "name": "South Park: Let's Go Tower Defense Play! (South Park TD Recompiled)",
       "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
       "original_game_title": "South Park: Let's Go Tower Defense Play!",
+      "original_game": {
+        "format_version": 1,
+        "id": "south-park-let-s-go-tower-defense-play",
+        "evidence_urls": [
+          "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/6b68caed6de37fd62ab585375b81e1b7287cf25c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "south-park-let-s-go-tower-defense-play-xbox-360",
+            "title": "South Park: Let's Go Tower Defense Play! (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/TekRantGaming/south-park-tower-defense-recompiled/blob/6b68caed6de37fd62ab585375b81e1b7287cf25c/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/TekRantGaming/south-park-tower-defense-recompiled",
       "platforms": [
         "windows-x86-64"
@@ -62279,6 +64421,23 @@
       "name": "South Park: Tenorman's Revenge (South Park TR Recompiled)",
       "summary": "Attach an independently permitted, prepared South Park: Tenorman’s Revenge Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
       "original_game_title": "South Park: Tenorman's Revenge",
+      "original_game": {
+        "format_version": 1,
+        "id": "south-park-tenorman-s-revenge",
+        "evidence_urls": [
+          "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "south-park-tenorman-s-revenge-xbox-360",
+            "title": "South Park: Tenorman's Revenge (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled/blob/1de5a89f6db722f922f4ead1a3ca5925da389ebd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/TekRantGaming/south-park-tenormans-revenge-recompiled",
       "platforms": [
         "windows-x86-64"
@@ -62911,6 +65070,23 @@
       "id": "srwz-native-sloppywyn-super-robot-taisen-z",
       "name": "Super Robot Taisen Z — SRWZ-native (SloppyWyn)",
       "original_game_title": "Super Robot Taisen Z",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-robot-taisen-z",
+        "evidence_urls": [
+          "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-robot-taisen-z-playstation-2",
+            "title": "Super Robot Taisen Z (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental native scenarios, rendering and sound. Scenario 2 onward, battle speed and media polish are still in development. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/SloppyWyn/SRWZ-native",
       "platforms": [],
@@ -63117,6 +65293,23 @@
       "name": "SSX 3 (Xbox, PAL) (SSX3-recomp (koenhendriks))",
       "summary": "A separate koenhendriks SSX 3 implementation with a Windows x86-64 release and Linux x86-64 source-build racing reported by the project. Asahi Linux ARM64 reaches menus only; native macOS is unsupported. Use your own PAL original-Xbox dump with default.xbe and the complete data/ directory, and point the launcher at that extracted root for its PAL check. The bertibertig and PS2 versions have different inputs and players. Exact accepted XBE revision/hash is unspecified. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "SSX 3 (Xbox, PAL)",
+      "original_game": {
+        "format_version": 1,
+        "id": "ssx-3-xbox-pal",
+        "evidence_urls": [
+          "https://github.com/koenhendriks/SSX3-recomp/blob/bdb5110ec1cb3ac73c84de7aded73852f7656fa8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ssx-3-xbox-pal-xbox",
+            "title": "SSX 3 (Xbox, PAL) (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/koenhendriks/SSX3-recomp/blob/bdb5110ec1cb3ac73c84de7aded73852f7656fa8/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/koenhendriks/SSX3-recomp",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -63961,6 +66154,23 @@
       "name": "3 on 3 NHL Arcade (3on3 Arcade Recomp)",
       "summary": "Attach an independently permitted, prepared NHL 3-on-3 Arcade native Windows player directly after upstream game-package setup. Preserve its game folder, settings and actual runtime save root; roster and online compatibility remain separate.",
       "original_game_title": "3 on 3 NHL Arcade",
+      "original_game": {
+        "format_version": 1,
+        "id": "3-on-3-nhl-arcade",
+        "evidence_urls": [
+          "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "3-on-3-nhl-arcade-xbox-360",
+            "title": "3 on 3 NHL Arcade (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/startupandhold/3on3ArcadeRecomp/blob/efcd9e5a0c46e0177b76b93d336ab701667e8539/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/startupandhold/3on3ArcadeRecomp",
       "platforms": [
         "windows-x86-64"
@@ -64014,6 +66224,23 @@
       "id": "starwars-renegadesquadron-pc-gtteancum-star-wars-battlefront-renegade-squadron",
       "name": "Star Wars Battlefront: Renegade Squadron — StarWars-RenegadeSquadron-PC (GTTeancum)",
       "original_game_title": "Star Wars Battlefront: Renegade Squadron",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-battlefront-renegade-squadron",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC/blob/7c0e0db52d5076f5794284f000277525d11fe563/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-battlefront-renegade-squadron-playstation-portable",
+            "title": "Star Wars Battlefront: Renegade Squadron (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC/blob/7c0e0db52d5076f5794284f000277525d11fe563/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project provides a native host and statically translated game runtime. The extent of working gameplay has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/StarWars-RenegadeSquadron-PC",
       "listed_at": "2026-10-25",
@@ -65508,6 +67735,23 @@
       "name": "Super Robot Taisen 64 (Marchwind 64)",
       "summary": "Attach an independently permitted, prepared Marchwind64 Windows player for the exact Japanese Rev0 Super Robot Taisen 64 ROM. Preserve the chosen LocalAppData or user-data layout and both sides of confirmed synchronization; the latest voice-mod tag is not the player package.",
       "original_game_title": "Super Robot Taisen 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-robot-taisen-64",
+        "evidence_urls": [
+          "https://github.com/dyzz/srw64-recomp/blob/348a801bac25a57617d145d44b3f150c1d321d15/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-robot-taisen-64-nintendo-64",
+            "title": "Super Robot Taisen 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/dyzz/srw64-recomp/blob/348a801bac25a57617d145d44b3f150c1d321d15/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dyzz/srw64-recomp",
       "platforms": [
         "windows-x86-64"
@@ -65632,6 +67876,23 @@
       "name": "Super Smash Bros. Ultimate (WindowSmash)",
       "summary": "An experimental Super Smash Bros. Ultimate port translating AArch64/NEON code to C/x64 with Direct3D 11/HLSL, experimental Linux DXVK/Vulkan and a separate Apple Silicon Metal renderer. The project reports menus, matches and Local Wireless, but physical controllers, complete two-PC matches and the online roster have limited testing. Mac observations reach menus only. The source installer downloads tools/compiler and builds locally; two alpha tags contain no release files. Windows 10/11 x64 needs AVX2/Direct3D 11; Linux CPU support is unconfirmed, and Apple Silicon source targets macOS 14.5+. Use your own 13.0.5 base plus matching update or merged dump, prod.keys/title.keys and firmware NCAs for fonts. XCI/NSP/NCA are accepted; expand NSZ/XCZ first. Original source data may remain required during play. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Super Smash Bros. Ultimate",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-smash-bros-ultimate",
+        "evidence_urls": [
+          "https://github.com/OpenSmash-Ultimate/WindowSmash/blob/598d05240fc146f7184b3450653e2eec2ee97312/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-smash-bros-ultimate-nintendo-switch",
+            "title": "Super Smash Bros. Ultimate (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/OpenSmash-Ultimate/WindowSmash/blob/598d05240fc146f7184b3450653e2eec2ee97312/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -65652,6 +67913,23 @@
       "name": "Super Street Fighter II Turbo HD Remix (SSF2T HD Remix Recompiled)",
       "summary": "Attach an independently permitted, prepared Super Street Fighter II Turbo HD Remix Windows player, with its exact base game and optional official TU1 already configured upstream. Preserve actual portable/legacy data and migration recovery; updates or image/settings changes can request a successor.",
       "original_game_title": "Super Street Fighter II Turbo HD Remix",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-street-fighter-ii-turbo-hd-remix",
+        "evidence_urls": [
+          "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/b6f5bf620a30f52e17fdf7cb28067c9d719a3216/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-street-fighter-ii-turbo-hd-remix-xbox-360",
+            "title": "Super Street Fighter II Turbo HD Remix (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/saulob/ssf2t-hd-remix-recompiled/blob/b6f5bf620a30f52e17fdf7cb28067c9d719a3216/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/saulob/ssf2t-hd-remix-recompiled",
       "platforms": [
         "windows-x86-64"
@@ -66374,6 +68652,23 @@
       "id": "t5dr-online-thewishin-tekken-5-dark-resurrection-online",
       "name": "Tekken 5: Dark Resurrection Online — T5DR Online (TheWishin)",
       "original_game_title": "Tekken 5: Dark Resurrection Online",
+      "original_game": {
+        "format_version": 1,
+        "id": "tekken-5-dark-resurrection-online",
+        "evidence_urls": [
+          "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tekken-5-dark-resurrection-online-playstation-3",
+            "title": "Tekken 5: Dark Resurrection Online (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/TheWishin/T5DROnline/blob/b6285ea423d01625323b52406dea81f92918e94e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project claims all offline modes at 60 FPS and online tests between two PCs. Broader hardware compatibility has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/TheWishin/T5DROnline",
       "platforms": [
@@ -66467,6 +68762,23 @@
       "id": "table-tennis-rockstar-pc-davidptrssvea-rockstar-games-presents-table-tennis",
       "name": "Rockstar Games Presents Table Tennis — Table Tennis Rockstar PC (davidptrssvea)",
       "original_game_title": "Rockstar Games Presents Table Tennis",
+      "original_game": {
+        "format_version": 1,
+        "id": "rockstar-games-presents-table-tennis",
+        "evidence_urls": [
+          "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC/blob/753765bfa044c15487fa9a6a6829e34532fac9df/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rockstar-games-presents-table-tennis-xbox-360",
+            "title": "Rockstar Games Presents Table Tennis (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC/blob/753765bfa044c15487fa9a6a6829e34532fac9df/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes gameplay features. Tool installation on a clean machine and the SDK’s security-blocked first download remain unverified. Gameplay-progress save/load has not been fully rechecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC",
       "platforms": [],
@@ -66896,6 +69208,23 @@
       "name": "Point Blank (Point Blank PC Port)",
       "summary": "Attach an independently permitted, prepared Point Blank PlayStation Windows player with your own USA SLUS-00481 CUE/BIN. The current package contains the native player; lightgun hardware, arcade originals and earlier builder packages retain separate scope.",
       "original_game_title": "Point Blank",
+      "original_game": {
+        "format_version": 1,
+        "id": "point-blank",
+        "evidence_urls": [
+          "https://github.com/TekRantGaming/point-blank-recompiled/blob/15c48788c5d02b0075343f007e282193426cd27b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "point-blank-playstation",
+            "title": "Point Blank (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/TekRantGaming/point-blank-recompiled/blob/15c48788c5d02b0075343f007e282193426cd27b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/TekRantGaming/point-blank-recompiled",
       "platforms": [
         "windows-x86-64"
@@ -67049,6 +69378,23 @@
       "id": "tenchu-z-recomp-8bitninja64-tenchu-z",
       "name": "Tenchu Z — Tenchu Z Recomp (8bitninja64)",
       "original_game_title": "Tenchu Z",
+      "original_game": {
+        "format_version": 1,
+        "id": "tenchu-z",
+        "evidence_urls": [
+          "https://github.com/8bitninja64/TenchuZ-PC/blob/b638841a8a2a46cfa2a531b639022003429bf59d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tenchu-z-xbox-360",
+            "title": "Tenchu Z (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/8bitninja64/TenchuZ-PC/blob/b638841a8a2a46cfa2a531b639022003429bf59d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream boots/movies/audio/menus/hideout/missions with native D3D11 at the original 30 FPS and 60 FPS or higher options. New HDR10/AO/sharpening/MSAA8x/controller settings/cheats are feature claims; wider than 16:9 and achievements unfinished. the existing 75–80 FPS mission example on an RTX 3070 laptop is upstream-only; no full campaign or Portcove gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/8bitninja64/TenchuZ-PC",
       "platforms": [
@@ -69191,6 +71537,23 @@
       "id": "timesplitters-gtteancum-timesplitters",
       "name": "TimeSplitters — Timesplitters (GTTeancum)",
       "original_game_title": "TimeSplitters",
+      "original_game": {
+        "format_version": 1,
+        "id": "timesplitters",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "timesplitters-playstation-2",
+            "title": "TimeSplitters (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/Timesplitters",
       "listed_at": "2026-10-25",
@@ -69224,6 +71587,23 @@
       "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
       "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
       "original_game_title": "Jet Force Gemini",
+      "original_game": {
+        "format_version": 1,
+        "id": "jet-force-gemini",
+        "evidence_urls": [
+          "https://github.com/TK22-26/JetForceGemini-Recomp/blob/3bbef565de1302f6489c9dfd0fc15525621fbd6a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jet-force-gemini-nintendo-64",
+            "title": "Jet Force Gemini (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/TK22-26/JetForceGemini-Recomp/blob/3bbef565de1302f6489c9dfd0fc15525621fbd6a/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
       "platforms": [
         "windows-x86-64"
@@ -69265,6 +71645,23 @@
       "id": "tkdr-recomp-gasparegas-tekken-dark-resurrection-psp",
       "name": "Tekken: Dark Resurrection (PSP) — tkdr-recomp (gasparegas)",
       "original_game_title": "Tekken: Dark Resurrection (PSP)",
+      "original_game": {
+        "format_version": 1,
+        "id": "tekken-dark-resurrection-psp",
+        "evidence_urls": [
+          "https://github.com/gasparegas/tkdr-recomp/blob/588186e2859c76d0a93ec67f005114114cb21833/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tekken-dark-resurrection-psp-playstation-portable",
+            "title": "Tekken: Dark Resurrection (PSP) (PlayStation Portable, region not specified)",
+            "system": "playstation-portable",
+            "evidence_urls": [
+              "https://github.com/gasparegas/tkdr-recomp/blob/588186e2859c76d0a93ec67f005114114cb21833/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports fights at 60 FPS and up to 4×. This original PSP title remains separate from PS3 Dark Resurrection Online. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/gasparegas/tkdr-recomp",
       "platforms": [],
@@ -69422,6 +71819,23 @@
       "id": "tokisaki-port-yyozcan-killzone-2",
       "name": "Killzone 2 — Tokisaki Port (YYOzcan)",
       "original_game_title": "Killzone 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "killzone-2",
+        "evidence_urls": [
+          "https://github.com/YYOzcan/tokisaki-port/blob/786c46bf27e947bcf3c355be77a22901e61d3a89/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "killzone-2-playstation-3",
+            "title": "Killzone 2 (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/YYOzcan/tokisaki-port/blob/786c46bf27e947bcf3c355be77a22901e61d3a89/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "First objective NewSun gameplay at 13–14 FPS on a Radeon 680M; introdeadlock/audio incomplete See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/YYOzcan/tokisaki-port",
       "platforms": [],
@@ -70206,6 +72620,23 @@
       "id": "tox2-recomp-yuias-tales-of-xillia-2",
       "name": "Tales of Xillia 2 — TOX2-recomp (yuias)",
       "original_game_title": "Tales of Xillia 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "tales-of-xillia-2",
+        "evidence_urls": [
+          "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tales-of-xillia-2-playstation-3",
+            "title": "Tales of Xillia 2 (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. Title/opening scenes picture/sound on Mac; an attract-movie placeholder, physical gamepad testing on Mac and full playthrough absent. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/yuias/TOX2-recomp",
       "platforms": [
@@ -72113,6 +74544,23 @@
       "name": "Urban Reign (Urban Reign Recomp)",
       "summary": "Attach an independently permitted, prepared Urban Reign Windows native game with its exact USA disc executable and explicit ISO path. Preserve executable-side settings, memory cards and states; the browser launcher, optional HD packs and multiplayer claims retain separate scope.",
       "original_game_title": "Urban Reign",
+      "original_game": {
+        "format_version": 1,
+        "id": "urban-reign",
+        "evidence_urls": [
+          "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "urban-reign-playstation-2",
+            "title": "Urban Reign (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/thiagordsfx/urban-reign-recomp/blob/80901198b6a25b99ff755031c2d04ddb9ab33469/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/thiagordsfx/urban-reign-recomp",
       "platforms": [
         "windows-x86-64"
@@ -72326,6 +74774,23 @@
       "id": "v64recomp-conker-us-polaco1782-conker-s-bad-fur-day",
       "name": "Conker's Bad Fur Day — v64recomp / conker-us (polaco1782)",
       "original_game_title": "Conker's Bad Fur Day",
+      "original_game": {
+        "format_version": 1,
+        "id": "conker-s-bad-fur-day",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "conker-s-bad-fur-day-nintendo-64",
+            "title": "Conker's Bad Fur Day (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72373,6 +74838,23 @@
       "id": "v64recomp-duke-us-polaco1782-duke-nukem-64",
       "name": "Duke Nukem 64 — v64recomp / duke-us (polaco1782)",
       "original_game_title": "Duke Nukem 64",
+      "original_game": {
+        "format_version": 1,
+        "id": "duke-nukem-64",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "duke-nukem-64-nintendo-64",
+            "title": "Duke Nukem 64 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72420,6 +74902,23 @@
       "id": "v64recomp-duke-zero-hour-us-polaco1782-duke-nukem-zero-hour",
       "name": "Duke Nukem: Zero Hour — v64recomp / duke-zero-hour-us (polaco1782)",
       "original_game_title": "Duke Nukem: Zero Hour",
+      "original_game": {
+        "format_version": 1,
+        "id": "duke-nukem-zero-hour",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "duke-nukem-zero-hour-nintendo-64",
+            "title": "Duke Nukem: Zero Hour (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72467,6 +74966,23 @@
       "id": "v64recomp-goldeneye-us-polaco1782-goldeneye-007",
       "name": "GoldenEye 007 — v64recomp / goldeneye-us (polaco1782)",
       "original_game_title": "GoldenEye 007",
+      "original_game": {
+        "format_version": 1,
+        "id": "goldeneye-007",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "goldeneye-007-nintendo-64",
+            "title": "GoldenEye 007 (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. Gameplay screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72626,6 +75142,23 @@
       "id": "v64recomp-oot-us-v12-polaco1782-the-legend-of-zelda-ocarina-of-time",
       "name": "The Legend of Zelda: Ocarina of Time — v64recomp / oot-us-v12 (polaco1782)",
       "original_game_title": "The Legend of Zelda: Ocarina of Time",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-ocarina-of-time",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-ocarina-of-time-nintendo-64",
+            "title": "The Legend of Zelda: Ocarina of Time (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. Title-screen and optional widescreen screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72673,6 +75206,23 @@
       "id": "v64recomp-perfectdark-us-v11-polaco1782-perfect-dark",
       "name": "Perfect Dark — v64recomp / perfectdark-us-v11 (polaco1782)",
       "original_game_title": "Perfect Dark",
+      "original_game": {
+        "format_version": 1,
+        "id": "perfect-dark",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "perfect-dark-nintendo-64",
+            "title": "Perfect Dark (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. CarringtonInstitute screenshot; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72832,6 +75382,23 @@
       "id": "v64recomp-rayman2-us-polaco1782-rayman-2-the-great-escape",
       "name": "Rayman 2: The Great Escape — v64recomp / rayman2-us (polaco1782)",
       "original_game_title": "Rayman 2: The Great Escape",
+      "original_game": {
+        "format_version": 1,
+        "id": "rayman-2-the-great-escape",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rayman-2-the-great-escape-nintendo-64",
+            "title": "Rayman 2: The Great Escape (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -72935,6 +75502,23 @@
       "id": "v64recomp-shadowman-us-polaco1782-shadow-man",
       "name": "Shadow Man — v64recomp / shadowman-us (polaco1782)",
       "original_game_title": "Shadow Man",
+      "original_game": {
+        "format_version": 1,
+        "id": "shadow-man",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "shadow-man-nintendo-64",
+            "title": "Shadow Man (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -73046,6 +75630,23 @@
       "id": "v64recomp-turok-us-v12-polaco1782-turok-dinosaur-hunter",
       "name": "Turok: Dinosaur Hunter — v64recomp / turok-us-v12 (polaco1782)",
       "original_game_title": "Turok: Dinosaur Hunter",
+      "original_game": {
+        "format_version": 1,
+        "id": "turok-dinosaur-hunter",
+        "evidence_urls": [
+          "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "turok-dinosaur-hunter-nintendo-64",
+            "title": "Turok: Dinosaur Hunter (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. This game-specific profile is experimental. Its setup, stability and completion have not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/polaco1782/v64recomp",
       "platforms": [],
@@ -73348,6 +75949,23 @@
       "id": "vcs-recomp-theurbanninja1993-sketch-grand-theft-auto-vice-city-stories-ps2",
       "name": "Grand Theft Auto: Vice City Stories (PS2) — vcs-recomp (theurbanninja1993-sketch)",
       "original_game_title": "Grand Theft Auto: Vice City Stories (PS2)",
+      "original_game": {
+        "format_version": 1,
+        "id": "grand-theft-auto-vice-city-stories-ps2",
+        "evidence_urls": [
+          "https://github.com/theurbanninja1993-sketch/vcs-recomp/blob/cb916041750e9ed944c1ee84f68df56ce14c9f29/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "grand-theft-auto-vice-city-stories-ps2-playstation-2",
+            "title": "Grand Theft Auto: Vice City Stories (PS2) (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/theurbanninja1993-sketch/vcs-recomp/blob/cb916041750e9ed944c1ee84f68df56ce14c9f29/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This source-only recompilation targets the PS2 edition. It is independent of PSP Vice City Stories implementations and their original-file editions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/theurbanninja1993-sketch/vcs-recomp",
       "platforms": [],
@@ -73904,6 +76522,23 @@
       "id": "viva-pin-ata-recomp-crabinacrabic-viva-pinata",
       "name": "Viva Pinata — Viva Piñata Recomp (crabinacrabic)",
       "original_game_title": "Viva Pinata",
+      "original_game": {
+        "format_version": 1,
+        "id": "viva-pinata",
+        "evidence_urls": [
+          "https://github.com/crabinacrabic/VivaPinataRecomp/blob/a0ecaa1c155480c0c25667467dbb95327684b204/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "viva-pinata-xbox-360",
+            "title": "Viva Pinata (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/crabinacrabic/VivaPinataRecomp/blob/a0ecaa1c155480c0c25667467dbb95327684b204/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reports garden play and save/load. A rare crash while idle at the title remains, and a full playthrough has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/crabinacrabic/VivaPinataRecomp",
       "listed_at": "2026-10-25",
@@ -74139,6 +76774,23 @@
       "id": "vp2s-recomp-boubou666-valkyrie-profile-2-silmeria",
       "name": "Valkyrie Profile 2: Silmeria — VP2S_Recomp (boubou666)",
       "original_game_title": "Valkyrie Profile 2: Silmeria",
+      "original_game": {
+        "format_version": 1,
+        "id": "valkyrie-profile-2-silmeria",
+        "evidence_urls": [
+          "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "valkyrie-profile-2-silmeria-playstation-2",
+            "title": "Valkyrie Profile 2: Silmeria (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/TheBozos/VP2S_Recomp/blob/4af70c049aba1e9a13331892f801ce8b5a918ddf/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project reaches the title, music, opening movie and first field cutscene, with corrupted field rendering at 25–35 VSync/s. It is not playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/TheBozos/VP2S_Recomp",
       "platforms": [],
@@ -74268,6 +76920,23 @@
       "id": "war-of-the-monsters-recompiled-yanm1103-war-of-the-monsters",
       "name": "War of the Monsters — War of the Monsters Recompiled (yanm1103)",
       "original_game_title": "War of the Monsters",
+      "original_game": {
+        "format_version": 1,
+        "id": "war-of-the-monsters",
+        "evidence_urls": [
+          "https://github.com/yanm1103/War_of_the_Monsters_recomp/blob/bf0c4b4ba657733982d0e7672951dbad8901d149/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "war-of-the-monsters-playstation-2",
+            "title": "War of the Monsters (PlayStation 2, region not specified)",
+            "system": "playstation-2",
+            "evidence_urls": [
+              "https://github.com/yanm1103/War_of_the_Monsters_recomp/blob/bf0c4b4ba657733982d0e7672951dbad8901d149/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project claims keyboard/gamepad fights, movies, sound and 60 FPS through a source build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/yanm1103/War_of_the_Monsters_recomp",
       "listed_at": "2026-10-25",
@@ -74704,6 +77373,23 @@
       "id": "wcw-mayhem-recomp-dotgrx-wcw-mayhem",
       "name": "WCW Mayhem — WCW-Mayhem-RECOMP (dotGrx)",
       "original_game_title": "WCW Mayhem",
+      "original_game": {
+        "format_version": 1,
+        "id": "wcw-mayhem",
+        "evidence_urls": [
+          "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wcw-mayhem-playstation",
+            "title": "WCW Mayhem (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/dotGrx/WCW-Mayhem-RECOMP/blob/7d75604c6a3fb432bc47da30eef47838ba65e9f9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. The project describes native x64 wrestling with widescreen, controller and mod features. 21:9 and fit-to-window are untested. Portcove has not confirmed full roster, match or completion coverage. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/dotGrx/WCW-Mayhem-RECOMP",
       "platforms": [
@@ -74773,6 +77459,23 @@
       "name": "WET (WET Recomp)",
       "summary": "Attach an independently permitted, already prepared WET Windows player through wet.exe and its actual imported game directory. Preserve the existing SDK-selected data roots; exact original revision and default persistence placement remain unverified.",
       "original_game_title": "WET",
+      "original_game": {
+        "format_version": 1,
+        "id": "wet",
+        "evidence_urls": [
+          "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wet-xbox-360",
+            "title": "WET (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Supermedo/wet-recomp",
       "platforms": [],
       "availability": "unknown",
@@ -76059,6 +78762,23 @@
       "id": "worlddriverchampionship-recomp-alondero-world-driver-championship",
       "name": "World Driver Championship — worlddriverchampionship-recomp (alondero)",
       "original_game_title": "World Driver Championship",
+      "original_game": {
+        "format_version": 1,
+        "id": "world-driver-championship",
+        "evidence_urls": [
+          "https://github.com/alondero/worlddriverchampionship-recomp/blob/76d6ae0596de7464e0f7264cf46a278f8d60af59/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "world-driver-championship-nintendo-64",
+            "title": "World Driver Championship (Nintendo 64, region not specified)",
+            "system": "nintendo-64",
+            "evidence_urls": [
+              "https://github.com/alondero/worlddriverchampionship-recomp/blob/76d6ae0596de7464e0f7264cf46a278f8d60af59/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Upstream Windows x64/Direct3D12 tests cover intro, menus and Hawaii practice driving: acceleration, steering, automatic gears and pause/resume. This remains an early development build with rendering glitches and experimental SDL audio. The frontend-enabled player now advertises rumble alongside persistent Controller Pak saves on port 1, with strength in General settings; physical controller compatibility and feel remain unverified. Linux/Android are unvalidated. No Portcove build, save, controller, audio or gameplay qualification. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/alondero/worlddriverchampionship-recomp",
       "listed_at": "2026-10-25",
@@ -76338,6 +79058,23 @@
       "id": "wwe-2k14-native-pc-recompilation-jarrodfeng-wwe-2k14",
       "name": "WWE 2K14 — WWE 2K14: Native PC Recompilation (Jarrodfeng)",
       "original_game_title": "WWE 2K14",
+      "original_game": {
+        "format_version": 1,
+        "id": "wwe-2k14",
+        "evidence_urls": [
+          "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wwe-2k14-xbox-360",
+            "title": "WWE 2K14 (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Source/build documentation exists; full-playability scope is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Jarrodfeng/wwe2k14-recomp",
       "platforms": [
@@ -77322,6 +80059,23 @@
       "name": "Yo-kai Watch 4++ (YW4Recomp)",
       "summary": "An early Yo-kai Watch 4++ project translating ARM main/sdk code to C with Clang and native Vulkan services. It claims no linked emulator code; Eden is a visual reference only. The project reports startup, a new game, house/town/menus and autosaving at 30 FPS, with missing effects and crashes beyond tested areas. There is no release: local preparation needs Python, Git, Clang, GCC and the Vulkan SDK for input, translation, shaders and building. Windows x64 Vulkan 1.3 is built/tested; Linux x64 is planned and untested despite its badge, with no Mac route. Supply your own exact hash-checked 4++ update 2.2.0 ExeFS/RomFS, rather than generic original Yo-kai Watch 4. Exact hashes/title/region and separate keys/firmware needs are unspecified in the root guide. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "Yo-kai Watch 4++",
+      "original_game": {
+        "format_version": 1,
+        "id": "yo-kai-watch-4",
+        "evidence_urls": [
+          "https://github.com/ILFforever/YW4Recomp/blob/9220d3a3e04427cdcb1c5892bf66db87a636a820/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "yo-kai-watch-4-nintendo-switch",
+            "title": "Yo-kai Watch 4++ (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/ILFforever/YW4Recomp/blob/9220d3a3e04427cdcb1c5892bf66db87a636a820/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ILFforever/YW4Recomp",
       "listed_at": "2026-10-25",
       "funding_urls": [
@@ -77790,6 +80544,23 @@
       "name": "Mario Party 4 (Party Board (zeranemesis port))",
       "summary": "Attach the prepared PartyBoard Windows player for the packaged Mario Party 4 USA or Europe revisions. Select the native player rather than the detached script or optional online companion, and preserve its SDL preference root and regional memory cards.",
       "original_game_title": "Mario Party 4",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-party-4",
+        "evidence_urls": [
+          "https://github.com/zeranemesis/Marioparty4/blob/aa9496ebe0baf522297facd519644935af6e4770/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-party-4-gamecube",
+            "title": "Mario Party 4 (GameCube, region not specified)",
+            "system": "gamecube",
+            "evidence_urls": [
+              "https://github.com/zeranemesis/Marioparty4/blob/aa9496ebe0baf522297facd519644935af6e4770/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/zeranemesis/Marioparty4",
       "platforms": [
         "windows-x86-64"

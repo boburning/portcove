@@ -4,6 +4,23 @@
     "id": "gta-iii-re3",
     "name": "Grand Theft Auto III / re3",
     "original_game_title": "Grand Theft Auto III",
+    "original_game": {
+      "format_version": 1,
+      "id": "grand-theft-auto-iii",
+      "evidence_urls": [
+        "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "grand-theft-auto-iii-playstation-2",
+          "title": "Grand Theft Auto III (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/leanndroguedes/re3-19feb21/blob/9a7fa478578beaba947ea867c15a25e411d641d8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Use a permitted existing re3 player with your own original PC game data.",
     "project_url": "https://github.com/leanndroguedes/re3-19feb21",
     "issue_number": 2852,

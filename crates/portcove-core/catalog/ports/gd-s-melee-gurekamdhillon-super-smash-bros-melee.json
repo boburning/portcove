@@ -4,6 +4,23 @@
     "id": "gd-s-melee-gurekamdhillon-super-smash-bros-melee",
     "name": "Super Smash Bros. Melee — GD's Melee (GurekamDhillon)",
     "original_game_title": "Super Smash Bros. Melee",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": [
+        "https://github.com/GurekamDhillon/gd-melee-workspace/blob/7965c3080edab5a30d50cc24ad4ad84bb695cc76/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-melee-gamecube",
+          "title": "Super Smash Bros. Melee (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/GurekamDhillon/gd-melee-workspace/blob/7965c3080edab5a30d50cc24ad4ad84bb695cc76/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This public beta offers rollback, modding and Lua features. Full compatibility has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GurekamDhillon/gd-melee-workspace",
     "platforms": [],

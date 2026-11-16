@@ -4,6 +4,23 @@
     "id": "dead-or-alive-4-recomp-redc0rvus-dead-or-alive-4",
     "name": "Dead or Alive 4 — Dead or Alive 4 Recomp (redC0rvus)",
     "original_game_title": "Dead or Alive 4",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-4",
+      "evidence_urls": [
+        "https://github.com/redC0rvus/doa4-recomp-suite/blob/469dba09da3a24e08fe9da1883821e851aa7caf2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-4-xbox-360",
+          "title": "Dead or Alive 4 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/redC0rvus/doa4-recomp-suite/blob/469dba09da3a24e08fe9da1883821e851aa7caf2/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Boot/mode-select smoke checks exist; complete mode coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/redC0rvus/doa4-recomp-suite",
     "platforms": ["windows-x86-64"],

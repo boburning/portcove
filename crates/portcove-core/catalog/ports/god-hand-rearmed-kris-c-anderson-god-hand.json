@@ -4,6 +4,23 @@
     "id": "god-hand-rearmed-kris-c-anderson-god-hand",
     "name": "God Hand — God Hand: Rearmed (kris-c-anderson)",
     "original_game_title": "God Hand",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-hand",
+      "evidence_urls": [
+        "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-hand-playstation-2",
+          "title": "God Hand (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed/blob/deb902b581e37c689d7091dca1fbb81a96abb5ce/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This project is in progress. Upstream reports playing stages 1 and 2, and stage 3 through Gorilla Mask/Mad Midget Five. Stages 4–8, the ending, credits and extras remain unplayed. Saving, loading and listed minigames are reported to work. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/God-Hand-Rearmed/God-Hand-Rearmed",
     "listed_at": "2026-10-25",

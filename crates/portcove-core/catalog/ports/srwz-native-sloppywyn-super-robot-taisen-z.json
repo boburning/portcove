@@ -4,6 +4,23 @@
     "id": "srwz-native-sloppywyn-super-robot-taisen-z",
     "name": "Super Robot Taisen Z — SRWZ-native (SloppyWyn)",
     "original_game_title": "Super Robot Taisen Z",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-robot-taisen-z",
+      "evidence_urls": [
+        "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-robot-taisen-z-playstation-2",
+          "title": "Super Robot Taisen Z (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/SloppyWyn/SRWZ-native/blob/d45c45ed91b3fc1beec685cda0ec2b25ed015869/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental native scenarios, rendering and sound. Scenario 2 onward, battle speed and media polish are still in development. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/SloppyWyn/SRWZ-native",
     "platforms": [],

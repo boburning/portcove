@@ -4,6 +4,23 @@
     "id": "iss2000-djultra64-international-superstar-soccer-2000",
     "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
     "original_game_title": "International Superstar Soccer 2000",
+    "original_game": {
+      "format_version": 1,
+      "id": "international-superstar-soccer-2000",
+      "evidence_urls": [
+        "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "international-superstar-soccer-2000-nintendo-64",
+          "title": "International Superstar Soccer 2000 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/ISS2000/blob/4b37946f44368f87e2d55a123682656dfa00dff1/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
     "project_url": "https://github.com/djultra64/ISS2000",
     "platforms": ["windows-x86-64", "linux-x86-64"],

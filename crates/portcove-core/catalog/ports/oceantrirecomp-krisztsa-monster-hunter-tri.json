@@ -4,6 +4,23 @@
     "id": "oceantrirecomp-krisztsa-monster-hunter-tri",
     "name": "Monster Hunter Tri — OceanTriRecomp (krisztsa)",
     "original_game_title": "Monster Hunter Tri",
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-tri",
+      "evidence_urls": [
+        "https://github.com/krisztsa/OceanTriRecomp/blob/986f25e8f461dc3b04cac6187b21d05d75d694b4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-hunter-tri-wii",
+          "title": "Monster Hunter Tri (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/krisztsa/OceanTriRecomp/blob/986f25e8f461dc3b04cac6187b21d05d75d694b4/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream presents a native game runtime with integrated graphics, controls and save management; this README does not give a complete-playthrough result. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/krisztsa/OceanTriRecomp",
     "platforms": ["windows-x86-64"],

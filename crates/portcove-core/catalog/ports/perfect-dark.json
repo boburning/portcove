@@ -8,6 +8,23 @@
     "project_url": "https://github.com/perfect-dark-pc-port/perfect_dark",
     "listed_at": "2026-10-23",
     "original_game_title": "Perfect Dark",
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
       "warnings": [],

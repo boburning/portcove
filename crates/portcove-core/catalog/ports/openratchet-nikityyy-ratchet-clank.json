@@ -4,6 +4,23 @@
     "id": "openratchet-nikityyy-ratchet-clank",
     "name": "Ratchet & Clank — OpenRatchet (Nikityyy)",
     "original_game_title": "Ratchet & Clank",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-clank",
+      "evidence_urls": [
+        "https://github.com/Nikityyy/OpenRatchet/blob/07c78d3da5022f6d147549c343e0d775b99a950a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ratchet-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Nikityyy/OpenRatchet/blob/07c78d3da5022f6d147549c343e0d775b99a950a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The native app replaces platform services but retains PS2Recomp’s fallback game executor. Level 0, rendering and overlay checks do not establish complete gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Nikityyy/OpenRatchet",
     "listed_at": "2026-10-25",

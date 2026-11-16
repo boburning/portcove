@@ -8,6 +8,23 @@
     "project_url": "https://github.com/kandowontu2/starfox-enhanced",
     "listed_at": "2026-10-23",
     "original_game_title": "Star Fox",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox",
+      "evidence_urls": [
+        "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-super-nintendo",
+          "title": "Star Fox (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "SNES",
     "artwork": {
       "game_id": 8581,

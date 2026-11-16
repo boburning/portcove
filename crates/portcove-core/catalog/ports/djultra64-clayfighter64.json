@@ -5,6 +5,23 @@
     "name": "ClayFighter63andOneThird: ClayFighter64 fusion edition (djultra64 ClayFighter64)",
     "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
     "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "clayfighter63andonethird-clayfighter64-fusion-edition",
+      "evidence_urls": [
+        "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "clayfighter63andonethird-clayfighter64-fusion-edition-nintendo-64",
+          "title": "ClayFighter63andOneThird: ClayFighter64 fusion edition (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/ClayFighter64/blob/fbdaa0652d80cd57f51084806f701c2aeaaed03b/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/djultra64/ClayFighter64",
     "platforms": [],
     "availability": "unknown",

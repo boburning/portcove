@@ -7,6 +7,23 @@
     "summary": "Native Super Smash Bros. 64 port.",
     "project_url": "https://github.com/JRickey/BattleShip",
     "original_game_title": "Super Smash Bros.",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros",
+      "evidence_urls": [
+        "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-nintendo-64",
+          "title": "Super Smash Bros. (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 1626,
       "cover_id": 131928,

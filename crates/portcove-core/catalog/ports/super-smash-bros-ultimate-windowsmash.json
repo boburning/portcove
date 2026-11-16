@@ -5,6 +5,23 @@
     "name": "Super Smash Bros. Ultimate (WindowSmash)",
     "summary": "An experimental Super Smash Bros. Ultimate port translating AArch64/NEON code to C/x64 with Direct3D 11/HLSL, experimental Linux DXVK/Vulkan and a separate Apple Silicon Metal renderer. The project reports menus, matches and Local Wireless, but physical controllers, complete two-PC matches and the online roster have limited testing. Mac observations reach menus only. The source installer downloads tools/compiler and builds locally; two alpha tags contain no release files. Windows 10/11 x64 needs AVX2/Direct3D 11; Linux CPU support is unconfirmed, and Apple Silicon source targets macOS 14.5+. Use your own 13.0.5 base plus matching update or merged dump, prod.keys/title.keys and firmware NCAs for fonts. XCI/NSP/NCA are accepted; expand NSZ/XCZ first. Original source data may remain required during play. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": [
+        "https://github.com/OpenSmash-Ultimate/WindowSmash/blob/598d05240fc146f7184b3450653e2eec2ee97312/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-ultimate-nintendo-switch",
+          "title": "Super Smash Bros. Ultimate (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/OpenSmash-Ultimate/WindowSmash/blob/598d05240fc146f7184b3450653e2eec2ee97312/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/OpenSmash-Ultimate/WindowSmash",
     "listed_at": "2026-10-25",
     "platforms": [],

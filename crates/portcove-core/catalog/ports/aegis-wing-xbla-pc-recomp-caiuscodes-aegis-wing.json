@@ -4,6 +4,23 @@
     "id": "aegis-wing-xbla-pc-recomp-caiuscodes-aegis-wing",
     "name": "Aegis Wing — Aegis Wing XBLA PC Recomp (CaiusCodes)",
     "original_game_title": "Aegis Wing",
+    "original_game": {
+      "format_version": 1,
+      "id": "aegis-wing",
+      "evidence_urls": [
+        "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "aegis-wing-xbox-360",
+          "title": "Aegis Wing (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp/blob/8b108ddfa7367d3caca699d3d0f466576ca45fa8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims 60 FPS and high-resolution play. Complete levels and co-op are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/CaiusCodes/Aegis-Wing-XBLA-PC-Recomp",
     "platforms": ["windows-x86-64"],

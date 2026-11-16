@@ -4,6 +4,23 @@
     "id": "socom-native-blvckburn-socom-u-s-navy-seals",
     "name": "SOCOM: U.S. Navy SEALs — socom-native (BLVCKBURN)",
     "original_game_title": "SOCOM: U.S. Navy SEALs",
+    "original_game": {
+      "format_version": 1,
+      "id": "socom-u-s-navy-seals",
+      "evidence_urls": [
+        "https://github.com/BLVCKBURN/socom-native/blob/fb83e2d02e600a3328df8d89e9fa781d2380d74f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "socom-u-s-navy-seals-playstation-2",
+          "title": "SOCOM: U.S. Navy SEALs (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/BLVCKBURN/socom-native/blob/fb83e2d02e600a3328df8d89e9fa781d2380d74f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Only native initialization and a checkpoint are established. A game-specific runtime exists, but working gameplay is not guaranteed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BLVCKBURN/socom-native",
     "listed_at": "2026-10-25",

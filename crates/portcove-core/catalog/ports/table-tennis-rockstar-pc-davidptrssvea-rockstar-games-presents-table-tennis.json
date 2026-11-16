@@ -4,6 +4,23 @@
     "id": "table-tennis-rockstar-pc-davidptrssvea-rockstar-games-presents-table-tennis",
     "name": "Rockstar Games Presents Table Tennis — Table Tennis Rockstar PC (davidptrssvea)",
     "original_game_title": "Rockstar Games Presents Table Tennis",
+    "original_game": {
+      "format_version": 1,
+      "id": "rockstar-games-presents-table-tennis",
+      "evidence_urls": [
+        "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC/blob/753765bfa044c15487fa9a6a6829e34532fac9df/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rockstar-games-presents-table-tennis-xbox-360",
+          "title": "Rockstar Games Presents Table Tennis (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC/blob/753765bfa044c15487fa9a6a6829e34532fac9df/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes gameplay features. Tool installation on a clean machine and the SDK’s security-blocked first download remain unverified. Gameplay-progress save/load has not been fully rechecked. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/davidptrssvea/Table-Tennis-Rockstar-PC",
     "platforms": [],

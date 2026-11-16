@@ -5,6 +5,23 @@
     "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
     "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
     "original_game_title": "Shadow of the Colossus",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-of-the-colossus",
+      "evidence_urls": [
+        "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shadow-of-the-colossus-playstation-2",
+          "title": "Shadow of the Colossus (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/AjncSystem/ShadowOfTheColossus-PC/blob/6dd820d70dee9af100f49865dc0bc83a5ccca9d6/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/AjncSystem/ShadowOfTheColossus-PC",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

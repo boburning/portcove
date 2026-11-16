@@ -28666,6 +28666,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Mario Kart 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "mario-kart-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "mario-kart-64-nintendo-64",
+              "title": "Mario Kart 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/HarbourMasters/SpaghettiKart/blob/ce0f9358f0505bbdeb76b1aff7a25556cda3fdef/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 350955,
           "cover_id": 468175,
@@ -28744,6 +28761,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Mario 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-mario-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "super-mario-64-nintendo-64",
+              "title": "Super Mario 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -28941,6 +28975,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Fox 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "star-fox-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "star-fox-64-nintendo-64",
+              "title": "Star Fox 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -31831,6 +31882,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
+        "original_game": {
+          "format_version": 1,
+          "id": "yu-gi-oh-forbidden-memories",
+          "evidence_urls": [
+            "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/blob/90cc0a9f894386856986b0cafb058c8588674d95/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "yu-gi-oh-forbidden-memories-playstation",
+              "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation, region not specified)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/Unchiga/YuGiOhForbiddenMemoriesRecomp/blob/90cc0a9f894386856986b0cafb058c8588674d95/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4108,
           "cover_id": 86189,
@@ -32198,6 +32266,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "WCW vs. nWo: World Tour",
+        "original_game": {
+          "format_version": 1,
+          "id": "wcw-vs-nwo-world-tour",
+          "evidence_urls": [
+            "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp/blob/abfa6acee4651f0a4b4376903358fed9ed4bfe6b/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "wcw-vs-nwo-world-tour-nintendo-64",
+              "title": "WCW vs. nWo: World Tour (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/jessetbh/WCWvsNWOWorldTourRecomp/blob/abfa6acee4651f0a4b4376903358fed9ed4bfe6b/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3635,
           "cover_id": 277081,
@@ -32271,6 +32356,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Virtual Pro Wrestling 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "virtual-pro-wrestling-64",
+          "evidence_urls": [
+            "https://github.com/jessetbh/VPW64Recomp/blob/3bdbb0d5517824c9bc9398879e31bf17263bfbd2/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "virtual-pro-wrestling-64-nintendo-64",
+              "title": "Virtual Pro Wrestling 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/jessetbh/VPW64Recomp/blob/3bdbb0d5517824c9bc9398879e31bf17263bfbd2/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3626,
           "cover_id": 322381,
@@ -32344,6 +32446,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "WCW/nWo Revenge",
+        "original_game": {
+          "format_version": 1,
+          "id": "wcw-nwo-revenge",
+          "evidence_urls": [
+            "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "wcw-nwo-revenge-nintendo-64",
+              "title": "WCW/nWo Revenge (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/jessetbh/WCWnWoRevengeRecomp/blob/aa767349008aacb694d03c302d210b4716ecc087/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3636,
           "cover_id": 154513,
@@ -32417,6 +32536,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "WWF WrestleMania 2000",
+        "original_game": {
+          "format_version": 1,
+          "id": "wwf-wrestlemania-2000",
+          "evidence_urls": [
+            "https://github.com/jessetbh/WWFWrestleMania2000Recomp/blob/d6e407496f7dd1b5200ed4c4f54acdee2ae16c0b/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "wwf-wrestlemania-2000-nintendo-64",
+              "title": "WWF WrestleMania 2000 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/jessetbh/WWFWrestleMania2000Recomp/blob/d6e407496f7dd1b5200ed4c4f54acdee2ae16c0b/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3646,
           "cover_id": 576157,
@@ -33826,6 +33962,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Perfect Dark",
+        "original_game": {
+          "format_version": 1,
+          "id": "perfect-dark",
+          "evidence_urls": [
+            "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "perfect-dark-nintendo-64",
+              "title": "Perfect Dark (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/perfect-dark-pc-port/perfect_dark/blob/a4b58e6dd14d5842d588e9841efa8bceb8b86fc3/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
           "warnings": [],
@@ -34270,6 +34423,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Smash Bros.",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-smash-bros",
+          "evidence_urls": [
+            "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "super-smash-bros-nintendo-64",
+              "title": "Super Smash Bros. (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/JRickey/BattleShip/blob/241a3ae154f249469d8707432ec79f51f997cf54/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -34758,6 +34928,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Jak and Daxter: The Precursor Legacy",
+        "original_game": {
+          "format_version": 1,
+          "id": "jak-and-daxter-the-precursor-legacy",
+          "evidence_urls": [
+            "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "jak-and-daxter-the-precursor-legacy-playstation-2",
+              "title": "Jak and Daxter: The Precursor Legacy (PlayStation 2, region not specified)",
+              "system": "playstation-2",
+              "evidence_urls": [
+                "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 206008,
           "cover_id": 298993,
@@ -34877,6 +35064,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Jak II",
+        "original_game": {
+          "format_version": 1,
+          "id": "jak-ii",
+          "evidence_urls": [
+            "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "jak-ii-playstation-2",
+              "title": "Jak II (PlayStation 2, region not specified)",
+              "system": "playstation-2",
+              "evidence_urls": [
+                "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 275306,
           "cover_id": 341811,
@@ -34996,6 +35200,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Jak 3",
+        "original_game": {
+          "format_version": 1,
+          "id": "jak-3",
+          "evidence_urls": [
+            "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "jak-3-playstation-2",
+              "title": "Jak 3 (PlayStation 2, region not specified)",
+              "system": "playstation-2",
+              "evidence_urls": [
+                "https://github.com/open-goal/jak-project/blob/4cd2a71fa15ae214a03925beafa59c7228ec81d3/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 396702,
           "cover_id": 553369,
@@ -35526,6 +35747,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Diddy Kong Racing",
+        "original_game": {
+          "format_version": 1,
+          "id": "diddy-kong-racing",
+          "evidence_urls": [
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "diddy-kong-racing-nintendo-64",
+              "title": "Diddy Kong Racing (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -35670,6 +35908,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Fox",
+        "original_game": {
+          "format_version": 1,
+          "id": "star-fox",
+          "evidence_urls": [
+            "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "star-fox-super-nintendo",
+              "title": "Star Fox (Super Nintendo, region not specified)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md"
+              ]
+            }
+          ]
+        },
         "variant_label": "SNES",
         "manual_setup": {
           "help_url": "https://github.com/kandowontu2/starfox-enhanced/blob/77a5ee84a3d87eb2abfbbf03afb5992557b660bb/README.md",
@@ -36023,6 +36278,23 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Mega Man X5",
+        "original_game": {
+          "format_version": 1,
+          "id": "mega-man-x5",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "mega-man-x5-playstation",
+              "title": "Mega Man X5 (PlayStation, region not specified)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/mstan/MegaManX5Recomp/blob/8d8205ea1bcada23ca7797394f77bdf1c761be5d/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 413319,
           "cover_id": 603636,
@@ -36359,6 +36631,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose your own Wave Race 64 (USA Rev A) original. Portcove installs the unchanged official Windows package and manages saves and settings. RetroAchievements sign-in stays with each installed version, is excluded from backups and is deleted when that version is removed. Sign in again after installing another version. Existing external copies remain yours to manage. Windows gameplay remains untested.",
         "original_game_title": "Wave Race 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "wave-race-64",
+          "evidence_urls": [
+            "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "wave-race-64-nintendo-64",
+              "title": "Wave Race 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/DomazinUS/RaceWave46/blob/5c34f3711426978107707a8f06af9c2af4ee5401/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 3629,
           "cover_id": 478764,
@@ -39194,6 +39483,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own The Legend of Zelda: A Link to the Past (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. The reviewed v0.6.6 package includes the PolyForm Noncommercial 1.0.0 license; retain its license and notices and follow its personal/noncommercial terms.",
         "original_game_title": "The Legend of Zelda: A Link to the Past",
+        "original_game": {
+          "format_version": 1,
+          "id": "the-legend-of-zelda-a-link-to-the-past",
+          "evidence_urls": [
+            "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "the-legend-of-zelda-a-link-to-the-past-super-nintendo",
+              "title": "The Legend of Zelda: A Link to the Past (Super Nintendo, region not specified)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/mstan/ZeldaAlttPSNESRecomp/blob/1c9f0853cd9a81b7c11d98e4ce2bfb6b0e1c340f/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1026,
           "cover_id": 181427,
@@ -39921,6 +40227,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Sonic the Hedgehog 2 (World) Rev A raw big-endian Genesis original. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Raw .bin and .md files or ZIPs containing the matching raw original are accepted; headered or byte-swapped images are not converted. Standard local campaign save names are preserved; custom campaign destinations remain player-owned and outside managed backups. Packaged feature defaults are unchanged. Quickstates depend on the matching build and character/mod/video setup and may be refused after an update. Choose Notify updates and keep the working version when you need an older quickstate; avoid automatic application in that case. The optional campaign save preserves normal progress; a custom save target outside this installation stays outside Portcove backups. Optional character and save-menu donor originals stay where you keep them; the managed settings remember only their selected paths, and Portcove does not copy, check or back up those files. Replayable feedback recording is on by default and writes to the logs folder in the game's installation folder. A recording holds your inputs, game snapshots, the original and build identities, settings and mod choices, and can include private game memory and local paths. Nothing uploads automatically; share a recording only deliberately, together with the files that have the same name. The game keeps the current recording and two earlier ones, each limited to 64 MiB of inputs and 32 MiB of snapshots, and stops recording at those limits or if saving fails. Each installed version keeps its own recordings, and they are removed with that version: Portcove does not carry them to another version or include them in backups, so copy out any recording you want to keep or share. To stop recording, turn off Mods > Diagnostics > Replayable feedback.",
         "original_game_title": "Sonic the Hedgehog 2",
+        "original_game": {
+          "format_version": 1,
+          "id": "sonic-the-hedgehog-2",
+          "evidence_urls": [
+            "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "sonic-the-hedgehog-2-mega-drive-genesis",
+              "title": "Sonic the Hedgehog 2 (Mega Drive/Genesis, region not specified)",
+              "system": "mega-drive-genesis",
+              "evidence_urls": [
+                "https://github.com/mstan/SonicTheHedgehog2Recomp/blob/61a6c5119eeec2570946e95136495c0445635a16/README.md"
+              ]
+            }
+          ]
+        },
         "artwork": {
           "game_id": 4438,
           "cover_id": 259939,
@@ -40759,6 +41082,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission.",
         "original_game_title": "Resident Evil Gaiden",
+        "original_game": {
+          "format_version": 1,
+          "id": "resident-evil-gaiden",
+          "evidence_urls": [
+            "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "resident-evil-gaiden-game-boy-color",
+              "title": "Resident Evil Gaiden (Game Boy Color, region not specified)",
+              "system": "game-boy-color",
+              "evidence_urls": [
+                "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -40940,6 +41280,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Download the exact official 1.1-stable Windows.zip and extract its five unchanged files outside the Portcove library. Do not add portable.txt or mods. Register your recognized World NES original separately. Explicitly review and accept the current Windows account and effective APPDATA/SMB1R shared directory, then manually copy your original there as baserom.nes. Existing settings.cfg must be bounded ordinary data without Godot object/resource constructors. Refresh after manual preparation. Other game copies share originals, settings, saves and custom data; the game can regenerate or trash caches and prune logs. Portcove does not seed, own, migrate, update, back up, restore or delete this shared directory or the prepared runtime. Removal unregisters only. Mods and extra engine/CLI arguments are not offered. Registration is distinct from launch readiness and gameplay observations. This limited route accepts only vanilla BaseAssets. Existing settings must select only BaseAssets. Move custom levels/autosaves, blueprints, custom-character inputs, extra resource packs and Godot loader metadata elsewhere manually before use, preserving their files. Core refuses those executable-bearing inputs without changing them. The route does not offer the optional editor/import workflow or sandbox independent imports while the game runs.",
         "original_game_title": "Super Mario Bros.",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-mario-bros",
+          "evidence_urls": [
+            "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "super-mario-bros-nes",
+              "title": "Super Mario Bros. (NES, region not specified)",
+              "system": "nes",
+              "evidence_urls": [
+                "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -56872,6 +57229,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose your own Blast Corps USA revision 1 dump through the upstream in-process selector. It accepts .z64, .v64, .n64 or a single-ROM ZIP and checks normalized SHA-1 483f7161aea39de8b45c9fbc70a2c3883c4dea8c. The game stores its own normalized copy under data/cache/rom.z64. Core does not acquire or authenticate your cartridge dump; keep the original separately and do not share a data backup containing it. The official v0.84 Windows ZIP and Linux x86-64 archive are experimental betas despite their stable release stream. Keep power-dozer.exe, its matching DLLs and notices together. Windows x64 needs SSSE3/SSE4.1, Vulkan drivers and the Microsoft Visual C++ x64 runtime linked in the packaged README. On Linux, keep power-dozer with its lib and licenses folders; it needs SSSE3/SSE4.1, glibc 2.38 or later, libz, Vulkan drivers, X11 or XWayland and a desktop file chooser. Portcove starts power-dozer directly, so the bundled Run Power Dozer.sh script is not needed. No game compiler or installer is required. Other platforms remain upstream-owned. For the managed Windows and Linux routes, Portcove sets BLASTCORPS_DATA_DIR=data with the executable directory as working directory. It preserves the complete local data folder across compatible package updates and rollback, including cached original, EEPROM, committed Controller Pak data, settings, controls, backups and interrupted temporary files. A rollback does not rewind saves or guarantee that an older runtime reads newer state. In-progress Controller Pak game transactions follow upstream commit markers; this is not a guarantee of unsaved gameplay recovery. The separate RT64 diagnostics and ImGui profile remain external and outside Portcove backup/removal: %LOCALAPPDATA%/blastcorps-feasibility on Windows, and ~/.config/.blastcorps-feasibility on Linux, or ~/.blastcorps-feasibility when ~/.config does not exist. Keep a separate backup of actual custom --data-dir, capture or debug paths; Portcove does not import or migrate them. Close the actual player before deliberate external changes. Use Portcove for the managed copy and upstream/player ownership for separately registered installations. Existing external copies and custom profile paths retain their own update and preservation responsibility. Package integrity and first-party fixtures do not establish gameplay, real-save restoration or every graphics device.",
         "original_game_title": "Blast Corps",
+        "original_game": {
+          "format_version": 1,
+          "id": "blast-corps",
+          "evidence_urls": [
+            "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "blast-corps-nintendo-64",
+              "title": "Blast Corps (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -59676,6 +60050,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "On first Play, select your own F-Zero USA ROM and press Play in the launcher. The package includes its native runtime and does not require generating or compiling game code. The launcher remembers the selected ROM path. Settings, key bindings, the remembered ROM path, default saves and screenshots live beside fzero_recomp.exe and are declared for compatible updates and backup. The optional fzero_usa_reference.sfc original file is retained if supplied. A ROM selected elsewhere and a custom save folder remain external and outside backups. Runtime rollback carries current declared data; it does not rewind saves. Existing external installations retain their files and runtime owner. Gameplay and packaged Desktop acceptance remain separate observations. Linux uses the same executable-adjacent declared configurations and saves as Windows. Keep lib/libSDL3.so.0 with the player; the ELF runpath resolves that packaged companion. System OpenGL and C++ runtime libraries are required. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "original_game_title": "F-Zero",
+        "original_game": {
+          "format_version": 1,
+          "id": "f-zero",
+          "evidence_urls": [
+            "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "f-zero-super-nintendo",
+              "title": "F-Zero (Super Nintendo, region not specified)",
+              "system": "super-nintendo",
+              "evidence_urls": [
+                "https://github.com/craigshaw/FZeroRecomp/blob/5f37c22c7a2acef8b341545e9f2a4c5a4463990b/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -64921,6 +65312,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Choose Play to import your own supported Disc 1 with the game’s setup wizard. Disc 2 and DLC are optional. Portcove updates the Windows player and preserves imported game files, saves and settings. Backups can be large and contain original-game files; keep them private. Runtime rollback keeps current saves, which older versions may not read. Requires Windows 10/11 x64, Direct3D 12 and Microsoft’s documented VC++ x64 runtime. Upstream reports incomplete full-game validation and a Vesplume Tower softlock under investigation.",
         "original_game_title": "Infinite Undiscovery",
+        "original_game": {
+          "format_version": 1,
+          "id": "infinite-undiscovery",
+          "evidence_urls": [
+            "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "infinite-undiscovery-xbox-360",
+              "title": "Infinite Undiscovery (Xbox 360, region not specified)",
+              "system": "xbox-360",
+              "evidence_urls": [
+                "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "help_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/ce6586c0a237541caa438122ecdd99c62982b288/README.md",
           "warnings": [
@@ -67293,6 +67701,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "On first Play, choose the uncompressed PSP UMD ISO from your own Monster Hunter Portable 3rd HD Ver. PS3 release (NPJB-40001) and let Yakumo prepare the game. If Yakumo copies the image, the copy is kept and backed up with the managed data. If you use the image where it is, keep it at a stable location outside the managed runtime and back it up yourself. Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: data. Its backup does not include external profiles. Yakumo keeps the managed copy's settings, saves, save backups and prepared game in its data folder. Leave MHP3RD_DATA_DIR, MHP3RD_GAME_DIR, MHP3RD_MODS_DIR and MHP3RD_PORTABLE unset, and add no --data-dir or game-folder argument. Otherwise Yakumo can play from or save to a folder Portcove does not keep. Restart Now after a save import and Set Up Game Data Again restart Yakumo. On Windows, Portcove keeps the session open until the restarted Yakumo closes. If you already use Yakumo, the first Play of the managed copy can offer to copy your data from %APPDATA%\\Yakumo\\MHP3rd. The original files stay where they are.",
         "original_game_title": "Monster Hunter Portable 3rd HD Ver.",
+        "original_game": {
+          "format_version": 1,
+          "id": "monster-hunter-portable-3rd-hd-ver",
+          "evidence_urls": [
+            "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "monster-hunter-portable-3rd-hd-ver-playstation-3",
+              "title": "Monster Hunter Portable 3rd HD Ver. (PlayStation 3, region not specified)",
+              "system": "playstation-3",
+              "evidence_urls": [
+                "https://github.com/TeamGDB/Yakumo/blob/0a506b81af44f4c70a3a197e81795891f5567968/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "help_url": "https://github.com/TeamGDB/Yakumo",
           "steps": [
@@ -67629,6 +68054,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
         "original_game_title": "Dragon Ball Z: Buu's Fury",
+        "original_game": {
+          "format_version": 1,
+          "id": "dragon-ball-z-buu-s-fury",
+          "evidence_urls": [
+            "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "dragon-ball-z-buu-s-fury-game-boy-advance",
+              "title": "Dragon Ball Z: Buu's Fury (Game Boy Advance, region not specified)",
+              "system": "game-boy-advance",
+              "evidence_urls": [
+                "https://github.com/mstan/DragonBallZBuusFuryRecomp/blob/2fb36ed6e1b8d9872ef2d83846a34ad2e7efaed1/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -67716,6 +68158,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows stable runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
         "original_game_title": "Dragon Ball Z: The Legacy of Goku II",
+        "original_game": {
+          "format_version": 1,
+          "id": "dragon-ball-z-the-legacy-of-goku-ii",
+          "evidence_urls": [
+            "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "dragon-ball-z-the-legacy-of-goku-ii-game-boy-advance",
+              "title": "Dragon Ball Z: The Legacy of Goku II (Game Boy Advance, region not specified)",
+              "system": "game-boy-advance",
+              "evidence_urls": [
+                "https://github.com/mstan/DragonBallZLegacyofGokuIIRecomp/blob/88f234fa299199282cef09c0b1957ecb4e60922b/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -67909,6 +68368,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Choose Play to open the upstream launcher, then select your own matching USA original GBA game and retail GBA BIOS. Portcove manages compatible Windows beta runtime replacement and local settings, input pointers, user game.toml, local saves/ when selected, and complete versioned mods beside new defaults. Your selected mod state is retained; conflicting same-ID/version packages require deliberate resolution. Mod preservation does not authenticate code or promise compatibility. Normal saves and optional state slots follow the original game file, usually outside the installation; back up that actual folder and recovery siblings separately. External originals, BIOS, saves and custom paths are outside Portcove backups. Generated executable caches stay version-local. Runtime rollback carries current declared data and does not rewind saves or guarantee older readers can use them. Experimental releases do not establish full-game compatibility.",
         "original_game_title": "Super Mario Advance 2: Super Mario World",
+        "original_game": {
+          "format_version": 1,
+          "id": "super-mario-advance-2-super-mario-world",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dc3c31f2454e962dd5a628891e0dfe7b9dcb1dea/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "super-mario-advance-2-super-mario-world-game-boy-advance",
+              "title": "Super Mario Advance 2: Super Mario World (Game Boy Advance, region not specified)",
+              "system": "game-boy-advance",
+              "evidence_urls": [
+                "https://github.com/mstan/SuperMarioAdvance2Recomp/blob/dc3c31f2454e962dd5a628891e0dfe7b9dcb1dea/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -68793,6 +69269,23 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Provide your own complete 12-track USA Wipeout XL CHD (SCUS-94351). Portcove verifies the data track and track count, builds privately with the registered toolchain and the kit's bundled OpenBIOS, and keeps saves, settings and installed mods. Provide all tracks; the remaining tracks are carried into preparation without authenticating their audio content. Bundled mods belong to the runtime version. Keep your original disc separately. Windows and Linux package and source fit were statically inspected. Native build, gameplay and save compatibility remain unobserved.",
         "original_game_title": "Wipeout XL",
+        "original_game": {
+          "format_version": 1,
+          "id": "wipeout-xl",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "wipeout-xl-playstation",
+              "title": "Wipeout XL (PlayStation, region not specified)",
+              "system": "playstation",
+              "evidence_urls": [
+                "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -68871,6 +69364,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "On first Play, select your own supported Pilotwings 64 ROM. Birdman64 then downloads its pinned, hash-checked upstream source and compiles a game module using its bundled compiler, showing progress and errors in its own setup window. First setup needs network access and may take time. Portcove does not run this setup during download or registration. Portcove updates the shipped player and bundled compiler. Birdman64 owns first-launch setup and its external compiled-game cache: the cache key binds the player ABI/version, source commit and compiler/link flags, so a changed player builds its own compatible module. Default saves/settings/packs live in AppData/Birdman64 and the build cache in LocalAppData/Birdman64/cache, all outside Portcove backups. No in-folder player data is declared. Use an external registration for portable.txt, adjacent legacy saves or developer overrides. Existing external copies keep their files and runtime owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. The Linux tar.gz contains the direct birdman64 player and its bundled toolchain/zig compiler. Default data is in $XDG_DATA_HOME/birdman64 or ~/.local/share/birdman64; the external build cache remains upstream-owned and outside Portcove backups. The separately packaged AppRun is for an AppDir layout and is not the launch target for this tar.gz. System udev, D-Bus, X11/Wayland/audio libraries are required. Use external registration for PW64_DATA_DIR or portable/legacy data modes. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run.",
         "original_game_title": "Pilotwings 64",
+        "original_game": {
+          "format_version": 1,
+          "id": "pilotwings-64",
+          "evidence_urls": [
+            "https://github.com/NoahVl/Birdman64/blob/18c64ac3c85c77500751a1a9080f73b666fd9bb3/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "pilotwings-64-nintendo-64",
+              "title": "Pilotwings 64 (Nintendo 64, region not specified)",
+              "system": "nintendo-64",
+              "evidence_urls": [
+                "https://github.com/NoahVl/Birdman64/blob/18c64ac3c85c77500751a1a9080f73b666fd9bb3/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {
@@ -73308,6 +73818,23 @@
         "saves_and_settings": "external-user-owned",
         "manual_preparation": "Use the publisher-recommended Windows stable v26.03.28.0 package linked from sonic3air.org, rather than silently selecting a newer test release. Extract the complete sonic3air_game folder and finish its Manual.pdf setup, including the matching original. Keep data, scripts and companions together. Register the real Sonic3AIR.exe; bonus/oxygenengine/OxygenApp.exe is an engine/development helper, not this game. Use the selected player’s containing folder as working directory and keep the already working literal arguments; do not invent shell commands. You and upstream own this external runtime and all original/game/player data. Registration binds your explicitly selected executable, working directory and literal arguments; it does not authenticate a curated immutable package or original. Play requires your explicit intent. Removing the Portcove registration preserves every external file. Managed Update, Backup, Rollback, migration and external deletion are unavailable. Finish upstream setup yourself and register only the existing working player; no successful setup, gameplay or state compatibility is claimed by this guide.",
         "original_game_title": "Sonic 3 & Knuckles",
+        "original_game": {
+          "format_version": 1,
+          "id": "sonic-3-knuckles",
+          "evidence_urls": [
+            "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+          ],
+          "source_editions": [
+            {
+              "id": "sonic-3-knuckles-mega-drive-genesis",
+              "title": "Sonic 3 & Knuckles (Mega Drive/Genesis, region not specified)",
+              "system": "mega-drive-genesis",
+              "evidence_urls": [
+                "https://github.com/Eukaryot/sonic3air/blob/b0063dfb4b3e69d710e131ab83507cdf8c41910f/README.md"
+              ]
+            }
+          ]
+        },
         "manual_setup": {
           "steps": [
             {

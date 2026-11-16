@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Infinite Undiscovery",
+    "original_game": {
+      "format_version": 1,
+      "id": "infinite-undiscovery",
+      "evidence_urls": [
+        "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "infinite-undiscovery-xbox-360",
+          "title": "Infinite Undiscovery (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/doc-haz/infinite-undiscovery-recomp/blob/a91df0707e087aaa2588e6c0f0fb39a63a2500f6/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/doc-haz/infinite-undiscovery-recomp/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {

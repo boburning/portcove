@@ -4,6 +4,23 @@
     "id": "chibi-robo-pc-armandpro12-armandpro12-chibi-robo-plug-into-adventure",
     "name": "Chibi-Robo! Plug Into Adventure! — Chibi Robo PC (Armandpro12) (Armandpro12)",
     "original_game_title": "Chibi-Robo! Plug Into Adventure!",
+    "original_game": {
+      "format_version": 1,
+      "id": "chibi-robo-plug-into-adventure",
+      "evidence_urls": [
+        "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "chibi-robo-plug-into-adventure-gamecube",
+          "title": "Chibi-Robo! Plug Into Adventure! (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/Armandpro12/chibi-robo-pc/blob/df9482eb9794a826914cf08ecdc58ce7d4479034/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports the title screen, new game and prologue with real-time sound for both regions. A complete playthrough, videos and setup on a clean system are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Armandpro12/chibi-robo-pc",
     "platforms": ["windows-x86-64"],

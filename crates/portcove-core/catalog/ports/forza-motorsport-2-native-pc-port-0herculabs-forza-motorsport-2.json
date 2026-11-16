@@ -4,6 +4,23 @@
     "id": "forza-motorsport-2-native-pc-port-0herculabs-forza-motorsport-2",
     "name": "Forza Motorsport 2 — Forza Motorsport 2 — Native PC Port (0herculabs)",
     "original_game_title": "Forza Motorsport 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "forza-motorsport-2",
+      "evidence_urls": [
+        "https://github.com/0herculabs/hl360-Forza2/blob/19400fe359214ce62f56cd4fa1f6c3605dca4b8e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "forza-motorsport-2-xbox-360",
+          "title": "Forza Motorsport 2 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/0herculabs/hl360-Forza2/blob/19400fe359214ce62f56cd4fa1f6c3605dca4b8e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream describes v0.3.1 as playable and still in development, with race-loading fixes and crash diagnostics. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/0herculabs/hl360-Forza2",
     "platforms": ["windows-x86-64"],

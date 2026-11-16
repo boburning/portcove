@@ -4,6 +4,23 @@
     "id": "dotr-recomp-glasena-yu-gi-oh-the-duelists-of-the-roses",
     "name": "Yu-Gi-Oh! The Duelists of the Roses — dotr-recomp (Glasena)",
     "original_game_title": "Yu-Gi-Oh! The Duelists of the Roses",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-the-duelists-of-the-roses",
+      "evidence_urls": [
+        "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-the-duelists-of-the-roses-playstation-2",
+          "title": "Yu-Gi-Oh! The Duelists of the Roses (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Glasena/dotr-recomp/blob/216641c8ecfede14c89a0c1eba0fac3d8eda9062/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build this early Yu-Gi-Oh! The Duelists of the Roses port locally on Linux using your USA disc. Upstream describes movie, story, duel and map support. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Glasena/dotr-recomp",
     "platforms": [],

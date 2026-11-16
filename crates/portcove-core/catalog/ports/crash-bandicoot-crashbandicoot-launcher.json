@@ -12,6 +12,23 @@
     "availability": "unknown",
     "setup_url": "https://github.com/Matteo842/CrashBandicoot-Launcher",
     "original_game_title": "Crash Bandicoot",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-bandicoot",
+      "evidence_urls": [
+        "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-bandicoot-playstation",
+          "title": "Crash Bandicoot (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/6c3fd658935846e24cdfaee7f0091df4816d7149/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "help_url": "https://github.com/Matteo842/CrashBandicoot-Launcher/blob/edc2771064132975a1870bfb7cfccceb7fbdf1ee/README.md",
       "steps": [

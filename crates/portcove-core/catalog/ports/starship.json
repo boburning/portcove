@@ -7,6 +7,23 @@
     "summary": "Native Star Fox 64 port from HarbourMasters.",
     "project_url": "https://github.com/HarbourMasters/Starship",
     "original_game_title": "Star Fox 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-fox-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-fox-64-nintendo-64",
+          "title": "Star Fox 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Starship/blob/3322643f0bbf80d2f8f7e1c0d2c4c578515f6c90/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 2591,
       "cover_id": 524514,

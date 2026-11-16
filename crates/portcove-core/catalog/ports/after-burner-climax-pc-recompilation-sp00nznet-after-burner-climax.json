@@ -4,6 +4,23 @@
     "id": "after-burner-climax-pc-recompilation-sp00nznet-after-burner-climax",
     "name": "After Burner Climax — After Burner Climax — PC Recompilation (sp00nznet)",
     "original_game_title": "After Burner Climax",
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/afterburner/blob/0e5eb394628d62978646e6156fe5763d9191c8be/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Code generation is available; a completed build and game startup remain unfinished. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/afterburner",
     "platforms": ["windows-x86-64"],

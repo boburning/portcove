@@ -4,6 +4,23 @@
     "id": "timesplitters-gtteancum-timesplitters",
     "name": "TimeSplitters — Timesplitters (GTTeancum)",
     "original_game_title": "TimeSplitters",
+    "original_game": {
+      "format_version": 1,
+      "id": "timesplitters",
+      "evidence_urls": [
+        "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "timesplitters-playstation-2",
+          "title": "TimeSplitters (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/GTTeancum/Timesplitters/blob/5c89e1e536565c18c730a764f093953b220d8ab9/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes native recompilation with four-player multiplayer screenshots and controller/save claims. Linux was tested under WSL. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GTTeancum/Timesplitters",
     "listed_at": "2026-10-25",

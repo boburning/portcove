@@ -4,6 +4,23 @@
     "id": "re-jeweled-thefixinhixon-bejeweled-blitz-live",
     "name": "Bejeweled Blitz Live — Re-Jeweled (thefixinhixon)",
     "original_game_title": "Bejeweled Blitz Live",
+    "original_game": {
+      "format_version": 1,
+      "id": "bejeweled-blitz-live",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bejeweled-blitz-live-xbox-360",
+          "title": "Bejeweled Blitz Live (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/Re-Jeweled/blob/7ec873ebc8c21db2e3c348f4d6523558cf4cad9a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes test build1b as playable. Full mode coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/Re-Jeweled",
     "listed_at": "2026-10-25",

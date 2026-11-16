@@ -4,6 +4,23 @@
     "id": "tox2-recomp-yuias-tales-of-xillia-2",
     "name": "Tales of Xillia 2 — TOX2-recomp (yuias)",
     "original_game_title": "Tales of Xillia 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "tales-of-xillia-2",
+      "evidence_urls": [
+        "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tales-of-xillia-2-playstation-3",
+          "title": "Tales of Xillia 2 (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/yuias/TOX2-recomp/blob/1badafea0582d04199aa755ac20c9d9be068e2b5/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Title/opening scenes picture/sound on Mac; an attract-movie placeholder, physical gamepad testing on Mac and full playthrough absent. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yuias/TOX2-recomp",
     "platforms": ["macos-aarch64"],

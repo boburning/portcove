@@ -7,6 +7,23 @@
     "summary": "Native Super Mario 64 port from HarbourMasters.",
     "project_url": "https://github.com/HarbourMasters/Ghostship",
     "original_game_title": "Super Mario 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-64",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-64-nintendo-64",
+          "title": "Super Mario 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Ghostship/blob/aefb89b85e7b78daff62b491ebb2669d2d9270f0/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 1074,
       "cover_id": 329251,

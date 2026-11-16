@@ -4,6 +4,23 @@
     "id": "3-on-3-nhl-arcade-pc-port-wndwsqrrl-3-on-3-nhl-arcade",
     "name": "3 on 3 NHL Arcade — 3 on 3 NHL Arcade – PC Port (Wndwsqrrl)",
     "original_game_title": "3 on 3 NHL Arcade",
+    "original_game": {
+      "format_version": 1,
+      "id": "3-on-3-nhl-arcade",
+      "evidence_urls": [
+        "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "3-on-3-nhl-arcade-xbox-360",
+          "title": "3 on 3 NHL Arcade (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Wndwsqrrl/3on3NHL-recomp/blob/0abd1d0d4322b4cc282697380e2cbcf517f27001/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "A gameplay screenshot is available. Complete matches and saving are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Wndwsqrrl/3on3NHL-recomp",
     "platforms": ["windows-x86-64"],

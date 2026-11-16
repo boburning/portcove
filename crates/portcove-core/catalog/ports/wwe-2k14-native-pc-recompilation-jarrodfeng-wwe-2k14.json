@@ -4,6 +4,23 @@
     "id": "wwe-2k14-native-pc-recompilation-jarrodfeng-wwe-2k14",
     "name": "WWE 2K14 — WWE 2K14: Native PC Recompilation (Jarrodfeng)",
     "original_game_title": "WWE 2K14",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k14",
+      "evidence_urls": [
+        "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-2k14-xbox-360",
+          "title": "WWE 2K14 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Jarrodfeng/wwe2k14-recomp/blob/f6df06011934ecf6625ce516ddf8dc54f521521e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Source/build documentation exists; full-playability scope is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Jarrodfeng/wwe2k14-recomp",
     "platforms": ["windows-x86-64"],

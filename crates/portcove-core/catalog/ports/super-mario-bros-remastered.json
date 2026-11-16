@@ -7,6 +7,23 @@
     "summary": "Use the exact stock Windows runtime with disabled mods and separately reviewed shared game data.",
     "project_url": "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public",
     "original_game_title": "Super Mario Bros.",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-bros",
+      "evidence_urls": [
+        "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-bros-nes",
+          "title": "Super Mario Bros. (NES, region not specified)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/JHDev2006/Super-Mario-Bros.-Remastered-Public/blob/7fe1ff7340ec7fd8ace6854faa0e620dd7dba05a/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "steps": [
         {

@@ -7,6 +7,23 @@
     "summary": "Native Resident Evil Gaiden recompilation. Gameplay remains untested.",
     "project_url": "https://github.com/sergiomanzur/regaiden-recomp",
     "original_game_title": "Resident Evil Gaiden",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-gaiden",
+      "evidence_urls": [
+        "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-gaiden-game-boy-color",
+          "title": "Resident Evil Gaiden (Game Boy Color, region not specified)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/sergiomanzur/regaiden-recomp/blob/e5befd20e67939d939319149d1c1177b8e6c5cd6/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 342,
     "listed_at": "2026-10-23",
     "artwork": {

@@ -5,6 +5,23 @@
     "name": "Wipeout XL / Wipeout XL Recompiled (NJH-1001)",
     "summary": "Build and play Wipeout XL on Windows or Linux with your own matching USA PlayStation disc and the kit's bundled OpenBIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Wipeout XL",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-xl",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-xl-playstation",
+          "title": "Wipeout XL (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/Wipeout2K97XL/blob/464def7d7d95d46a548863475cdccee1e1ea31b3/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/NJH-1001/Wipeout2K97XL",
     "issue_number": 1908,
     "listed_at": "2026-10-23",

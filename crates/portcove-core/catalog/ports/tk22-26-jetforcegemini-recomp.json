@@ -5,6 +5,23 @@
     "name": "Jet Force Gemini (Jet Force Gemini Recomp)",
     "summary": "Attach an independently permitted, prepared Jet Force Gemini Windows launcher with its prebuilt native runtime and exactly verified US ROM import. Preserve the active profile, imported ROM and storage locator; no developer build tools or campaign acceptance are inferred.",
     "original_game_title": "Jet Force Gemini",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": [
+        "https://github.com/TK22-26/JetForceGemini-Recomp/blob/3bbef565de1302f6489c9dfd0fc15525621fbd6a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-force-gemini-nintendo-64",
+          "title": "Jet Force Gemini (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/TK22-26/JetForceGemini-Recomp/blob/3bbef565de1302f6489c9dfd0fc15525621fbd6a/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/TK22-26/JetForceGemini-Recomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

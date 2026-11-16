@@ -4,6 +4,23 @@
     "id": "pgr3-recomp-jpneagle-project-gotham-racing-3",
     "name": "Project Gotham Racing 3 — PGR3-recomp (jpneagle)",
     "original_game_title": "Project Gotham Racing 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-3",
+      "evidence_urls": [
+        "https://github.com/jpneagle/PGR3-recomp/blob/1f2f8794f2e77508f50840909cd96c4c13d7f6a9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-3-xbox-360",
+          "title": "Project Gotham Racing 3 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jpneagle/PGR3-recomp/blob/1f2f8794f2e77508f50840909cd96c4c13d7f6a9/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Only a small section has been checked using scripted input and frame/audio captures. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jpneagle/PGR3-recomp",
     "listed_at": "2026-10-25",

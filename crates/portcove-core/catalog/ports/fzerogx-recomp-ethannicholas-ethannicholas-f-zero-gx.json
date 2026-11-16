@@ -4,6 +4,23 @@
     "id": "fzerogx-recomp-ethannicholas-ethannicholas-f-zero-gx",
     "name": "F-Zero GX — fzerogx-recomp (ethannicholas) (ethannicholas)",
     "original_game_title": "F-Zero GX",
+    "original_game": {
+      "format_version": 1,
+      "id": "f-zero-gx",
+      "evidence_urls": [
+        "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "f-zero-gx-gamecube",
+          "title": "F-Zero GX (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/ethannicholas/fzerogx-recomp/blob/5b201ed6066783f3faee2afd52ec764d4a4d182b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream claims complete desktop and VR support with no known issues. Portcove has not confirmed those claims. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ethannicholas/fzerogx-recomp",
     "platforms": ["windows-x86-64", "macos-aarch64"],

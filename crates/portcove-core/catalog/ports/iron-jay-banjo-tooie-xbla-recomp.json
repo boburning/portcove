@@ -5,6 +5,23 @@
     "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
     "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
     "original_game_title": "Banjo-Tooie",
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-tooie",
+      "evidence_urls": [
+        "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-tooie-nintendo-64",
+          "title": "Banjo-Tooie (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/iron-jay/banjo_tooie_xbla_recomp/blob/72c23973337398b361272fd4949d6d6274746585/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/iron-jay/banjo_tooie_xbla_recomp",
     "platforms": [],
     "availability": "unknown",

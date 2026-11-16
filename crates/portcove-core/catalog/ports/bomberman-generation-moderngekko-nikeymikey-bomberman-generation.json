@@ -4,6 +4,23 @@
     "id": "bomberman-generation-moderngekko-nikeymikey-bomberman-generation",
     "name": "Bomberman Generation — bomberman-generation-moderngekko (nikeymikey)",
     "original_game_title": "Bomberman Generation",
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-generation",
+      "evidence_urls": [
+        "https://github.com/nikeymikey/bomberman-generation-moderngekko/blob/6c073a5cf1df0eda3724a6adc437cdde720cf6a3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bomberman-generation-gamecube",
+          "title": "Bomberman Generation (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/nikeymikey/bomberman-generation-moderngekko/blob/6c073a5cf1df0eda3724a6adc437cdde720cf6a3/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream calls it playable with controller support, widescreen, save states, netplay and a Battle bomb-count mod. No full-story completion result is established here. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/nikeymikey/bomberman-generation-moderngekko",
     "platforms": [],

@@ -20,6 +20,23 @@
     },
     "release_url": "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/releases",
     "original_game_title": "Conker's Bad Fur Day",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DahSidiAbdallah/ConkerBFDReloaded/blob/9cfebde3b65bb2b79b97c1b80aacb2285b072098/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "windows-x86-64": ["ConkerBFDReloaded-", "-Windows.zip"],
       "linux-x86-64": ["ConkerBFDReloaded-", "-Linux.tar.gz"]

@@ -4,6 +4,23 @@
     "id": "god-hand-recompiled-lasvola-god-hand",
     "name": "God Hand — God Hand Recompiled (LasVola)",
     "original_game_title": "God Hand",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-hand",
+      "evidence_urls": [
+        "https://github.com/LasVola/godhand-recomp/blob/14e956a1274332440273845fbab2c1f1e30c4a5a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-hand-playstation-2",
+          "title": "God Hand (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/LasVola/godhand-recomp/blob/14e956a1274332440273845fbab2c1f1e30c4a5a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports playing into stage 3 from a source build. Later stages and endings remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LasVola/godhand-recomp",
     "listed_at": "2026-10-25",

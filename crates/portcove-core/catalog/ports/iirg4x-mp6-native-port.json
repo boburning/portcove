@@ -5,6 +5,23 @@
     "name": "Mario Party 6 (Starlit Party)",
     "summary": "Attach an independently permitted, prepared Starlit Party Windows player for your own Mario Party 6 USA disc. Preserve its actual working-directory saves and content root; limited minigame coverage and title-specific launcher/font permission scope remain explicit.",
     "original_game_title": "Mario Party 6",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-party-6",
+      "evidence_urls": [
+        "https://github.com/iirg4x/mp6-native-port/blob/d438e67ca9b17366ad7bf957d01bbcdab9dafb42/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-party-6-gamecube",
+          "title": "Mario Party 6 (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/iirg4x/mp6-native-port/blob/d438e67ca9b17366ad7bf957d01bbcdab9dafb42/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/iirg4x/mp6-native-port",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

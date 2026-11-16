@@ -8,6 +8,23 @@
     "project_url": "https://github.com/akratch/goldenballoon",
     "listed_at": "2026-10-23",
     "original_game_title": "Diddy Kong Racing",
+    "original_game": {
+      "format_version": 1,
+      "id": "diddy-kong-racing",
+      "evidence_urls": [
+        "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "diddy-kong-racing-nintendo-64",
+          "title": "Diddy Kong Racing (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/akratch/goldenballoon/blob/2b69e748ec04f87a4dc6f032c598726de1b0e813/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 412063,
       "cover_id": 588536,

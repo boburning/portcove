@@ -4,6 +4,23 @@
     "id": "drakengard3recompile-k1gs-k1gs-drakengard-3",
     "name": "Drakengard 3 — Drakengard3Recompile (k1gs) (k1gs)",
     "original_game_title": "Drakengard 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "drakengard-3",
+      "evidence_urls": [
+        "https://github.com/k1gs/Drakengard3Recompile/blob/1819c47ec9f61edab0d9cb2aa2fb6dcec42d9019/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "drakengard-3-playstation-3",
+          "title": "Drakengard 3 (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/k1gs/Drakengard3Recompile/blob/1819c47ec9f61edab0d9cb2aa2fb6dcec42d9019/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Drakengard 3 source project. Upstream reports the intro, audio, title and main menu; gameplay with working controls has not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/k1gs/Drakengard3Recompile",
     "platforms": ["windows-x86-64"],

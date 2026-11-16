@@ -4,6 +4,23 @@
     "id": "meleepad-chrissotraidis-super-smash-bros-melee",
     "name": "Super Smash Bros. Melee — MeleePad (chrissotraidis)",
     "original_game_title": "Super Smash Bros. Melee",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-melee",
+      "evidence_urls": [
+        "https://github.com/chrissotraidis/meleepad/blob/54e0c4f2462214e89da71e5aa055422b86deb544/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-melee-gamecube",
+          "title": "Super Smash Bros. Melee (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/chrissotraidis/meleepad/blob/54e0c4f2462214e89da71e5aa055422b86deb544/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports native gameplay in Preview 7. Private Slippi online play has separate requirements. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/chrissotraidis/meleepad",
     "platforms": ["macos-aarch64"],

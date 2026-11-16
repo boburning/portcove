@@ -5,6 +5,23 @@
     "name": "Blast Corps (Power Dozer)",
     "summary": "A native Blast Corps player using your own USA revision 1 cartridge dump. Portcove manages the official Windows x64 and Linux x86-64 packages and preserves their default local game data; upstream owns original-game import.",
     "original_game_title": "Blast Corps",
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/djultra64/Power-Dozer/blob/6fa43404e005ff999b84ac9b444aea7634b017c0/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/djultra64/Power-Dozer",
     "issue_number": 2557,
     "listed_at": "2026-10-25",

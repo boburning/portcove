@@ -4,6 +4,23 @@
     "id": "folklore-native-pc-recompilation-mava-b-mava-b-folklore",
     "name": "Folklore — Folklore native PC recompilation (Mava-b) (Mava-b)",
     "original_game_title": "Folklore",
+    "original_game": {
+      "format_version": 1,
+      "id": "folklore",
+      "evidence_urls": [
+        "https://github.com/Mava-b/folklore-decomp/blob/a828b4bbe63c8b4b37696e5ce65bff3e6ac47480/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "folklore-playstation-3",
+          "title": "Folklore (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/Mava-b/folklore-decomp/blob/a828b4bbe63c8b4b37696e5ce65bff3e6ac47480/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The author reports gameplay and motion captures on one Windows 11 PC with a Ryzen 7800X3D. Higher frame rates are experimental; other hardware and complete gameplay remain unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Mava-b/folklore-decomp",
     "platforms": ["windows-x86-64"],

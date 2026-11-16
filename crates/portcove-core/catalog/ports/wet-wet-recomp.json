@@ -5,6 +5,23 @@
     "name": "WET (WET Recomp)",
     "summary": "Attach an independently permitted, already prepared WET Windows player through wet.exe and its actual imported game directory. Preserve the existing SDK-selected data roots; exact original revision and default persistence placement remain unverified.",
     "original_game_title": "WET",
+    "original_game": {
+      "format_version": 1,
+      "id": "wet",
+      "evidence_urls": [
+        "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wet-xbox-360",
+          "title": "WET (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/Supermedo/wet-recomp/blob/c9d36b2fe37d8006f0437ce95706e3d0dbdf5d49/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Supermedo/wet-recomp",
     "platforms": [],
     "availability": "unknown",
