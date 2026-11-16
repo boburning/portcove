@@ -33,10 +33,10 @@ export function WorkspaceRefreshNotice({
     if (refreshing || !retryRequested.current) return;
     retryRequested.current = false;
     if (document.activeElement !== document.body) return;
-    if (failure) focusAndReveal(retryButton.current);
+    if (failure || (!recoveryFailure && subscriptionFailure)) focusAndReveal(retryButton.current);
     else if (recoveryFailure) focusAndReveal(recoveryRetryButton.current);
     else focusRegion("workspace");
-  }, [failure, recoveryFailure, refreshing]);
+  }, [failure, recoveryFailure, refreshing, subscriptionFailure]);
   if (!failure && !recoveryFailure && !subscriptionFailure) return null;
   const recoveryPresentation = recoveryFailure && failurePresentation(recoveryFailure.error);
   const recoveryCode =
@@ -65,7 +65,8 @@ export function WorkspaceRefreshNotice({
           ref={recoveryRetryButton}
           variant="outline"
           data-focusable
-          disabled={refreshing}
+          aria-busy={refreshing}
+          focusableWhenDisabled={refreshing}
           onClick={() => {
             retryRequested.current = true;
             void retryRecovery();
@@ -90,10 +91,15 @@ export function WorkspaceRefreshNotice({
           <strong>{t("live.heading")}</strong>
           <p>{t("live.body")}</p>
           <Button
+            ref={retryButton}
             variant="outline"
             data-focusable
-            disabled={refreshing}
-            onClick={() => void retry()}
+            aria-busy={refreshing}
+            focusableWhenDisabled={refreshing}
+            onClick={() => {
+              retryRequested.current = true;
+              void retry();
+            }}
           >
             {refreshing ? t("refreshing") : t("live.refresh")}
           </Button>
@@ -136,7 +142,8 @@ export function WorkspaceRefreshNotice({
             ref={retryButton}
             variant="outline"
             data-focusable
-            disabled={refreshing}
+            aria-busy={refreshing}
+            focusableWhenDisabled={refreshing}
             onClick={() => {
               retryRequested.current = true;
               void retry();

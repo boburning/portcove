@@ -97,7 +97,9 @@ export function ArtworkFrame({
         </span>
       ) : identityArtwork ? (
         <span className={styles.illustration} data-cover-illustration>
-          <Gamepad2 className={styles.illustrationController} />
+          <Gamepad2
+            className={cn(styles.illustrationController, "size-[clamp(0.875rem,27cqi,3.25rem)]")}
+          />
         </span>
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>

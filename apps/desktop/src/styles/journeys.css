@@ -21,13 +21,13 @@
   .startup-recovery {
     display: grid;
     align-content: safe center;
-    gap: var(--space-5);
-    inline-size: min(52rem, calc(100% - 2 * var(--space-5)));
+    gap: var(--space-4);
+    inline-size: min(52rem, calc(100% - 2 * clamp(var(--space-3), 4vw, var(--space-5))));
     min-inline-size: 0;
     block-size: 100dvh;
     overflow-y: auto;
     margin-inline: auto;
-    padding-block: clamp(2rem, 6vh, 5rem);
+    padding-block: clamp(1rem, 4vh, 2.5rem);
     overflow-wrap: anywhere;
   }
   .startup-recovery-heading {

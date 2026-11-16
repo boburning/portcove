@@ -52,8 +52,6 @@
     background: var(--color-bg-inset);
   }
   .illustrationController {
-    inline-size: clamp(0.875rem, 27cqi, 3.25rem);
-    block-size: clamp(0.875rem, 27cqi, 3.25rem);
     color: var(--color-text-muted);
     stroke-width: 1.35;
   }

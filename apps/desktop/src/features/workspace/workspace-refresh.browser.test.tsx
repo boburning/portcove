@@ -1492,6 +1492,34 @@ describe("workspace refresh recovery", () => {
     ).toBeDefined();
   });
 
+  it("keeps the manual refresh button focused while live updates are degraded", async () => {
+    const retry = vi.fn().mockResolvedValue(undefined);
+    const unavailable = new Error("event bridge unavailable");
+    const notice = (refreshing: boolean) => (
+      <WorkspaceRefreshNotice
+        subscriptionFailure={unavailable}
+        hasSnapshot
+        refreshing={refreshing}
+        retry={retry}
+        retryRecovery={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    await root.rerender(notice(false));
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(true));
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.textContent).toBe("Refreshing library…");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(false));
+    expect(button.textContent).toBe("Refresh now");
+    expect(document.activeElement).toBe(button);
+  });
+
   it("refreshes once after an operation and never starts the removed 250ms refresh", async () => {
     await render();
     vi.mocked(desktopApi.workspaceSnapshot).mockClear();
