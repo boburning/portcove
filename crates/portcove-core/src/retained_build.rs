@@ -359,7 +359,8 @@ impl PortcoveService {
             catalog,
             catalog.port(&install.port_id)?,
             self.managed_launch_context(catalog.definition_selection(&install.port_id), install)?,
-        )
+        )?;
+        self.require_activation_gates(install, None)
     }
 
     pub fn preview_retained_build_binding(
@@ -683,7 +684,8 @@ impl PortcoveService {
 }
 
 fn availability_for_error(error: &PortcoveError) -> RetainedBuildAvailability {
-    if error.details.contains_key("definition_reason")
+    if error.is_recorded_uploader_hold()
+        || error.details.contains_key("definition_reason")
         || error.details.contains_key("curated_artifact_reason")
     {
         return RetainedBuildAvailability::Held;

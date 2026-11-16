@@ -75,7 +75,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your own supported Banjo-Kazooie cartridge dump. Portcove checks the original and installs the managed Lighthouse package."
+          }
+        ]
+      }
     }
   }
 }

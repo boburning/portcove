@@ -157,6 +157,7 @@ pub(crate) enum KnownFailureCause {
     HostLocalCredential {
         path: std::path::PathBuf,
     },
+    RecordedUploaderHold,
     CatalogValidity,
     CatalogReplay,
     NewerLibrary,
@@ -265,6 +266,10 @@ impl KnownFailureCause {
             Self::CredentialStoreLocked => (
                 "credential_store_locked",
                 "Secure credential storage on this device is locked or refused access, so Portcove can't read or save the credential this task needs. Unlock it or allow access, for example to your login keyring or keychain, then try again.",
+            ),
+            Self::RecordedUploaderHold => (
+                "recorded_uploader_hold",
+                "Portcove couldn't confirm the uploader for this version. Check for updates to find a version Portcove can confirm.",
             ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
@@ -576,6 +581,13 @@ impl PortcoveError {
 
     pub(crate) fn known_cause(&self) -> Option<&KnownFailureCause> {
         self.failure.known_cause.as_ref()
+    }
+
+    pub(crate) fn is_recorded_uploader_hold(&self) -> bool {
+        matches!(
+            self.failure.known_cause,
+            Some(KnownFailureCause::RecordedUploaderHold)
+        )
     }
 
     pub(crate) fn with_known_cause(mut self, cause: KnownFailureCause) -> Self {
