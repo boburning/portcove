@@ -566,21 +566,38 @@ fn original_folder(
     product_id: Option<&str>,
     install_path: &Path,
 ) -> Option<StoreOriginalFolder> {
-    // The Force Engine identifies the classic edition by product and uses
-    // Steam's Game subfolder or the GOG registry install root.
-    let directory = match (store, product_id) {
-        (GameStore::Steam, Some("32400")) => install_path.join("Game"),
-        (GameStore::Gog, Some("1421404433")) => install_path.to_path_buf(),
-        _ => return None,
-    };
+    // Use the folder coordinates documented by The Force Engine and
+    // dhewm3. Product and layout are hints; source intake verifies identity.
+    let (profile_id, subdirectory, required_directories): (&str, &str, &[&str]) =
+        match (store, product_id) {
+            (GameStore::Steam, Some("32400")) => {
+                ("dark-forces-pc-complete-installed-data", "Game", &[])
+            }
+            (GameStore::Gog, Some("1421404433")) => {
+                ("dark-forces-pc-complete-installed-data", "", &[])
+            }
+            (GameStore::Steam, Some("9050")) => ("doom-3-classic-pc-131-pk4", "", &["base"]),
+            (GameStore::Steam, Some("9070")) => {
+                ("doom-3-roe-classic-pc-131-pk4", "", &["base", "d3xp"])
+            }
+            _ => return None,
+        };
+    let directory = install_path.join(subdirectory);
     crate::path::refuse_symlink_ancestors(&directory).ok()?;
     let install = existing_folder(install_path)?;
     let path = existing_folder(&directory)?;
     if !inside(&path, &install) {
         return None;
     }
+    for name in required_directories {
+        let required = path.join(name);
+        crate::path::refuse_symlink_ancestors(&required).ok()?;
+        if !required.is_dir() {
+            return None;
+        }
+    }
     Some(StoreOriginalFolder {
-        profile_id: "dark-forces-pc-complete-installed-data".into(),
+        profile_id: profile_id.into(),
         path,
     })
 }

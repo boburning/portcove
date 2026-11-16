@@ -575,21 +575,25 @@ describe("source intake dialog", () => {
     },
   );
 
-  it.each(["game", "bios", "changed BIOS", "store originals", "GOG originals"])(
+  it.each(["game", "bios", "changed BIOS", "store originals", "GOG originals", "Doom"])(
     "checks the selected App setup handoff for %s",
     async (scenario) => {
       const installedSources: SourceRecord[] = [];
       const first = scenario === "bios" ? "bios" : "game";
       const replaceBios = scenario === "changed BIOS";
       const fromGog = scenario === "GOG originals";
-      const fromStore = scenario === "store originals" || fromGog;
+      const doom = scenario === "Doom";
+      const fromStore = scenario === "store originals" || fromGog || doom;
       const store = fromGog ? "gog" : "steam";
-      const storeRoot = fromGog
-        ? "D:/GOG Games/Dark Forces"
-        : "D:/Steam/steamapps/common/Dark Forces";
-      const folder = fromGog ? storeRoot : `${storeRoot}/Game`;
+      const title = doom ? "DOOM 3" : "Dark Forces";
+      const storeRoot = fromGog ? "D:/GOG Games/Dark Forces" : `D:/Steam/steamapps/common/${title}`;
+      const folder = fromGog || doom ? storeRoot : `${storeRoot}/Game`;
       const input = fromStore
-        ? { ...profile, id: "dark-forces-pc-complete-installed-data", kind: "file-set" as const }
+        ? {
+            ...profile,
+            id: doom ? "doom-3-classic-pc-131-pk4" : "dark-forces-pc-complete-installed-data",
+            kind: doom ? ("relative-file-set" as const) : ("file-set" as const),
+          }
         : profile;
       const pickerOpen = vi
         .spyOn(picker, "pickSourcePath")
@@ -602,8 +606,8 @@ describe("source intake dialog", () => {
           installs: [
             {
               store,
-              product_id: fromGog ? "1421404433" : "32400",
-              title: "Dark Forces",
+              product_id: fromGog ? "1421404433" : doom ? "9050" : "32400",
+              title,
               saved_root_id: null,
               path: storeRoot,
               original_folder: { path: folder, profile_id: input.id },
@@ -730,7 +734,7 @@ describe("source intake dialog", () => {
           id === "bios"
             ? "Choose BIOS file to check"
             : fromStore
-              ? `Check Dark Forces files from ${fromGog ? "GOG" : "Steam"}`
+              ? `Check ${title} files from ${fromGog ? "GOG" : "Steam"}`
               : "Choose game files to check";
         await page.getByRole("button", { name: label, exact: true }).click();
         await page.getByRole("button", { name: "Use current location", exact: true }).click();
