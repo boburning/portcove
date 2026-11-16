@@ -851,12 +851,12 @@ fn launch_pins_a_non_default_profiles_exact_build_without_moving_the_active_poin
         .into_iter()
         .find(|install| install.id == "first")
         .unwrap();
-    // The game later updates: a newer build becomes the global active build.
-    let second = install(w.service.library(), "second", b"newer runtime", true);
     let pinned = w
         .service
         .copy_profile("starship", &w.default, "Pinned")
         .unwrap();
+    // The customized profile retains its exact build after Default advances.
+    let second = install(w.service.library(), "second", b"newer runtime", true);
     let active = || {
         w.service
             .library()
@@ -1460,6 +1460,39 @@ fn code_without_consent_is_never_recorded_from_stored_or_live_bytes() {
     assert!(error.message.contains("runs its own code"), "{error:?}");
     assert_eq!(w.revision(), 1, "nothing was recorded");
     assert!(!w.user().join("mods.json").exists(), "nothing was enabled");
+}
+
+#[test]
+fn a_recipe_reports_missing_local_code_consent_even_when_exact_bytes_are_available() {
+    let w = recomp_world();
+    let (package, sha) = code_package(&w, "code.nrm", b"\0");
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &package, 1, &sha)
+        .unwrap();
+    let recipe = w
+        .service
+        .export_profile_recipe(RECOMP, &w.default, None)
+        .unwrap();
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    std::fs::remove_file(layout.code_consent()).unwrap();
+    let held = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(held.packages[0].status, crate::RecipeInputStatus::Available);
+    assert!(!held.can_apply);
+    assert!(
+        held.holds
+            .iter()
+            .any(|hold| hold.contains("permission in this library"))
+    );
+
+    record_code_consent(&layout, &sha).unwrap();
+    let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(
+        !reviewed
+            .holds
+            .iter()
+            .any(|hold| hold.contains("permission in this library"))
+    );
+    assert_ne!(held.plan_sha256, reviewed.plan_sha256);
 }
 
 #[test]

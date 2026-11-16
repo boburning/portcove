@@ -10,7 +10,8 @@ use crate::{
     service_at_generation,
 };
 use portcove_core::{
-    ModSetupsView, Profile, ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation,
+    ModSetupsView, PortcoveError, Profile, ProfileRecipe, ProfileRevision, ProfileUpdatePolicy,
+    ProviderUpdateObservation, RecipeImportPlan,
 };
 
 #[tauri::command]
@@ -77,6 +78,75 @@ pub(crate) async fn use_mod_setup(
             .map_err(Into::into)
     })
     .await
+}
+
+#[tauri::command]
+pub(crate) async fn export_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    path: PathBuf,
+) -> DesktopResult<()> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .write_profile_recipe(&port_id, &profile_id, &path)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn inspect_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    path: PathBuf,
+) -> DesktopResult<RecipeImportPlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            let recipe = ProfileRecipe::read_file(&path)?;
+            require_recipe_port(&port_id, &recipe)?;
+            service.plan_recipe_import(&recipe)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_mod_recipe(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    display_name: String,
+    plan: RecipeImportPlan,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        require_recipe_port(&port_id, &plan.recipe)?;
+        if !plan.can_apply {
+            return Err(PortcoveError::conflict("this recipe still needs exact inputs").into());
+        }
+        let authorization = service.authorize_recipe_import(&plan, &display_name)?;
+        service
+            .apply_recipe_import(&plan, &display_name, &authorization.token)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+fn require_recipe_port(port_id: &str, recipe: &ProfileRecipe) -> portcove_core::Result<()> {
+    if recipe.port_id == port_id {
+        Ok(())
+    } else {
+        Err(PortcoveError::conflict(
+            "this recipe is for a different game. Open that game's setups to review it",
+        )
+        .detail("recipe_game", &recipe.port_id))
+    }
 }
 
 #[tauri::command]

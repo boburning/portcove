@@ -184,7 +184,9 @@ jobs:
 
   report-package-drift:
     needs: inspect-package-drift
-    if: github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main'
+    # A failed observation can retain a usable handoff for a successful inspection.
+    # Require that inspection explicitly so ancestor failure does not suppress its notice.
+    if: ${{ !cancelled() && needs.inspect-package-drift.result == 'success' && github.repository == 'boburning/portcove' && github.ref == 'refs/heads/main' }}
     permissions:
       contents: read
       issues: write
