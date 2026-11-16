@@ -730,7 +730,7 @@ async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     // A later run downloads the same asset into a fresh toolchain staging directory.
     let staging = library
         .staging_dir()
-        .join(format!("psx-toolchain-{}", Uuid::new_v4()));
+        .join(format!("psx-toolchain-{}", uuid::Uuid::new_v4()));
     fs::create_dir_all(&staging).unwrap();
     let second = staging.join("second.download");
     let _acquisition = library.try_lock_psx_toolchain_acquisition().unwrap();
