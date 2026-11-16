@@ -75782,7 +75782,7 @@
             },
             {
               "title": "Choose your original game",
-              "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate. For the Portcove-managed Windows player, add the folder that holds your own IWAD to GZDoom’s IWAD search paths in its settings instead of copying game files into the managed player folder."
+              "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
             }
           ],
           "warnings": [
@@ -75792,7 +75792,7 @@
           "references": [
             {
               "title": "Keep your profile and saved games",
-              "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
+              "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
             }
           ]
         }
