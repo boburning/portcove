@@ -31544,6 +31544,7 @@
         "type": "object"
       },
       "ProviderAutoUpdateOutcome": {
+        "description": "What one standing pass did about one installed provider file.",
         "oneOf": [
           {
             "description": "The newer file was installed as the setup's next revision.",

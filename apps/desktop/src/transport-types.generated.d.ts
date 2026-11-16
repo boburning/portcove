@@ -825,6 +825,9 @@ export type OutputListingStatuses = PortListingStatus[];
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
+/**
+ * What one standing pass did about one installed provider file.
+ */
 export type ProviderAutoUpdateOutcome =
   | {
       file_id: string;
