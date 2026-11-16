@@ -40228,7 +40228,7 @@
         "steps": [
           {
             "title": "Choose your desktop download",
-            "instruction": "The publisher’s itch.io page has downloads for Windows x64, Linux x64, and Mac. Extract the whole ZIP and open its launcher. The publisher’s GitHub release also offers Mindustry.jar for Windows x64, Linux x64, and Intel or Apple Silicon Mac. Run it with Java for your system, for example java -jar Mindustry.jar. On Linux ARM64, use the community Flathub package."
+            "instruction": "The publisher’s itch.io page has downloads for Windows x64, Linux x64, and Mac. Extract the whole ZIP and open its launcher. The publisher’s GitHub release also offers Mindustry.jar for Windows x64, Linux x64, and Intel or Apple Silicon Mac. Run it with a matching 64-bit Java runtime. Build 160.7 requires Java 17 or later. For example, run java -jar Mindustry.jar. On Linux ARM64, use the community Flathub package."
           },
           {
             "title": "Start and save a local game",
