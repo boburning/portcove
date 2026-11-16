@@ -1028,7 +1028,7 @@ it("sorts actual Library entries by the selected title order without changing th
   await captureParityState("library-sort-title-descending");
 }, 45_000);
 
-it("keeps a grouped Discover Save unselected while pending and after a rejected write", async () => {
+it("keeps a grouped Discover Favorite unselected while pending and after a rejected write", async () => {
   await page.viewport(1024, 800);
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
   await mount("dark", "collection", 11);
@@ -1041,16 +1041,16 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
     }),
   );
   const group = discoverGroupForPort("collection-1");
-  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-save")!);
+  const save = page.elementLocator(group.querySelector<HTMLButtonElement>(".collection-favorite")!);
   await expect.element(save).toHaveAttribute("aria-pressed", "false");
   await save.click();
   await expect.element(save).toBeDisabled();
   const requested = change.mock.calls[0]![1];
-  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Save");
+  if (requested.kind !== "set_saved_group") throw new Error("Expected grouped Favorite");
   expect(requested.legacy_port_ids).toEqual(["collection-0", "collection-1"]);
   expect(requested.saved).toBe(true);
   await captureParityState("discover-group-save-pending");
-  rejectWrite(new Error("Fixture grouped Save refused"));
+  rejectWrite(new Error("Fixture grouped Favorite refused"));
   await expect.element(save).toBeEnabled();
   await expect.element(save).toHaveAttribute("aria-pressed", "false");
   await expect

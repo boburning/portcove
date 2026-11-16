@@ -19,6 +19,10 @@ publication. No second persistent favorite store exists. Reload reads that store
 no catalog metadata, share URL, scan, network or installation/source mutation is
 performed. The Library view still requires real library membership.
 
+Discover and listing cards use one game-level Favorite control that reads this
+store together with the organization game-level choice; see the
+[organization contract](../organization/README.md). Removing it clears both.
+
 Favorites filtering consumes the already search/channel/readiness/query-narrowed
 cached ports. Its chip count is the number of favorites within those results;
 the displayed port count includes the Favorites predicate. Clear search and

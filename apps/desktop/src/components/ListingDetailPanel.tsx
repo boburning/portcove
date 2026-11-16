@@ -2,7 +2,7 @@ import { releaseKey } from "../features/browsing/download-identity";
 import { upstreamUpdatesDestination } from "../features/browsing/upstream-links";
 import { ArrowRight, FolderOpen, Save } from "lucide-react";
 import type { ReactNode } from "react";
-import { SaveGameButton } from "../features/organization/OrganizationControls";
+import { FavoriteGameButton } from "../features/organization/OrganizationControls";
 import { ListingMaintenanceFacts } from "../features/browsing/ListingMaintenanceFacts";
 import type { CatalogEntry } from "../features/browsing/catalog-entry";
 import {
@@ -176,7 +176,7 @@ export function ListingDetailPanel({
                 favoriteControl
               ) : (
                 <>
-                  <SaveGameButton
+                  <FavoriteGameButton
                     port={entry}
                     groupPorts={groupPorts ?? [entry]}
                     organization={organization}

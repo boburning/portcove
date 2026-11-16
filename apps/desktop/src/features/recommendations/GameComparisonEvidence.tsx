@@ -391,6 +391,7 @@ export function GameComparisonEvidence({
             size="sm"
             variant={followed ? "selected" : "ghost"}
             aria-pressed={followed}
+            title="Shows a notice when a new download is found. Nothing is installed."
             disabled={!organization.snapshot || organization.busy || comparison.loading}
             onClick={() =>
               void organization.commit({
@@ -401,7 +402,9 @@ export function GameComparisonEvidence({
               })
             }
           >
-            {followed ? `Following ${port.name}` : `Follow ${port.name}`}
+            {followed
+              ? `Update notices on for ${port.name}`
+              : `Notify me of updates to ${port.name}`}
           </Button>
           {port.update_notice && followed && (
             <div role="status" className="basis-full text-sm">

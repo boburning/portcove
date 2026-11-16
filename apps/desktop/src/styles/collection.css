@@ -591,9 +591,6 @@
     max-width: 16px;
     max-height: 16px;
   }
-  .discover-game .collection-save {
-    border-radius: 0.375rem;
-  }
   .collection-art-action:hover {
     color: var(--color-text-on-dark);
     background: var(--color-primary-surface);
@@ -603,9 +600,6 @@
   }
   .collection-favorite[aria-pressed="true"] {
     color: var(--color-card-favorite);
-  }
-  .collection-save[aria-pressed="true"] {
-    color: var(--color-card-saved);
   }
   .collection-art-action[aria-pressed="true"]::after {
     display: none;
@@ -635,9 +629,6 @@
   }
   .collection-row .collection-favorite[aria-pressed="true"] {
     color: var(--color-primary-text);
-  }
-  .discover-rows .collection-save[aria-pressed="true"] {
-    color: var(--color-interactive-text-strong);
   }
   .discover-rows .collection-favorite[aria-pressed="true"] {
     color: var(--color-primary-text);

@@ -167,9 +167,13 @@ it("shows the shared facts, accepts keyboard requirements and keeps following ex
   expect(
     vi.mocked(desktopApi.compareGamePorts).mock.calls.at(-1)?.[0].required_capabilities,
   ).toEqual(["multiplayer"]);
-  await userEvent.click(page.getByRole("button", { name: "Follow Fixture project", exact: true }));
+  await userEvent.click(
+    page.getByRole("button", { name: "Notify me of updates to Fixture project", exact: true }),
+  );
   await expect
-    .element(page.getByRole("button", { name: "Following Fixture project", exact: true }))
+    .element(
+      page.getByRole("button", { name: "Update notices on for Fixture project", exact: true }),
+    )
     .toHaveAttribute("aria-pressed", "true");
   expect(desktopApi.changeOrganization).toHaveBeenCalledExactlyOnceWith(
     0,

@@ -1,7 +1,7 @@
 import { Fragment, useId, useState, useRef, type ReactNode } from "react";
 import { Popover } from "@base-ui/react/popover";
 import { Menu } from "@base-ui/react/menu";
-import { Bookmark, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
+import { Heart, EyeOff, Eye, Check, Folder, Plus } from "lucide-react";
 import { Trans } from "react-i18next";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
@@ -10,6 +10,7 @@ import type { CatalogEntry } from "../browsing/catalog-entry";
 import { originalGame, gameGroupId } from "../browsing/original-game";
 import { useAppTranslation } from "../../localization";
 import { gameIdentityLabel } from "../../port-identity";
+import type { useFavorites } from "../favorites/use-favorites";
 import type { useOrganization } from "./use-organization";
 
 export type Organization = ReturnType<typeof useOrganization>;
@@ -21,17 +22,26 @@ export function savedForPort(organization: Organization | undefined, port: Catal
   const ids = organization?.snapshot?.saved_game_ids;
   return Boolean(ids?.includes(savedGameId(port)) || ids?.includes(`port-${port.id}`));
 }
+/** A game is a favorite when either the port-level or the game-level choice marks it. */
+export function favoriteForPort(
+  organization: Organization | undefined,
+  favoriteIds: ReadonlySet<string> | undefined,
+  port: CatalogEntry,
+): boolean {
+  return Boolean(favoriteIds?.has(port.id) || savedForPort(organization, port));
+}
 export function organizedPorts(
   ports: CatalogEntry[],
   organization: Organization | undefined,
   selected: string,
   discover = false,
   universe: readonly CatalogEntry[] = ports,
+  favoriteIds?: ReadonlySet<string>,
 ) {
   const snapshot = organization?.snapshot;
   if (!snapshot) return selected === "all" ? ports : [];
   const savedGroups = new Set(
-    universe.filter((port) => savedForPort(organization, port)).map(gameGroupId),
+    universe.filter((port) => favoriteForPort(organization, favoriteIds, port)).map(gameGroupId),
   );
   return ports.filter((port) => {
     const hidden = snapshot.hidden_port_ids.includes(port.id);
@@ -347,9 +357,14 @@ export function SidebarCollections({
   );
 }
 
-export function SaveGameButton({
+/**
+ * The one game-level Favorite control. It shows a game as favorite when either the
+ * game-level choice or any port-level Favorite marks it, and removing it clears both.
+ */
+export function FavoriteGameButton({
   port,
   organization,
+  favorites,
   groupPorts = [port],
   card = false,
 }: {
@@ -357,32 +372,27 @@ export function SaveGameButton({
   groupPorts?: readonly CatalogEntry[];
   card?: boolean;
   organization?: Organization | undefined;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
 }) {
   const { t } = useAppTranslation("organization");
   if (!organization) return null;
   const gameId = savedGameId(port);
-  const saved = groupPorts.some((entry) => savedForPort(organization, entry));
+  const favorite = groupPorts.some((entry) => favoriteForPort(organization, favorites?.ids, entry));
   return (
     <Button
       size={card ? "icon-sm" : "sm"}
-      className={card ? "collection-art-action collection-save" : undefined}
-      title={saved ? t("save.removeTitle") : t("save.title")}
-      variant={saved ? "selected" : "ghost"}
+      className={card ? "collection-art-action collection-favorite" : undefined}
+      title={favorite ? t("favorite.removeTitle") : t("favorite.title")}
+      variant={favorite ? "selected" : "ghost"}
       data-focusable
-      aria-pressed={saved}
-      aria-label={t("save.label", { game: gameIdentityLabel(port) })}
-      disabled={!organization.snapshot || organization.busy}
+      aria-pressed={favorite}
+      aria-label={t("favorite.label", { game: gameIdentityLabel(port) })}
+      disabled={!organization.snapshot || organization.busy || Boolean(favorites?.busy)}
       onClick={(event) => {
         const button = event.currentTarget;
         const root = button.closest("[data-focus-region=workspace]") ?? document;
-        void organization
-          .commit({
-            kind: "set_saved_group",
-            game_id: gameId,
-            legacy_port_ids: groupPorts.map((entry) => entry.id),
-            saved: !saved,
-          })
-          .then((accepted) => {
+        void changeFavorite(organization, favorites, gameId, groupPorts, !favorite).then(
+          (accepted) => {
             if (accepted)
               requestAnimationFrame(() => {
                 if (!button.isConnected && document.activeElement === document.body)
@@ -392,13 +402,40 @@ export function SaveGameButton({
                     )
                     ?.focus();
               });
-          });
+          },
+        );
       }}
     >
-      <Bookmark aria-hidden="true" />
-      {!card && (saved ? t("save.saved") : t("save.save"))}
+      <Heart aria-hidden="true" fill={favorite ? "currentColor" : "none"} />
+      {!card && (favorite ? t("favorite.favorited") : t("favorite.favorite"))}
     </Button>
   );
+}
+
+async function changeFavorite(
+  organization: Organization,
+  favorites: ReturnType<typeof useFavorites> | undefined,
+  gameId: string,
+  groupPorts: readonly CatalogEntry[],
+  favorite: boolean,
+): Promise<boolean> {
+  const legacyPortIds = groupPorts.map((entry) => entry.id);
+  const savedChoice = groupPorts.some((entry) => savedForPort(organization, entry));
+  // Adding stores the game-level choice. Removing clears every choice that shows the game.
+  if (favorite || savedChoice) {
+    const accepted = await organization.commit({
+      kind: "set_saved_group",
+      game_id: gameId,
+      legacy_port_ids: legacyPortIds,
+      saved: favorite,
+    });
+    if (!accepted || favorite) return accepted;
+  }
+  let accepted = true;
+  for (const id of legacyPortIds) {
+    if (favorites?.ids?.has(id)) accepted = (await favorites.toggle(id)) && accepted;
+  }
+  return accepted;
 }
 
 export function OrganizationMenuItems({

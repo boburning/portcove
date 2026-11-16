@@ -6,12 +6,12 @@ import {
 import { presentPortAction, useOperationPresentation } from "../operations/operation-presentation";
 import type { CollectionLayout } from "./use-collection-layout";
 import type { useFavorites } from "../favorites/use-favorites";
-import { SaveGameButton, type Organization } from "../organization/OrganizationControls";
+import { FavoriteGameButton, type Organization } from "../organization/OrganizationControls";
 import type { TFunction } from "i18next";
-import { useId, useRef, useState, type ReactNode } from "react";
+import { useId, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { useAppTranslation } from "../../localization";
-import { ArrowRight, GitCompareArrows, Heart, Star } from "lucide-react";
+import { ArrowRight, GitCompareArrows, Star } from "lucide-react";
 import { ArtworkFrame, artworkDisplayNotice } from "../../components/Artwork";
 import { useArtwork, useArtworkVisibility } from "../../artwork";
 import { ExternalLink } from "../../components/ExternalLink";
@@ -135,12 +135,11 @@ export function GroupedDiscover({
     setComparison(undefined);
     onSelect(port.id, originKey);
   };
-  const favorite = (port: CatalogEntry, card = false) =>
+  const favorite = (port: CatalogEntry) =>
     favorites && (
       <Button
         data-focusable
         size="icon-sm"
-        className={card ? "collection-art-action collection-favorite" : undefined}
         title={
           favorites.ids?.has(port.id) ? t("discover.favorite.remove") : t("discover.favorite.add")
         }
@@ -150,7 +149,7 @@ export function GroupedDiscover({
         disabled={!favorites.ids || favorites.busy}
         onClick={(event) => onFavoriteToggle(port.id, event.currentTarget)}
       >
-        {card ? <Heart aria-hidden="true" /> : <Star aria-hidden="true" />}
+        <Star aria-hidden="true" />
       </Button>
     );
   return (
@@ -170,7 +169,7 @@ export function GroupedDiscover({
             nativeSourceDrag={nativeSourceDrag}
             devicePlatform={devicePlatform}
             organization={organization}
-            favorite={favorite}
+            favorites={favorites}
             open={open}
             compare={compare}
           />
@@ -388,7 +387,7 @@ function DiscoverGameCard({
   nativeSourceDrag,
   devicePlatform,
   organization,
-  favorite,
+  favorites,
   open,
   compare,
 }: {
@@ -399,7 +398,7 @@ function DiscoverGameCard({
   nativeSourceDrag: NativeSourceDragState;
   devicePlatform?: PortDefinition["platforms"][number] | undefined;
   organization?: Organization | undefined;
-  favorite: (port: CatalogEntry, card?: boolean) => ReactNode;
+  favorites?: ReturnType<typeof useFavorites> | undefined;
   open: (port: CatalogEntry, originKey: string) => void;
   compare: (group: GameGroup, trigger: HTMLButtonElement) => void;
 }) {
@@ -483,8 +482,13 @@ function DiscoverGameCard({
         <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
       </Button>
       <div className="collection-personal-actions">
-        {group.ports.length === 1 && favorite(first, true)}
-        <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
+        <FavoriteGameButton
+          card
+          port={first}
+          groupPorts={group.ports}
+          organization={organization}
+          favorites={favorites}
+        />
       </div>
       <DiscoverGameMetadata
         port={first}

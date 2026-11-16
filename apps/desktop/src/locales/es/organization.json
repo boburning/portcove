@@ -37,6 +37,13 @@
     "reload": "Volver a cargar las elecciones",
     "write": "Portcove no pudo confirmar los cambios. Se muestran tus últimas elecciones confirmadas."
   },
+  "favorite": {
+    "favorite": "Favorito",
+    "favorited": "Favorito",
+    "label": "Marcar {{game}} como favorito",
+    "removeTitle": "Quitar de favoritos",
+    "title": "Añadir a favoritos"
+  },
   "group": {
     "discover": "Colecciones de Descubrir",
     "library": "Colecciones de la Biblioteca"
@@ -44,13 +51,6 @@
   "menu": {
     "hide": "Ocultar de la Biblioteca",
     "show": "Mostrar en la Biblioteca"
-  },
-  "save": {
-    "label": "Guardar {{game}} para más tarde",
-    "removeTitle": "Quitar juego guardado",
-    "save": "Guardar",
-    "saved": "Guardado",
-    "title": "Guardar para más tarde"
   },
   "sidebar": {
     "collectionLabel": "Colección: {{name}}",
@@ -71,8 +71,8 @@
   },
   "view": {
     "all": "Todos los juegos",
-    "followed": "Seguidos",
+    "followed": "Con avisos de actualización",
     "hidden": "Ocultos",
-    "saved": "Guardados"
+    "saved": "Favoritos"
   }
 }

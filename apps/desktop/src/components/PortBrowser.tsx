@@ -298,7 +298,14 @@ function browserQuickViews({
       catalogUniverse: queryContext?.catalogUniverse ?? catalogUniverse ?? candidates ?? [],
     },
     scope: (scoped) =>
-      organizedPorts(scoped, organization, organizationView, false, catalogUniverse ?? ports),
+      organizedPorts(
+        scoped,
+        organization,
+        organizationView,
+        false,
+        catalogUniverse ?? ports,
+        favoriteIds,
+      ),
   });
 
   return { activeQuickView, quickViewCounts };
@@ -429,6 +436,7 @@ function usePortBrowser({
     organizationView,
     view === "catalog",
     catalogUniverse ?? ports,
+    favorites?.ids,
   );
   const { activeQuickView, quickViewCounts } = browserQuickViews({
     favorites,
