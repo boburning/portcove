@@ -610,9 +610,9 @@ installer does for the embedded catalog's route, and returns
 `catalog.inspect-package-shape` data: `port_id`, `platform`, `sha256`,
 `shape_version`, the derived `shape`, its `provenance`, the
 `derivation_inputs_sha256` of the embedded catalog facts it derived with
-(absent for a route outside the embedded catalog) and a shadow `verdict`
+(absent for a route outside the embedded catalog) and a comparison `verdict`
 against the embedded generated table or explicit fingerprint
-([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes)). The verdict
 `status` is `compatible`, `drifted` (with `changes`) or `unknown` (with a
 `reason`). It runs before opening a library, executes nothing and establishes
 no review; `scripts/package-shape-baselines.mts --record` uses it.
@@ -620,7 +620,7 @@ no review; `scripts/package-shape-baselines.mts --record` uses it.
 `portcove --library PATH --json installation package-shape PORT_ID` lists each
 registered installation of the port with `install_id`, `version`, `active`,
 `status` and, when `status` is `recorded`, the `record`: shape, derivation
-version, provenance and the shadow verdict computed at install. `status` is
+version, provenance and the verdict computed at install. `status` is
 `recorded`, `not_recorded` (installations from before #5359), `unrecognized`
 (a record from another derivation version or a newer Portcove) or
 `manifest_unverifiable`, with the verification error in `detail`. It is

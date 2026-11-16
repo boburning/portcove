@@ -1,4 +1,4 @@
-//! Derived package shapes and the shadow release-drift verdict (#5359 phase 1).
+//! Derived upstream package shapes and release-drift verdicts (#5359).
 //!
 //! A managed route follows the newest upstream release its selector matches.
 //! A release can keep matching while it changes reviewed behavior, for example
@@ -9,10 +9,10 @@
 //! `reviewed_package_layouts` fingerprint, or the shape recorded by the active
 //! local installation.
 //!
-//! This phase only records the verdict. Nothing is refused or reordered on its
-//! account; the explicit reviewed layout gate in `package_layout` stays the
-//! only refusal. Manifests store the record as untyped JSON and read it with
-//! [`stored_record`], so records from other Portcove versions stay harmless.
+//! Managed portable installs withhold known drift before publication. Unknown
+//! components remain visible alongside the existing reviewed-layout checks.
+//! Manifests store records as untyped JSON and read them with [`stored_record`]
+//! so they can handle records from different Portcove versions.
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,
@@ -23,11 +23,25 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{Platform, PortDefinition, PortcoveError, Result};
+use crate::{AdapterKind, Platform, PortDefinition, PortcoveError, Result};
+
+pub(crate) mod withheld;
 
 /// Version of the derivation rules. The generated table records the version it
 /// was derived with; a different version is not a baseline.
 pub(crate) const SHAPE_VERSION: u32 = 1;
+/// First template capability that withholds a package with known shape drift.
+pub(crate) fn enforcement_capability(adapter: AdapterKind) -> Option<u32> {
+    match adapter {
+        AdapterKind::NativePortable => Some(38),
+        AdapterKind::StagedSourcePortable => Some(37),
+        AdapterKind::N64RecompPortable => Some(7),
+        AdapterKind::LibultrashipPortable | AdapterKind::PsxRecompManaged => Some(5),
+        AdapterKind::GeneratedCache => Some(4),
+        AdapterKind::ReferencedDisc | AdapterKind::UpstreamManagedSetup => None,
+    }
+}
+
 const TABLE_FORMAT: u32 = 1;
 const MAXIMUM_ENTRIES: usize = 200_000;
 /// Bound on all recorded paths of one shape together.
@@ -179,7 +193,7 @@ pub struct ShapeChange {
     pub removed: Vec<String>,
 }
 
-/// The shadow verdict for one candidate package. It refuses nothing.
+/// The comparison verdict for one candidate package.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum ShapeVerdict {
@@ -433,10 +447,22 @@ fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> Opti
         return Some(false);
     }
     let embedded: PortDefinition = serde_json::from_value(raw).ok()?;
-    let embedded =
-        derivation_inputs_sha256(&serde_json::to_value(embedded).ok()?, platform).ok()?;
-    let active = derivation_inputs_sha256(&serde_json::to_value(port).ok()?, platform).ok()?;
-    Some(embedded == active)
+    same_derivation_inputs(&embedded, port, entry.platform)
+}
+
+/// Compare the catalog facts used to derive both shapes on the same platform.
+pub(crate) fn same_derivation_inputs(
+    baseline: &PortDefinition,
+    candidate: &PortDefinition,
+    platform: Platform,
+) -> Option<bool> {
+    let platform = serde_json::to_value(platform).ok()?;
+    let platform = platform.as_str()?;
+    let baseline =
+        derivation_inputs_sha256(&serde_json::to_value(baseline).ok()?, platform).ok()?;
+    let candidate =
+        derivation_inputs_sha256(&serde_json::to_value(candidate).ok()?, platform).ok()?;
+    Some(baseline == candidate)
 }
 
 /// Inputs that locate declared persistent paths in an extracted package.
@@ -877,8 +903,7 @@ fn compare(
 }
 
 /// Derive and judge one extracted package for its installation manifest.
-/// Every failure becomes an `observation_failed` verdict: the shadow
-/// comparison never refuses an installation.
+/// A derivation failure becomes an `observation_failed` unknown verdict.
 pub(crate) fn record_for_install(
     port: &PortDefinition,
     qualification: &crate::install::InstallQualification,

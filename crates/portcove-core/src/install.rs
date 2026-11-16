@@ -1463,14 +1463,29 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
-            // Shadow drift comparison (#5359 phase 1): derived after every
-            // grant and before any adapter adds content. It refuses nothing.
-            package_shape = Some(self.package_shape_record(
+            // Compare the upstream package before an adapter adds content.
+            let shape = self.package_shape_record(
                 port,
                 &request.qualification,
                 &payload_root,
                 &artifact.sha256,
-            ));
+            );
+            if let crate::package_shape::ShapeVerdict::Drifted { .. } = &shape.verdict
+                && crate::package_shape::enforcement_capability(port.adapter).is_some()
+            {
+                return Err(PortcoveError::verification(format!(
+                    "{} {} is waiting for review because the package layout changed",
+                    port.name, request.release.version
+                ))
+                .with_known_cause(crate::failure::KnownFailureCause::PackageShapeDrift)
+                .detail("version", &request.release.version)
+                .detail("artifact_sha256", &artifact.sha256)
+                .detail(
+                    "package_shape_verdict",
+                    serde_json::to_string(&shape.verdict)?,
+                ));
+            }
+            package_shape = Some(shape);
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -3843,9 +3858,8 @@ pub(crate) fn portability_catalog_for_install(
 }
 
 impl Installer {
-    /// Derive the shape of a new install's extracted package and its shadow
-    /// verdict. Baseline and observation failures become `unknown`; this
-    /// never refuses the installation.
+    /// Derive the shape and comparison verdict of a new install's extracted package.
+    /// Baseline and observation failures become `unknown`.
     fn package_shape_record(
         &self,
         port: &PortDefinition,
@@ -3854,7 +3868,7 @@ impl Installer {
         sha256: &str,
     ) -> crate::package_shape::PackageShapeRecord {
         let local = self
-            .local_shape_baseline(&port.id, qualification.platform)
+            .local_shape_baseline(port, qualification.platform)
             .ok()
             .flatten();
         crate::package_shape::record_for_install(
@@ -3867,14 +3881,14 @@ impl Installer {
         )
     }
 
-    /// The active installation's recorded shape on the same platform.
+    /// The active installation's shape on the same platform and under the same derivation inputs.
     fn local_shape_baseline(
         &self,
-        port_id: &str,
+        port: &PortDefinition,
         platform: Platform,
     ) -> Result<Option<crate::package_shape::LocalBaseline>> {
         let connection = self.library.connection()?;
-        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let active = crate::profile::active_install_id(&connection, &port.id)?;
         let Some(install) = Library::install_by_id(&connection, active.as_deref())? else {
             return Ok(None);
         };
@@ -3882,19 +3896,30 @@ impl Installer {
         if manifest.platform != Some(platform) {
             return Ok(None);
         }
-        Ok(manifest
+        let Some(record) = manifest
             .package_shape
             .as_ref()
             .and_then(crate::package_shape::stored_record)
-            .map(|record| crate::package_shape::LocalBaseline {
-                install_id: install.id.clone(),
-                version: install.version.clone(),
-                sha256: install.artifact.sha256.clone(),
-                record,
-            }))
+        else {
+            return Ok(None);
+        };
+        let Some(catalog) = catalog_for_verified_manifest(&install, &manifest)? else {
+            return Ok(None);
+        };
+        if crate::package_shape::same_derivation_inputs(catalog.port(&port.id)?, port, platform)
+            != Some(true)
+        {
+            return Ok(None);
+        }
+        Ok(Some(crate::package_shape::LocalBaseline {
+            install_id: install.id,
+            version: install.version,
+            sha256: install.artifact.sha256,
+            record,
+        }))
     }
 
-    /// Recorded package shapes and shadow verdicts of a port's installations,
+    /// Recorded package shapes and comparison verdicts of a port's installations,
     /// for read-only diagnostics.
     pub fn installed_package_shapes(
         &self,

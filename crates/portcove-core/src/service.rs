@@ -3037,7 +3037,9 @@ impl PortcoveService {
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
-        let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
+        let port = self.catalog.port(port_id)?;
+        let platform = Platform::current()?;
+        let runtime = crate::runtime::required(port, platform);
         let installed_runtime = status
             .active
             .as_ref()
@@ -3056,7 +3058,20 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
-        let port = self.catalog.port(port_id)?;
+        let withheld = if update_available {
+            crate::package_shape::withheld::current(&self.library, port, platform, release, || {
+                Installer::new(self.library.clone())
+                    .and_then(|installer| installer.local_shape_baseline(port, platform))
+                    .ok()
+                    .flatten()
+            })
+            .unwrap_or_else(|error| {
+                tracing::warn!(%error, port_id, "could not read the package shape observation");
+                None
+            })
+        } else {
+            None
+        };
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3064,7 +3079,7 @@ impl PortcoveService {
             installed_artifact,
             installed_runtime,
             required_runtime: runtime,
-            update_available,
+            update_available: update_available && withheld.is_none(),
             release: release.clone(),
             upstream_activity: match observed_activity {
                 Some(activity) => Some(activity.clone()),
@@ -3083,6 +3098,11 @@ impl PortcoveService {
             },
         };
         self.library.store_update_snapshot(&check)?;
+        if let Some(verdict) = &withheld {
+            return Err(crate::package_shape::withheld::refusal(
+                port, release, verdict,
+            ));
+        }
         Ok(check)
     }
 
