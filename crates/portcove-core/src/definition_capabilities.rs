@@ -965,7 +965,8 @@ mod tests {
             (1, 3, true, 3),
             (4, 4, true, 4),
             (3, 4, true, 4),
-            (5, 5, false, 4),
+            (5, 5, true, 5),
+            (6, 6, false, 5),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))

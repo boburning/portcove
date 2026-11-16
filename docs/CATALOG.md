@@ -2350,7 +2350,10 @@ package root, leaves the persistent parts unknown.
 
 A known change in any compared part withholds the candidate before publication.
 The native portable, staged-source, N64 recompilation, libultraship, PSX
-recompilation and generated-cache templates advertise the capability. Unknown
+recompilation and generated-cache templates advertise the capability. The
+embedded catalog uses the installed template capability. Indexed definitions
+use the version they negotiate, so a definition capped below the enforcement
+capability still records the comparison without adding the refusal. Unknown
 parts remain visible, and the other acquisition and layout checks still apply.
 If an exact candidate has a retained refusal observation, an update check
 recomputes its verdict with the current applicable baseline before saying the

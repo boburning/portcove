@@ -1471,13 +1471,15 @@ impl Installer {
                 &artifact.sha256,
             );
             if let crate::package_shape::ShapeVerdict::Drifted { .. } = &shape.verdict
-                && crate::package_shape::enforcement_capability(port.adapter).is_some()
+                && let Some(capability) =
+                    crate::package_shape::selected_enforcement_capability(&catalog, port)?
             {
                 if let Err(error) = crate::package_shape::withheld::record(
                     &self.library,
                     port,
                     platform,
                     &request.release,
+                    capability,
                     &shape,
                 ) {
                     tracing::warn!(%error, port_id = %port.id, "could not retain package shape refusal");

@@ -23,7 +23,7 @@ use std::{
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::{AdapterKind, Platform, PortDefinition, PortcoveError, Result};
+use crate::{AdapterKind, Catalog, Platform, PortDefinition, PortcoveError, Result};
 
 pub(crate) mod withheld;
 
@@ -40,6 +40,33 @@ pub(crate) fn enforcement_capability(adapter: AdapterKind) -> Option<u32> {
         AdapterKind::GeneratedCache => Some(4),
         AdapterKind::ReferencedDisc | AdapterKind::UpstreamManagedSetup => None,
     }
+}
+
+/// Embedded/legacy definitions use this build's template. Indexed definitions
+/// use the supported template version selected by their capability contract.
+pub(crate) fn selected_enforcement_capability(
+    catalog: &Catalog,
+    port: &PortDefinition,
+) -> Result<Option<u32>> {
+    let Some(minimum) = enforcement_capability(port.adapter) else {
+        return Ok(None);
+    };
+    let Some(snapshot) = catalog.definition_snapshot(&port.id) else {
+        return Ok(Some(minimum));
+    };
+    let template = serde_json::to_value(port.adapter)?;
+    let projection = snapshot.projection()?;
+    Ok(projection
+        .entry()
+        .capabilities()
+        .checks
+        .iter()
+        .find(|check| {
+            template.as_str() == Some(check.requirement.template.as_str())
+                && check.outcome == crate::DefinitionCapabilityOutcome::Supported
+        })
+        .and_then(|check| check.installed_version)
+        .filter(|version| *version >= minimum))
 }
 
 const TABLE_FORMAT: u32 = 1;

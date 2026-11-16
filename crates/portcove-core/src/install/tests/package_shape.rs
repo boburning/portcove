@@ -172,11 +172,15 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
     );
     let port = sample_definition();
     let platform = Platform::WindowsX86_64;
-    let retained =
-        crate::package_shape::withheld::current(&library, &port, platform, &release, || {
-            installer.local_shape_baseline(&port, platform).unwrap()
-        })
-        .unwrap();
+    let retained = crate::package_shape::withheld::current(
+        &library,
+        &port,
+        platform,
+        &release,
+        crate::package_shape::enforcement_capability(port.adapter).unwrap(),
+        || installer.local_shape_baseline(&port, platform).unwrap(),
+    )
+    .unwrap();
     assert!(matches!(retained, Some(ShapeVerdict::Drifted { .. })));
     let shapes = installer.installed_package_shapes("sample").unwrap();
     assert_eq!(shapes.len(), 2);

@@ -3058,13 +3058,23 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
-        let withheld = if update_available {
-            crate::package_shape::withheld::current(&self.library, port, platform, release, || {
-                Installer::new(self.library.clone())
-                    .and_then(|installer| installer.local_shape_baseline(port, platform))
-                    .ok()
-                    .flatten()
-            })
+        let withheld = if update_available
+            && let Some(capability) =
+                crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
+        {
+            crate::package_shape::withheld::current(
+                &self.library,
+                port,
+                platform,
+                release,
+                capability,
+                || {
+                    Installer::new(self.library.clone())
+                        .and_then(|installer| installer.local_shape_baseline(port, platform))
+                        .ok()
+                        .flatten()
+                },
+            )
             .unwrap_or_else(|error| {
                 tracing::warn!(%error, port_id, "could not read the package shape observation");
                 None
@@ -3072,6 +3082,11 @@ impl PortcoveService {
         } else {
             None
         };
+        if let Some(verdict) = &withheld {
+            return Err(crate::package_shape::withheld::refusal(
+                port, release, verdict,
+            ));
+        }
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -3079,7 +3094,7 @@ impl PortcoveService {
             installed_artifact,
             installed_runtime,
             required_runtime: runtime,
-            update_available: update_available && withheld.is_none(),
+            update_available,
             release: release.clone(),
             upstream_activity: match observed_activity {
                 Some(activity) => Some(activity.clone()),
@@ -3098,11 +3113,6 @@ impl PortcoveService {
             },
         };
         self.library.store_update_snapshot(&check)?;
-        if let Some(verdict) = &withheld {
-            return Err(crate::package_shape::withheld::refusal(
-                port, release, verdict,
-            ));
-        }
         Ok(check)
     }
 

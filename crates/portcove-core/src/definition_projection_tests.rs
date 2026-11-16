@@ -285,6 +285,27 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 }
 
 #[test]
+fn indexed_package_shape_enforcement_uses_the_negotiated_template_version() {
+    let document = generic_projection();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    for (maximum, expected) in [(4, None), (5, Some(5))] {
+        selected["required_capabilities"] = json!([{
+            "template": "libultraship-portable", "minimum_version": 4, "maximum_version": maximum
+        }]);
+        let projection = inspect(&selected, &contract).unwrap();
+        assert_eq!(
+            crate::package_shape::selected_enforcement_capability(
+                projection.catalog(),
+                projection.entry().port(),
+            )
+            .unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
 fn settings_are_complete_operational_projection_content_not_listing_metadata() {
     let mut document = projection();
     let position = document["catalog"]["ports"]

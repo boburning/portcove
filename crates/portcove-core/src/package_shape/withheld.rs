@@ -6,7 +6,7 @@ use sha2::{Digest, Sha256};
 
 use super::{
     LocalBaseline, PackageShape, PackageShapeRecord, SHAPE_VERSION, ShapeVerdict,
-    derivation_inputs_sha256, enforcement_capability, evaluate,
+    derivation_inputs_sha256, evaluate,
 };
 use crate::{
     Library, Platform, PortDefinition, PortcoveError, ReleaseChannel, ResolvedRelease, Result,
@@ -66,13 +66,11 @@ pub(crate) fn record(
     port: &PortDefinition,
     platform: Platform,
     release: &ResolvedRelease,
+    capability: u32,
     record: &PackageShapeRecord,
 ) -> Result<()> {
-    let (Some(capability), Some(candidate_key), Some(shape)) = (
-        enforcement_capability(port.adapter),
-        candidate_key(release)?,
-        record.shape.as_ref(),
-    ) else {
+    let (Some(candidate_key), Some(shape)) = (candidate_key(release)?, record.shape.as_ref())
+    else {
         return Ok(());
     };
     let observation = Observation {
@@ -103,12 +101,10 @@ pub(crate) fn current(
     port: &PortDefinition,
     platform: Platform,
     release: &ResolvedRelease,
+    capability: u32,
     local: impl FnOnce() -> Option<LocalBaseline>,
 ) -> Result<Option<ShapeVerdict>> {
-    let (Some(capability), Some(candidate_key)) = (
-        enforcement_capability(port.adapter),
-        candidate_key(release)?,
-    ) else {
+    let Some(candidate_key) = candidate_key(release)? else {
         return Ok(None);
     };
     let path = observation_path(library, port, platform, release.channel)?;
@@ -191,6 +187,7 @@ mod tests {
         port.id = "shape-observation-fixture".into();
         port.reviewed_package_layouts.clear();
         let platform = Platform::WindowsX86_64;
+        let capability = crate::package_shape::enforcement_capability(port.adapter).unwrap();
         let release = ResolvedRelease {
             version: "2.0.0".into(),
             channel: ReleaseChannel::Stable,
@@ -224,6 +221,7 @@ mod tests {
             &port,
             platform,
             &release,
+            capability,
             &PackageShapeRecord {
                 shape_version: SHAPE_VERSION,
                 shape: Some(changed.clone()),
@@ -236,9 +234,9 @@ mod tests {
 
         let library = Library::open(&root).unwrap();
         assert!(matches!(
-            current(&library, &port, platform, &release, || Some(local(
-                baseline.clone()
-            )))
+            current(&library, &port, platform, &release, capability, || Some(
+                local(baseline.clone())
+            ))
             .unwrap(),
             Some(ShapeVerdict::Drifted {
                 baseline: ShapeBaseline::Local { .. },
@@ -246,12 +244,14 @@ mod tests {
             })
         ));
         assert!(
-            current(&library, &port, platform, &release, || Some(local(changed)))
-                .unwrap()
-                .is_none()
+            current(&library, &port, platform, &release, capability, || Some(
+                local(changed)
+            ))
+            .unwrap()
+            .is_none()
         );
         assert!(
-            current(&library, &port, platform, &release, || None)
+            current(&library, &port, platform, &release, capability, || None)
                 .unwrap()
                 .is_none()
         );
@@ -259,15 +259,20 @@ mod tests {
         let mut replacement = release.clone();
         replacement.asset.sha256 = "c".repeat(64);
         assert!(
-            current(&library, &port, platform, &replacement, || panic!(
-                "mismatched artifact"
-            ))
+            current(
+                &library,
+                &port,
+                platform,
+                &replacement,
+                capability,
+                || panic!("mismatched artifact")
+            )
             .unwrap()
             .is_none()
         );
         port.persistent_paths.push("userdata".into());
         assert!(
-            current(&library, &port, platform, &release, || panic!(
+            current(&library, &port, platform, &release, capability, || panic!(
                 "mismatched inputs"
             ))
             .unwrap()
