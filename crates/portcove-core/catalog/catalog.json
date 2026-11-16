@@ -841,6 +841,16 @@
         "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
       },
       {
+        "id": "super-mario-world-recomp-0-15-10-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMarioWorldRecomp",
+        "authority_ref": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+        "reviewed_at": "2026-11-16",
+        "claim": "Exact Windows x64 v0.15.10 ZIP (26825013 bytes, SHA-256 d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc) matches GitHub release 445852347 asset 750041540 and publisher SHA256SUMS.txt. BUILDINFO binds the same Git tree to build and release and retains the v0.15.9 framework pins. The title diff keeps the stock USA original hash and positional smw.sfc launch, and changes the fresh window default and adaptive renderer. Core shape comparison with v0.15.9 adds only the immutable notices directory; source, executable, configured launch, and player-data ownership are unchanged. Retain earlier applicability and writer-contract evidence. Publisher report covers scoped exact package controls; Portcove native managed execution, retail input, gameplay and installed preservation were not observed for this Windows release.",
+        "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/main.c",
+        "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
+      },
+      {
         "id": "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
         "role": "upstream_support",
         "authority": "mstan/ZeldaAlttPSNESRecomp",
@@ -19843,7 +19853,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "super-mario-world-recomp-0-12-0-source-contract",
-          "super-mario-world-recomp-0-15-9-source-contract"
+          "super-mario-world-recomp-0-15-9-source-contract",
+          "super-mario-world-recomp-0-15-10-source-contract"
         ],
         "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
         "reviewed_at": "2026-10-18",
@@ -19858,6 +19869,10 @@
           {
             "upstream_ref": "v0.15.9",
             "artifact_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82"
+          },
+          {
+            "upstream_ref": "v0.15.10",
+            "artifact_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc"
           }
         ],
         "aliases": [],
@@ -38035,6 +38050,21 @@
         "saves_and_settings": "portcove-managed",
         "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
         "original_game_title": "Super Mario World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Select your own stock Super Mario World original",
+              "instruction": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Choose a short installation path using basic Latin characters. Your original file can stay where it is."
+            }
+          ],
+          "warnings": [],
+          "references": [
+            {
+              "title": "Review what the Windows backup contains",
+              "instruction": "Portcove manages the default local saves and settings in this installation. The bundled Falcon setup helper uses an external user cache that stays outside Portcove backups."
+            }
+          ]
+        },
         "artwork": {
           "game_id": 1070,
           "cover_id": 401336,

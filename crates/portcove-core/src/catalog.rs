@@ -3275,7 +3275,10 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
+                matches!(
+                    id,
+                    "dkc3-recomp" | "sonic-3-and-knuckles-recomp" | "super-mario-world-recomp"
+                ),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -3412,11 +3415,18 @@ mod tests {
                         "v0.15.9",
                         "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
                     ),
-                ],
+                    (
+                        "v0.15.10",
+                        "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+                    ),
+                ]
+                .as_slice(),
                 [
                     "super-mario-world-recomp-0-12-0-source-contract",
                     "super-mario-world-recomp-0-15-9-source-contract",
-                ],
+                    "super-mario-world-recomp-0-15-10-source-contract",
+                ]
+                .as_slice(),
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -3430,11 +3440,13 @@ mod tests {
                         "v0.6.6",
                         "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
                     ),
-                ],
+                ]
+                .as_slice(),
                 [
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
-                ],
+                ]
+                .as_slice(),
             ),
         ] {
             let port = catalog.port(id).unwrap();

@@ -19631,6 +19631,7 @@ fn main() {
         const STATE: &str = "mods/preloaded/state.toml";
         for (id, old_version, new_version) in [
             ("super-mario-world-recomp", "v0.12.0", "v0.15.9"),
+            ("super-mario-world-recomp", "v0.15.9", "v0.15.10"),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
                 "v0.6.1",
