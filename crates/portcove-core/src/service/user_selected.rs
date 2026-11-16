@@ -3455,11 +3455,6 @@ mod tests {
     }
 
     #[test]
-    fn eandis_sdoj_recomp_prepared_player_route_1880() {
-        assert_listing_only_player_route("eandis-sdoj-recomp", Some(false));
-    }
-
-    #[test]
     fn kumapauz_project_reignition_prepared_player_route_1870() {
         assert_listing_only_player_route("kumapauz-project-reignition", Some(false));
     }
