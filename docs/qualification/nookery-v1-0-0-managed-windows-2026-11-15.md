@@ -114,22 +114,43 @@ contract, which reads the unchanged INI files and the shared `save` folder.
 
 ## Checks
 
-Fixtures only: no Windows launch, gameplay, save round trip or native update and
-rollback was observed.
-
 - `release::tests::unchanged_definition::nookery_selects_only_the_stable_windows_x64_package`:
   the production GitHub provider selects the observed Windows x64 asset with its
   provider digest and size from the full v1.0.0 asset list. A playtest-only
-  listing resolves nothing.
+  listing reports not found.
 - `catalog::tests::nookery_opens_the_staged_disc_and_keeps_playtest_data`: the
   embedded definition carries the reviewed selector, program, arguments and data
   scope.
+- `catalog::tests::schema_2_compatibility_projection_preserves_every_schema_1_profile`
+  records the five reviewed differences from the frozen schema-1 row: selector,
+  program, arguments, persistent paths and runtime-mutable paths.
+- `service::tests::nookery_update_keeps_playtest_data_and_rollback_keeps_its_contract`
+  goes through the production service update and rollback with synthetic bytes:
+  - It starts from a launched 0.9.x copy that holds its retained playtest
+    contract and has `save/card_a/DobutsunomoriP_MURA.gci`, `settings.ini`,
+    `keybindings.ini` and `texture_pack`. Updating to the current definition
+    restores those four paths into the Nookery version.
+  - The update does not create `config.json`, `config.json.bad`, `input.json` or
+    `imgui.ini` before the first launch.
+  - Installation verification passes. The read-only launch plan is
+    `Nookery.exe --user-dir . --disc rom/GAFE01.iso`, with the installation root
+    as the working folder.
+  - Rollback after simulated Nookery writes returns the exact retained playtest
+    definition. Its plan starts `AnimalCrossing.exe` with no arguments.
+  - After rollback, the playtest receives the shared `save` folder with the
+    Nookery-written bytes and the unchanged INI files. `config.json` and
+    `input.json` stay only in the per-port user data folder.
 - The existing generic retained-contract tests cover installed copies that keep
   their creating executable, arguments and data scope after catalog changes.
 
+These are fixtures only. No Windows launch, gameplay, real save round trip or
+native update and rollback was observed.
+
 ## Open
 
-- A native Windows install, update from a populated 0.9.3 copy, launch with a
-  registered GAFE01 Rev 0 disc, and rollback remain unobserved.
-- Whether a town saved by Nookery v1.0.0 still loads in the 0.9.3 playtest after
-  rollback is not established.
+- A native Windows install from the provider, an update from a populated 0.9.3
+  copy, a launch with a registered GAFE01 Rev 0 disc, and a rollback all remain
+  unobserved.
+- Rollback save compatibility is not established. It is unknown whether a town
+  saved by Nookery v1.0.0 still loads in the 0.9.3 playtest. This stays an open
+  acceptance item.

@@ -4059,6 +4059,33 @@ mod tests {
         nookery.project_url = "https://github.com/flyngmt/Nookery".into();
         assert_eq!(nookery.release.repository, "flyngmt/ACGC-PC-Port");
         nookery.release.repository = "flyngmt/Nookery".into();
+        // Reviewed stable Nookery v1.0.0 package (#4890): a renamed asset and
+        // program, an explicit staged-disc argument and pinned data folder, and
+        // Nookery's JSON profile beside the retained playtest data paths.
+        // Installed playtests keep the frozen recipe in their retained contract.
+        let platform = Platform::WindowsX86_64;
+        assert_eq!(nookery.release.asset_hints[&platform], ["ACGC-PC-Port"]);
+        nookery.release.asset_hints.insert(
+            platform,
+            vec!["Nookery-v".into(), "-windows-x86_64.zip".into()],
+        );
+        assert_eq!(nookery.executable_hints[&platform], ["AnimalCrossing.exe"]);
+        nookery
+            .executable_hints
+            .insert(platform, vec!["Nookery.exe".into()]);
+        assert!(nookery.launch_arguments.is_empty());
+        nookery.launch_arguments = ["--user-dir", ".", "--disc", "rom/GAFE01.iso"]
+            .map(String::from)
+            .to_vec();
+        assert_eq!(
+            nookery.persistent_paths,
+            ["save", "settings.ini", "keybindings.ini", "texture_pack"]
+        );
+        nookery
+            .persistent_paths
+            .extend(["config.json", "config.json.bad", "input.json", "nes_roms"].map(String::from));
+        assert!(nookery.runtime_mutable_paths.is_empty());
+        nookery.runtime_mutable_paths = vec!["imgui.ini".into()];
         let shipwright = expected_ports
             .iter_mut()
             .find(|port| port.id == "shipwright")

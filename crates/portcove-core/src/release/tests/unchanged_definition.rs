@@ -85,12 +85,15 @@ async fn nookery_selects_only_the_stable_windows_x64_package() {
     assert_eq!(resolved.asset.name, selected);
     assert_eq!(resolved.asset.sha256, digest);
     assert_eq!(resolved.asset.size, 32_404_132);
-    assert!(
-        GithubReleaseProvider::with_api_root(root)
-            .unwrap()
-            .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
-            .await
-            .is_err()
+    let playtest_only = GithubReleaseProvider::with_api_root(root)
+        .unwrap()
+        .resolve(port, ReleaseChannel::Beta, Platform::WindowsX86_64)
+        .await
+        .unwrap_err();
+    assert_eq!(
+        playtest_only.code,
+        crate::ErrorCode::NotFound,
+        "{playtest_only}"
     );
     server.join().unwrap();
     assert_eq!(requests.try_iter().count(), 4);
