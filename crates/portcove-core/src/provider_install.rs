@@ -666,6 +666,14 @@ impl PortcoveService {
 
     /// Discards a reviewed plan's private staging.
     pub fn discard_provider_install(&self, plan: &ProviderInstallPlan) -> Result<()> {
+        self.discard_provider_install_in_mode(plan, ProviderInstallMode::Reviewed)
+    }
+
+    pub(crate) fn discard_provider_install_in_mode(
+        &self,
+        plan: &ProviderInstallPlan,
+        mode: ProviderInstallMode,
+    ) -> Result<()> {
         // The plan is caller-supplied: its digest names a directory only when it
         // is the digest of the plan itself.
         if digest(plan)? != plan.plan_sha256 {
