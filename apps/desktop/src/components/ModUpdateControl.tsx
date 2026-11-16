@@ -117,7 +117,7 @@ export function ModUpdateControl({
                 <time dateTime={new Date(checked_at * 1000).toISOString()}>
                   {new Date(checked_at * 1000).toLocaleString(i18n.resolvedLanguage)}
                 </time>
-                {result && "reason" in result && <p>{result.reason}</p>}
+                {result && result.outcome !== "applied" && <p>{result.reason}</p>}
                 {result?.outcome === "held" && project_id && (
                   <Button
                     variant="outline"
