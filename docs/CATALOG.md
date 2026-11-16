@@ -376,6 +376,11 @@ loading a save starts the same executable again with Rust's `Command::spawn`
 and closes the original.
 [Mercenaries 2 qualification](qualification/mercenaries2-tracked-handoff-2026-11-15.md).
 
+After Burner Climax (darkuni Recomp) opts in on Windows. For the World release,
+`after_burner_climax.exe` starts its sibling `after_burner_climax_world.exe` with
+`CreateProcessW` and exits.
+[After Burner Climax qualification](qualification/afterburner-climax-tracked-handoff-2026-11-16.md).
+
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
 switch a fitting fresh native-portable route after verified separate publication;
