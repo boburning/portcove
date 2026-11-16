@@ -443,7 +443,7 @@ pub use source_reuse::{
 };
 pub use store_install::{
     GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
-    SystemStoreInstallHost,
+    StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{
