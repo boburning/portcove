@@ -363,6 +363,28 @@ describe("source intake dialog", () => {
     expect(button("Use current location")).toBeUndefined();
   });
 
+  it("continues only after refresh and uses the saved copy rather than the picked path", async () => {
+    const imported = prepareImport();
+    const refresh = vi.fn().mockRejectedValueOnce(new Error("unavailable"));
+    const continueSetup = vi.fn();
+    await root.rerender(
+      <SourceIntakeDialog
+        request={{ ...request(["D:/Game.z64"]), setup: { channel: "stable" } }}
+        close={vi.fn()}
+        onAdded={refresh}
+        onContinueSetup={continueSetup}
+      />,
+    );
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(button("Continue setup")).toBeUndefined();
+    refresh.mockResolvedValue(undefined);
+    await act(async () => button("Retry refresh")!.click());
+    await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+    expect(continueSetup).toHaveBeenCalledExactlyOnceWith(record("D:/Inbox/Game.z64"));
+    expect(imported).toHaveBeenCalledOnce();
+  });
+
   it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
     const apply = prepareImport();
     const pending = deferred<SourceImportResult | null>();

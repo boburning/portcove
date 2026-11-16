@@ -101,7 +101,7 @@ import {
   type GameFileFilterState,
 } from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
-import { SourceIntakeDialog } from "./components/SourceIntake";
+import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { OfficialDefinitionUpdates } from "./components/OfficialDefinitionUpdates";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
@@ -508,8 +508,15 @@ function useWorkspace(props: WorkspaceProps) {
       : undefined,
     model.source,
     ui.sourcePath,
+    model.bios,
+    ui.biosPath,
   );
   const setupReviews = useSetupReviewSelection();
+  const setupInputs = {
+    generation: bootstrap.generation,
+    game: model.source,
+    bios: model.bios,
+  };
   usePendingSetupReview(
     setupReviews,
     ui.selectedId,
@@ -519,6 +526,7 @@ function useWorkspace(props: WorkspaceProps) {
     installPlanning.reviewSource,
     ui.sourcePath,
     ui.setSourcePath,
+    setupInputs,
   );
   const backupRefreshIdentity = useMemo(
     () => [data.catalog, model.status, data.activityFeed],
@@ -897,12 +905,72 @@ function useWorkspace(props: WorkspaceProps) {
         setSetupSource={setSetupSource}
       />
     );
+  const continueSourceSetup = (request: SourceIntakeRequest, registered: SourceRecord) => {
+    const { setup, portId, generation, purpose, profile } = request;
+    const status = model.status;
+    if (
+      !setup ||
+      ui.selectedId !== portId ||
+      model.port?.id !== portId ||
+      generation !== bootstrap.generation ||
+      status?.channel !== setup.channel ||
+      status.active ||
+      status.external_runtime ||
+      data.refreshFailure
+    )
+      return "This setup has changed. Close this check and review setup on the game page.";
+
+    const current = purpose === "bios" ? model.bios : model.source;
+    const other = purpose === "bios" ? model.source : model.bios;
+    if (
+      registered.profile_id !== profile.id ||
+      JSON.stringify(registered) !== JSON.stringify(current) ||
+      (setup.accepted && JSON.stringify(setup.accepted) !== JSON.stringify(other))
+    )
+      return "The saved files have changed. Close this check and check the current files before continuing.";
+
+    const install = status.port_actions?.find((action) => action.action === "install");
+    const next =
+      install?.availability === "waiting"
+        ? install.reason === "missing_bios" && purpose === "game"
+          ? model.biosProfile
+          : install.reason === "missing_source" && purpose === "bios"
+            ? model.sourceProfile
+            : undefined
+        : undefined;
+    if (next) {
+      const draft = purpose === "bios" ? ui.sourcePath : ui.biosPath;
+      if (purpose === "bios") ui.setBiosPath("");
+      else ui.setSourcePath("");
+      openSourceIntake(portId, next.id, draft.trim() ? [draft] : [], {
+        channel: setup.channel,
+        accepted: registered,
+      });
+      return;
+    }
+    if (
+      install?.availability !== "allowed" ||
+      (purpose === "game" && ui.biosPath && ui.biosPath !== model.bios?.path) ||
+      (purpose === "bios" && ui.sourcePath && ui.sourcePath !== model.source?.path)
+    )
+      return "Review the remaining setup requirements on the game page.";
+
+    ui.setSourcePath("");
+    ui.setBiosPath("");
+    closeSourceIntake();
+    setupReviews.requestReview(portId, setup.channel, undefined, setupInputs);
+  };
   const renderSourceIntake = () =>
     sourceIntake && (
       <SourceIntakeDialog
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
+        onContinueSetup={
+          sourceIntake.setup
+            ? (registered) => continueSourceSetup(sourceIntake, registered)
+            : undefined
+        }
         returnFocus={() => workspaceSourceIntakeReturnFocus(sourceIntake.portId)}
         openEvidence={(evidenceId) => {
           void operations.perform(
@@ -1781,7 +1849,7 @@ function SelectedPortPanel({
   libraryGeneration: number;
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
-  openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
+  openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
@@ -1924,7 +1992,22 @@ function SelectedPortPanel({
       }}
       inspectSource={(profile) => {
         const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
-        openSourceIntake(model.port.id, profile.id, path.trim() ? [path] : []);
+        const status = model.status;
+        const managedSetup =
+          status &&
+          !status.active &&
+          !status.external_runtime &&
+          status.port_actions?.some(
+            (action) =>
+              action.action === "install" &&
+              (action.availability === "allowed" || action.availability === "waiting"),
+          );
+        openSourceIntake(
+          model.port.id,
+          profile.id,
+          path.trim() ? [path] : [],
+          managedSetup ? { channel: status.channel } : undefined,
+        );
       }}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
