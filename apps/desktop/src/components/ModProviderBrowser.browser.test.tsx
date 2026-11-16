@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
+import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } from "../types";
 import { ModProviderBrowser } from "./ModProviderBrowser";
@@ -347,4 +348,42 @@ it("names Thunderstore and asks before installing a reviewed mod that runs code"
     7,
     true,
   );
+});
+
+it("filters the current page and shows attributed, individually identified file variants", async () => {
+  const listing = browse();
+  const details = project();
+  details.project.submitter = "Artist";
+  details.project.profile_url = "https://gamebanana.com/mods/42";
+  const current = details.project.files[0];
+  if (!current) throw new Error("The fixture must have a current file.");
+  details.project.files.push({
+    ...current,
+    file_id: "8",
+    file_name: "old.zip",
+    archived: true,
+  });
+  vi.spyOn(desktopApi, "browseProviderMods").mockResolvedValue(listing);
+  vi.spyOn(desktopApi, "providerProject").mockResolvedValue(details);
+  const openProject = vi.spyOn(desktopApi, "openProviderModProject").mockResolvedValue(undefined);
+  const { host } = await render();
+  await act(async () => button(host, "Find mods on GameBanana…").click());
+  const filter = page.getByRole("searchbox", {
+    name: "Filter this page by name, version, or submitter",
+  });
+  await filter.fill("unknown");
+  await expect.element(page.getByText("No matches on this page.")).toBeVisible();
+  await filter.fill("2.0");
+  await page.getByRole("button", { name: "Show files of HD Link" }).click();
+  await expect.element(page.getByText("Submitted by Artist")).toBeVisible();
+  const link = page.getByRole("link", { name: "Open project on GameBanana" });
+  await expect.element(link).toHaveAttribute("href", "https://gamebanana.com/mods/42");
+  await link.click();
+  expect(openProject).toHaveBeenCalledWith("shipwright", "42", 7);
+  await expect.element(page.getByText("old.zip", { exact: true })).not.toBeInTheDocument();
+  await page.getByRole("checkbox", { name: "Show archived files" }).click();
+  await expect.element(page.getByText("old.zip", { exact: true })).toBeVisible();
+  await expect
+    .element(page.getByRole("button", { name: /Review old[.]zip/ }))
+    .not.toBeInTheDocument();
 });

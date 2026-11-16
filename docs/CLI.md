@@ -380,8 +380,9 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 93 and event schema 3.
+current or retained listing. Read the active CLI API from
+`capabilities.schema_version`. The same response advertises the operation event
+schema, port capability schema and listing formats in their own fields.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -2580,6 +2581,29 @@ exactly that label for the same bytes and file name, so update checks never foll
 a label the recipe supplied. The plan says when a label is not kept; dropping one
 changes the identity of a later export. Otherwise a round trip reproduces the
 recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+
+#### Review a local mod file
+
+Use Add mod file in Desktop to review an exact archive before installing it.
+The review shows its native filename, replacements, shared assets when that
+comparison is supported, required packages, and any exact code permission.
+The setup list shows the game version and marks a held runtime. To return
+to an empty Default setup, choose Switch to clean play, then start the game
+from its regular Play action. Find mods can filter the current listing page
+by project, version or submitter. The project shows provider attribution and
+separates archived files from current variants.
+
+The versioned CLI offers the same exact local package review:
+
+```text
+portcove --library PATH --json profile package-plan PORT_ID PROFILE_ID FILE --expected-revision NUMBER
+portcove --library PATH --json profile package-apply PORT_ID PROFILE_ID FILE --expected-plan SHA256 --yes
+```
+
+Apply checks the file again under the port lock. If the review requests
+permission for the exact package's code, apply also requires
+`--allow-mod-code`. A reviewed replacement preserves its previous enabled
+state. Package store contents remain available to setup history.
 
 #### Unattended updates
 
