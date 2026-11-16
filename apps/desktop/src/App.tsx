@@ -457,11 +457,19 @@ function useWorkspace(props: WorkspaceProps) {
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
   const applicationUpdate = useApplicationUpdate();
+  const storeSetupRequests = useRef(new LatestRequestGeneration());
   const {
     request: sourceIntake,
-    open: openSourceIntake,
+    open: openIntake,
     close: closeSourceIntake,
   } = useSourceIntakeState(data.catalog, bootstrap.generation);
+  const openSourceIntake = useCallback(
+    (...args: Parameters<typeof openIntake>) => {
+      storeSetupRequests.current.begin();
+      openIntake(...args);
+    },
+    [openIntake],
+  );
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
@@ -862,6 +870,7 @@ function useWorkspace(props: WorkspaceProps) {
           }}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
+          storeSetupRequests={storeSetupRequests}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
             ui.setSettingsCategory("library-storage");
@@ -1828,6 +1837,7 @@ function SelectedPortPanel({
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
+  storeSetupRequests,
   openHostTool,
   openLibraryStorage,
   close,
@@ -1852,11 +1862,11 @@ function SelectedPortPanel({
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
   openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
+  storeSetupRequests: { current: LatestRequestGeneration };
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
 }) {
-  const storeSetupRequests = useRef(new LatestRequestGeneration());
   const selectedRoute = model.port?.id;
   const selectedChannel = model.status?.channel;
   useLayoutEffect(() => {
@@ -1870,7 +1880,9 @@ function SelectedPortPanel({
     selectedChannel,
     model.status?.active?.id,
     model.status?.external_runtime?.id,
+    storeSetupRequests,
     ui.sourcePath,
+    ui.biosPath,
   ]);
   if (!model.port) return null;
   const favoritePortId = model.port.id;
@@ -1880,6 +1892,7 @@ function SelectedPortPanel({
   };
   const pickSource = model.sourceProfile
     ? () => {
+        storeSetupRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           setSourcePath,
@@ -1931,6 +1944,7 @@ function SelectedPortPanel({
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
+          storeSetupRequests.current.begin();
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
             setSourcePath,
@@ -1940,6 +1954,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
+        storeSetupRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
