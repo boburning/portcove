@@ -23,6 +23,7 @@ use std::{
 pub(crate) const CURRENT_SCAN_FORMAT_VERSION: u32 = 13;
 const CONTINUATION_FORMAT_VERSION: u32 = 3;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
+const ROOTS_PER_DISCOVERY_BATCH: usize = 8;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
 const OVERSIZED_FILE_ISSUE: &str = "This file exceeds the scan’s per-file size limit.";
@@ -524,7 +525,7 @@ impl PortcoveService {
         request: &SourceDiscoveryRequest,
         mut emit: impl FnMut(crate::OperationEvent),
     ) -> Result<SourceDiscoveryReport> {
-        validate_request(request)?;
+        validate_request(request, false)?;
         let (activity, operation) = self.begin_cancellable_activity(
             ActivityOperation::DiscoverSources,
             ActivityTargetKind::Library,
@@ -771,11 +772,6 @@ fn build_game_file_scan_with_registry_events(
         .filter(|root| root.availability == GameFileRootAvailability::Available)
         .map(|root| root.path.clone())
         .collect::<Vec<_>>();
-    if available.len() > 8 {
-        return Err(PortcoveError::usage(
-            "game-file discovery currently supports at most eight available saved roots per scan",
-        ));
-    }
     if available.is_empty() {
         return Err(PortcoveError::source(
             "no saved game-file root is currently available",
@@ -825,10 +821,9 @@ fn build_game_file_scan_with_registry_events(
         prior_matches,
     )?;
     let report = &mut batch.report;
-    for root in roots
-        .iter()
-        .filter(|root| root.availability == GameFileRootAvailability::Unavailable)
-    {
+    for root in roots.iter().filter(|root| {
+        resumed.is_none() && root.availability == GameFileRootAvailability::Unavailable
+    }) {
         if report.issues.len() < 64 {
             report.issues.push(SourceDiscoveryIssue {
                 path: Some(root.path.clone()),
@@ -1188,13 +1183,21 @@ fn validate_continuation(
     let available = roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Available)
-        .map(|root| &root.path)
-        .collect::<Vec<_>>();
+        .map(|root| root.path.as_path())
+        .collect::<BTreeSet<_>>();
+    let searched = snapshot
+        .report
+        .searched_roots
+        .iter()
+        .map(PathBuf::as_path)
+        .collect::<BTreeSet<_>>();
     for (path, expected) in &cursor.observed {
         operation.checkpoint()?;
         *checks += 1;
         if *checks > MAX_RESUME_CHECKS
-            || !available.iter().any(|root| path.starts_with(root))
+            || !path
+                .ancestors()
+                .any(|ancestor| available.contains(ancestor))
             || path.components().any(|part| {
                 matches!(
                     part,
@@ -1211,16 +1214,17 @@ fn validate_continuation(
             ));
         }
     }
-    let mut pending_paths = BTreeSet::new();
+    let mut pending_paths = BTreeMap::new();
     for directory in &cursor.pending {
-        if !pending_paths.insert(&directory.path)
+        if pending_paths
+            .insert(directory.path.as_path(), directory)
+            .is_some()
             || directory.depth > limits.max_depth
-            || !snapshot.report.searched_roots.iter().any(|root| {
-                directory
-                    .path
-                    .strip_prefix(root)
-                    .is_ok_and(|relative| relative.components().count() == directory.depth as usize)
-            })
+            || !directory
+                .path
+                .ancestors()
+                .nth(directory.depth as usize)
+                .is_some_and(|ancestor| searched.contains(ancestor))
             || directory.seen.len() > MAX_CONTINUATION_RECORDS
             || directory.deferred_file.as_ref().is_some_and(|name| {
                 !directory.seen.contains(name)
@@ -1249,28 +1253,17 @@ fn validate_continuation(
         }
     }
     for path in cursor.observed.keys() {
-        if !snapshot
-            .report
-            .searched_roots
-            .iter()
-            .any(|root| path.starts_with(root))
-        {
+        if !path.ancestors().any(|ancestor| searched.contains(ancestor)) {
             return Err(PortcoveError::state(
                 "scan continuation path is outside its recorded scope",
             ));
         }
-        if let Some(parent) = path.parent() {
-            for directory in cursor
-                .pending
-                .iter()
-                .filter(|directory| directory.path == parent)
-            {
-                let name = path.file_name().and_then(|name| name.to_str());
-                if name.is_none_or(|name| !directory.seen.contains(name)) {
-                    return Err(PortcoveError::state(
-                        "scan continuation lost an examined directory entry",
-                    ));
-                }
+        if let Some(directory) = path.parent().and_then(|parent| pending_paths.get(parent)) {
+            let name = path.file_name().and_then(|name| name.to_str());
+            if name.is_none_or(|name| !directory.seen.contains(name)) {
+                return Err(PortcoveError::state(
+                    "scan continuation lost an examined directory entry",
+                ));
             }
         }
     }
@@ -1527,10 +1520,15 @@ fn catalog_sha256(catalog: &Catalog) -> Result<String> {
     )?)))
 }
 
-fn validate_request(request: &SourceDiscoveryRequest) -> Result<()> {
+fn validate_request(request: &SourceDiscoveryRequest, saved: bool) -> Result<()> {
     let limits = &request.limits;
+    if saved && request.roots.len() > MAX_CONTINUATION_RECORDS {
+        return Err(PortcoveError::usage(
+            "saved game-file roots exceed the scan checkpoint’s safety limit",
+        ));
+    }
     if request.roots.is_empty()
-        || request.roots.len() > 8
+        || (!saved && request.roots.len() > ROOTS_PER_DISCOVERY_BATCH)
         || request.profile_ids.is_empty()
         || request.profile_ids.len() > 256
     {
@@ -1728,7 +1726,7 @@ fn scan_with_continuation<'a>(
     initial_checks: u32,
     prior_matches: Option<PriorMatches>,
 ) -> Result<ScanBatch> {
-    validate_request(request)?;
+    validate_request(request, continuation.is_some())?;
     let mut roots = Vec::new();
     for root in &request.roots {
         operation.checkpoint()?;
@@ -1751,7 +1749,11 @@ fn scan_with_continuation<'a>(
     roots.dedup();
     let mut selected = Vec::<PathBuf>::new();
     for root in roots {
-        if !selected.iter().any(|parent| root.starts_with(parent)) {
+        if !root.ancestors().skip(1).any(|ancestor| {
+            selected
+                .binary_search_by(|parent| parent.as_path().cmp(ancestor))
+                .is_ok()
+        }) {
             selected.push(root);
         }
     }
@@ -2299,11 +2301,31 @@ impl Discovery<'_> {
                 return Ok(());
             }
         }
+        // The existing frontier contains the complete, deduplicated saved
+        // scope. A batch visits at most eight distinct root trees. Remaining
+        // roots and directories stay in the same scan and match inventory.
+        let mut batch_roots = BTreeSet::new();
         while let Some(mut state) = pending.pop_front() {
             let directory = state.path.clone();
             let depth = state.depth;
             if self.is_excluded(&directory) {
                 continue;
+            }
+            if self.continuation.is_some()
+                && let Some(root) = directory.ancestors().find(|ancestor| {
+                    self.report
+                        .searched_roots
+                        .binary_search_by(|root| root.as_path().cmp(ancestor))
+                        .is_ok()
+                })
+                && !batch_roots.contains(root)
+            {
+                if batch_roots.len() == ROOTS_PER_DISCOVERY_BATCH {
+                    pending.push_front(state);
+                    self.save_frontier(pending);
+                    return Ok(());
+                }
+                batch_roots.insert(root.to_path_buf());
             }
             self.refresh_output_exclusions(&directory, true)?;
             if self.is_excluded(&directory) {

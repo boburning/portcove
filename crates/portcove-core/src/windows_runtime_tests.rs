@@ -376,7 +376,7 @@ fn presence_is_missing_only_when_the_host_reports_absence() {
     assert_eq!(visual_cpp.presence, RuntimePresence::Present);
     assert_eq!(visual_cpp.files, ["msvcp140.dll", "vcruntime140.dll"]);
     assert!(visual_cpp.missing_files.is_empty());
-    assert_eq!(visual_cpp.download_page, VISUAL_CPP_DOWNLOAD_PAGE);
+    assert_eq!(visual_cpp.download_page, VISUAL_CPP_V14_X64);
     assert_eq!(directx.runtime, WindowsRuntime::DirectxJune2010);
     assert_eq!(directx.architecture, Some(WindowsArchitecture::X64));
     assert_eq!(directx.presence, RuntimePresence::Missing);
@@ -655,9 +655,41 @@ fn roll_forward_policies_follow_the_dotnet_host() {
 }
 
 #[test]
+fn v14_installer_matches_the_game_program_architecture() {
+    for (machine, installer) in [
+        (X86, VISUAL_CPP_V14_X86),
+        (X64, VISUAL_CPP_V14_X64),
+        (0xaa64, VISUAL_CPP_V14_ARM64),
+        (0x0200, VISUAL_CPP_DOWNLOAD_PAGE),
+    ] {
+        let folder = game(&[(
+            "game.exe",
+            pe(machine, &["vcruntime140.dll", "msvcr120.dll"]),
+        )]);
+        let report =
+            assess_program_with(&folder.path().join("game.exe"), None, &FakeHost::default());
+        let v14 = report
+            .requirements
+            .iter()
+            .find(|entry| entry.runtime == WindowsRuntime::VisualCpp2015OrLater)
+            .unwrap();
+        let legacy = report
+            .requirements
+            .iter()
+            .find(|entry| entry.runtime == WindowsRuntime::VisualCpp2013)
+            .unwrap();
+        assert_eq!(v14.download_page, installer);
+        assert_eq!(legacy.download_page, VISUAL_CPP_DOWNLOAD_PAGE);
+    }
+}
+
+#[test]
 fn only_official_runtime_download_pages_are_recognized() {
     for url in [
         VISUAL_CPP_DOWNLOAD_PAGE,
+        VISUAL_CPP_V14_X86,
+        VISUAL_CPP_V14_X64,
+        VISUAL_CPP_V14_ARM64,
         DIRECTX_DOWNLOAD_PAGE,
         "https://dotnet.microsoft.com/download/dotnet",
         "https://dotnet.microsoft.com/download/dotnet/8.0",
@@ -666,6 +698,8 @@ fn only_official_runtime_download_pages_are_recognized() {
         assert!(is_official_download_page(url), "{url}");
     }
     for url in [
+        "https://aka.ms/vc14/vc_redist.x64.exe?source=unknown",
+        "https://aka.ms/vc14/vc_redist.invalid.exe",
         "https://dotnet.microsoft.com/download/dotnet/8",
         "https://dotnet.microsoft.com/download/dotnet/8.0/",
         "https://dotnet.microsoft.com/download/dotnet/8.0.1",

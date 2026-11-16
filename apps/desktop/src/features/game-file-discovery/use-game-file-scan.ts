@@ -18,7 +18,6 @@ export const gameFileScanLimits = {
   max_hash_bytes: 16 * 1024 * 1024 * 1024,
   max_candidates: 64,
 };
-export const maxAvailableRootsPerScan = 8;
 export function availableRootCount(roots: readonly GameFileRoot[]) {
   return roots.filter((root) => root.availability === "available").length;
 }
@@ -59,10 +58,7 @@ export function useGameFileScan(generation: number) {
     try {
       const roots = await readRoots();
       if (!accepts()) return;
-      if (availableRootCount(roots) > maxAvailableRootsPerScan) {
-        notice =
-          "A scan supports at most eight available folders. Remove an available folder and scan again.";
-      } else if (!availableRootCount(roots)) {
+      if (!availableRootCount(roots)) {
         notice = "No saved folder is available. Reconnect or relink one, then scan again.";
       } else {
         // A corrupt old observation must not prevent Core's explicit fresh-scan recovery.

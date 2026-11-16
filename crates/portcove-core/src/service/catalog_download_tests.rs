@@ -2584,8 +2584,8 @@ async fn eandis_sdoj_recomp_upstream_release_download_1880() {
         "eandis-sdoj-recomp",
         "v1.51.4",
         "sdoj.recomp.1.51.4.win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }

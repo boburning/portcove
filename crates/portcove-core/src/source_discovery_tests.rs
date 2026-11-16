@@ -2889,63 +2889,89 @@ fn unavailable_saved_roots_do_not_consume_the_available_root_budget() {
 }
 
 #[test]
-fn unavailable_saved_root_budget_keeps_online_and_empty_failure_boundaries() {
-    for reconnect in [true, false] {
-        let temporary = tempfile::tempdir().unwrap();
-        let payload = b"synthetic supported source";
-        let catalog = catalog(payload);
-        let library = crate::Library::open(temporary.path().join("library")).unwrap();
-        let first = temporary.path().join("selected-0");
-        fs::create_dir(&first).unwrap();
-        fs::write(first.join("source.z64"), payload).unwrap();
-        library.add_game_file_root(&first).unwrap();
-        let previous = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("previous-root-budget", None),
-        )
-        .unwrap();
-        library.replace_game_file_scan_snapshot(&previous).unwrap();
-        for index in 1..9 {
-            let root = temporary.path().join(format!("selected-{index}"));
-            fs::create_dir(&root).unwrap();
-            library.add_game_file_root(&root).unwrap();
-            if !reconnect {
-                fs::remove_dir(root).unwrap();
-            }
-        }
-        if !reconnect {
-            fs::remove_file(first.join("source.z64")).unwrap();
-            fs::remove_dir(&first).unwrap();
-        }
-        let error = super::build_game_file_scan(
-            &catalog,
-            &library,
-            &SourceDiscoveryLimits::default(),
-            &crate::OperationCoordinator::new("failed-root-budget", None),
-        )
-        .unwrap_err();
-        assert_eq!(
-            error.code,
-            if reconnect {
-                ErrorCode::Usage
-            } else {
-                ErrorCode::SourceInvalid
-            }
-        );
-        assert!(
-            error
-                .message
-                .contains(if reconnect { "eight" } else { "no saved" })
-        );
-        assert_eq!(library.game_file_roots().unwrap().len(), 9);
-        assert_eq!(
-            serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap())
-                .unwrap(),
-            serde_json::to_value(&previous).unwrap()
-        );
+fn unavailable_saved_roots_preserve_the_previous_scan_when_none_are_online() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let first = temporary.path().join("selected-0");
+    fs::create_dir(&first).unwrap();
+    fs::write(first.join("source.z64"), payload).unwrap();
+    library.add_game_file_root(&first).unwrap();
+    let limits = SourceDiscoveryLimits::default();
+    let previous = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    for index in 1..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        library.add_game_file_root(&root).unwrap();
+        fs::remove_dir(root).unwrap();
     }
+    fs::remove_file(first.join("source.z64")).unwrap();
+    fs::remove_dir(&first).unwrap();
+
+    let error = publish_saved_batch(&catalog, &library, &limits).unwrap_err();
+    assert_eq!(error.code, ErrorCode::SourceInvalid);
+    assert!(error.message.contains("no saved"));
+    assert_eq!(library.game_file_roots().unwrap().len(), 9);
+    assert_eq!(
+        serde_json::to_value(library.stored_game_file_scan_snapshot().unwrap().unwrap()).unwrap(),
+        serde_json::to_value(&previous).unwrap()
+    );
+}
+
+#[test]
+fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    for index in 0..9 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("source.z64"), payload).unwrap();
+        library.add_game_file_root(&root).unwrap();
+    }
+    let oversized = temporary.path().join("selected-0").join("oversized.z64");
+    fs::write(&oversized, [0; 64]).unwrap();
+    let oversized = fs::canonicalize(oversized).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let oversized_advisories = |report: &SourceDiscoveryReport| {
+        report
+            .issues
+            .iter()
+            .filter(|issue| {
+                issue.path.as_ref() == Some(&oversized)
+                    && issue.message == super::OVERSIZED_FILE_ISSUE
+            })
+            .count()
+    };
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(oversized_advisories(&first.report), 1);
+    assert_eq!(first.report.searched_roots.len(), 9);
+    assert_eq!(first.report.files_hashed, 8);
+    let first_matches = first.matches.unwrap();
+    assert_eq!(first_matches.exact_matches, 16);
+    let coverage = first.coverage.unwrap();
+    assert!(coverage.can_resume);
+    assert!(!coverage.frontier_exhausted);
+    assert_eq!(coverage.pending_directories, 1);
+    drop(library);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let finished = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert_eq!(reopened.game_file_roots().unwrap().len(), 9);
+    assert_eq!(finished.report.files_hashed, 9);
+    assert_eq!(oversized_advisories(&finished.report), 1);
+    let matches = finished.matches.unwrap();
+    assert_eq!(matches.scan_id, first_matches.scan_id);
+    assert_eq!(matches.exact_matches, 18);
+    let coverage = finished.coverage.unwrap();
+    assert!(!coverage.can_resume);
+    assert!(coverage.frontier_exhausted);
 }
 
 #[test]
@@ -4751,27 +4777,49 @@ fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
 #[test]
 fn oversized_saved_iso_can_be_checked_directly_for_declared_ps2_profiles() {
     let temporary = tempfile::tempdir().unwrap();
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
     let root = temporary.path().canonicalize().unwrap();
-    let iso = root.join("original.iso");
-    fs::write(&iso, b"synthetic door to the existing pinned validator").unwrap();
+    for index in 0..9 {
+        let selected = root.join(format!("selected-{index}"));
+        fs::create_dir(&selected).unwrap();
+        library.add_game_file_root(&selected).unwrap();
+    }
+    let iso = root.join("selected-0").join("original.iso");
+    fs::write(&iso, b"synthetic disc for the existing pinned validator").unwrap();
     let catalog = Catalog::embedded().unwrap();
-    let profiles = ["opengoal-jak1-disc".into(), "opengoal-jak2-disc".into()];
-    let request = SourceDiscoveryRequest {
-        roots: vec![root],
-        profile_ids: profiles.to_vec(),
-        limits: SourceDiscoveryLimits {
-            max_file_bytes: 16,
-            ..Default::default()
-        },
+    let profiles = [
+        "opengoal-jak1-disc",
+        "opengoal-jak2-disc",
+        "opengoal-jak3-disc",
+    ];
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: 16,
+        ..Default::default()
     };
-    let report = scan(&catalog, &request).unwrap();
-    assert_eq!(report.files_hashed, 0);
-    let issue = report
-        .issues
-        .iter()
-        .find(|issue| issue.path.as_deref() == Some(iso.as_path()))
-        .unwrap();
-    assert_eq!(issue.direct_check_profiles, profiles);
+    let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert!(first.coverage.unwrap().can_resume);
+    drop(library);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let finished = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
+    assert!(finished.coverage.unwrap().frontier_exhausted);
+    for report in [first.report, finished.report] {
+        assert_eq!(report.files_hashed, 0);
+        let issues: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|issue| issue.path.as_deref() == Some(iso.as_path()))
+            .collect();
+        assert_eq!(issues.len(), 1);
+        let mut actual_profiles: Vec<_> = issues[0]
+            .direct_check_profiles
+            .iter()
+            .map(String::as_str)
+            .collect();
+        actual_profiles.sort_unstable();
+        assert_eq!(actual_profiles, profiles);
+    }
     let inspection =
         crate::source_inspection::inspect(&catalog, "opengoal-jak2-disc", &iso).unwrap();
     assert_eq!(
@@ -4779,9 +4827,7 @@ fn oversized_saved_iso_can_be_checked_directly_for_declared_ps2_profiles() {
         crate::SourceValidatorResult::NotRun
     );
     assert!(inspection.record.is_some());
-    let service =
-        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
-            .unwrap();
+    let service = PortcoveService::new(reopened).unwrap();
     let plan = service
         .plan_source_import(
             "opengoal-jak2-disc",

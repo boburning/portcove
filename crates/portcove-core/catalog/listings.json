@@ -12264,11 +12264,16 @@
     {
       "id": "ambermoon-ambermoon-net",
       "name": "Ambermoon (Ambermoon.net)",
-      "summary": "Use an already permitted Ambermoon.net Windows player and its permitted bundled game content. New downloads remain unavailable while permission for bundled assets is unresolved. Keep original and Advanced saves with their compatible player; Portcove has not confirmed setup or gameplay.",
+      "summary": "Use a copy of Ambermoon.net you are already permitted to use. Keep original and Advanced saves with their creating version.",
       "original_game_title": "Ambermoon",
       "project_url": "https://github.com/Pyrdacor/Ambermoon.net",
-      "platforms": [],
-      "availability": "unknown",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
       "setup_url": "https://github.com/Pyrdacor/Ambermoon.net",
       "artwork": {
         "game_id": 11897,
@@ -12286,11 +12291,11 @@
       ],
       "download_block_reason": "Fresh self-service acquisition is held pending attributable permission covering the selected package’s bundled original Ambermoon 1.22 and Advanced 1.33 assets. The official download and engine GPL do not resolve the existing #2625 bundled-content question. Reconsider after reviewing a notice/grant covering those bundled files; an already-permitted copy can use the separate non-owning route.",
       "manual_setup": {
-        "help_url": "https://github.com/Pyrdacor/Ambermoon.net/tree/ade13444f139adaf8cf4e60915907d7e3dbbd4dc",
+        "help_url": "https://github.com/Pyrdacor/Ambermoon.net/blob/v1.15.2/README.md",
         "steps": [
           {
-            "title": "Use an already-permitted prepared Ambermoon.net copy",
-            "instruction": "Use only a complete Windows Ambermoon.net copy and bundled content you are already permitted to use. The reviewed v1.14.2 distribution includes original Ambermoon 1.22 and Advanced 1.33, so do not invent a separate Amiga ROM requirement. The existing bundled-asset permission question still holds fresh acquisition; engine GPL or a public download does not settle that question. Select normal Ambermoon.net.exe with its accompanying runtime, not AmbermoonPatcher.exe or an installer."
+            "title": "Use an already-permitted Windows copy",
+            "instruction": "Use only a complete Windows Ambermoon.net copy and bundled content you are already permitted to use. The reviewed v1.15.2 packages include original Ambermoon 1.22 and Advanced 1.33. Keep the complete package together and choose the normal Ambermoon.net.exe player."
           },
           {
             "title": "Keep the normal player in the selected process",
@@ -12299,6 +12304,14 @@
           {
             "title": "Review attachment and choose Play separately",
             "instruction": "Finish a normal upstream start/quit with the intended copy before attaching it. Retain its exact native executable, working directory and literal arguments. Review the selected intent and consent, then choose Play separately. Upstream/player owns preparation, writes, updates, migration and recovery. Portcove supervises the selected process; this is not an exclusive instance lock or sandbox. Removing this registration preserves external files. This route does not offer Portcove-managed acquisition, setup, updates, backup, rollback, migration or external-file deletion."
+          },
+          {
+            "title": "Open a prepared Linux or Mac copy",
+            "instruction": "On Linux x64, open Ambermoon.net from the complete package folder. On macOS 12 or later, open the matching Intel or Apple Silicon app. Keep the actual ambermoon.cfg, Saves and SavesRemake directories before switching versions. On Mac also back up /Library/Application Support/Ambermoon.net and any older location the app will migrate."
+          },
+          {
+            "title": "Preserve an existing Android copy",
+            "instruction": "The v1.15.2 Android package targets phones and tablets with Android 6 or later and OpenGL ES 3. Before replacing an already permitted copy, preserve its versioned Saves and SavesRemake in the app-specific files directory, as well as the separate private settings. Keep the existing app installed until you have confirmed a device backup or transfer covers the data you need."
           }
         ],
         "warnings": [
@@ -19860,6 +19873,54 @@
       }
     },
     {
+      "id": "crusader-no-remorse-sebsebseb1982-sdl-port",
+      "project_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp",
+      "name": "Crusader: No Remorse / SDL port",
+      "original_game_title": "Crusader: No Remorse",
+      "summary": "Set up the upstream Windows, Linux or PortMaster player with a copy of your original game data.",
+      "issue_number": 5569,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/releases/tag/v1.41.2",
+      "setup_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "crusader-1.41.2-windows-x64.zip"
+        ],
+        "linux-x86-64": [
+          "crusader-1.41.2-linux-x64.tar.gz"
+        ]
+      },
+      "manual_setup": {
+        "help_url": "https://github.com/sebsebseb1982/crusader-no-remorse-decomp/blob/v1.41.2/README.md#running-the-game",
+        "steps": [
+          {
+            "title": "Supply the original game on desktop",
+            "instruction": "Extract the x64 package into a fresh writable folder. Copy your owned French 1.08 or US 1.23 disc image, or the English 1.01 GOG GAME.GOG image, into the package's data folder. You can also copy the complete original game files using the layout in the upstream guide. Keep your original separately. A partial digital installation may lack files included on its disc image."
+          },
+          {
+            "title": "Open the desktop player",
+            "instruction": "From the extracted package folder, run crusader.exe data on Windows or ./crusader data on Linux. The Linux player includes SDL2. It needs glibc 2.35 or later, GCC 11-era libstdc++ and your distribution's desktop audio and graphics libraries. The player extracts an image into the working data folder on first launch. If import is interrupted, preserve anything you need from that folder and retry in a fresh working folder."
+          },
+          {
+            "title": "Use the upstream PortMaster package",
+            "instruction": "On a compatible ARM64 Linux handheld, follow the publisher's PortMaster README. Use the original French 1.08 or US 1.23 files or a copy of its .iso in ports/crusader/data. Keep the package's Crusader.sh launcher and open Crusader from the device's Ports menu."
+          },
+          {
+            "title": "Keep saves and settings",
+            "instruction": "Close the game and keep the working data folder, especially SAVEGAME and CRUSADER.CFG, before replacing the upstream player. Back up any separately used mod save folder. On PortMaster also retain the port's conf folder. Keep your original media separate."
+          }
+        ],
+        "warnings": [
+          "The publisher owns the packages and setup. PortMaster is a separate Linux handheld route."
+        ]
+      }
+    },
+    {
       "id": "ctrnativeported-guzuold-crash-team-racing-nitro-fueled",
       "name": "Crash Team Racing: Nitro-Fueled — CTRNativePorted (guzuold)",
       "original_game_title": "Crash Team Racing: Nitro-Fueled",
@@ -23298,6 +23359,73 @@
       ]
     },
     {
+      "id": "doom-nugget-doom",
+      "name": "Doom / Nugget Doom",
+      "original_game_title": "Doom",
+      "summary": "Play Doom or Freedoom in Nugget Doom, with additional gameplay, control and display options.",
+      "project_url": "https://github.com/MrAlaux/Nugget-Doom",
+      "issue_number": 5729,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/MrAlaux/Nugget-Doom#readme",
+      "release_url": "https://github.com/MrAlaux/Nugget-Doom/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your game data",
+            "instruction": "Use the matching IWAD from your own Doom installation or a freely available Freedoom IWAD. Pass -iwad followed by the quoted file path. Leave nugget-doom.pk3 in the extracted package. It supplies engine resources."
+          },
+          {
+            "title": "Start Nugget Doom on Windows",
+            "instruction": "Extract the complete x64 ZIP. Run nugget-doom.exe from that directory or run nugget-doom-setup.exe to configure controls and video. The publisher also provides a separate 32-bit ZIP."
+          },
+          {
+            "title": "Start Nugget Doom on Linux",
+            "instruction": "Make the x86-64 AppImage executable and run it with the IWAD. The 6.1.0 engine requires glibc 2.38 or later. If FUSE is unavailable, use --appimage-extract and run AppRun from the complete extracted directory."
+          },
+          {
+            "title": "Start Nugget Doom on a Mac",
+            "instruction": "Extract the universal ZIP and keep the player, setup program, engine PK3 and soundfonts together. Run ./nugget-doom with your IWAD in Terminal. Both Intel and Apple Silicon slices of 6.1.0 require macOS 26 or later."
+          }
+        ],
+        "warnings": [
+          "The publisher player can register a Discord link handler on startup. Installation, updates and user data stay with the upstream package or your own copy.",
+          "The packaged notices omit credits for some bundled engine assets. See the publisher’s Legalese section for those credits."
+        ],
+        "help_url": "https://github.com/MrAlaux/Nugget-Doom/blob/nugget-doom-6.1.0/README.md#legalese",
+        "references": [
+          {
+            "title": "Preserve the profile with the matching IWAD",
+            "instruction": "On Linux keep $XDG_DATA_HOME/nugget-doom, normally ~/.local/share/nugget-doom. It holds nugget-doom.cfg and per-IWAD savegames. Preserve your active profile, IWAD and add-ons before changing engine or package versions."
+          }
+        ]
+      },
+      "download_asset_hints": {
+        "windows-x86-64": [
+          "Nugget-Doom-",
+          "-win64.zip"
+        ],
+        "linux-x86-64": [
+          "Nugget-Doom-",
+          "-Linux.AppImage"
+        ],
+        "macos-x86-64": [
+          "Nugget-Doom-",
+          "-Mac-uni.zip"
+        ],
+        "macos-aarch64": [
+          "Nugget-Doom-",
+          "-Mac-uni.zip"
+        ]
+      }
+    },
+    {
       "id": "doom-rpg-doomrpg-re",
       "name": "Doom RPG / DoomRPG-RE",
       "summary": "Play Doom RPG with the upstream Windows player and your prepared original-game data.",
@@ -24544,6 +24672,47 @@
       }
     },
     {
+      "id": "dune-ii-henricj-dune-legacy",
+      "name": "Dune II / Dune Legacy (henricj)",
+      "original_game_title": "Dune II",
+      "summary": "Play Dune II with henricj’s Dune Legacy fork using the PAK files from your original copy.",
+      "project_url": "https://github.com/henricj/dunelegacy",
+      "issue_number": 5909,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/henricj/dunelegacy/blob/v0.96.4-0.1.4/README.md#getting-started",
+      "release_url": "https://github.com/henricj/dunelegacy/releases/tag/v0.96.4-0.1.4",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose the Windows ZIP for your processor",
+            "instruction": "Use the standard x64 ZIP for a 64-bit Intel or AMD PC. The publisher offers separate ARM64 and 32-bit x86 builds. The x64 AVX2 build requires an AVX2-capable processor. Extract the complete ZIP and keep its PAKs, locale files and maps with dunelegacy.exe."
+          },
+          {
+            "title": "Supply your original Dune II data",
+            "instruction": "Copy the original PAK files listed by the project to %APPDATA%/dunelegacy/data, or beside the Windows executable. Keep your original copy. The ZIP supplies LEGACY.PAK, OPENSD2.PAK and GFXHD.PAK for the fork. You still need the matching original files."
+          },
+          {
+            "title": "Find the Linux and Mac source routes",
+            "instruction": "The pinned release publishes Windows packages. Linux source is available with local build fixes required. The pinned zlib URL failed. The checked Linux build used CMake 3.31.8, the official zlib fossil archive matching the pinned SHA-512, and `-include vector` with GCC 15. Use $XDG_CONFIG_HOME/dunelegacy/data or the default ~/.config/dunelegacy/data for original PAKs. The tag has macOS source, with no Intel or Apple Silicon package from this release."
+          }
+        ],
+        "warnings": [
+          "The upstream package or your external build owns runtime replacement. Keep its profile, originals and custom maps before replacing the player."
+        ],
+        "references": [
+          {
+            "title": "Preserve the player profile",
+            "instruction": "Windows normally uses %APPDATA%/dunelegacy. The Linux source uses $XDG_CONFIG_HOME/dunelegacy, normally ~/.config/dunelegacy. Keep the actual profile with settings, save, mpsave, replay and any custom maps."
+          }
+        ]
+      },
+      "download_block_reason": "The release lacks published package digests and bundles gameplay assets that need a redistribution record. Use the upstream project for an external copy."
+    },
+    {
       "id": "dune-ii-opendune",
       "name": "Dune II (OpenDUNE)",
       "summary": "OpenDUNE is a separate engine for Dune II. You need the original v1.07 game files and a build for your system. Portcove has not tested setup or gameplay.",
@@ -24963,7 +25132,8 @@
     {
       "id": "eandis-sdoj-recomp",
       "name": "DoDonPachi SaiDaiOuJou / SDOJ-Recomp (eandis)",
-      "summary": "DoDonPachi SaiDaiOuJou native player for your own verified disc or Games-on-Demand copy and its TU1 data. Upstream owns first-run extraction, title-update preparation, runtime replacement and player data.",
+      "summary": "Play the DoDonPachi SaiDaiOuJou recompilation with your own Xbox 360 disc or Games-on-Demand copy and its Title Update 1 data.",
+      "original_game_title": "DoDonPachi SaiDaiOuJou",
       "project_url": "https://github.com/eandis/SDOJ-Recomp",
       "issue_number": 1880,
       "listed_at": "2026-10-23",
@@ -24984,33 +25154,23 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep the complete package for your system",
-            "instruction": "Keep the complete package for your system together, including its runtime libraries, extractor and notices. Standard and Vulkan ZIP variants are separate packages, not mix-and-match files."
+            "title": "Add your own disc or Games-on-Demand files",
+            "instruction": "Before the first start, put exactly one supported ISO of your own Xbox 360 disc or converted Games-on-Demand copy beside the game program, with its matching Title Update 1 data. Disc default.xex SHA-256 is 709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5 and its TU1 file is 598,016 bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The Games-on-Demand default.xex is 41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707 and needs CA022100.binp, CA022110.binp and default.xexp instead. On first start the game checks them, extracts game_data and applies the update; keep your originals separately and delete the copies afterwards."
           },
           {
-            "title": "Complete exact own data preparation outside Portcove",
-            "instruction": "Use your own supported Xbox 360 disc release or converted Games-on-Demand ISO and its matching Title Update 1.01/TU1. Upstream’s first launch requires exactly one supported ISO beside the EXE and creates game_data/. Disc default.xex SHA-256 is 709EB9FD2E4446E5754461616693B3BBB8B78FEF5AA613FFCDE6D643DA0133F5; GoD default.xex is 41AB091576813248712A387B273398E5D700454505E83F6F1FEB7DE2C1027707. Disc TU1 is 598,016 bytes with SHA-256 0A893048C761BA6CF8ED14637F326726BC616B5183CA1EE52DE02FC12B46B215. The GoD route instead requires its verified CA022100.binp, CA022110.binp and default.xexp. Companion file digests are checked by upstream; do not mix editions. Complete extraction/TU installation through upstream, retain original ISO/TU and preserve any partial data until upstream recovery resolves it."
-          },
-          {
-            "title": "Select the completed normal player",
-            "instruction": "Select DoDonPachi SaiDaiOuJou.exe (DoDonPachi SaiDaiOuJou on Linux), use its complete containing package directory as working directory and leave arguments empty. Keep the successful game_data/ tree, matching runtime companions and settings together. Do not select extract-xiso or a setup/build script. The native app owns its ordinary window/game loop; saving launch details and Play are separate actions. First-run setup, extraction and any optional settings-restart successor remain outside this completed-player route; close actual successors before maintenance or another attachment."
-          },
-          {
-            "title": "Leave notifications and runtime replacement with upstream",
-            "instruction": "The source update checker reads GitHub metadata and offers to open the release page; it does not establish managed automatic replacement. Upstream/user owns choosing a complete compatible package, preparation, updates and recovery. Close the actual player, extractor and any optional restart successors before backup, replacing files or removal, preserve old complete runtime/data independently, then review/relink changed selected bytes. Removing registration preserves external files; Portcove does not own automatic update, rollback, backups, save migration, external deletion or successor adoption."
+            "title": "Use a copy you manage yourself",
+            "instruction": "Keep the complete package for your system together, including its runtime libraries, extractor and notices; the standard and Vulkan ZIPs are separate packages. Start DoDonPachi SaiDaiOuJou.exe (DoDonPachi SaiDaiOuJou on Linux) from its own folder with no arguments. Settings marked as needing a restart apply the next time you start the game."
           }
         ],
         "warnings": [
-          "Disc and Games-on-Demand use different original/TU checks; wrong or incomplete data is not an interchangeable source. Keep the complete chosen renderer variant and meet its upstream GPU/runtime requirements. Altered input/render-lag options require a restart; no actual gameplay, performance or save-compatibility assurance is supplied by this guide.",
-          "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement.",
-          "Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised.",
+          "Disc and Games-on-Demand copies use different checks and are not interchangeable; do not mix their files. The game refuses incomplete or unsupported game_data rather than merging it. No gameplay, performance or save compatibility across versions is promised.",
           "The package includes statically recompiled game code, icon art and an unlicensed project layer that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/eandis/SDOJ-Recomp/blob/cf0afe107d02fa16980e8c8f90a5969aafac81a7/README.md",
         "references": [
           {
-            "title": "Preserve all effective data and settings roots",
-            "instruction": "Back up the complete creating package, saidaioujou_recomp_tu1.toml, game_data/, user_data/ (including saves/content, caches and updater metadata) and logs before upstream startup, repair or replacement. Preserve custom game_data_root, user_data_root, update_data_root, cache_path and log_file choices independently; an existing configured external game-data root takes precedence. The title defaults user data beside the EXE and cache under user_data/cache. Upstream refuses incomplete or unsupported nonempty game_data rather than merging it; keep staged originals/recovery data outside disposable setup destinations. No cross-edition or cross-version save/mod compatibility is promised."
+            "title": "Keep the game folder's data",
+            "instruction": "By default the game keeps saidaioujou_recomp_tu1.toml, game_data, user_data (saves, the shader cache and update-check notes) and logs beside the program. A game_data_root or other path setting in the toml moves that data elsewhere. In a copy you manage yourself, back these up before replacing the program. The game checks GitHub for new releases and can open the release page; it never downloads or installs them."
           }
         ]
       },
@@ -36075,7 +36235,8 @@
           "TRX-",
           "-Mac.dmg"
         ]
-      }
+      },
+      "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content."
     },
     {
       "id": "lufia-ii-recompiled-cellenseres-lufia-ii-rise-of-the-sinistrals",
@@ -42765,7 +42926,8 @@
     {
       "id": "opencommunityedition-opence",
       "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
-      "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
+      "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image.",
+      "original_game_title": "Halo: Combat Evolved",
       "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
       "issue_number": 1849,
       "listed_at": "2026-10-23",
@@ -42787,36 +42949,24 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep the player package together",
-            "instruction": "Extract halo-windows-release.zip or, on Linux, halo-Linux-release.zip into a separate upstream-owned folder. Finish setup with halo.exe (halo on Linux) and that folder."
+            "title": "Choose your original Xbox disc image on first Play",
+            "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; every edition works. OpenCE extracts its maps into the maps folder beside the player. Keep the disc image outside the game folder, because the game offers any image it finds there. Halo PC or Custom Edition maps do not replace these Xbox maps."
           },
           {
-            "title": "Choose your original Xbox disc image on Play",
-            "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
-          },
-          {
-            "title": "Select the ordinary player",
-            "instruction": "Keep the complete release package together and select halo.exe (halo on Linux) with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
+            "title": "Use a copy you manage yourself",
+            "instruction": "Extract halo-windows-release.zip, or halo-linux-release.zip on Linux, into its own folder and start halo.exe (halo on Linux) from it with no arguments. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. OpenCE asks before installing its own updates and can replace its program files when you accept."
           }
         ],
         "warnings": [
-          "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime.",
-          "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it.",
-          "Keep the creating runtime with those files before changes; a separate executable folder does not isolate an existing shared profile or establish save, mod or network compatibility."
+          "OpenCE is a port of a Halo: Combat Evolved decompilation; the project’s AGPL licence does not cover the original game code. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
+          "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
         ],
         "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
         "references": [
           {
-            "title": "Use OpenCE’s updates and keep your data",
-            "instruction": "For the usual Windows layout, the saves are under AppData/Roaming/halo. Check paths.saves for an override and keep config.toml with the extracted maps."
-          },
-          {
             "title": "Keep all actual data locations",
-            "instruction": "Preserve the complete working copy, maps, custom_maps, mods, load_order.toml, config.toml, logs and captures. In the actual Windows save root, keep u, z and shader_cache along with your profiles and progress. The usual save root is AppData/Roaming/halo; paths.saves or HALO_SAVE_ROOT can change it. The data, custom-map and log roots also have configuration or environment overrides, so preserve their actual locations too."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "OpenCE asks before an ordinary update and can replace its executable and DLLs, then start another process. Complete those updates upstream outside the registered Play session, then review and relink changed execution intent before Play. Portcove supervises only the selected process and does not adopt the restarted copy. Registration removal preserves all external files. Managed installation, updates, backup, rollback, migration and deletion are not offered for this upstream-owned runtime."
+            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
           }
         ]
       },
@@ -57187,6 +57337,14 @@
           {
             "title": "Keep the game folder's saves and settings",
             "instruction": "Saves, configuration, demos and screenshots go to data1 inside the working folder, and startup logging can write debug_h2.log beside glh2.exe. Back up the complete folder before replacing the player in a copy you manage yourself."
+          },
+          {
+            "title": "Build a separate Linux demo player",
+            "instruction": "On Linux x86-64, build the test-1 tag from engine/hexen2 with make DEMO=1 h2 and the SDL 1.2, ALSA, libmad and Vorbis development libraries. The OpenGL source target needs a header missing from the tag. Put the resulting hexen2 executable beside the complete data1 folder from Hammer of Thyrion’s November 1997 Linux AMD64 demo package. Use the whole folder, including progs.dat. Open the folder and run ./hexen2."
+          },
+          {
+            "title": "Keep the Linux demo profile",
+            "instruction": "The Linux demo keeps its saves and settings in ~/.hexen2demo, separate from the Windows retail copy. Back up that profile before replacing your Linux build. The Tweaked publisher offers a Windows package. Intel and Apple Silicon Mac binaries and an Android package are unavailable for this fork’s release."
           }
         ]
       },
