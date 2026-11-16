@@ -4749,6 +4749,50 @@ fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
 }
 
 #[test]
+fn oversized_saved_iso_can_be_checked_directly_for_declared_ps2_profiles() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().canonicalize().unwrap();
+    let iso = root.join("original.iso");
+    fs::write(&iso, b"synthetic door to the existing pinned validator").unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let profiles = ["opengoal-jak1-disc".into(), "opengoal-jak2-disc".into()];
+    let request = SourceDiscoveryRequest {
+        roots: vec![root],
+        profile_ids: profiles.to_vec(),
+        limits: SourceDiscoveryLimits {
+            max_file_bytes: 16,
+            ..Default::default()
+        },
+    };
+    let report = scan(&catalog, &request).unwrap();
+    assert_eq!(report.files_hashed, 0);
+    let issue = report
+        .issues
+        .iter()
+        .find(|issue| issue.path.as_deref() == Some(iso.as_path()))
+        .unwrap();
+    assert_eq!(issue.direct_check_profiles, profiles);
+    let inspection =
+        crate::source_inspection::inspect(&catalog, "opengoal-jak2-disc", &iso).unwrap();
+    assert_eq!(
+        inspection.validator.unwrap().result,
+        crate::SourceValidatorResult::NotRun
+    );
+    assert!(inspection.record.is_some());
+    let service =
+        PortcoveService::new(crate::Library::open(temporary.path().join("library")).unwrap())
+            .unwrap();
+    let plan = service
+        .plan_source_import(
+            "opengoal-jak2-disc",
+            &iso,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(plan.source.sha256, inspection.record.unwrap().sha256);
+}
+
+#[test]
 fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
     let temporary = tempfile::tempdir().unwrap();
     let root = fs::canonicalize(temporary.path()).unwrap();

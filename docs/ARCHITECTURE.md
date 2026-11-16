@@ -1439,6 +1439,10 @@ preserves the fresh saved snapshot's limits, including a smaller CLI-created
 batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
 folder guidance; a new scan retains Desktop's default budgets. Core revalidates
 the actual input and continuation fingerprints before execution.
+A skipped raw ISO can carry Core's direct-check profile choices for managed
+OpenGOAL. Desktop reuses the reported path and the selected game's ordinary
+source review. That check streams the original within the existing runtime
+source byte limit. The pinned extractor still validates the disc for setup.
 Exhausting the folder frontier does not erase skipped files or imply gameplay
 support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently

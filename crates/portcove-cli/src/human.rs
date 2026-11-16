@@ -3434,6 +3434,7 @@ mod tests {
         report.issues = vec![SourceDiscoveryIssue {
             path: None,
             profile_id: Some("future\nprofile".into()),
+            direct_check_profiles: Vec::new(),
             message: "Cannot read\nfile token=owned-secret\u{1b}[31m".into(),
         }];
         report.issues_omitted = 7;
@@ -3539,6 +3540,7 @@ mod tests {
                 issues: vec![portcove_core::SourceDiscoveryIssue {
                     path: Some(PathBuf::from("/private/fixture-path")),
                     profile_id: None,
+                    direct_check_profiles: Vec::new(),
                     message: "token=fixture-secret\u{1b}[2J\rprivate diagnostic".into(),
                 }],
                 issues_omitted: 7,

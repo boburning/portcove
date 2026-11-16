@@ -1,3 +1,4 @@
+import { gameIdentityLabel } from "../port-identity";
 import { countMessage } from "../localization";
 import { FolderSetupChoice } from "./FolderSetupChoice";
 import { SettingsRow } from "./ui/patterns";
@@ -614,14 +615,46 @@ function CompletedScan({
         </Button>
       )}
       {more.error && <p role="alert">{more.error}</p>}
-      {report.issues.map((issue, index) => (
-        <p key={`${issue.path}:${index}`}>
-          {issue.message}{" "}
-          {issue.path && (
-            <code className="[overflow-wrap:anywhere] whitespace-normal">{issue.path}</code>
-          )}
-        </p>
-      ))}
+      {report.issues.map((issue, index) => {
+        const path = issue.path;
+        const choices = issue.direct_check_profiles?.length
+          ? ports.filter(
+              (port) =>
+                port.source_profile && issue.direct_check_profiles?.includes(port.source_profile),
+            )
+          : [];
+        return (
+          <div key={`${path}:${index}`}>
+            <p>
+              {issue.message}{" "}
+              {path && <code className="[overflow-wrap:anywhere] whitespace-normal">{path}</code>}
+            </p>
+            {path &&
+              choices.length > 0 &&
+              readConfirmed &&
+              snapshot.freshness === "inputs_match" && (
+                <details>
+                  <summary data-focusable className="cursor-pointer">
+                    Check this file
+                  </summary>
+                  <p>Choose the game this disc belongs to.</p>
+                  <div className="flex flex-wrap gap-2">
+                    {choices.map((port) => (
+                      <Button
+                        key={port.id}
+                        variant="outline"
+                        disabled={busy || workspaceRefreshFailed}
+                        onClick={() => review({ path, profile_id: port.source_profile! })}
+                      >
+                        Check for {gameIdentityLabel(port)}
+                      </Button>
+                    ))}
+                  </div>
+                </details>
+              )}
+          </div>
+        );
+      })}
       {report.issues_omitted > 0 && <p>{report.issues_omitted} more scan issues were omitted.</p>}
     </section>
   );

@@ -469,6 +469,9 @@ pub struct SourceDiscoveryRequest {
 pub struct SourceDiscoveryIssue {
     pub path: Option<PathBuf>,
     pub profile_id: Option<String>,
+    /// Profiles whose bounded direct inspection can check this skipped file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub direct_check_profiles: Vec<String>,
     pub message: String,
 }
 
@@ -830,6 +833,7 @@ fn build_game_file_scan_with_registry_events(
             report.issues.push(SourceDiscoveryIssue {
                 path: Some(root.path.clone()),
                 profile_id: None,
+                direct_check_profiles: Vec::new(),
                 message: "Saved game-file root is currently unavailable; prior scan evidence is not treated as deleted.".into(),
             });
         } else {
@@ -2769,7 +2773,26 @@ impl Discovery<'_> {
         }
         if size > self.limits.max_file_bytes {
             self.reached.insert(SourceDiscoveryLimit::FileSize);
-            self.issue(Some(path.into()), None, OVERSIZED_FILE_ISSUE.into());
+            let profiles = if extension.eq_ignore_ascii_case("iso")
+                && size <= crate::adapter::MAX_RUNTIME_SOURCE_BYTES
+            {
+                groups
+                    .iter()
+                    .flat_map(|(_, profiles)| profiles.iter().copied())
+                    .filter(|profile| {
+                        crate::source_inspection::is_direct_ps2_iso_profile(self.catalog, profile)
+                    })
+                    .map(|profile| profile.id.clone())
+                    .collect()
+            } else {
+                Vec::new()
+            };
+            self.issue_with_direct_check(
+                Some(path.into()),
+                None,
+                OVERSIZED_FILE_ISSUE.into(),
+                profiles,
+            );
             return Ok(());
         }
         let before = self.budget.hashed;
@@ -3411,6 +3434,16 @@ impl Discovery<'_> {
     }
 
     fn issue(&mut self, path: Option<PathBuf>, profile_id: Option<String>, message: String) {
+        self.issue_with_direct_check(path, profile_id, message, Vec::new());
+    }
+
+    fn issue_with_direct_check(
+        &mut self,
+        path: Option<PathBuf>,
+        profile_id: Option<String>,
+        message: String,
+        direct_check_profiles: Vec<String>,
+    ) {
         // OS paths can contain opaque names. Errors must still serialize through
         // the shared JSON transport without hiding independent readable results.
         let path = path.filter(|path| path.to_str().is_some());
@@ -3425,6 +3458,7 @@ impl Discovery<'_> {
             self.report.issues.push(SourceDiscoveryIssue {
                 path,
                 profile_id,
+                direct_check_profiles,
                 message,
             });
         } else {
