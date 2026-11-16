@@ -34504,34 +34504,11 @@
         "manual_setup": {
           "steps": [
             {
-              "title": "Choose another Linux package",
-              "instruction": "Portcove manages the official x86-64 tarball. For Linux ARM64, use the official ARM64 tarball and open Snap64Recomp from the extracted folder. On x86-64 you can instead install the official .flatpak bundle and start io.github.jackandbeans.Snap64Recomp. Both tarballs need glibc 2.38 or newer, SDL2, GTK 3 and a Vulkan 1.2 driver."
-            },
-            {
-              "title": "Set up the Android beta",
-              "instruction": "Install the official Android APK on an ARM64 device with Android 10 or newer and a Vulkan 1.2 driver. To use Internal storage > Snap64, allow the storage permission on Android 10 or All files access on Android 11 and newer. Choose Not now to use the app’s private folder instead. Select your original in the app’s file picker."
-            },
-            {
-              "title": "Supply your original",
-              "instruction": "Choose your own matching unmodified USA Pokémon Snap cartridge dump. Keep the original separately from each app’s imported copy."
+              "title": "Install with Portcove",
+              "instruction": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
             }
           ],
-          "warnings": [
-            "Portcove manages the official Windows, Linux x86-64 and universal Mac packages. The Linux ARM64 and Flatpak packages and the Android APK use upstream or player-managed setup, replacement and data backups.",
-            "The Mac app needs macOS 14 or newer and is unsigned. If macOS refuses its first launch, follow the upstream instructions in its START HERE.txt (Open Anyway in Privacy & Security).",
-            "Upstream reports that its Mac app has run on GitHub-hosted Macs but not yet on physical ones; Portcove has no native Mac execution result for it."
-          ],
-          "help_url": "https://github.com/JackandBeans/Snap64Recomp#readme",
-          "references": [
-            {
-              "title": "Keep an upstream-managed profile",
-              "instruction": "If you already use an upstream-managed copy, back up your actual Linux game folder or ~/.config/Snap64Recomp, the Flatpak folder ~/.var/app/io.github.jackandbeans.Snap64Recomp, or the Mac folder ~/Library/Application Support/Snap64 Recomp before replacement. Portcove-managed installs keep their data in the Portcove-managed profile and do not adopt these folders."
-            },
-            {
-              "title": "Keep the Android game folder",
-              "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you chose the private folder, keep an accessible backup before uninstalling or clearing app data. Install updates over the same upstream signer."
-            }
-          ]
+          "warnings": []
         },
         "artwork": {
           "game_id": 2324,
