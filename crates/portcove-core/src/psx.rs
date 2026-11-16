@@ -526,19 +526,14 @@ where
         "https://github.com/TechnicallyComputers/retcomm-toolchains/releases/download/v{TOOLCHAIN_VERSION}/{}",
         artifact.name
     );
-    let client = crate::install::default_download_client()?;
     let asset = crate::ReleaseAsset {
         name: artifact.name.into(),
         url,
         size: artifact.size,
         sha256: artifact.sha256.into(),
     };
-    crate::Installer::download_with_client(
-        &client,
-        &asset,
-        &archive_path,
-        operation,
-        &mut |mut event| {
+    crate::Installer::new(library.clone())?
+        .download(&asset, &archive_path, operation, &mut |mut event| {
             if let crate::OperationEventKind::Progress {
                 phase, phase_id, ..
             } = &mut event.event
@@ -547,9 +542,8 @@ where
                 *phase_id = Some(phase.clone());
             }
             emit(event);
-        },
-    )
-    .await?;
+        })
+        .await?;
     let extraction_guard = guard.clone();
     let extraction_operation = operation.clone();
     let extraction_root = unpacked.clone();

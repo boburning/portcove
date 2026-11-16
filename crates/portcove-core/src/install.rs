@@ -705,10 +705,6 @@ fn download_client(
         .map_err(|error| PortcoveError::network(error.to_string()))
 }
 
-pub(crate) fn default_download_client() -> Result<reqwest::Client> {
-    download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)
-}
-
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
         Ok(Self {
@@ -2072,7 +2068,7 @@ impl Installer {
         Ok(artifact)
     }
 
-    async fn download<F>(
+    pub(crate) async fn download<F>(
         &self,
         asset: &ReleaseAsset,
         destination: &Path,
