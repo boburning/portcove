@@ -5,6 +5,23 @@
     "name": "Fighting Force / Alexbeav PSXRecomp",
     "summary": "Portcove builds Fighting Force on Windows or Linux from the upstream setup kit with your own USA (Rev 2) PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "original_game_title": "Fighting Force",
+    "original_game": {
+      "format_version": 1,
+      "id": "fighting-force",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/794ba11359419f2c24641430596e43f437490f39/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fighting-force-playstation",
+          "title": "Fighting Force (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp/blob/794ba11359419f2c24641430596e43f437490f39/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/fighting-force-recomp",
     "issue_number": 448,
     "listed_at": "2026-10-23",

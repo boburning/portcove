@@ -5,6 +5,23 @@
     "name": "Burnout 3: Takedown (PS2) (Burnout3 PC)",
     "summary": "Register the completed Burnout3 PC Windows player for your own NTSC-U PS2 disc and preserve its local card, settings and mods.",
     "original_game_title": "Burnout 3: Takedown (PS2)",
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-3-takedown-ps2",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/burnout3-pc/blob/d3c8b63c672316cbcb6f56f3a9dde0962b1dd102/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "burnout-3-takedown-ps2-playstation-2",
+          "title": "Burnout 3: Takedown (PS2) (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/burnout3-pc/blob/d3c8b63c672316cbcb6f56f3a9dde0962b1dd102/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/danielgomesvieira2000/burnout3-pc",
     "platforms": [],
     "availability": "unknown",

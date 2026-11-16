@@ -4,6 +4,23 @@
     "id": "peggle-2-for-mac-macprotips-peggle-2-xbox-live-arcade",
     "name": "Peggle 2 (Xbox Live Arcade) — Peggle 2 for Mac (macprotips)",
     "original_game_title": "Peggle 2 (Xbox Live Arcade)",
+    "original_game": {
+      "format_version": 1,
+      "id": "peggle-2-xbox-live-arcade",
+      "evidence_urls": [
+        "https://github.com/macprotips/peggle2-mac/blob/c19e48f7e62394e706762dda0412d4ea25798af4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "peggle-2-xbox-live-arcade-xbox",
+          "title": "Peggle 2 (Xbox Live Arcade) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/macprotips/peggle2-mac/blob/c19e48f7e62394e706762dda0412d4ea25798af4/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This beta is reported to have been played through on the developers’ Macs; compatibility with other Macs is unconfirmed. It runs natively on ARM64 with Metal and CoreAudio. Windows and Linux support are not claimed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/macprotips/peggle2-mac",
     "platforms": ["macos-aarch64"],

@@ -5,6 +5,23 @@
     "name": "Threads of Fate / Alexbeav PSXRecomp",
     "summary": "Build and play Threads of Fate on Windows or Linux with your own matching North American (USA, Canada) PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Threads of Fate",
+    "original_game": {
+      "format_version": 1,
+      "id": "threads-of-fate",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/80b7e05b7d49ed08994ec09908c234cf07226f8a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "threads-of-fate-playstation",
+          "title": "Threads of Fate (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp/blob/80b7e05b7d49ed08994ec09908c234cf07226f8a/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/threads-of-fate-recomp",
     "issue_number": 486,
     "listed_at": "2026-10-23",

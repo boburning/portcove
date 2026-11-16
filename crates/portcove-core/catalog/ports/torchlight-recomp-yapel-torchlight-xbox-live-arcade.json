@@ -4,6 +4,23 @@
     "id": "torchlight-recomp-yapel-torchlight-xbox-live-arcade",
     "name": "Torchlight (Xbox Live Arcade) — Torchlight Recomp (YaPeL)",
     "original_game_title": "Torchlight (Xbox Live Arcade)",
+    "original_game": {
+      "format_version": 1,
+      "id": "torchlight-xbox-live-arcade",
+      "evidence_urls": [
+        "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "torchlight-xbox-live-arcade-xbox",
+          "title": "Torchlight (Xbox Live Arcade) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/YaPeL/torchlight-recomp/blob/b70470135e72c31945b1ecf9c74596e75a785b40/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports native town, dungeons, inventory and pets. Chinese and Japanese are unsupported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/YaPeL/torchlight-recomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],

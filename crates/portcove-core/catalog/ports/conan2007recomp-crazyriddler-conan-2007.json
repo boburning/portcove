@@ -4,6 +4,23 @@
     "id": "conan2007recomp-crazyriddler-conan-2007",
     "name": "Conan (2007) — Conan2007Recomp (crazyriddler)",
     "original_game_title": "Conan (2007)",
+    "original_game": {
+      "format_version": 1,
+      "id": "conan-2007",
+      "evidence_urls": [
+        "https://github.com/crazyriddler/Conan2007Recomp/blob/ef2603b111290f52c4fbb3f8a2c1200efdf4c26c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "conan-2007-xbox-360",
+          "title": "Conan (2007) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/crazyriddler/Conan2007Recomp/blob/ef2603b111290f52c4fbb3f8a2c1200efdf4c26c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a Direct3D 12 player. It requires a controller and has physics defects at high frame rates. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/crazyriddler/Conan2007Recomp",
     "listed_at": "2026-10-25",

@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile",
     "listed_at": "2026-10-23",
     "original_game_title": "Klonoa: Door to Phantomile",
+    "original_game": {
+      "format_version": 1,
+      "id": "klonoa-door-to-phantomile",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile/blob/99a7ccc15375f0a7773f8ab5a607caeb9c85e02d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "klonoa-door-to-phantomile-playstation",
+          "title": "Klonoa: Door to Phantomile (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Klonoa-Door-to-Phantomile/blob/99a7ccc15375f0a7773f8ab5a607caeb9c85e02d/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 4959,
       "cover_id": 155686,

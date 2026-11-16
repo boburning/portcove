@@ -4,6 +4,23 @@
     "id": "conkerlr-recomp-yacineolivier-maker-conker-live-reloaded",
     "name": "Conker: Live & Reloaded — ConkerLR-Recomp (yacineolivier-maker)",
     "original_game_title": "Conker: Live & Reloaded",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-live-reloaded",
+      "evidence_urls": [
+        "https://github.com/yacineolivier-maker/ConkerLR-Recomp/blob/2013160850c78dad4c2fd3f2517cbc2e11e094ed/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-live-reloaded-xbox",
+          "title": "Conker: Live & Reloaded (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/yacineolivier-maker/ConkerLR-Recomp/blob/2013160850c78dad4c2fd3f2517cbc2e11e094ed/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports loading 31 adventure levels without crashes, rather than completing the campaign. The tail appears pale, and multiplayer is untested. Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/yacineolivier-maker/ConkerLR-Recomp",
     "platforms": ["windows-x86-64"],

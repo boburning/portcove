@@ -11,6 +11,23 @@
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/MegaManXSNESRecomp",
     "original_game_title": "Mega Man X (USA) (Rev 1)",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-x-usa-rev-1",
+      "evidence_urls": [
+        "https://github.com/mstan/MegaManXSNESRecomp/blob/16cf34fc17e75225bc38bf20933530e7089aec5f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-x-usa-rev-1-super-nintendo",
+          "title": "Mega Man X (USA) (Rev 1) (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/MegaManXSNESRecomp/blob/16cf34fc17e75225bc38bf20933530e7089aec5f/README.md"
+          ]
+        }
+      ]
+    },
     "download_block_reason": "This handoff covers a permitted current-source completed noncommercial build. Historical package permission holds are not cleared for arbitrary older downloads, and current package/component applicability and managed preparation have not been accepted here. Use upstream preparation for your permitted copy.",
     "manual_setup": {
       "help_url": "https://github.com/mstan/MegaManXSNESRecomp/blob/9e6dd7b98ba420c4c97567eb192f734d0ba04f53/README.md",

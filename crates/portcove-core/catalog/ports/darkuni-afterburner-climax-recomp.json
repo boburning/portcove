@@ -6,6 +6,23 @@
     "summary": "Play After Burner Climax with darkuni’s Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/afterburner-climax-recomp",
     "original_game_title": "After Burner Climax",
+    "original_game": {
+      "format_version": 1,
+      "id": "after-burner-climax",
+      "evidence_urls": [
+        "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "after-burner-climax-xbox-360",
+          "title": "After Burner Climax (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4134,
     "listed_at": "2026-11-08",
     "availability": "packages",

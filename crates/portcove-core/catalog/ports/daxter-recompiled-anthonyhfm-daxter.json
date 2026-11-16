@@ -4,6 +4,23 @@
     "id": "daxter-recompiled-anthonyhfm-daxter",
     "name": "Daxter — daxter-recompiled (anthonyhfm)",
     "original_game_title": "Daxter",
+    "original_game": {
+      "format_version": 1,
+      "id": "daxter",
+      "evidence_urls": [
+        "https://github.com/anthonyhfm/daxter-recompiled/blob/c0c8cc01a7f782f6706fc91b91f476cfd191bd23/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "daxter-playstation-portable",
+          "title": "Daxter (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/anthonyhfm/daxter-recompiled/blob/c0c8cc01a7f782f6706fc91b91f476cfd191bd23/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This experimental alpha has a native Refract player. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/anthonyhfm/daxter-recompiled",
     "listed_at": "2026-10-25",

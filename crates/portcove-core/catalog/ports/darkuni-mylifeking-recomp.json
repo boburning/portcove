@@ -6,6 +6,23 @@
     "summary": "Play My Life as a King with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifeking-recomp",
     "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a King",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-king-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a King (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4120,
     "listed_at": "2026-11-08",
     "availability": "packages",

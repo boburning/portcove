@@ -7,6 +7,23 @@
     "summary": "Build and play Driver on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/driver-recomp",
     "original_game_title": "Driver",
+    "original_game": {
+      "format_version": 1,
+      "id": "driver",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/798b68e560a1d896e48ec048655d615a5da1ef24/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "driver-playstation",
+          "title": "Driver (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/driver-recomp/blob/798b68e560a1d896e48ec048655d615a5da1ef24/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 675,
       "cover_id": 566481,

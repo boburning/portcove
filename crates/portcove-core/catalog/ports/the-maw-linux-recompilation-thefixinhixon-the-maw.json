@@ -4,6 +4,23 @@
     "id": "the-maw-linux-recompilation-thefixinhixon-the-maw",
     "name": "The Maw — The Maw — Linux Recompilation (thefixinhixon)",
     "original_game_title": "The Maw",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-maw",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/TheMawRecomp/blob/3494328bae82b34df58499b01f5bccf28bbc0f35/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-maw-xbox-360",
+          "title": "The Maw (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/TheMawRecomp/blob/3494328bae82b34df58499b01f5bccf28bbc0f35/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes Linux as playable, with cache and shared-memory files left after crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/TheMawRecomp",
     "listed_at": "2026-10-25",

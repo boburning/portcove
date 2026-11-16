@@ -52,6 +52,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/galerians-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "Galerians",
+    "original_game": {
+      "format_version": 1,
+      "id": "galerians",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/0ebac2e39083db28a06ea9a44b54ba2d64d95700/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "galerians-playstation",
+          "title": "Galerians (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/galerians-recomp/blob/0ebac2e39083db28a06ea9a44b54ba2d64d95700/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["galerians-", "-linux-x64.zip"],
       "macos-aarch64": ["galerians-", "-macos-arm64.zip"],

@@ -7,6 +7,23 @@
     "summary": "Play Dr. Mario with the official Windows runtime and your matching original NES ROM.",
     "project_url": "https://github.com/mstan/DrMarioNesRecomp",
     "original_game_title": "Dr. Mario",
+    "original_game": {
+      "format_version": 1,
+      "id": "dr-mario",
+      "evidence_urls": [
+        "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dr-mario-nes",
+          "title": "Dr. Mario (NES, region not specified)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/DrMarioNesRecomp/blob/b6779f0e0dfbbc4d4139003f2dd0999b79a0879e/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "NES",
     "issue_number": 157,
     "listed_at": "2026-10-23",

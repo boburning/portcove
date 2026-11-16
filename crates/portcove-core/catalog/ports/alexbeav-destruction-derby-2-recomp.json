@@ -4,6 +4,23 @@
     "id": "alexbeav-destruction-derby-2-recomp",
     "name": "Destruction Derby 2 / Alexbeav PSXRecomp",
     "original_game_title": "Destruction Derby 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "destruction-derby-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/f6cd6b2daf4cdc3cf72978d4dbccb4fc50679b81/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "destruction-derby-2-playstation",
+          "title": "Destruction Derby 2 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp/blob/f6cd6b2daf4cdc3cf72978d4dbccb4fc50679b81/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build and play Destruction Derby 2 on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-2-recomp",
     "issue_number": 438,

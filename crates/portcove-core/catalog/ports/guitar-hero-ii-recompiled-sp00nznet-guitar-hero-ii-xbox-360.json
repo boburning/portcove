@@ -4,6 +4,23 @@
     "id": "guitar-hero-ii-recompiled-sp00nznet-guitar-hero-ii-xbox-360",
     "name": "Guitar Hero II (Xbox 360) — Guitar Hero II Recompiled (sp00nznet)",
     "original_game_title": "Guitar Hero II (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-ii-xbox-360",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/gh2/blob/507d2d442dc492dcba816ed66fe02f8776adcdc2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "guitar-hero-ii-xbox-360-xbox-360",
+          "title": "Guitar Hero II (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/gh2/blob/507d2d442dc492dcba816ed66fe02f8776adcdc2/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream marks gameplay as working. Guitar-controller support has not been tested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/gh2",
     "platforms": ["windows-x86-64"],

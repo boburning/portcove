@@ -8,6 +8,23 @@
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Pokémon Red",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-red",
+      "evidence_urls": [
+        "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-red-game-boy",
+          "title": "Pokémon Red (Game Boy, region not specified)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "US edition",
     "artwork": {
       "game_id": 1561,

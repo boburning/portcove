@@ -5,6 +5,23 @@
     "name": "Tokyo Highway Battle / Alexbeav PSXRecomp",
     "summary": "Build and play Tokyo Highway Battle on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Tokyo Highway Battle",
+    "original_game": {
+      "format_version": 1,
+      "id": "tokyo-highway-battle",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/1100eedf29336632ef449a265e858f530aec921e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tokyo-highway-battle-playstation",
+          "title": "Tokyo Highway Battle (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp/blob/1100eedf29336632ef449a265e858f530aec921e/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/tokyo-highway-battle-recomp",
     "issue_number": 490,
     "listed_at": "2026-10-23",

@@ -53,7 +53,24 @@
       "windows-x86-64": ["Vampire-Hunter-D-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Vampire Hunter D"
+    "original_game_title": "Vampire Hunter D",
+    "original_game": {
+      "format_version": 1,
+      "id": "vampire-hunter-d",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/25cee7d75d87f4c5f7b199d7efde775e3b834cdd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "vampire-hunter-d-playstation",
+          "title": "Vampire Hunter D (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vampire-hunter-d-recomp/blob/25cee7d75d87f4c5f7b199d7efde775e3b834cdd/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

@@ -6,6 +6,23 @@
     "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
     "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
     "original_game_title": "Fable II Pub Games",
+    "original_game": {
+      "format_version": 1,
+      "id": "fable-ii-pub-games",
+      "evidence_urls": [
+        "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fable-ii-pub-games-xbox-360",
+          "title": "Fable II Pub Games (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/MGRayd/Fable2PubGames-Recomp/blob/92cedf65ebfd43369c24f81b1e54e1aa12eea18c/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 3995,
     "listed_at": "2026-11-08",
     "platforms": ["windows-x86-64"],

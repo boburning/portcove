@@ -4,6 +4,23 @@
     "id": "p2recomp-hinamihere-persona-2-innocent-sin-psp",
     "name": "Persona 2: Innocent Sin (PSP) — p2recomp (hinamihere)",
     "original_game_title": "Persona 2: Innocent Sin (PSP)",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-2-innocent-sin-psp",
+      "evidence_urls": [
+        "https://github.com/hinamihere/p2recomp/blob/f225dc4abe2a929e521704cb4f1ca7cb462a28d3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "persona-2-innocent-sin-psp-playstation-portable",
+          "title": "Persona 2: Innocent Sin (PSP) (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/hinamihere/p2recomp/blob/f225dc4abe2a929e521704cb4f1ca7cb462a28d3/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports a native title screen, field exploration and scripted Zodiac progression. Separate developer procedures can crash while warping. The project does not claim the full game works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/hinamihere/p2recomp",
     "platforms": [],

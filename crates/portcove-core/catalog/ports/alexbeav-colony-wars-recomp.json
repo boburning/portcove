@@ -5,6 +5,23 @@
     "name": "Colony Wars / Alexbeav PSXRecomp",
     "summary": "Build and play Colony Wars on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Colony Wars",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/40a35efb0627b15285baa421b93939b951adfff2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "colony-wars-playstation",
+          "title": "Colony Wars (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp/blob/40a35efb0627b15285baa421b93939b951adfff2/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-recomp",
     "issue_number": 437,
     "listed_at": "2026-10-23",

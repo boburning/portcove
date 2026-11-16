@@ -5,6 +5,23 @@
     "name": "Skate 2 (Skate2Recompiled)",
     "summary": "A Skate 2 Windows 10/11 x86-64 AVX2 setup/player route, separate from Skate 3 and other implementations. Drag your own USA English/French Xbox 360 ISO onto Setup.bat to extract and recompile locally. It targets title 4541087F, default.xex SHA-1 a9b539c1acbc80aeaade3ffbe708e1fbd3a2dad7. Other regions and title updates need different address configuration. No other completed platform package is established. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Skate 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "skate-2",
+      "evidence_urls": [
+        "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "skate-2-xbox-360",
+          "title": "Skate 2 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/cookingwithsimon/Skate2Recompiled/blob/bcbc1e55cc2a14e97f077ca7540b1f9ca97fbb15/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/cookingwithsimon/Skate2Recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

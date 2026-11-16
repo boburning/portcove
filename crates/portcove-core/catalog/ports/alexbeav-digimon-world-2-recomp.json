@@ -4,6 +4,23 @@
     "id": "alexbeav-digimon-world-2-recomp",
     "name": "Digimon World 2 / Alexbeav PSXRecomp",
     "original_game_title": "Digimon World 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/4f1b37a1523ac71949dde575f595e5eca93a5ab8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "digimon-world-2-playstation",
+          "title": "Digimon World 2 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp/blob/4f1b37a1523ac71949dde575f595e5eca93a5ab8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Digimon World 2 player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2-recomp",
     "issue_number": 1592,

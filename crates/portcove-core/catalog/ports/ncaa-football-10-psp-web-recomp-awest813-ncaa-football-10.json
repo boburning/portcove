@@ -4,6 +4,23 @@
     "id": "ncaa-football-10-psp-web-recomp-awest813-ncaa-football-10",
     "name": "NCAA Football 10 — NCAA Football 10 PSP Web Recomp (awest813)",
     "original_game_title": "NCAA Football 10",
+    "original_game": {
+      "format_version": 1,
+      "id": "ncaa-football-10",
+      "evidence_urls": [
+        "https://github.com/awest813/NCAA-10-PSP-Recomp/blob/ef7edd7bd6d19081e6ab471fe7b7421a54dd4c65/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ncaa-football-10-playstation-portable",
+          "title": "NCAA Football 10 (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/awest813/NCAA-10-PSP-Recomp/blob/ef7edd7bd6d19081e6ab471fe7b7421a54dd4c65/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This browser player uses ahead-of-time recompilation. Performance results inherited from God of War do not establish NCAA performance. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/awest813/NCAA-10-PSP-Recomp",
     "platforms": [],

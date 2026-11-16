@@ -4,6 +4,23 @@
     "id": "worms-revolution-native-pc-recompilation-sp00nznet-worms-revolution",
     "name": "Worms Revolution — Worms Revolution — native PC recompilation (sp00nznet)",
     "original_game_title": "Worms Revolution",
+    "original_game": {
+      "format_version": 1,
+      "id": "worms-revolution",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/wormsrevolution/blob/d1f43aa53eab1af000bd9dd9b2f668425375d784/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "worms-revolution-xbox-360",
+          "title": "Worms Revolution (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/wormsrevolution/blob/d1f43aa53eab1af000bd9dd9b2f668425375d784/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The tutorial plays from start to finish, but text and UI are missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/wormsrevolution",
     "listed_at": "2026-10-25",

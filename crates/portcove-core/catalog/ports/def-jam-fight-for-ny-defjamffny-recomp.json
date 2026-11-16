@@ -5,6 +5,23 @@
     "name": "Def Jam: Fight for NY (DefJamFFNY Recomp)",
     "summary": "Windows Def Jam: Fight for NY setup compiles your verified USA Xbox dump locally. Register the completed installation’s waiting DefJamLauncher.exe; upstream setup owns runtime replacement and its separate installed data location.",
     "original_game_title": "Def Jam: Fight for NY",
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": [
+        "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/a5479de7c62c4cf2801a006b56a3b30398475b37/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-xbox",
+          "title": "Def Jam: Fight for NY (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/vyanhursky/DefJamFFNY-recomp/blob/a5479de7c62c4cf2801a006b56a3b30398475b37/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/vyanhursky/DefJamFFNY-recomp",
     "issue_number": 2562,
     "listed_at": "2026-10-25",

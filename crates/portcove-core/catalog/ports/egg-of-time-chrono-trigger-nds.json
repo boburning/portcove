@@ -4,6 +4,23 @@
     "id": "egg-of-time-chrono-trigger-nds",
     "name": "Chrono Trigger (Nintendo DS) — Egg of Time",
     "original_game_title": "Chrono Trigger",
+    "original_game": {
+      "format_version": 1,
+      "id": "chrono-trigger",
+      "evidence_urls": [
+        "https://github.com/power-pudu/egg-of-time/blob/ed0b61101f3e18cefc5bee9894717dd480747964/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "chrono-trigger-nintendo-ds",
+          "title": "Chrono Trigger (Nintendo DS, region not specified)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/power-pudu/egg-of-time/blob/ed0b61101f3e18cefc5bee9894717dd480747964/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Chrono Trigger player from your own Nintendo DS cartridge dump using Egg of Time.",
     "project_url": "https://github.com/power-pudu/egg-of-time",
     "issue_number": 3740,

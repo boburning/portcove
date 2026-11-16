@@ -4,6 +4,23 @@
     "id": "billy-and-mandy-decomp-jasonadamhd-the-grim-adventures-of-billy-mandy",
     "name": "The Grim Adventures of Billy & Mandy — billy-and-mandy-decomp (JasonAdamHD)",
     "original_game_title": "The Grim Adventures of Billy & Mandy",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-grim-adventures-of-billy-mandy",
+      "evidence_urls": [
+        "https://github.com/JasonAdamHD/billy-and-mandy-decomp/blob/8d0d76177f6dfcd2dfc73983f599270b5351c52c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-grim-adventures-of-billy-mandy-playstation-2",
+          "title": "The Grim Adventures of Billy & Mandy (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/JasonAdamHD/billy-and-mandy-decomp/blob/8d0d76177f6dfcd2dfc73983f599270b5351c52c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports startup, title, menus and input using a CPU-renderer workaround. A full playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/JasonAdamHD/billy-and-mandy-decomp",
     "listed_at": "2026-10-25",

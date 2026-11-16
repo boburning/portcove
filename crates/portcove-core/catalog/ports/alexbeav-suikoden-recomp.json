@@ -5,6 +5,23 @@
     "name": "Suikoden / Alexbeav PSXRecomp",
     "summary": "Build and play Suikoden on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Suikoden",
+    "original_game": {
+      "format_version": 1,
+      "id": "suikoden",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/9b4e6445fe5fb1d91d2d2d598173fce69d4f02eb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "suikoden-playstation",
+          "title": "Suikoden (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/suikoden-recomp/blob/9b4e6445fe5fb1d91d2d2d598173fce69d4f02eb/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/suikoden-recomp",
     "issue_number": 481,
     "listed_at": "2026-10-23",

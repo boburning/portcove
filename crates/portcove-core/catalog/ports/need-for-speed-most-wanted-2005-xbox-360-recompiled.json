@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Need for Speed: Most Wanted",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-most-wanted",
+      "evidence_urls": [
+        "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/59a0f23ba19d826a2978443dfc2f8b2a96dd415f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-most-wanted-xbox-360",
+          "title": "Need for Speed: Most Wanted (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/madelrandel-blip/NFSMW-Recompiled/blob/59a0f23ba19d826a2978443dfc2f8b2a96dd415f/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/madelrandel-blip/NFSMW-Recompiled/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {

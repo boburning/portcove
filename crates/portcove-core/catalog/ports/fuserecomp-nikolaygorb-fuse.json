@@ -4,6 +4,23 @@
     "id": "fuserecomp-nikolaygorb-fuse",
     "name": "Fuse — FuseRecomp (nikolaygorb)",
     "original_game_title": "Fuse",
+    "original_game": {
+      "format_version": 1,
+      "id": "fuse",
+      "evidence_urls": [
+        "https://github.com/nikolaygorb/FuseRecomp/blob/aed0bcb6c562565375f4b79024158aeb45bd75ed/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fuse-xbox-360",
+          "title": "Fuse (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/FuseRecomp/blob/aed0bcb6c562565375f4b79024158aeb45bd75ed/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports offline gameplay, audio, video, achievements and saves. Online play is unsupported. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/FuseRecomp",
     "listed_at": "2026-10-25",

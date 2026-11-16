@@ -5,6 +5,23 @@
     "name": "Silent Bomber / Alexbeav PSXRecomp",
     "summary": "Build and play Silent Bomber on Windows or Linux with your own matching Europe PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Silent Bomber",
+    "original_game": {
+      "format_version": 1,
+      "id": "silent-bomber",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/60ae0d3786a6f5fc87e8939663f1d3ddb0dd14bd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "silent-bomber-playstation",
+          "title": "Silent Bomber (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp/blob/60ae0d3786a6f5fc87e8939663f1d3ddb0dd14bd/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/silent-bomber-recomp",
     "issue_number": 478,
     "listed_at": "2026-10-23",

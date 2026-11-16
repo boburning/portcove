@@ -4,6 +4,23 @@
     "id": "2xtreme-recomp-catsandsoup-2xtreme",
     "name": "2Xtreme — 2Xtreme-recomp (catsandsoup)",
     "original_game_title": "2Xtreme",
+    "original_game": {
+      "format_version": 1,
+      "id": "2xtreme",
+      "evidence_urls": [
+        "https://github.com/catsandsoup/2Xtreme-recomp/blob/b14565f968ed053ed09554cc4a8cb4e8c0025d6a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "2xtreme-playstation",
+          "title": "2Xtreme (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/catsandsoup/2Xtreme-recomp/blob/b14565f968ed053ed09554cc4a8cb4e8c0025d6a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "An early 2Xtreme preview for Mac. You need your own USA CUE/BIN disc image. The app builds the game on first launch.",
     "project_url": "https://github.com/catsandsoup/2Xtreme-recomp",
     "platforms": ["macos-aarch64"],

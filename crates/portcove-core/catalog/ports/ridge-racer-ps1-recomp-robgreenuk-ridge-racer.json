@@ -4,6 +4,23 @@
     "id": "ridge-racer-ps1-recomp-robgreenuk-ridge-racer",
     "name": "Ridge Racer — Ridge-Racer-PS1-Recomp (RobGreenUK)",
     "original_game_title": "Ridge Racer",
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer",
+      "evidence_urls": [
+        "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp/blob/b2ba9447696b8ddb060461f15dc812b8119f0a26/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ridge-racer-playstation",
+          "title": "Ridge Racer (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp/blob/b2ba9447696b8ddb060461f15dc812b8119f0a26/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Clean Mac workflow checked; Windows cross-compiled but native workflow pending; renderer improvements not physics unlock. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RobGreenUK/Ridge-Racer-PS1-Recomp",
     "platforms": ["macos-aarch64"],

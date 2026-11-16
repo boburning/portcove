@@ -4,6 +4,23 @@
     "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
     "name": "Army of Two: The 40th Day — Libre40 (eu-maxwelllucas)",
     "original_game_title": "Army of Two: The 40th Day",
+    "original_game": {
+      "format_version": 1,
+      "id": "army-of-two-the-40th-day",
+      "evidence_urls": [
+        "https://github.com/eu-maxwelllucas/Libre40/blob/52b7e4411d5347179be66efb4a90ac080677b72f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "army-of-two-the-40th-day-xbox-360",
+          "title": "Army of Two: The 40th Day (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/eu-maxwelllucas/Libre40/blob/52b7e4411d5347179be66efb4a90ac080677b72f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream describes single-player gameplay. Movies show a black screen; waiting for them to finish allows startup to continue. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/eu-maxwelllucas/Libre40",
     "platforms": ["windows-x86-64"],

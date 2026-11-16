@@ -4,6 +4,23 @@
     "id": "trials-hd-recompiled-snufflyyy-trials-hd",
     "name": "Trials HD — Trials HD Recompiled (snufflyyy)",
     "original_game_title": "Trials HD",
+    "original_game": {
+      "format_version": 1,
+      "id": "trials-hd",
+      "evidence_urls": [
+        "https://github.com/snufflyyy/trials-hd-recompiled/blob/17a76f5e674c6132d74f587567e0ecc1624ce3e6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "trials-hd-xbox-360",
+          "title": "Trials HD (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/snufflyyy/trials-hd-recompiled/blob/17a76f5e674c6132d74f587567e0ecc1624ce3e6/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims controller and keyboard play. Browser storage, audio and gameplay checks remain unfinished. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/snufflyyy/trials-hd-recompiled",
     "listed_at": "2026-10-25",

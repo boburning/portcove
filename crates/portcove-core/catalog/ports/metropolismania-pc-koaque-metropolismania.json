@@ -4,6 +4,23 @@
     "id": "metropolismania-pc-koaque-metropolismania",
     "name": "Metropolismania — Metropolismania PC (koaque)",
     "original_game_title": "Metropolismania",
+    "original_game": {
+      "format_version": 1,
+      "id": "metropolismania",
+      "evidence_urls": [
+        "https://github.com/koaque/Metropolismania-PC/blob/7b23b0188fa13e12a39577496043a9f19d641c62/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metropolismania-playstation-2",
+          "title": "Metropolismania (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/koaque/Metropolismania-PC/blob/7b23b0188fa13e12a39577496043a9f19d641c62/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports booting and reaching the city, but the game is not ready for a playthrough. Setup uses Ghidra and a local build. Its 71% function-rewrite claim does not measure working gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/koaque/Metropolismania-PC",
     "platforms": [],

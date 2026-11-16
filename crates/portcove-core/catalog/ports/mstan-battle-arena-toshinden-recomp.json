@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Battle Arena Toshinden",
+    "original_game": {
+      "format_version": 1,
+      "id": "battle-arena-toshinden",
+      "evidence_urls": [
+        "https://github.com/mstan/BattleArenaToshindenRecomp/blob/6810d2053f1e1f6788c78e0f5dcc509b1fa8f34c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "battle-arena-toshinden-playstation",
+          "title": "Battle Arena Toshinden (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/BattleArenaToshindenRecomp/blob/6810d2053f1e1f6788c78e0f5dcc509b1fa8f34c/README.md"
+          ]
+        }
+      ]
+    },
     "download_block_reason": "New downloads are unavailable because the current Windows package includes compiled game code, and the project's license and permissions don't cover game code. This route registers only a permitted noncommercial build you completed yourself from the licensed source with your own disc.",
     "manual_setup": {
       "steps": [

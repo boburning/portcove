@@ -4,6 +4,23 @@
     "id": "battride-war-native-port-robertoqimin-kamen-rider-battride-war",
     "name": "Kamen Rider: Battride War — Battride War native port (robertoqimin)",
     "original_game_title": "Kamen Rider: Battride War",
+    "original_game": {
+      "format_version": 1,
+      "id": "kamen-rider-battride-war",
+      "evidence_urls": [
+        "https://github.com/robertoqimin/battride-war-recomp/blob/13026737750d734d5ea1b185417ef2b1b180060e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "kamen-rider-battride-war-playstation-3",
+          "title": "Kamen Rider: Battride War (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/robertoqimin/battride-war-recomp/blob/13026737750d734d5ea1b185417ef2b1b180060e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "An experimental Linux port of Kamen Rider: Battride War. The AppImage builds the game from your own Japanese disc image. The project has reported testing through one mission.",
     "project_url": "https://github.com/robertoqimin/battride-war-recomp",
     "platforms": ["linux-x86-64"],

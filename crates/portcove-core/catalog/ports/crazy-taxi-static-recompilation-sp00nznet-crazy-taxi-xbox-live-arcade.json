@@ -4,6 +4,23 @@
     "id": "crazy-taxi-static-recompilation-sp00nznet-crazy-taxi-xbox-live-arcade",
     "name": "Crazy Taxi (Xbox Live Arcade) — Crazy Taxi -- Static Recompilation (sp00nznet)",
     "original_game_title": "Crazy Taxi (Xbox Live Arcade)",
+    "original_game": {
+      "format_version": 1,
+      "id": "crazy-taxi-xbox-live-arcade",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/ctxbla/blob/2a667e74f6533f2b9b9ab8debae5d5e252b4771f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crazy-taxi-xbox-live-arcade-xbox",
+          "title": "Crazy Taxi (Xbox Live Arcade) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/ctxbla/blob/2a667e74f6533f2b9b9ab8debae5d5e252b4771f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Driving runs; fare/high-speed crashes and alt-tab Arcade hang remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/ctxbla",
     "platforms": ["windows-x86-64"],

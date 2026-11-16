@@ -9,6 +9,23 @@
     "listed_at": "2026-10-23",
     "setup_url": "https://github.com/kirby-letsgo/oracles-decomp",
     "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-oracle-of-ages-oracle-of-seasons",
+      "evidence_urls": [
+        "https://github.com/kirby-letsgo/oracles-decomp/blob/813e7b842ca68b36d3870e83b2c07e73633d645a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-oracle-of-ages-oracle-of-seasons-game-boy-color",
+          "title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons (Game Boy Color, region not specified)",
+          "system": "game-boy-color",
+          "evidence_urls": [
+            "https://github.com/kirby-letsgo/oracles-decomp/blob/813e7b842ca68b36d3870e83b2c07e73633d645a/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/kirby-letsgo/oracles-decomp/releases",
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "manual_setup": {

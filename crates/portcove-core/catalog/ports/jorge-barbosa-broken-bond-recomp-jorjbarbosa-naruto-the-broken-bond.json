@@ -4,6 +4,23 @@
     "id": "jorge-barbosa-broken-bond-recomp-jorjbarbosa-naruto-the-broken-bond",
     "name": "Naruto: The Broken Bond — Jorge Barbosa Broken Bond Recomp (jorjbarbosa)",
     "original_game_title": "Naruto: The Broken Bond",
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-the-broken-bond",
+      "evidence_urls": [
+        "https://github.com/jorjbarbosa/broken-bond-recomp/blob/37b72e657c24022df8057f0cb1b718b81830c77a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "naruto-the-broken-bond-xbox",
+          "title": "Naruto: The Broken Bond (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/jorjbarbosa/broken-bond-recomp/blob/37b72e657c24022df8057f0cb1b718b81830c77a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports about 30 minutes of menus, early Story fights, cutscenes, Fight Mode and open-world play on one Windows 11 PC with an RX 9070 XT. Most of Story, Xbox Live, other GPUs and other revisions remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jorjbarbosa/broken-bond-recomp",
     "platforms": [],

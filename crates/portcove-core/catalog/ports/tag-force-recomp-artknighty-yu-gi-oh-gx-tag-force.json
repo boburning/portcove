@@ -4,6 +4,23 @@
     "id": "tag-force-recomp-artknighty-yu-gi-oh-gx-tag-force",
     "name": "Yu-Gi-Oh! GX Tag Force — Tag Force Recomp (Artknighty)",
     "original_game_title": "Yu-Gi-Oh! GX Tag Force",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-gx-tag-force",
+      "evidence_urls": [
+        "https://github.com/Artknighty/tagforcerecomp-preview/blob/29233827dfbd97d4e60116b56ad85d2d0583cb4e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-gx-tag-force-playstation-portable",
+          "title": "Yu-Gi-Oh! GX Tag Force (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Artknighty/tagforcerecomp-preview/blob/29233827dfbd97d4e60116b56ad85d2d0583cb4e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This is an early public preview. The project claims start-to-finish story, field, dialogue, duels, DeckEdit, shop, saves, audio and video, mainly on one machine, version and save. Network and ad-hoc play are unavailable. Game logic runs at 30 FPS; 60/120 FPS presentation interpolation is experimental. APIs, formats, settings and folders may change. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Artknighty/tagforcerecomp-preview",
     "platforms": ["windows-x86-64"],

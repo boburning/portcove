@@ -4,6 +4,23 @@
     "id": "smt-nine-recomp-gymzatan-shin-megami-tensei-nine",
     "name": "Shin Megami Tensei NINE — SMT NINE Recomp (gymzatan)",
     "original_game_title": "Shin Megami Tensei NINE",
+    "original_game": {
+      "format_version": 1,
+      "id": "shin-megami-tensei-nine",
+      "evidence_urls": [
+        "https://github.com/gymzatan/smt-nine-recomp/blob/dc4a1d2ece51ac3ecb30ee1a70a2f79b0324a87f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shin-megami-tensei-nine-xbox",
+          "title": "Shin Megami Tensei NINE (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/gymzatan/smt-nine-recomp/blob/dc4a1d2ece51ac3ecb30ee1a70a2f79b0324a87f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project tested startup, save/load, movies, streets and shops, story battles, RTS tutorials and entry into chapter 2. It explicitly does not guarantee a full playthrough or stable 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gymzatan/smt-nine-recomp",
     "platforms": [],

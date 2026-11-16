@@ -7,6 +7,23 @@
     "summary": "Native Alien Resurrection PlayStation recompilation from Alexbeav’s PSXRecomp project.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp",
     "original_game_title": "Alien Resurrection",
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/f5c93401c244b698f32d7a53516ad58ada664bde/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "alien-resurrection-playstation",
+          "title": "Alien Resurrection (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/alien-resurrection-recomp/blob/f5c93401c244b698f32d7a53516ad58ada664bde/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 44995,
       "cover_id": 504131,

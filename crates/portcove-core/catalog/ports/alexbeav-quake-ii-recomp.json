@@ -5,6 +5,23 @@
     "name": "Quake II / Alexbeav PSXRecomp",
     "summary": "Build and play Quake II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Quake II",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "quake-ii-playstation",
+          "title": "Quake II (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp/blob/7191b38661ccbef2b5ca88609c46a2efa8775232/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/quake-ii-recomp",
     "issue_number": 474,
     "listed_at": "2026-10-23",

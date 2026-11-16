@@ -4,6 +4,23 @@
     "id": "infamous2-recomp-erikomis-infamous-2",
     "name": "inFAMOUS 2 — infamous2-recomp (erikomis)",
     "original_game_title": "inFAMOUS 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2",
+      "evidence_urls": [
+        "https://github.com/erikomis/infamous2-recomp/blob/61ad6ffd826dc6d1f32bf78ccbaa4ab98352f980/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "infamous-2-playstation-3",
+          "title": "inFAMOUS 2 (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/erikomis/infamous2-recomp/blob/61ad6ffd826dc6d1f32bf78ccbaa4ab98352f980/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports startup, menus, cutscenes and the first New Marais missions. This alpha has never been tested from start to finish. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/erikomis/infamous2-recomp",
     "platforms": ["macos-aarch64"],

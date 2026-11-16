@@ -4,6 +4,23 @@
     "id": "colosseum-native-kreethedrifter-poke-mon-colosseum",
     "name": "Pokémon Colosseum — colosseum-native (KreeTheDrifter)",
     "original_game_title": "Pokémon Colosseum",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-colosseum",
+      "evidence_urls": [
+        "https://github.com/KreeTheDrifter/colosseum-native/blob/4d05fa1551374e6f01299023daf3a52f05385ae1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-colosseum-gamecube",
+          "title": "Pokémon Colosseum (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/KreeTheDrifter/colosseum-native/blob/4d05fa1551374e6f01299023daf3a52f05385ae1/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports logos, intro and title-screen startup only: 623456 instructions with no unknown-instruction, fallback or self-modifying-code failures. Gameplay and proposed graphics features are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/KreeTheDrifter/colosseum-native",
     "platforms": [],

@@ -4,6 +4,23 @@
     "id": "viewtiful-joe-2-recompiled-goldilocks00-viewtiful-joe-2",
     "name": "Viewtiful Joe 2 — viewtiful-joe-2-recompiled (goldilocks00)",
     "original_game_title": "Viewtiful Joe 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "viewtiful-joe-2",
+      "evidence_urls": [
+        "https://github.com/goldilocks00/viewtiful-joe-2-recompiled/blob/d1d9c29c7b5a357daa2cbed60926c4c8531ac49d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "viewtiful-joe-2-gamecube",
+          "title": "Viewtiful Joe 2 (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/goldilocks00/viewtiful-joe-2-recompiled/blob/d1d9c29c7b5a357daa2cbed60926c4c8531ac49d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. The project reaches native Capcom and game title screens, menus, first combat and movement. Progress stops at Slow tutorial02. An audio signal was detected, but quality, saves, the first level and the full game have not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/goldilocks00/viewtiful-joe-2-recompiled",
     "platforms": ["linux-x86-64"],

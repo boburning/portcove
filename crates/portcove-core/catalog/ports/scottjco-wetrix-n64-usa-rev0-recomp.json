@@ -8,6 +8,23 @@
     "issue_number": 4262,
     "listed_at": "2026-11-05",
     "original_game_title": "Wetrix",
+    "original_game": {
+      "format_version": 1,
+      "id": "wetrix",
+      "evidence_urls": [
+        "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wetrix-nintendo-64",
+          "title": "Wetrix (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/scottjco/Wetrix_Recomp/blob/37d94f087a286afbe6e75614a72f9644bfd027b6/README.md"
+          ]
+        }
+      ]
+    },
     "availability": "unknown",
     "platforms": [],
     "setup_url": "https://github.com/scottjco/Wetrix_Recomp/blob/6b496f8f9f695003b0f246128eac474aa6aa85da/README.md",

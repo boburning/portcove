@@ -4,6 +4,23 @@
     "id": "db-final-bout-recomp-novapowers0-novapowers0-dragon-ball-gt-final-bout",
     "name": "Dragon Ball GT: Final Bout — DB-Final-Bout-Recomp (novapowers0) (novapowers0)",
     "original_game_title": "Dragon Ball GT: Final Bout",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-gt-final-bout",
+      "evidence_urls": [
+        "https://github.com/novapowers0/DB-Final-Bout-Recomp/blob/5646617ee9339836f12a947cceb849ee07c1bad9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-gt-final-bout-playstation",
+          "title": "Dragon Ball GT: Final Bout (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/novapowers0/DB-Final-Bout-Recomp/blob/5646617ee9339836f12a947cceb849ee07c1bad9/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims playable matches, stretched widescreen and netplay. Broader gameplay coverage is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/novapowers0/DB-Final-Bout-Recomp",
     "platforms": ["windows-x86-64"],

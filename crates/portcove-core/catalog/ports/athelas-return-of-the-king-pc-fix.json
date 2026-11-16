@@ -5,6 +5,23 @@
     "name": "The Return of the King (PC) — Athelas ROTK Fix",
     "summary": "Use Athelas ROTK Fix with your own installed US 2003 Windows PC game. Keep original protection, profiles and launcher-managed enhancements separate from the Xbox ports.",
     "original_game_title": "The Lord of the Rings: The Return of the King",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-return-of-the-king",
+      "evidence_urls": [
+        "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-return-of-the-king-xbox",
+          "title": "The Lord of the Rings: The Return of the King (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Shagg88/Athelas",
     "issue_number": 2801,
     "listed_at": "2026-10-26",

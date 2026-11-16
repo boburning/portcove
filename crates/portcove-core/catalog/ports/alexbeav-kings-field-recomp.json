@@ -54,7 +54,24 @@
       "windows-x86-64": ["King-s-Field-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "King's Field"
+    "original_game_title": "King's Field",
+    "original_game": {
+      "format_version": 1,
+      "id": "king-s-field",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/b9266f92d8a91c78e5a4b383ba306bd24b6f0ef9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "king-s-field-playstation",
+          "title": "King's Field (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/kings-field-recomp/blob/b9266f92d8a91c78e5a4b383ba306bd24b6f0ef9/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

@@ -8,6 +8,23 @@
     "project_url": "https://github.com/mstan/ApeEscapeRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Ape Escape",
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": [
+        "https://github.com/mstan/ApeEscapeRecomp/blob/2f98ccab5fe510cedd924beebd773e5e2458d16d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/ApeEscapeRecomp/blob/2f98ccab5fe510cedd924beebd773e5e2458d16d/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3762,
       "cover_id": 115320,

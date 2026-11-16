@@ -6,6 +6,23 @@
     "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifedarklord-recomp",
     "original_game_title": "Final Fantasy Crystal Chronicles: My Life as a Darklord",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "evidence_urls": [
+        "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-crystal-chronicles-my-life-as-a-darklord-wii",
+          "title": "Final Fantasy Crystal Chronicles: My Life as a Darklord (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4121,
     "listed_at": "2026-11-08",
     "availability": "packages",

@@ -7,6 +7,23 @@
     "summary": "Native Automobili Lamborghini recompilation.",
     "project_url": "https://github.com/alondero/automobililamborghini-recomp",
     "original_game_title": "Automobili Lamborghini",
+    "original_game": {
+      "format_version": 1,
+      "id": "automobili-lamborghini",
+      "evidence_urls": [
+        "https://github.com/alondero/automobililamborghini-recomp/blob/b6f92ebe4b2e0ac24bb0f583742758316800024b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "automobili-lamborghini-nintendo-64",
+          "title": "Automobili Lamborghini (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/automobililamborghini-recomp/blob/b6f92ebe4b2e0ac24bb0f583742758316800024b/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3442,
       "cover_id": 195699,

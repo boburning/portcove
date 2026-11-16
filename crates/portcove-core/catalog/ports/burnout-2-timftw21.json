@@ -6,6 +6,23 @@
     "summary": "Build Burnout 2 from your own US Xbox disc through upstream setup, keeping its saves and imported music.",
     "project_url": "https://github.com/timftw21/burnout2-recompilation",
     "original_game_title": "Burnout 2: Point of Impact",
+    "original_game": {
+      "format_version": 1,
+      "id": "burnout-2-point-of-impact",
+      "evidence_urls": [
+        "https://github.com/timftw21/burnout2-recompilation/blob/5abe8245e0547821b38b54cc72bf42f7066384b9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "burnout-2-point-of-impact-xbox",
+          "title": "Burnout 2: Point of Impact (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/timftw21/burnout2-recompilation/blob/5abe8245e0547821b38b54cc72bf42f7066384b9/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 2447,
     "listed_at": "2026-10-24",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

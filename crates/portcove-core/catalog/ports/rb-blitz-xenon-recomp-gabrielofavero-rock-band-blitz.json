@@ -4,6 +4,23 @@
     "id": "rb-blitz-xenon-recomp-gabrielofavero-rock-band-blitz",
     "name": "Rock Band Blitz — rb-blitz-xenon-recomp (gabrielofavero)",
     "original_game_title": "Rock Band Blitz",
+    "original_game": {
+      "format_version": 1,
+      "id": "rock-band-blitz",
+      "evidence_urls": [
+        "https://github.com/gabrielofavero/rb-blitz-xenon-recomp/blob/5fae4614cf8cb6bb4cab93dc24a28a40ca38856a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rock-band-blitz-xbox-360",
+          "title": "Rock Band Blitz (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/gabrielofavero/rb-blitz-xenon-recomp/blob/5fae4614cf8cb6bb4cab93dc24a28a40ca38856a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream claims boots, renders 2D/3D and finishes songs. Updated feature table claims Vulkan compatibility and RhythmVerse wiring done; shader/performance and widescreen work remains. Windows prerelease/soft-launch text is not a currently observed public release, and no Portcove runtime qualification was performed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/gabrielofavero/rb-blitz-xenon-recomp",
     "platforms": [],

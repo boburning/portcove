@@ -4,6 +4,23 @@
     "id": "hctp-recomp-bigdaddyjrich-wwe-smackdown-here-comes-the-pain",
     "name": "WWE SmackDown! Here Comes the Pain — hctp-recomp (BigDaddyJRich)",
     "original_game_title": "WWE SmackDown! Here Comes the Pain",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-smackdown-here-comes-the-pain",
+      "evidence_urls": [
+        "https://github.com/BigDaddyJRich/hctp-recomp/blob/7b243fc85f0e1de7c8a18e9ac5516eb3e2188966/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-smackdown-here-comes-the-pain-playstation-2",
+          "title": "WWE SmackDown! Here Comes the Pain (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/BigDaddyJRich/hctp-recomp/blob/7b243fc85f0e1de7c8a18e9ac5516eb3e2188966/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This project recompiles EE game code and emulates the original IOP IRX modules. Stability, audio and commentary remain in development; a mentioned Windows test package does not establish a public ready-to-use release. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BigDaddyJRich/hctp-recomp",
     "platforms": [],

@@ -5,6 +5,23 @@
     "name": "Syphon Filter 3 / Alexbeav PSXRecomp",
     "summary": "Build and play Syphon Filter 3 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Syphon Filter 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "syphon-filter-3",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/50ab915530dea26891874f2a9b89cf4c2c423482/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "syphon-filter-3-playstation",
+          "title": "Syphon Filter 3 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp/blob/50ab915530dea26891874f2a9b89cf4c2c423482/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/syphon-filter-3-recomp",
     "issue_number": 484,
     "listed_at": "2026-10-23",

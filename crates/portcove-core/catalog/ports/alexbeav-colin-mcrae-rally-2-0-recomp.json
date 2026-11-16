@@ -53,7 +53,24 @@
       "windows-x86-64": ["Colin-McRae-Rally-2-0-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Colin McRae Rally 2.0"
+    "original_game_title": "Colin McRae Rally 2.0",
+    "original_game": {
+      "format_version": 1,
+      "id": "colin-mcrae-rally-2-0",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/f633e46c8bc7425acdd2f4d43701e92cc83e8c8e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "colin-mcrae-rally-2-0-playstation",
+          "title": "Colin McRae Rally 2.0 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colin-mcrae-rally-2-0-recomp/blob/f633e46c8bc7425acdd2f4d43701e92cc83e8c8e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

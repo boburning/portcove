@@ -7,6 +7,23 @@
     "summary": "Native Donkey Kong Country 3 recompilation. This Windows build has a known game-logic failure during startup; Portcove has not confirmed gameplay.",
     "project_url": "https://github.com/elliotttate/DKC3Recomp",
     "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-3-dixie-kong-s-double-trouble",
+      "evidence_urls": [
+        "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-3-dixie-kong-s-double-trouble-super-nintendo",
+          "title": "Donkey Kong Country 3: Dixie Kong's Double Trouble! (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/DKC3Recomp/blob/3a033f19801a2bd3abf784d4b29c4462495d19de/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 1094,
       "cover_id": 94883,

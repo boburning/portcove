@@ -20,6 +20,23 @@
     },
     "release_url": "https://github.com/Conker64Recomp/conker64-recompiled/releases",
     "original_game_title": "Conker's Bad Fur Day",
+    "original_game": {
+      "format_version": 1,
+      "id": "conker-s-bad-fur-day",
+      "evidence_urls": [
+        "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "conker-s-bad-fur-day-nintendo-64",
+          "title": "Conker's Bad Fur Day (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Conker64Recomp/conker64-recompiled/blob/0a9dbbf409accdcc0bebd676455de4f5a192f7e5/README.md"
+          ]
+        }
+      ]
+    },
     "recommended_download_channel": "beta",
     "manual_setup": {
       "steps": [

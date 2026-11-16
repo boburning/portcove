@@ -45,7 +45,24 @@
       "windows-x86-64": ["Men-in-Black-The-Game-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Men in Black: The Game"
+    "original_game_title": "Men in Black: The Game",
+    "original_game": {
+      "format_version": 1,
+      "id": "men-in-black-the-game",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/afbf71f5563a1601b2f6e1c83d1e81a21433d576/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "men-in-black-the-game-playstation",
+          "title": "Men in Black: The Game (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp/blob/afbf71f5563a1601b2f6e1c83d1e81a21433d576/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

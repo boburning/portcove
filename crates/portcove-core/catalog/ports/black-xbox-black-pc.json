@@ -5,6 +5,23 @@
     "name": "BLACK (Xbox) (black-pc)",
     "summary": "Attach an independently permitted, prepared BLACK Windows installation using Spark198rus’s title-specific original-x86 compatibility runtime. This is direct Xbox-code execution with replacement services, not static recompilation; Linux uses Wine rather than a native Linux player.",
     "original_game_title": "BLACK (Xbox)",
+    "original_game": {
+      "format_version": 1,
+      "id": "black-xbox",
+      "evidence_urls": [
+        "https://github.com/Spark198rus/black-pc/blob/c065917ce29414f4dd1410a78a86a95051d81dac/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "black-xbox-xbox",
+          "title": "BLACK (Xbox) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Spark198rus/black-pc/blob/c065917ce29414f4dd1410a78a86a95051d81dac/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Spark198rus/black-pc",
     "platforms": [],
     "availability": "unknown",

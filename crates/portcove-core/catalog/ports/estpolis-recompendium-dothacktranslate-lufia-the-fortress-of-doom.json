@@ -4,6 +4,23 @@
     "id": "estpolis-recompendium-dothacktranslate-lufia-the-fortress-of-doom",
     "name": "Lufia & the Fortress of Doom — Estpolis Recompendium (dothacktranslate)",
     "original_game_title": "Lufia & the Fortress of Doom",
+    "original_game": {
+      "format_version": 1,
+      "id": "lufia-the-fortress-of-doom",
+      "evidence_urls": [
+        "https://github.com/dothacktranslate/Estpolis-Recompendium/blob/fc3509114d5632dffaccdfd6318b26345dda044b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "lufia-the-fortress-of-doom-super-nintendo",
+          "title": "Lufia & the Fortress of Doom (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/dothacktranslate/Estpolis-Recompendium/blob/fc3509114d5632dffaccdfd6318b26345dda044b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Lufia 1 source port using your exact USA ROM. Upstream reports working video, input and audio, with post-battle text flicker and stability still being tested. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dothacktranslate/Estpolis-Recompendium",
     "platforms": [],

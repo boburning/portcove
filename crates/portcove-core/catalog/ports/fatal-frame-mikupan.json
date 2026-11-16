@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Fatal Frame",
+    "original_game": {
+      "format_version": 1,
+      "id": "fatal-frame",
+      "evidence_urls": [
+        "https://github.com/Mikompilation/MikuPan/blob/599b99feb41d205b10e5f4246c66e00f43aae458/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fatal-frame-playstation-2",
+          "title": "Fatal Frame (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Mikompilation/MikuPan/blob/599b99feb41d205b10e5f4246c66e00f43aae458/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/Mikompilation/MikuPan/releases",
     "download_asset_hints": {
       "windows-x86-64": ["MikuPan_windows_", ".zip"],

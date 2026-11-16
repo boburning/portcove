@@ -5,6 +5,23 @@
     "name": "Hybrid Heaven: Recompiled (ogdanimal)",
     "summary": "Hybrid Heaven on Windows, Linux and Android, using your own USA cartridge dump. The game checks and copies it on first launch; saves and settings stay in its own profile.",
     "original_game_title": "Hybrid Heaven",
+    "original_game": {
+      "format_version": 1,
+      "id": "hybrid-heaven",
+      "evidence_urls": [
+        "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/faef6b4da84a720555d1cd809487b332cad9329f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "hybrid-heaven-nintendo-64",
+          "title": "Hybrid Heaven (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/ogdanimal/HybridHeaven-Recomp/blob/faef6b4da84a720555d1cd809487b332cad9329f/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ogdanimal/HybridHeaven-Recomp",
     "issue_number": 2546,
     "listed_at": "2026-10-25",

@@ -7,6 +7,23 @@
     "summary": "Build and play Ape Escape on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp",
     "original_game_title": "Ape Escape",
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/blob/ca5788437b841869a974a99e5f85e2114f832a1a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/ape-escape-recomp/blob/ca5788437b841869a974a99e5f85e2114f832a1a/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3762,
       "cover_id": 115320,

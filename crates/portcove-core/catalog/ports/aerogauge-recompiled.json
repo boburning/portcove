@@ -7,6 +7,23 @@
     "summary": "Native AeroGauge recompilation.",
     "project_url": "https://github.com/alondero/aerogauge-recomp",
     "original_game_title": "AeroGauge",
+    "original_game": {
+      "format_version": 1,
+      "id": "aerogauge",
+      "evidence_urls": [
+        "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "aerogauge-nintendo-64",
+          "title": "AeroGauge (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/alondero/aerogauge-recomp/blob/38c9fc31101e27b1ef38d11923e42be779aa53ef/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3329,
       "cover_id": 152868,

@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-episode-i-jedi-power-battles",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp/blob/444ca25f9ed4e6f2d2380f58a446528f921eb3e6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-episode-i-jedi-power-battles-playstation",
+          "title": "Star Wars: Episode I – Jedi Power Battles (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Star-wars---Episode-I---Jedi-Power-Battles-Recomp/blob/444ca25f9ed4e6f2d2380f58a446528f921eb3e6/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 6606,

@@ -4,6 +4,23 @@
     "id": "tr-underworld-recomp-zenigatabloch-tomb-raider-underworld-xbox-360",
     "name": "Tomb Raider: Underworld (Xbox 360) — tr-underworld-recomp (ZenigataBloch)",
     "original_game_title": "Tomb Raider: Underworld (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomb-raider-underworld-xbox-360",
+      "evidence_urls": [
+        "https://github.com/ZenigataBloch/tr-underworld-recomp/blob/2259a249bb917a5947830ce1bde1ca6b19360526/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tomb-raider-underworld-xbox-360-xbox-360",
+          "title": "Tomb Raider: Underworld (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ZenigataBloch/tr-underworld-recomp/blob/2259a249bb917a5947830ce1bde1ca6b19360526/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Milestone 1 of 6 reaches the menu and audio. Choosing START reaches unregistered functions. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ZenigataBloch/tr-underworld-recomp",
     "platforms": [],

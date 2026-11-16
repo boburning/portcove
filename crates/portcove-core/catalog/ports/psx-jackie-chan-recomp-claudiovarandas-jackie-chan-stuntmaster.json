@@ -4,6 +4,23 @@
     "id": "psx-jackie-chan-recomp-claudiovarandas-jackie-chan-stuntmaster",
     "name": "Jackie Chan Stuntmaster — psx-jackie-chan-recomp (ClaudioVarandas)",
     "original_game_title": "Jackie Chan Stuntmaster",
+    "original_game": {
+      "format_version": 1,
+      "id": "jackie-chan-stuntmaster",
+      "evidence_urls": [
+        "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp/blob/55faaf82e23724456609ab8d25e0028ac52ef84b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jackie-chan-stuntmaster-playstation",
+          "title": "Jackie Chan Stuntmaster (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp/blob/55faaf82e23724456609ab8d25e0028ac52ef84b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. native 3D/sound/widescreen at 60 FPS claim; game-specific interrupt fixes; release packaging undone, no full playthrough. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ClaudioVarandas/psx-jackie-chan-recomp",
     "listed_at": "2026-10-25",

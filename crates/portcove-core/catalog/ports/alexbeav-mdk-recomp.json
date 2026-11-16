@@ -62,7 +62,24 @@
       "windows-x86-64": ["mdk-recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "MDK"
+    "original_game_title": "MDK",
+    "original_game": {
+      "format_version": 1,
+      "id": "mdk",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/bef8ed8845d2e3b925657655a7ce217707b4a9e4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mdk-playstation",
+          "title": "MDK (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/mdk-recomp/blob/bef8ed8845d2e3b925657655a7ce217707b4a9e4/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

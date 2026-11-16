@@ -5,6 +5,23 @@
     "name": "Yoshi's Story (DinoTale)",
     "summary": "Attach an independently permitted, prepared DinoTale Windows player for Yoshi’s Story using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual dinotale configuration/save root and component notices.",
     "original_game_title": "Yoshi's Story",
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshi-s-story",
+      "evidence_urls": [
+        "https://github.com/wootbeer/dinotale/blob/47cca7c72c69bf6435762bb354db838ab58ca1bc/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yoshi-s-story-nintendo-64",
+          "title": "Yoshi's Story (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/dinotale/blob/47cca7c72c69bf6435762bb354db838ab58ca1bc/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/wootbeer/dinotale",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

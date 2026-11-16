@@ -4,6 +4,23 @@
     "id": "whiteknightchronicles2recomp-wk2d-white-knight-chronicles-i-included-in-ii-edition",
     "name": "White Knight Chronicles I (included in II edition) — WhiteKnightChronicles2Recomp (WK2D)",
     "original_game_title": "White Knight Chronicles I (included in II edition)",
+    "original_game": {
+      "format_version": 1,
+      "id": "white-knight-chronicles-i-included-in-ii-edition",
+      "evidence_urls": [
+        "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp/blob/fd7749bcb8fbc83d48031a80111b5318b7533861/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "white-knight-chronicles-i-included-in-ii-edition-playstation-3",
+          "title": "White Knight Chronicles I (included in II edition) (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp/blob/fd7749bcb8fbc83d48031a80111b5318b7533861/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
     "listed_at": "2026-10-25",

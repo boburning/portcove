@@ -5,6 +5,23 @@
     "name": "Tony Hawk's Pro Skater 4 / Alexbeav PSXRecomp",
     "summary": "Build and play Tony Hawk's Pro Skater 4 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Tony Hawk's Pro Skater 4",
+    "original_game": {
+      "format_version": 1,
+      "id": "tony-hawk-s-pro-skater-4",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/6ccc613d79db45535d3bda16e79c9f526c33996c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tony-hawk-s-pro-skater-4-playstation",
+          "title": "Tony Hawk's Pro Skater 4 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp/blob/6ccc613d79db45535d3bda16e79c9f526c33996c/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-4-recomp",
     "issue_number": 489,
     "listed_at": "2026-10-23",

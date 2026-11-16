@@ -6,6 +6,23 @@
     "summary": "Keep the Brawl launcher, prepare your own Wii disc and preserve saves and mods in a permitted player copy.",
     "project_url": "https://github.com/josiahg2502-glitch/BrawlRecompiled",
     "original_game_title": "Super Smash Bros. Brawl",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-brawl",
+      "evidence_urls": [
+        "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/a77be8847ec9d8cf6128f086fe9c493d105ecbce/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-brawl-wii",
+          "title": "Super Smash Bros. Brawl (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/josiahg2502-glitch/BrawlRecompiled/blob/a77be8847ec9d8cf6128f086fe9c493d105ecbce/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 2434,
     "listed_at": "2026-10-24",
     "platforms": ["windows-x86-64", "linux-x86-64"],

@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "ICO",
+    "original_game": {
+      "format_version": 1,
+      "id": "ico",
+      "evidence_urls": [
+        "https://github.com/nathanialf/ico-pc/blob/1c09ef6b1bfe8be58b2e2d5c0e3c849537e5bcdb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ico-playstation-2",
+          "title": "ICO (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/nathanialf/ico-pc/blob/1c09ef6b1bfe8be58b2e2d5c0e3c849537e5bcdb/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/nathanialf/ico-pc/releases/tag/v0.8.5",
     "manual_setup": {
       "steps": [

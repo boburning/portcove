@@ -4,6 +4,23 @@
     "id": "gow2-nativo-ps2-cxldsakeb-god-of-war-ii",
     "name": "God of War II — GoW2-nativo-PS2 (cxldsakeb)",
     "original_game_title": "God of War II",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ii",
+      "evidence_urls": [
+        "https://github.com/cxldsakeb/GoW2-nativo-PS2/blob/5145dad446d2deb9276238e8d646c915bce988fb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-ii-playstation-2",
+          "title": "God of War II (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/cxldsakeb/GoW2-nativo-PS2/blob/5145dad446d2deb9276238e8d646c915bce988fb/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports the first playable area, cutscenes and saves at about 60 FPS. No player release is offered yet; Portcove has not confirmed performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/cxldsakeb/GoW2-nativo-PS2",
     "listed_at": "2026-10-25",

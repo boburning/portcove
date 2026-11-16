@@ -4,6 +4,23 @@
     "id": "project-re-visited-re3-brazilianhobbyist-resident-evil-3-nemesis",
     "name": "Resident Evil 3: Nemesis — Project-RE-Visited-RE3 (BrazilianHobbyist)",
     "original_game_title": "Resident Evil 3: Nemesis",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-3-nemesis",
+      "evidence_urls": [
+        "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3/blob/7ac28e21fe593da1784f8a48891d0600a6e35d87/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-3-nemesis-playstation",
+          "title": "Resident Evil 3: Nemesis (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3/blob/7ac28e21fe593da1784f8a48891d0600a6e35d87/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. This is experimental RE3 work. Earlier claims of fully static translation and 60 FPS were corrected. An older cache used interpretation for a measured 0.03–0.15% over four sessions totalling 20 minutes. That historical result does not establish no fallback or full-game compatibility. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/BrazilianHobbyist/Project-RE-Visited-RE3",
     "platforms": ["windows-x86-64"],

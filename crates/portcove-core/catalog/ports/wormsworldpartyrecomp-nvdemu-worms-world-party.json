@@ -4,6 +4,23 @@
     "id": "wormsworldpartyrecomp-nvdemu-worms-world-party",
     "name": "Worms World Party — WormsWorldPartyRecomp (NVDEMU)",
     "original_game_title": "Worms World Party",
+    "original_game": {
+      "format_version": 1,
+      "id": "worms-world-party",
+      "evidence_urls": [
+        "https://github.com/nvd123-YT/WormsWorldPartyRecomp/blob/227645dde0c6382b411b9cb36f4de36bdb715f08/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "worms-world-party-playstation",
+          "title": "Worms World Party (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nvd123-YT/WormsWorldPartyRecomp/blob/227645dde0c6382b411b9cb36f4de36bdb715f08/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. This native WWP project includes generic mods that are mostly experimental and disabled by default. The README does not establish full-game or platform completion. Updater signature procedures do not establish Portcove executable trust. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nvd123-YT/WormsWorldPartyRecomp",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64", "macos-x86-64"],

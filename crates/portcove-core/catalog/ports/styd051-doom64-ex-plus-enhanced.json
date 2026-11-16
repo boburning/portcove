@@ -49,7 +49,24 @@
         }
       ]
     },
-    "original_game_title": "Doom 64"
+    "original_game_title": "Doom 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-64",
+      "evidence_urls": [
+        "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced/blob/8b3dce734b5e075016902055af3d7a56275f8faa/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-64-nintendo-64",
+          "title": "Doom 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Styd051/DOOM64-EX-Plus-Enhanced/blob/8b3dce734b5e075016902055af3d7a56275f8faa/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

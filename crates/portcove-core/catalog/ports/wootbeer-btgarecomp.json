@@ -5,6 +5,23 @@
     "name": "BattleTanx: Global Assault (BTGARecomp)",
     "summary": "Attach an independently permitted, prepared BattleTanx Global Assault Recompiled Windows player for BattleTanx: Global Assault using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btgarecomp configuration/save root and component notices.",
     "original_game_title": "BattleTanx: Global Assault",
+    "original_game": {
+      "format_version": 1,
+      "id": "battletanx-global-assault",
+      "evidence_urls": [
+        "https://github.com/wootbeer/btgarecomp/blob/bcda2f71ee1f1f05988a88833cc004073e522ee8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "battletanx-global-assault-nintendo-64",
+          "title": "BattleTanx: Global Assault (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/btgarecomp/blob/bcda2f71ee1f1f05988a88833cc004073e522ee8/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/wootbeer/btgarecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

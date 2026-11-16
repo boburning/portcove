@@ -4,6 +4,23 @@
     "id": "carspsprecomp-danielperezl-disney-pixar-cars-psp",
     "name": "Disney/Pixar Cars (PSP) — CarsPSPRecomp (DanielPerezL)",
     "original_game_title": "Disney/Pixar Cars (PSP)",
+    "original_game": {
+      "format_version": 1,
+      "id": "disney-pixar-cars-psp",
+      "evidence_urls": [
+        "https://github.com/DanielPerezL/CarsPSPRecomp/blob/6333b5e1049415ad1d8aadea76ae789342c0b59b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "disney-pixar-cars-psp-playstation-portable",
+          "title": "Disney/Pixar Cars (PSP) (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/DanielPerezL/CarsPSPRecomp/blob/6333b5e1049415ad1d8aadea76ae789342c0b59b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a custom native C player with graphics, audio and video. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/DanielPerezL/CarsPSPRecomp",
     "platforms": [],

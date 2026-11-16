@@ -4,6 +4,23 @@
     "id": "roll-away-psx-pc-recomp-bitsandbreakpoints-roll-away-kula-world-kulaquest",
     "name": "Roll Away / Kula World / KulaQuest — roll-away-psx-pc-recomp (Bitsandbreakpoints)",
     "original_game_title": "Roll Away / Kula World / KulaQuest",
+    "original_game": {
+      "format_version": 1,
+      "id": "roll-away-kula-world-kulaquest",
+      "evidence_urls": [
+        "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp/blob/12381c2c98e9f69c643c608cab1b8db8d4ae740c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "roll-away-kula-world-kulaquest-playstation",
+          "title": "Roll Away / Kula World / KulaQuest (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp/blob/12381c2c98e9f69c643c608cab1b8db8d4ae740c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a native playable game and title-screen/gameplay features for three regions. Completion of every level has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Bitsandbreakpoints/roll-away-psx-pc-recomp",
     "platforms": [],

@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Metal Slug X",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-x",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp/blob/eddccb54f1648e2da037573e2cfddf04701e838f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metal-slug-x-playstation",
+          "title": "Metal Slug X (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Metal-Slug-X-Recomp/blob/eddccb54f1648e2da037573e2cfddf04701e838f/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 18840,
       "cover_id": 397601,

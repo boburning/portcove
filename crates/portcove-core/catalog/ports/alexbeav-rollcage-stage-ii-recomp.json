@@ -4,6 +4,23 @@
     "id": "alexbeav-rollcage-stage-ii-recomp",
     "name": "Rollcage Stage II / Alexbeav PSXRecomp",
     "original_game_title": "Rollcage Stage II",
+    "original_game": {
+      "format_version": 1,
+      "id": "rollcage-stage-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/bd782581cce782d8524c2c37a52530134fa39e9f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rollcage-stage-ii-playstation",
+          "title": "Rollcage Stage II (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp/blob/bd782581cce782d8524c2c37a52530134fa39e9f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Rollcage Stage II player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/rollcage-stage-ii-recomp",
     "issue_number": 1606,

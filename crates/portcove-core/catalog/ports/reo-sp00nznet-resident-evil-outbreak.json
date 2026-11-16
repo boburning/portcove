@@ -4,6 +4,23 @@
     "id": "reo-sp00nznet-resident-evil-outbreak",
     "name": "Resident Evil Outbreak — reo (sp00nznet)",
     "original_game_title": "Resident Evil Outbreak",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-outbreak",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/reo/blob/de19db7db52331d2c364cfd989c6fa4cec393632/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-outbreak-playstation-2",
+          "title": "Resident Evil Outbreak (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/reo/blob/de19db7db52331d2c364cfd989c6fa4cec393632/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "First scenario J Bar draws~35x slower than real time; no sound output/card image mount; full scenario untried. File2 only builds. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/reo",
     "platforms": ["windows-x86-64"],

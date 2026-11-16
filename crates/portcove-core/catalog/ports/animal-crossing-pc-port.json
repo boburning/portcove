@@ -8,6 +8,23 @@
     "project_url": "https://github.com/flyngmt/Nookery",
     "listed_at": "2026-10-23",
     "original_game_title": "Animal Crossing",
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing",
+      "evidence_urls": [
+        "https://github.com/flyngmt/Nookery/blob/1295ed1942f88d26329b0d4fb972318b1babb811/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "animal-crossing-gamecube",
+          "title": "Animal Crossing (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/flyngmt/Nookery/blob/1295ed1942f88d26329b0d4fb972318b1babb811/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 2655,
       "cover_id": 182255,

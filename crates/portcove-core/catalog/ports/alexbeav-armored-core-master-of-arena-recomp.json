@@ -52,6 +52,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "Armored Core: Master of Arena",
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-master-of-arena",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/c4f9e26d5ef857e8b36c7e920111f5345ab1faf7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "armored-core-master-of-arena-playstation",
+          "title": "Armored Core: Master of Arena (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-master-of-arena-recomp/blob/c4f9e26d5ef857e8b36c7e920111f5345ab1faf7/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["armoredcoremasterofarena-", "-linux-x64.zip"],
       "macos-aarch64": ["armoredcoremasterofarena-", "-macos-arm64.zip"],

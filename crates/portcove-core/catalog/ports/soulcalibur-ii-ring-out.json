@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Soulcalibur II",
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-ii",
+      "evidence_urls": [
+        "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "soulcalibur-ii-gamecube",
+          "title": "Soulcalibur II (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/jackpoison-prog/RingOut/blob/31c1bab7ecdd1f7a45b1a8a85930e4faf9638374/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "steps": [
         {

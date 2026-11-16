@@ -4,6 +4,23 @@
     "id": "earthworm-jim-hd-pc-port-devex780-earthworm-jim-hd",
     "name": "Earthworm Jim HD — Earthworm Jim HD PC port (devEx780)",
     "original_game_title": "Earthworm Jim HD",
+    "original_game": {
+      "format_version": 1,
+      "id": "earthworm-jim-hd",
+      "evidence_urls": [
+        "https://github.com/devEx780/earthworm-jim-hd-recomp/blob/d89ad98a27fe4ac5e945bcb72650cf2a1909d0b7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "earthworm-jim-hd-xbox-360",
+          "title": "Earthworm Jim HD (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/devEx780/earthworm-jim-hd-recomp/blob/d89ad98a27fe4ac5e945bcb72650cf2a1909d0b7/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Earthworm Jim HD port using your Xbox 360 files. Upstream reports working saves, local multiplayer and all 16 levels; a complete campaign and boss playthrough have not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/devEx780/earthworm-jim-hd-recomp",
     "platforms": ["windows-x86-64"],

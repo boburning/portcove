@@ -4,6 +4,23 @@
     "id": "sylpheed-stuken-project-sylpheed-arc-of-deception",
     "name": "Project Sylpheed: Arc of Deception — sylpheed (stuken)",
     "original_game_title": "Project Sylpheed: Arc of Deception",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-sylpheed-arc-of-deception",
+      "evidence_urls": [
+        "https://github.com/stuken/sylpheed/blob/166b189238d2943c60d3dfac458bb3bcda25d2fd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "project-sylpheed-arc-of-deception-xbox-360",
+          "title": "Project Sylpheed: Arc of Deception (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/stuken/sylpheed/blob/166b189238d2943c60d3dfac458bb3bcda25d2fd/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "A game-specific native project exists. Full-game compatibility is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/stuken/sylpheed",
     "listed_at": "2026-10-25",

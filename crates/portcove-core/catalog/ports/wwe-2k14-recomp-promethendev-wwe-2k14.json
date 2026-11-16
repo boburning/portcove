@@ -4,6 +4,23 @@
     "id": "wwe-2k14-recomp-promethendev-wwe-2k14",
     "name": "WWE 2K14 — WWE 2K14 Recomp (PromethenDev)",
     "original_game_title": "WWE 2K14",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwe-2k14",
+      "evidence_urls": [
+        "https://github.com/PromethenDev/wwe2k14-recomp/blob/a3e892d79d518afa4a33304891fb12fdf0fe3e5a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wwe-2k14-xbox-360",
+          "title": "WWE 2K14 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/PromethenDev/wwe2k14-recomp/blob/a3e892d79d518afa4a33304891fb12fdf0fe3e5a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Player releases and fixes are documented; full-campaign coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PromethenDev/wwe2k14-recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],

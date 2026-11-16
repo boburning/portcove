@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Mario Kart Wii",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-kart-wii",
+      "evidence_urls": [
+        "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-kart-wii-wii",
+          "title": "Mario Kart Wii (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/patchzyy/Wiicompiled/blob/549b14aefe3c28e716f3fc04630e14cc96d1de16/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "steps": [
         {

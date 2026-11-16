@@ -4,6 +4,23 @@
     "id": "allstars-ps3-colingamez-playstation-all-stars-battle-royale",
     "name": "PlayStation All-Stars Battle Royale — allstars-ps3 (ColinGamez)",
     "original_game_title": "PlayStation All-Stars Battle Royale",
+    "original_game": {
+      "format_version": 1,
+      "id": "playstation-all-stars-battle-royale",
+      "evidence_urls": [
+        "https://github.com/ColinGamez/allstars-ps3/blob/cc615b50282b4ebf52876603d08e55aa952a6b7d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "playstation-all-stars-battle-royale-playstation-3",
+          "title": "PlayStation All-Stars Battle Royale (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/ColinGamez/allstars-ps3/blob/cc615b50282b4ebf52876603d08e55aa952a6b7d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports startup reaching FIOS and Direct3D 12, then stalling on an invalid worker condition. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/ColinGamez/allstars-ps3",
     "platforms": [],

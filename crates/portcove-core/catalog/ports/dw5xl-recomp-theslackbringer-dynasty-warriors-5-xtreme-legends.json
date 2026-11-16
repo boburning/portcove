@@ -4,6 +4,23 @@
     "id": "dw5xl-recomp-theslackbringer-dynasty-warriors-5-xtreme-legends",
     "name": "Dynasty Warriors 5: Xtreme Legends — dw5xl-recomp (TheSlackbringer)",
     "original_game_title": "Dynasty Warriors 5: Xtreme Legends",
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-5-xtreme-legends",
+      "evidence_urls": [
+        "https://github.com/TheSlackbringer/dw5xl-recomp/blob/bb0fa760c190fb1f5b136e89a3e5afae1f0d49ec/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dynasty-warriors-5-xtreme-legends-playstation-2",
+          "title": "Dynasty Warriors 5: Xtreme Legends (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheSlackbringer/dw5xl-recomp/blob/bb0fa760c190fb1f5b136e89a3e5afae1f0d49ec/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "In development; tested scenes and modes are not complete playthrough; extended stability/scaling open. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/TheSlackbringer/dw5xl-recomp",
     "platforms": ["windows-x86-64"],

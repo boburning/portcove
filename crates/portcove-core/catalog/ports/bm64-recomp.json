@@ -8,6 +8,23 @@
     "project_url": "https://github.com/RevoSucks/BM64Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Bomberman 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-64",
+      "evidence_urls": [
+        "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bomberman-64-nintendo-64",
+          "title": "Bomberman 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/RevoSucks/BM64Recomp/blob/726adc908ca7abd27c4cba12d1f52a0c243727df/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3451,
       "cover_id": 239678,

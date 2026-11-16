@@ -5,6 +5,23 @@
     "name": "Wipeout XL / Alexbeav PSXRecomp",
     "summary": "PlayStation port of Wipeout XL. Portcove can build and update the Windows x64 and Linux x86-64 player with your own disc and BIOS. Mac setup uses the upstream kit.",
     "original_game_title": "Wipeout XL",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-xl",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/9f1188047812504f62d6c8344927bb55f15115d0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-xl-playstation",
+          "title": "Wipeout XL (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp/blob/9f1188047812504f62d6c8344927bb55f15115d0/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/wipeout-xl-recomp",
     "issue_number": 497,
     "listed_at": "2026-10-23",

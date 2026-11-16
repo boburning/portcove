@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Snowboard Kids",
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids",
+      "evidence_urls": [
+        "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-nintendo-64",
+          "title": "Snowboard Kids (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids-recomp/blob/68fac1b76fe5bb955bb6c92f20daf622139e05e2/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/cdlewis/snowboardkids-recomp/releases",
     "recommended_download_channel": "stable",
     "download_asset_hints": {

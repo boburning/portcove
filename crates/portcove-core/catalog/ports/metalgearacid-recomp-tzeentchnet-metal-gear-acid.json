@@ -4,6 +4,23 @@
     "id": "metalgearacid-recomp-tzeentchnet-metal-gear-acid",
     "name": "Metal Gear Acid — MetalGearAcid-Recomp (Tzeentchnet)",
     "original_game_title": "Metal Gear Acid",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-acid",
+      "evidence_urls": [
+        "https://github.com/Tzeentchnet/MetalGearAcid-Recomp/blob/22b3c625f05f0bef6928309c1efeda4ce4b98017/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metal-gear-acid-playstation-portable",
+          "title": "Metal Gear Acid (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Tzeentchnet/MetalGearAcid-Recomp/blob/22b3c625f05f0bef6928309c1efeda4ce4b98017/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Experimental source-only runtime with conservative fallback cap; no ready game package/completion. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Tzeentchnet/MetalGearAcid-Recomp",
     "platforms": ["windows-x86-64"],

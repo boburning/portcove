@@ -7,6 +7,23 @@
     "summary": "Native Snowboard Kids 2 recompilation.",
     "project_url": "https://github.com/cdlewis/snowboardkids2-recomp",
     "original_game_title": "Snowboard Kids 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "snowboard-kids-2",
+      "evidence_urls": [
+        "https://github.com/cdlewis/snowboardkids2-recomp/blob/59d16215526554b9fc51b18cd3612d6ef68bb2a8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "snowboard-kids-2-nintendo-64",
+          "title": "Snowboard Kids 2 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/cdlewis/snowboardkids2-recomp/blob/59d16215526554b9fc51b18cd3612d6ef68bb2a8/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3343,
       "cover_id": 130695,

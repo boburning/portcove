@@ -48,6 +48,23 @@
       "macos-x86-64": ["MediEvilRecomp-", "-macos-x64.zip"]
     },
     "original_game_title": "MediEvil",
+    "original_game": {
+      "format_version": 1,
+      "id": "medievil",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "medievil-playstation",
+          "title": "MediEvil (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/MediEvilRecomp/blob/2125f7090e3bbb8ea74000ff972ecbebdb09b7ed/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/BlackLabelHQ/MediEvilRecomp/releases",
     "recommended_download_channel": "stable"
   },

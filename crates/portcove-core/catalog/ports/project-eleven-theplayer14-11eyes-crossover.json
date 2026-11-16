@@ -4,6 +4,23 @@
     "id": "project-eleven-theplayer14-11eyes-crossover",
     "name": "11eyes CrossOver — project-eleven (ThePlayer14)",
     "original_game_title": "11eyes CrossOver",
+    "original_game": {
+      "format_version": 1,
+      "id": "11eyes-crossover",
+      "evidence_urls": [
+        "https://github.com/ThePlayer14/project-eleven-recomp/blob/0e3ed718e33e5e2df570fc10bbab246cd28b28ba/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "11eyes-crossover-xbox-360",
+          "title": "11eyes CrossOver (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ThePlayer14/project-eleven-recomp/blob/0e3ed718e33e5e2df570fc10bbab246cd28b28ba/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Source-build instructions exist. The extent of boot and gameplay support is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ThePlayer14/project-eleven-recomp",
     "listed_at": "2026-10-25",

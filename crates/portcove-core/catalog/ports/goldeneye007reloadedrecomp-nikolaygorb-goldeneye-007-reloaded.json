@@ -4,6 +4,23 @@
     "id": "goldeneye007reloadedrecomp-nikolaygorb-goldeneye-007-reloaded",
     "name": "GoldenEye 007: Reloaded — GoldenEye007ReloadedRecomp (nikolaygorb)",
     "original_game_title": "GoldenEye 007: Reloaded",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007-reloaded",
+      "evidence_urls": [
+        "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp/blob/f266e8492e40d62f2fac00a7717242f2b75f9f9b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-reloaded-xbox-360",
+          "title": "GoldenEye 007: Reloaded (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp/blob/f266e8492e40d62f2fac00a7717242f2b75f9f9b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports the main menu with video, audio and controller input, plus training and first-mission gameplay. Online multiplayer is not implemented. Its testing covers Windows; Linux and macOS build presets are untested. Portcove has not confirmed a campaign or platform compatibility. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/GoldenEye007ReloadedRecomp",
     "platforms": ["windows-x86-64"],

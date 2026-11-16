@@ -6,6 +6,23 @@
     "summary": "Play Poker Smash with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/poker-smash-recomp",
     "original_game_title": "Poker Smash",
+    "original_game": {
+      "format_version": 1,
+      "id": "poker-smash",
+      "evidence_urls": [
+        "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "poker-smash-xbox-360",
+          "title": "Poker Smash (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/poker-smash-recomp/blob/90701cdbd465d1d3f3524822aeae9ac36637e66f/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4122,
     "listed_at": "2026-11-08",
     "availability": "packages",

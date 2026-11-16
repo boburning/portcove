@@ -5,6 +5,23 @@
     "name": "Eternal Darkness: Sanity's Requiem (Eternal Darkness Recomp)",
     "summary": "Attach an independently permitted prepared Eternal Darkness Windows copy for your own European GEDP01 disc, with explicit native arguments and preservation of its external saves and settings.",
     "original_game_title": "Eternal Darkness: Sanity's Requiem",
+    "original_game": {
+      "format_version": 1,
+      "id": "eternal-darkness-sanity-s-requiem",
+      "evidence_urls": [
+        "https://github.com/griches/EternalDarknessRecomp/blob/75b8603f18ca86513e1db2fcb0afaa2e2e6d58ca/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "eternal-darkness-sanity-s-requiem-gamecube",
+          "title": "Eternal Darkness: Sanity's Requiem (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/griches/EternalDarknessRecomp/blob/75b8603f18ca86513e1db2fcb0afaa2e2e6d58ca/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/griches/EternalDarknessRecomp",
     "issue_number": 2570,
     "listed_at": "2026-10-25",

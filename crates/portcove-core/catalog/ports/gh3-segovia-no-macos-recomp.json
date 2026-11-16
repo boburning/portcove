@@ -5,6 +5,23 @@
     "project_url": "https://github.com/segovia-no/GH3-macOS-Recomp",
     "name": "Guitar Hero III: Legends of Rock / GH3 macOS Recomp",
     "original_game_title": "Guitar Hero III: Legends of Rock",
+    "original_game": {
+      "format_version": 1,
+      "id": "guitar-hero-iii-legends-of-rock",
+      "evidence_urls": [
+        "https://github.com/segovia-no/GH3-macOS-Recomp/blob/9548cf7b0d0d5b9348a05c59614becca9af65fb3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "guitar-hero-iii-legends-of-rock-xbox-360",
+          "title": "Guitar Hero III: Legends of Rock (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/segovia-no/GH3-macOS-Recomp/blob/9548cf7b0d0d5b9348a05c59614becca9af65fb3/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build the upstream Apple Silicon player from your own Guitar Hero III PC installation.",
     "issue_number": 6106,
     "listed_at": "2026-11-15",

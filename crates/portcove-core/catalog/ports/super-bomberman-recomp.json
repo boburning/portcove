@@ -8,6 +8,23 @@
     "project_url": "https://github.com/elliotttate/BombermanRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Super Bomberman",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-bomberman",
+      "evidence_urls": [
+        "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-bomberman-playstation",
+          "title": "Super Bomberman (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/elliotttate/BombermanRecomp/blob/56106599c1fb2f612fd642ee37c0e015611fc31d/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3450,
       "cover_id": 292645,

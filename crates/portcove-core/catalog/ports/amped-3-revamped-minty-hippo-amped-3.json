@@ -4,6 +4,23 @@
     "id": "amped-3-revamped-minty-hippo-amped-3",
     "name": "Amped 3 — Amped 3 Revamped (minty-hippo)",
     "original_game_title": "Amped 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "amped-3",
+      "evidence_urls": [
+        "https://github.com/minty-hippo/amped3revamped/blob/efb511a12e557ed1d91d0701ab5ac51584a2f162/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "amped-3-xbox-360",
+          "title": "Amped 3 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/minty-hippo/amped3revamped/blob/efb511a12e557ed1d91d0701ab5ac51584a2f162/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports extensive testing of Northstar and Snowbird. Other areas and high-refresh-rate modes remain incomplete. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/minty-hippo/amped3revamped",
     "platforms": ["windows-x86-64", "linux-x86-64"],

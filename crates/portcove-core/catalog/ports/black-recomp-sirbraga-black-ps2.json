@@ -4,6 +4,23 @@
     "id": "black-recomp-sirbraga-black-ps2",
     "name": "Black (PS2) — black-recomp (SirBraga)",
     "original_game_title": "Black (PS2)",
+    "original_game": {
+      "format_version": 1,
+      "id": "black-ps2",
+      "evidence_urls": [
+        "https://github.com/SirBraga/black-recomp/blob/44843668321cd7bb4bfef33679e5491233acfb55/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "black-ps2-playstation-2",
+          "title": "Black (PS2) (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/SirBraga/black-recomp/blob/44843668321cd7bb4bfef33679e5491233acfb55/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Native Veblensk gameplay claimed; exact full-game coverage unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/SirBraga/black-recomp",
     "platforms": ["macos-aarch64"],

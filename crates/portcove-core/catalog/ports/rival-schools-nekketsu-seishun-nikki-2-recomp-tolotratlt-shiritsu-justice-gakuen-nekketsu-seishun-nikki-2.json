@@ -4,6 +4,23 @@
     "id": "rival-schools-nekketsu-seishun-nikki-2-recomp-tolotratlt-shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
     "name": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2 — rival-schools-nekketsu-seishun-nikki-2-recomp (tolotratlt)",
     "original_game_title": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2",
+      "evidence_urls": [
+        "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp/blob/8435a83b3c4d8932d7d29704ddba885da93e9e9d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shiritsu-justice-gakuen-nekketsu-seishun-nikki-2-playstation",
+          "title": "Shiritsu Justice Gakuen: Nekketsu Seishun Nikki 2 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp/blob/8435a83b3c4d8932d7d29704ddba885da93e9e9d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Owned-input development kit; complete campaign/gameplay is not established by the setup recipe. Japanese sequel edition remains distinct from USA Arcade/Evolution discs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tolotratlt/rival-schools-nekketsu-seishun-nikki-2-recomp",
     "platforms": ["windows-x86-64"],

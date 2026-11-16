@@ -4,6 +4,23 @@
     "id": "mahmoud-mess-tekken-6-recomp-mahmoud-mess-tekken-6",
     "name": "Tekken 6 — mahmoud-mess Tekken 6 Recomp (mahmoud-mess)",
     "original_game_title": "Tekken 6",
+    "original_game": {
+      "format_version": 1,
+      "id": "tekken-6",
+      "evidence_urls": [
+        "https://github.com/mahmoud-mess/tekken6-recomp/blob/e5617817c8e5572e44b01ee88915f7e463b29b28/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tekken-6-xbox-360",
+          "title": "Tekken 6 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mahmoud-mess/tekken6-recomp/blob/e5617817c8e5572e44b01ee88915f7e463b29b28/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The reviewed README documents source generation and packaging, but does not claim that the game is playable from start to finish. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mahmoud-mess/tekken6-recomp",
     "listed_at": "2026-10-25",

@@ -5,6 +5,23 @@
     "name": "Dead or Alive 3 (DOA3 Recomp)",
     "summary": "Register a completed USA DOA3 Recomp Windows player and preserve its separate settings, extracted game data and saves.",
     "original_game_title": "Dead or Alive 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive-3",
+      "evidence_urls": [
+        "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-3-xbox",
+          "title": "Dead or Alive 3 (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/parkerallan/doa3-recomp/blob/919c49f7f364fce67e85f13e75d4921e148422d9/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/parkerallan/doa3-recomp",
     "issue_number": 2560,
     "listed_at": "2026-10-25",

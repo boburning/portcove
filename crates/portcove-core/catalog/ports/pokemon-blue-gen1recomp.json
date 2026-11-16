@@ -5,6 +5,23 @@
     "name": "Pokémon Blue (Gen1Recomp / G1R Deluxe)",
     "summary": "Import your own exact blue original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
     "original_game_title": "Pokémon Blue",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-blue",
+      "evidence_urls": [
+        "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-blue-game-boy",
+          "title": "Pokémon Blue (Game Boy, region not specified)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "availability": "packages",
     "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",

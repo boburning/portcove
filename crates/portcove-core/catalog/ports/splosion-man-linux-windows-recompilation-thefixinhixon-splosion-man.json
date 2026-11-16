@@ -4,6 +4,23 @@
     "id": "splosion-man-linux-windows-recompilation-thefixinhixon-splosion-man",
     "name": "'Splosion Man — 'Splosion Man — Linux & Windows Recompilation (thefixinhixon)",
     "original_game_title": "'Splosion Man",
+    "original_game": {
+      "format_version": 1,
+      "id": "splosion-man",
+      "evidence_urls": [
+        "https://github.com/thefixinhixon/SplosionManRecomp/blob/5c605ca2bc221e833e8735f1bfd89b52cb35e3c8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "splosion-man-xbox-360",
+          "title": "'Splosion Man (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/thefixinhixon/SplosionManRecomp/blob/5c605ca2bc221e833e8735f1bfd89b52cb35e3c8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes Linux as fully playable, but crashes can leave shared-memory files and damage the shader cache. CI built a Windows test package that was checked end-to-end through Proton. Native Windows testing has not been reported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/thefixinhixon/SplosionManRecomp",
     "listed_at": "2026-10-25",

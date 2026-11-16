@@ -7,6 +7,23 @@
     "summary": "Build and play Duke Nukem: Time to Kill on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp",
     "original_game_title": "Duke Nukem: Time to Kill",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-time-to-kill",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/06d0b4750415d8d9c4086f67b6a2f631ece7aae8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-time-to-kill-playstation",
+          "title": "Duke Nukem: Time to Kill (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/duke-nukem-time-to-kill-recomp/blob/06d0b4750415d8d9c4086f67b6a2f631ece7aae8/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 4130,
       "cover_id": 153570,

@@ -5,6 +5,23 @@
     "name": "NFL Head Coach 09 (NFL Head Coach 09 Static Recomp)",
     "summary": "Prepare NFL Head Coach 09 on Windows x86-64 from your own Xbox 360 disc image. The upstream setup compiles the player locally, and the player reads the ISO during play.",
     "original_game_title": "NFL Head Coach 09",
+    "original_game": {
+      "format_version": 1,
+      "id": "nfl-head-coach-09",
+      "evidence_urls": [
+        "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/34073a9ae7dd80d66257ae54d8cf42a903268770/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "nfl-head-coach-09-xbox-360",
+          "title": "NFL Head Coach 09 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/tools81/nfl-head-coach-09-static-recomp/blob/34073a9ae7dd80d66257ae54d8cf42a903268770/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/tools81/nfl-head-coach-09-static-recomp",
     "platforms": [],
     "availability": "unknown",

@@ -4,6 +4,23 @@
     "id": "v64recomp-1080-us-polaco1782-1080-snowboarding",
     "name": "1080° Snowboarding — v64recomp / 1080-us (polaco1782)",
     "original_game_title": "1080° Snowboarding",
+    "original_game": {
+      "format_version": 1,
+      "id": "1080-snowboarding",
+      "evidence_urls": [
+        "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "1080-snowboarding-nintendo-64",
+          "title": "1080° Snowboarding (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/polaco1782/v64recomp/blob/18ffbd4fa5d6f802321a663d853ac8408aafa19d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Explicit partial Nintendo 64 logo bounded Debug/Release only; menus/riding unvalidated; A complete playthrough has not been confirmed; results from another game do not establish that this one works. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/polaco1782/v64recomp",
     "platforms": [],

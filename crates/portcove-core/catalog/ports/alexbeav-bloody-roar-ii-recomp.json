@@ -5,6 +5,23 @@
     "name": "Bloody Roar II / Alexbeav PSXRecomp",
     "summary": "Build and play Bloody Roar II on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Bloody Roar II",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloody-roar-ii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/10d8ad83f829e2338f878e1d0a095c0c5228ee24/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bloody-roar-ii-playstation",
+          "title": "Bloody Roar II (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp/blob/10d8ad83f829e2338f878e1d0a095c0c5228ee24/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/bloody-roar-ii-recomp",
     "issue_number": 432,
     "listed_at": "2026-10-23",

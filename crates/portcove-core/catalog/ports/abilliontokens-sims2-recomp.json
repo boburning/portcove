@@ -5,6 +5,23 @@
     "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims 2 original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Sims 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sims-2",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-sims-2-xbox",
+          "title": "The Sims 2 (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims2-recomp/blob/8ce155df78ba5f5a2078acfeb2a5bbc8c2fc3689/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/abilliontokens/sims2-recomp",
     "platforms": [],
     "availability": "unknown",

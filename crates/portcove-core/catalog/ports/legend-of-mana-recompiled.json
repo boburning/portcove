@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Legend of Mana",
+    "original_game": {
+      "format_version": 1,
+      "id": "legend-of-mana",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp/blob/a423fed5e5ee32ba3e6f466620f4ad965007342b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "legend-of-mana-playstation",
+          "title": "Legend of Mana (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Legend-of-Mana-Recomp/blob/a423fed5e5ee32ba3e6f466620f4ad965007342b/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 14986,
       "cover_id": 511116,

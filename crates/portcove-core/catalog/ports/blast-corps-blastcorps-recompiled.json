@@ -5,6 +5,23 @@
     "name": "Blast Corps (BlastCorps: Recompiled)",
     "summary": "A native Blast Corps player for your own North American revision 1.1 dump.",
     "original_game_title": "Blast Corps",
+    "original_game": {
+      "format_version": 1,
+      "id": "blast-corps",
+      "evidence_urls": [
+        "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blast-corps-nintendo-64",
+          "title": "Blast Corps (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/SlaveOfIDO/blastcorps-recomp/blob/b5510451aabc2373079cd01e8c0ec2a8d01eb742/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/SlaveOfIDO/blastcorps-recomp",
     "issue_number": 2558,
     "listed_at": "2026-10-25",

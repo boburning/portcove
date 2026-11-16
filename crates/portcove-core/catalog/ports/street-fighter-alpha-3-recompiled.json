@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Street Fighter Alpha 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-alpha-3",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp/blob/7772f7edcf1a827c495c57d397ec3b8f9fd0acb5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "street-fighter-alpha-3-playstation",
+          "title": "Street Fighter Alpha 3 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Street-Fighter-Alpha-3-Recomp/blob/7772f7edcf1a827c495c57d397ec3b8f9fd0acb5/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 6704,

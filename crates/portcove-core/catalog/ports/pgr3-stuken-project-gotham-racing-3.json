@@ -4,6 +4,23 @@
     "id": "pgr3-stuken-project-gotham-racing-3",
     "name": "Project Gotham Racing 3 — pgr3 (stuken)",
     "original_game_title": "Project Gotham Racing 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "project-gotham-racing-3",
+      "evidence_urls": [
+        "https://github.com/stuken/pgr3/blob/0a63851b1230df4717e9732e3593041496d6c445/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "project-gotham-racing-3-xbox-360",
+          "title": "Project Gotham Racing 3 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/stuken/pgr3/blob/0a63851b1230df4717e9732e3593041496d6c445/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "A game-specific build and runtime exist. Complete progression has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/stuken/pgr3",
     "listed_at": "2026-10-25",

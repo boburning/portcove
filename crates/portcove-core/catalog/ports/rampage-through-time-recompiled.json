@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Rampage Through Time",
+    "original_game": {
+      "format_version": 1,
+      "id": "rampage-through-time",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp/blob/3a0e93658238d63ffe0fdf8b4cbc3605569dfff6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rampage-through-time-playstation",
+          "title": "Rampage Through Time (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Rampage---Through-Time-Recomp/blob/3a0e93658238d63ffe0fdf8b4cbc3605569dfff6/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 45091,
       "cover_id": 371171,

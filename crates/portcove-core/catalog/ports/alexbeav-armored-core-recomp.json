@@ -7,6 +7,23 @@
     "summary": "Build and play Armored Core on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/armored-core-recomp",
     "original_game_title": "Armored Core",
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/0777a31a8a4c50a84b7f10ab91d3cf7693a25b66/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "armored-core-playstation",
+          "title": "Armored Core (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/armored-core-recomp/blob/0777a31a8a4c50a84b7f10ab91d3cf7693a25b66/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 4144,
       "cover_id": 454572,

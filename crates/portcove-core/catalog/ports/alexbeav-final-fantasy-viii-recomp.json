@@ -52,6 +52,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "Final Fantasy VIII",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-viii",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/41b34748e57ea27487b34fd916da51a98a526d00/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-viii-playstation",
+          "title": "Final Fantasy VIII (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/final-fantasy-viii-recomp/blob/41b34748e57ea27487b34fd916da51a98a526d00/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["final-fantasy-viii-", "-linux-x64.zip"],
       "macos-aarch64": ["final-fantasy-viii-", "-macos-arm64.zip"],

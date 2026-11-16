@@ -5,6 +5,23 @@
     "name": "Super Smash Bros. Ultimate (ssbu-arena)",
     "summary": "An independently maintained OpenSmash fork for competitive Super Smash Bros. Ultimate 1v1, using AArch64-to-C translation and a Windows Vulkan player with its own relay/rollback. Network-impairment and rollback tests used two windows on one PC; ranked play, Elo and replays are planned. The README describes local source installation and says no prebuilt player, but the reviewed v0.2.7 release includes SSBU-Arena.exe, a player ZIP and manifest; that discrepancy remains. Windows 10/11 x64 is primary. Linux/macOS guide links do not establish exact CPU or gameplay support. Use your own 13.0.4 or 13.0.5 dump, keys and owned updates/DLC. Separate firmware requirements are unclear. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Super Smash Bros. Ultimate",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-smash-bros-ultimate",
+      "evidence_urls": [
+        "https://github.com/SSBUArena/ssbu-arena/blob/4c92a07497aabd5318d99a54b8ce409094ceae20/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-smash-bros-ultimate-nintendo-switch",
+          "title": "Super Smash Bros. Ultimate (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/SSBUArena/ssbu-arena/blob/4c92a07497aabd5318d99a54b8ce409094ceae20/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/SSBUArena/ssbu-arena",
     "listed_at": "2026-10-25",
     "platforms": [],

@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Beetle Adventure Racing!",
+    "original_game": {
+      "format_version": 1,
+      "id": "beetle-adventure-racing",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "beetle-adventure-racing-nintendo-64",
+          "title": "Beetle Adventure Racing! (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/blob/6497e67257809401468cd47850393775952b31bb/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/danielgomesvieira2000/beetle-adventure-racing-recomp/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {

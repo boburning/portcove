@@ -6,6 +6,23 @@
     "summary": "Play TARGET: Terror with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/target-terror-wii-recomp",
     "original_game_title": "TARGET: Terror",
+    "original_game": {
+      "format_version": 1,
+      "id": "target-terror",
+      "evidence_urls": [
+        "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "target-terror-wii",
+          "title": "TARGET: Terror (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4178,
     "listed_at": "2026-11-08",
     "availability": "packages",

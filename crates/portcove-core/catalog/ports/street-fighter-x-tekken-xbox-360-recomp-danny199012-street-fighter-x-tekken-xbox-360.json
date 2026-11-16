@@ -4,6 +4,23 @@
     "id": "street-fighter-x-tekken-xbox-360-recomp-danny199012-street-fighter-x-tekken-xbox-360",
     "name": "Street Fighter X Tekken (Xbox 360) — Street Fighter X Tekken — Xbox 360 Recomp (danny199012)",
     "original_game_title": "Street Fighter X Tekken (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-x-tekken-xbox-360",
+      "evidence_urls": [
+        "https://github.com/danny199012/StreetFighter-X-Tekken-Recomp/blob/996a731a3d58d7124164f78318f25aac6905281e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "street-fighter-x-tekken-xbox-360-xbox-360",
+          "title": "Street Fighter X Tekken (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/danny199012/StreetFighter-X-Tekken-Recomp/blob/996a731a3d58d7124164f78318f25aac6905281e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims menus, selection and matches work from start to finish. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/danny199012/StreetFighter-X-Tekken-Recomp",
     "platforms": ["windows-x86-64"],

@@ -61,7 +61,24 @@
       "macos-aarch64": ["xena-warrior-princess-recomp-", "-macos-arm64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Xena: Warrior Princess"
+    "original_game_title": "Xena: Warrior Princess",
+    "original_game": {
+      "format_version": 1,
+      "id": "xena-warrior-princess",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/576abbc428bc51a166897ef696da3f68f20243f7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "xena-warrior-princess-playstation",
+          "title": "Xena: Warrior Princess (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/xena-warrior-princess-recomp/blob/576abbc428bc51a166897ef696da3f68f20243f7/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

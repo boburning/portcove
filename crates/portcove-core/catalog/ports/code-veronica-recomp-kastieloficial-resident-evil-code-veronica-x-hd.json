@@ -4,6 +4,23 @@
     "id": "code-veronica-recomp-kastieloficial-resident-evil-code-veronica-x-hd",
     "name": "Resident Evil Code: Veronica X HD — Code Veronica Recomp (kastieloficial)",
     "original_game_title": "Resident Evil Code: Veronica X HD",
+    "original_game": {
+      "format_version": 1,
+      "id": "resident-evil-code-veronica-x-hd",
+      "evidence_urls": [
+        "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "resident-evil-code-veronica-x-hd-playstation-3",
+          "title": "Resident Evil Code: Veronica X HD (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC/blob/5d5e9013700914cf0042a8fb1c2ad62fb51b0e91/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes native play, 60 FPS and a speedrun route. A complete playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/kastieloficial/RE-Code-Veronica-PS3-HD-Recomp-PC",
     "listed_at": "2026-10-25",

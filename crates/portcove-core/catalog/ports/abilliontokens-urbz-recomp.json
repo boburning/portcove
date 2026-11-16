@@ -5,6 +5,23 @@
     "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
     "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Urbz: Sims in the City",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-urbz-sims-in-the-city",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-urbz-sims-in-the-city-xbox",
+          "title": "The Urbz: Sims in the City (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/urbz-recomp/blob/aac2198e767fece3d690863fab6ff3d42776fb3f/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/abilliontokens/urbz-recomp",
     "platforms": [],
     "availability": "unknown",

@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Bomberman-World-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Bomberman World",
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-world",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Bomberman-World-Recomp/blob/284ab8680c4fc765bd3478cd7db60dbb78a1dba2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bomberman-world-playstation",
+          "title": "Bomberman World (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Bomberman-World-Recomp/blob/284ab8680c4fc765bd3478cd7db60dbb78a1dba2/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 27255,
       "cover_id": 380305,

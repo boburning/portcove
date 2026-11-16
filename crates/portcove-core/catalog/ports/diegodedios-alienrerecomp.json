@@ -4,6 +4,23 @@
     "id": "diegodedios-alienrerecomp",
     "name": "Alien Resurrection / AlienReRecomp",
     "original_game_title": "Alien Resurrection",
+    "original_game": {
+      "format_version": 1,
+      "id": "alien-resurrection",
+      "evidence_urls": [
+        "https://github.com/DiegoDeDios/AlienReRecomp/blob/59c60ebc171a2e7715122599e4e36d4a91ecd86d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "alien-resurrection-playstation",
+          "title": "Alien Resurrection (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/DiegoDeDios/AlienReRecomp/blob/59c60ebc171a2e7715122599e4e36d4a91ecd86d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play Alien Resurrection with your own USA PlayStation disc image.",
     "project_url": "https://github.com/DiegoDeDios/AlienReRecomp",
     "issue_number": 2746,

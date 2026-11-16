@@ -5,6 +5,23 @@
     "name": "Vib-Ribbon / Alexbeav PSXRecomp",
     "summary": "PlayStation port of Vib-Ribbon. Portcove can build and update the Windows x64 and Linux x86-64 player with your own disc and BIOS. Mac setup uses the upstream kit.",
     "original_game_title": "Vib-Ribbon",
+    "original_game": {
+      "format_version": 1,
+      "id": "vib-ribbon",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/8215e4db2d4a3a3d2bbff4969e11db8fc36e54fa/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "vib-ribbon-playstation",
+          "title": "Vib-Ribbon (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp/blob/8215e4db2d4a3a3d2bbff4969e11db8fc36e54fa/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/vib-ribbon-recomp",
     "issue_number": 495,
     "listed_at": "2026-10-23",

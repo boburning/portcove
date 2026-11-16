@@ -4,6 +4,23 @@
     "id": "last-raven-recomp-sifayne-armored-core-last-raven-portable",
     "name": "Armored Core: Last Raven Portable — last-raven-recomp (Sifayne)",
     "original_game_title": "Armored Core: Last Raven Portable",
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core-last-raven-portable",
+      "evidence_urls": [
+        "https://github.com/Sifayne/last-raven-recomp/blob/23d4ccf7936056059179e945307282ebb7ad3234/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "armored-core-last-raven-portable-playstation-portable",
+          "title": "Armored Core: Last Raven Portable (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Sifayne/last-raven-recomp/blob/23d4ccf7936056059179e945307282ebb7ad3234/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports startup, movies, the title screen and a runtime. Mission gameplay is not confirmed here; check the project’s status notes before setup. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Sifayne/last-raven-recomp",
     "platforms": [],

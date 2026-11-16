@@ -4,6 +4,23 @@
     "id": "way-of-the-samurai-decomp-dnb4ever-way-of-the-samurai",
     "name": "Way of the Samurai — way-of-the-samurai-decomp (dnb4ever)",
     "original_game_title": "Way of the Samurai",
+    "original_game": {
+      "format_version": 1,
+      "id": "way-of-the-samurai",
+      "evidence_urls": [
+        "https://github.com/dnb4ever/way-of-the-samurai-decomp/blob/1a49bb50b466e8090c4a406379b6a35ea2d3214f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "way-of-the-samurai-playstation-2",
+          "title": "Way of the Samurai (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/dnb4ever/way-of-the-samurai-decomp/blob/1a49bb50b466e8090c4a406379b6a35ea2d3214f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Matching C and a separate static native runtime reach their own IOP, main loop and first frames. Full gameplay has not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dnb4ever/way-of-the-samurai-decomp",
     "platforms": [],

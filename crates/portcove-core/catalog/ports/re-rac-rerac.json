@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Ratchet & Clank",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-clank",
+      "evidence_urls": [
+        "https://github.com/re-rac/rerac/blob/ae1e3432a0d5e21bd08d3872d3b04afef98be666/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ratchet-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/re-rac/rerac/blob/ae1e3432a0d5e21bd08d3872d3b04afef98be666/README.md"
+          ]
+        }
+      ]
+    },
     "recommended_download_channel": "beta",
     "release_url": "https://github.com/re-rac/rerac/releases/tag/v0.3.6-alpha",
     "manual_setup": {

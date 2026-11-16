@@ -7,6 +7,23 @@
     "summary": "Play Super Metroid Recompiled with your own exact original on Windows, Linux or Mac.",
     "project_url": "https://github.com/mstan/SuperMetroidRecomp",
     "original_game_title": "Super Metroid",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-metroid",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-metroid-super-nintendo",
+          "title": "Super Metroid (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMetroidRecomp/blob/113951fc32f9783c1be0a947ea17c9aabfba9066/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 164,
     "listed_at": "2026-10-23",
     "artwork": {

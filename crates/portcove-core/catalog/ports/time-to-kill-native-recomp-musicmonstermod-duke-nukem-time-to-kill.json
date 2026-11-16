@@ -4,6 +4,23 @@
     "id": "time-to-kill-native-recomp-musicmonstermod-duke-nukem-time-to-kill",
     "name": "Duke Nukem: Time to Kill — Time to Kill native recomp (MusicMonsterMod)",
     "original_game_title": "Duke Nukem: Time to Kill",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-time-to-kill",
+      "evidence_urls": [
+        "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/6e887c5d0de51c3a843df7408ecccb5f6ef9858b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-time-to-kill-playstation",
+          "title": "Duke Nukem: Time to Kill (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp/blob/6e887c5d0de51c3a843df7408ecccb5f6ef9858b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a playable native runtime. Complete level and campaign coverage has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/MusicMonsterMod/duke-nukem-time-to-kill-recomp",
     "platforms": [],

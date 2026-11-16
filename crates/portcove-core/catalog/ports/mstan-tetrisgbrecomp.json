@@ -5,6 +5,23 @@
     "name": "Tetris (TetrisGBRecomp)",
     "summary": "A native Tetris Game Boy player for your own matching World v1.0 original. Includes a separate in-process launcher; the corrected upstream route and original requirements are described below.",
     "original_game_title": "Tetris",
+    "original_game": {
+      "format_version": 1,
+      "id": "tetris",
+      "evidence_urls": [
+        "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tetris-game-boy",
+          "title": "Tetris (Game Boy, region not specified)",
+          "system": "game-boy",
+          "evidence_urls": [
+            "https://github.com/mstan/TetrisGBRecomp/blob/cf67e43b032dd505716715ebd9eab9d5bf0e25c8/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/mstan/TetrisGBRecomp",
     "platforms": [],
     "availability": "unknown",

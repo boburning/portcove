@@ -5,6 +5,23 @@
     "name": "Fear Effect / Alexbeav PSXRecomp",
     "summary": "Build and play Fear Effect on Windows or Linux with your own matching USA four-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Fear Effect",
+    "original_game": {
+      "format_version": 1,
+      "id": "fear-effect",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/484eaad399240b4261ef40fcc0280276cface5ff/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fear-effect-playstation",
+          "title": "Fear Effect (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp/blob/484eaad399240b4261ef40fcc0280276cface5ff/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/fear-effect-recomp",
     "issue_number": 447,
     "listed_at": "2026-10-23",

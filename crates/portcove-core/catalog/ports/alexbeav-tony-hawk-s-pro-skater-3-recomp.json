@@ -5,6 +5,23 @@
     "name": "Tony Hawk's Pro Skater 3 / Alexbeav PSXRecomp",
     "summary": "Build and play Tony Hawk's Pro Skater 3 on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Tony Hawk's Pro Skater 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "tony-hawk-s-pro-skater-3",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/165ffe2bfd614ff9cb072bb063b5f8568cf61b74/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tony-hawk-s-pro-skater-3-playstation",
+          "title": "Tony Hawk's Pro Skater 3 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp/blob/165ffe2bfd614ff9cb072bb063b5f8568cf61b74/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/tony-hawk-s-pro-skater-3-recomp",
     "issue_number": 493,
     "listed_at": "2026-10-23",

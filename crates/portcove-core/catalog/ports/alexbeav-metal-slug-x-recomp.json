@@ -5,6 +5,23 @@
     "name": "Metal Slug X / Alexbeav PSXRecomp",
     "summary": "Portcove builds Metal Slug X on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "original_game_title": "Metal Slug X",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-slug-x",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/0f26cd047d1ad7be2efd672ae36a49a2df513422/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metal-slug-x-playstation",
+          "title": "Metal Slug X (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp/blob/0f26cd047d1ad7be2efd672ae36a49a2df513422/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/metal-slug-x-recomp",
     "issue_number": 469,
     "listed_at": "2026-10-23",

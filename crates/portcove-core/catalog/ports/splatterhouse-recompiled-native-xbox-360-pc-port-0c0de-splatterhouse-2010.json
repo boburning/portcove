@@ -4,6 +4,23 @@
     "id": "splatterhouse-recompiled-native-xbox-360-pc-port-0c0de-splatterhouse-2010",
     "name": "Splatterhouse (2010) — Splatterhouse Recompiled — native Xbox 360 → PC port (0c0de)",
     "original_game_title": "Splatterhouse (2010)",
+    "original_game": {
+      "format_version": 1,
+      "id": "splatterhouse-2010",
+      "evidence_urls": [
+        "https://github.com/0c0de/splatterhouse-decomp/blob/fe3370272ebc792ba2d2b5c988fc4ff9d0c7f0a1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "splatterhouse-2010-xbox-360",
+          "title": "Splatterhouse (2010) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/0c0de/splatterhouse-decomp/blob/fe3370272ebc792ba2d2b5c988fc4ff9d0c7f0a1/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims campaign and DLC play from start to finish at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/0c0de/splatterhouse-decomp",
     "listed_at": "2026-10-25",

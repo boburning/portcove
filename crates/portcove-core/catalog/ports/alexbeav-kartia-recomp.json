@@ -4,6 +4,23 @@
     "id": "alexbeav-kartia-recomp",
     "name": "Kartia: The Word of Fate / Alexbeav PSXRecomp",
     "original_game_title": "Kartia: The Word of Fate",
+    "original_game": {
+      "format_version": 1,
+      "id": "kartia-the-word-of-fate",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/31b40b70f9de43a685d8a92a8e578009e531e16e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "kartia-the-word-of-fate-playstation",
+          "title": "Kartia: The Word of Fate (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/kartia-recomp/blob/31b40b70f9de43a685d8a92a8e578009e531e16e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Kartia: The Word of Fate player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/kartia-recomp",
     "issue_number": 1600,

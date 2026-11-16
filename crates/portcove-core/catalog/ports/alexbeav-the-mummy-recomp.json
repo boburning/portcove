@@ -53,7 +53,24 @@
       "windows-x86-64": ["The-Mummy-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "The Mummy"
+    "original_game_title": "The Mummy",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-mummy",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/133b701ad123f2b22f29a3a51e73d997c2bd44e6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-mummy-playstation",
+          "title": "The Mummy (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/the-mummy-recomp/blob/133b701ad123f2b22f29a3a51e73d997c2bd44e6/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

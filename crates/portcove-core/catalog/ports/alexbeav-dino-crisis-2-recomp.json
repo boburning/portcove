@@ -8,6 +8,23 @@
     "project_url": "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Dino Crisis 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis-2",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/d9454185f85abadb9304809bbc07e0fe893e9101/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dino-crisis-2-playstation",
+          "title": "Dino Crisis 2 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/dino-crisis-2-recomp/blob/d9454185f85abadb9304809bbc07e0fe893e9101/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 4132,
       "cover_id": 407370,

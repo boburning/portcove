@@ -5,6 +5,23 @@
     "name": "Spider-Man / Alexbeav PSXRecomp",
     "summary": "Build and play Spider-Man on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Spider-Man",
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/86dba1d9946fb7bc9b59ea574741ea274e49a8e5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "spider-man-playstation",
+          "title": "Spider-Man (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/spider-man-recomp/blob/86dba1d9946fb7bc9b59ea574741ea274e49a8e5/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/spider-man-recomp",
     "issue_number": 476,
     "listed_at": "2026-10-23",

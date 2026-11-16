@@ -4,6 +4,23 @@
     "id": "ror-port-raikodenpa-rule-of-rose",
     "name": "Rule of Rose — RoR-Port (RaikoDenpa)",
     "original_game_title": "Rule of Rose",
+    "original_game": {
+      "format_version": 1,
+      "id": "rule-of-rose",
+      "evidence_urls": [
+        "https://github.com/RaikoDenpa/RoR-Port/blob/e22d3a35862c7e888afbb11523f6c66ce53bdf89/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rule-of-rose-playstation-2",
+          "title": "Rule of Rose (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/RaikoDenpa/RoR-Port/blob/e22d3a35862c7e888afbb11523f6c66ce53bdf89/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This personal work in progress uses reverse engineering and static recompilation. It reaches the main program and draws the first frames. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/RaikoDenpa/RoR-Port",
     "platforms": [],

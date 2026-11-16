@@ -4,6 +4,23 @@
     "id": "god-of-war-psp-native-ports-drummingbird1-god-of-war-ghost-of-sparta",
     "name": "God of War: Ghost of Sparta — God of War PSP native ports (DrummingBird1)",
     "original_game_title": "God of War: Ghost of Sparta",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ghost-of-sparta",
+      "evidence_urls": [
+        "https://github.com/DrummingBird1/gow-psp-recomp/blob/18800afd0cfa84e5018ddb7e515f4b6571bfabe5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-ghost-of-sparta-playstation-portable",
+          "title": "God of War: Ghost of Sparta (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/DrummingBird1/gow-psp-recomp/blob/18800afd0cfa84e5018ddb7e515f4b6571bfabe5/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The v1.2.1 launcher builds locally with pinned portable tools. Upstream reports automated tours loading every level, but neither game has a complete playthrough confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/DrummingBird1/gow-psp-recomp",
     "listed_at": "2026-10-25",

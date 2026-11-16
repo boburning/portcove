@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Bomberman Fantasy Race",
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-fantasy-race",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp/blob/188c4279df97b266d142156695e44d94006d8398/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bomberman-fantasy-race-playstation",
+          "title": "Bomberman Fantasy Race (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Bomberman-Fantasy-Race-Recomp/blob/188c4279df97b266d142156695e44d94006d8398/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 22773,
       "cover_id": 352710,

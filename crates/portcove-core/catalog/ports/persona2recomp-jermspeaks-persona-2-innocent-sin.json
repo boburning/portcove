@@ -4,6 +4,23 @@
     "id": "persona2recomp-jermspeaks-persona-2-innocent-sin",
     "name": "Persona 2: Innocent Sin — Persona2Recomp (jermspeaks)",
     "original_game_title": "Persona 2: Innocent Sin",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-2-innocent-sin",
+      "evidence_urls": [
+        "https://github.com/jermspeaks/Persona2Recomp/blob/4f8aa006b883a2b50dee62de74e054df6ed234de/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "persona-2-innocent-sin-playstation",
+          "title": "Persona 2: Innocent Sin (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/jermspeaks/Persona2Recomp/blob/4f8aa006b883a2b50dee62de74e054df6ed234de/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. This in-development version 0.1.0 uses static recompilation with game-specific changes. A full playthrough and platform acceptance have not been recorded. Generated-code and framework licences remain separate. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/jermspeaks/Persona2Recomp",
     "platforms": [],

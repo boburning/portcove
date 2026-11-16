@@ -4,6 +4,23 @@
     "id": "xenogearsrecomp-opokxeno-xenogears",
     "name": "Xenogears — XenogearsRecomp (OpokXeno)",
     "original_game_title": "Xenogears",
+    "original_game": {
+      "format_version": 1,
+      "id": "xenogears",
+      "evidence_urls": [
+        "https://github.com/OpokXeno/xenogears-recomp/blob/131614f70abdc4e36c70e63e8f5be33f8dcd8013/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "xenogears-playstation",
+          "title": "Xenogears (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/OpokXeno/xenogears-recomp/blob/131614f70abdc4e36c70e63e8f5be33f8dcd8013/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The alpha reaches boot, title, intro, opening gameplay, audio and saving. Start-to-finish checks are incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/OpokXeno/xenogears-recomp",
     "platforms": [],

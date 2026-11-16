@@ -7,6 +7,23 @@
     "summary": "Native Pikmin port from Open Nectar; gameplay has not been tested by Portcove.",
     "project_url": "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port",
     "original_game_title": "Pikmin",
+    "original_game": {
+      "format_version": 1,
+      "id": "pikmin",
+      "evidence_urls": [
+        "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/94b9f2e0a6dc9a3ae8f12bc8043a1c37cad3a05b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pikmin-gamecube",
+          "title": "Pikmin (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/SSunnKing/Open-Nectar---Pikmin-Native-PC-Mobile-Port/blob/94b9f2e0a6dc9a3ae8f12bc8043a1c37cad3a05b/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 2239,
       "cover_id": 310696,

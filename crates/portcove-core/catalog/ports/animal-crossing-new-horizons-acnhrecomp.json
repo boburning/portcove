@@ -5,6 +5,23 @@
     "name": "Animal Crossing: New Horizons (ACNHRecomp)",
     "summary": "An experimental Animal Crossing: New Horizons native port based on Wonder, translating AArch64 main/sdk/subsdk0 code to C++ with Vulkan. The project reports the opening and island walking at 30 FPS on Ubuntu Linux x64 with Iris Xe. A full day and saving are unconfirmed; forcing 60 FPS doubles game speed, online play is unavailable and a bird-head rendering defect remains. There are no releases: the launcher/bash setup imports and builds locally. Windows setup requires Linux, Mac or WSL2 and does not provide a native Windows build pipeline; Android is unsupported. Apple Silicon MoltenVK scripts are untested. Supply your own base NSP and 3.0.2 update NSP for title 01006F8002326000, with prod.keys; title.keys is recommended and DLC is optional. The root guide requires no separate firmware folder; exact regional/build hashes are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Animal Crossing: New Horizons",
+    "original_game": {
+      "format_version": 1,
+      "id": "animal-crossing-new-horizons",
+      "evidence_urls": [
+        "https://github.com/Nycolazs/ACNHRecomp/blob/4dad84507e29a856ef34a9a28d1e645e4bad0397/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "animal-crossing-new-horizons-nintendo-switch",
+          "title": "Animal Crossing: New Horizons (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/Nycolazs/ACNHRecomp/blob/4dad84507e29a856ef34a9a28d1e645e4bad0397/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Nycolazs/ACNHRecomp",
     "listed_at": "2026-10-25",
     "funding_urls": [

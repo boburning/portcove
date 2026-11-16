@@ -4,6 +4,23 @@
     "id": "hg-kunodemetries-haunting-ground",
     "name": "Haunting Ground — HG (KunoDemetries)",
     "original_game_title": "Haunting Ground",
+    "original_game": {
+      "format_version": 1,
+      "id": "haunting-ground",
+      "evidence_urls": [
+        "https://github.com/KunoDemetries/HG/blob/d134af4970c15325b075e130d88be3ac17b20890/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "haunting-ground-playstation-2",
+          "title": "Haunting Ground (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/KunoDemetries/HG/blob/d134af4970c15325b075e130d88be3ac17b20890/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports menus and a New Game path using PS2Recomp. Movie and controller blockers remain; the game is not playable. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/KunoDemetries/HG",
     "platforms": [],

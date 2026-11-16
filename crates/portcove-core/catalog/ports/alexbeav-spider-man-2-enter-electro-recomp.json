@@ -4,6 +4,23 @@
     "id": "alexbeav-spider-man-2-enter-electro-recomp",
     "name": "Spider-Man 2: Enter Electro / Alexbeav PSXRecomp",
     "original_game_title": "Spider-Man 2: Enter Electro",
+    "original_game": {
+      "format_version": 1,
+      "id": "spider-man-2-enter-electro",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/521a525cb2fee98400661b37d8ffe78482411d8c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "spider-man-2-enter-electro-playstation",
+          "title": "Spider-Man 2: Enter Electro (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp/blob/521a525cb2fee98400661b37d8ffe78482411d8c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Spider-Man 2: Enter Electro player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/spider-man-2-enter-electro-recomp",
     "issue_number": 1607,

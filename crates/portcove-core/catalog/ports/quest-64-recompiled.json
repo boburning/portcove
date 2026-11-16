@@ -8,6 +8,23 @@
     "project_url": "https://github.com/Rainchus/Quest64-Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Quest 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "quest-64",
+      "evidence_urls": [
+        "https://github.com/Rainchus/Quest64-Recomp/blob/ea94271a3ed1101628bfdac95e9966b31bd25f39/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "quest-64-nintendo-64",
+          "title": "Quest 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/Rainchus/Quest64-Recomp/blob/ea94271a3ed1101628bfdac95e9966b31bd25f39/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3580,
       "cover_id": 400422,

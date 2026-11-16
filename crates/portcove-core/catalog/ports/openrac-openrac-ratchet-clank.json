@@ -4,6 +4,23 @@
     "id": "openrac-openrac-ratchet-clank",
     "name": "Ratchet & Clank — OpenRAC (OpenRAC)",
     "original_game_title": "Ratchet & Clank",
+    "original_game": {
+      "format_version": 1,
+      "id": "ratchet-clank",
+      "evidence_urls": [
+        "https://github.com/OpenRAC/OpenRAC/blob/8f9945dd47edc81918a5e48bfc302ec29d36390c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ratchet-clank-playstation-2",
+          "title": "Ratchet & Clank (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/OpenRAC/OpenRAC/blob/8f9945dd47edc81918a5e48bfc302ec29d36390c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The launcher release includes the first native port and skips unmatched assembly. SDK releases and matching-progress counts do not establish that all six games are playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/OpenRAC/OpenRAC",
     "listed_at": "2026-10-25",

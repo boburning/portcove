@@ -4,6 +4,23 @@
     "id": "squarehole360-gears3-gloriouseggroll-gears-of-war-3",
     "name": "Gears of War 3 — squarehole360 Gears3 (GloriousEggroll)",
     "original_game_title": "Gears of War 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-3",
+      "evidence_urls": [
+        "https://github.com/GloriousEggroll/squarehole360/blob/c2ce9095306eb13204ef6a3faad26bcf0eaf1e8f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "gears-of-war-3-xbox-360",
+          "title": "Gears of War 3 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/GloriousEggroll/squarehole360/blob/c2ce9095306eb13204ef6a3faad26bcf0eaf1e8f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports playable Linux results and benchmarks for specific scenes. A Windows binary procedure is documented, but Portcove has not tested it. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/GloriousEggroll/squarehole360",
     "platforms": [],

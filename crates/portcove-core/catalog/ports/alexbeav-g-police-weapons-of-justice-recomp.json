@@ -4,6 +4,23 @@
     "id": "alexbeav-g-police-weapons-of-justice-recomp",
     "name": "G-Police: Weapons of Justice / Alexbeav PSXRecomp",
     "original_game_title": "G-Police: Weapons of Justice",
+    "original_game": {
+      "format_version": 1,
+      "id": "g-police-weapons-of-justice",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/0801bffddc864631ab27b1637de8820410e72717/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "g-police-weapons-of-justice-playstation",
+          "title": "G-Police: Weapons of Justice (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp/blob/0801bffddc864631ab27b1637de8820410e72717/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native G-Police: Weapons of Justice player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/g-police-weapons-of-justice-recomp",
     "issue_number": 1596,

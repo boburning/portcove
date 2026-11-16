@@ -7,6 +7,23 @@
     "summary": "Build and play Fade to Black on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp",
     "original_game_title": "Fade to Black",
+    "original_game": {
+      "format_version": 1,
+      "id": "fade-to-black",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/84c0078bf5ba102144ef0ea0f48ddd222ceb5762/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fade-to-black-playstation",
+          "title": "Fade to Black (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/fade-to-black-recomp/blob/84c0078bf5ba102144ef0ea0f48ddd222ceb5762/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 12427,
       "cover_id": 118221,

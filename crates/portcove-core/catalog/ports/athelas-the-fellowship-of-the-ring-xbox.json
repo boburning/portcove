@@ -5,6 +5,23 @@
     "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
     "summary": "Use your own USA Xbox The Fellowship of the Ring through the complete Athelas launcher. Preserve its separate FOTR-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lord-of-the-rings-the-fellowship-of-the-ring",
+      "evidence_urls": [
+        "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lord-of-the-rings-the-fellowship-of-the-ring-xbox",
+          "title": "The Lord of the Rings: The Fellowship of the Ring (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Shagg88/Athelas/blob/10d20319e54b1050f99bd61651165cb28041e585/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Shagg88/Athelas",
     "platforms": ["windows-x86-64"],
     "availability": "packages",

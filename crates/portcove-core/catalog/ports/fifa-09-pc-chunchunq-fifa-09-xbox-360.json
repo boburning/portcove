@@ -4,6 +4,23 @@
     "id": "fifa-09-pc-chunchunq-fifa-09-xbox-360",
     "name": "FIFA 09 (Xbox 360) — FIFA 09 PC (ChunchunQ)",
     "original_game_title": "FIFA 09 (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "fifa-09-xbox-360",
+      "evidence_urls": [
+        "https://github.com/ChunchunQ/fifa09-recomp/blob/4dba1063d742911a81c81aa53347e463c2dc75d5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fifa-09-xbox-360-xbox-360",
+          "title": "FIFA 09 (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ChunchunQ/fifa09-recomp/blob/4dba1063d742911a81c81aa53347e463c2dc75d5/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream describes release and online features. Support for every game mode is unknown. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ChunchunQ/fifa09-recomp",
     "listed_at": "2026-10-25",

@@ -5,6 +5,23 @@
     "name": "G-Police / Alexbeav PSXRecomp",
     "summary": "Build and play G-Police on Windows or Linux with your own matching USA two-disc set and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "G-Police",
+    "original_game": {
+      "format_version": 1,
+      "id": "g-police",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/58e98b337bf83f30a4228da460d00b59600e470d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "g-police-playstation",
+          "title": "G-Police (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/g-police-recomp/blob/58e98b337bf83f30a4228da460d00b59600e470d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/g-police-recomp",
     "issue_number": 452,
     "listed_at": "2026-10-23",

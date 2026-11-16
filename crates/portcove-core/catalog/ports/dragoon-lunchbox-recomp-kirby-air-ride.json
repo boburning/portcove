@@ -4,6 +4,23 @@
     "id": "dragoon-lunchbox-recomp-kirby-air-ride",
     "name": "Kirby Air Ride — Dragoon (lunchbox-recomp)",
     "original_game_title": "Kirby Air Ride",
+    "original_game": {
+      "format_version": 1,
+      "id": "kirby-air-ride",
+      "evidence_urls": [
+        "https://github.com/lunchbox-recomp/dragoon/blob/dc9156ce33aa847805b28258ac3ca1d7e5034c85/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "kirby-air-ride-gamecube",
+          "title": "Kirby Air Ride (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/lunchbox-recomp/dragoon/blob/dc9156ce33aa847805b28258ac3ca1d7e5034c85/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Kirby Air Ride source project. Upstream reports eight courses running past the countdown with blank cards; Nebula Belt remains locked. Other modes, setup and gameplay have not been confirmed by Portcove.",
     "project_url": "https://github.com/lunchbox-recomp/dragoon",
     "platforms": ["macos-aarch64"],

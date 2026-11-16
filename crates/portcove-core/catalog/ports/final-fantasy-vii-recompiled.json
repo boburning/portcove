@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/Final-Fantasy-VII",
     "listed_at": "2026-10-23",
     "original_game_title": "Final Fantasy VII",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-vii",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/Final-Fantasy-VII/blob/a3df6877861b3a21ecbeef8ab488f09218e460ad/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-vii-playstation",
+          "title": "Final Fantasy VII (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/Final-Fantasy-VII/blob/a3df6877861b3a21ecbeef8ab488f09218e460ad/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "PlayStation",
     "artwork": {
       "game_id": 427,

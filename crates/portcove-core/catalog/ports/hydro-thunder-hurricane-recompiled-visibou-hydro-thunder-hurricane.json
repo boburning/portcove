@@ -4,6 +4,23 @@
     "id": "hydro-thunder-hurricane-recompiled-visibou-hydro-thunder-hurricane",
     "name": "Hydro Thunder Hurricane — Hydro Thunder Hurricane: Recompiled (visibou)",
     "original_game_title": "Hydro Thunder Hurricane",
+    "original_game": {
+      "format_version": 1,
+      "id": "hydro-thunder-hurricane",
+      "evidence_urls": [
+        "https://github.com/visibou/htrecomp/blob/177a5fa713526e138b858cbccd2b7c8256485382/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "hydro-thunder-hurricane-xbox-360",
+          "title": "Hydro Thunder Hurricane (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/visibou/htrecomp/blob/177a5fa713526e138b858cbccd2b7c8256485382/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream documents startup to the title screen and some features. Race and progression support remain unknown. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/visibou/htrecomp",
     "platforms": ["windows-x86-64"],

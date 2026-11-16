@@ -4,6 +4,23 @@
     "id": "alexbeav-rival-schools-recomp",
     "name": "Rival Schools: United by Fate / Alexbeav PSXRecomp",
     "original_game_title": "Rival Schools: United by Fate",
+    "original_game": {
+      "format_version": 1,
+      "id": "rival-schools-united-by-fate",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/6d0aa941f42352d2db7aa4e82ed3ce07fb263249/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rival-schools-united-by-fate-playstation",
+          "title": "Rival Schools: United by Fate (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp/blob/6d0aa941f42352d2db7aa4e82ed3ce07fb263249/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Rival Schools: United by Fate player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/rival-schools-recomp",
     "issue_number": 1605,

@@ -4,6 +4,23 @@
     "id": "wetrecomp-nikolaygorb-wet",
     "name": "WET — WetRecomp (nikolaygorb)",
     "original_game_title": "WET",
+    "original_game": {
+      "format_version": 1,
+      "id": "wet",
+      "evidence_urls": [
+        "https://github.com/nikolaygorb/WetRecomp/blob/cb5b8be0747cb61602a11ccb5b82bbf1c5e68cdd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wet-xbox-360",
+          "title": "WET (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/nikolaygorb/WetRecomp/blob/cb5b8be0747cb61602a11ccb5b82bbf1c5e68cdd/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims full playability, progression, audio, video and achievements. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nikolaygorb/WetRecomp",
     "listed_at": "2026-10-25",

@@ -5,6 +5,23 @@
     "name": "Tomodachi Life: Living the Dream (tomodachi-native)",
     "summary": "An experimental Tomodachi Life-specific nxnative-derived Apple ARM64/Horizon/Metal 4 adaptation. The project reports a Mac island tour, naming, Mii creation and sound, with later-scene input limits and busy scenes at 55 FPS; a full playthrough is unconfirmed. iPad Air M2/iPadOS 27 has limited startup/run evidence, while iPhone builds are unrun and Mac controllers are unavailable. macOS 26 is the target, but development/testing used macOS 27 and 26 is untried. Build locally with build_mac_app.py; optional embedding copies/clones your own data into Application Support, and keep-data rebuilds preserve RomFS. iOS needs local building/signing with separate game content. There is no release package. Use your own version 1.0.0 NSP, title 010051F0207B2000, prod.keys and locally rewritten v0 modules/RomFS/shaders. Other regions/updates are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "Tomodachi Life: Living the Dream",
+    "original_game": {
+      "format_version": 1,
+      "id": "tomodachi-life-living-the-dream",
+      "evidence_urls": [
+        "https://github.com/kuosuko/tomodachi-native/blob/5587d1bd8e311b5508ed4e8d5310796523d06ed6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tomodachi-life-living-the-dream-nintendo-switch",
+          "title": "Tomodachi Life: Living the Dream (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/kuosuko/tomodachi-native/blob/5587d1bd8e311b5508ed4e8d5310796523d06ed6/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/kuosuko/tomodachi-native",
     "platforms": [],
     "availability": "unknown",

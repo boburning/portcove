@@ -4,6 +4,23 @@
     "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
     "name": "Soulcalibur III — Soulcalibur III Recomp (Arzaroth)",
     "original_game_title": "Soulcalibur III",
+    "original_game": {
+      "format_version": 1,
+      "id": "soulcalibur-iii",
+      "evidence_urls": [
+        "https://github.com/TheBozos/SoulCaliburIII_Recomp/blob/98d189bfb5dbf9e3965d247a3eee4119fef15f89/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "soulcalibur-iii-playstation-2",
+          "title": "Soulcalibur III (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheBozos/SoulCaliburIII_Recomp/blob/98d189bfb5dbf9e3965d247a3eee4119fef15f89/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
     "listed_at": "2026-10-25",

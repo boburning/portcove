@@ -53,6 +53,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "Parasite Eve",
+    "original_game": {
+      "format_version": 1,
+      "id": "parasite-eve",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/63ab9f2d27eaa6647116691dcf1976538621d208/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "parasite-eve-playstation",
+          "title": "Parasite Eve (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/parasite-eve-recomp/blob/63ab9f2d27eaa6647116691dcf1976538621d208/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["Parasite-Eve-Recompiled-", "-linux-x64.zip"],
       "macos-aarch64": ["Parasite-Eve-Recompiled-", "-macos-arm64.zip"],

@@ -4,6 +4,23 @@
     "id": "mythologykombat-paumedes-mortal-kombat-mythologies-sub-zero",
     "name": "Mortal Kombat Mythologies: Sub-Zero — MythologyKombat (PAumedes)",
     "original_game_title": "Mortal Kombat Mythologies: Sub-Zero",
+    "original_game": {
+      "format_version": 1,
+      "id": "mortal-kombat-mythologies-sub-zero",
+      "evidence_urls": [
+        "https://github.com/PAumedes/MythologyKombat/blob/a7bda2c663ef870153a14c389b6d0b03aa59ae26/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mortal-kombat-mythologies-sub-zero-playstation",
+          "title": "Mortal Kombat Mythologies: Sub-Zero (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PAumedes/MythologyKombat/blob/a7bda2c663ef870153a14c389b6d0b03aa59ae26/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Information only. The project describes a native Mortal Kombat Mythologies: Sub-Zero player with some PC movie slowdowns. New downloads remain unavailable while the translated game executable, package provenance, applicable rights and checksum/own-disc route are unresolved. The manual information does not establish redistribution permission or gameplay compatibility. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/PAumedes/MythologyKombat",
     "platforms": ["windows-x86-64"],

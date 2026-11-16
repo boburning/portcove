@@ -4,6 +4,23 @@
     "id": "007frwl-xberecomp-tgp482-007-from-russia-with-love",
     "name": "007: From Russia with Love — 007FRWL-XBERecomp (TGP482)",
     "original_game_title": "007: From Russia with Love",
+    "original_game": {
+      "format_version": 1,
+      "id": "007-from-russia-with-love",
+      "evidence_urls": [
+        "https://github.com/TGP482/007FRWL-XBERecomp/blob/1ff350a4902caa2cc733277087a788ed731cb9fb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "007-from-russia-with-love-xbox",
+          "title": "007: From Russia with Love (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/TGP482/007FRWL-XBERecomp/blob/1ff350a4902caa2cc733277087a788ed731cb9fb/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "An experimental port of 007: From Russia with Love. Set it up with your own original Xbox game files. The first start builds game code locally.",
     "project_url": "https://github.com/TGP482/007FRWL-XBERecomp",
     "listed_at": "2026-10-25",

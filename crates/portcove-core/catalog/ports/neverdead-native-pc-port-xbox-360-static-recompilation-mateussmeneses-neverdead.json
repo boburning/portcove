@@ -4,6 +4,23 @@
     "id": "neverdead-native-pc-port-xbox-360-static-recompilation-mateussmeneses-neverdead",
     "name": "NeverDead — NeverDead — Native PC Port (Xbox 360 Static Recompilation) (mateussmeneses)",
     "original_game_title": "NeverDead",
+    "original_game": {
+      "format_version": 1,
+      "id": "neverdead",
+      "evidence_urls": [
+        "https://github.com/mateussmeneses/neverdead-port/blob/617822a58cb775ca39c135ac17f886834d2f34c6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "neverdead-xbox-360",
+          "title": "NeverDead (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/mateussmeneses/neverdead-port/blob/617822a58cb775ca39c135ac17f886834d2f34c6/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports in-game scenes, input, audio, saves and limited benchmarks. These results do not establish campaign completion. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/mateussmeneses/neverdead-port",
     "platforms": ["windows-x86-64"],

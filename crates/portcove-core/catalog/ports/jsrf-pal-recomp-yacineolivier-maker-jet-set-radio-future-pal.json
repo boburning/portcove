@@ -4,6 +4,23 @@
     "id": "jsrf-pal-recomp-yacineolivier-maker-jet-set-radio-future-pal",
     "name": "Jet Set Radio Future (PAL) — JSRF-PAL-Recomp (yacineolivier-maker)",
     "original_game_title": "Jet Set Radio Future (PAL)",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-set-radio-future-pal",
+      "evidence_urls": [
+        "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp/blob/820daac390ab333ceecbc2502388886cda05f978/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-set-radio-future-pal-xbox",
+          "title": "Jet Set Radio Future (PAL) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp/blob/820daac390ab333ceecbc2502388886cda05f978/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports logos, the graffiti warning, title/attract demo, New Game scenes and dialogue, and early gameplay at 60 FPS/1080p with music, voices and effects. Saves and every stage remain untested; a full campaign is unconfirmed. Graphics options include default 175% supersampling with box filtering, lens ghosts/halo, light shafts and brighter additive particles. USA-port results do not apply to this PAL implementation; Portcove has not confirmed gameplay or performance. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yacineolivier-maker/JSRF-PAL-Recomp",
     "platforms": ["windows-x86-64"],

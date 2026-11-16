@@ -52,6 +52,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "Koudelka",
+    "original_game": {
+      "format_version": 1,
+      "id": "koudelka",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/38dc881b2de4f7c57be136526846eb5e66b69316/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "koudelka-playstation",
+          "title": "Koudelka (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/koudelka-recomp/blob/38dc881b2de4f7c57be136526846eb5e66b69316/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["Koudelka-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["Koudelka-Recomp-", "-macos-arm64.zip"],

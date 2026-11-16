@@ -4,6 +4,23 @@
     "id": "happy-wars-recompiled-joojofc13-wq-happy-wars",
     "name": "Happy Wars — Happy Wars Recompiled (joojofc13-wq)",
     "original_game_title": "Happy Wars",
+    "original_game": {
+      "format_version": 1,
+      "id": "happy-wars",
+      "evidence_urls": [
+        "https://github.com/joojofc13-wq/HappyWarsRecompiled/blob/b889d862382568863829a72e4c3d2f64dc394896/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "happy-wars-xbox-360",
+          "title": "Happy Wars (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/joojofc13-wq/HappyWarsRecompiled/blob/b889d862382568863829a72e4c3d2f64dc394896/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports Game Home, the tutorial and a short Skirmish session. GPU crashes, Marketplace warnings and incomplete rewards and saved progress remain. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/joojofc13-wq/HappyWarsRecompiled",
     "platforms": ["windows-x86-64"],

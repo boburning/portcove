@@ -5,6 +5,23 @@
     "name": "Jackie Chan Stuntmaster / Alexbeav PSXRecomp",
     "summary": "Portcove builds Jackie Chan Stuntmaster on Windows or Linux from the upstream setup kit with your own USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "original_game_title": "Jackie Chan Stuntmaster",
+    "original_game": {
+      "format_version": 1,
+      "id": "jackie-chan-stuntmaster",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/a638cb1ecca311b2ee15a2d4ff7fb4282b15db31/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jackie-chan-stuntmaster-playstation",
+          "title": "Jackie Chan Stuntmaster (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp/blob/a638cb1ecca311b2ee15a2d4ff7fb4282b15db31/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/jackie-chan-stuntmaster-recomp",
     "issue_number": 457,
     "listed_at": "2026-10-23",

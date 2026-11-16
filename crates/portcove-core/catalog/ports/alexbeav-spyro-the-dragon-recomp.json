@@ -54,7 +54,24 @@
       "windows-x86-64": ["spyro-the-dragon-recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Spyro the Dragon"
+    "original_game_title": "Spyro the Dragon",
+    "original_game": {
+      "format_version": 1,
+      "id": "spyro-the-dragon",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/d1792578a47b5c3cd2f63b64b5364d51708fa1db/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "spyro-the-dragon-playstation",
+          "title": "Spyro the Dragon (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp/blob/d1792578a47b5c3cd2f63b64b5364d51708fa1db/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

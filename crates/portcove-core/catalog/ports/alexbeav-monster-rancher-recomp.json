@@ -5,6 +5,23 @@
     "name": "Monster Rancher / Alexbeav PSXRecomp",
     "summary": "Build and play Monster Rancher on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Monster Rancher",
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-rancher",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/61a9179b575d1f3731d4bc2d32089ca58b2c304d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-rancher-playstation",
+          "title": "Monster Rancher (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp/blob/61a9179b575d1f3731d4bc2d32089ca58b2c304d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/monster-rancher-recomp",
     "issue_number": 467,
     "listed_at": "2026-10-23",

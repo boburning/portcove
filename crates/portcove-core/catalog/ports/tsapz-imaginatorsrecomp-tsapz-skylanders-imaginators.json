@@ -4,6 +4,23 @@
     "id": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
     "name": "Skylanders: Imaginators — tsapZ ImaginatorsRecomp (tsapZ)",
     "original_game_title": "Skylanders: Imaginators",
+    "original_game": {
+      "format_version": 1,
+      "id": "skylanders-imaginators",
+      "evidence_urls": [
+        "https://github.com/tsapZ/ImaginatorsRecomp/blob/524944024c303520cefaa89321f31811a0f81548/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "skylanders-imaginators-playstation-3",
+          "title": "Skylanders: Imaginators (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/tsapZ/ImaginatorsRecomp/blob/524944024c303520cefaa89321f31811a0f81548/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Firstlevelplays; later parts of the game have not been played; German PS3 text is optional,voices are experimental;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/ImaginatorsRecomp",
     "listed_at": "2026-10-25",

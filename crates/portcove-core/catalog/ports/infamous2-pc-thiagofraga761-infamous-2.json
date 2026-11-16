@@ -4,6 +4,23 @@
     "id": "infamous2-pc-thiagofraga761-infamous-2",
     "name": "inFAMOUS 2 — infamous2-pc (ThiagoFraga761)",
     "original_game_title": "inFAMOUS 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "infamous-2",
+      "evidence_urls": [
+        "https://github.com/ThiagoFraga761/infamous2-pc/blob/a612c4e477b25ccc6b5561d6f6a303b8669e0ec5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "infamous-2-playstation-3",
+          "title": "inFAMOUS 2 (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/ThiagoFraga761/infamous2-pc/blob/a612c4e477b25ccc6b5561d6f6a303b8669e0ec5/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports startup, videos, menus, cutscenes and gameplay from Empire City to New Marais, with controls, audio and saves. Its 54–130 FPS result covers one Ryzen 9800X3D/RX 9070 XT Linux PC. First-use shader spikes remain, and the backend is Linux-only. Portcove has not run the game. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ThiagoFraga761/infamous2-pc",
     "platforms": ["linux-x86-64"],

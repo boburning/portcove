@@ -4,6 +4,23 @@
     "id": "fenix-reborn-0-1-josuloku-new-gears-of-war-2",
     "name": "Gears of War 2 — Fenix Reborn 0.1 (josuloku-new)",
     "original_game_title": "Gears of War 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "gears-of-war-2",
+      "evidence_urls": [
+        "https://github.com/josuloku-new/Fenix-Reborn/blob/7be2494dd56c88d998527ee3447d9738d130994d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "gears-of-war-2-xbox-360",
+          "title": "Gears of War 2 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/josuloku-new/Fenix-Reborn/blob/7be2494dd56c88d998527ee3447d9738d130994d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream describes experimental image and mod options. Support for a complete campaign is unknown. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/josuloku-new/Fenix-Reborn",
     "platforms": ["windows-x86-64"],

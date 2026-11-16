@@ -4,6 +4,23 @@
     "id": "psp-web-recomp-snuri00-god-of-war-ghost-of-sparta",
     "name": "God of War: Ghost of Sparta — PSP Web Recomp (snuri00)",
     "original_game_title": "God of War: Ghost of Sparta",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ghost-of-sparta",
+      "evidence_urls": [
+        "https://github.com/snuri00/psp-web-recomp/blob/37826ab881d9a593efb842fe47adfae2e9118b5d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-ghost-of-sparta-playstation-portable",
+          "title": "God of War: Ghost of Sparta (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/snuri00/psp-web-recomp/blob/37826ab881d9a593efb842fe47adfae2e9118b5d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports reaching combat in two Ready at Dawn titles while skipping movies. Browser saves are not directly compatible with encrypted PSP saves. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/snuri00/psp-web-recomp",
     "listed_at": "2026-10-25",

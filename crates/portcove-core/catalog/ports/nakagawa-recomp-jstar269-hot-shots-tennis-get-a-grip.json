@@ -4,6 +4,23 @@
     "id": "nakagawa-recomp-jstar269-hot-shots-tennis-get-a-grip",
     "name": "Hot Shots Tennis: Get a Grip — Nakagawa Recomp (Jstar269)",
     "original_game_title": "Hot Shots Tennis: Get a Grip",
+    "original_game": {
+      "format_version": 1,
+      "id": "hot-shots-tennis-get-a-grip",
+      "evidence_urls": [
+        "https://github.com/Jstar269/nakagawa-recomp/blob/5973fe24521364efef7d6437cf2817f56e1a7814/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "hot-shots-tennis-get-a-grip-playstation-portable",
+          "title": "Hot Shots Tennis: Get a Grip (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Jstar269/nakagawa-recomp/blob/5973fe24521364efef7d6437cf2817f56e1a7814/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. The public normal-ISO procedure is labelled Boots and reaches only the stated boundary. The compatibility guide separately says a public checkout can build and play a package with your decrypted inputs and local manifest. A private developer build reaches a 3D match with sound. These are distinct setup and test results. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Jstar269/nakagawa-recomp",
     "platforms": ["windows-x86-64"],

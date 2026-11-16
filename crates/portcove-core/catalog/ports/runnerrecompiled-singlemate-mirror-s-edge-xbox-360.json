@@ -4,6 +4,23 @@
     "id": "runnerrecompiled-singlemate-mirror-s-edge-xbox-360",
     "name": "Mirror's Edge (Xbox 360) — RunnerRecompiled (singlemate)",
     "original_game_title": "Mirror's Edge (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "mirror-s-edge-xbox-360",
+      "evidence_urls": [
+        "https://github.com/singlemate/RunnerRecompiled/blob/ca328569524f090a6d46f3ef461caacf1eb92c9f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mirror-s-edge-xbox-360-xbox-360",
+          "title": "Mirror's Edge (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/singlemate/RunnerRecompiled/blob/ca328569524f090a6d46f3ef461caacf1eb92c9f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Not playable: title screen/input/offline sign-in on one Lenovo tablet. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/singlemate/RunnerRecompiled",
     "platforms": [],

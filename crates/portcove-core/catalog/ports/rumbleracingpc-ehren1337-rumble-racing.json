@@ -4,6 +4,23 @@
     "id": "rumbleracingpc-ehren1337-rumble-racing",
     "name": "Rumble Racing — RumbleRacingPC (Ehren1337)",
     "original_game_title": "Rumble Racing",
+    "original_game": {
+      "format_version": 1,
+      "id": "rumble-racing",
+      "evidence_urls": [
+        "https://github.com/Ehren1337/RumbleRacingPC/blob/ce74962e681994c17c78b2d313bf586b2472a837/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rumble-racing-playstation-2",
+          "title": "Rumble Racing (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Ehren1337/RumbleRacingPC/blob/ce74962e681994c17c78b2d313bf586b2472a837/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This unfinished source project reaches menus, track and car selection, races, laps and results. Busy scenes, rendering and audio have remaining issues. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Ehren1337/RumbleRacingPC",
     "platforms": [],

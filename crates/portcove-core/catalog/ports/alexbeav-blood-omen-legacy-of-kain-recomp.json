@@ -7,6 +7,23 @@
     "summary": "Build and play Blood Omen: Legacy of Kain on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp",
     "original_game_title": "Blood Omen: Legacy of Kain",
+    "original_game": {
+      "format_version": 1,
+      "id": "blood-omen-legacy-of-kain",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/19d3832ef6d75fb62005aed5203137bac0fb3757/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blood-omen-legacy-of-kain-playstation",
+          "title": "Blood Omen: Legacy of Kain (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/blood-omen-legacy-of-kain-recomp/blob/19d3832ef6d75fb62005aed5203137bac0fb3757/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 7894,
       "cover_id": 425045,

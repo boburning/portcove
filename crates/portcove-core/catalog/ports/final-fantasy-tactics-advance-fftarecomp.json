@@ -5,6 +5,23 @@
     "name": "Final Fantasy Tactics Advance (FFTARecomp)",
     "summary": "Register an already prepared FFTARecomp Windows player using your own supported USA or Europe ROM and retained external saves.",
     "original_game_title": "Final Fantasy Tactics Advance",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-tactics-advance",
+      "evidence_urls": [
+        "https://github.com/Jorge262007/FFTARecomp/blob/6bdddbc559ac459c4a18325c15c28d040d87f407/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-tactics-advance-game-boy-advance",
+          "title": "Final Fantasy Tactics Advance (Game Boy Advance, region not specified)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/Jorge262007/FFTARecomp/blob/6bdddbc559ac459c4a18325c15c28d040d87f407/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Jorge262007/FFTARecomp",
     "platforms": ["windows-x86-64"],
     "availability": "packages",

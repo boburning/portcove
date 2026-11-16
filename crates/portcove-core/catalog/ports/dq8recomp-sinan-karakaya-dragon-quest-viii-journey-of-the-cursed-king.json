@@ -4,6 +4,23 @@
     "id": "dq8recomp-sinan-karakaya-dragon-quest-viii-journey-of-the-cursed-king",
     "name": "Dragon Quest VIII: Journey of the Cursed King — DQ8Recomp (Sinan-Karakaya)",
     "original_game_title": "Dragon Quest VIII: Journey of the Cursed King",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-quest-viii-journey-of-the-cursed-king",
+      "evidence_urls": [
+        "https://github.com/Sinan-Karakaya/DQ8-Recompiled/blob/f6dfd968001b492415969bb70bd5aad3bfa79abd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-quest-viii-journey-of-the-cursed-king-playstation-2",
+          "title": "Dragon Quest VIII: Journey of the Cursed King (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Sinan-Karakaya/DQ8-Recompiled/blob/f6dfd968001b492415969bb70bd5aad3bfa79abd/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build Dragon Quest VIII locally from your USA ISO using the upstream launcher. Upstream reports startup, saves and field gameplay; sustained play and a complete playthrough have not been confirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Sinan-Karakaya/DQ8-Recompiled",
     "listed_at": "2026-10-25",

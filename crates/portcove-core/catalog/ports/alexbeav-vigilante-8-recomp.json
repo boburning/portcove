@@ -53,7 +53,24 @@
       "windows-x86-64": ["Vigilante-8-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Vigilante 8"
+    "original_game_title": "Vigilante 8",
+    "original_game": {
+      "format_version": 1,
+      "id": "vigilante-8",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/0c3deb8cda4ba56f4fc597aa891215289cc9a12a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "vigilante-8-playstation",
+          "title": "Vigilante 8 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/vigilante-8-recomp/blob/0c3deb8cda4ba56f4fc597aa891215289cc9a12a/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

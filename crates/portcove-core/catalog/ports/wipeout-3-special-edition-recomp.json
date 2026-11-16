@@ -25,6 +25,23 @@
       "help_url": "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
     },
     "original_game_title": "WipEout 3 Special Edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout-3-special-edition",
+      "evidence_urls": [
+        "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-3-special-edition-playstation",
+          "title": "WipEout 3 Special Edition (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/mstan/Wipeout-3-Special-Edition-Recomp/blob/f1ab735d3bd71f1527a2580d1a210a809d116248/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 44855,
       "cover_id": 115128,

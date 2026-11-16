@@ -4,6 +4,23 @@
     "id": "fes-pc-recomp-virtual-ak-persona-3-fes",
     "name": "Persona 3 FES — fes-pc-recomp (Virtual-AK)",
     "original_game_title": "Persona 3 FES",
+    "original_game": {
+      "format_version": 1,
+      "id": "persona-3-fes",
+      "evidence_urls": [
+        "https://github.com/Virtual-AK/fes-pc-recomp/blob/79309271065769be9db78a3805c20d21e605f9e1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "persona-3-fes-playstation-2",
+          "title": "Persona 3 FES (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/Virtual-AK/fes-pc-recomp/blob/79309271065769be9db78a3805c20d21e605f9e1/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports the opening, town and first dungeon floors. Its rough 83% estimate does not establish full-game support. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Virtual-AK/fes-pc-recomp",
     "platforms": [],

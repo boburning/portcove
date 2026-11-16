@@ -4,6 +4,23 @@
     "id": "alexbeav-destruction-derby-raw-recomp",
     "name": "Destruction Derby Raw / Alexbeav PSXRecomp",
     "original_game_title": "Destruction Derby Raw",
+    "original_game": {
+      "format_version": 1,
+      "id": "destruction-derby-raw",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/81f91bb7b92da1507e3c7d00fc13840aab19d1c6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "destruction-derby-raw-playstation",
+          "title": "Destruction Derby Raw (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp/blob/81f91bb7b92da1507e3c7d00fc13840aab19d1c6/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build and play Destruction Derby Raw on Windows or Linux with your own matching USA disc and retail SCPH-1001 BIOS. The upstream setup kit remains a separate route.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/destruction-derby-raw-recomp",
     "issue_number": 1590,

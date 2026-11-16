@@ -4,6 +4,23 @@
     "id": "ascension-arnaldolima1-arnaldolima1-god-of-war-ascension",
     "name": "God of War: Ascension — Ascension (arnaldolima1) (arnaldolima1)",
     "original_game_title": "God of War: Ascension",
+    "original_game": {
+      "format_version": 1,
+      "id": "god-of-war-ascension",
+      "evidence_urls": [
+        "https://github.com/arnaldolima1/gow-ascension-pc/blob/9a4bffefb00124603d45e23cef91859847d94833/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "god-of-war-ascension-playstation-3",
+          "title": "God of War: Ascension (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/arnaldolima1/gow-ascension-pc/blob/9a4bffefb00124603d45e23cef91859847d94833/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports the first level and boss at about 18–23 FPS and 13–21 FPS on one machine. The game cannot currently be completed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/arnaldolima1/gow-ascension-pc",
     "platforms": ["windows-x86-64"],

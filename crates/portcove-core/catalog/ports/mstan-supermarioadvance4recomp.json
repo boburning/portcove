@@ -39,7 +39,24 @@
         }
       ]
     },
-    "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3"
+    "original_game_title": "Super Mario Advance 4: Super Mario Bros. 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-mario-advance-4-super-mario-bros-3",
+      "evidence_urls": [
+        "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/d32a8973df368f6b23f923edb025f58a25452e32/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-mario-advance-4-super-mario-bros-3-game-boy-advance",
+          "title": "Super Mario Advance 4: Super Mario Bros. 3 (Game Boy Advance, region not specified)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/mstan/SuperMarioAdvance4Recomp/blob/d32a8973df368f6b23f923edb025f58a25452e32/README.md"
+          ]
+        }
+      ]
+    }
   },
   "gba_staged_archive_v1": { "game_code": "AX4E", "versioned_mods": false },
   "integration": {

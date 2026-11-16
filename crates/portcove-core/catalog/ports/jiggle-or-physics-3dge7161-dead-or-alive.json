@@ -4,6 +4,23 @@
     "id": "jiggle-or-physics-3dge7161-dead-or-alive",
     "name": "Dead or Alive — Jiggle-or-Physics (3dge7161)",
     "original_game_title": "Dead or Alive",
+    "original_game": {
+      "format_version": 1,
+      "id": "dead-or-alive",
+      "evidence_urls": [
+        "https://github.com/3dge7161/Jiggle-or-Physics/blob/9e42e3ba122249d14ec2acbcc22f9fca34330f68/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dead-or-alive-playstation",
+          "title": "Dead or Alive (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/3dge7161/Jiggle-or-Physics/blob/9e42e3ba122249d14ec2acbcc22f9fca34330f68/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Information only. This experimental v0.1.0 Dead or Alive player offers rendering, input, memory cards and presentation options, with full completion unconfirmed. Downloads are unavailable because checked-in translated game code, a startup movie and cover-art icon lack established redistribution permission. They require attributable permission or a reviewed clean own-disc route omitting unlicensed components; the PSXRecomp license alone does not cover them. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/3dge7161/Jiggle-or-Physics",
     "platforms": ["windows-x86-64"],

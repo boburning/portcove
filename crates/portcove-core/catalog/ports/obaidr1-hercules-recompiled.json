@@ -5,6 +5,23 @@
     "name": "Disney's Hercules (Hercules Recompiled)",
     "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
     "original_game_title": "Disney's Hercules",
+    "original_game": {
+      "format_version": 1,
+      "id": "disney-s-hercules",
+      "evidence_urls": [
+        "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "disney-s-hercules-playstation",
+          "title": "Disney's Hercules (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/obaidr1/hercules-recompiled/blob/9df37864f6e5d50e30ff7381117e34a06a1a04c0/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/obaidr1/hercules-recompiled",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

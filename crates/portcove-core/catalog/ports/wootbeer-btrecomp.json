@@ -5,6 +5,23 @@
     "name": "BattleTanx (BTRecomp)",
     "summary": "Attach an independently permitted, prepared BattleTanx Recompiled Windows player for BattleTanx using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btrecomp configuration/save root and component notices.",
     "original_game_title": "BattleTanx",
+    "original_game": {
+      "format_version": 1,
+      "id": "battletanx",
+      "evidence_urls": [
+        "https://github.com/wootbeer/btrecomp/blob/d40f1e89b5079798d56ce89b24fbc4cedcc96034/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "battletanx-nintendo-64",
+          "title": "BattleTanx (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/btrecomp/blob/d40f1e89b5079798d56ce89b24fbc4cedcc96034/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/wootbeer/btrecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

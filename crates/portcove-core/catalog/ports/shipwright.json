@@ -7,6 +7,23 @@
     "summary": "Native Ocarina of Time port from HarbourMasters.",
     "project_url": "https://github.com/HarbourMasters/Shipwright",
     "original_game_title": "The Legend of Zelda: Ocarina of Time",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-ocarina-of-time",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/Shipwright/blob/051e497dbdf6e68ca06ff4e0c7a0afd061109129/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-ocarina-of-time-nintendo-64",
+          "title": "The Legend of Zelda: Ocarina of Time (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/Shipwright/blob/051e497dbdf6e68ca06ff4e0c7a0afd061109129/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 194694,
       "cover_id": 287780,

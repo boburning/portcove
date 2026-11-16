@@ -8,6 +8,23 @@
     "project_url": "https://github.com/jessetbh/VPW2Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Virtual Pro Wrestling 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "virtual-pro-wrestling-2",
+      "evidence_urls": [
+        "https://github.com/jessetbh/VPW2Recomp/blob/ec413e5c20eadf8eb493595ea400bfe9c311fb2d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "virtual-pro-wrestling-2-nintendo-64",
+          "title": "Virtual Pro Wrestling 2 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/jessetbh/VPW2Recomp/blob/ec413e5c20eadf8eb493595ea400bfe9c311fb2d/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3625,
       "cover_id": 3742,

@@ -4,6 +4,23 @@
     "id": "transformers-2004-ps2-port-tpepperoni666-transformers-2004",
     "name": "Transformers (2004) — Transformers-2004-PS2-Port (TPepperoni666)",
     "original_game_title": "Transformers (2004)",
+    "original_game": {
+      "format_version": 1,
+      "id": "transformers-2004",
+      "evidence_urls": [
+        "https://github.com/TPepperoni666/Transformers-2004-PS2-Port/blob/6c4b43b14c503e755d3e1374b5d5e172cb77ae0c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "transformers-2004-playstation-2",
+          "title": "Transformers (2004) (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TPepperoni666/Transformers-2004-PS2-Port/blob/6c4b43b14c503e755d3e1374b5d5e172cb77ae0c/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This native static game remains experimental. Exact gameplay completion has not been established by this review. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
     "listed_at": "2026-10-25",

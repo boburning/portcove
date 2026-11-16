@@ -4,6 +4,23 @@
     "id": "granturismo2recomp-vulob1-gran-turismo-2-arcade-mode-v1-0",
     "name": "Gran Turismo 2 (Arcade Mode v1.0) — GranTurismo2Recomp (VuloB1)",
     "original_game_title": "Gran Turismo 2 (Arcade Mode v1.0)",
+    "original_game": {
+      "format_version": 1,
+      "id": "gran-turismo-2-arcade-mode-v1-0",
+      "evidence_urls": [
+        "https://github.com/VuloB1/GranTurismo2Recomp/blob/42e98e4ceb2d9a5fbaf2b5b78733c3dd9082f8a8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "gran-turismo-2-arcade-mode-v1-0-playstation",
+          "title": "Gran Turismo 2 (Arcade Mode v1.0) (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/VuloB1/GranTurismo2Recomp/blob/42e98e4ceb2d9a5fbaf2b5b78733c3dd9082f8a8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Information only. The project reports early menus, races and driving, with widescreen, PGXP and skipped-FMV limitations. This is unfinished and Portcove has not confirmed a playthrough. Downloads, builds, registration and launch are unavailable because the README contradicts itself about committed generated game C and the tree used for release builds. The exact build route or a clean reproducible own-disc route must be established first; this does not determine general copyright status or whether a native player exists. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/VuloB1/GranTurismo2Recomp",
     "listed_at": "2026-10-25",

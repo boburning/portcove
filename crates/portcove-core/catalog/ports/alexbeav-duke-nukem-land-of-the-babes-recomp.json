@@ -7,6 +7,23 @@
     "summary": "Build and play Duke Nukem: Land of the Babes on Windows or Linux with your own matching single-track USA PlayStation disc and retail SCPH-1001 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp",
     "original_game_title": "Duke Nukem: Land of the Babes",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-land-of-the-babes",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/a02b17f1213fcbe615bdc4ca151e02b936f9c2bf/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-land-of-the-babes-playstation",
+          "title": "Duke Nukem: Land of the Babes (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/duke-nukem-land-of-the-babes-recomp/blob/a02b17f1213fcbe615bdc4ca151e02b936f9c2bf/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 8504,
       "cover_id": 441104,

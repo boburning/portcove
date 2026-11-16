@@ -4,6 +4,23 @@
     "id": "alexbeav-colony-wars-red-sun-recomp",
     "name": "Colony Wars: Red Sun / Alexbeav PSXRecomp",
     "original_game_title": "Colony Wars: Red Sun",
+    "original_game": {
+      "format_version": 1,
+      "id": "colony-wars-red-sun",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/04808c564d62f3ec8923f2b40e479651940d1abb/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "colony-wars-red-sun-playstation",
+          "title": "Colony Wars: Red Sun (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp/blob/04808c564d62f3ec8923f2b40e479651940d1abb/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Colony Wars: Red Sun player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/colony-wars-red-sun-recomp",
     "issue_number": 1589,

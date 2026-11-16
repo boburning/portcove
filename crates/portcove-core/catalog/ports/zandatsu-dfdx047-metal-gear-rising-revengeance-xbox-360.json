@@ -4,6 +4,23 @@
     "id": "zandatsu-dfdx047-metal-gear-rising-revengeance-xbox-360",
     "name": "Metal Gear Rising: Revengeance (Xbox 360) — Zandatsu (dfdx047)",
     "original_game_title": "Metal Gear Rising: Revengeance (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "metal-gear-rising-revengeance-xbox-360",
+      "evidence_urls": [
+        "https://github.com/dfdx047/Zandatsu/blob/c72c31b4472645b5726e3ec4675fd0f692cbe564/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metal-gear-rising-revengeance-xbox-360-xbox-360",
+          "title": "Metal Gear Rising: Revengeance (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/dfdx047/Zandatsu/blob/c72c31b4472645b5726e3ec4675fd0f692cbe564/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental rendering options and known issues are documented. A full playthrough remains unconfirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dfdx047/Zandatsu",
     "platforms": [],

@@ -6,6 +6,23 @@
     "summary": "Play OutRun Online Arcade with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/outrun-arcade-recomp",
     "original_game_title": "OutRun Online Arcade",
+    "original_game": {
+      "format_version": 1,
+      "id": "outrun-online-arcade",
+      "evidence_urls": [
+        "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "outrun-online-arcade-xbox-360",
+          "title": "OutRun Online Arcade (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/darkuni/outrun-arcade-recomp/blob/786adf77f430900830d0e50cc27732cdbaa655c2/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4133,
     "listed_at": "2026-11-08",
     "availability": "packages",

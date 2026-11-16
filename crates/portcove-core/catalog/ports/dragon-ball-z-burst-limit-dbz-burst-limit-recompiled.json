@@ -5,6 +5,23 @@
     "name": "Dragon Ball Z: Burst Limit (DBZ Burst Limit Recompiled)",
     "summary": "Register an independently permitted prepared Dragon Ball Z: Burst Limit Windows copy for your own exact US Xbox 360 disc, with external saves and upstream updates preserved.",
     "original_game_title": "Dragon Ball Z: Burst Limit",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-burst-limit",
+      "evidence_urls": [
+        "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/40aaa4d6bf212239f9cdadebb85bf96e8e57b03c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-burst-limit-xbox-360",
+          "title": "Dragon Ball Z: Burst Limit (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled/blob/40aaa4d6bf212239f9cdadebb85bf96e8e57b03c/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/iExplosiveRage/DBZ-Burst-Limit-Recompiled",
     "platforms": [],
     "availability": "unknown",

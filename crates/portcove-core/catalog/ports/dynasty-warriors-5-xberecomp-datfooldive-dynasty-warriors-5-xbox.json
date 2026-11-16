@@ -4,6 +4,23 @@
     "id": "dynasty-warriors-5-xberecomp-datfooldive-dynasty-warriors-5-xbox",
     "name": "Dynasty Warriors 5 (Xbox) — DW5-XBERecomp (datfooldive)",
     "original_game_title": "Dynasty Warriors 5 (Xbox)",
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-5-xbox",
+      "evidence_urls": [
+        "https://github.com/datfooldive/DW5-XBERecomp-Linux/blob/70e1859a545e7ec5d22d27d7845c0f5c57c9c2f2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dynasty-warriors-5-xbox-xbox",
+          "title": "Dynasty Warriors 5 (Xbox) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/datfooldive/DW5-XBERecomp-Linux/blob/70e1859a545e7ec5d22d27d7845c0f5c57c9c2f2/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Dynasty Warriors 5 Xbox source project. Startup is still being developed; working gameplay and a complete playthrough are not claimed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/datfooldive/DW5-XBERecomp-Linux",
     "platforms": [],

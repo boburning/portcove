@@ -53,7 +53,24 @@
       "windows-x86-64": ["Mega-Man-Legends-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "Mega Man Legends"
+    "original_game_title": "Mega Man Legends",
+    "original_game": {
+      "format_version": 1,
+      "id": "mega-man-legends",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/b442a0abde69ed5a2ed15075dbb77de8666a9b9e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mega-man-legends-playstation",
+          "title": "Mega Man Legends (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/mega-man-legends-recomp/blob/b442a0abde69ed5a2ed15075dbb77de8666a9b9e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

@@ -4,6 +4,23 @@
     "id": "shutoko-battle-x-static-recompilation-ludusregard-shutoko-battle-x",
     "name": "Shutoko Battle X — Shutoko Battle X Static Recompilation (ludusregard)",
     "original_game_title": "Shutoko Battle X",
+    "original_game": {
+      "format_version": 1,
+      "id": "shutoko-battle-x",
+      "evidence_urls": [
+        "https://github.com/ludusregard/SBX-Recomp/blob/12d08e1c2af29ec6caa8bd195d56d95219c06109/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shutoko-battle-x-xbox-360",
+          "title": "Shutoko Battle X (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ludusregard/SBX-Recomp/blob/12d08e1c2af29ec6caa8bd195d56d95219c06109/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project documents a fix for a quest-race black screen. Full progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ludusregard/SBX-Recomp",
     "listed_at": "2026-10-25",

@@ -7,6 +7,23 @@
     "summary": "Native Brave Fencer Musashi PlayStation recompilation from Alexbeav’s PSXRecomp project.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp",
     "original_game_title": "Brave Fencer Musashi",
+    "original_game": {
+      "format_version": 1,
+      "id": "brave-fencer-musashi",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/52ca4d63b68203624eb9ce5ca619eb5158752774/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "brave-fencer-musashi-playstation",
+          "title": "Brave Fencer Musashi (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/brave-fencer-musashi-recomp/blob/52ca4d63b68203624eb9ce5ca619eb5158752774/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 1810,
       "cover_id": 154795,

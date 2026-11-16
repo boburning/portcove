@@ -4,6 +4,23 @@
     "id": "noble-archimedes-sergiomanzur-castlevania-curse-of-darkness",
     "name": "Castlevania: Curse of Darkness — Noble Archimedes (sergiomanzur)",
     "original_game_title": "Castlevania: Curse of Darkness",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-curse-of-darkness",
+      "evidence_urls": [
+        "https://github.com/sergiomanzur/noble-archimedes/blob/c0c92cff2035eb8e477fe0d65a0e7253ddec1c1a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-curse-of-darkness-xbox",
+          "title": "Castlevania: Curse of Darkness (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/sergiomanzur/noble-archimedes/blob/c0c92cff2035eb8e477fe0d65a0e7253ddec1c1a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports a playable development build near 53 FPS during transitions. This does not establish a complete release or full-game compatibility. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sergiomanzur/noble-archimedes",
     "platforms": ["windows-x86-64"],

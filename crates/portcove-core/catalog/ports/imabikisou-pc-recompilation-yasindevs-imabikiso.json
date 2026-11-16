@@ -4,6 +4,23 @@
     "id": "imabikisou-pc-recompilation-yasindevs-imabikiso",
     "name": "Imabikisō — Imabikisou PC Recompilation (yasindevs)",
     "original_game_title": "Imabikisō",
+    "original_game": {
+      "format_version": 1,
+      "id": "imabikiso",
+      "evidence_urls": [
+        "https://github.com/yasindevs/imabikisou-pc/blob/9cb011b0459c26c2921f43d6374d3e6069611756/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "imabikiso-playstation-3",
+          "title": "Imabikisō (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/yasindevs/imabikisou-pc/blob/9cb011b0459c26c2921f43d6374d3e6069611756/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports the opening, first classroom narration, early saving and input. Most of the game remains untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/yasindevs/imabikisou-pc",
     "platforms": [],

@@ -4,6 +4,23 @@
     "id": "ailu-puzzle-jm5557-felyne-puzzle-airu-de-puzzle",
     "name": "Felyne Puzzle / Airu de Puzzle — ailu-puzzle (jM5557)",
     "original_game_title": "Felyne Puzzle / Airu de Puzzle",
+    "original_game": {
+      "format_version": 1,
+      "id": "felyne-puzzle-airu-de-puzzle",
+      "evidence_urls": [
+        "https://github.com/jM5557/ailu-puzzle/blob/ab0b5ba7ff1cf6d681bf25799276b3bce3ac4967/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "felyne-puzzle-airu-de-puzzle-playstation-portable",
+          "title": "Felyne Puzzle / Airu de Puzzle (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/jM5557/ailu-puzzle/blob/ab0b5ba7ff1cf6d681bf25799276b3bce3ac4967/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports early play of menus, story and first puzzles. This is a title-specific Yakumo fork for Felyne Puzzle, a separate game from Monster Hunter. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/jM5557/ailu-puzzle",
     "listed_at": "2026-10-25",

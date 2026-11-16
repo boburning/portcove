@@ -45,7 +45,24 @@
       "windows-x86-64": ["The-Lost-World-Jurassic-Park-Special-Edition-Recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "The Lost World: Jurassic Park Special Edition"
+    "original_game_title": "The Lost World: Jurassic Park Special Edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-lost-world-jurassic-park-special-edition",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/a485662b29988c380a51d9d968a18f8a29088f35/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-lost-world-jurassic-park-special-edition-playstation",
+          "title": "The Lost World: Jurassic Park Special Edition (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp/blob/a485662b29988c380a51d9d968a18f8a29088f35/README.md"
+          ]
+        }
+      ]
+    }
   },
   "psx_managed_windows_v1": "split-mods",
   "integration": {

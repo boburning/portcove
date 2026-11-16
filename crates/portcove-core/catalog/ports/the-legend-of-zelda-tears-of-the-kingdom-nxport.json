@@ -5,6 +5,23 @@
     "name": "The Legend of Zelda: Tears of the Kingdom (nxport)",
     "summary": "An experimental nxport Switch builder for The Legend of Zelda: Tears of the Kingdom, using an Apple Silicon NVN compatibility layer with game-specific support. The project reports iOS/macOS testing, with rendering flicker, terrain-normal defects and Rauru audio problems. The exact tested version is unconfirmed. There is no release package: clone and build nxport-builder, choose this game’s profile and the Mac or iOS target, then build a local app or IPA. You and the project manage preparation and rebuilding. Use your own extracted ExeFS/RomFS/Logo. Exact accepted version, region and title ID are unconfirmed. Windows and Linux players are unconfirmed. Portcove offers no setup or launch integration and has not tested gameplay.",
     "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda-tears-of-the-kingdom",
+      "evidence_urls": [
+        "https://github.com/nxporting/nxport/blob/1971c651510106e7a22dce30ea6a3ea1d60c34f5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+          "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch, region not specified)",
+          "system": "nintendo-switch",
+          "evidence_urls": [
+            "https://github.com/nxporting/nxport/blob/1971c651510106e7a22dce30ea6a3ea1d60c34f5/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/nxporting/nxport",
     "listed_at": "2026-10-25",
     "platforms": [],

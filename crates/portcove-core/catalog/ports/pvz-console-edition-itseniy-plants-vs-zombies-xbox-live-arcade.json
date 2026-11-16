@@ -4,6 +4,23 @@
     "id": "pvz-console-edition-itseniy-plants-vs-zombies-xbox-live-arcade",
     "name": "Plants vs. Zombies (Xbox Live Arcade) — pvz-console-edition (ITSeniy)",
     "original_game_title": "Plants vs. Zombies (Xbox Live Arcade)",
+    "original_game": {
+      "format_version": 1,
+      "id": "plants-vs-zombies-xbox-live-arcade",
+      "evidence_urls": [
+        "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "plants-vs-zombies-xbox-live-arcade-xbox",
+          "title": "Plants vs. Zombies (Xbox Live Arcade) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/ITSeniy/pvz-console-edition/blob/b16fb496406a06f5799ce852144469ba426d05c4/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes the 0.7.0 beta as playable from start to finish, with remaining rough edges. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ITSeniy/pvz-console-edition",
     "listed_at": "2026-10-25",

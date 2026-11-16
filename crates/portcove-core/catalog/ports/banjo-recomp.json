@@ -7,6 +7,23 @@
     "summary": "Native Banjo-Kazooie recompilation.",
     "project_url": "https://github.com/BanjoRecomp/BanjoRecomp",
     "original_game_title": "Banjo-Kazooie",
+    "original_game": {
+      "format_version": 1,
+      "id": "banjo-kazooie",
+      "evidence_urls": [
+        "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "banjo-kazooie-nintendo-64",
+          "title": "Banjo-Kazooie (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/BanjoRecomp/BanjoRecomp/blob/dbd52154bc1e00e56867b1fac94a8f907052f41b/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 387032,
       "cover_id": 529776,

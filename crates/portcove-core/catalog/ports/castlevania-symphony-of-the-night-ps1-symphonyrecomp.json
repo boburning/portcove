@@ -11,6 +11,23 @@
     "availability": "unknown",
     "setup_url": "https://github.com/BlackLabelHQ/SymphonyRecomp",
     "original_game_title": "Castlevania: Symphony of the Night",
+    "original_game": {
+      "format_version": 1,
+      "id": "castlevania-symphony-of-the-night",
+      "evidence_urls": [
+        "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/2deead5dc5f03f656c4ed625c1865fad5a544b8f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "castlevania-symphony-of-the-night-playstation",
+          "title": "Castlevania: Symphony of the Night (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/2deead5dc5f03f656c4ed625c1865fad5a544b8f/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "help_url": "https://github.com/BlackLabelHQ/SymphonyRecomp/blob/16859f39abbeca905dcd6ab062617f19a7285fe6/README.md",
       "steps": [

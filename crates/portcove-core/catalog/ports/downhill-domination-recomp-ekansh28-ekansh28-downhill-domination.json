@@ -4,6 +4,23 @@
     "id": "downhill-domination-recomp-ekansh28-ekansh28-downhill-domination",
     "name": "Downhill Domination — Downhill Domination Recomp (ekansh28) (ekansh28)",
     "original_game_title": "Downhill Domination",
+    "original_game": {
+      "format_version": 1,
+      "id": "downhill-domination",
+      "evidence_urls": [
+        "https://github.com/ekansh28/Recomp-Domination/blob/2131704b5d56f8ad9bbf0baaa4581759a1aaf87a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "downhill-domination-playstation-2",
+          "title": "Downhill Domination (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/ekansh28/Recomp-Domination/blob/2131704b5d56f8ad9bbf0baaa4581759a1aaf87a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental Downhill Domination source project. Upstream reports reaching PRESS X TO START, but pressing X crashes and no race is playable. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ekansh28/Recomp-Domination",
     "platforms": [],

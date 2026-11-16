@@ -4,6 +4,23 @@
     "id": "wpnative-bennoekart2-del-wii-party",
     "name": "Wii Party — WPnative (bennoekart2-del)",
     "original_game_title": "Wii Party",
+    "original_game": {
+      "format_version": 1,
+      "id": "wii-party",
+      "evidence_urls": [
+        "https://github.com/bennoekart2-del/WPnative/blob/69857c5e7f743bc6c5d8727eaae65535534d04f4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wii-party-wii",
+          "title": "Wii Party (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/bennoekart2-del/WPnative/blob/69857c5e7f743bc6c5d8727eaae65535534d04f4/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims board, minigame, save, Mii and online support. The scope of full-playthrough evidence is not established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/bennoekart2-del/WPnative",
     "platforms": ["windows-x86-64"],

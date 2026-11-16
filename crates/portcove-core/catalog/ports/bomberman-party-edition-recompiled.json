@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Bomberman Party Edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "bomberman-party-edition",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp/blob/9834a8955615313148ec6d5119ad0868806d41d4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bomberman-party-edition-playstation",
+          "title": "Bomberman Party Edition (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/BombermanPartyEditionRecomp/blob/9834a8955615313148ec6d5119ad0868806d41d4/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 18786,
       "cover_id": 473835,

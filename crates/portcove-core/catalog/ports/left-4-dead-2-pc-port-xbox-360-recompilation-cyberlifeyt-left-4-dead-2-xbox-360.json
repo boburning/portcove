@@ -4,6 +4,23 @@
     "id": "left-4-dead-2-pc-port-xbox-360-recompilation-cyberlifeyt-left-4-dead-2-xbox-360",
     "name": "Left 4 Dead 2 (Xbox 360) — Left 4 Dead 2 — PC Port (Xbox 360 recompilation) (CyberLifeYT)",
     "original_game_title": "Left 4 Dead 2 (Xbox 360)",
+    "original_game": {
+      "format_version": 1,
+      "id": "left-4-dead-2-xbox-360",
+      "evidence_urls": [
+        "https://github.com/CyberLifeYT/L4D2-PC-Port/blob/b1e58beda7b42a6311290b94abe93401c479e9f8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "left-4-dead-2-xbox-360-xbox-360",
+          "title": "Left 4 Dead 2 (Xbox 360) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/CyberLifeYT/L4D2-PC-Port/blob/b1e58beda7b42a6311290b94abe93401c479e9f8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The Accurate ROV renderer is required for correct lighting and video. A full campaign has not been confirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/CyberLifeYT/L4D2-PC-Port",
     "platforms": ["windows-x86-64", "linux-x86-64"],

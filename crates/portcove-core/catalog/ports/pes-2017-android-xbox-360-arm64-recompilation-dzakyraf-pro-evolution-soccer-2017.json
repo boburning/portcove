@@ -4,6 +4,23 @@
     "id": "pes-2017-android-xbox-360-arm64-recompilation-dzakyraf-pro-evolution-soccer-2017",
     "name": "Pro Evolution Soccer 2017 — PES 2017 Android (Xbox 360 → ARM64 recompilation) (dzakyraf)",
     "original_game_title": "Pro Evolution Soccer 2017",
+    "original_game": {
+      "format_version": 1,
+      "id": "pro-evolution-soccer-2017",
+      "evidence_urls": [
+        "https://github.com/dzakyraf/pes2017-recomp/blob/8dd109b38f875774275e259550d066cefd618da0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pro-evolution-soccer-2017-xbox-360",
+          "title": "Pro Evolution Soccer 2017 (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/dzakyraf/pes2017-recomp/blob/8dd109b38f875774275e259550d066cefd618da0/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Work in progress: a match reportedly runs on a Galaxy S20 FE. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/dzakyraf/pes2017-recomp",
     "listed_at": "2026-10-25",

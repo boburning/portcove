@@ -4,6 +4,23 @@
     "id": "snprecomp-wootbeer-sin-and-punishment",
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
+    "original_game": {
+      "format_version": 1,
+      "id": "sin-and-punishment",
+      "evidence_urls": [
+        "https://github.com/wootbeer/snprecomp/blob/6e76c24c84e6fc65faeae89e8e75d7fac92aba1f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "sin-and-punishment-nintendo-64",
+          "title": "Sin and Punishment (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/snprecomp/blob/6e76c24c84e6fc65faeae89e8e75d7fac92aba1f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",
     "project_url": "https://github.com/wootbeer/snprecomp",
     "availability": "packages",

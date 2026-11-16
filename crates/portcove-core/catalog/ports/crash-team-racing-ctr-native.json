@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Crash Team Racing",
+    "original_game": {
+      "format_version": 1,
+      "id": "crash-team-racing",
+      "evidence_urls": [
+        "https://github.com/CTR-tools/ctr-native/blob/8e21ed5dc347907f657914b0d61177a7ca7135e2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crash-team-racing-playstation",
+          "title": "Crash Team Racing (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/CTR-tools/ctr-native/blob/8e21ed5dc347907f657914b0d61177a7ca7135e2/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/CTR-tools/ctr-native/releases",
     "recommended_download_channel": "beta",
     "download_asset_hints": {

@@ -4,6 +4,23 @@
     "id": "enchantedarmspc-iandrewjj-enchanted-arms",
     "name": "Enchanted Arms — EnchantedArmsPC (IAndrewJJ)",
     "original_game_title": "Enchanted Arms",
+    "original_game": {
+      "format_version": 1,
+      "id": "enchanted-arms",
+      "evidence_urls": [
+        "https://github.com/IAndrewJJ/EnchantedArmsRecomp/blob/2d812a23890053e940ca37dbdac45e7b5da04a3e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "enchanted-arms-xbox-360",
+          "title": "Enchanted Arms (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/IAndrewJJ/EnchantedArmsRecomp/blob/2d812a23890053e940ca37dbdac45e7b5da04a3e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build Enchanted Arms locally from your Xbox 360 ISO. Upstream reports Windows menus, saves and early gameplay, with character-rendering issues and stutters. A full playthrough and Linux gameplay remain unconfirmed. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/IAndrewJJ/EnchantedArmsRecomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],

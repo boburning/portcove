@@ -4,6 +4,23 @@
     "id": "jetforcegemini-recomp-vibintoast-jet-force-gemini",
     "name": "Jet Force Gemini — JetForceGemini-Recomp (VibinToast)",
     "original_game_title": "Jet Force Gemini",
+    "original_game": {
+      "format_version": 1,
+      "id": "jet-force-gemini",
+      "evidence_urls": [
+        "https://github.com/VibinToast/JetForceGemini-Recompiled/blob/f489148c060dcd34615c1055b32dd7b346e93976/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jet-force-gemini-nintendo-64",
+          "title": "Jet Force Gemini (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/VibinToast/JetForceGemini-Recompiled/blob/f489148c060dcd34615c1055b32dd7b346e93976/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Native Jet Force Gemini with a US ROM picker, portable packages and a separate Linux AppImage.",
     "project_url": "https://github.com/VibinToast/JetForceGemini-Recompiled",
     "platforms": ["windows-x86-64", "linux-x86-64"],

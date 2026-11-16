@@ -11,6 +11,23 @@
     "availability": "packages",
     "setup_url": "https://github.com/mstan/FaxanaduRecomp#quick-start",
     "original_game_title": "Faxanadu",
+    "original_game": {
+      "format_version": 1,
+      "id": "faxanadu",
+      "evidence_urls": [
+        "https://github.com/mstan/FaxanaduRecomp/blob/e8ef305e0d36cdcc7b3689cfd3fdc695ff87c660/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "faxanadu-nes",
+          "title": "Faxanadu (NES, region not specified)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/FaxanaduRecomp/blob/e8ef305e0d36cdcc7b3689cfd3fdc695ff87c660/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/mstan/FaxanaduRecomp/releases",
     "manual_setup": {
       "steps": [

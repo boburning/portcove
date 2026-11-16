@@ -5,6 +5,23 @@
     "name": "Crackdown (Crackdown Recompiled)",
     "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",
+    "original_game": {
+      "format_version": 1,
+      "id": "crackdown",
+      "evidence_urls": [
+        "https://github.com/saulob/crackdown-xbox360-recompiled/blob/33ab1b632e38cb5c1c39a3d56c479537b9e0d185/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crackdown-xbox-360",
+          "title": "Crackdown (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/saulob/crackdown-xbox360-recompiled/blob/33ab1b632e38cb5c1c39a3d56c479537b9e0d185/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/saulob/crackdown-xbox360-recompiled",
     "issue_number": 2559,
     "listed_at": "2026-10-25",

@@ -6,6 +6,23 @@
     "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
     "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
+    "original_game": {
+      "format_version": 1,
+      "id": "final-fantasy-fables-chocobos-dungeon",
+      "evidence_urls": [
+        "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "final-fantasy-fables-chocobos-dungeon-wii",
+          "title": "Final Fantasy Fables: Chocobo’s Dungeon (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 4131,
     "listed_at": "2026-11-08",
     "platforms": ["linux-x86-64"],

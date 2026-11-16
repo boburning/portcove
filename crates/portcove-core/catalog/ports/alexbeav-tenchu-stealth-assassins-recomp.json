@@ -5,6 +5,23 @@
     "name": "Tenchu: Stealth Assassins / Alexbeav PSXRecomp",
     "summary": "Build and play Tenchu: Stealth Assassins on Windows or Linux with your own matching USA PlayStation disc and retail SCPH-1001 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "Tenchu: Stealth Assassins",
+    "original_game": {
+      "format_version": 1,
+      "id": "tenchu-stealth-assassins",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/9831d3362a322f15d6121abed91b893ba1fa45b1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tenchu-stealth-assassins-playstation",
+          "title": "Tenchu: Stealth Assassins (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp/blob/9831d3362a322f15d6121abed91b893ba1fa45b1/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/tenchu-stealth-assassins-recomp",
     "issue_number": 487,
     "listed_at": "2026-10-23",

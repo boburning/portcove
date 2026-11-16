@@ -4,6 +4,23 @@
     "id": "alexbeav-tail-concerto-recomp",
     "name": "Tail Concerto / Alexbeav PSXRecomp",
     "original_game_title": "Tail Concerto",
+    "original_game": {
+      "format_version": 1,
+      "id": "tail-concerto",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/a23288588442f0a7523c5d52396aa39f5a43c0a5/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "tail-concerto-playstation",
+          "title": "Tail Concerto (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp/blob/a23288588442f0a7523c5d52396aa39f5a43c0a5/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Tail Concerto player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/tail-concerto-recomp",
     "issue_number": 1609,

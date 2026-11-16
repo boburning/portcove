@@ -11,6 +11,23 @@
     "availability": "source-only",
     "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
     "original_game_title": "Wave Race 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "wave-race-64",
+      "evidence_urls": [
+        "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wave-race-64-nintendo-64",
+          "title": "Wave Race 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "steps": [
         {

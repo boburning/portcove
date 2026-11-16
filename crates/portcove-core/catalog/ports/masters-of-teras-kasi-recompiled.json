@@ -8,6 +8,23 @@
     "project_url": "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Star Wars: Masters of Teräs Käsi",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-masters-of-teras-kasi",
+      "evidence_urls": [
+        "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp/blob/a515e6c8750ba3f16e148feccf09ab0247f78d12/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-masters-of-teras-kasi-playstation",
+          "title": "Star Wars: Masters of Teräs Käsi (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/TechnicallyComputers/MastersOfTerasKasiRecomp/blob/a515e6c8750ba3f16e148feccf09ab0247f78d12/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 18044,
       "cover_id": 128842,

@@ -4,6 +4,23 @@
     "id": "front-mission-3-pc-itseniy-front-mission-3",
     "name": "Front Mission 3 — Front-Mission-3-PC (ITSeniy)",
     "original_game_title": "Front Mission 3",
+    "original_game": {
+      "format_version": 1,
+      "id": "front-mission-3",
+      "evidence_urls": [
+        "https://github.com/ITSeniy/Front-Mission-3-PC/blob/6d353c7a159efdbd09c42018eef1e627f2e7e79e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "front-mission-3-playstation",
+          "title": "Front Mission 3 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/ITSeniy/Front-Mission-3-PC/blob/6d353c7a159efdbd09c42018eef1e627f2e7e79e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports gameplay, full-motion videos and audio. Playthrough A testing and investigation of scheduling after training continue; Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ITSeniy/Front-Mission-3-PC",
     "platforms": [],

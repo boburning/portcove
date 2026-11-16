@@ -4,6 +4,23 @@
     "id": "rerevved-rerevvedrecomp-civilization-revolution",
     "name": "Civilization Revolution — ReRevved (ReRevvedRecomp)",
     "original_game_title": "Civilization Revolution",
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-revolution",
+      "evidence_urls": [
+        "https://github.com/ReRevvedRecomp/rerevved/blob/9451877451b99ba5f970d17e38c5c17addb6b309/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "civilization-revolution-xbox-360",
+          "title": "Civilization Revolution (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/ReRevvedRecomp/rerevved/blob/9451877451b99ba5f970d17e38c5c17addb6b309/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This primarily uses static recompilation. The reviewed README does not claim that the full game works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/ReRevvedRecomp/rerevved",
     "platforms": [],

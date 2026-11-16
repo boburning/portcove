@@ -4,6 +4,23 @@
     "id": "wwf-smackdown-2-recomp-fabioap-cpu-wwf-smackdown-2",
     "name": "WWF SmackDown! 2 — WWF-SmackDown-2-Recomp (fabioap-cpu)",
     "original_game_title": "WWF SmackDown! 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "wwf-smackdown-2",
+      "evidence_urls": [
+        "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp/blob/524a939733e305036032f8d34d27444aebce967f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wwf-smackdown-2-playstation",
+          "title": "WWF SmackDown! 2 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp/blob/524a939733e305036032f8d34d27444aebce967f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Experimental project. Upstream rendering/input/memory-card playable; USAonly, other regions untested; performance slogan unqualified. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/fabioap-cpu/WWF-SmackDown-2-Recomp",
     "listed_at": "2026-10-25",

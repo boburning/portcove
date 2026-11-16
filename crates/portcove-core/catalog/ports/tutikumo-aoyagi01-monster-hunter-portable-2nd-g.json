@@ -4,6 +4,23 @@
     "id": "tutikumo-aoyagi01-monster-hunter-portable-2nd-g",
     "name": "Monster Hunter Portable 2nd G — Tutikumo (Aoyagi01)",
     "original_game_title": "Monster Hunter Portable 2nd G",
+    "original_game": {
+      "format_version": 1,
+      "id": "monster-hunter-portable-2nd-g",
+      "evidence_urls": [
+        "https://github.com/Aoyagi01/Tutikumo/blob/0b11c0b740d5e8bcc81ce1b307ec6888d0afe06a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "monster-hunter-portable-2nd-g-playstation-portable",
+          "title": "Monster Hunter Portable 2nd G (PlayStation Portable, region not specified)",
+          "system": "playstation-portable",
+          "evidence_urls": [
+            "https://github.com/Aoyagi01/Tutikumo/blob/0b11c0b740d5e8bcc81ce1b307ec6888d0afe06a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports ahead-of-time compilation of all overlays with interpreter fallback for untranslated code. The extent of playthrough testing is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Aoyagi01/Tutikumo",
     "listed_at": "2026-10-25",

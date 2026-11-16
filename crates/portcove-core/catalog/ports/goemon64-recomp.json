@@ -8,6 +8,23 @@
     "project_url": "https://github.com/klorfmorf/Goemon64Recomp",
     "listed_at": "2026-10-23",
     "original_game_title": "Mystical Ninja Starring Goemon",
+    "original_game": {
+      "format_version": 1,
+      "id": "mystical-ninja-starring-goemon",
+      "evidence_urls": [
+        "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mystical-ninja-starring-goemon-nintendo-64",
+          "title": "Mystical Ninja Starring Goemon (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/klorfmorf/Goemon64Recomp/blob/6661abc439327b9ed9e235c391720f9034f61a78/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 330074,
       "cover_id": 507328,

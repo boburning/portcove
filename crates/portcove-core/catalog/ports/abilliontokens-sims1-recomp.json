@@ -5,6 +5,23 @@
     "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Sims",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-sims",
+      "evidence_urls": [
+        "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-sims-xbox",
+          "title": "The Sims (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/abilliontokens/sims1-recomp/blob/aa665356bc893a702cdfeea58e2ee20ed466a16a/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/abilliontokens/sims1-recomp",
     "platforms": [],
     "availability": "unknown",

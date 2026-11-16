@@ -4,6 +4,23 @@
     "id": "dbziw-recomp-theslackbringer-dragon-ball-z-infinite-world",
     "name": "Dragon Ball Z: Infinite World — dbziw-recomp (TheSlackbringer)",
     "original_game_title": "Dragon Ball Z: Infinite World",
+    "original_game": {
+      "format_version": 1,
+      "id": "dragon-ball-z-infinite-world",
+      "evidence_urls": [
+        "https://github.com/TheSlackbringer/dbziw-recomp/blob/f272bd545cca2da826249b93666d01ea04519cef/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dragon-ball-z-infinite-world-playstation-2",
+          "title": "Dragon Ball Z: Infinite World (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/TheSlackbringer/dbziw-recomp/blob/f272bd545cca2da826249b93666d01ea04519cef/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Source/release self-builder in development; tested scenes not full playability. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/TheSlackbringer/dbziw-recomp",
     "platforms": ["windows-x86-64"],

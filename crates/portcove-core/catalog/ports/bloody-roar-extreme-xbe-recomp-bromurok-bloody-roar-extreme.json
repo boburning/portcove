@@ -4,6 +4,23 @@
     "id": "bloody-roar-extreme-xbe-recomp-bromurok-bloody-roar-extreme",
     "name": "Bloody Roar Extreme — Bloody Roar Extreme - XBE Recomp (bromurok)",
     "original_game_title": "Bloody Roar Extreme",
+    "original_game": {
+      "format_version": 1,
+      "id": "bloody-roar-extreme",
+      "evidence_urls": [
+        "https://github.com/bromurok/BloodyRoarExtremeRecomp/blob/667bb7e8b6cb398bf42e8f582219b5dabe58656f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "bloody-roar-extreme-xbox",
+          "title": "Bloody Roar Extreme (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/bromurok/BloodyRoarExtremeRecomp/blob/667bb7e8b6cb398bf42e8f582219b5dabe58656f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream claims stable60 gameplay and 2-player local versus; no Portcove runtime evidence. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/bromurok/BloodyRoarExtremeRecomp",
     "listed_at": "2026-10-25",

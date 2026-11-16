@@ -8,6 +8,23 @@
     "project_url": "https://github.com/HarbourMasters/PaperBoat",
     "listed_at": "2026-10-23",
     "original_game_title": "Paper Mario",
+    "original_game": {
+      "format_version": 1,
+      "id": "paper-mario",
+      "evidence_urls": [
+        "https://github.com/HarbourMasters/PaperBoat/blob/9dc47846b1a65775787e1b96f0252b0872a143ca/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "paper-mario-nintendo-64",
+          "title": "Paper Mario (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/HarbourMasters/PaperBoat/blob/9dc47846b1a65775787e1b96f0252b0872a143ca/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 3340,
       "cover_id": 80830,

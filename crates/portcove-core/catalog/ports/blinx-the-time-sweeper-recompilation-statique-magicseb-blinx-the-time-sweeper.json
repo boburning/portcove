@@ -4,6 +4,23 @@
     "id": "blinx-the-time-sweeper-recompilation-statique-magicseb-blinx-the-time-sweeper",
     "name": "Blinx: The Time Sweeper — Blinx: The Time Sweeper — recompilation statique (magicseb)",
     "original_game_title": "Blinx: The Time Sweeper",
+    "original_game": {
+      "format_version": 1,
+      "id": "blinx-the-time-sweeper",
+      "evidence_urls": [
+        "https://github.com/magicseb/blinx-recomp/blob/b1175ec948da89093514fcfc148635a000a00b9d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blinx-the-time-sweeper-xbox",
+          "title": "Blinx: The Time Sweeper (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/magicseb/blinx-recomp/blob/b1175ec948da89093514fcfc148635a000a00b9d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Title-specific native build exists; completion scope is unknown. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/magicseb/blinx-recomp",
     "platforms": [],

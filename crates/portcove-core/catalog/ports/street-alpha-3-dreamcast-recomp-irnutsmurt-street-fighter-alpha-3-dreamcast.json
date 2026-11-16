@@ -4,6 +4,23 @@
     "id": "street-alpha-3-dreamcast-recomp-irnutsmurt-street-fighter-alpha-3-dreamcast",
     "name": "Street Fighter Alpha 3 (Dreamcast) — Street-Alpha-3-Dreamcast-Recomp (irnutsmurt)",
     "original_game_title": "Street Fighter Alpha 3 (Dreamcast)",
+    "original_game": {
+      "format_version": 1,
+      "id": "street-fighter-alpha-3-dreamcast",
+      "evidence_urls": [
+        "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp/blob/f2755dff751767b9a8ccd1fb41ae941d95512be0/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "street-fighter-alpha-3-dreamcast-dreamcast",
+          "title": "Street Fighter Alpha 3 (Dreamcast) (Dreamcast, region not specified)",
+          "system": "dreamcast",
+          "evidence_urls": [
+            "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp/blob/f2755dff751767b9a8ccd1fb41ae941d95512be0/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes native fighting, online play and controls. Complete character, mode and playthrough coverage have not been established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/irnutsmurt/Street-Alpha-3-Dreamcast-Recomp",
     "listed_at": "2026-10-25",

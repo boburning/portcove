@@ -5,6 +5,23 @@
     "name": "Naruto: Rise of a Ninja (Naruto Rise Recomp)",
     "summary": "Attach an independently permitted, prepared Naruto: Rise of a Ninja Windows ZIP player directly after upstream setup. Preserve the selected data descriptor, guest saves/content and migration journals; this release offers update notices rather than replacing itself.",
     "original_game_title": "Naruto: Rise of a Ninja",
+    "original_game": {
+      "format_version": 1,
+      "id": "naruto-rise-of-a-ninja",
+      "evidence_urls": [
+        "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/4673526152d7789a683c33a56a09e34efa428fc9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "naruto-rise-of-a-ninja-xbox-360",
+          "title": "Naruto: Rise of a Ninja (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/jorjbarbosa/naruto-rise-recomp/blob/4673526152d7789a683c33a56a09e34efa428fc9/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/jorjbarbosa/naruto-rise-recomp",
     "platforms": [],
     "availability": "unknown",

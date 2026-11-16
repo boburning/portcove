@@ -5,6 +5,23 @@
     "name": "Doraemon 3: Nobita no Machi SOS! (Dora3-64)",
     "summary": "Attach an independently permitted prepared Dora64-3 Windows player for your own Japanese revision0 ROM, keeping local saves, settings and upstream maintenance together.",
     "original_game_title": "Doraemon 3: Nobita no Machi SOS!",
+    "original_game": {
+      "format_version": 1,
+      "id": "doraemon-3-nobita-no-machi-sos",
+      "evidence_urls": [
+        "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doraemon-3-nobita-no-machi-sos-nintendo-64",
+          "title": "Doraemon 3: Nobita no Machi SOS! (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/citrongames/Dora64-3/blob/bea71eec9846ed0b13f203f644af6732c0bec553/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/citrongames/Dora64-3",
     "platforms": [],
     "availability": "unknown",

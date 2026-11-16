@@ -4,6 +4,23 @@
     "id": "dino-crisis-modern-edition-rotmill-dino-crisis",
     "name": "Dino Crisis — Dino-Crisis-Modern-Edition (Rotmill)",
     "original_game_title": "Dino Crisis",
+    "original_game": {
+      "format_version": 1,
+      "id": "dino-crisis",
+      "evidence_urls": [
+        "https://github.com/Rotmill/Dino-Crisis-Modern-Edition/blob/d25f91b9b475733077be89d775cc54c8767cd186/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dino-crisis-playstation",
+          "title": "Dino Crisis (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Rotmill/Dino-Crisis-Modern-Edition/blob/d25f91b9b475733077be89d775cc54c8767cd186/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes Dino Crisis mods and development features. Its supported-disc setup does not establish that every enhancement or gameplay path works; Portcove has not confirmed a full playthrough. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Rotmill/Dino-Crisis-Modern-Edition",
     "platforms": [],

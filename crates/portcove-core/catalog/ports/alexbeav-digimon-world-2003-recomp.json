@@ -7,6 +7,23 @@
     "summary": "Build and play Digimon World 2003 on Windows or Linux with your own matching single-track Europe PlayStation disc and retail SCPH-5552 BIOS. The Mac setup kit uses upstream preparation.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp",
     "original_game_title": "Digimon World 2003",
+    "original_game": {
+      "format_version": 1,
+      "id": "digimon-world-2003",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/899c5aa7cd724772c0561edd23676c7e48236c48/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "digimon-world-2003-playstation",
+          "title": "Digimon World 2003 (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/digimon-world-2003-recomp/blob/899c5aa7cd724772c0561edd23676c7e48236c48/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 436,
     "listed_at": "2026-10-23",
     "artwork": {

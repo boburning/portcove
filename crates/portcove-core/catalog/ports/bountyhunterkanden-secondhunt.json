@@ -5,6 +5,23 @@
     "name": "Metroid Prime Hunters (Second Hunt)",
     "summary": "Second Hunt is a Windows port of Metroid Prime Hunters that uses your own USA Nintendo DS ROM. Set it up with the project’s tools, then add the prepared program to Portcove.",
     "original_game_title": "Metroid Prime Hunters",
+    "original_game": {
+      "format_version": 1,
+      "id": "metroid-prime-hunters",
+      "evidence_urls": [
+        "https://github.com/BountyHunterKanden/SecondHunt/blob/9075c4ab834786128decd9db58628c16b69ade41/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "metroid-prime-hunters-nintendo-ds",
+          "title": "Metroid Prime Hunters (Nintendo DS, region not specified)",
+          "system": "nintendo-ds",
+          "evidence_urls": [
+            "https://github.com/BountyHunterKanden/SecondHunt/blob/9075c4ab834786128decd9db58628c16b69ade41/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/BountyHunterKanden/SecondHunt",
     "platforms": [],
     "availability": "unknown",

@@ -4,6 +4,23 @@
     "id": "crazy-taxi-ps3-recomp-sp00nznet-crazy-taxi",
     "name": "Crazy Taxi — Crazy Taxi PS3 recomp (sp00nznet)",
     "original_game_title": "Crazy Taxi",
+    "original_game": {
+      "format_version": 1,
+      "id": "crazy-taxi",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/crazytaxi-ps3/blob/94c5a3d6351f1d355cf24a9b08283856a67f0b22/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "crazy-taxi-playstation-3",
+          "title": "Crazy Taxi (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/crazytaxi-ps3/blob/94c5a3d6351f1d355cf24a9b08283856a67f0b22/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports the title screen and an attract-mode city demo rendering. Menus and gameplay have not been reached. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/crazytaxi-ps3",
     "platforms": [],

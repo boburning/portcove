@@ -52,6 +52,23 @@
     "release_url": "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/releases",
     "recommended_download_channel": "stable",
     "original_game_title": "In Cold Blood",
+    "original_game": {
+      "format_version": 1,
+      "id": "in-cold-blood",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/58e2ffd50abe94e48d5d1ac765fc896d959c8cdc/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "in-cold-blood-playstation",
+          "title": "In Cold Blood (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/in-cold-blood-recomp/blob/58e2ffd50abe94e48d5d1ac765fc896d959c8cdc/README.md"
+          ]
+        }
+      ]
+    },
     "download_asset_hints": {
       "linux-x86-64": ["In-Cold-Blood-Recomp-", "-linux-x64.zip"],
       "macos-aarch64": ["In-Cold-Blood-Recomp-", "-macos-arm64.zip"],

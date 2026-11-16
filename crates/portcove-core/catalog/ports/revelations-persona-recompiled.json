@@ -8,6 +8,23 @@
     "project_url": "https://github.com/NJH-1001/RevPRecompile",
     "listed_at": "2026-10-23",
     "original_game_title": "Revelations: Persona",
+    "original_game": {
+      "format_version": 1,
+      "id": "revelations-persona",
+      "evidence_urls": [
+        "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "revelations-persona-playstation",
+          "title": "Revelations: Persona (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NJH-1001/RevPRecompile/blob/38fa6f4cf49a9a03244a64d2a12762074ed23348/README.md"
+          ]
+        }
+      ]
+    },
     "artwork": {
       "game_id": 11452,
       "cover_id": 85551,

@@ -5,6 +5,23 @@
     "name": "Turok: Rage Wars (PaxDino)",
     "summary": "Attach an independently permitted, prepared PaxDino Windows player for Turok: Rage Wars using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual trwrecomp configuration/save root and component notices.",
     "original_game_title": "Turok: Rage Wars",
+    "original_game": {
+      "format_version": 1,
+      "id": "turok-rage-wars",
+      "evidence_urls": [
+        "https://github.com/wootbeer/PaxDino/blob/c48ab21d82231be9bc79d8e87ad2f4a260d1d0ff/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "turok-rage-wars-nintendo-64",
+          "title": "Turok: Rage Wars (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/wootbeer/PaxDino/blob/c48ab21d82231be9bc79d8e87ad2f4a260d1d0ff/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/wootbeer/PaxDino",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

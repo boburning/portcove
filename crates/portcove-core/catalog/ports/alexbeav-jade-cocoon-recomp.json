@@ -4,6 +4,23 @@
     "id": "alexbeav-jade-cocoon-recomp",
     "name": "Jade Cocoon: Story of the Tamamayu / Alexbeav PSXRecomp",
     "original_game_title": "Jade Cocoon: Story of the Tamamayu",
+    "original_game": {
+      "format_version": 1,
+      "id": "jade-cocoon-story-of-the-tamamayu",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/a17fc41d21767614b0a5450c84540d6435d2c2c3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jade-cocoon-story-of-the-tamamayu-playstation",
+          "title": "Jade Cocoon: Story of the Tamamayu (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp/blob/a17fc41d21767614b0a5450c84540d6435d2c2c3/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Jade Cocoon: Story of the Tamamayu player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/jade-cocoon-recomp",
     "issue_number": 1599,

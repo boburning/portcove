@@ -4,6 +4,23 @@
     "id": "rustmania-racing-ray-m-w-muppet-racemania",
     "name": "Muppet RaceMania — RustMania Racing (Ray-m-w)",
     "original_game_title": "Muppet RaceMania",
+    "original_game": {
+      "format_version": 1,
+      "id": "muppet-racemania",
+      "evidence_urls": [
+        "https://github.com/Ray-m-w/RustMania-Racing/blob/8bfaf5438e44fe4037821d2baca9f51513097e99/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "muppet-racemania-playstation",
+          "title": "Muppet RaceMania (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/Ray-m-w/RustMania-Racing/blob/8bfaf5438e44fe4037821d2baca9f51513097e99/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Race with the Muppets in RustMania Racing using your own supported USA PlayStation disc image.",
     "project_url": "https://github.com/Ray-m-w/RustMania-Racing",
     "platforms": [],

@@ -5,6 +5,23 @@
     "name": "Ridge Racer V (Fukami)",
     "summary": "Attach an independently permitted, prepared Fukami Windows application with your supported Ridge Racer V disc. Its native parent prepares and waits for a same-image game child; preserve actual LocalAppData, memory cards, extracted-disc data and matching resource packages.",
     "original_game_title": "Ridge Racer V",
+    "original_game": {
+      "format_version": 1,
+      "id": "ridge-racer-v",
+      "evidence_urls": [
+        "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ridge-racer-v-playstation-2",
+          "title": "Ridge Racer V (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/danisandoval/fukami/blob/2ecb2810ddb742245b17fd54500bcf07d1fe6760/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/danisandoval/fukami",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

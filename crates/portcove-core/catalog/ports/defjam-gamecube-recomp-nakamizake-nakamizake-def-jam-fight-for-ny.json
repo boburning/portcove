@@ -4,6 +4,23 @@
     "id": "defjam-gamecube-recomp-nakamizake-nakamizake-def-jam-fight-for-ny",
     "name": "Def Jam: Fight for NY — DefJam GameCube recomp (Nakamizake) (Nakamizake)",
     "original_game_title": "Def Jam: Fight for NY",
+    "original_game": {
+      "format_version": 1,
+      "id": "def-jam-fight-for-ny",
+      "evidence_urls": [
+        "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp/blob/1d6138134ce37eb2a0d6f7738dd29ab13a88e209/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "def-jam-fight-for-ny-gamecube",
+          "title": "Def Jam: Fight for NY (GameCube, region not specified)",
+          "system": "gamecube",
+          "evidence_urls": [
+            "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp/blob/1d6138134ce37eb2a0d6f7738dd29ab13a88e209/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes a native player. Complete-campaign and online-play claims remain unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Nakamizake/Def-Jam-Fight-for-NY-Recomp",
     "platforms": ["windows-x86-64"],

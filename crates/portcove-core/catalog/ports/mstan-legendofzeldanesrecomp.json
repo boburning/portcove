@@ -11,6 +11,23 @@
     "availability": "unknown",
     "setup_url": "https://github.com/mstan/LegendOfZeldaNESRecomp",
     "original_game_title": "The Legend of Zelda",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-legend-of-zelda",
+      "evidence_urls": [
+        "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/b8b227065a96cc680f900410fafd9db6499148c1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-legend-of-zelda-nes",
+          "title": "The Legend of Zelda (NES, region not specified)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/b8b227065a96cc680f900410fafd9db6499148c1/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "help_url": "https://github.com/mstan/LegendOfZeldaNESRecomp/blob/07c3004786f36b73e58fe00bfece9ad648ba7d96/README.md",
       "steps": [

@@ -63,7 +63,24 @@
       "windows-x86-64": ["wipeout-recomp-", "-windows-x64.zip"]
     },
     "recommended_download_channel": "stable",
-    "original_game_title": "WipEout"
+    "original_game_title": "WipEout",
+    "original_game": {
+      "format_version": 1,
+      "id": "wipeout",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/48523524fd0f95b17ad3f689191dac7635cb6d63/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wipeout-playstation",
+          "title": "WipEout (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/wipeout-recomp/blob/48523524fd0f95b17ad3f689191dac7635cb6d63/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

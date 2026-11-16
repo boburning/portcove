@@ -5,6 +5,23 @@
     "name": "Pilotwings 64: Recompiled (Daniel Gomes Vieira)",
     "summary": "Native Pilotwings 64 for Windows and Linux with an in-game picker for your own USA cartridge image; saves and settings stay in the player's profile.",
     "original_game_title": "Pilotwings 64",
+    "original_game": {
+      "format_version": 1,
+      "id": "pilotwings-64",
+      "evidence_urls": [
+        "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pilotwings-64-nintendo-64",
+          "title": "Pilotwings 64 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/danielgomesvieira2000/pilotwings-64-recomp/blob/ce3634ad4be6ee5666dec2cd0bbcc35c4571bf29/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/danielgomesvieira2000/pilotwings-64-recomp",
     "issue_number": 1275,
     "listed_at": "2026-10-23",

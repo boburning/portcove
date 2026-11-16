@@ -5,6 +5,23 @@
     "name": "Yoshi (YoshiNESRecomp)",
     "summary": "Register a permitted noncommercial completed Yoshi Windows cycle player, preserving your original, actual configuration and creating-backend state.",
     "original_game_title": "Yoshi",
+    "original_game": {
+      "format_version": 1,
+      "id": "yoshi",
+      "evidence_urls": [
+        "https://github.com/mstan/YoshiNESRecomp/blob/f4cc2f23bbb7308de9fde3eeab8e74b4f5a52aab/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yoshi-nes",
+          "title": "Yoshi (NES, region not specified)",
+          "system": "nes",
+          "evidence_urls": [
+            "https://github.com/mstan/YoshiNESRecomp/blob/f4cc2f23bbb7308de9fde3eeab8e74b4f5a52aab/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/mstan/YoshiNESRecomp",
     "platforms": [],
     "availability": "unknown",

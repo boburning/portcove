@@ -4,6 +4,23 @@
     "id": "azkali-kameorecomp-azkali-kameo-elements-of-power",
     "name": "Kameo: Elements of Power — Azkali KameoRecomp (Azkali)",
     "original_game_title": "Kameo: Elements of Power",
+    "original_game": {
+      "format_version": 1,
+      "id": "kameo-elements-of-power",
+      "evidence_urls": [
+        "https://github.com/Azkali/KameoRecomp/blob/e41ee4b51248ab148e0d215ccdb50c0242eb0792/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "kameo-elements-of-power-xbox",
+          "title": "Kameo: Elements of Power (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/Azkali/KameoRecomp/blob/e41ee4b51248ab148e0d215ccdb50c0242eb0792/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This early project generates code that can be linked into a Kameo player. Most Xbox system functions remain unfinished in src/hooks.cpp; startup and gameplay are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Azkali/KameoRecomp",
     "listed_at": "2026-10-25",

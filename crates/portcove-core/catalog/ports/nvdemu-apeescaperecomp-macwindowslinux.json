@@ -5,6 +5,23 @@
     "name": "Ape Escape (NVDEMU)",
     "summary": "Use the maintained NVDEMU Ape Escape launcher with your own North American disc. Preserve both game and per-user launcher data; upstream owns nightly replacement and overlay preparation.",
     "original_game_title": "Ape Escape",
+    "original_game": {
+      "format_version": 1,
+      "id": "ape-escape",
+      "evidence_urls": [
+        "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/b0c56c5b989a8b3412c51b14a95aecc76563de90/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ape-escape-playstation",
+          "title": "Ape Escape (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/nvd123-YT/ApeEscapeRecompiled/blob/b0c56c5b989a8b3412c51b14a95aecc76563de90/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/nvd123-YT/ApeEscapeRecompiled",
     "issue_number": 2806,
     "listed_at": "2026-10-26",

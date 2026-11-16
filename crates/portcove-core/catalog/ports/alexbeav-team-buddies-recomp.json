@@ -4,6 +4,23 @@
     "id": "alexbeav-team-buddies-recomp",
     "name": "Team Buddies / Alexbeav PSXRecomp",
     "original_game_title": "Team Buddies",
+    "original_game": {
+      "format_version": 1,
+      "id": "team-buddies",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/d05443f346c1182cbf9fad2a15c34790bf1c1242/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "team-buddies-playstation",
+          "title": "Team Buddies (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp/blob/d05443f346c1182cbf9fad2a15c34790bf1c1242/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Team Buddies player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/team-buddies-recomp",
     "issue_number": 1610,

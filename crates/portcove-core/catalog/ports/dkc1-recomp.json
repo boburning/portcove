@@ -33,6 +33,23 @@
       "help_url": "https://github.com/elliotttate/DKC1Recomp#readme"
     },
     "original_game_title": "Donkey Kong Country",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country",
+      "evidence_urls": [
+        "https://github.com/elliotttate/DKC1Recomp/blob/3eb9a10c49cb210df2bd63addafe2a78cf9f4e22/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-super-nintendo",
+          "title": "Donkey Kong Country (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/DKC1Recomp/blob/3eb9a10c49cb210df2bd63addafe2a78cf9f4e22/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["macos-aarch64"]
   },
   "integration": {

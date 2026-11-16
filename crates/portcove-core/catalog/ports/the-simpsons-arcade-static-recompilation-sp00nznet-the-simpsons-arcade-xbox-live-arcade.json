@@ -4,6 +4,23 @@
     "id": "the-simpsons-arcade-static-recompilation-sp00nznet-the-simpsons-arcade-xbox-live-arcade",
     "name": "The Simpsons Arcade (Xbox Live Arcade) — The Simpsons Arcade - Static Recompilation (sp00nznet)",
     "original_game_title": "The Simpsons Arcade (Xbox Live Arcade)",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-simpsons-arcade-xbox-live-arcade",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/simpsonsarcade/blob/527f163b697a3c72164d9330544777d9b0cd44db/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-simpsons-arcade-xbox-live-arcade-xbox",
+          "title": "The Simpsons Arcade (Xbox Live Arcade) (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/simpsonsarcade/blob/527f163b697a3c72164d9330544777d9b0cd44db/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project reports full-speed menus, gameplay, audio and input. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/simpsonsarcade",
     "listed_at": "2026-10-25",

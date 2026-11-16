@@ -4,6 +4,23 @@
     "id": "alexbeav-wild-arms-recomp",
     "name": "Wild Arms / Alexbeav PSXRecomp",
     "original_game_title": "Wild Arms",
+    "original_game": {
+      "format_version": 1,
+      "id": "wild-arms",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/816cc581e9a4a24f255604312307036701650260/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wild-arms-playstation",
+          "title": "Wild Arms (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp/blob/816cc581e9a4a24f255604312307036701650260/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build a native Wild Arms player from your matching original PlayStation disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/wild-arms-recomp",
     "issue_number": 1611,

@@ -4,6 +4,23 @@
     "id": "sarpbc-recompiled-snufflyyy-supersonic-acrobatic-rocket-powered-battle-cars",
     "name": "Supersonic Acrobatic Rocket-Powered Battle-Cars — SARPBC-recompiled (snufflyyy)",
     "original_game_title": "Supersonic Acrobatic Rocket-Powered Battle-Cars",
+    "original_game": {
+      "format_version": 1,
+      "id": "supersonic-acrobatic-rocket-powered-battle-cars",
+      "evidence_urls": [
+        "https://github.com/snufflyyy/SARPBC-recompiled/blob/d545239978ebe84efd1bfe77a49d6cef7b29b84e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "supersonic-acrobatic-rocket-powered-battle-cars-playstation-3",
+          "title": "Supersonic Acrobatic Rocket-Powered Battle-Cars (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/snufflyyy/SARPBC-recompiled/blob/d545239978ebe84efd1bfe77a49d6cef7b29b84e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Information only. The project reports menus and offline arena matches above 35 FPS. Downloads and distribution are unavailable because the original project has not chosen a license; an attributable license is required. Windows and macOS remain planned, unvalidated hosts. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/snufflyyy/SARPBC-recompiled",
     "platforms": [],

@@ -5,6 +5,23 @@
     "name": "The Fifth Element / Alexbeav PSXRecomp",
     "summary": "Build and play The Fifth Element on Windows or Linux with your own matching European PlayStation disc and retail SCPH-5552 BIOS. You can also use a separately prepared upstream copy.",
     "original_game_title": "The Fifth Element",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-fifth-element",
+      "evidence_urls": [
+        "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/8d43f12f6ff1354264b2c61d22b2947b5c216d79/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-fifth-element-playstation",
+          "title": "The Fifth Element (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp/blob/8d43f12f6ff1354264b2c61d22b2947b5c216d79/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbeavs-ps1-ports/the-fifth-element-recomp",
     "issue_number": 482,
     "listed_at": "2026-10-23",

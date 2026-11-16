@@ -33,6 +33,23 @@
       "help_url": "https://github.com/elliotttate/DKC2Recomp#readme"
     },
     "original_game_title": "Donkey Kong Country 2: Diddy's Kong Quest",
+    "original_game": {
+      "format_version": 1,
+      "id": "donkey-kong-country-2-diddy-s-kong-quest",
+      "evidence_urls": [
+        "https://github.com/elliotttate/DKC2Recomp/blob/3b386cb4a6b67472bc6693664ce61a11190e7b5d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "donkey-kong-country-2-diddy-s-kong-quest-super-nintendo",
+          "title": "Donkey Kong Country 2: Diddy's Kong Quest (Super Nintendo, region not specified)",
+          "system": "super-nintendo",
+          "evidence_urls": [
+            "https://github.com/elliotttate/DKC2Recomp/blob/3b386cb4a6b67472bc6693664ce61a11190e7b5d/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["macos-aarch64"]
   },
   "integration": {

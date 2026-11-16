@@ -59,6 +59,23 @@
       "linux-x86-64": ["pd-dabs-mod-", "x86_64-Linux.tar.gz"]
     },
     "original_game_title": "Perfect Dark",
+    "original_game": {
+      "format_version": 1,
+      "id": "perfect-dark",
+      "evidence_urls": [
+        "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/cc90f3635adb570352c55a7ca73ce7198a10769e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "perfect-dark-nintendo-64",
+          "title": "Perfect Dark (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/DabDavis/perfect-dark-dabs-mod/blob/cc90f3635adb570352c55a7ca73ce7198a10769e/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/DabDavis/perfect-dark-dabs-mod/releases",
     "recommended_download_channel": "stable"
   }

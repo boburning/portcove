@@ -5,6 +5,23 @@
     "name": "Azure Dreams (Azure Dreams HD Recompilation)",
     "summary": "An Azure Dreams port with a recompiled base game and interpreted overlays unless you separately compile them with compile_overlays.py --static. A release ZIP alone does not establish fully static coverage or a full playthrough. The Windows 10 player/source route downloads its framework toolchain, generates base C from your own USA SLUS-00614 PlayStation disc and rebuilds locally. OpenBIOS is bundled. Other player platforms, exact accepted revision/hashes and further BIOS/firmware requirements are unconfirmed. You and the project manage generated files and updates; Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Azure Dreams",
+    "original_game": {
+      "format_version": 1,
+      "id": "azure-dreams",
+      "evidence_urls": [
+        "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "azure-dreams-playstation",
+          "title": "Azure Dreams (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation/blob/0081c90ac54704aa92581471b26ee883414dfed9/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/PotionDweller/Azure-Dreams-HD-Recompilation",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

@@ -4,6 +4,23 @@
     "id": "hp1recomp-l0rd92-harry-potter-and-the-sorcerer-s-stone",
     "name": "Harry Potter and the Sorcerer's Stone — HP1Recomp (l0rd92)",
     "original_game_title": "Harry Potter and the Sorcerer's Stone",
+    "original_game": {
+      "format_version": 1,
+      "id": "harry-potter-and-the-sorcerer-s-stone",
+      "evidence_urls": [
+        "https://github.com/l0rd92/HP1Recomp/blob/37d0b04494ad6e75a6de641c37d6c3b0da180c21/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "harry-potter-and-the-sorcerer-s-stone-playstation",
+          "title": "Harry Potter and the Sorcerer's Stone (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/l0rd92/HP1Recomp/blob/37d0b04494ad6e75a6de641c37d6c3b0da180c21/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports startup, movement, pausing and conversations. Streamed audio has timing problems, and a full playthrough is unconfirmed. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/l0rd92/HP1Recomp",
     "listed_at": "2026-10-25",

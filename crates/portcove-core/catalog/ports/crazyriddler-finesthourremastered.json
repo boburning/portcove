@@ -5,6 +5,23 @@
     "name": "Call of Duty: Finest Hour (Finest Hour Remastered)",
     "summary": "Windows Finest Hour Remastered guidance for an independently permitted, already completed CODFH.exe installation using your exact PAL Xbox copy. Upstream owns setup and updates; continuation across quick-reboot, updater or restart successors is outside this entry’s scope.",
     "original_game_title": "Call of Duty: Finest Hour",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-of-duty-finest-hour",
+      "evidence_urls": [
+        "https://github.com/crazyriddler/FinestHourRemastered/blob/bd35ab60d8e927bdfd3c16e7bb9db0aabfe60a81/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "call-of-duty-finest-hour-xbox",
+          "title": "Call of Duty: Finest Hour (Xbox, region not specified)",
+          "system": "xbox",
+          "evidence_urls": [
+            "https://github.com/crazyriddler/FinestHourRemastered/blob/bd35ab60d8e927bdfd3c16e7bb9db0aabfe60a81/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/crazyriddler/FinestHourRemastered",
     "platforms": [],
     "availability": "unknown",

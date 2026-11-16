@@ -4,6 +4,23 @@
     "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
     "name": "Saints Row (2006) — Saints Row (Xbox 360, 2006) — Static Recompilation (sp00nznet)",
     "original_game_title": "Saints Row (2006)",
+    "original_game": {
+      "format_version": 1,
+      "id": "saints-row-2006",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/saintsrow/blob/a60804391afc50081f847160a78d4f727caaf183/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "saints-row-2006-xbox-360",
+          "title": "Saints Row (2006) (Xbox 360, region not specified)",
+          "system": "xbox-360",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/saintsrow/blob/a60804391afc50081f847160a78d4f727caaf183/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The alpha reaches the menu and New Game. The first mission, combat and vehicles remain untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/saintsrow",
     "listed_at": "2026-10-25",

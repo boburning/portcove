@@ -4,6 +4,23 @@
     "id": "yugiohforbiddenmemoriesrecomp-eduardocalafell-eduardocalafell-yu-gi-oh-forbidden-memories",
     "name": "Yu-Gi-Oh! Forbidden Memories — YuGiOhForbiddenMemoriesRecomp (eduardocalafell) (eduardocalafell)",
     "original_game_title": "Yu-Gi-Oh! Forbidden Memories",
+    "original_game": {
+      "format_version": 1,
+      "id": "yu-gi-oh-forbidden-memories",
+      "evidence_urls": [
+        "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp/blob/d7ba8e8e345916e8ac2aac5c2ed616f7d9067a27/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "yu-gi-oh-forbidden-memories-playstation",
+          "title": "Yu-Gi-Oh! Forbidden Memories (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp/blob/d7ba8e8e345916e8ac2aac5c2ed616f7d9067a27/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project claims duels, fusion and saving. Full-story coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/eduardocalafell/YuGiOhForbiddenMemoriesRecomp",
     "platforms": [],

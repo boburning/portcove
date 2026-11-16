@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "GoldenEye 007",
+    "original_game": {
+      "format_version": 1,
+      "id": "goldeneye-007",
+      "evidence_urls": [
+        "https://github.com/jkdansereau/goldeneye-pc-port/blob/fda76b69837e6c5aae436e0d3e798989e49b06d2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "goldeneye-007-nintendo-64",
+          "title": "GoldenEye 007 (Nintendo 64, region not specified)",
+          "system": "nintendo-64",
+          "evidence_urls": [
+            "https://github.com/jkdansereau/goldeneye-pc-port/blob/fda76b69837e6c5aae436e0d3e798989e49b06d2/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases",
     "manual_setup": {
       "help_url": "https://github.com/jkdansereau/goldeneye-pc-port/releases/tag/v0.5.0",

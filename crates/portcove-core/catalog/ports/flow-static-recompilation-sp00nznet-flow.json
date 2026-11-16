@@ -4,6 +4,23 @@
     "id": "flow-static-recompilation-sp00nznet-flow",
     "name": "flOw — flOw static recompilation (sp00nznet)",
     "original_game_title": "flOw",
+    "original_game": {
+      "format_version": 1,
+      "id": "flow",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/flow/blob/3163de5ae40c0515c329cc40f2236c5873d6de44/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "flow-playstation-3",
+          "title": "flOw (PlayStation 3, region not specified)",
+          "system": "playstation-3",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/flow/blob/3163de5ae40c0515c329cc40f2236c5873d6de44/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Upstream reports drawing an engine test scene. Normal title-screen startup is blocked, and full gameplay remains in development. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/flow",
     "platforms": ["windows-x86-64"],

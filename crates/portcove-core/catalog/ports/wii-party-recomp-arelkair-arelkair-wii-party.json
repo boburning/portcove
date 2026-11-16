@@ -4,6 +4,23 @@
     "id": "wii-party-recomp-arelkair-arelkair-wii-party",
     "name": "Wii Party — Wii Party Recomp (arelkair) (arelkair)",
     "original_game_title": "Wii Party",
+    "original_game": {
+      "format_version": 1,
+      "id": "wii-party",
+      "evidence_urls": [
+        "https://github.com/arelkair/wiiparty-recomp/blob/e66662b0e7c324dae9e4710dba54b36f8904306f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wii-party-wii",
+          "title": "Wii Party (Wii, region not specified)",
+          "system": "wii",
+          "evidence_urls": [
+            "https://github.com/arelkair/wiiparty-recomp/blob/e66662b0e7c324dae9e4710dba54b36f8904306f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The alpha is claimed to complete Board Game Island and all 79 Free Play minigames. Other modes and a real sensor bar remain incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/arelkair/wiiparty-recomp",
     "platforms": ["windows-x86-64", "linux-x86-64"],

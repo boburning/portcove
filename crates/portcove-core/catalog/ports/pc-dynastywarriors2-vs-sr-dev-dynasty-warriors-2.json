@@ -4,6 +4,23 @@
     "id": "pc-dynastywarriors2-vs-sr-dev-dynasty-warriors-2",
     "name": "Dynasty Warriors 2 — pc-dynastywarriors2 (vs-sr-dev)",
     "original_game_title": "Dynasty Warriors 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "dynasty-warriors-2",
+      "evidence_urls": [
+        "https://github.com/vs-sr-dev/pc-dynastywarriors2/blob/c99c207f837839b271b552b4896febf817a12a53/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dynasty-warriors-2-playstation-2",
+          "title": "Dynasty Warriors 2 (PlayStation 2, region not specified)",
+          "system": "playstation-2",
+          "evidence_urls": [
+            "https://github.com/vs-sr-dev/pc-dynastywarriors2/blob/c99c207f837839b271b552b4896febf817a12a53/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "This is the first game using ps2kit’s own recompiler and runtime. The extent of working gameplay is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/vs-sr-dev/pc-dynastywarriors2",
     "platforms": [],
