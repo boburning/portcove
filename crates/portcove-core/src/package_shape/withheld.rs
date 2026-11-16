@@ -250,6 +250,15 @@ mod tests {
             .unwrap()
             .is_none()
         );
+        let mut unreviewed = local(baseline);
+        unreviewed.record.provenance = ShapeProvenance::Unreviewed;
+        assert!(
+            current(&library, &port, platform, &release, capability, || Some(
+                unreviewed
+            ))
+            .unwrap()
+            .is_none()
+        );
         assert!(
             current(&library, &port, platform, &release, capability, || None)
                 .unwrap()
