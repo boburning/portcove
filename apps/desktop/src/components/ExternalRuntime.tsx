@@ -388,7 +388,11 @@ function useUserSelectedRuntimeEditor({
     try {
       const path = await pickHostToolExecutable("game", executable || workingDirectory);
       if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
-        const directory = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const parent = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const directory =
+          path.startsWith("/") && path.toLowerCase().endsWith(".app")
+            ? `${path}/Contents/MacOS`
+            : parent;
         setExecutable(path);
         setWorkingDirectory(directory);
         rememberSetup({ executable: path, workingDirectory: directory });
@@ -584,11 +588,14 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl hidden={inline} className="grid gap-2 [overflow-wrap:anywhere]">
+      <dl
+        hidden={inline && (!preview || preview.executable === selected.executable)}
+        className="grid gap-2 [overflow-wrap:anywhere]"
+      >
         <dt>Game program</dt>
-        <dd>{selected.executable}</dd>
+        <dd>{preview?.executable ?? selected.executable}</dd>
         <dt>Start in folder</dt>
-        <dd>{selected.workingDirectory}</dd>
+        <dd>{preview?.path ?? selected.workingDirectory}</dd>
         <dt>Launch options (advanced)</dt>
         <dd>
           {selected.arguments.length

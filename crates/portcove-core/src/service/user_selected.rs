@@ -140,8 +140,7 @@ impl PortcoveService {
         &self,
         port_id: &str,
         executable: &Path,
-        working_directory: &Path,
-    ) -> Result<Option<(PathBuf, PathBuf)>> {
+    ) -> Result<Option<PathBuf>> {
         let platform = Platform::current()?;
         let hints = self
             .catalog
@@ -150,12 +149,7 @@ impl PortcoveService {
             .and_then(|port| port.executable_hints.get(&platform))
             .map(Vec::as_slice)
             .unwrap_or_default();
-        super::setup_discovery::resolve_selected_bundle(
-            executable,
-            working_directory,
-            platform,
-            hints,
-        )
+        super::setup_discovery::resolve_selected_bundle(executable, platform, hints)
     }
 
     pub fn preview_user_selected_runtime(
@@ -198,12 +192,8 @@ impl PortcoveService {
         // This is an explicit alternative ownership route. Descriptive platform
         // guesses and managed package holds grant neither trust nor denial of an
         // unrelated native executable selected by the user.
-        let application =
-            self.resolve_selected_application(port_id, executable, working_directory)?;
-        let (executable, working_directory) = application
-            .as_ref()
-            .map(|(program, directory)| (program.as_path(), directory.as_path()))
-            .unwrap_or((executable, working_directory));
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let mut preview = crate::external_runtime::preview_user_selected(
             listing,
             executable,
@@ -488,12 +478,8 @@ impl PortcoveService {
             record.retained_definition.as_ref(),
             DefinitionOperationContext::observed(DefinitionOperation::RegisterExternal, true, true),
         )?;
-        let application =
-            self.resolve_selected_application(port_id, executable, working_directory)?;
-        let (executable, working_directory) = application
-            .as_ref()
-            .map(|(program, directory)| (program.as_path(), directory.as_path()))
-            .unwrap_or((executable, working_directory));
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let proposed = crate::external_runtime::preview_user_selected(
             state.catalog.listing(port_id)?,
             executable,
