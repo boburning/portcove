@@ -295,6 +295,39 @@ it("shows managed Diablo preparation in the Windows review without the upstream 
 });
 
 it.each([
+  [
+    "alexbeav-digimon-world-2003-recomp",
+    "windows-x86-64",
+    "Generation, runtime, lifecycle and gameplay are untested.",
+  ],
+  [
+    "alexbeav-colony-wars-recomp",
+    "linux-x86-64",
+    "Keep every disc intact, with both of its tracks",
+  ],
+] as const)("shows the managed PlayStation guide for %s on %s", async (id, platform, expected) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original.chd"
+      biosPath="C:/Player/bios.bin"
+      setSourcePath={vi.fn()}
+      setBiosPath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id, platform }}
+      actions={actions}
+    />,
+  );
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain("Portcove checks the files and builds");
+  expect(dialog.element().textContent).toContain(expected);
+  expect(dialog.element().textContent).not.toMatch(/Xcode|Mac setup|Mac ZIP|writable folder/u);
+});
+
+it.each([
   ["zelda64-recomp", "North American Majora’s Mask", "Zelda64Recompiled.tar.gz"],
   ["shipwright", "Ocarina of Time", "disk image"],
   ["2ship2harkinian", "Majora’s Mask", "disk image"],
