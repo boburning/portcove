@@ -682,7 +682,7 @@ impl Restarts {
                     }
                 },
                 fast(0),
-                Some(partials),
+                Some(transfer::RetainedDownload::private(partials)),
             ),
         )
         .await
@@ -766,6 +766,95 @@ async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     assert_eq!(ranged(&requests[0]), None);
     assert_eq!(ranged(&requests[1]).as_deref(), Some("bytes=6-"));
     assert_eq!(if_range(&requests[1]).as_deref(), Some("\"v1\""));
+}
+
+#[tokio::test]
+async fn interrupted_install_resumes_to_the_owned_external_output() {
+    use std::io::{Cursor, Write as _};
+
+    let temporary = tempfile::tempdir().unwrap();
+    let library_root = temporary.path().join("library");
+    let output_root = temporary.path().join("external-output");
+    let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    archive
+        .start_file("sample-game.exe", zip::write::SimpleFileOptions::default())
+        .unwrap();
+    archive.write_all(b"verified executable").unwrap();
+    let bytes = archive.finish().unwrap().into_inner();
+    let len = bytes.len();
+    let first_part = [
+        head("200 OK", Some("\"v1\""), "", len),
+        bytes[..DROPPED_AT].to_vec(),
+    ]
+    .concat();
+    let remaining = partial(
+        Some("\"v1\""),
+        &format!("bytes {DROPPED_AT}-{}/{len}", len - 1),
+        &bytes[DROPPED_AT..],
+    );
+    let server = Restarts::serve(vec![
+        first_part,
+        head("500 Internal Server Error", None, "", 0),
+        remaining,
+    ]);
+    let request = InstallRequest {
+        port_id: "sample".into(),
+        output_root: output_root.clone(),
+        release: ResolvedRelease {
+            version: "v1".into(),
+            channel: crate::ReleaseChannel::Stable,
+            published_at: None,
+            asset: sample(&server.root, len as u64, hex::encode(Sha256::digest(bytes))),
+            uploader_continuity: None,
+        },
+        activate: true,
+        managed: None,
+        qualification: InstallQualification::test("sample-game.exe"),
+    };
+
+    let store_root = {
+        let library = Library::open(&library_root).unwrap();
+        let installer = Installer::new(library.clone()).unwrap();
+        let operation = OperationCoordinator::new("install", None);
+        let first = installer.install(request.clone(), &operation, |_| {}).await;
+        assert!(first.is_err(), "{first:?}");
+        assert!(library.all_installs().unwrap().is_empty());
+        assert!(
+            OperationStore::new(library.clone())
+                .all()
+                .unwrap()
+                .is_empty()
+        );
+        let store_root = library.downloads_dir().join("partial-v1");
+        assert_eq!(stored_entries(&store_root).len(), 2);
+        store_root
+    };
+
+    let library = Library::open(&library_root).unwrap();
+    let installer = Installer::new(library.clone()).unwrap();
+    let operation = OperationCoordinator::new("install", None);
+    let install = installer
+        .install(request, &operation, |_| {})
+        .await
+        .unwrap();
+    assert!(install.verified);
+    assert!(
+        install
+            .path
+            .starts_with(fs::canonicalize(output_root).unwrap())
+    );
+    assert_eq!(
+        fs::read(install.path.join("sample-game.exe")).unwrap(),
+        b"verified executable"
+    );
+    assert_eq!(library.all_installs().unwrap().len(), 1);
+    assert!(stored_entries(&store_root).is_empty());
+    assert!(OperationStore::new(library).all().unwrap().is_empty());
+    let requests = server.finish();
+    assert_eq!(ranged(&requests[0]), None);
+    assert_eq!(ranged(&requests[1]).as_deref(), Some("bytes=6-"));
+    assert_eq!(ranged(&requests[2]).as_deref(), Some("bytes=6-"));
+    assert_eq!(if_range(&requests[2]).as_deref(), Some("\"v1\""));
 }
 
 #[tokio::test]
@@ -944,11 +1033,10 @@ fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
     held.describe(Some("\"v\""), Some(asset.size));
     held.writer().unwrap().write_all(original).unwrap();
 
-    // A competing asset forces eviction, but it cannot unlink the held part.
-    let competing = partials.lease(&asset_numbered(2, 64)).unwrap();
+    // The first lease owns the only slot until it publishes or releases it.
+    assert!(partials.lease(&asset_numbered(2, 64)).is_none());
     assert!(partials.lease(&asset).is_none());
-    assert_eq!(parts(&root).len(), 2);
-    competing.discard();
+    assert_eq!(parts(&root).len(), 1);
 
     let destination = temporary.path().join("completed.zip");
     std::thread::scope(|scope| {
@@ -963,7 +1051,9 @@ fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
         let destination = &destination;
         scope.spawn(move || {
             started.send(()).unwrap();
-            finished.send(held.finish(destination)).unwrap();
+            finished
+                .send(held.finish(destination, || Ok(()), || Ok(())))
+                .unwrap();
         });
         starting.recv().unwrap();
         let early = finishing.recv_timeout(Duration::from_millis(50));
@@ -980,6 +1070,31 @@ fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
     assert!(fresh.resumed().is_none());
     fresh.writer().unwrap().write_all(b"new transfer").unwrap();
     assert_eq!(fs::read(destination).unwrap(), original);
+}
+
+#[test]
+fn unfinished_active_download_reserves_its_declared_bytes() {
+    use std::io::Write as _;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::with_bounds(
+        root.clone(),
+        4,
+        (1 << 20) + 8,
+        Duration::from_secs(3600),
+    );
+    let first = partials.lease(&asset_numbered(1, 1 << 20)).unwrap();
+    first.describe(Some("\"v1\""), Some(1 << 20));
+    first.writer().unwrap().write_all(b"first").unwrap();
+    let second = asset_numbered(2, 1 << 20);
+
+    assert!(partials.lease(&second).is_none());
+    assert_eq!(parts(&root).len(), 1);
+
+    drop(first);
+    assert!(partials.lease(&second).is_some());
+    assert_eq!(parts(&root).len(), 2);
 }
 
 #[test]
