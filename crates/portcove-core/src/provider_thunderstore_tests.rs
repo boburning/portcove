@@ -473,6 +473,33 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
     assert_eq!(plan.wrappers[0].provider.project, "Tools-Shared");
     assert_eq!(plan.wrappers[0].members.len(), 2);
     assert_eq!(plan.wrappers[1].provider.project, "Owner-Timer");
+    let mut old_client_round_trip = plan.clone();
+    old_client_round_trip.wrappers.clear();
+    old_client_round_trip.file.thunderstore_dependencies = None;
+    assert!(
+        w.service
+            .authorize_provider_install_allowing_code(&old_client_round_trip)
+            .is_err()
+    );
+
+    let mut legacy_root = old_client_round_trip;
+    let root = &plan.wrappers[1];
+    legacy_root
+        .members
+        .retain(|member| root.members.contains_key(&member.file_name));
+    assert_eq!(legacy_root.members.len(), 1);
+    legacy_root.plan_sha256 = crate::provider_install::digest(&legacy_root).unwrap();
+    let legacy_token = w
+        .service
+        .authorize_provider_install_allowing_code(&legacy_root)
+        .unwrap()
+        .token;
+    let refused = w
+        .service
+        .apply_provider_install(&legacy_root, &legacy_token)
+        .unwrap_err();
+    assert!(refused.message.contains("wrapper set is incomplete"));
+    assert!(live(&w).is_empty());
     assert!(
         w.service.authorize_provider_install(&plan).is_err(),
         "a dependency runs code"

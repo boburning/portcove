@@ -381,7 +381,7 @@ The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
 current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 93 and event schema 3.
+and `listing_formats` independently from the advertised API and event schemas.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -2513,6 +2513,13 @@ no supported packages. A native filename, installed label or bundled mod cannot
 stand in for an exact provider wrapper. The plan bounds the aggregate downloads
 and extraction, and the combined closure receives one confirmation. Any newly
 reviewed mod code in that closure requires explicit permission.
+
+A Thunderstore `provider-plan` now includes the complete `wrappers` review,
+including a single-wrapper plan. Keep the whole plan for `provider-apply`.
+Dropping its wrapper or file-observation fields changes the plan digest. A
+Thunderstore plan prepared without wrapper review needs a fresh review before
+it can install. The encoding of GameBanana plans still omits
+Thunderstore-specific fields.
 
 An enabled dependant requires every recorded member of its exact provider
 dependencies to stay enabled. Disable the dependant before disabling or removing
