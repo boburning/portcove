@@ -213,13 +213,19 @@ export async function createOperations(
         },
       },
     });
+    const responseData: unknown = response.data;
+    const responseHeaders = Object.fromEntries(
+      Object.entries(response.headers).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
     await record({
       method,
       url,
       observed_at: new Date().toISOString(),
       status: response.status,
-      headers: retainedGitHubHeaders(response.headers),
-      data: response.data,
+      headers: retainedGitHubHeaders(responseHeaders),
+      data: responseData,
     });
     return response;
   };

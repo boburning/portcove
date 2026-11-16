@@ -64,7 +64,7 @@ function harness(items: Candidate[], states: string[] = []) {
   return { api, current, calls };
 }
 
-test("the fixed manifest contains 382 unique historical non-Pages identities", () => {
+await test("the fixed manifest contains 382 unique historical non-Pages identities", () => {
   assert.equal(candidates.length, 382);
   for (const change of [
     (values: Candidate[]) => {
@@ -90,7 +90,7 @@ test("the fixed manifest contains 382 unique historical non-Pages identities", (
   assert.throws(() => validateManifest(candidates.slice(1)));
 });
 
-test("pagination, null nodes, duplicate statuses and missing latest evidence refuse deletion", () => {
+await test("pagination, null nodes, duplicate statuses and missing latest evidence refuse deletion", () => {
   const c = candidates[0]!,
     original = deployment(c);
   const incomplete = structuredClone(original);
@@ -108,7 +108,7 @@ test("pagination, null nodes, duplicate statuses and missing latest evidence ref
   );
 });
 
-test("all unfinished and unknown archived states remain untouched", () => {
+await test("all unfinished and unknown archived states remain untouched", () => {
   const c = candidates[0]!;
   for (const state of ["PENDING", "QUEUED", "WAITING", "IN_PROGRESS", "UNKNOWN"]) {
     const original = deployment(c, state);
@@ -121,7 +121,7 @@ test("all unfinished and unknown archived states remain untouched", () => {
   assert.equal(deletionDecision(c, empty, empty, marker), "skip-unfinished");
 });
 
-test("changed identity or status cannot inherit archival permission", () => {
+await test("changed identity or status cannot inherit archival permission", () => {
   const c = candidates[0]!,
     original = deployment(c);
   assert.throws(() =>
@@ -152,7 +152,7 @@ test("changed identity or status cannot inherit archival permission", () => {
   );
 });
 
-test("only this archive's exact inactivation can resume an interrupted deletion", () => {
+await test("only this archive's exact inactivation can resume an interrupted deletion", () => {
   const c = candidates[0]!,
     original = deployment(c);
   assert.equal(
@@ -166,7 +166,7 @@ test("only this archive's exact inactivation can resume an interrupted deletion"
   assert.equal(deletionDecision(c, original, null, marker), "already-absent");
 });
 
-test("eligible records inactivate individually and inactive records delete directly", async () => {
+await test("eligible records inactivate individually and inactive records delete directly", async () => {
   const items = candidates.slice(0, 3),
     { api, calls } = harness(items, ["SUCCESS", "ERROR", "INACTIVE"]);
   const archived = items.map((c, i) => deployment(c, ["SUCCESS", "ERROR", "INACTIVE"][i]));
@@ -182,7 +182,7 @@ test("eligible records inactivate individually and inactive records delete direc
   assert.equal(calls[0]!.description, marker);
 });
 
-test("an ambiguous mutation stops immediately and is never retried", async () => {
+await test("an ambiguous mutation stops immediately and is never retried", async () => {
   const items = candidates.slice(0, 2),
     { api, calls } = harness(items);
   api.remove = async (id) => {
@@ -206,7 +206,7 @@ test("an ambiguous mutation stops immediately and is never retried", async () =>
   );
 });
 
-test("a failed inactivation cannot fall through to delete", async () => {
+await test("a failed inactivation cannot fall through to delete", async () => {
   const items = candidates.slice(0, 2),
     { api, calls } = harness(items);
   api.inactivate = async () => {
@@ -226,7 +226,7 @@ test("a failed inactivation cannot fall through to delete", async () => {
   assert.deepEqual(calls, []);
 });
 
-test("readback detects a supposedly deleted record that still exists", async () => {
+await test("readback detects a supposedly deleted record that still exists", async () => {
   const items = candidates.slice(0, 1),
     { api } = harness(items);
   api.remove = async () => {};
@@ -243,7 +243,7 @@ test("readback detects a supposedly deleted record that still exists", async () 
   );
 });
 
-test("a batch cannot touch earlier or later candidate IDs", async () => {
+await test("a batch cannot touch earlier or later candidate IDs", async () => {
   const items = candidates.slice(0, 102),
     { api, current, calls } = harness(
       items,
@@ -261,7 +261,7 @@ test("a batch cannot touch earlier or later candidate IDs", async () => {
   await assert.rejects(applyBatch(api, items, archived, 1, "unverified", async () => {}));
 });
 
-test("unfinished and externally changed candidates produce receipts and no writes", async () => {
+await test("unfinished and externally changed candidates produce receipts and no writes", async () => {
   const items = candidates.slice(0, 3),
     { api, current, calls } = harness(items, ["PENDING", "SUCCESS", "SUCCESS"]);
   const archived = items.map((c, i) => deployment(c, i === 0 ? "PENDING" : "SUCCESS"));
