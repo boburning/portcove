@@ -702,6 +702,7 @@ fn stored_entries(root: &Path) -> Vec<String> {
         .map(|entries| {
             entries
                 .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+                .filter(|name| name != partial_download::INDEX_LOCK)
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
@@ -927,6 +928,58 @@ fn parts(root: &Path) -> Vec<String> {
         .into_iter()
         .filter(|name| name.ends_with(".part"))
         .collect()
+}
+
+#[test]
+fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
+    use std::io::Write as _;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    let partials =
+        partial_download::PartialDownloads::with_bounds(root.clone(), 1, 2 << 20, Duration::ZERO);
+    let original = b"original release archive";
+    let asset = asset_numbered(1, original.len() as u64);
+    let held = partials.lease(&asset).unwrap();
+    held.describe(Some("\"v\""), Some(asset.size));
+    held.writer().unwrap().write_all(original).unwrap();
+
+    // A competing asset forces eviction, but it cannot unlink the held part.
+    let competing = partials.lease(&asset_numbered(2, 64)).unwrap();
+    assert!(partials.lease(&asset).is_none());
+    assert_eq!(parts(&root).len(), 2);
+    competing.discard();
+
+    let destination = temporary.path().join("completed.zip");
+    std::thread::scope(|scope| {
+        let index = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .open(root.join(partial_download::INDEX_LOCK))
+            .unwrap();
+        index.lock().unwrap();
+        let (started, starting) = std::sync::mpsc::channel();
+        let (finished, finishing) = std::sync::mpsc::channel();
+        let destination = &destination;
+        scope.spawn(move || {
+            started.send(()).unwrap();
+            finished.send(held.finish(destination)).unwrap();
+        });
+        starting.recv().unwrap();
+        let early = finishing.recv_timeout(Duration::from_millis(50));
+        assert!(!destination.exists());
+        drop(index);
+        assert!(matches!(
+            early,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout)
+        ));
+        finishing.recv().unwrap().unwrap();
+    });
+    assert!(stored_entries(&root).is_empty());
+    let fresh = partials.lease(&asset).unwrap();
+    assert!(fresh.resumed().is_none());
+    fresh.writer().unwrap().write_all(b"new transfer").unwrap();
+    assert_eq!(fs::read(destination).unwrap(), original);
 }
 
 #[test]
