@@ -1132,8 +1132,19 @@ mod tests {
             HostToolProbeState::Success,
             "chdman's complete help is valid even though the tool exits 1"
         );
+        let dolphin_fixture = temporary.path().join(if cfg!(windows) {
+            "portcove-dolphin-help-fixture.exe"
+        } else {
+            "portcove-dolphin-help-fixture"
+        });
+        fs::copy(&helper, &dolphin_fixture).unwrap();
         assert_eq!(
-            probe_definition(&definition("dolphin_tool").unwrap(), &helper, || {}).state,
+            probe_definition(
+                &definition("dolphin_tool").unwrap(),
+                &dolphin_fixture,
+                || {}
+            )
+            .state,
             HostToolProbeState::Success,
             "DolphinTool's complete command list is valid even though the tool exits 1"
         );
