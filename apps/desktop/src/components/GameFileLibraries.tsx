@@ -15,6 +15,7 @@ import { LatestRequestGeneration } from "../shared/concurrency-state";
 import type {
   GameFileRoot,
   GameFileScanMatchPage,
+  GameFileScanRegisteredMatches,
   GameFileScanSnapshot,
   PortDefinition,
   PortStatus,
@@ -1026,13 +1027,53 @@ export function GameFileLibraries({
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
-  // Every match the player has seen: the snapshot preview plus pages shown
-  // with Show more. Adding, setup reviews and folder choices use the same set.
+  // Browsing shows the preview plus any pages the player has loaded.
   const more = useMoreMatches(snapshot, generation, () => void refresh(true).catch(() => {}));
   const shownCandidates = [...(snapshot?.report.candidates ?? []), ...more.candidates];
   const shownPreliminary = snapshot
     ? [...(snapshot.report.preliminary_selections ?? []), ...more.preliminary]
     : undefined;
+  const retainedScope =
+    !scanning &&
+    readConfirmed &&
+    snapshot?.freshness === "inputs_match" &&
+    snapshot.matches &&
+    !snapshot.matches.preview_complete &&
+    registeredSources.length
+      ? snapshot.matches
+      : undefined;
+  const [retainedReview, setRetainedReview] = useState<{
+    scope: NonNullable<GameFileScanSnapshot["matches"]>;
+    generation: number;
+    registrations: SourceRecord[];
+    matches?: GameFileScanRegisteredMatches;
+    error?: string;
+  }>();
+  useEffect(() => {
+    if (!retainedScope) return;
+    let active = true;
+    const request = { scope: retainedScope, generation, registrations: registeredSources };
+    void desktopApi.gameFileScanRegisteredMatches(retainedScope, generation).then(
+      (matches) => {
+        if (active) setRetainedReview({ ...request, matches });
+      },
+      (error: unknown) => {
+        if (active) setRetainedReview({ ...request, error: errorText(error) });
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [retainedScope, generation, registeredSources]);
+  const currentRetainedReview =
+    retainedReview?.scope === retainedScope &&
+    retainedReview?.generation === generation &&
+    retainedReview?.registrations === registeredSources
+      ? retainedReview
+      : undefined;
+  const reviewCandidates = currentRetainedReview?.matches?.candidates ?? shownCandidates;
+  const reviewPreliminary =
+    currentRetainedReview?.matches?.preliminary_selections ?? shownPreliminary;
   const owner = useRef<number | undefined>(undefined);
   useLayoutEffect(() => {
     owner.current = generation;
@@ -1183,7 +1224,7 @@ export function GameFileLibraries({
     run("Adding to Library…", async () => {
       const requests = portIds.map((portId) => {
         const port = ports.find((candidate) => candidate.id === portId);
-        const reviewed = shownCandidates.filter(
+        const reviewed = reviewCandidates.filter(
           (candidate) => port?.source_profile === candidate.profile_id,
         );
         return {
@@ -1338,23 +1379,37 @@ export function GameFileLibraries({
     />
   );
   const renderSetupReviews = () => (
-    <GameFileSetupReviews
-      ports={ports}
-      statuses={statuses}
-      candidates={scanning ? liveCandidates : shownCandidates}
-      preliminarySelections={scanning ? [] : shownPreliminary}
-      registeredSources={registeredSources}
-      current={
-        refreshConfirmed &&
-        !workspaceRefreshFailed &&
-        (scanning || (readConfirmed && snapshot?.freshness === "inputs_match"))
-      }
-      busy={Boolean(busy) || Boolean(plan)}
-      onOpenPort={openPort}
-      onAddToLibrary={(portIds) => void addToLibrary(portIds)}
-      onReviewInstall={(portIds) => setBatchPorts(portIds)}
-      focusFallback={() => heading.current}
-    />
+    <>
+      {retainedScope && !currentRetainedReview && (
+        <p role="status">Checking setup choices across all scan results…</p>
+      )}
+      {currentRetainedReview?.error && (
+        <p role="alert">
+          Could not check setup choices across all scan results. Refresh folders to try again.{" "}
+          {currentRetainedReview.error}
+        </p>
+      )}
+      <GameFileSetupReviews
+        ports={ports}
+        statuses={statuses}
+        candidates={scanning ? liveCandidates : reviewCandidates}
+        preliminarySelections={scanning ? [] : reviewPreliminary}
+        registeredSources={registeredSources}
+        current={
+          refreshConfirmed &&
+          !workspaceRefreshFailed &&
+          (scanning ||
+            (readConfirmed &&
+              snapshot?.freshness === "inputs_match" &&
+              (!retainedScope || Boolean(currentRetainedReview?.matches))))
+        }
+        busy={Boolean(busy) || Boolean(plan)}
+        onOpenPort={openPort}
+        onAddToLibrary={(portIds) => void addToLibrary(portIds)}
+        onReviewInstall={(portIds) => setBatchPorts(portIds)}
+        focusFallback={() => heading.current}
+      />
+    </>
   );
   const renderInstallBatch = () => (
     <InstallBatchPanel

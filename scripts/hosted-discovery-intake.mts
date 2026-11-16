@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
+import {
+  postgresIntakeCheckpoints,
+  type HostedIntakeCheckpointStore,
+} from "./hosted-discovery-intake-checkpoint.mts";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -41,6 +46,10 @@ import {
   findPortIssueDuplicates,
   normalizedUpstream,
   normalizePortKey,
+  portCatalogMarkers,
+  portKeyMarkers,
+  portUpstreamMarkers,
+  portRepositoryIds,
   fieldValue,
 } from "./roadmap-issue.mts";
 import { observationHash } from "./upstream-observer.mts";
@@ -76,7 +85,10 @@ const positive = (v: unknown) => {
     throw new Error("Expected a positive provider identity");
   return v;
 };
+type IntakeIntent = { kind: "create" } | { kind: "observe-existing"; issue: number };
+
 interface Candidate {
+  intent?: IntakeIntent;
   title: string;
   upstream: string;
   repository_id: number;
@@ -86,7 +98,7 @@ interface Candidate {
   resume: string;
 }
 interface Proposal {
-  schema_version: 1;
+  schema_version: 1 | 2;
   kind: "proposal";
   investigator: string;
   candidates: Candidate[];
@@ -104,7 +116,8 @@ export function parseHostedRequest(body: unknown): Proposal {
   const match = /^<!-- portcove-hosted-intake:v1 -->\s*```json\n([\s\S]+)\n```\s*$/u.exec(body);
   if (!match) throw new Error("Expected exactly one structured hosted intake request");
   const v = object(JSON.parse(match[1]!));
-  if (v.schema_version !== 1) throw new Error("Unsupported hosted intake schema");
+  if (v.schema_version !== 1 && v.schema_version !== 2)
+    throw new Error("Unsupported hosted intake schema");
   exact(v, [
     "schema_version",
     "kind",
@@ -134,7 +147,26 @@ export function parseHostedRequest(body: unknown): Proposal {
   const identities = new Set<string>();
   for (const raw of v.candidates) {
     const c = object(raw);
-    exact(c, ["title", "upstream", "repository_id", "game", "port_key", "evidence", "resume"]);
+    exact(c, [
+      "title",
+      "upstream",
+      "repository_id",
+      "game",
+      "port_key",
+      "evidence",
+      "resume",
+      ...(v.schema_version === 2 ? ["intent"] : []),
+    ]);
+    if (v.schema_version === 2) {
+      const intent = object(c.intent);
+      if (intent.kind === "observe-existing") {
+        exact(intent, ["kind", "issue"]);
+        positive(intent.issue);
+      } else {
+        exact(intent, ["kind"]);
+        if (intent.kind !== "create") throw new Error("Unknown candidate intake intent");
+      }
+    }
     line(c.title);
     line(c.game);
     positive(c.repository_id);
@@ -276,11 +308,16 @@ type PlanSlot =
     });
 const holdResume =
   "Use owner process dispatch when the exact repository ID and primary evidence are accessible.";
+const identityHoldResume =
+  "Resolve the explicit issue, implementation key and upstream identity before owner process dispatch.";
+
+class CandidateIdentityConflict extends Error {}
+
 interface CandidateHold {
   port_key: string;
   repository_id: number;
   upstream: string;
-  http_status: 404;
+  http_status: 404 | null;
   observed_at: string;
   resume: string;
 }
@@ -312,6 +349,7 @@ interface Receipt {
   plan_origin: { head: string; run: string; attempt: string };
   observed_at?: string;
   doctor?: unknown;
+  audit_pending?: true;
   error?: unknown;
   continuation?: string | null;
   body_request_comment?: number;
@@ -382,6 +420,15 @@ function readHostedReceipt(
     };
   });
   const receipt = stored as unknown as Receipt;
+  if (
+    "audit_pending" in receipt &&
+    (receipt.audit_pending !== true ||
+      receipt.delivery.length <= 10 ||
+      receipt.delivery.some((d) => missingDeliveryProof(d)) ||
+      receipt.doctor !== undefined ||
+      !["applying", "incomplete"].includes(receipt.status))
+  )
+    throw new Error("Retained required full doctor checkpoint lacks complete scoped delivery");
   const ids = new Set<number>();
   for (const [index, d] of receipt.delivery.entries()) {
     if (
@@ -409,8 +456,10 @@ function readHostedReceipt(
         h.port_key !== c.port_key ||
         h.repository_id !== c.repository_id ||
         h.upstream !== c.upstream ||
-        h.http_status !== 404 ||
-        h.resume !== holdResume ||
+        !(
+          (h.http_status === 404 && h.resume === holdResume) ||
+          (h.http_status === null && c.intent && h.resume === identityHoldResume)
+        ) ||
         typeof h.observed_at !== "string" ||
         !Number.isFinite(Date.parse(h.observed_at))
       )
@@ -418,6 +467,14 @@ function readHostedReceipt(
     } else if (slot.primary === null || "hold" in d) {
       throw new Error("Unbound primary requires a candidate hold");
     }
+    const intent = slot.candidate.intent;
+    if (
+      intent?.kind === "observe-existing" &&
+      (d.created_issue || (d.canonical_issue !== undefined && d.canonical_issue !== intent.issue))
+    )
+      throw new Error("Retained observation differs from its explicit canonical target");
+    if (intent?.kind === "create" && (d.canonical_issue || d.existing || d.created_comment))
+      throw new Error("Retained creation cannot contain an existing-owner observation");
     if (d.canonical_issue !== undefined) positive(d.canonical_issue);
     if (d.created_comment !== undefined) positive(d.created_comment);
     if (d.status === "existing") {
@@ -425,6 +482,7 @@ function readHostedReceipt(
       positive(d.created_comment);
       if (!d.existing || d.created_issue || !/^[a-f0-9]{64}$/u.test(d.observation_sha256 ?? ""))
         throw new Error("Retained existing-owner observation is incomplete");
+      if (slot.candidate.intent?.kind === "observe-existing") receiptProjectItemId(d.item_id);
     }
     if (d.created_issue !== undefined) {
       positive(d.created_issue);
@@ -454,7 +512,7 @@ function isDelivered(d: Delivery) {
   return d.status === "delivered" || d.status === "existing";
 }
 function missingDeliveryProof(d: Delivery) {
-  if (!isDelivered(d) || !isRecord(d.doctor)) return true;
+  if (!d || !isDelivered(d) || !isRecord(d.doctor)) return true;
   const doctor = d.doctor;
   const issue = d.created_issue ?? d.canonical_issue;
   if (
@@ -493,7 +551,7 @@ export interface HostedCandidateSlot {
   delivery_status: string | null;
   linked_issue: number | null;
   existing: boolean;
-  hold: { http_status: number; resume: string } | null;
+  hold: { http_status: number | null; resume: string } | null;
 }
 function candidateSlots(proposal: Proposal, delivery: readonly Delivery[]): HostedCandidateSlot[] {
   return proposal.candidates.map((candidate, index) => {
@@ -544,6 +602,17 @@ function encodeReceipt(r: Receipt) {
     })),
   };
   return `${receiptMarker(r.request_comment)}\nHosted intake **${r.status}**.\n\n\`\`\`json\n${JSON.stringify(wire, null, 2)}\n\`\`\``;
+}
+
+function checkpointSlots(receipt: Receipt) {
+  return receipt.plan.map(({ candidate, body_sha256, evidence_sha256, primary }, index) => ({
+    intent: candidate.intent,
+    port_key: candidate.port_key,
+    body_sha256,
+    evidence_sha256,
+    primary,
+    delivery: receipt.delivery[index],
+  }));
 }
 
 function receiptBody(r: Receipt) {
@@ -613,14 +682,14 @@ function assertReceiptCapacity(receipt: Receipt) {
     throw new Error("Logical batch cannot retain complete delivery receipts");
 }
 
-function candidateHold(candidate: Candidate): CandidateHold {
+function candidateHold(candidate: Candidate, identityConflict = false): CandidateHold {
   return {
     port_key: candidate.port_key,
     repository_id: candidate.repository_id,
     upstream: candidate.upstream,
-    http_status: 404,
+    http_status: identityConflict ? null : 404,
     observed_at: new Date().toISOString(),
-    resume: holdResume,
+    resume: identityConflict ? identityHoldResume : holdResume,
   };
 }
 export type HostedRoadmapOperations = RoadmapInventoryClient &
@@ -657,6 +726,7 @@ export class HostedIntakeBridge {
   }
   planningIssues = new Set<number>();
   inventoryRecollections = 0;
+  auditRoadmap: typeof runDoctor = runDoctor;
   /** #177 identity and revision bracketing the last complete, unchanged comment read. */
   queue: { node_id: string; comments: number; updated_at: string } | undefined;
   /** The read-only status route's queue-derived request budget, when it applies. */
@@ -668,6 +738,10 @@ export class HostedIntakeBridge {
   readonly save: (name: string, value: unknown) => void;
   readonly admitRecollection: (cache?: RoadmapInventory) => void | Promise<void>;
   readonly admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void>;
+  readonly durable: {
+    checkpoints?: () => HostedIntakeCheckpointStore;
+    requireIntent?: boolean;
+  };
   constructor(
     client: HostedRoadmapOperations,
     github: { project: Octokit; repository: Octokit },
@@ -678,6 +752,7 @@ export class HostedIntakeBridge {
       throw new Error("Inventory recollection admission is not configured");
     },
     admitWarmInventory: (cache: RoadmapInventory) => void | Promise<void> = () => {},
+    durable: HostedIntakeBridge["durable"] = {},
   ) {
     this.client = client;
     this.github = github;
@@ -686,6 +761,7 @@ export class HostedIntakeBridge {
     this.save = save;
     this.admitRecollection = admitRecollection;
     this.admitWarmInventory = admitWarmInventory;
+    this.durable = durable;
   }
   get prefix() {
     return `repos/${this.client.config.repository}/issues`;
@@ -769,10 +845,10 @@ export class HostedIntakeBridge {
       throw new Error("Hosted request or receipt preimage changed; stop and reread");
     return got;
   }
-  async persist(receipt: Receipt, prior?: Comment) {
-    receipt.observed_at = new Date().toISOString();
+  async persist(receipt: Receipt, prior?: Comment, checkpointBody?: string) {
+    if (checkpointBody === undefined) receipt.observed_at = new Date().toISOString();
     this.save(`receipt-${receipt.request_comment}`, receipt);
-    const body = receiptBody(receipt);
+    const body = checkpointBody ?? receiptBody(receipt);
     if (prior) await this.fresh(prior);
     return await this.mutation(async () => {
       const got = object(
@@ -934,17 +1010,56 @@ export class HostedIntakeBridge {
       records,
       [],
     );
+    if (c.intent?.kind === "observe-existing") {
+      const target = c.intent.issue;
+      const matching = others.filter((issue) =>
+        [...portCatalogMarkers(issue.body), ...portKeyMarkers(issue.body)].includes(c.port_key),
+      );
+      const expected = matching[0];
+      const authored = records.find((record) => record.listing.id === c.port_key);
+      const knownIds = expected?.body ? portRepositoryIds(expected.body) : [];
+      const exactAuthoredOwner =
+        authored?.listing.issue_number === target &&
+        normalizedUpstream(authored.listing.project_url) === normalizedUpstream(c.upstream);
+      if (
+        identity.disposition !== "Existing canonical owner" ||
+        identity.issues.length !== 1 ||
+        identity.issues[0] !== target ||
+        !identity.game_scope_known ||
+        (!identity.repository_identity_known && !exactAuthoredOwner) ||
+        knownIds.some((id) => id !== c.repository_id) ||
+        matching.length !== 1 ||
+        !expected ||
+        expected.number !== target ||
+        !expected.body?.includes("<!-- portcove-port -->") ||
+        portUpstreamMarkers(expected.body).length !== 1 ||
+        normalizedUpstream(portUpstreamMarkers(expected.body)[0]) !== normalizedUpstream(c.upstream)
+      )
+        throw new CandidateIdentityConflict(
+          "Explicit observation target does not own the implementation key and repository",
+        );
+      return target;
+    }
     const owner =
       identity.disposition === "Existing canonical owner" &&
       identity.game_scope_known &&
       identity.repository_identity_known
         ? identity.issues[0]
         : undefined;
+    if (c.intent?.kind === "create" && identity.disposition !== "New canonical intake")
+      throw new CandidateIdentityConflict(
+        `Explicit create conflicts with canonical identity: ${identity.reason}`,
+      );
     if (identity.disposition !== "New canonical intake" && !owner)
       throw new Error(
         `Canonical discovery identity held: ${identity.disposition}; ${identity.reason}`,
       );
-    assertHostedCatalogIdentity(c, records, owner ?? exclude);
+    try {
+      assertHostedCatalogIdentity(c, records, owner ?? exclude);
+    } catch (error) {
+      if (!c.intent) throw error;
+      throw new CandidateIdentityConflict(error instanceof Error ? error.message : String(error));
+    }
     const duplicates = findPortIssueDuplicates(others, {
       title: c.title,
       upstream: c.upstream,
@@ -952,8 +1067,11 @@ export class HostedIntakeBridge {
       repositoryIdentity: { id: c.repository_id, game: c.game },
       catalogRecords: records,
     });
-    if (duplicates.some((row) => row.issue.number !== owner))
-      throw new Error(`Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`);
+    if (duplicates.some((row) => row.issue.number !== owner)) {
+      const message = `Canonical duplicate: ${duplicates.map((x) => x.issue.number).join(", ")}`;
+      if (c.intent) throw new CandidateIdentityConflict(message);
+      throw new Error(message);
+    }
     return owner;
   }
   async observeExisting(
@@ -979,6 +1097,26 @@ export class HostedIntakeBridge {
         throw new Error("Existing canonical owner changed; preserve owner work");
     };
     await freshOwner();
+    const existingItem =
+      p.candidate.intent?.kind === "observe-existing"
+        ? (await this.client.executionIssue(owner)).item
+        : undefined;
+    if (existingItem) {
+      const memberships = [...inventory.items, ...inventory.archivedItems].filter(
+        (item) => item.content?.id === expected?.id,
+      );
+      if (
+        existingItem.content.id !== expected?.id ||
+        fieldValue(existingItem, "Work type") !== "Port" ||
+        memberships.length !== 1 ||
+        memberships[0]?.id !== existingItem.id ||
+        memberships[0]?.isArchived !== false
+      )
+        throw new CandidateIdentityConflict(
+          "Explicit observation Project identity does not match the canonical port issue",
+        );
+      receiptProjectItemId(existingItem.id);
+    }
     this.planningIssues.add(owner);
     const observation = { candidate: p.candidate, primary: p.primary };
     const marker = `<!-- portcove-hosted-observation:${observationHash(observation)} -->`;
@@ -1033,6 +1171,12 @@ export class HostedIntakeBridge {
     )
       throw new Error("Existing-owner observation readback differs");
     await freshOwner();
+    if (existingItem) {
+      const live = (await this.client.executionIssue(owner)).item;
+      if (live.id !== existingItem.id || live.content.id !== existingItem.content.id)
+        throw new Error("Existing-owner Project identity changed during observation");
+      d.item_id = receiptProjectItemId(live.id);
+    }
     d.canonical_issue = owner;
     d.created_comment = observed.id;
     d.observation_sha256 = observationHash(body);
@@ -1130,6 +1274,7 @@ export class HostedIntakeBridge {
       candidates: proposal.candidates.length,
       ...counts,
       full_doctor_required: proposal.candidates.length > 10,
+      ...(receipt?.audit_pending ? { audit_pending: true } : {}),
       doctor: receipt?.doctor ?? null,
       last_error: failure ?? null,
       observed_at: receipt?.observed_at ?? null,
@@ -1191,6 +1336,62 @@ export class HostedIntakeBridge {
       throw new Error("Reconciliation requires the exact incomplete partially created receipt");
     return { source, comment, receipt, bodyRequest };
   }
+  private async finishAudit(
+    receipt: Receipt,
+    persist: () => Promise<void>,
+    cache?: RoadmapInventory,
+  ) {
+    const inventory = await this.inventory(cache, true);
+    const global = await this.auditRoadmap(this.client.config, this.client, {
+      quiet: true,
+      inventory,
+    }).catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : "";
+      const missing = new Set(
+        [
+          ...message.matchAll(/^- Catalog port lacks a canonical Project issue: ([a-z0-9-]+)$/gmu),
+        ].map((match) => match[1]),
+      );
+      if (missing.size) {
+        const records = readCatalogSource(
+          fileURLToPath(new URL("../crates/portcove-core/catalog", import.meta.url)),
+        ).records;
+        const repairs = records
+          .filter((record) => missing.has(record.listing.id))
+          .map(({ listing }) => {
+            const owners = inventory.issues.filter(
+              (issue) =>
+                portKeyMarkers(issue.body).includes(listing.id) &&
+                portUpstreamMarkers(issue.body).length === 1 &&
+                normalizedUpstream(portUpstreamMarkers(issue.body)[0]) ===
+                  normalizedUpstream(listing.project_url),
+            );
+            const owner = owners.length === 1 ? owners[0]?.number : undefined;
+            return {
+              catalog_id: listing.id,
+              issue: owner ?? listing.issue_number ?? null,
+              remedy: owner
+                ? `node scripts/roadmap.mts normalize-port --issue ${owner}`
+                : "Reconcile the exact catalog identity with its existing owner",
+            };
+          });
+        this.save(`audit-repairs-${receipt.request_comment}`, repairs);
+      }
+      throw error;
+    });
+    receipt.doctor = {
+      status: "passed",
+      coverage: "complete",
+      global_health: "passed",
+      receipt_sha256: observationHash(global),
+    };
+    this.save(`global-doctor-${receipt.request_comment}`, receipt.doctor);
+    receipt.status = "complete";
+    delete receipt.audit_pending;
+    delete receipt.error;
+    delete receipt.continuation;
+    await persist();
+  }
   async process(request: Comment, all: Comment[], { resumeHolds = false } = {}) {
     this.uncertainMutations = 0;
     trustedHostedComment(request, this.client.config.owner);
@@ -1209,17 +1410,122 @@ export class HostedIntakeBridge {
     );
     if (found.length > 1) throw new Error("Ambiguous hosted receipt identity");
     let prior = found[0];
+    if (proposal.schema_version === 1 && this.durable.requireIntent && !prior && !lineage)
+      throw new Error(
+        "Submit new candidates using schema version 2 with an explicit intake intent",
+      );
     let receipt: Receipt | undefined;
     if (prior) {
       await this.fresh(prior);
       receipt = readHostedReceipt(prior, request, proposal, bodyRequest);
       if (receipt.status === "complete") {
-        if (receipt.plan_encoding === "proposal-bound-v2") await this.status(request, all);
+        if (receipt.plan_encoding === "proposal-bound-v2" || proposal.schema_version === 2)
+          await this.status(request, all);
         return receipt;
       }
+    }
+    const checkpointStore =
+      proposal.schema_version === 2 ? this.durable.checkpoints?.() : undefined;
+    const saved = checkpointStore?.load(request.id);
+    let revision = saved?.revision ?? 0;
+    let checkpointFailure: { error: unknown } | undefined;
+    const requestHash = observationHash(request.body);
+    const checkpointAndPublish = async (next: Receipt, previous?: Comment) => {
+      if (!checkpointStore) return await this.persist(next, previous);
+      if (checkpointFailure) throw checkpointFailure.error;
+      try {
+        await this.fresh(request);
+        if (previous) await this.fresh(previous);
+        next.observed_at = new Date().toISOString();
+        const body = receiptBody(next);
+        revision = checkpointStore.save(
+          request.id,
+          requestHash,
+          revision,
+          body,
+          previous ? { hash: observationHash(previous.body), body: previous.body } : null,
+          checkpointSlots(next),
+        );
+        return await this.persist(next, previous, body);
+      } catch (error) {
+        checkpointFailure = { error };
+        throw error;
+      }
+    };
+    if (checkpointStore && !saved && prior)
+      throw new Error(
+        "GitHub intake receipt has no PostgreSQL checkpoint; reconcile the restored store",
+      );
+    if (saved) {
+      const projected = { ...request, body: saved.receipt_body };
+      const checkpointReceipt = readHostedReceipt(projected, request, proposal, bodyRequest);
+      if (
+        saved.request_sha256 !== requestHash ||
+        !isDeepStrictEqual(saved.candidates, checkpointSlots(checkpointReceipt))
+      )
+        throw new Error("PostgreSQL intake checkpoint or candidate coverage differs");
+      if (!prior)
+        throw new Error(
+          "PostgreSQL checkpoint has no confirmed GitHub receipt marker; reconcile before retrying",
+        );
+      if (prior.body !== saved.receipt_body) {
+        if (observationHash(prior.body) !== saved.previous_receipt_sha256)
+          throw new Error("GitHub receipt is ahead of or differs from the PostgreSQL checkpoint");
+        await this.fresh(request);
+        await freshLineage();
+        prior = await this.persist(checkpointReceipt, prior, saved.receipt_body);
+        receipt = checkpointReceipt;
+        if (receipt.status === "complete") {
+          await this.status(
+            request,
+            all.map((comment) => (comment.id === prior?.id ? prior : comment)),
+          );
+          return receipt;
+        }
+      }
+    }
+    if (receipt) {
       if (receipt.status === "complete_with_holds" && !resumeHolds) {
         await this.status(request, all);
         return receipt;
+      }
+      if (
+        receipt.audit_pending ||
+        (proposal.schema_version === 2 && receipt.delivery.every((d) => !missingDeliveryProof(d)))
+      ) {
+        const audit = receipt;
+        const persist = async () => {
+          await this.fresh(request);
+          await freshLineage();
+          prior = await checkpointAndPublish(audit, prior);
+        };
+        await freshLineage();
+        audit.head = this.head;
+        audit.run = process.env.GITHUB_RUN_ID ?? "local";
+        audit.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
+        try {
+          if (audit.delivery.length > 10) {
+            if (!audit.audit_pending) {
+              audit.audit_pending = true;
+              audit.status = "applying";
+              await persist();
+            }
+            await this.finishAudit(audit, persist);
+          } else {
+            audit.status = "complete";
+            delete audit.error;
+            delete audit.continuation;
+            await persist();
+          }
+        } catch (error) {
+          if (checkpointFailure || audit.status === "complete") throw error;
+          audit.status = "incomplete";
+          audit.error = receiptDiagnostic(error);
+          audit.continuation = this.continuation(error);
+          await persist();
+          throw error;
+        }
+        return audit;
       }
     }
     const delivery = structuredClone(
@@ -1235,7 +1541,9 @@ export class HostedIntakeBridge {
       if (
         previous &&
         ((d.hold && !resumeHolds) ||
-          (!lineage && receipt?.plan_encoding === "proposal-bound-v2" && isDelivered(d)))
+          ((proposal.schema_version === 2 ||
+            (!lineage && receipt?.plan_encoding === "proposal-bound-v2")) &&
+            isDelivered(d)))
       ) {
         if (isDelivered(d)) {
           if (missingDeliveryProof(d)) throw new Error("Historical delivery lacks a scoped doctor");
@@ -1305,13 +1613,20 @@ export class HostedIntakeBridge {
         const marker = `<!-- portcove-discovery-intake:hosted-${bodyRequest}-${p.candidate.port_key} -->`;
         const recovered = inventory.issues.filter((i) => i.body?.includes(marker));
         if (recovered.length > 1) throw new Error("Ambiguous created issue marker");
-        const owner = this.duplicates(
-          inventory,
-          p,
-          lineage?.receipt.delivery[index]?.created_issue ??
-            (recovered[0] ? Number(recovered[0].number) : undefined),
-        );
-        if (owner) owners.set(index, owner);
+        try {
+          const owner = this.duplicates(
+            inventory,
+            p,
+            lineage?.receipt.delivery[index]?.created_issue ??
+              (recovered[0] ? Number(recovered[0].number) : undefined),
+          );
+          if (owner) owners.set(index, owner);
+        } catch (error) {
+          if (!(error instanceof CandidateIdentityConflict) || !canHold(delivery[index]!))
+            throw error;
+          delivery[index]!.hold = candidateHold(p.candidate, true);
+          this.save(`hold-${request.id}-${p.candidate.port_key}`, sanitizeOperationError(error));
+        }
       }
       await freshLineage();
       receipt = {
@@ -1323,7 +1638,7 @@ export class HostedIntakeBridge {
         plan,
         delivery: delivery.map((d, index) => {
           const owner = owners.get(index);
-          return owner === undefined || lineage
+          return owner === undefined || lineage || plan[index]!.candidate.intent
             ? d
             : { ...d, canonical_issue: owner, existing: true };
         }),
@@ -1340,7 +1655,7 @@ export class HostedIntakeBridge {
         },
       };
       assertReceiptCapacity(receipt);
-      prior = await this.persist(receipt);
+      prior = await checkpointAndPublish(receipt);
     }
     receipt.plan = plan;
     receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
@@ -1352,7 +1667,7 @@ export class HostedIntakeBridge {
     receipt.attempt = process.env.GITHUB_RUN_ATTEMPT ?? "1";
     receipt.status = "applying";
     const persist = async () => {
-      prior = await this.persist(receipt, prior);
+      prior = await checkpointAndPublish(receipt, prior);
     };
     await persist();
     try {
@@ -1393,10 +1708,28 @@ export class HostedIntakeBridge {
         }
         if (!d.created_issue && !d.canonical_issue && d.status === "create-attempted")
           throw new Error("Ambiguous issue POST without a confirmed marker; do not recapture");
-        const owner = this.duplicates(inventory, p, d.created_issue);
+        const holdConflict = async (error: unknown) => {
+          if (!(error instanceof CandidateIdentityConflict) || !canHold(d)) throw error;
+          d.hold = candidateHold(p.candidate, true);
+          receipt.plan_encoding = "proposal-bound-v2";
+          this.save(`hold-${request.id}-${p.candidate.port_key}`, sanitizeOperationError(error));
+          await persist();
+        };
+        let owner: number | undefined;
+        try {
+          owner = this.duplicates(inventory, p, d.created_issue);
+        } catch (error) {
+          await holdConflict(error);
+          continue;
+        }
         if (owner) {
           if (d.status === "preflight") d.status = "prepared";
-          await this.observeExisting(request, p, d, owner, inventory, persist);
+          try {
+            await this.observeExisting(request, p, d, owner, inventory, persist);
+          } catch (error) {
+            await holdConflict(error);
+            continue;
+          }
           invalidated = true;
           continue;
         }
@@ -1452,7 +1785,13 @@ export class HostedIntakeBridge {
           invalidated = false;
           await this.fresh(request);
           await freshLineage();
-          const lateOwner = this.duplicates(inventory, p);
+          let lateOwner: number | undefined;
+          try {
+            lateOwner = this.duplicates(inventory, p);
+          } catch (error) {
+            await holdConflict(error);
+            continue;
+          }
           if (lateOwner) {
             d.status = "prepared";
             d.canonical_issue = lateOwner;
@@ -1509,24 +1848,27 @@ export class HostedIntakeBridge {
       }
       const held = receipt.delivery.some((d) => d.hold);
       if (!held && plan.length > 10) {
-        inventory = await this.inventory(inventory, true);
-        const global = await runDoctor(this.client.config, this.client, {
-          quiet: true,
+        if (receipt.delivery.some((d) => missingDeliveryProof(d)))
+          throw new Error("Full audit requires every scoped delivery proof");
+        receipt.audit_pending = true;
+        await persist();
+        await this.finishAudit(
+          receipt,
+          async () => {
+            await this.fresh(request);
+            await freshLineage();
+            await persist();
+          },
           inventory,
-        });
-        receipt.doctor = {
-          status: "passed",
-          coverage: "complete",
-          global_health: "passed",
-          receipt_sha256: observationHash(global),
-        };
-        this.save(`global-doctor-${request.id}`, receipt.doctor);
+        );
+        return receipt;
       }
       receipt.status = held ? "complete_with_holds" : "complete";
       delete receipt.error;
       delete receipt.continuation;
       await persist();
     } catch (error) {
+      if (checkpointFailure || receipt.status === "complete") throw error;
       receipt.status = "incomplete";
       receipt.error = receiptDiagnostic(error);
       receipt.continuation = this.continuation(error);
@@ -1900,6 +2242,10 @@ async function main() {
     save,
     admitInventory,
     admitInventory,
+    {
+      checkpoints: postgresIntakeCheckpoints,
+      requireIntent: Boolean(process.env.PORTCOVE_DISCOVERY_DATABASE_URL),
+    },
   );
   const settleAdmission = async () => {
     const failures = await budget.drain();

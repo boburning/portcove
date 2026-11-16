@@ -3,6 +3,7 @@ import { cleanup, render, type RenderResult } from "vitest-browser-react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
+import { currentCatalogPort } from "../catalog-test-fixtures";
 import { failureReport, portDefinition } from "../test-fixtures";
 import type { InstallRecord, ManagedRouteChangePreview } from "../types";
 import { gameIdentityLabel } from "../port-identity";
@@ -122,6 +123,35 @@ it("reviews a separate managed copy before consent and leaves Play explicit", as
   expect(remove).not.toHaveBeenCalled();
   expect(launch).not.toHaveBeenCalled();
 });
+
+it.each(["windows-x86-64", "linux-x86-64"] as const)(
+  "shows vkQuake managed setup guidance for %s in the copy review",
+  async (platform) => {
+    const quake = currentCatalogPort("quake-vkquake");
+    vi.mocked(desktopApi.previewManagedRouteChange).mockResolvedValue({
+      ...preview,
+      port_id: quake.id,
+      current_registration: {
+        ...preview.current_registration,
+        port_id: quake.id,
+      },
+      installation: {
+        ...preview.installation,
+        port_id: quake.id,
+        platform,
+        output_location: { ...preview.installation.output_location, port_id: quake.id },
+      },
+    });
+    await root.rerender(<ManagedRouteChangeControl port={quake} generation={7} busy={false} />);
+    await page.getByRole("button", { name: "Review a Portcove-managed copy…" }).click();
+    await expect
+      .element(page.getByText(/After installation, copy the id1 folder with pak0.pak and pak1.pak/))
+      .toBeVisible();
+    expect(document.body.textContent).toContain("Use a Vulkan-capable GPU and driver.");
+    const linuxWarning = "the publisher requires glibc 2.35 or later and FUSE";
+    expect(document.body.textContent?.includes(linuxWarning)).toBe(platform === "linux-x86-64");
+  },
+);
 
 it("shows the Core hold while keeping the current copy intact", async () => {
   vi.mocked(desktopApi.previewManagedRouteChange).mockResolvedValue({

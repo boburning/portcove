@@ -106,6 +106,7 @@ import type {
   GameFileQueryRefreshRequest,
   GameFileQuerySnapshot,
   GameFileScanMatchPage,
+  GameFileScanRegisteredMatches,
   StoreGameInstalls,
   GameFileScanMatchQuery,
   GameFileScanSnapshot,
@@ -906,6 +907,14 @@ export const desktopApi = {
     invoke<GameFileScanSnapshot | null>("get_game_file_scan_snapshot", { generation }),
   gameFileScanMatches: (query: GameFileScanMatchQuery, generation: number) =>
     invoke<GameFileScanMatchPage>("get_game_file_scan_matches", { query, generation }),
+  gameFileScanRegisteredMatches: (
+    expected: NonNullable<GameFileScanSnapshot["matches"]>,
+    generation: number,
+  ) =>
+    invoke<GameFileScanRegisteredMatches>("get_game_file_scan_registered_matches", {
+      expected,
+      generation,
+    }),
   gameFileRootMatchProfiles: (rootId: string, generation: number) =>
     invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
   storeGameInstalls: (generation: number) =>

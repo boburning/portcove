@@ -2536,13 +2536,13 @@ forged identity digest, unsafe package names, missing dependencies and dependenc
 cycles. Export applies the same rules, so a profile with, for example, an enabled
 package whose requirement is disabled must be fixed before it can be shared; the
 refusal names the reason.
-`recipe-plan` reports each input as `available`, `acquirable` or `unavailable`.
-`acquirable` means a complete file reference to the provider this game has a
-reviewed binding for; its detail names the project and file to review with
-`provider-plan`. Any
-other provider reference is `unavailable`. The plan holds for a different platform, a missing
-runtime, an original requirement the game does not use, an
-unregistered or different original, or package bytes not in the store.
+`recipe-plan` checks local inputs offline. Exact verified inputs are `available`.
+A missing runtime or package is `unavailable` in this local review. When a
+missing package names a complete file reference for a reviewed provider, the
+detail gives the exact project and file to review with `provider-plan`. Compare
+the acquired package digests against the recipe before trying the import again.
+The plan also holds for a different platform, an original requirement the game
+does not use, or an unregistered or different original.
 `recipe-apply` works only when every input is already present, requires the reviewed
 `plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
 creates a new profile with its own save group. A recipe's provider labels are

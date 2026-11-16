@@ -1427,6 +1427,12 @@ or blocked; those alternative implementations are counted as games needing a
 version choice and are selected individually. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
+For a saved scan with more matches than its preview, Core reads the retained
+rows that match current registrations by profile, path and digest. The read
+checks the expected scan summary, catalog and saved folders in the same
+transaction as the match and registration rows. Desktop can include those
+games in setup review immediately, while the file results stay paged for
+browsing.
 The explicit review request is consumed once after the matching detail is active
 and calls the existing Core installation planner; leaving that detail invalidates
 the request. Applying installation still requires the ordinary review consent.

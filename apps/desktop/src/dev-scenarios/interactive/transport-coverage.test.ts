@@ -16,6 +16,7 @@ const transportPath = fileURLToPath(new URL("./transport.ts", import.meta.url));
 // A command the app calls on mount (or in any flow the browser suites exercise)
 // must NOT be listed here: give it a handler in transport.ts.
 const unsupportedByReason: Record<string, string[]> = {
+  "interactive fixtures publish no saved scan": ["get_game_file_scan_registered_matches"],
   "mutation or native action the fixtures do not model; they never change the host": `
     apply_provider_install discard_provider_install
     choose_steamgriddb_artwork check_steamgriddb_listings set_steamgriddb_key

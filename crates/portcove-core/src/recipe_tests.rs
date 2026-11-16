@@ -240,8 +240,13 @@ fn missing_changed_or_foreign_inputs_hold_the_plan_and_change_nothing() {
         .service
         .plan_recipe_import(&sealed(missing.clone()))
         .unwrap();
-    assert_eq!(plan.packages[0].status, RecipeInputStatus::Acquirable);
+    assert_eq!(plan.packages[0].status, RecipeInputStatus::Unavailable);
     assert!(plan.packages[0].detail.contains("project 1, file 2"));
+    assert!(
+        plan.packages[0]
+            .detail
+            .contains("availability has not been verified")
+    );
     // Only a complete GameBanana file reference for a bound game can be planned.
     for provider in [
         ProviderPackageRef {
@@ -469,7 +474,7 @@ fn a_recipe_keeps_only_provider_labels_this_library_recorded_for_the_same_bytes(
 }
 
 #[test]
-fn acquirable_detail_names_the_canonical_provider_file() {
+fn unverified_acquisition_names_the_canonical_provider_file() {
     let w = world();
     let mut recipe = w
         .service
@@ -478,8 +483,13 @@ fn acquirable_detail_names_the_canonical_provider_file() {
     recipe.packages[0].sha256 = "d".repeat(64);
     recipe.packages[0].provider = Some(label("+01", "2"));
     let plan = w.service.plan_recipe_import(&sealed(recipe)).unwrap();
-    assert_eq!(plan.packages[0].status, RecipeInputStatus::Acquirable);
+    assert_eq!(plan.packages[0].status, RecipeInputStatus::Unavailable);
     assert!(plan.packages[0].detail.contains("project 1, file 2"));
+    assert!(
+        plan.packages[0]
+            .detail
+            .contains("availability has not been verified")
+    );
 }
 
 #[test]
