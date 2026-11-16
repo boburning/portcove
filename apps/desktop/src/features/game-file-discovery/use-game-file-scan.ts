@@ -126,11 +126,11 @@ export function useGameFileScan(generation: number) {
             }));
           }
         };
-        const invoke =
+        const scanRequest =
           finishScanId === undefined
             ? desktopApi.scanGameFileRoots(limits, generation, receive)
             : desktopApi.scanGameFileRoots(limits, generation, receive, finishScanId);
-        result = await invoke.finally(() => {
+        result = await scanRequest.finally(() => {
           // oxlint-disable-next-line react/immutability -- oxc#28401: invocation-local binding.
           acceptingEvents = false;
         });
