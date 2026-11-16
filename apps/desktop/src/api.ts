@@ -327,6 +327,20 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  removeModPackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("remove_mod_package", {
+      portId,
+      profileId,
+      nativeId,
+      expectedRevision,
+      generation,
+    }),
   browseProviderMods: (portId: string, page: number, generation: number) =>
     invoke<import("./types").ProviderBrowsePage>("browse_provider_mods", {
       portId,

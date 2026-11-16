@@ -103,6 +103,24 @@ pub(crate) async fn set_mod_package_enabled(
 }
 
 #[tauri::command]
+pub(crate) async fn remove_mod_package(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    native_id: String,
+    expected_revision: u64,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .remove_mod_package(&port_id, &profile_id, &native_id, expected_revision)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn add_mod_package(
     state: tauri::State<'_, DesktopState>,
     generation: u64,

@@ -110,6 +110,18 @@ pub(crate) enum ProfileCommand {
         #[arg(long)]
         expected_revision: u64,
     },
+    /// Remove a package from this setup while preserving its earlier revisions.
+    RemovePackage {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Package native ID shown by `profile list`.
+        native_id: String,
+        /// Revision you reviewed.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Make a profile the one whose mods and progress are live for play.
     Activate {
         /// Catalog port ID owning the profile.
@@ -235,6 +247,7 @@ impl ProfileCommand {
             Self::Revise { .. } => "profile.revise",
             Self::InstallPackage { .. } => "profile.install-package",
             Self::SetPackage { .. } => "profile.set-package",
+            Self::RemovePackage { .. } => "profile.remove-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
             Self::Setups { .. } => "profile.setups",
@@ -825,6 +838,17 @@ pub(crate) async fn execute(
                 expected_revision,
             )?,
             |revision| format!("Package state saved\n{}", revision_line(revision)),
+        ),
+        ProfileCommand::RemovePackage {
+            port_id,
+            profile_id,
+            native_id,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.remove_mod_package(&port_id, &profile_id, &native_id, expected_revision)?,
+            |revision| format!("Package removed\n{}", revision_line(revision)),
         ),
         ProfileCommand::Activate {
             port_id,

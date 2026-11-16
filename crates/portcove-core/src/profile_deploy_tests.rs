@@ -87,6 +87,47 @@ fn installing_into_the_selected_profile_deploys_exact_bytes_and_records_a_revisi
 }
 
 #[test]
+fn removing_a_package_keeps_its_recovery_bytes_and_holds_changed_live_files() {
+    let w = world();
+    let removed = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    let other = archive(&w.scratch, "ui.o2r", &[("ui/menu.bin", b"ui")]);
+    w.service
+        .install_mod_package("starship", &w.default, &removed, 1)
+        .unwrap();
+    let current = w
+        .service
+        .install_mod_package("starship", &w.default, &other, 2)
+        .unwrap();
+    let before = current
+        .packages
+        .iter()
+        .find(|package| package.native_id == "hd-link.o2r")
+        .unwrap();
+    let live = user(&w).join("mods/hd-link.o2r");
+    fs::write(&live, b"player changed this file").unwrap();
+    let error = w
+        .service
+        .remove_mod_package("starship", &w.default, "hd-link.o2r", current.revision)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Conflict);
+    assert_eq!(fs::read(&live).unwrap(), b"player changed this file");
+    assert_eq!(revision(&w, &w.default), current.revision);
+
+    fs::copy(&removed, &live).unwrap();
+    let next = w
+        .service
+        .remove_mod_package("starship", &w.default, "hd-link.o2r", current.revision)
+        .unwrap();
+    assert_eq!(next.revision, current.revision + 1);
+    assert_eq!(live_mods(&w), ["ui.o2r"]);
+    assert_eq!(next.orderings[0].native_ids, ["ui.o2r"]);
+    let history = w.service.profile_revisions("starship", &w.default).unwrap();
+    assert!(history[2].packages.contains(before));
+    let stored = Layout::for_user(&user(&w)).package(&before.sha256, &before.native_id);
+    assert_eq!(fs::read(stored).unwrap(), fs::read(removed).unwrap());
+}
+
+#[test]
 fn disabling_removes_only_the_owned_file_and_enabling_restores_stored_bytes() {
     let w = world();
     let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);

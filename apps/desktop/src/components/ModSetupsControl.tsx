@@ -254,6 +254,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 />
               </h4>
               <ModSetupPackages
+                key={selected.profile.id}
                 selected={selected}
                 disabled={locked || blocked}
                 setEnabled={(nativeId, value) =>
@@ -270,6 +271,19 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     value
                       ? t("mods.outcome.turnedOn", { name: nativeId })
                       : t("mods.outcome.turnedOff", { name: nativeId }),
+                  )
+                }
+                remove={(nativeId, expectedRevision) =>
+                  void perform(
+                    () =>
+                      desktopApi.removeModPackage(
+                        portId,
+                        selected.profile.id,
+                        nativeId,
+                        expectedRevision,
+                        generation,
+                      ),
+                    t("mods.remove.removed", { name: nativeId }),
                   )
                 }
               />
@@ -650,39 +664,75 @@ function ModSetupPackages({
   selected,
   disabled,
   setEnabled,
+  remove,
 }: {
   selected: ModSetupView;
   disabled: boolean;
   setEnabled: (nativeId: string, value: boolean) => void;
+  remove: (nativeId: string, expectedRevision: number) => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
+  const [choice, setChoice] = useState<{ nativeId: string; revision: number }>();
+  const revision = selected.profile.current_revision;
   return (selected.revision.packages ?? []).length === 0 ? (
     <p className="text-sm">{t("mods.empty")}</p>
   ) : (
     <ul className="m-0 grid list-none gap-1 p-0">
       {inOverrideOrder(selected).map((item) => (
-        <li key={item.native_id}>
-          <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
-            <Checkbox
-              checked={item.enabled}
+        <li key={item.native_id} className="grid gap-1">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="flex items-center gap-2 text-sm [overflow-wrap:anywhere]">
+              <Checkbox
+                checked={item.enabled}
+                disabled={disabled}
+                onCheckedChange={(value) => setEnabled(item.native_id, value)}
+              />
+              {item.provider ? (
+                <span>
+                  <Trans
+                    t={t}
+                    i18nKey="mods.fromProvider"
+                    components={{
+                      name: <bdi>{item.native_id}</bdi>,
+                      provider: <bdi>{item.provider.provider}</bdi>,
+                    }}
+                  />
+                </span>
+              ) : (
+                <bdi>{item.native_id}</bdi>
+              )}
+            </label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
               disabled={disabled}
-              onCheckedChange={(value) => setEnabled(item.native_id, value)}
-            />
-            {item.provider ? (
-              <span>
-                <Trans
-                  t={t}
-                  i18nKey="mods.fromProvider"
-                  components={{
-                    name: <bdi>{item.native_id}</bdi>,
-                    provider: <bdi>{item.provider.provider}</bdi>,
-                  }}
-                />
-              </span>
-            ) : (
-              <bdi>{item.native_id}</bdi>
-            )}
-          </label>
+              aria-label={t("mods.remove.choose", { name: item.native_id })}
+              onClick={() => setChoice({ nativeId: item.native_id, revision })}
+            >
+              {t("mods.remove.action")}
+            </Button>
+          </div>
+          {choice?.nativeId === item.native_id && choice.revision === revision && (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm">{t("mods.remove.history")}</p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={() => {
+                  setChoice(undefined);
+                  remove(choice.nativeId, choice.revision);
+                }}
+              >
+                {t("mods.remove.confirm")}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setChoice(undefined)}>
+                {t("mods.remove.cancel")}
+              </Button>
+            </div>
+          )}
         </li>
       ))}
     </ul>

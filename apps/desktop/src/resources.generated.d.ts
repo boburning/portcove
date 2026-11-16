@@ -1252,6 +1252,14 @@ export default interface Resources {
         "turnedOn": "Turned on {{name}}.",
         "using": "Now using {{name}}."
       },
+      "remove": {
+        "action": "Remove",
+        "cancel": "Cancel",
+        "choose": "Remove {{name}} from this setup",
+        "confirm": "Confirm removal",
+        "history": "Earlier revisions keep this mod for recovery.",
+        "removed": "Removed {{name}} from this setup."
+      },
       "reread": "Read setups again",
       "separator": ", ",
       "setups": "Setups",

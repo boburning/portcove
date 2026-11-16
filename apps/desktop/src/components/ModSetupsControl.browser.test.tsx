@@ -541,3 +541,24 @@ it("points held Thunderstore updates to the Thunderstore browser", async () => {
     ),
   ).toBe(true);
 });
+
+it("reviews removal before sending the exact setup revision to Core", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  const request = vi
+    .spyOn(desktopApi, "removeModPackage")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.removeModPackage>>);
+  await render();
+  const remove = page.getByRole("button", { name: "Remove hd.o2r from this setup" });
+  await remove.click();
+  await expect
+    .element(page.getByText("Earlier revisions keep this mod for recovery."))
+    .toBeVisible();
+  expect(request).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(request).not.toHaveBeenCalled();
+
+  await remove.click();
+  await page.getByRole("button", { name: "Confirm removal" }).click();
+  expect(request).toHaveBeenCalledWith("shipwright", "default", "hd.o2r", 3, 7);
+  await expect.element(page.getByText("Removed hd.o2r from this setup.")).toBeVisible();
+});

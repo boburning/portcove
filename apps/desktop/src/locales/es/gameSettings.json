@@ -126,6 +126,14 @@
     "on_many": "{{count}} mods activados",
     "on_other": "{{count}} mods activados",
     "otherBuild": "Este perfil se queda en la versión del juego con la que se creó, así que las actualizaciones del juego no lo cambian. Para probar estos mods con la versión actual del juego, cópialo a esa versión. Este perfil y sus partidas guardadas se quedan como están.",
+    "remove": {
+      "action": "Quitar",
+      "cancel": "Cancelar",
+      "choose": "Quitar {{name}} de esta configuración",
+      "confirm": "Confirmar eliminación",
+      "history": "Las revisiones anteriores conservan este mod para recuperarlo.",
+      "removed": "Se quitó {{name}} de esta configuración."
+    },
     "outcome": {
       "added": "Se añadió un mod a {{name}}.",
       "copied": "Se creó {{name}} con los mismos mods, sin partidas guardadas y con los ajustes predeterminados.",

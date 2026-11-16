@@ -129,6 +129,11 @@ fn mark_restore_pending(layout: &Layout) -> Result<()> {
     crate::durability::write_bytes_atomically(&layout.pending(), b"1", true)
 }
 
+enum ModPackageEdit {
+    Enabled(bool),
+    Remove,
+}
+
 /// A private, already-inspected copy ready to enter the package store.
 pub(crate) struct StagedPackage {
     pub private: PathBuf,
@@ -1173,24 +1178,76 @@ impl PortcoveService {
         port_id: &str,
         profile_id: &str,
         native_id: &str,
-        enabled_state: bool,
+        enabled: bool,
+        expected_revision: u64,
+    ) -> Result<ProfileRevision> {
+        self.edit_mod_package(
+            port_id,
+            profile_id,
+            native_id,
+            ModPackageEdit::Enabled(enabled),
+            expected_revision,
+        )
+    }
+
+    /// Removes a package from this setup. Historical revisions retain its bytes.
+    pub fn remove_mod_package(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        native_id: &str,
+        expected_revision: u64,
+    ) -> Result<ProfileRevision> {
+        self.edit_mod_package(
+            port_id,
+            profile_id,
+            native_id,
+            ModPackageEdit::Remove,
+            expected_revision,
+        )
+    }
+
+    fn edit_mod_package(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        native_id: &str,
+        edit: ModPackageEdit,
         expected_revision: u64,
     ) -> Result<ProfileRevision> {
         let layout = self.deploy_layout(port_id)?;
-        let _guard = self.library.try_lock_port(port_id, "set-mod-enabled")?;
+        let operation = match edit {
+            ModPackageEdit::Enabled(_) => "set-mod-enabled",
+            ModPackageEdit::Remove => "remove-mod-package",
+        };
+        let _guard = self.library.try_lock_port(port_id, operation)?;
         self.recover_switch_locked(port_id, &layout)?;
         let connection = self.library.connection()?;
         let current = profile_current(&connection, port_id, profile_id)?;
         require_reviewed_or_reordered(&connection, &current, expected_revision)?;
+
         let mut packages = current.packages.clone();
-        let package = packages
-            .iter_mut()
-            .find(|package| package.native_id == native_id)
+        let index = packages
+            .iter()
+            .position(|package| package.native_id == native_id)
             .ok_or_else(|| PortcoveError::not_found("the profile has no such package"))?;
-        if package.enabled == enabled_state {
-            return Ok(current);
-        }
-        package.enabled = enabled_state;
+        let orderings = match edit {
+            ModPackageEdit::Enabled(enabled) => {
+                if packages[index].enabled == enabled {
+                    return Ok(current);
+                }
+                packages[index].enabled = enabled;
+                None
+            }
+            ModPackageEdit::Remove => {
+                packages.remove(index);
+                let mut orderings = current.orderings.clone();
+                for ordering in &mut orderings {
+                    ordering.native_ids.retain(|id| id != native_id);
+                }
+                Some(orderings)
+            }
+        };
         let selected = profile::selection(&connection, port_id)?;
         let live = selected.as_ref().is_some_and(|(id, _)| id == profile_id);
         if live {
@@ -1200,6 +1257,7 @@ impl PortcoveService {
         let request = ProfileRevisionRequest {
             expected_revision: current.revision,
             packages: Some(packages),
+            orderings,
             ..Default::default()
         };
         self.advance_and_deploy(port_id, profile_id, &layout, &current, &request, live)
