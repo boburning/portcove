@@ -63487,6 +63487,10 @@
           {
             "title": "Keep your original Tux Racer profile",
             "instruction": "With the game closed, copy %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Keep that backup when replacing your extracted game folder. Extreme Tux Racer uses a different profile."
+          },
+          {
+            "title": "Keep captures you want to retain",
+            "instruction": "The game writes tux_sshot_*.ppm and its optional diagnostic_log.txt beside the player. In an extracted copy, keep those files when replacing the runtime. Move screenshots you want to keep before playing again, because the game restarts screenshot numbering at zero."
           }
         ],
         "warnings": [],

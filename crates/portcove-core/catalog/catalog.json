@@ -73472,12 +73472,14 @@
           "Tux Racer.app/Contents/MacOS/Tux Racer"
         ]
       },
-      "persistent_paths": [],
+      "persistent_paths": [
+        "diagnostic_log.txt"
+      ],
       "presentation": {
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "The package includes the original free Tux Racer courses. On Linux, install libGLU.so.1 from your distribution if needed. Start Play, press Enter at the title screen, then select Practice to choose a route. Portcove manages the runtime. The game keeps options and progress under %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Back up that folder separately with the game closed. Portcove runtime backup, update, rollback, and removal leave that profile outside their scope.",
+        "manual_preparation": "The package includes the original free Tux Racer courses. On Linux, install libGLU.so.1 from your distribution if needed. Start Play, press Enter at the title screen, then select Practice to choose a route. Portcove manages the runtime. The game keeps your normal profile under %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Back up that profile separately with the game closed. The managed runtime keeps tux_sshot_*.ppm captures and the optional diagnostic_log.txt. Manual Portcove backups include those local files. Move screenshots you want to keep before playing again, because the game restarts its numbering at zero.",
         "original_game_title": "Tux Racer",
         "manual_setup": {
           "steps": [
@@ -73496,6 +73498,10 @@
             {
               "title": "Keep your original Tux Racer profile",
               "instruction": "With the game closed, copy %APPDATA%/TuxRacer on Windows or ~/.tuxracer on Linux and Mac. Keep that backup when replacing your extracted game folder. Extreme Tux Racer uses a different profile."
+            },
+            {
+              "title": "Keep captures you want to retain",
+              "instruction": "The game writes tux_sshot_*.ppm and its optional diagnostic_log.txt beside the player. In an extracted copy, keep those files when replacing the runtime. Move screenshots you want to keep before playing again, because the game restarts screenshot numbering at zero."
             }
           ],
           "warnings": [],
@@ -73541,7 +73547,13 @@
             "tux racer.app/contents/macos/tux racer"
           ]
         }
-      }
+      },
+      "persistent_file_patterns": [
+        {
+          "prefix": "tux_sshot_",
+          "suffix": ".ppm"
+        }
+      ]
     },
     {
       "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
