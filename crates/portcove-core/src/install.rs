@@ -2120,11 +2120,6 @@ impl Installer {
         let partials = partial_download::PartialDownloads::new(
             self.library.downloads_dir().join("partial-v1"),
         );
-        let inside_library = destination
-            .parent()
-            .and_then(|parent| fs::canonicalize(parent).ok())
-            .zip(fs::canonicalize(self.library.root()).ok())
-            .is_some_and(|(parent, root)| parent.starts_with(root));
         transfer::download_resuming(
             &client,
             asset,
@@ -2132,9 +2127,17 @@ impl Installer {
             operation,
             emit,
             transfer::RESUME_POLICY,
-            inside_library.then_some(&partials),
+            self.is_library_staged(destination).then_some(&partials),
         )
         .await
+    }
+
+    fn is_library_staged(&self, destination: &Path) -> bool {
+        destination
+            .parent()
+            .and_then(|parent| fs::canonicalize(parent).ok())
+            .zip(fs::canonicalize(self.library.root()).ok())
+            .is_some_and(|(parent, root)| parent.starts_with(root))
     }
 
     /// The PSX acquisition lock serializes access to this store through the
@@ -2151,7 +2154,9 @@ impl Installer {
     {
         let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
         let partials = partial_download::PartialDownloads::new(
-            self.library.downloads_dir().join("psx-toolchain-partial-v1"),
+            self.library
+                .downloads_dir()
+                .join("psx-toolchain-partial-v1"),
         );
         transfer::download_resuming(
             &client,
@@ -2160,7 +2165,7 @@ impl Installer {
             operation,
             emit,
             transfer::RESUME_POLICY,
-            Some(&partials),
+            self.is_library_staged(destination).then_some(&partials),
         )
         .await
     }

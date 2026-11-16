@@ -743,11 +743,16 @@ async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     let mut messages = Vec::new();
     tokio::time::timeout(
         Duration::from_secs(30),
-        installer.download_psx_toolchain(&server.asset(digest), &second, &operation, &mut |event| {
-            if let crate::OperationEventKind::Message { message, .. } = event.event {
-                messages.push(message);
-            }
-        }),
+        installer.download_psx_toolchain(
+            &server.asset(digest),
+            &second,
+            &operation,
+            &mut |event| {
+                if let crate::OperationEventKind::Message { message, .. } = event.event {
+                    messages.push(message);
+                }
+            },
+        ),
     )
     .await
     .expect("transfer fixture exceeded thirty seconds")

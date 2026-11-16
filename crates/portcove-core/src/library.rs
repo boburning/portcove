@@ -1014,7 +1014,9 @@ impl Library {
     }
 
     pub(crate) fn try_lock_psx_toolchain_acquisition(&self) -> Result<PortOperationGuard> {
-        crate::path::refuse_symlink_ancestors(&self.locks_dir().join("psx-toolchain-acquire.lock"))?;
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("psx-toolchain-acquire.lock"),
+        )?;
         Ok(PortOperationGuard {
             file: self.acquire_lock(
                 "psx-toolchain-acquire",
