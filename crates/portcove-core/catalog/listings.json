@@ -41667,6 +41667,14 @@
           {
             "title": "Play in a browser on desktop or mobile",
             "instruction": "The official browser build supports touch controls on mobile, including Android. Use the browser link on modern Macs. The older Mac 1.5.3 installer contains only PowerPC and 32-bit Intel code."
+          },
+          {
+            "title": "Play the companion Neverputt game",
+            "instruction": "On Windows, run neverputt.exe from the same extracted 1.6.0 folder and keep the included data and libraries beside it. On Debian or Ubuntu, install the neverputt package with its data dependencies. In Neverputt, choose Play, a course, and one to four players to play on the same computer. On Linux, back up the shared ~/.neverball folder to keep its settings."
+          },
+          {
+            "title": "Find Neverputt on Mac",
+            "instruction": "If you use MacPorts, its neverball port installs Neverputt separately. Open Neverputt under Applications/MacPorts or start neverputt from a terminal. The older official disk image contains a 32-bit Intel and PowerPC Neverputt installer. The project’s mobile browser link is for Neverball."
           }
         ],
         "help_url": "https://play.neverball.org/"
