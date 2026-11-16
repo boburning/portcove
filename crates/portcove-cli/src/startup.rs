@@ -420,6 +420,7 @@ mod tests {
             "catalog inspect-proposal file",
             "catalog inspect-package-layout file --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-package-shape file --port p --platform windows-x86-64 --size 1 --sha256 hash",
+            "catalog inspect-package-drift file --port p --platform windows-x86-64 --size 1 --sha256 hash",
             "catalog inspect-definition-publication directory",
             "catalog definition-authority",
             "catalog update --file file",
