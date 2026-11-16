@@ -348,7 +348,7 @@ export function DetailLayout({
               key={section}
               value={section}
               data-focusable
-              className={`${controlFocus} detail-tab cursor-pointer rounded-t-pc-sm border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-pc-muted-foreground hover:bg-pc-surface data-active:border-current data-active:text-pc-selection-foreground`}
+              className={`${controlFocus} detail-tab cursor-pointer border-b-2 border-transparent bg-transparent px-3 py-2 text-sm font-semibold text-pc-muted-foreground hover:bg-pc-surface data-active:border-current data-active:text-pc-selection-foreground`}
             >
               {sectionLabel(t, section)}
             </Tabs.Tab>

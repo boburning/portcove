@@ -119,14 +119,14 @@ export function AddGames({
       >
         <div className="add-existing-choice">
           <div>
-            <h2 className="text-lg">Copy an existing installation</h2>
+            <h2 className="text-lg">Bring a copy into your library</h2>
             <p className="max-w-[65ch] text-pc-muted-foreground">
               Review the detected port, destination and supported saved data before copying. The
               original folder stays in place.
             </p>
           </div>
           <Button data-focusable variant="primary" onClick={onCopyInstallation}>
-            Open copy options
+            Copy an existing installation
             <Icon glyph={ArrowRight} size="sm" />
           </Button>
         </div>
