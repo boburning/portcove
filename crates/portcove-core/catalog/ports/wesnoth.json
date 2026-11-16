@@ -27,14 +27,14 @@
         {
           "title": "Start a campaign and save your game",
           "instruction": "Open Wesnoth and choose Tutorial or Campaign. The stable desktop package includes its base game and campaigns. Save from the in-game menu before closing Wesnoth."
-        },
-        {
-          "title": "Keep the profile for your release series",
-          "instruction": "Close Wesnoth before copying its saves, add-ons, and settings. For 1.18, check Documents/My Games/Wesnoth1.18 on Windows or ~/Library/Application Support/Wesnoth_1.18 on Mac. Linux normally keeps data in ~/.local/share/wesnoth/1.18 and configuration in ~/.config/wesnoth. Flatpak uses data/wesnoth/1.18 and config/wesnoth inside ~/.var/app/org.wesnoth.Wesnoth/. Keep the actual locations if your package or launch options chose different folders."
         }
       ],
       "warnings": [],
       "references": [
+        {
+          "title": "Keep the profile for your release series",
+          "instruction": "Open Game Version (i) from the main menu to find the active data and settings directories. Close Wesnoth before copying them. For 1.18, check Documents/My Games/Wesnoth1.18 on Windows. The sandboxed Mac app keeps its profile in ~/Library/Containers/org.wesnoth.Wesnoth/Data/Library/Application Support/Wesnoth_1.18. Older unsandboxed copies can use ~/Library/Application Support/Wesnoth_1.18. Linux normally keeps data in ~/.local/share/wesnoth/1.18 and configuration in ~/.config/wesnoth. Flatpak keeps them in data/wesnoth/1.18 and config/wesnoth inside ~/.var/app/org.wesnoth.Wesnoth/. Copy the actual locations the game shows if they differ."
+        },
         {
           "title": "Try the Android preview",
           "instruction": "F-Droid offers the upstream development series for Android. Choose its package for your device and keep its progress and add-ons separate from stable desktop profiles. Get it at https://f-droid.org/en/packages/org.wesnoth.Wesnoth/."
