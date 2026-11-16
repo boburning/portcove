@@ -359,7 +359,8 @@ impl PortcoveService {
             catalog,
             catalog.port(&install.port_id)?,
             self.managed_launch_context(catalog.definition_selection(&install.port_id), install)?,
-        )
+        )?;
+        self.require_activation_gates(install, None)
     }
 
     pub fn preview_retained_build_binding(

@@ -1,7 +1,7 @@
 use std::fs;
 
 use crate::{
-    InstallRecord, Installer, PortcoveError, PortcoveService, Result,
+    ActivityStatus, ErrorCode, InstallRecord, Installer, PortcoveError, PortcoveService, Result,
     operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
     service::{RemovalOperation, RemovalPhase, RestorePhase, copy_tree},
 };
@@ -35,6 +35,7 @@ pub(crate) fn recover_published_install(
         .expect("checked publication")
         .clone();
     let payload = staging.join("payload");
+    let mut held = None;
     if operation.kind == LifecycleOperationKind::Adopt {
         crate::runtime_data_policy::refuse_sensitive_tree(&staging)?;
         crate::runtime_data_policy::refuse_sensitive_tree(&install.path)?;
@@ -163,15 +164,49 @@ pub(crate) fn recover_published_install(
                 ));
             }
         } else {
-            let current_active = service
+            let status = service
                 .library
-                .status(&operation.port_id, install.channel)?
-                .active;
-            let already_active = current_active
+                .status(&operation.port_id, install.channel)?;
+            let already_active = status
+                .active
                 .as_ref()
                 .is_some_and(|active| active.id == install.id);
+            if !operation.activate
+                && !install.staged
+                && operation.kind == LifecycleOperationKind::Install
+                && status
+                    .staged
+                    .as_ref()
+                    .is_some_and(|staged| staged.id != install.id)
+            {
+                return Err(PortcoveError::conflict(
+                    "A different version is staged. Keep both copies and review the game's staged version before retrying recovery.",
+                ));
+            }
+            if operation.activate
+                && !already_active
+                && let Err(error) = service.require_activation_gates(&install, None)
+            {
+                if !is_recorded_uploader_hold(&error)
+                    || operation.kind != LifecycleOperationKind::Install
+                    || status
+                        .staged
+                        .as_ref()
+                        .is_some_and(|staged| staged.id != install.id)
+                {
+                    return Err(error);
+                }
+                crate::output_root::validate_published_install_path(
+                    &service.library,
+                    &operation,
+                    &install,
+                )?;
+                let error = error.detail("recovery_action", "check_for_updates");
+                record_recovery_hold(service, &operation.id, &error);
+                operation.defer_activation(store)?;
+                held = Some(error);
+            }
             if operation.activate && !already_active {
-                service.require_activation_gates(&install, None)?;
                 let installer = Installer::new(service.library.clone())?;
                 match installer.retained_catalog(&install)? {
                     Some(catalog)
@@ -235,7 +270,26 @@ pub(crate) fn recover_published_install(
         }
         store.remove(&operation.id)?;
     }
-    Ok(())
+    held.map_or(Ok(()), Err)
+}
+
+fn is_recorded_uploader_hold(error: &PortcoveError) -> bool {
+    error.code == ErrorCode::Unsupported
+        && matches!(
+            error.details.get("reason").map(String::as_str),
+            Some("provider_uploader_not_observed" | "provider_uploader_not_continuous")
+        )
+}
+
+fn record_recovery_hold(service: &PortcoveService, operation_id: &str, error: &PortcoveError) {
+    // A journal may predate its current activity row, or already have a terminal
+    // failure. The staged build independently reports the existing policy hold.
+    let _ = service.library.finish_activity_report(
+        operation_id,
+        ActivityStatus::Failed,
+        Some(&error.message),
+        Some(&error.report()),
+    );
 }
 
 fn require_install_publication_authority(
@@ -788,7 +842,17 @@ pub(crate) fn recover_activation(
                     "the staged install changed while activation was interrupted",
                 ));
             }
-            service.require_activation_gates(&install, None)?;
+            if let Err(error) = service.require_activation_gates(&install, None) {
+                if is_recorded_uploader_hold(&error) {
+                    // The target is already staged. Drop only the unfinished
+                    // activation so a new Update can supply a fresh resolution.
+                    let error = error.detail("recovery_action", "check_for_updates");
+                    record_recovery_hold(service, &operation.id, &error);
+                    store.remove(&operation.id)?;
+                    return Err(error);
+                }
+                return Err(error);
+            }
             service.require_ghostship_install_data_compatibility(
                 &install,
                 status.active.as_ref().map(|active| active.version.as_str()),
