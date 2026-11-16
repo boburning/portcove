@@ -286,6 +286,47 @@
       }
     },
     {
+      "port_id": "super-mario-world-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.15.10",
+      "sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+      "derivation_inputs_sha256": "0235e195a34b892dad2c54e4f6efbbcdac5f6ec0c3c8ac9228bf668f5ef4e120",
+      "size": 26825013,
+      "asset_name": "SuperMarioWorldRecomp-windows-x64-v0.15.10.zip",
+      "reviewed_by": "applicability:super-mario-world-recomp-game-source",
+      "shape": {
+        "programs": [
+          "collect-controller-diagnostics.cmd",
+          "collect-controller-diagnostics.ps1",
+          "smw-controller-report.exe",
+          "smw-falcon-cache.exe",
+          "supermarioworldsnesrecomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "falcon-cache-licenses",
+          "lua",
+          "mods",
+          "notices"
+        ],
+        "persistent_parent_children": [
+          "mods/preloaded"
+        ],
+        "persistent_overlap": [
+          "config.ini"
+        ],
+        "config_files": [
+          "config.ini",
+          "mods/preloaded/packages/super-mario-world.developer.diagnostics/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.msu1/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.enhancement.widescreen/1.0.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.gameplay.native-coop/0.1.0/manifest.toml",
+          "mods/preloaded/packages/super-mario-world.smash64.captain-falcon/0.0.1/manifest.toml"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
       "port_id": "super-metroid-recomp",
       "platform": "windows-x86-64",
       "version": "v0.4.2",
@@ -382,5 +423,5 @@
       }
     }
   ],
-  "entries_sha256": "aceec3e5643570a04b98790756f467514c5fae20fc5030d29a7bcd73d9192bb3"
+  "entries_sha256": "7ff745f2681de11dc6260bafcebb3d8fa5894997365afff3991ad026cf545785"
 }

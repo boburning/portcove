@@ -77,7 +77,22 @@
         }
       ],
       "saves_and_settings": "portcove-managed",
-      "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups."
+      "manual_preparation": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Portcove downloads the checked official Windows package and manages its default local saves and settings separately from existing external copies. The installation folder must use basic Latin characters and a short path; original files can stay where they are. Gameplay and in-game save/load remain unqualified. Optional Falcon setup uses the game's bundled helper and an external user cache; that cache is outside Portcove backups.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Select your own stock Super Mario World original",
+            "instruction": "Select your own Super Mario World (USA) stock SNES ROM, with or without a copier header. Choose a short installation path using basic Latin characters. Your original file can stay where it is."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Review what the Windows backup contains",
+            "instruction": "Portcove manages the default local saves and settings in this installation. The bundled Falcon setup helper uses an external user cache that stays outside Portcove backups."
+          }
+        ]
+      }
     },
     "launch_arguments": ["smw.sfc"],
     "launch_environment": {
