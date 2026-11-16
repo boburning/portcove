@@ -38,6 +38,7 @@ export interface SourceIntakeRequest {
     channel: ReleaseChannel;
     other: SourceRecord | undefined;
     storeOriginals?: StoreGameInstalls["installs"] | undefined;
+    savedOriginals?: { paths: string[]; limited: boolean } | undefined;
   };
 }
 
@@ -429,6 +430,27 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
             {request.profile.label}
           </small>
         </div>
+        {!saved && request.setup?.savedOriginals && (
+          <section aria-label="Originals found in saved folders" className="mt-3 grid gap-2">
+            {request.setup.savedOriginals.paths.map((path) => (
+              <div key={path} className="grid gap-1">
+                <code className="[overflow-wrap:anywhere] whitespace-normal">{path}</code>
+                <Button
+                  data-focusable
+                  variant="outline"
+                  disabled={Boolean(busy)}
+                  className="justify-self-start"
+                  onClick={() => void inspect([path])}
+                >
+                  Check saved location
+                </Button>
+              </div>
+            ))}
+            {request.setup.savedOriginals.limited && (
+              <small>More matches are available under Saved folders.</small>
+            )}
+          </section>
+        )}
         {!saved && storeOriginals.length > 0 && (
           <section aria-label="Original files from installed games" className="mt-3 grid gap-2">
             {storeOriginals.map((install) => {

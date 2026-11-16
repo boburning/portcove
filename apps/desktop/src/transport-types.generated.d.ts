@@ -3903,6 +3903,10 @@ export interface OutputGameFileScanMatchQuery {
   limit: number;
   offset: number;
   /**
+   * Only matches for this source profile.
+   */
+  profile_id?: string | null;
+  /**
    * Only matches inside this saved folder.
    */
   root_id?: string | null;

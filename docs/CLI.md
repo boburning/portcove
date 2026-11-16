@@ -1123,7 +1123,7 @@ portcove --library <path> --json source roots relink <root-id> "E:\Games"
 portcove --library <path> --json source roots remove <root-id>
 portcove --library <path> --json source roots scan
 portcove --library <path> --json source roots snapshot
-portcove --library <path> --json source roots matches --kind exact --offset 0 --limit 64 --root <root-id> --scan-id <scan-id>
+portcove --library <path> --json source roots matches --kind exact --offset 0 --limit 64 --root <root-id> --scan-id <scan-id> --profile <profile-id>
 ```
 
 Adding requires an available directory and returns the existing stable identity
@@ -1136,7 +1136,9 @@ values with the resulting candidates, and replaces the prior snapshot only after
 success. Snapshot reads that evidence without scanning or registering candidates.
 Matches reads the recorded matches in pages of 1 to 512 (default 64), exact
 candidates or preliminary selections, in stored order, optionally only inside one
-saved folder. Each page names its `scan_id`, `total` and `next_offset`; passing
+saved folder or for a specific `--profile`. The profile filter applies before
+paging, including beyond the snapshot preview. Each page names its
+`scan_id`, `total` and `next_offset`; passing
 `--scan-id` from an earlier page refuses with a conflict when a newer scan has
 replaced it, so pages never mix two scans. Older inline reports are paged from
 the report itself with a null `scan_id`.
