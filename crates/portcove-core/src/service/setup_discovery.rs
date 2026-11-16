@@ -425,7 +425,8 @@ mod tests {
     #[test]
     fn mac_setup_only_suggests_reviewed_bundle_programs_for_the_host() {
         let temp = tempfile::tempdir().unwrap();
-        let directory = temp.path().join("OpenLoco.app/Contents/MacOS");
+        let root = fs::canonicalize(temp.path()).unwrap();
+        let directory = root.join("OpenLoco.app/Contents/MacOS");
         fs::create_dir_all(&directory).unwrap();
         fs::write(directory.parent().unwrap().join("Info.plist"), b"fixture").unwrap();
         let program = directory.join("OpenLoco");
@@ -440,8 +441,7 @@ mod tests {
             fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
         }
         let hints = ["OpenLoco.app/Contents/MacOS/OpenLoco".into()];
-        let (targets, complete, entries) =
-            inspect(temp.path(), Platform::MacosAarch64, &hints).unwrap();
+        let (targets, complete, entries) = inspect(&root, Platform::MacosAarch64, &hints).unwrap();
         assert!(complete);
         assert_eq!(entries, 1);
         assert_eq!(targets.len(), 1);
@@ -449,13 +449,13 @@ mod tests {
         assert_eq!(targets[0].working_directory, directory);
         assert!(matches_executable_hint(&targets[0].executable, &hints));
         assert!(
-            inspect(temp.path(), Platform::MacosX86_64, &hints)
+            inspect(&root, Platform::MacosX86_64, &hints)
                 .unwrap()
                 .0
                 .is_empty()
         );
         assert!(
-            inspect(temp.path(), Platform::MacosAarch64, &[])
+            inspect(&root, Platform::MacosAarch64, &[])
                 .unwrap()
                 .0
                 .is_empty()
@@ -464,11 +464,11 @@ mod tests {
 
         #[cfg(unix)]
         {
-            let other = temp.path().join("different");
+            let outside = tempfile::tempdir().unwrap();
+            let other = outside.path().join("different");
             fs::rename(&program, &other).unwrap();
             std::os::unix::fs::symlink(&other, &program).unwrap();
-            let (targets, complete, _) =
-                inspect(temp.path(), Platform::MacosAarch64, &hints).unwrap();
+            let (targets, complete, _) = inspect(&root, Platform::MacosAarch64, &hints).unwrap();
             assert!(targets.is_empty());
             assert!(!complete);
         }
