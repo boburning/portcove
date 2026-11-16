@@ -210,8 +210,11 @@ function ManagedRoutePreview({
 }: Pick<{ model: Omit<ReturnType<typeof useManagedRouteChangeDialog>, "cancel"> }, "model">) {
   const { t } = useAppTranslation("installation");
   const manualSetup = model.port.presentation?.manual_setup;
-  const review = authoredManagedSetupReview(model.port.id, model.preview?.installation);
-  const legacyStep = manualSetup?.steps[0];
+  const review = authoredManagedSetupReview(
+    model.port.id,
+    model.preview?.installation,
+    manualSetup,
+  );
   return (
     model.preview && (
       <div className="grid min-w-0 gap-3 wrap-anywhere">
@@ -232,15 +235,7 @@ function ManagedRoutePreview({
           />
         </p>
         <AuthoredSetupWarnings warnings={review?.warnings ?? manualSetup?.warnings} />
-        {review ? (
-          <p>{review.note}</p>
-        ) : (
-          legacyStep && (
-            <p>
-              <strong>{legacyStep.title}.</strong> {legacyStep.instruction}
-            </p>
-          )
-        )}
+        {review && <p>{review.note}</p>}
         {model.preservesExternalData ? (
           <p>{t("managedRoute.preserves")}</p>
         ) : (

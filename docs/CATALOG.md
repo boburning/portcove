@@ -854,11 +854,12 @@ provider digest, write locations and process lifetime remain the author's review
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
 that the package is ready for Play. Avoid a redundant first step telling the player
-to install. Desktop uses this first step in the managed installation review and
-keeps the guide in Files even when Core needs no source profile. Listing guides
-also survive as saved-download handoffs after a definition disappears. Keep their
-steps truthful for both routes, spell out any external launch arguments, and put
-managed retention/backup/replacement details in the integration's
+to install. Put the managed step in the integration's guide when it belongs
+in the managed installation review. The full guide is available in Files even
+when Core needs no source profile. Listing guides also survive as saved-download
+handoffs after a definition disappears. Spell out any external launch arguments
+in the upstream guide and put managed retention, backup and replacement details
+in the integration's
 `presentation.manual_preparation`, which Desktop scopes to managed ownership.
 An empty Core
 input requirement describes Portcove's action; it does not assert that the upstream
@@ -2841,12 +2842,13 @@ the listing guide. The discovery directory keeps the upstream guide.
 
 For a warning specific to one managed package, author
 `managed_setup_platform_warnings` in the port record by exact managed platform.
-Catalog generation emits this copy for Desktop separately from signed and retained
-definitions. The managed install review combines the authored managed guide with
-warnings for the platform in its install plan, including when a port definition
-still carries an older guide. The route-wide guide also serves readers without
-this Desktop copy.
-Keep upstream package warnings in the listing.
+Catalog generation emits Desktop review copy from the authored integration guide
+or the explicit managed preparation in `route_facts_v1`. The managed install and
+managed-copy reviews use a matching managed step and the warnings in the selected
+definition. Explicit platform warnings can also supply the managed review for an
+older definition. Otherwise, legacy inherited guidance gets the standard package
+and ownership summary, with its existing warnings visible. The full guide remains
+available in the game instructions. Keep upstream package warnings in the listing.
 
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
