@@ -9,6 +9,7 @@ import type { ActivityRecord, InstallPlan } from "../types";
 import { StatusLayer } from "./Chrome";
 import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
+import snap64 from "../../../../crates/portcove-core/catalog/ports/snap64-recomp.json";
 import { portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
 import "../styles/index.css";
@@ -317,6 +318,48 @@ it.each([
   expect(setup.element().textContent).toContain("Select Play when setup is complete");
   expect(dialog.element().textContent).not.toContain(upstreamStep);
 });
+
+it.each([
+  ["windows-x86-64", false, false],
+  ["linux-x86-64", true, false],
+  ["macos-x86-64", false, true],
+  ["macos-aarch64", false, true],
+] as const)(
+  "shows only the managed Snap64 package warnings for %s",
+  async (platform, linuxWarning, macWarning) => {
+    const current = currentCatalogPort("snap64-recomp");
+    // Older definitions inherited the upstream guide. Keep coverage for that
+    // input while a current definition supplies the guide on other platforms.
+    const port =
+      platform === "windows-x86-64" && current.presentation
+        ? {
+            ...current,
+            presentation: { ...current.presentation, manual_setup: snap64.listing.manual_setup },
+          }
+        : current;
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    const setup = dialog.getByRole("region", { name: "Game setup" });
+    await expect.element(setup).toBeVisible();
+    expect(setup.element().textContent).toContain("unmodified USA Pokémon Snap cartridge dump");
+    const copy = dialog.element().textContent ?? "";
+    expect(copy.includes("glibc 2.38")).toBe(linuxWarning);
+    expect(copy.includes("START HERE.txt")).toBe(macWarning);
+    expect(copy.includes("no native Mac execution result")).toBe(macWarning);
+    expect(copy).not.toContain("Flatpak");
+    expect(copy).not.toContain("ARM64 tarball");
+  },
+);
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");

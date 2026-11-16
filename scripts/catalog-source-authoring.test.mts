@@ -30,6 +30,30 @@ const schema2Fixture = fixtureJson(
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
 
+void test("managed platform warnings are checked and stay outside definition projections", () => {
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "snap64-recomp.json"))),
+  );
+  const warnings = requiredFixture(authored.managed_setup_platform_warnings);
+  assert.equal(warnings["windows-x86-64"], undefined);
+  assert.match(requiredFixture(warnings["macos-aarch64"]?.[0]), /START HERE/u);
+  const withoutWarnings = structuredClone(authored);
+  delete withoutWarnings.managed_setup_platform_warnings;
+  assert.deepEqual(projectAuthoredPort(authored), projectAuthoredPort(withoutWarnings));
+  for (const managed_setup_platform_warnings of [
+    {},
+    { "android-aarch64": ["Wrong route."] },
+    { "linux-x86-64": [] },
+    { "linux-x86-64": ["Padded "] },
+    { "linux-x86-64": ["Line one\nLine two"] },
+  ]) {
+    assert.throws(
+      () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
+      /managed_setup_platform_warnings/u,
+    );
+  }
+});
+
 void test("current catalog schema accepts numeric 2 without guide references", () => {
   assert.equal(schema2Fixture.schema_version, 2);
   assert.doesNotThrow(() => checkedCurrentCatalog(structuredClone(schema2Fixture)));

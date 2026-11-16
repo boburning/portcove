@@ -9,6 +9,7 @@ import {
   reviewCompatibilityFixture,
   serializeCurrentCatalog,
   readCatalogSource,
+  projectAuthoredPort,
   catalogSourceNames,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
@@ -42,6 +43,13 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const catalogRoot = join(root, "crates", "portcove-core", "catalog");
 const outputPath = join(catalogRoot, "catalog.json");
 const listingsPath = join(catalogRoot, catalogSourceNames.listings);
+const managedSetupReviewPath = join(
+  root,
+  "apps",
+  "desktop",
+  "src",
+  "managed-setup-review.generated.json",
+);
 const enrollmentPath = join(catalogRoot, "route-enrollment.generated.json");
 const routeTestRoot = join(root, "crates", "portcove-core", "src", "testdata");
 const routeTestPaths = {
@@ -655,6 +663,26 @@ if (preparing) {
     );
   const output = serializeCurrentCatalog(current);
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
+  const managedSetupReview = Object.fromEntries(
+    authored.records.flatMap((record) => {
+      const { listing, managed_setup_platform_warnings } = record;
+      if (!managed_setup_platform_warnings) return [];
+      const guide = projectAuthoredPort(record)?.presentation?.manual_setup;
+      if (!isRecord(guide) || !Array.isArray(guide.steps) || !isRecord(guide.steps[0]))
+        throw new Error(`${listing.id} has no projected managed setup step.`);
+      return [
+        [
+          listing.id,
+          {
+            note: guide.steps[0].instruction,
+            warnings: guide.warnings,
+            platform_warnings: managed_setup_platform_warnings,
+          },
+        ],
+      ];
+    }),
+  );
+  const managedSetupReviewOutput = `${JSON.stringify(managedSetupReview, null, 2)}\n`;
   const enrollmentOutput = `${JSON.stringify(routeEnrollment(authored.records), null, 2)}\n`;
   const routeTests = renderRouteTests(authored.records);
   const retainedTests = renderRetainedPreparedTests(routeTestRoot);
@@ -667,7 +695,8 @@ if (preparing) {
       readFileSync(routeTestPaths.retained, "utf8") !== retainedTests ||
       readFileSync(enrollmentPath, "utf8") !== enrollmentOutput ||
       readFileSync(outputPath, "utf8") !== output ||
-      readFileSync(listingsPath, "utf8") !== listingsOutput
+      readFileSync(listingsPath, "utf8") !== listingsOutput ||
+      readFileSync(managedSetupReviewPath, "utf8") !== managedSetupReviewOutput
     ) {
       throw new Error("embedded catalog is stale; run node scripts/generate-catalog.mts");
     }
@@ -680,5 +709,6 @@ if (preparing) {
     writeFileSync(enrollmentPath, enrollmentOutput);
     writeFileSync(outputPath, output);
     writeFileSync(listingsPath, listingsOutput);
+    writeFileSync(managedSetupReviewPath, managedSetupReviewOutput);
   }
 }

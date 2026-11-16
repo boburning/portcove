@@ -64,6 +64,8 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  /** Desktop review copy, outside signed and retained definition schemas. */
+  managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
   psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
@@ -206,6 +208,37 @@ function checkSetupGuide(id: string, field: string, value: unknown, allowEmptySt
     );
   if (value.warnings.length > 8) throw new Error(`${id} ${field} permits at most eight warnings.`);
   return { steps: value.steps, warnings: value.warnings };
+}
+
+const desktopManagedPlatforms = new Set<string>(platforms);
+
+function checkManagedSetupPlatformWarnings(
+  id: string,
+  managedPlatforms: readonly unknown[],
+  value: unknown,
+) {
+  if (value === undefined) return;
+  const field = "managed_setup_platform_warnings";
+  if (!isRecord(value) || Object.keys(value).length === 0)
+    throw new Error(`${id} ${field} requires at least one managed platform.`);
+  for (const [platform, warnings] of Object.entries(value)) {
+    if (
+      !managedPlatforms.includes(platform) ||
+      !desktopManagedPlatforms.has(platform) ||
+      !Array.isArray(warnings) ||
+      warnings.length < 1 ||
+      warnings.length > 8 ||
+      warnings.some(
+        (warning) =>
+          typeof warning !== "string" ||
+          warning.length === 0 ||
+          warning !== warning.trim() ||
+          /\p{Cc}/u.test(warning),
+      )
+    )
+      throw new Error(`${id} ${field} has invalid warnings for ${platform}.`);
+    for (const warning of warnings) checkPlayerCopy(id, `${field}.${platform}`, warning);
+  }
 }
 
 function checkPlayerGuideCopy(
@@ -464,6 +497,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
   if (value.order !== undefined && (!Number.isSafeInteger(value.order) || Number(value.order) < 0))
     throw new Error("Authored port order must be a nonnegative integer.");
+  if (value.managed_setup_platform_warnings !== undefined && value.integration === undefined)
+    throw new Error(
+      `${listing.id} managed_setup_platform_warnings requires a managed integration.`,
+    );
   if (value.integration !== undefined) {
     if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
     const integration = value.integration;
@@ -493,6 +530,15 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "Common port fields belong to the listing, not a second integration authority.",
       );
     const managedPlatforms = Array.isArray(integration.platforms) ? integration.platforms : [];
+    if (value.managed_setup_platform_warnings !== undefined) {
+      if (!isRecord(presentation) || presentation.manual_setup == null)
+        throw new Error(`${listing.id} managed_setup_platform_warnings requires a managed guide.`);
+      checkManagedSetupPlatformWarnings(
+        listing.id,
+        managedPlatforms,
+        value.managed_setup_platform_warnings,
+      );
+    }
     if (listing.platforms?.some((platform) => managedPlatforms.includes(platform)))
       throw new Error(
         "A platform must be declared once. Listing platforms may add upstream package platforms outside the integration.",
