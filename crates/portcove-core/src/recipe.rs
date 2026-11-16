@@ -841,8 +841,12 @@ impl PortcoveService {
         for package in &plan.recipe.packages {
             let kept = match &package.provider {
                 Some(provider)
-                    if profile::provider_evidence(&connection, &port_id, package, provider)?
-                        == profile::ProviderEvidence::Matches =>
+                    if profile::provider_evidence(
+                        &connection,
+                        &port_id,
+                        package,
+                        Some(provider),
+                    )? == profile::ProviderEvidence::Matches =>
                 {
                     Some(provider.clone())
                 }
