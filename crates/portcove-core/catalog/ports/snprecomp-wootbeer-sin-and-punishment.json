@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "snprecomp-wootbeer-sin-and-punishment",
+    "artwork": {
+      "game_id": 1467,
+      "cover_id": 85687,
+      "image_id": "co1u47",
+      "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+      "game_slug": "sin-and-punishment",
+      "match_kind": "underlying-game"
+    },
     "name": "Sin and Punishment — snprecomp (wootbeer)",
     "original_game_title": "Sin and Punishment",
     "summary": "Native Sin and Punishment with an original-ROM picker and separate saves for supported Japanese and English versions.",

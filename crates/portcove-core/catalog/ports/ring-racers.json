@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ring-racers",
+    "artwork": {
+      "game_id": 238878,
+      "cover_id": 380102,
+      "image_id": "co85ae",
+      "image_sha256": "e5f7e14e5d5bf87ef37f7d2dfbccf2da120f8d38f3d2ab86ac160f12a1c91c55",
+      "game_slug": "dr-robotniks-ring-racers",
+      "match_kind": "underlying-game"
+    },
     "name": "Dr. Robotnik's Ring Racers",
     "original_game_title": "Dr. Robotnik's Ring Racers",
     "summary": "Race karts through courses with items, drifting, and time trials.",

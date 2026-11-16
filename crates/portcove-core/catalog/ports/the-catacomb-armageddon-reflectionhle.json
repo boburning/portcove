@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "the-catacomb-armageddon-reflectionhle",
+    "artwork": {
+      "game_id": 71138,
+      "cover_id": 161955,
+      "image_id": "co3gyr",
+      "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+      "game_slug": "curse-of-the-catacombs",
+      "match_kind": "underlying-game"
+    },
     "name": "The Catacomb Armageddon (ReflectionHLE)",
     "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "The Catacomb Armageddon",

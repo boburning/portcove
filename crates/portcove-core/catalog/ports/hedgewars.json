@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "hedgewars",
+    "artwork": {
+      "game_id": 28346,
+      "cover_id": 116296,
+      "image_id": "co2hqg",
+      "image_sha256": "e5c79c72e0da09d5dd4659c88dd3464ac13d54093de12410a30a75eef49696f7",
+      "game_slug": "hedgewars",
+      "match_kind": "underlying-game"
+    },
     "name": "Hedgewars",
     "original_game_title": "Hedgewars",
     "summary": "Play turn-based artillery matches with hedgehog teams, campaigns, and local games.",

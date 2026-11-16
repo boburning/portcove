@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "doom-3-classic-dhewm3",
+    "artwork": {
+      "game_id": 280,
+      "cover_id": 86963,
+      "image_id": "co1v3n",
+      "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+      "game_slug": "doom-3",
+      "match_kind": "underlying-game"
+    },
     "name": "Doom 3 (classic) (dhewm3)",
     "summary": "Use the official dhewm3 Windows player with your own classic Doom 3 files. Prepare originals separately and keep the external save profile backed up.",
     "original_game_title": "Doom 3 (classic)",

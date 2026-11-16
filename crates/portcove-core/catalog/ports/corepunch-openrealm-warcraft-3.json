@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "corepunch-openrealm-warcraft-3",
+    "artwork": {
+      "game_id": 132,
+      "cover_id": 90530,
+      "image_id": "co1xuq",
+      "image_sha256": "7fec1528a806a6d4db90c23cb07f077aece432e0f38ebe1a6fcb372b5ae045bd",
+      "game_slug": "warcraft-iii-reign-of-chaos",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/corepunch/open-realm",
     "name": "Warcraft III / OpenRealm",
     "original_game_title": "Warcraft III",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "warzone-2100-official-maintained-source-port",
+    "artwork": {
+      "game_id": 51297,
+      "cover_id": 290237,
+      "image_id": "co67y5",
+      "image_sha256": "b822e6718c3e24ee79f6c50ef603e72b41e2057a9b0095e785fd653943ff2562",
+      "game_slug": "warzone-2100",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Warzone2100/warzone2100",
     "name": "Warzone 2100",
     "original_game_title": "Warzone 2100",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ultima-vii-part-two-serpent-isle-exult",
+    "artwork": {
+      "game_id": 9574,
+      "cover_id": 139720,
+      "image_id": "co2zt4",
+      "image_sha256": "2dcd06eb9ea0098c0060e4ba19c5bc02789fdce48b7705d107ccdf0963a57cf3",
+      "game_slug": "ultima-vii-part-two-serpent-isle",
+      "match_kind": "underlying-game"
+    },
     "name": "Ultima VII Part Two: Serpent Isle (Exult)",
     "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Ultima VII Part Two: Serpent Isle",

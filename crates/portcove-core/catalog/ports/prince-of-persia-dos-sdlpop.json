@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "prince-of-persia-dos-sdlpop",
+    "artwork": {
+      "game_id": 284766,
+      "cover_id": 359491,
+      "image_id": "co7pdv",
+      "image_sha256": "02c24320961764545a7a51d2df13e9ab2d353b937d5ee73309c6483b8d946836",
+      "game_slug": "prince-of-persia--8",
+      "match_kind": "underlying-game"
+    },
     "name": "Prince of Persia (DOS) (SDLPoP)",
     "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
     "original_game_title": "Prince of Persia (DOS)",

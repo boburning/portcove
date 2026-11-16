@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "commander-keen-5-omnispeak",
+    "artwork": {
+      "game_id": 2445,
+      "cover_id": 100804,
+      "image_id": "co25s4",
+      "image_sha256": "8796a86f3e2722a7af5018e5d75b91879d334752596525c3785bb6ddd2455a63",
+      "game_slug": "commander-keen-in-goodbye-galaxy-the-armageddon-machine",
+      "match_kind": "underlying-game"
+    },
     "name": "Commander Keen 5 (Omnispeak)",
     "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 5",

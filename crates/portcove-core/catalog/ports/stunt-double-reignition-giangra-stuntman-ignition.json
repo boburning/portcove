@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "stunt-double-reignition-giangra-stuntman-ignition",
+    "artwork": {
+      "game_id": 2783,
+      "cover_id": 114299,
+      "image_id": "co2g6z",
+      "image_sha256": "22897864a39e57cd4d4b8a9dfb546b3a1df4067c56b00d5763f7477586996df6",
+      "game_slug": "stuntman-ignition",
+      "match_kind": "underlying-game"
+    },
     "name": "Stuntman: Ignition — Stunt Double: Reignition (giangra)",
     "original_game_title": "Stuntman: Ignition",
     "summary": "This early build reaches menus, career and races. Expect bugs. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

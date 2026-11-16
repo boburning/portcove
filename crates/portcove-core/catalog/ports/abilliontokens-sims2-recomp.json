@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "abilliontokens-sims2-recomp",
+    "artwork": {
+      "game_id": 225246,
+      "cover_id": 398030,
+      "image_id": "co8j4e",
+      "image_sha256": "d5b2ad513fb11755d2d63f43ffd9b5822083ae5a8a73f9b33aa92564f477ab89",
+      "game_slug": "the-sims-2--6",
+      "match_kind": "underlying-game"
+    },
     "name": "The Sims 2 — Original Xbox (The Sims 2 - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims 2 original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Sims 2",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "abilliontokens-sims1-recomp",
+    "artwork": {
+      "game_id": 224864,
+      "cover_id": 394904,
+      "image_id": "co8gpk",
+      "image_sha256": "9455eb10df74f8cb2149d25be7fc6619643543ce2ce685447b13d2e25d608a59",
+      "game_slug": "the-sims--1",
+      "match_kind": "underlying-game"
+    },
     "name": "The Sims — Original Xbox (The Sims - Static Recompilation)",
     "summary": "Register an independently permitted prepared The Sims original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Sims",

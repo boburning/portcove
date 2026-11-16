@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "descent-ii-dxx-rebirth",
+    "artwork": {
+      "game_id": 668,
+      "cover_id": 565833,
+      "image_id": "coc4ll",
+      "image_sha256": "39ad11455f95ca1af43d6f066ab3e11074769815ebf1844352818d0670950279",
+      "game_slug": "descent-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Descent II (DXX-Rebirth)",
     "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Descent II",

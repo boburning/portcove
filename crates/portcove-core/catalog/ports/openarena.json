@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "openarena",
+    "artwork": {
+      "game_id": 77358,
+      "cover_id": 258514,
+      "image_id": "co5jgy",
+      "image_sha256": "c649311e6967a8ceb59c75f3ee7aabcbc7dd575cea88897a18e88a2cd37a9b7a",
+      "game_slug": "openarena",
+      "match_kind": "underlying-game"
+    },
     "name": "OpenArena",
     "original_game_title": "OpenArena",
     "summary": "Play OpenArena’s standalone maps and modes with the game data in its own release.",

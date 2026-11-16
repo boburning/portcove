@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "captain-claw-pjasicek-openclaw",
+    "artwork": {
+      "game_id": 2474,
+      "cover_id": 137550,
+      "image_id": "co2y4u",
+      "image_sha256": "202c18866c7e4f43b05fc1a5fe15fc17338e1385be46a0d89705444f924a8332",
+      "game_slug": "claw",
+      "match_kind": "underlying-game"
+    },
     "name": "Captain Claw / OpenClaw",
     "original_game_title": "Captain Claw",
     "summary": "Build OpenClaw with upstream instructions and use the CLAW.REZ archive from your own Captain Claw installation.",

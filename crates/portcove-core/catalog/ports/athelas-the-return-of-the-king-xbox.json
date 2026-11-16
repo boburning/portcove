@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-the-return-of-the-king-xbox",
+    "artwork": {
+      "game_id": 2973,
+      "cover_id": 94191,
+      "image_id": "co20of",
+      "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+      "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Return of the King — Original Xbox (Athelas ports/rotk-xbox)",
     "summary": "Use your own USA Xbox The Return of the King through the complete Athelas launcher. Preserve its separate ROTK-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Return of the King",

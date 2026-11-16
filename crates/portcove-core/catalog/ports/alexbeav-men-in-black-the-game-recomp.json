@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "alexbeav-men-in-black-the-game-recomp",
+    "artwork": {
+      "game_id": 12898,
+      "cover_id": 198885,
+      "image_id": "co49gl",
+      "image_sha256": "794f27cae235d7ad463b69d7f0a32614edb49002e1b36e80a4eb96e193f554ac",
+      "game_slug": "men-in-black-the-game",
+      "match_kind": "underlying-game"
+    },
     "name": "Men in Black: The Game / Alexbeav PSXRecomp",
     "summary": "Play Men in Black: The Game with a native player built from your matching original disc and BIOS.",
     "project_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp",
