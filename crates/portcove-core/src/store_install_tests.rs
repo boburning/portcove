@@ -325,6 +325,51 @@ fn classic_steam_original_hint_requires_matching_manifest_identity_and_a_folder(
 }
 
 #[test]
+fn classic_gog_original_hint_uses_the_registered_root_and_preserves_move_protection() {
+    let temporary = tempfile::tempdir().unwrap();
+    let mut gog = Vec::new();
+    for (folder, product_id) in [
+        ("Classic", Some("1421404433")),
+        ("Remaster", Some("1853348102")),
+        ("Unknown", None),
+    ] {
+        let path = temporary.path().join(folder);
+        fs::create_dir(&path).unwrap();
+        gog.push(RegisteredStoreInstall {
+            title: "Dark Forces".into(),
+            path,
+            product_id: product_id.map(str::to_owned),
+        });
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            gog,
+            ..FixtureHost::default()
+        },
+    );
+    let report = service.store_game_installs().unwrap();
+    assert_eq!(report.installs.len(), 3);
+    let root = canonical(&temporary.path().join("Classic"));
+    assert_eq!(
+        report
+            .installs
+            .into_iter()
+            .filter_map(|install| install.original_folder)
+            .collect::<Vec<_>>(),
+        [StoreOriginalFolder {
+            profile_id: "dark-forces-pc-complete-installed-data".into(),
+            path: root.clone(),
+        }]
+    );
+    let refusal = service
+        .refuse_store_install_move("dark-forces-pc-complete-installed-data", &root)
+        .unwrap_err();
+    assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+    assert!(refusal.message.contains("GOG installed"));
+}
+
+#[test]
 fn conflicting_steam_metadata_keeps_the_folder_without_a_product_hint() {
     for text in [
         r#""AppState" { "appid" "32400" "installdir" "Classic" "installdir" "Other" }"#,
