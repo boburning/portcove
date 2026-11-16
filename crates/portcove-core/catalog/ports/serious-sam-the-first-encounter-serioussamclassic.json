@@ -5,6 +5,23 @@
     "name": "Serious Sam: The First Encounter (SeriousSamClassic)",
     "summary": "Prepare Serious Sam: The First Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Serious Sam: The First Encounter",
+    "original_game": {
+      "format_version": 1,
+      "id": "serious-sam-the-first-encounter",
+      "evidence_urls": [
+        "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "serious-sam-the-first-encounter-pc",
+          "title": "Serious Sam: The First Encounter (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
     "availability": "packages",
     "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",

@@ -5,6 +5,23 @@
     "name": "Prince of Persia 2: The Shadow and the Flame (prince-of-persia-2-windows)",
     "summary": "Attach the prepared native Windows player for the original DOS Prince of Persia 2: The Shadow and the Flame. Configure your own original game folder upstream and preserve its saves and drivers separately from player settings.",
     "original_game_title": "Prince of Persia 2: The Shadow and the Flame",
+    "original_game": {
+      "format_version": 1,
+      "id": "prince-of-persia-2-the-shadow-and-the-flame",
+      "evidence_urls": [
+        "https://github.com/Supermedo/prince-of-persia-2-windows/blob/e2c407fa8409ad891bf78c8e98c3e052dd00869b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "prince-of-persia-2-the-shadow-and-the-flame-pc",
+          "title": "Prince of Persia 2: The Shadow and the Flame (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Supermedo/prince-of-persia-2-windows/blob/e2c407fa8409ad891bf78c8e98c3e052dd00869b/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

@@ -10,6 +10,23 @@
     "availability": "packages",
     "setup_url": "https://fragglet.github.io/sdl-sopwith/",
     "original_game_title": "Sopwith",
+    "original_game": {
+      "format_version": 1,
+      "id": "sopwith",
+      "evidence_urls": [
+        "https://github.com/fragglet/sdl-sopwith/blob/044d9e60c58ea11728ce47454f3135d4b1c25c2a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "sopwith-pc",
+          "title": "Sopwith (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/fragglet/sdl-sopwith/blob/044d9e60c58ea11728ce47454f3135d4b1c25c2a/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/fragglet/sdl-sopwith/releases",
     "manual_setup": {
       "steps": [

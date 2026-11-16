@@ -5,6 +5,23 @@
     "project_url": "https://github.com/corepunch/open-realm",
     "name": "Warcraft III / OpenRealm",
     "original_game_title": "Warcraft III",
+    "original_game": {
+      "format_version": 1,
+      "id": "warcraft-iii",
+      "evidence_urls": [
+        "https://github.com/corepunch/open-realm/blob/ffa72096a3da72e3a1138afb57a548e1a05ec09e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "warcraft-iii-pc",
+          "title": "Warcraft III (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/corepunch/open-realm/blob/ffa72096a3da72e3a1138afb57a548e1a05ec09e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Try the upstream Warcraft III alpha with your own classic MPQ archives.",
     "issue_number": 6103,
     "listed_at": "2026-11-15",

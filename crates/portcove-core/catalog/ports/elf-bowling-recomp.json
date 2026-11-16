@@ -5,6 +5,23 @@
     "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
     "name": "Elf Bowling / Elf Bowling Recomp",
     "original_game_title": "Elf Bowling",
+    "original_game": {
+      "format_version": 1,
+      "id": "elf-bowling",
+      "evidence_urls": [
+        "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "elf-bowling-pc",
+          "title": "Elf Bowling (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
     "issue_number": 6105,
     "listed_at": "2026-11-14",

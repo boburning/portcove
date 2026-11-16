@@ -5,6 +5,23 @@
     "name": "Icewind Dale (original) (GemRB)",
     "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Icewind Dale (original)",
+    "original_game": {
+      "format_version": 1,
+      "id": "icewind-dale-original",
+      "evidence_urls": [
+        "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "icewind-dale-original-pc",
+          "title": "Icewind Dale (original) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/gemrb/gemrb",
     "availability": "packages",
     "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",

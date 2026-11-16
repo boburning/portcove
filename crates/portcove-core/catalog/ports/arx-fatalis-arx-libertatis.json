@@ -5,6 +5,23 @@
     "name": "Arx Fatalis (Arx Libertatis)",
     "summary": "Use a complete Arx Libertatis 1.2.1 Windows player prepared with your own supported Arx Fatalis or permitted demo files. Keep the actual data, saves and configuration locations; you and the project manage this external copy and its updates.",
     "original_game_title": "Arx Fatalis",
+    "original_game": {
+      "format_version": 1,
+      "id": "arx-fatalis",
+      "evidence_urls": [
+        "https://github.com/arx/ArxLibertatis/blob/5b95e4c5ca9d583f1b11c085326979772645e0f3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "arx-fatalis-pc",
+          "title": "Arx Fatalis (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/arx/ArxLibertatis/blob/5b95e4c5ca9d583f1b11c085326979772645e0f3/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/arx/ArxLibertatis",
     "issue_number": 2554,
     "listed_at": "2026-10-25",

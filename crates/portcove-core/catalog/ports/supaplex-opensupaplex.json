@@ -4,6 +4,23 @@
     "id": "supaplex-opensupaplex",
     "name": "OpenSupaplex",
     "original_game_title": "Supaplex",
+    "original_game": {
+      "format_version": 1,
+      "id": "supaplex",
+      "evidence_urls": [
+        "https://github.com/sergiou87/open-supaplex/blob/2ae9e5815c508c15e405892db486495d28f74f6d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "supaplex-pc",
+          "title": "Supaplex (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sergiou87/open-supaplex/blob/2ae9e5815c508c15e405892db486495d28f74f6d/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
     "project_url": "https://github.com/sergiou87/open-supaplex",
     "issue_number": 5684,

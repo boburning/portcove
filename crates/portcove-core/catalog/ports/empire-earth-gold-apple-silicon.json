@@ -4,6 +4,23 @@
     "id": "empire-earth-gold-apple-silicon",
     "name": "Empire Earth for Apple Silicon",
     "original_game_title": "Empire Earth Gold",
+    "original_game": {
+      "format_version": 1,
+      "id": "empire-earth-gold",
+      "evidence_urls": [
+        "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "empire-earth-gold-pc",
+          "title": "Empire Earth Gold (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play the base Empire Earth game on Apple Silicon using your own GOG Gold edition.",
     "project_url": "https://github.com/maxgraf96/ee-macos",
     "issue_number": 6117,

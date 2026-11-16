@@ -5,6 +5,23 @@
     "name": "Blood (Raze)",
     "summary": "Play Blood in Raze using your own original PC game files.",
     "original_game_title": "Blood",
+    "original_game": {
+      "format_version": 1,
+      "id": "blood",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "blood-pc",
+          "title": "Blood (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ZDoom/Raze",
     "platforms": ["macos-x86-64", "macos-aarch64", "linux-x86-64"],
     "availability": "packages",

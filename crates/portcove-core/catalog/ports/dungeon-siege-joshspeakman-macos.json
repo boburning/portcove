@@ -5,6 +5,23 @@
     "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
     "name": "Dungeon Siege / Dungeon Siege macOS",
     "original_game_title": "Dungeon Siege",
+    "original_game": {
+      "format_version": 1,
+      "id": "dungeon-siege",
+      "evidence_urls": [
+        "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dungeon-siege-pc",
+          "title": "Dungeon Siege (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Prepare the upstream Apple Silicon player with your own Dungeon Siege 1.11.1 installation.",
     "issue_number": 6104,
     "listed_at": "2026-11-15",

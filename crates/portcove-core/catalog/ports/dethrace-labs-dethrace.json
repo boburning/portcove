@@ -39,6 +39,23 @@
       "help_url": "https://github.com/dethrace-labs/dethrace#readme"
     },
     "original_game_title": "Carmageddon",
+    "original_game": {
+      "format_version": 1,
+      "id": "carmageddon",
+      "evidence_urls": [
+        "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "carmageddon-pc",
+          "title": "Carmageddon (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "download_asset_hints": {
       "macos-x86-64": ["-macos-arm64-x64.dmg"],

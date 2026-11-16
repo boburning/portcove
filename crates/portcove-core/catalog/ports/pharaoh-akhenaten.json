@@ -5,6 +5,23 @@
     "name": "Pharaoh (Akhenaten)",
     "summary": "Use a prepared Akhenaten Windows player with your own original Pharaoh 1.3 installation and Cleopatra expansion. Pharaoh: A New Era and the demo are different or unsupported inputs. Keep the complete writable original folder backed up because it contains saves. This is a work in progress; campaign and save compatibility have not been confirmed.",
     "original_game_title": "Pharaoh",
+    "original_game": {
+      "format_version": 1,
+      "id": "pharaoh",
+      "evidence_urls": [
+        "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pharaoh-pc",
+          "title": "Pharaoh (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/dalerank/Akhenaten",
     "platforms": [],
     "availability": "unknown",

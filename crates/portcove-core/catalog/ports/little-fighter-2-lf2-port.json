@@ -8,6 +8,23 @@
     "issue_number": 6111,
     "listed_at": "2026-11-15",
     "original_game_title": "Little Fighter 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "little-fighter-2",
+      "evidence_urls": [
+        "https://github.com/SomeoneIsWorking/lf2-port/blob/4d6d184f55caef26de77bc3b761b5725152e41a6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "little-fighter-2-pc",
+          "title": "Little Fighter 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/SomeoneIsWorking/lf2-port/blob/4d6d184f55caef26de77bc3b761b5725152e41a6/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["linux-x86-64"],
     "availability": "packages",
     "release_url": "https://github.com/SomeoneIsWorking/lf2-port/releases/tag/v0.1.2",

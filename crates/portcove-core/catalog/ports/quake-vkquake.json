@@ -5,6 +5,23 @@
     "name": "Quake (vkQuake)",
     "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/Novum/vkQuake/blob/1e573d7490147fef33fb1aaccc1425df186869e7/readme.md"
+      ],
+      "source_editions": [
+        {
+          "id": "quake-pc",
+          "title": "Quake (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Novum/vkQuake/blob/1e573d7490147fef33fb1aaccc1425df186869e7/readme.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Novum/vkQuake",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",

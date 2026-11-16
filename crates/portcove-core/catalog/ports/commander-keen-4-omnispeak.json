@@ -5,6 +5,23 @@
     "name": "Commander Keen 4 (Omnispeak)",
     "summary": "Play Commander Keen 4 using the official Omnispeak v1.1 packages with bundled EGA shareware. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 4",
+    "original_game": {
+      "format_version": 1,
+      "id": "commander-keen-4",
+      "evidence_urls": [
+        "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+      ],
+      "source_editions": [
+        {
+          "id": "commander-keen-4-pc",
+          "title": "Commander Keen 4 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/sulix/omnispeak",
     "availability": "packages",
     "download_block_reason": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",

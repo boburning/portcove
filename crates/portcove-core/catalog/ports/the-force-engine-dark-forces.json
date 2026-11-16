@@ -7,6 +7,23 @@
     "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Portcove has not confirmed gameplay.",
     "project_url": "https://github.com/TheForceEngine/TheForceEngine",
     "original_game_title": "Star Wars: Dark Forces",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-dark-forces",
+      "evidence_urls": [
+        "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-dark-forces-pc",
+          "title": "Star Wars: Dark Forces (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
+          ]
+        }
+      ]
+    },
     "variant_label": "PC",
     "issue_number": 726,
     "listed_at": "2026-10-23",

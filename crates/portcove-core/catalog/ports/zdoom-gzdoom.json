@@ -6,6 +6,23 @@
     "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
     "project_url": "https://github.com/ZDoom/gzdoom",
     "original_game_title": "Doom",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/ZDoom/gzdoom/blob/c26ce2e6ca2a0c770f140cb25dde0d30073ca8f7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-pc",
+          "title": "Doom (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/gzdoom/blob/c26ce2e6ca2a0c770f140cb25dde0d30073ca8f7/README.md"
+          ]
+        }
+      ]
+    },
     "issue_number": 1824,
     "listed_at": "2026-10-23",
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],

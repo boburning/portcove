@@ -5,6 +5,23 @@
     "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
     "name": "Populous: The Beginning / OpenPopTB",
     "original_game_title": "Populous: The Beginning",
+    "original_game": {
+      "format_version": 1,
+      "id": "populous-the-beginning",
+      "evidence_urls": [
+        "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "populous-the-beginning-pc",
+          "title": "Populous: The Beginning (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Prepare the upstream Apple Silicon player from your own Populous: The Beginning files.",
     "issue_number": 6100,
     "listed_at": "2026-11-15",

@@ -5,6 +5,23 @@
     "name": "Half-Life (Xash3D FWGS)",
     "summary": "Play Half-Life with the FWGS Xash3D engine and your own original valve data and matching game libraries. Official Windows and Linux continuous packages normally use 32-bit x86 for game-library compatibility; choose matching engine and library architectures. Other platforms and mods have separate requirements. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Half-Life",
+    "original_game": {
+      "format_version": 1,
+      "id": "half-life",
+      "evidence_urls": [
+        "https://github.com/FWGS/xash3d-fwgs/blob/707596f4905689ec224e993fcaa4d4ad66aa67d6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "half-life-pc",
+          "title": "Half-Life (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/FWGS/xash3d-fwgs/blob/707596f4905689ec224e993fcaa4d4ad66aa67d6/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/FWGS/xash3d-fwgs",
     "platforms": ["macos-x86-64", "macos-aarch64"],
     "availability": "unknown",

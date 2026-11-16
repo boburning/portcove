@@ -5,6 +5,23 @@
     "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
     "summary": "Play OpenTTD with free base graphics or your own Transport Tycoon Deluxe files. Official Linux, Mac and Windows packages use upstream setup. Keep OpenTTD and JGR Patch Pack as separate variants.",
     "original_game_title": "Transport Tycoon Deluxe",
+    "original_game": {
+      "format_version": 1,
+      "id": "transport-tycoon-deluxe",
+      "evidence_urls": [
+        "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "transport-tycoon-deluxe-pc",
+          "title": "Transport Tycoon Deluxe (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/OpenTTD/OpenTTD",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",

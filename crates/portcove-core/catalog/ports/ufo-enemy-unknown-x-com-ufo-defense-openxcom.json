@@ -5,6 +5,23 @@
     "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
     "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
+    "original_game": {
+      "format_version": 1,
+      "id": "ufo-enemy-unknown-x-com-ufo-defense",
+      "evidence_urls": [
+        "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "ufo-enemy-unknown-x-com-ufo-defense-pc",
+          "title": "UFO: Enemy Unknown / X-COM: UFO Defense (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/OpenXcom/OpenXcom",
     "availability": "unknown",
     "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",

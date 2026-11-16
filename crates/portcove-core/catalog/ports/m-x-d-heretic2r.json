@@ -48,7 +48,24 @@
         }
       ]
     },
-    "original_game_title": "Heretic II"
+    "original_game_title": "Heretic II",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic-ii",
+      "evidence_urls": [
+        "https://github.com/m-x-d/Heretic2R/blob/4d677156a458cfe03a5d5ddceb2e9a445bc39744/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "heretic-ii-pc",
+          "title": "Heretic II (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/m-x-d/Heretic2R/blob/4d677156a458cfe03a5d5ddceb2e9a445bc39744/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

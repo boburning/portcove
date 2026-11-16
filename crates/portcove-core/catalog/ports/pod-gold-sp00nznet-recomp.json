@@ -5,6 +5,23 @@
     "project_url": "https://github.com/sp00nznet/pod-recomp",
     "name": "POD Gold / POD Gold Recomp",
     "original_game_title": "POD Gold",
+    "original_game": {
+      "format_version": 1,
+      "id": "pod-gold",
+      "evidence_urls": [
+        "https://github.com/sp00nznet/pod-recomp/blob/ece77fdf3e19c4c0f2e21b07bb34db5015970ea8/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pod-gold-pc",
+          "title": "POD Gold (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sp00nznet/pod-recomp/blob/ece77fdf3e19c4c0f2e21b07bb34db5015970ea8/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Use the upstream Windows setup to build a player from your own POD Gold disc.",
     "issue_number": 6091,
     "listed_at": "2026-11-15",

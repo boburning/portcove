@@ -4,6 +4,23 @@
     "id": "ac1recomp-neonlightning-armored-core",
     "name": "Armored Core — AC1Recomp (NeonLightning)",
     "original_game_title": "Armored Core",
+    "original_game": {
+      "format_version": 1,
+      "id": "armored-core",
+      "evidence_urls": [
+        "https://github.com/NeonLightning/AC1Recomp/blob/9c5d168cca9541de23bd7f03539e30f837c02ae7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "armored-core-playstation",
+          "title": "Armored Core (PlayStation, region not specified)",
+          "system": "playstation",
+          "evidence_urls": [
+            "https://github.com/NeonLightning/AC1Recomp/blob/9c5d168cca9541de23bd7f03539e30f837c02ae7/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "The project describes settings, controller and mod enhancements. Full-campaign completion is unconfirmed; Portcove has not confirmed these features in play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/NeonLightning/AC1Recomp",
     "platforms": [],

@@ -60,7 +60,24 @@
         }
       ]
     },
-    "original_game_title": "Duke Nukem II"
+    "original_game_title": "Duke Nukem II",
+    "original_game": {
+      "format_version": 1,
+      "id": "duke-nukem-ii",
+      "evidence_urls": [
+        "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "duke-nukem-ii-pc",
+          "title": "Duke Nukem II (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

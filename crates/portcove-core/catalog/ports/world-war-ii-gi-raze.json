@@ -5,6 +5,23 @@
     "name": "World War II GI (Raze)",
     "summary": "Play World War II GI in Raze using your own original PC game files.",
     "original_game_title": "World War II GI",
+    "original_game": {
+      "format_version": 1,
+      "id": "world-war-ii-gi",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "world-war-ii-gi-pc",
+          "title": "World War II GI (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ZDoom/Raze",
     "platforms": ["macos-x86-64", "macos-aarch64", "linux-x86-64"],
     "availability": "packages",

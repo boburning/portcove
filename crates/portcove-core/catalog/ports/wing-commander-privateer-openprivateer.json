@@ -5,6 +5,23 @@
     "project_url": "https://github.com/schlangz/openprivateer-project",
     "name": "Wing Commander: Privateer / OpenPrivateer",
     "original_game_title": "Wing Commander: Privateer",
+    "original_game": {
+      "format_version": 1,
+      "id": "wing-commander-privateer",
+      "evidence_urls": [
+        "https://github.com/schlangz/openprivateer-project/blob/206237ba830c9c79b584153024769a18800c4e66/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "wing-commander-privateer-pc",
+          "title": "Wing Commander: Privateer (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/schlangz/openprivateer-project/blob/206237ba830c9c79b584153024769a18800c4e66/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Fly the Privateer campaign or Righteous Fire in OpenPrivateer using your original game files.",
     "issue_number": 6119,
     "listed_at": "2026-11-14",

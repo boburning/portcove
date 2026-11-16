@@ -10,6 +10,23 @@
     "availability": "packages",
     "setup_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
     "original_game_title": "Theme Hospital",
+    "original_game": {
+      "format_version": 1,
+      "id": "theme-hospital",
+      "evidence_urls": [
+        "https://github.com/CorsixTH/CorsixTH/blob/d394c08126e4fd8d0b843e4d72e342444311657a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "theme-hospital-pc",
+          "title": "Theme Hospital (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/CorsixTH/CorsixTH/blob/d394c08126e4fd8d0b843e4d72e342444311657a/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/CorsixTH/CorsixTH/releases",
     "manual_setup": {
       "steps": [

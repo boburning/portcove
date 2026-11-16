@@ -5,6 +5,23 @@
     "name": "Shadow Warrior (Raze)",
     "summary": "Play Shadow Warrior in Raze using your own original PC game files.",
     "original_game_title": "Shadow Warrior",
+    "original_game": {
+      "format_version": 1,
+      "id": "shadow-warrior",
+      "evidence_urls": [
+        "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "shadow-warrior-pc",
+          "title": "Shadow Warrior (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ZDoom/Raze",
     "platforms": ["macos-x86-64", "macos-aarch64", "linux-x86-64"],
     "availability": "packages",

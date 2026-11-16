@@ -5,6 +5,23 @@
     "name": "Earthsiege 2 (Herculan)",
     "summary": "Attach a prepared HERCULAN Windows installation for your independently permitted Earthsiege2 files. The self-contained engine owns upstream setup; retail-install saves and separate engine settings remain external player data.",
     "original_game_title": "Earthsiege 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "earthsiege-2",
+      "evidence_urls": [
+        "https://github.com/kevinfoley/Herculan/blob/f891526e8e46eaca65a1c665a60f81865af08883/README.MD"
+      ],
+      "source_editions": [
+        {
+          "id": "earthsiege-2-pc",
+          "title": "Earthsiege 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/kevinfoley/Herculan/blob/f891526e8e46eaca65a1c665a60f81865af08883/README.MD"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/kevinfoley/Herculan",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

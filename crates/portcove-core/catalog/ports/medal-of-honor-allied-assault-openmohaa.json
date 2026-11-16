@@ -5,6 +5,23 @@
     "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
     "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Allied Assault with your own matching PC data. Keep original files and the external save profile backed up.",
     "original_game_title": "Medal of Honor: Allied Assault",
+    "original_game": {
+      "format_version": 1,
+      "id": "medal-of-honor-allied-assault",
+      "evidence_urls": [
+        "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "medal-of-honor-allied-assault-pc",
+          "title": "Medal of Honor: Allied Assault (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/openmoh/openmohaa",
     "availability": "packages",
     "setup_url": "https://github.com/openmoh/openmohaa#readme",

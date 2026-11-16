@@ -8,6 +8,23 @@
     "issue_number": 6093,
     "listed_at": "2026-11-15",
     "original_game_title": "Signus: The Artefact Wars",
+    "original_game": {
+      "format_version": 1,
+      "id": "signus-the-artefact-wars",
+      "evidence_urls": [
+        "https://github.com/signus-game/signus/blob/f1f783d14f3259bd18b2e852498dd36cbaced496/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "signus-the-artefact-wars-pc",
+          "title": "Signus: The Artefact Wars (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/signus-game/signus/blob/f1f783d14f3259bd18b2e852498dd36cbaced496/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/signus-game/signus/blob/v1.96.1/README.md",

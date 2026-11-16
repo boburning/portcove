@@ -5,6 +5,23 @@
     "name": "Prince of Persia (DOS) (SDLPoP)",
     "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
     "original_game_title": "Prince of Persia (DOS)",
+    "original_game": {
+      "format_version": 1,
+      "id": "prince-of-persia-dos",
+      "evidence_urls": [
+        "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "prince-of-persia-dos-pc",
+          "title": "Prince of Persia (DOS) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/NagyD/SDLPoP",
     "platforms": [],
     "availability": "unknown",

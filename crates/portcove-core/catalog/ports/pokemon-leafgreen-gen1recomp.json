@@ -5,6 +5,23 @@
     "name": "Pokémon LeafGreen (Gen1Recomp / G1R Deluxe)",
     "summary": "Import your own exact leafgreen original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
     "original_game_title": "Pokémon LeafGreen",
+    "original_game": {
+      "format_version": 1,
+      "id": "pokemon-leafgreen",
+      "evidence_urls": [
+        "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "pokemon-leafgreen-game-boy-advance",
+          "title": "Pokémon LeafGreen (Game Boy Advance, region not specified)",
+          "system": "game-boy-advance",
+          "evidence_urls": [
+            "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/bryanthaboi/gen1recomp",
     "availability": "packages",
     "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",

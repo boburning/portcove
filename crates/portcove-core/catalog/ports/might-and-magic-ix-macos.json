@@ -5,6 +5,23 @@
     "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
     "name": "Might and Magic IX / MM9 Native macOS",
     "original_game_title": "Might and Magic IX",
+    "original_game": {
+      "format_version": 1,
+      "id": "might-and-magic-ix",
+      "evidence_urls": [
+        "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "might-and-magic-ix-pc",
+          "title": "Might and Magic IX (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Build the upstream Apple Silicon app from your owned Might and Magic IX GOG installer.",
     "issue_number": 6109,
     "listed_at": "2026-11-15",

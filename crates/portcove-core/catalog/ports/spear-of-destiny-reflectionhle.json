@@ -5,6 +5,23 @@
     "name": "Spear of Destiny (ReflectionHLE)",
     "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "Spear of Destiny",
+    "original_game": {
+      "format_version": 1,
+      "id": "spear-of-destiny",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "spear-of-destiny-pc",
+          "title": "Spear of Destiny (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",

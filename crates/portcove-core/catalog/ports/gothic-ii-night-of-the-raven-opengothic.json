@@ -5,6 +5,23 @@
     "name": "Gothic II: Night of the Raven (OpenGothic)",
     "summary": "Play Gothic II: Night of the Raven with OpenGothic and your own original game files.",
     "original_game_title": "Gothic II: Night of the Raven",
+    "original_game": {
+      "format_version": 1,
+      "id": "gothic-ii-night-of-the-raven",
+      "evidence_urls": [
+        "https://github.com/Try/OpenGothic/blob/7336e0cbd6012d45bc9110062287b31e3f45b7a3/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "gothic-ii-night-of-the-raven-pc",
+          "title": "Gothic II: Night of the Raven (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Try/OpenGothic/blob/7336e0cbd6012d45bc9110062287b31e3f45b7a3/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Try/OpenGothic",
     "platforms": [],
     "availability": "unknown",

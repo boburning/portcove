@@ -5,6 +5,23 @@
     "name": "Commander Keen 5 (Omnispeak)",
     "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
     "original_game_title": "Commander Keen 5",
+    "original_game": {
+      "format_version": 1,
+      "id": "commander-keen-5",
+      "evidence_urls": [
+        "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+      ],
+      "source_editions": [
+        {
+          "id": "commander-keen-5-pc",
+          "title": "Commander Keen 5 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/sulix/omnispeak",
     "availability": "packages",
     "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",

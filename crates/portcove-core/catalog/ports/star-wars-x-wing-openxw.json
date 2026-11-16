@@ -5,6 +5,23 @@
     "name": "Star Wars: X-Wing (OpenXW)",
     "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
     "original_game_title": "Star Wars: X-Wing",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXW/blob/d4874876796208c758ca6408b09f2d525aaa27b1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-x-wing-pc",
+          "title": "Star Wars: X-Wing (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/elyosh/OpenXW/blob/d4874876796208c758ca6408b09f2d525aaa27b1/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/elyosh/OpenXW",
     "setup_url": "https://github.com/elyosh/OpenXW",
     "artwork": {

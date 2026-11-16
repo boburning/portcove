@@ -4,6 +4,23 @@
     "id": "abuse-abuse-2025",
     "name": "Abuse 2025",
     "original_game_title": "Abuse",
+    "original_game": {
+      "format_version": 1,
+      "id": "abuse",
+      "evidence_urls": [
+        "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "abuse-pc",
+          "title": "Abuse (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Use a permitted existing Abuse player with its compatible game data.",
     "project_url": "https://github.com/apancik/Abuse_2025",
     "issue_number": 2913,

@@ -5,6 +5,23 @@
     "name": "Doom 3 (classic) (dhewm3)",
     "summary": "Use the official dhewm3 Windows player with your own classic Doom 3 files. Prepare originals separately and keep the external save profile backed up.",
     "original_game_title": "Doom 3 (classic)",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-classic",
+      "evidence_urls": [
+        "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-3-classic-pc",
+          "title": "Doom 3 (classic) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/dhewm/dhewm3",
     "issue_number": 2567,
     "listed_at": "2026-10-25",

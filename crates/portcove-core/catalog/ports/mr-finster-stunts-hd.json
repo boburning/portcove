@@ -4,6 +4,23 @@
     "id": "mr-finster-stunts-hd",
     "name": "Stunts HD",
     "original_game_title": "Stunts",
+    "original_game": {
+      "format_version": 1,
+      "id": "stunts",
+      "evidence_urls": [
+        "https://github.com/mr-finster/stunts-hd/blob/e6995b5fea21b8fa6c3917f7d68357652ca9147a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "stunts-pc",
+          "title": "Stunts (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/mr-finster/stunts-hd/blob/e6995b5fea21b8fa6c3917f7d68357652ca9147a/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
     "project_url": "https://github.com/mr-finster/stunts-hd",
     "issue_number": 2862,

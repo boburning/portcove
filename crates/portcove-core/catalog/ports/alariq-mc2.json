@@ -18,6 +18,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "MechCommander 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "mechcommander-2",
+      "evidence_urls": [
+        "https://github.com/alariq/mc2/blob/73edc3647d9c4a6969dde03afb86ba16d7827094/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mechcommander-2-pc",
+          "title": "MechCommander 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/alariq/mc2/blob/73edc3647d9c4a6969dde03afb86ba16d7827094/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/alariq/mc2/releases",
     "download_asset_hints": {
       "windows-x86-64": ["mc2-win64-", ".zip"]

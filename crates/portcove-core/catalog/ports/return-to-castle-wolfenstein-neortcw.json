@@ -5,6 +5,23 @@
     "project_url": "https://github.com/klaussilveira/neortcw",
     "name": "Return to Castle Wolfenstein / NeoRTCW",
     "original_game_title": "Return to Castle Wolfenstein",
+    "original_game": {
+      "format_version": 1,
+      "id": "return-to-castle-wolfenstein",
+      "evidence_urls": [
+        "https://github.com/klaussilveira/neortcw/blob/031f5dc1516de035f2f4b288d235fa49724135b7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "return-to-castle-wolfenstein-pc",
+          "title": "Return to Castle Wolfenstein (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/klaussilveira/neortcw/blob/031f5dc1516de035f2f4b288d235fa49724135b7/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Run the NeoRTCW source port with your own Return to Castle Wolfenstein data.",
     "issue_number": 6118,
     "listed_at": "2026-11-14",

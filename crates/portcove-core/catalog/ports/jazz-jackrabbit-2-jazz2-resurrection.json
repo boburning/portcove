@@ -5,6 +5,23 @@
     "name": "Jazz Jackrabbit 2 (Jazz² Resurrection)",
     "summary": "Play Jazz Jackrabbit 2 with Jazz2 Resurrection and your own supported original or shareware data in Source/. Supported editions include the original game, Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles; each supplies only its own content. Official Windows, Linux and macOS downloads have separate CPU and renderer choices. Check the exact patch and language requirements upstream before setup. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Jazz Jackrabbit 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "jazz-jackrabbit-2",
+      "evidence_urls": [
+        "https://github.com/deathkiller/jazz2-native/blob/145b0a3fc0b776f485b578fbc2eebe9cef97b01a/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "jazz-jackrabbit-2-pc",
+          "title": "Jazz Jackrabbit 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/deathkiller/jazz2-native/blob/145b0a3fc0b776f485b578fbc2eebe9cef97b01a/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/deathkiller/jazz2-native",
     "platforms": [],
     "availability": "unknown",

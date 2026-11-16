@@ -5,6 +5,23 @@
     "name": "Fallout 2 (Fallout 2 Community Edition)",
     "summary": "Use Fallout 2 Community Edition 1.3.0 in your own complete supported Windows game installation. Keep fallout2.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
     "original_game_title": "Fallout 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "fallout-2",
+      "evidence_urls": [
+        "https://github.com/alexbatalov/fallout2-ce/blob/e97087b9582f37075db347a89898887320753f8b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "fallout-2-pc",
+          "title": "Fallout 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/alexbatalov/fallout2-ce/blob/e97087b9582f37075db347a89898887320753f8b/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/alexbatalov/fallout2-ce",
     "platforms": [],
     "availability": "unknown",

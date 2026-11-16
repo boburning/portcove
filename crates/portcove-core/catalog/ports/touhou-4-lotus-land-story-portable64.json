@@ -4,6 +4,23 @@
     "id": "touhou-4-lotus-land-story-portable64",
     "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
     "original_game_title": "Touhou Gensokyo: Lotus Land Story",
+    "original_game": {
+      "format_version": 1,
+      "id": "touhou-gensokyo-lotus-land-story",
+      "evidence_urls": [
+        "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "touhou-gensokyo-lotus-land-story-pc",
+          "title": "Touhou Gensokyo: Lotus Land Story (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
     "project_url": "https://github.com/N0zoM1z0/th04",
     "issue_number": 6128,

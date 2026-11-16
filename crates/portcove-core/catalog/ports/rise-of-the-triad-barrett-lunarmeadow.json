@@ -38,7 +38,24 @@
       ],
       "help_url": "https://github.com/lunarmeadow/barrett#readme"
     },
-    "original_game_title": "Rise of the Triad"
+    "original_game_title": "Rise of the Triad",
+    "original_game": {
+      "format_version": 1,
+      "id": "rise-of-the-triad",
+      "evidence_urls": [
+        "https://github.com/lunarmeadow/barrett/blob/f292311c32966dbb863e222fd85be7d6bd1a478e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "rise-of-the-triad-pc",
+          "title": "Rise of the Triad (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/lunarmeadow/barrett/blob/f292311c32966dbb863e222fd85be7d6bd1a478e/README.md"
+          ]
+        }
+      ]
+    }
   },
   "integration": {
     "support_tier": "beta",

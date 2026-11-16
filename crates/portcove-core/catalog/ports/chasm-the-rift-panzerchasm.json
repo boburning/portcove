@@ -5,6 +5,23 @@
     "name": "Chasm: The Rift (PanzerChasm)",
     "summary": "Use an already prepared PanzerChasm Windows player with your own Chasm: The Rift CSM.BIN and any supported add-on data. Keep the working folder, saves and configuration together; you and the project manage updates. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "Chasm: The Rift",
+    "original_game": {
+      "format_version": 1,
+      "id": "chasm-the-rift",
+      "evidence_urls": [
+        "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "chasm-the-rift-pc",
+          "title": "Chasm: The Rift (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
     "platforms": [],
     "availability": "unknown",

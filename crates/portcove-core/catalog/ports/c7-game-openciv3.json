@@ -20,6 +20,23 @@
     },
     "release_url": "https://github.com/C7-Game/OpenCiv3/releases",
     "original_game_title": "Civilization III",
+    "original_game": {
+      "format_version": 1,
+      "id": "civilization-iii",
+      "evidence_urls": [
+        "https://github.com/C7-Game/OpenCiv3/blob/6b16b7459b193885c34749db843f1c0358dd25cd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "civilization-iii-pc",
+          "title": "Civilization III (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/C7-Game/OpenCiv3/blob/6b16b7459b193885c34749db843f1c0358dd25cd/README.md"
+          ]
+        }
+      ]
+    },
     "manual_setup": {
       "steps": [
         {

@@ -5,6 +5,23 @@
     "project_url": "https://github.com/scemino/engge2",
     "name": "Thimbleweed Park / engge2",
     "original_game_title": "Thimbleweed Park",
+    "original_game": {
+      "format_version": 1,
+      "id": "thimbleweed-park",
+      "evidence_urls": [
+        "https://github.com/scemino/engge2/blob/f0d8939896b021124aa9821e9c7d943db0d82105/README.MD"
+      ],
+      "source_editions": [
+        {
+          "id": "thimbleweed-park-pc",
+          "title": "Thimbleweed Park (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/scemino/engge2/blob/f0d8939896b021124aa9821e9c7d943db0d82105/README.MD"
+          ]
+        }
+      ]
+    },
     "summary": "Play Thimbleweed Park in engge2 using data from your own copy of the game.",
     "issue_number": 6114,
     "listed_at": "2026-11-14",

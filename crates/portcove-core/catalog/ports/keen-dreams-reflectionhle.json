@@ -5,6 +5,23 @@
     "name": "Keen Dreams (ReflectionHLE)",
     "summary": "Play Keen Dreams through ReflectionHLE with the matching game files.",
     "original_game_title": "Keen Dreams",
+    "original_game": {
+      "format_version": 1,
+      "id": "keen-dreams",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "keen-dreams-pc",
+          "title": "Keen Dreams (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",

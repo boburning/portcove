@@ -5,6 +5,23 @@
     "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
     "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
     "original_game_title": "Doom 3 (classic)",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom-3-classic",
+      "evidence_urls": [
+        "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-3-classic-pc",
+          "title": "Doom 3 (classic) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/Inkub0/dude",
     "issue_number": 2565,
     "listed_at": "2026-10-25",

@@ -5,6 +5,23 @@
     "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
     "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "Catacomb 3-D: The Descent",
+    "original_game": {
+      "format_version": 1,
+      "id": "catacomb-3-d-the-descent",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "catacomb-3-d-the-descent-pc",
+          "title": "Catacomb 3-D: The Descent (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",

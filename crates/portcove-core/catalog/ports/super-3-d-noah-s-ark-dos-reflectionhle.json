@@ -5,6 +5,23 @@
     "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
     "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "Super 3-D Noah's Ark (DOS)",
+    "original_game": {
+      "format_version": 1,
+      "id": "super-3-d-noah-s-ark-dos",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "super-3-d-noah-s-ark-dos-pc",
+          "title": "Super 3-D Noah's Ark (DOS) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",

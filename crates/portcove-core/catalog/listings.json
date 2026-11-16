@@ -5282,6 +5282,23 @@
       "summary": "Dark Forces with automatic Windows engine setup and checked original PC data. Portcove has not confirmed gameplay.",
       "project_url": "https://github.com/TheForceEngine/TheForceEngine",
       "original_game_title": "Star Wars: Dark Forces",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-dark-forces",
+        "evidence_urls": [
+          "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-dark-forces-pc",
+            "title": "Star Wars: Dark Forces (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/TheForceEngine/TheForceEngine/blob/585aa9c135a60246a9723d4abb5e0226c4164396/README.md"
+            ]
+          }
+        ]
+      },
       "variant_label": "PC",
       "issue_number": 726,
       "listed_at": "2026-10-23",
@@ -6252,6 +6269,23 @@
       "name": "3D Pinball for Windows: Space Cadet (SpaceCadetPinball)",
       "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
       "original_game_title": "3D Pinball for Windows: Space Cadet",
+      "original_game": {
+        "format_version": 1,
+        "id": "3d-pinball-for-windows-space-cadet",
+        "evidence_urls": [
+          "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "3d-pinball-for-windows-space-cadet-pc",
+            "title": "3D Pinball for Windows: Space Cadet (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/k4zmu2a/SpaceCadetPinball/blob/cb9b7b886244a27773f66b0b19fdc2998392565e/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
       "issue_number": 2553,
       "listed_at": "2026-10-25",
@@ -6556,6 +6590,23 @@
       "id": "abuse-abuse-2025",
       "name": "Abuse 2025",
       "original_game_title": "Abuse",
+      "original_game": {
+        "format_version": 1,
+        "id": "abuse",
+        "evidence_urls": [
+          "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "abuse-pc",
+            "title": "Abuse (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/apancik/Abuse_2025/blob/48bc0d079116c6429989bcf88595ef20c5c1b80f/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted existing Abuse player with its compatible game data.",
       "project_url": "https://github.com/apancik/Abuse_2025",
       "issue_number": 2913,
@@ -6605,6 +6656,23 @@
       "id": "ac1recomp-neonlightning-armored-core",
       "name": "Armored Core — AC1Recomp (NeonLightning)",
       "original_game_title": "Armored Core",
+      "original_game": {
+        "format_version": 1,
+        "id": "armored-core",
+        "evidence_urls": [
+          "https://github.com/NeonLightning/AC1Recomp/blob/9c5d168cca9541de23bd7f03539e30f837c02ae7/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "armored-core-playstation",
+            "title": "Armored Core (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/NeonLightning/AC1Recomp/blob/9c5d168cca9541de23bd7f03539e30f837c02ae7/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "The project describes settings, controller and mod enhancements. Full-campaign completion is unconfirmed; Portcove has not confirmed these features in play. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/NeonLightning/AC1Recomp",
       "platforms": [],
@@ -7338,6 +7406,23 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "MechCommander 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "mechcommander-2",
+        "evidence_urls": [
+          "https://github.com/alariq/mc2/blob/73edc3647d9c4a6969dde03afb86ba16d7827094/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mechcommander-2-pc",
+            "title": "MechCommander 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/alariq/mc2/blob/73edc3647d9c4a6969dde03afb86ba16d7827094/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/alariq/mc2/releases",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -15421,6 +15506,23 @@
         "help_url": "https://github.com/AlisterT/openjazz#readme"
       },
       "original_game_title": "Jazz Jackrabbit",
+      "original_game": {
+        "format_version": 1,
+        "id": "jazz-jackrabbit",
+        "evidence_urls": [
+          "https://github.com/AlisterT/openjazz/blob/a1626f4edd4a7af72c54103021790c56d8ecfced/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jazz-jackrabbit-pc",
+            "title": "Jazz Jackrabbit (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/AlisterT/openjazz/blob/a1626f4edd4a7af72c54103021790c56d8ecfced/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -15941,6 +16043,23 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Arcanum: Of Steamworks and Magick Obscura",
+      "original_game": {
+        "format_version": 1,
+        "id": "arcanum-of-steamworks-and-magick-obscura",
+        "evidence_urls": [
+          "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "arcanum-of-steamworks-and-magick-obscura-pc",
+            "title": "Arcanum: Of Steamworks and Magick Obscura (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/alexbatalov/arcanum-ce/blob/a7ff41b300ef712f0e7d088183a3d08957110cdd/README.md"
+            ]
+          }
+        ]
+      },
       "manual_setup": {
         "steps": [
           {
@@ -16083,6 +16202,23 @@
       "name": "Arx Fatalis (Arx Libertatis)",
       "summary": "Use a complete Arx Libertatis 1.2.1 Windows player prepared with your own supported Arx Fatalis or permitted demo files. Keep the actual data, saves and configuration locations; you and the project manage this external copy and its updates.",
       "original_game_title": "Arx Fatalis",
+      "original_game": {
+        "format_version": 1,
+        "id": "arx-fatalis",
+        "evidence_urls": [
+          "https://github.com/arx/ArxLibertatis/blob/5b95e4c5ca9d583f1b11c085326979772645e0f3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "arx-fatalis-pc",
+            "title": "Arx Fatalis (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/arx/ArxLibertatis/blob/5b95e4c5ca9d583f1b11c085326979772645e0f3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/arx/ArxLibertatis",
       "issue_number": 2554,
       "listed_at": "2026-10-25",
@@ -16191,6 +16327,23 @@
       "id": "ascension-recompiled-machinegun3-machinegun3-god-of-war-ascension",
       "name": "God of War: Ascension — Ascension Recompiled (MaChInEgUn3) (MaChInEgUn3)",
       "original_game_title": "God of War: Ascension",
+      "original_game": {
+        "format_version": 1,
+        "id": "god-of-war-ascension",
+        "evidence_urls": [
+          "https://github.com/MaChInEgUn3/God-of-War-Ascension-Recompiled/blob/878cfab662f3b91f5cb88c2b37fdbcc15510c1be/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "god-of-war-ascension-playstation-3",
+            "title": "God of War: Ascension (PlayStation 3, region not specified)",
+            "system": "playstation-3",
+            "evidence_urls": [
+              "https://github.com/MaChInEgUn3/God-of-War-Ascension-Recompiled/blob/878cfab662f3b91f5cb88c2b37fdbcc15510c1be/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "This research project is not playable. Reports dated 2026-10-20 show movies, menus and first-level rendering. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/MaChInEgUn3/God-of-War-Ascension-Recompiled",
       "platforms": [],
@@ -16269,6 +16422,23 @@
       "issue_number": 6131,
       "listed_at": "2026-11-14",
       "original_game_title": "AstroMenace",
+      "original_game": {
+        "format_version": 1,
+        "id": "astromenace",
+        "evidence_urls": [
+          "https://github.com/viewizard/astromenace/blob/bbdb3ac5af2774c92b85c4d9b2a238f606911e66/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "astromenace-pc",
+            "title": "AstroMenace (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/viewizard/astromenace/blob/bbdb3ac5af2774c92b85c4d9b2a238f606911e66/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -16921,6 +17091,23 @@
       "name": "Baldur's Gate II: Enhanced Edition (GemRB)",
       "summary": "GemRB has experimental support for Baldur’s Gate II: Enhanced Edition, separate from its original-edition support. Use your own installed Enhanced Edition data; exact compatible EE revisions and builds remain unconfirmed. The project offers SourceForge Windows, Linux and macOS archives, Flatpak and source-build instructions. Configure GamePath or the positional game directory for your chosen supported build. Historical/source Linux targets include x86, x86-64, PPC and MIPS, but this guide has not selected or confirmed a package architecture. Portcove offers no setup or launch integration and has not confirmed setup or gameplay.",
       "original_game_title": "Baldur's Gate II: Enhanced Edition",
+      "original_game": {
+        "format_version": 1,
+        "id": "baldur-s-gate-ii-enhanced-edition",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-ii-enhanced-edition-pc",
+            "title": "Baldur's Gate II: Enhanced Edition (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -16941,6 +17128,23 @@
       "name": "Baldur's Gate II (original) (GemRB)",
       "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate II (original)",
+      "original_game": {
+        "format_version": 1,
+        "id": "baldur-s-gate-ii-original",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-ii-original-pc",
+            "title": "Baldur's Gate II (original) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -16998,6 +17202,23 @@
       "name": "Baldur's Gate (original) (GemRB)",
       "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Baldur's Gate (original)",
+      "original_game": {
+        "format_version": 1,
+        "id": "baldur-s-gate-original",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "baldur-s-gate-original-pc",
+            "title": "Baldur's Gate (original) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -17683,6 +17904,23 @@
       "name": "Bio Menace (ReflectionHLE)",
       "summary": "Play Bio Menace through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Bio Menace",
+      "original_game": {
+        "format_version": 1,
+        "id": "bio-menace",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "bio-menace-pc",
+            "title": "Bio Menace (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -18157,6 +18395,23 @@
       "name": "Blake Stone: Aliens of Gold (Bstone)",
       "summary": "Play Blake Stone: Aliens of Gold through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Aliens of Gold",
+      "original_game": {
+        "format_version": 1,
+        "id": "blake-stone-aliens-of-gold",
+        "evidence_urls": [
+          "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "blake-stone-aliens-of-gold-pc",
+            "title": "Blake Stone: Aliens of Gold (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2555,
       "listed_at": "2026-10-25",
@@ -18221,6 +18476,23 @@
       "name": "Blake Stone: Planet Strike (Bstone)",
       "summary": "Play Blake Stone: Planet Strike through BStone with your matching original game files.",
       "original_game_title": "Blake Stone: Planet Strike",
+      "original_game": {
+        "format_version": 1,
+        "id": "blake-stone-planet-strike",
+        "evidence_urls": [
+          "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "blake-stone-planet-strike-pc",
+            "title": "Blake Stone: Planet Strike (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/bibendovsky/bstone/blob/e65a6b40b960a409d7ea840580c2431f56fb6fd4/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bibendovsky/bstone",
       "issue_number": 2556,
       "listed_at": "2026-10-25",
@@ -18695,6 +18967,23 @@
       "name": "Blood (Raze)",
       "summary": "Play Blood in Raze using your own original PC game files.",
       "original_game_title": "Blood",
+      "original_game": {
+        "format_version": 1,
+        "id": "blood",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "blood-pc",
+            "title": "Blood (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -18896,6 +19185,23 @@
       "name": "Railroad Tycoon (Open Railroad Tycoon)",
       "summary": "Register a prepared Rails Windows remake of Railroad Tycoon using your own DOS assets and preserve its working-directory saves.",
       "original_game_title": "Railroad Tycoon",
+      "original_game": {
+        "format_version": 1,
+        "id": "railroad-tycoon",
+        "evidence_urls": [
+          "https://github.com/bluddy/rails/blob/38b7fb96e59682f1409f3f3615a626e368d530b4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "railroad-tycoon-pc",
+            "title": "Railroad Tycoon (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/bluddy/rails/blob/38b7fb96e59682f1409f3f3615a626e368d530b4/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bluddy/rails",
       "platforms": [],
       "availability": "unknown",
@@ -20343,6 +20649,23 @@
       "issue_number": 6133,
       "listed_at": "2026-11-14",
       "original_game_title": "Buzz Aldrin’s Race Into Space",
+      "original_game": {
+        "format_version": 1,
+        "id": "buzz-aldrins-race-into-space",
+        "evidence_urls": [
+          "https://github.com/raceintospace/raceintospace/blob/1568aaadafc4fc3549a03206d80fbf90849ff555/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "buzz-aldrins-race-into-space-pc",
+            "title": "Buzz Aldrin’s Race Into Space (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/raceintospace/raceintospace/blob/1568aaadafc4fc3549a03206d80fbf90849ff555/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -20410,6 +20733,23 @@
         "help_url": "https://github.com/bvschaik/julius#readme"
       },
       "original_game_title": "Caesar III",
+      "original_game": {
+        "format_version": 1,
+        "id": "caesar-iii",
+        "evidence_urls": [
+          "https://github.com/bvschaik/julius/blob/af235a7e86f6c34111194799330e436f4bfd5614/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "caesar-iii-pc",
+            "title": "Caesar III (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/bvschaik/julius/blob/af235a7e86f6c34111194799330e436f4bfd5614/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -20429,6 +20769,23 @@
       "id": "c-dogs-sdl",
       "name": "C-Dogs SDL",
       "original_game_title": "C-Dogs",
+      "original_game": {
+        "format_version": 1,
+        "id": "c-dogs",
+        "evidence_urls": [
+          "https://github.com/cxong/cdogs-sdl/blob/d9f13c1510174e1006101558b4923ea7b27e40c9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "c-dogs-pc",
+            "title": "C-Dogs (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/cxong/cdogs-sdl/blob/d9f13c1510174e1006101558b4923ea7b27e40c9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play C-Dogs through your Linux distribution or a permitted existing desktop copy.",
       "project_url": "https://github.com/cxong/cdogs-sdl",
       "issue_number": 6048,
@@ -20494,6 +20851,23 @@
       },
       "release_url": "https://github.com/C7-Game/OpenCiv3/releases",
       "original_game_title": "Civilization III",
+      "original_game": {
+        "format_version": 1,
+        "id": "civilization-iii",
+        "evidence_urls": [
+          "https://github.com/C7-Game/OpenCiv3/blob/6b16b7459b193885c34749db843f1c0358dd25cd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "civilization-iii-pc",
+            "title": "Civilization III (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/C7-Game/OpenCiv3/blob/6b16b7459b193885c34749db843f1c0358dd25cd/README.md"
+            ]
+          }
+        ]
+      },
       "manual_setup": {
         "steps": [
           {
@@ -20660,6 +21034,23 @@
       "project_url": "https://github.com/civctp2/civctp2",
       "name": "Call to Power II / Apolyton Edition",
       "original_game_title": "Call to Power II",
+      "original_game": {
+        "format_version": 1,
+        "id": "call-to-power-ii",
+        "evidence_urls": [
+          "https://github.com/civctp2/civctp2/blob/cb13a8df2eeaa0533710f8f88afe3a63cc980d3e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "call-to-power-ii-pc",
+            "title": "Call to Power II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/civctp2/civctp2/blob/cb13a8df2eeaa0533710f8f88afe3a63cc980d3e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play your copy of Call to Power II with the Apolyton community edition.",
       "issue_number": 6125,
       "listed_at": "2026-11-14",
@@ -21200,6 +21591,23 @@
       "name": "Catacomb 3-D: The Descent (CatacombGL)",
       "summary": "Use Catacomb 3-D: The Descent with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Catacomb 3-D: The Descent",
+      "original_game": {
+        "format_version": 1,
+        "id": "catacomb-3-d-the-descent",
+        "evidence_urls": [
+          "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "catacomb-3-d-the-descent-pc",
+            "title": "Catacomb 3-D: The Descent (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
@@ -21259,6 +21667,23 @@
       "name": "Catacomb 3-D: The Descent (ReflectionHLE)",
       "summary": "Play Catacomb 3-D: The Descent through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Catacomb 3-D: The Descent",
+      "original_game": {
+        "format_version": 1,
+        "id": "catacomb-3-d-the-descent",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "catacomb-3-d-the-descent-pc",
+            "title": "Catacomb 3-D: The Descent (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -21703,6 +22128,23 @@
       "name": "Chasm: The Rift (PanzerChasm)",
       "summary": "Use an already prepared PanzerChasm Windows player with your own Chasm: The Rift CSM.BIN and any supported add-on data. Keep the working folder, saves and configuration together; you and the project manage updates. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Chasm: The Rift",
+      "original_game": {
+        "format_version": 1,
+        "id": "chasm-the-rift",
+        "evidence_urls": [
+          "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "chasm-the-rift-pc",
+            "title": "Chasm: The Rift (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Panzerschrek/Chasm-Reverse/blob/f3a80d70ecde2e76ee07384fd47f889bd60e9615/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Panzerschrek/Chasm-Reverse",
       "platforms": [],
       "availability": "unknown",
@@ -21921,6 +22363,23 @@
       "id": "chocolate-doom-family",
       "name": "Chocolate Doom",
       "original_game_title": "Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom",
+        "evidence_urls": [
+          "https://github.com/chocolate-doom/chocolate-doom/blob/a2dfd51fcc00d272dc8a17a97ccd6683333ff4ea/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-pc",
+            "title": "Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/chocolate-doom/chocolate-doom/blob/a2dfd51fcc00d272dc8a17a97ccd6683333ff4ea/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play Doom with Chocolate Doom, or use the separate Chocolate Heretic, Hexen and Strife players with their matching game data.",
       "project_url": "https://github.com/chocolate-doom/chocolate-doom",
       "issue_number": 5663,
@@ -22534,6 +22993,23 @@
       "name": "Commander Keen 4 (Omnispeak)",
       "summary": "Play Commander Keen 4 using the official Omnispeak v1.1 packages with bundled EGA shareware. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 4",
+      "original_game": {
+        "format_version": 1,
+        "id": "commander-keen-4",
+        "evidence_urls": [
+          "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+        ],
+        "source_editions": [
+          {
+            "id": "commander-keen-4-pc",
+            "title": "Commander Keen 4 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/sulix/omnispeak",
       "availability": "packages",
       "download_block_reason": "Portcove downloads are paused because the upstream packages include original Keen 4 maps, graphics and audio. Use an upstream copy you are permitted to use.",
@@ -22590,6 +23066,23 @@
       "name": "Commander Keen 5 (Omnispeak)",
       "summary": "Use Commander Keen 5 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 5",
+      "original_game": {
+        "format_version": 1,
+        "id": "commander-keen-5",
+        "evidence_urls": [
+          "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+        ],
+        "source_editions": [
+          {
+            "id": "commander-keen-5-pc",
+            "title": "Commander Keen 5 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/sulix/omnispeak",
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
@@ -22645,6 +23138,23 @@
       "name": "Commander Keen 6 (Omnispeak)",
       "summary": "Use Commander Keen 6 with its upstream omnispeak Windows player and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "Commander Keen 6",
+      "original_game": {
+        "format_version": 1,
+        "id": "commander-keen-6",
+        "evidence_urls": [
+          "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+        ],
+        "source_editions": [
+          {
+            "id": "commander-keen-6-pc",
+            "title": "Commander Keen 6 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sulix/omnispeak/blob/46cefb33b5f604448da9b81d67368aed82b4c3da/README"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/sulix/omnispeak",
       "availability": "packages",
       "setup_url": "https://github.com/sulix/omnispeak/blob/d017166e47a44f102515f3fdf382ac794ab30ae0/README",
@@ -22980,6 +23490,23 @@
       "project_url": "https://github.com/corepunch/open-realm",
       "name": "Warcraft III / OpenRealm",
       "original_game_title": "Warcraft III",
+      "original_game": {
+        "format_version": 1,
+        "id": "warcraft-iii",
+        "evidence_urls": [
+          "https://github.com/corepunch/open-realm/blob/ffa72096a3da72e3a1138afb57a548e1a05ec09e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "warcraft-iii-pc",
+            "title": "Warcraft III (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/corepunch/open-realm/blob/ffa72096a3da72e3a1138afb57a548e1a05ec09e/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Try the upstream Warcraft III alpha with your own classic MPQ archives.",
       "issue_number": 6103,
       "listed_at": "2026-11-15",
@@ -23045,6 +23572,23 @@
       "availability": "packages",
       "setup_url": "https://github.com/CorsixTH/CorsixTH/wiki/Getting-Started",
       "original_game_title": "Theme Hospital",
+      "original_game": {
+        "format_version": 1,
+        "id": "theme-hospital",
+        "evidence_urls": [
+          "https://github.com/CorsixTH/CorsixTH/blob/d394c08126e4fd8d0b843e4d72e342444311657a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "theme-hospital-pc",
+            "title": "Theme Hospital (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/CorsixTH/CorsixTH/blob/d394c08126e4fd8d0b843e4d72e342444311657a/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/CorsixTH/CorsixTH/releases",
       "manual_setup": {
         "steps": [
@@ -26363,6 +26907,23 @@
       "project_url": "https://github.com/urxp/dRally",
       "name": "Death Rally / dRally",
       "original_game_title": "Death Rally",
+      "original_game": {
+        "format_version": 1,
+        "id": "death-rally",
+        "evidence_urls": [
+          "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "death-rally-pc",
+            "title": "Death Rally (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Prepare the upstream Windows or Linux alpha with files from your original DOS game.",
       "issue_number": 5661,
       "listed_at": "2026-11-15",
@@ -26928,6 +27489,23 @@
       "name": "Descent (DXX-Rebirth)",
       "summary": "Set up Descent through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent",
+        "evidence_urls": [
+          "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "descent-pc",
+            "title": "Descent (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
@@ -26987,6 +27565,23 @@
       "name": "Descent II (DXX-Rebirth)",
       "summary": "Set up Descent II through its upstream dxx-rebirth player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Descent II",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent-ii",
+        "evidence_urls": [
+          "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "descent-ii-pc",
+            "title": "Descent II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
       "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
@@ -27145,6 +27740,23 @@
         "help_url": "https://github.com/dethrace-labs/dethrace#readme"
       },
       "original_game_title": "Carmageddon",
+      "original_game": {
+        "format_version": 1,
+        "id": "carmageddon",
+        "evidence_urls": [
+          "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "carmageddon-pc",
+            "title": "Carmageddon (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dethrace-labs/dethrace/blob/6faec123c488d50cd9440a515ffd28638b938f2f/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -27685,6 +28297,23 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Dirt Dash",
+      "original_game": {
+        "format_version": 1,
+        "id": "dirt-dash",
+        "evidence_urls": [
+          "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dirt-dash-pc",
+            "title": "Dirt Dash (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -28097,6 +28726,23 @@
         ]
       },
       "original_game_title": "Dungeon Keeper",
+      "original_game": {
+        "format_version": 1,
+        "id": "dungeon-keeper",
+        "evidence_urls": [
+          "https://github.com/dkfans/keeperfx/blob/441959684744462575176f37302225e583687aaa/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dungeon-keeper-pc",
+            "title": "Dungeon Keeper (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dkfans/keeperfx/blob/441959684744462575176f37302225e583687aaa/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/dkfans/keeperfx/releases",
       "recommended_download_channel": "stable"
     },
@@ -28350,6 +28996,23 @@
       "name": "Doom 3 (classic) (dhewm3)",
       "summary": "Use the official dhewm3 Windows player with your own classic Doom 3 files. Prepare originals separately and keep the external save profile backed up.",
       "original_game_title": "Doom 3 (classic)",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-3-classic",
+        "evidence_urls": [
+          "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-3-classic-pc",
+            "title": "Doom 3 (classic) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2567,
       "listed_at": "2026-10-25",
@@ -28423,6 +29086,23 @@
       "name": "Doom 3 (classic) (DUDE — Doom 3 Unified Development Engine)",
       "summary": "Use the official DUDE Windows player with your own classic Doom 3 files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "original_game_title": "Doom 3 (classic)",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-3-classic",
+        "evidence_urls": [
+          "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-3-classic-pc",
+            "title": "Doom 3 (classic) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2565,
       "listed_at": "2026-10-25",
@@ -28479,6 +29159,23 @@
       "name": "Doom 3: Resurrection of Evil (classic) (dhewm3)",
       "summary": "Use the official dhewm3 Windows player for classic Resurrection of Evil with your own base-game and expansion files. Keep its external profile backed up.",
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-3-resurrection-of-evil-classic",
+        "evidence_urls": [
+          "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-3-resurrection-of-evil-classic-pc",
+            "title": "Doom 3: Resurrection of Evil (classic) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dhewm/dhewm3/blob/505c5c85303b5db3e4a6290550c7dc239c169b6c/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dhewm/dhewm3",
       "issue_number": 2568,
       "listed_at": "2026-10-25",
@@ -28538,6 +29235,23 @@
       "name": "Doom 3: Resurrection of Evil (classic) (DUDE — Doom 3 Unified Development Engine)",
       "summary": "Use the official DUDE Windows player with your own classic Doom 3 and Resurrection of Evil files. First Play can copy an existing dhewm3 profile; preserve both profiles before continuing.",
       "original_game_title": "Doom 3: Resurrection of Evil (classic)",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-3-resurrection-of-evil-classic",
+        "evidence_urls": [
+          "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-3-resurrection-of-evil-classic-pc",
+            "title": "Doom 3: Resurrection of Evil (classic) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Inkub0/dude/blob/6f171ed8fec8d029e6d5df55d613919bbd1b19d6/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Inkub0/dude",
       "issue_number": 2566,
       "listed_at": "2026-10-25",
@@ -28594,6 +29308,23 @@
       "name": "Doom II (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom II",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-ii",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-ii-pc",
+            "title": "Doom II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -28774,6 +29505,23 @@
       "name": "Doom / The Ultimate Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Doom / The Ultimate Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom-the-ultimate-doom",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-the-ultimate-doom-pc",
+            "title": "Doom / The Ultimate Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -28833,6 +29581,23 @@
       "id": "doom-woof",
       "name": "Doom / Woof!",
       "original_game_title": "Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/woof/blob/d2a3049788dc5f0ef69256e8587f70b475c822eb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-pc",
+            "title": "Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/woof/blob/d2a3049788dc5f0ef69256e8587f70b475c822eb/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play Doom and Freedoom with the Woof! source port and keep each game's settings and saves with its player.",
       "project_url": "https://github.com/fabiangreffrath/woof",
       "issue_number": 5718,
@@ -29976,6 +30741,23 @@
       "name": "Duke Nukem 3D (Raze)",
       "summary": "Play Duke Nukem 3D in Raze using your own original PC game files.",
       "original_game_title": "Duke Nukem 3D",
+      "original_game": {
+        "format_version": 1,
+        "id": "duke-nukem-3d",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "duke-nukem-3d-pc",
+            "title": "Duke Nukem 3D (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -30043,6 +30825,23 @@
       "name": "Dune II (Dune Dynasty)",
       "summary": "Play Dune II with enhanced controls, widescreen rendering and skirmish battles.",
       "original_game_title": "Dune II",
+      "original_game": {
+        "format_version": 1,
+        "id": "dune-ii",
+        "evidence_urls": [
+          "https://github.com/gameflorist/dunedynasty/blob/755876a710c0b188075ebe89cb40c068490e08e2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dune-ii-pc",
+            "title": "Dune II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gameflorist/dunedynasty/blob/755876a710c0b188075ebe89cb40c068490e08e2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gameflorist/dunedynasty",
       "issue_number": 2569,
       "listed_at": "2026-10-25",
@@ -30116,6 +30915,23 @@
       "name": "Dune II (OpenDUNE)",
       "summary": "OpenDUNE is a separate engine for Dune II. You need the original v1.07 game files and a build for your system. Portcove has not tested setup or gameplay.",
       "original_game_title": "Dune II",
+      "original_game": {
+        "format_version": 1,
+        "id": "dune-ii",
+        "evidence_urls": [
+          "https://github.com/OpenDUNE/OpenDUNE/blob/ebea79aeba025be2fe9004570e9255044aacc0be/README.txt"
+        ],
+        "source_editions": [
+          {
+            "id": "dune-ii-pc",
+            "title": "Dune II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenDUNE/OpenDUNE/blob/ebea79aeba025be2fe9004570e9255044aacc0be/README.txt"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenDUNE/OpenDUNE",
       "platforms": [],
       "availability": "unknown",
@@ -30172,6 +30988,23 @@
       "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
       "name": "Dungeon Keeper / KeeperFX Tux Edition",
       "original_game_title": "Dungeon Keeper",
+      "original_game": {
+        "format_version": 1,
+        "id": "dungeon-keeper",
+        "evidence_urls": [
+          "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/6254118f05c6eead57b90e7d72046930ada568b8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dungeon-keeper-pc",
+            "title": "Dungeon Keeper (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ForkedInTime/keeperfx-tux-edition/blob/6254118f05c6eead57b90e7d72046930ada568b8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Set up the community Linux build of KeeperFX using your own Dungeon Keeper files.",
       "issue_number": 6110,
       "listed_at": "2026-11-15",
@@ -30214,6 +31047,23 @@
       "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
       "name": "Dungeon Siege / Dungeon Siege macOS",
       "original_game_title": "Dungeon Siege",
+      "original_game": {
+        "format_version": 1,
+        "id": "dungeon-siege",
+        "evidence_urls": [
+          "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "dungeon-siege-pc",
+            "title": "Dungeon Siege (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Joshspeakman/dungeon-siege-macos/blob/8a2daa615cc5835c12e48f6b7a95537aa35e00ce/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Prepare the upstream Apple Silicon player with your own Dungeon Siege 1.11.1 installation.",
       "issue_number": 6104,
       "listed_at": "2026-11-15",
@@ -31042,6 +31892,23 @@
       "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
       "name": "Elf Bowling / Elf Bowling Recomp",
       "original_game_title": "Elf Bowling",
+      "original_game": {
+        "format_version": 1,
+        "id": "elf-bowling",
+        "evidence_urls": [
+          "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "elf-bowling-pc",
+            "title": "Elf Bowling (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/623af07f7f62aa6f16a8846ed116f78b1a622aa2/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
       "issue_number": 6105,
       "listed_at": "2026-11-14",
@@ -31346,6 +32213,23 @@
       "name": "Atomic Bomberman (Atomic Bomberman — Modern)",
       "summary": "A native Atomic Bomberman recreation with its own generated graphics and sound.",
       "original_game_title": "Atomic Bomberman",
+      "original_game": {
+        "format_version": 1,
+        "id": "atomic-bomberman",
+        "evidence_urls": [
+          "https://github.com/elraro/atomic-bomberman/blob/459260c2d452b8bc250d79b3d5539c88bb978eae/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "atomic-bomberman-pc",
+            "title": "Atomic Bomberman (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/elraro/atomic-bomberman/blob/459260c2d452b8bc250d79b3d5539c88bb978eae/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/elraro/atomic-bomberman",
       "setup_url": "https://github.com/elraro/atomic-bomberman",
       "artwork": {
@@ -31390,6 +32274,23 @@
       "id": "empire-earth-gold-apple-silicon",
       "name": "Empire Earth for Apple Silicon",
       "original_game_title": "Empire Earth Gold",
+      "original_game": {
+        "format_version": 1,
+        "id": "empire-earth-gold",
+        "evidence_urls": [
+          "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "empire-earth-gold-pc",
+            "title": "Empire Earth Gold (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/maxgraf96/ee-macos/blob/136d78fdf6608c869f0621942c7dfeba144a74e4/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play the base Empire Earth game on Apple Silicon using your own GOG Gold edition.",
       "project_url": "https://github.com/maxgraf96/ee-macos",
       "issue_number": 6117,
@@ -31432,6 +32333,23 @@
       "issue_number": 6130,
       "listed_at": "2026-11-14",
       "original_game_title": "EmptyEpsilon",
+      "original_game": {
+        "format_version": 1,
+        "id": "emptyepsilon",
+        "evidence_urls": [
+          "https://github.com/daid/EmptyEpsilon/blob/73d057cd3742e1e5fe15a6b5031b871def5e14db/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "emptyepsilon-pc",
+            "title": "EmptyEpsilon (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/daid/EmptyEpsilon/blob/73d057cd3742e1e5fe15a6b5031b871def5e14db/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -32115,6 +33033,23 @@
       "name": "Fallout 2 (Fallout 2 Community Edition)",
       "summary": "Use Fallout 2 Community Edition 1.3.0 in your own complete supported Windows game installation. Keep fallout2.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
       "original_game_title": "Fallout 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "fallout-2",
+        "evidence_urls": [
+          "https://github.com/alexbatalov/fallout2-ce/blob/e97087b9582f37075db347a89898887320753f8b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "fallout-2-pc",
+            "title": "Fallout 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/alexbatalov/fallout2-ce/blob/e97087b9582f37075db347a89898887320753f8b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/alexbatalov/fallout2-ce",
       "platforms": [],
       "availability": "unknown",
@@ -32172,6 +33107,23 @@
       "name": "Fallout (Fallout Community Edition)",
       "summary": "Use Fallout Community Edition 1.1.0 in your own complete supported Windows game installation. Keep fallout.cfg, original game files, music and every save location. You and upstream manage setup, updates and saved data; Portcove can register and launch the prepared player. Original-game rights and mod or save compatibility are separate requirements.",
       "original_game_title": "Fallout",
+      "original_game": {
+        "format_version": 1,
+        "id": "fallout",
+        "evidence_urls": [
+          "https://github.com/alexbatalov/fallout1-ce/blob/0609bcfd0ec40ff0571d0f57fab2821eb461dc8b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "fallout-pc",
+            "title": "Fallout (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/alexbatalov/fallout1-ce/blob/0609bcfd0ec40ff0571d0f57fab2821eb461dc8b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/alexbatalov/fallout1-ce",
       "platforms": [],
       "availability": "unknown",
@@ -33048,6 +34000,23 @@
       "name": "Final Doom (Crispy Doom family)",
       "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Final Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "final-doom",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "final-doom-pc",
+            "title": "Final Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -33886,6 +34855,23 @@
       "availability": "packages",
       "setup_url": "https://fragglet.github.io/sdl-sopwith/",
       "original_game_title": "Sopwith",
+      "original_game": {
+        "format_version": 1,
+        "id": "sopwith",
+        "evidence_urls": [
+          "https://github.com/fragglet/sdl-sopwith/blob/044d9e60c58ea11728ce47454f3135d4b1c25c2a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "sopwith-pc",
+            "title": "Sopwith (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fragglet/sdl-sopwith/blob/044d9e60c58ea11728ce47454f3135d4b1c25c2a/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/fragglet/sdl-sopwith/releases",
       "manual_setup": {
         "steps": [
@@ -33982,6 +34968,23 @@
       "name": "FreeSpace 2 (FreeSpace Open)",
       "summary": "Prepare FreeSpace Open with your own FreeSpace 2 retail v1.2 files using the official installation guide. A separately licensed standalone campaign is a different setup. Windows, Linux and macOS engine downloads are separate from launchers; choose the correct CPU and stable or release-candidate channel. This guide uses Windows release candidate 26.2.0-RC3. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "FreeSpace 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "freespace-2",
+        "evidence_urls": [
+          "https://github.com/scp-fs2open/fs2open.github.com/blob/b00544fa242ec109be6a461f6cd29092c134df53/Readme.md"
+        ],
+        "source_editions": [
+          {
+            "id": "freespace-2-pc",
+            "title": "FreeSpace 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/scp-fs2open/fs2open.github.com/blob/b00544fa242ec109be6a461f6cd29092c134df53/Readme.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
       "platforms": [],
       "availability": "unknown",
@@ -35764,6 +36767,23 @@
       "name": "Gothic II: Night of the Raven (OpenGothic)",
       "summary": "Play Gothic II: Night of the Raven with OpenGothic and your own original game files.",
       "original_game_title": "Gothic II: Night of the Raven",
+      "original_game": {
+        "format_version": 1,
+        "id": "gothic-ii-night-of-the-raven",
+        "evidence_urls": [
+          "https://github.com/Try/OpenGothic/blob/7336e0cbd6012d45bc9110062287b31e3f45b7a3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "gothic-ii-night-of-the-raven-pc",
+            "title": "Gothic II: Night of the Raven (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Try/OpenGothic/blob/7336e0cbd6012d45bc9110062287b31e3f45b7a3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Try/OpenGothic",
       "platforms": [
         "windows-x86-64"
@@ -37267,6 +38287,23 @@
       "name": "Half-Life (Xash3D FWGS)",
       "summary": "Play Half-Life with the FWGS Xash3D engine and your own original valve data and matching game libraries. Official Windows and Linux continuous packages normally use 32-bit x86 for game-library compatibility; choose matching engine and library architectures. Other platforms and mods have separate requirements. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Half-Life",
+      "original_game": {
+        "format_version": 1,
+        "id": "half-life",
+        "evidence_urls": [
+          "https://github.com/FWGS/xash3d-fwgs/blob/707596f4905689ec224e993fcaa4d4ad66aa67d6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "half-life-pc",
+            "title": "Half-Life (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/FWGS/xash3d-fwgs/blob/707596f4905689ec224e993fcaa4d4ad66aa67d6/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/FWGS/xash3d-fwgs",
       "platforms": [
         "macos-x86-64",
@@ -38023,6 +39060,23 @@
       "name": "Heretic (Crispy Doom family)",
       "summary": "Install the official Crispy Heretic Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Heretic",
+      "original_game": {
+        "format_version": 1,
+        "id": "heretic",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "heretic-pc",
+            "title": "Heretic (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -38091,6 +39145,23 @@
       "name": "Heroes of Might and Magic II (fheroes2)",
       "summary": "Play Heroes of Might and Magic II with the fheroes2 engine and your own game resources.",
       "original_game_title": "Heroes of Might and Magic II",
+      "original_game": {
+        "format_version": 1,
+        "id": "heroes-of-might-and-magic-ii",
+        "evidence_urls": [
+          "https://github.com/ihhub/fheroes2/blob/01c56a6da77e3691d5ec400762d01a134fe32bad/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "heroes-of-might-and-magic-ii-pc",
+            "title": "Heroes of Might and Magic II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ihhub/fheroes2/blob/01c56a6da77e3691d5ec400762d01a134fe32bad/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ihhub/fheroes2",
       "platforms": [
         "windows-x86-64",
@@ -38175,6 +39246,23 @@
       "project_url": "https://github.com/livmaster-dev/HommaRe-public",
       "name": "Heroes of Might and Magic V / HommaRe",
       "original_game_title": "Heroes of Might and Magic V",
+      "original_game": {
+        "format_version": 1,
+        "id": "heroes-of-might-and-magic-v",
+        "evidence_urls": [
+          "https://github.com/livmaster-dev/HommaRe-public/blob/d04e4ba07f7643e61924abe3995b10f93c8a5cc9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "heroes-of-might-and-magic-v-pc",
+            "title": "Heroes of Might and Magic V (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/livmaster-dev/HommaRe-public/blob/d04e4ba07f7643e61924abe3995b10f93c8a5cc9/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play Heroes V and its expansions in HommaRe using your own GOG game data.",
       "issue_number": 6108,
       "listed_at": "2026-11-14",
@@ -38268,6 +39356,23 @@
       "name": "Hexen (Crispy Doom family)",
       "summary": "Install the official Crispy Hexen Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Hexen",
+      "original_game": {
+        "format_version": 1,
+        "id": "hexen",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "hexen-pc",
+            "title": "Hexen (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -38753,6 +39858,23 @@
       "name": "Icewind Dale II (GemRB)",
       "summary": "Set up Icewind Dale II through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale II",
+      "original_game": {
+        "format_version": 1,
+        "id": "icewind-dale-ii",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "icewind-dale-ii-pc",
+            "title": "Icewind Dale II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -38818,6 +39940,23 @@
       "name": "Icewind Dale (original) (GemRB)",
       "summary": "Set up Icewind Dale (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Icewind Dale (original)",
+      "original_game": {
+        "format_version": 1,
+        "id": "icewind-dale-original",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "icewind-dale-original-pc",
+            "title": "Icewind Dale (original) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -39535,6 +40674,23 @@
         "match_kind": "underlying-game"
       },
       "original_game_title": "Descent 3",
+      "original_game": {
+        "format_version": 1,
+        "id": "descent-3",
+        "evidence_urls": [
+          "https://github.com/InsanityBringer/PiccuEngine/blob/4627d77e8fe8bd94961f4d577efb7558a3aa6305/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "descent-3-pc",
+            "title": "Descent 3 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/InsanityBringer/PiccuEngine/blob/4627d77e8fe8bd94961f4d577efb7558a3aa6305/README.md"
+            ]
+          }
+        ]
+      },
       "recommended_download_channel": "beta",
       "download_asset_hints": {
         "windows-x86-64": [
@@ -39579,6 +40735,23 @@
       "availability": "packages",
       "setup_url": "https://github.com/Interkarma/daggerfall-unity/blob/v1.1.1-cve-2025/README.md",
       "original_game_title": "The Elder Scrolls II: Daggerfall",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-elder-scrolls-ii-daggerfall",
+        "evidence_urls": [
+          "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-elder-scrolls-ii-daggerfall-pc",
+            "title": "The Elder Scrolls II: Daggerfall (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Interkarma/daggerfall-unity/blob/3d85a283672a4955e32992097ea7719e896dbadb/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/Interkarma/daggerfall-unity/releases/tag/v1.1.1-cve-2025",
       "manual_setup": {
         "steps": [
@@ -40210,6 +41383,23 @@
       "name": "Jagged Alliance 2 (JA2 Stracciatella)",
       "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
       "original_game_title": "Jagged Alliance 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "jagged-alliance-2",
+        "evidence_urls": [
+          "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/9fd79a31b8d0d0dfb3b8db774a07258cdacbea07/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jagged-alliance-2-pc",
+            "title": "Jagged Alliance 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ja2-stracciatella/ja2-stracciatella/blob/9fd79a31b8d0d0dfb3b8db774a07258cdacbea07/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
       "setup_url": "https://github.com/ja2-stracciatella/ja2-stracciatella",
       "artwork": {
@@ -40369,6 +41559,23 @@
       "name": "Jazz Jackrabbit 2 (Jazz² Resurrection)",
       "summary": "Play Jazz Jackrabbit 2 with Jazz2 Resurrection and your own supported original or shareware data in Source/. Supported editions include the original game, Shareware Demo, Holiday Hare 98, The Secret Files and Christmas Chronicles; each supplies only its own content. Official Windows, Linux and macOS downloads have separate CPU and renderer choices. Check the exact patch and language requirements upstream before setup. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Jazz Jackrabbit 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "jazz-jackrabbit-2",
+        "evidence_urls": [
+          "https://github.com/deathkiller/jazz2-native/blob/145b0a3fc0b776f485b578fbc2eebe9cef97b01a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "jazz-jackrabbit-2-pc",
+            "title": "Jazz Jackrabbit 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/deathkiller/jazz2-native/blob/145b0a3fc0b776f485b578fbc2eebe9cef97b01a/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/deathkiller/jazz2-native",
       "platforms": [],
       "availability": "unknown",
@@ -41452,6 +42659,23 @@
       "name": "Keen Dreams (ReflectionHLE)",
       "summary": "Play Keen Dreams through ReflectionHLE with the matching game files.",
       "original_game_title": "Keen Dreams",
+      "original_game": {
+        "format_version": 1,
+        "id": "keen-dreams",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "keen-dreams-pc",
+            "title": "Keen Dreams (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -41517,6 +42741,23 @@
       "project_url": "https://github.com/sacredbanana/lab3d-sdl",
       "name": "Ken’s Labyrinth / LAB3D/SDL",
       "original_game_title": "Ken’s Labyrinth",
+      "original_game": {
+        "format_version": 1,
+        "id": "kens-labyrinth",
+        "evidence_urls": [
+          "https://github.com/sacredbanana/lab3d-sdl/blob/d657e6b6921324763c87ae185982aaf376b6fe07/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "kens-labyrinth-pc",
+            "title": "Ken’s Labyrinth (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sacredbanana/lab3d-sdl/blob/d657e6b6921324763c87ae185982aaf376b6fe07/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
       "issue_number": 6129,
       "listed_at": "2026-11-14",
@@ -41621,13 +42862,47 @@
           }
         ]
       },
-      "original_game_title": "Caesar III"
+      "original_game_title": "Caesar III",
+      "original_game": {
+        "format_version": 1,
+        "id": "caesar-iii",
+        "evidence_urls": [
+          "https://github.com/Keriew/augustus/blob/e39150261054f4d0f6f4d4cb416436666ed148ea/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "caesar-iii-pc",
+            "title": "Caesar III (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Keriew/augustus/blob/e39150261054f4d0f6f4d4cb416436666ed148ea/README.md"
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "kevinfoley-herculan",
       "name": "Earthsiege 2 (Herculan)",
       "summary": "Attach a prepared HERCULAN Windows installation for your independently permitted Earthsiege2 files. The self-contained engine owns upstream setup; retail-install saves and separate engine settings remain external player data.",
       "original_game_title": "Earthsiege 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "earthsiege-2",
+        "evidence_urls": [
+          "https://github.com/kevinfoley/Herculan/blob/f891526e8e46eaca65a1c665a60f81865af08883/README.MD"
+        ],
+        "source_editions": [
+          {
+            "id": "earthsiege-2-pc",
+            "title": "Earthsiege 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/kevinfoley/Herculan/blob/f891526e8e46eaca65a1c665a60f81865af08883/README.MD"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/kevinfoley/Herculan",
       "platforms": [
         "windows-x86-64"
@@ -41678,6 +42953,23 @@
       "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
       "name": "Chaos Overlords / New Chrome",
       "original_game_title": "Chaos Overlords",
+      "original_game": {
+        "format_version": 1,
+        "id": "chaos-overlords",
+        "evidence_urls": [
+          "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "chaos-overlords-pc",
+            "title": "Chaos Overlords (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Install the upstream strategy game rebuild and import assets from your own Chaos Overlords copy.",
       "issue_number": 6081,
       "listed_at": "2026-11-15",
@@ -42252,6 +43544,23 @@
       "project_url": "https://github.com/kingzmanh/star-trek-generations-pc-native",
       "name": "Star Trek Generations / Windows native",
       "original_game_title": "Star Trek Generations",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-trek-generations",
+        "evidence_urls": [
+          "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/6c37472dbae7a62c53c8daf3dabea8fbe6802a87/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-trek-generations-pc",
+            "title": "Star Trek Generations (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/kingzmanh/star-trek-generations-pc-native/blob/6c37472dbae7a62c53c8daf3dabea8fbe6802a87/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Prepare the publisher’s Windows preview with both original PC discs.",
       "issue_number": 6086,
       "listed_at": "2026-11-15",
@@ -43322,7 +44631,24 @@
           }
         ]
       },
-      "original_game_title": "Duke Nukem II"
+      "original_game_title": "Duke Nukem II",
+      "original_game": {
+        "format_version": 1,
+        "id": "duke-nukem-ii",
+        "evidence_urls": [
+          "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "duke-nukem-ii-pc",
+            "title": "Duke Nukem II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/lethal-guitar/RigelEngine/blob/30afeff8f0b105eac77ee0a2fbd54b06e1a49b60/README.md"
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "libre40-eu-maxwelllucas-army-of-two-the-40th-day",
@@ -43545,6 +44871,23 @@
       "issue_number": 6111,
       "listed_at": "2026-11-15",
       "original_game_title": "Little Fighter 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "little-fighter-2",
+        "evidence_urls": [
+          "https://github.com/SomeoneIsWorking/lf2-port/blob/4d6d184f55caef26de77bc3b761b5725152e41a6/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "little-fighter-2-pc",
+            "title": "Little Fighter 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/SomeoneIsWorking/lf2-port/blob/4d6d184f55caef26de77bc3b761b5725152e41a6/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "linux-x86-64"
       ],
@@ -43590,6 +44933,23 @@
       "issue_number": 5830,
       "listed_at": "2026-11-15",
       "original_game_title": "Little Fighter 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "little-fighter-2",
+        "evidence_urls": [
+          "https://github.com/OpenLF2/OpenLF2/blob/bf68b8ba975a93d90d10818837b48adda682faad/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "little-fighter-2-pc",
+            "title": "Little Fighter 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenLF2/OpenLF2/blob/bf68b8ba975a93d90d10818837b48adda682faad/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -43686,6 +45046,23 @@
       "id": "lodilorenzo-cybermage-darklight-re-awakening",
       "name": "CyberMage: Darklight Re-Awakening",
       "original_game_title": "CyberMage: Darklight Awakening",
+      "original_game": {
+        "format_version": 1,
+        "id": "cybermage-darklight-awakening",
+        "evidence_urls": [
+          "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "cybermage-darklight-awakening-pc",
+            "title": "CyberMage: Darklight Awakening (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/lodilorenzo/cybermage-darklight-re-awakening/blob/6c99942342913bb18cf53df7240bc5725d4719a4/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted existing CyberMage player with your own DOS game files.",
       "project_url": "https://github.com/lodilorenzo/cybermage-darklight-re-awakening",
       "issue_number": 2836,
@@ -43777,6 +45154,23 @@
       "project_url": "https://github.com/brettins/open-lords2",
       "name": "Lords of the Realm II / Open Lords2",
       "original_game_title": "Lords of the Realm II",
+      "original_game": {
+        "format_version": 1,
+        "id": "lords-of-the-realm-ii",
+        "evidence_urls": [
+          "https://github.com/brettins/open-lords2/blob/6a211baa76134b34138565601cb52756cbb69b4b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "lords-of-the-realm-ii-pc",
+            "title": "Lords of the Realm II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/brettins/open-lords2/blob/6a211baa76134b34138565601cb52756cbb69b4b/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Run the upstream engine preview with your own Lords of the Realm II installation.",
       "issue_number": 6085,
       "listed_at": "2026-11-15",
@@ -44119,6 +45513,23 @@
         ]
       },
       "original_game_title": "Heretic II",
+      "original_game": {
+        "format_version": 1,
+        "id": "heretic-ii",
+        "evidence_urls": [
+          "https://github.com/m-x-d/Heretic2R/blob/4d677156a458cfe03a5d5ddceb2e9a445bc39744/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "heretic-ii-pc",
+            "title": "Heretic II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/m-x-d/Heretic2R/blob/4d677156a458cfe03a5d5ddceb2e9a445bc39744/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -44329,6 +45740,23 @@
       "id": "manx-burnout3-retrorecompilations-burnout-3-takedown",
       "name": "Burnout 3: Takedown — MANX Burnout3 (RetroRecompilations)",
       "original_game_title": "Burnout 3: Takedown",
+      "original_game": {
+        "format_version": 1,
+        "id": "burnout-3-takedown",
+        "evidence_urls": [
+          "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "burnout-3-takedown-xbox",
+            "title": "Burnout 3: Takedown (Xbox, region not specified)",
+            "system": "xbox",
+            "evidence_urls": [
+              "https://github.com/RetroRecompilations/MANXBurnout3/blob/1b052a329a4921ed3f018b74778fd376d14f24c0/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Experimental project. The current project header describes a MANXFramework game app with a game-specific kernel bridge, transformed functions, RenderWare loaders and D3D8-to-Vulkan rendering. The Windows screenshots and status notes below describe a historical predecessor; they do not establish that the current Linux version works. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/RetroRecompilations/MANXBurnout3",
       "platforms": [],
@@ -44965,6 +46393,23 @@
       "name": "Master of Orion (1oom (vanilla branch))",
       "summary": "Research listing. Upstream route: Native recreation with original v1.3 LBX input and Windows RC package. Limits: Default branch warns no longer developed; select vanilla branch/current lineage and heed save compatibility. Upstream platforms: Windows release-candidate package on vanilla lineage; desktop source builds documented. Selected Windows CPU architecture unknown in frozen evidence; discontinued default branch differs. Original data: Legally own Master of Orion version 1.3 and supply its original LBX files. This 1oom target does not establish compatibility with a different original-game version; separately preserve its documented save-compatibility limitations. Portcove setup/gameplay not verified.",
       "original_game_title": "Master of Orion",
+      "original_game": {
+        "format_version": 1,
+        "id": "master-of-orion",
+        "evidence_urls": [
+          "https://github.com/1oom-fork/1oom/blob/42e9c0b316963dd891f3a8e031bacb36f8c5994e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "master-of-orion-pc",
+            "title": "Master of Orion (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/1oom-fork/1oom/blob/42e9c0b316963dd891f3a8e031bacb36f8c5994e/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/1oom-fork/1oom",
       "platforms": [],
       "availability": "unknown",
@@ -45178,6 +46623,23 @@
         ]
       },
       "original_game_title": "MDK",
+      "original_game": {
+        "format_version": 1,
+        "id": "mdk",
+        "evidence_urls": [
+          "https://github.com/nautilusbits/mdk-sdl/blob/1094e273b33c3bae6a06c5b04d0381ebc5f143c3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mdk-pc",
+            "title": "MDK (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/nautilusbits/mdk-sdl/blob/1094e273b33c3bae6a06c5b04d0381ebc5f143c3/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -45360,6 +46822,23 @@
       "name": "Medal of Honor: Allied Assault Breakthrough (OpenMoHAA)",
       "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Breakthrough with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Breakthrough",
+      "original_game": {
+        "format_version": 1,
+        "id": "medal-of-honor-allied-assault-breakthrough",
+        "evidence_urls": [
+          "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-breakthrough-pc",
+            "title": "Medal of Honor: Allied Assault Breakthrough (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa#readme",
@@ -45428,6 +46907,23 @@
       "name": "Medal of Honor: Allied Assault (OpenMoHAA)",
       "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Allied Assault with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault",
+      "original_game": {
+        "format_version": 1,
+        "id": "medal-of-honor-allied-assault",
+        "evidence_urls": [
+          "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-pc",
+            "title": "Medal of Honor: Allied Assault (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa#readme",
@@ -45504,6 +47000,23 @@
       "name": "Medal of Honor: Allied Assault Spearhead (OpenMoHAA)",
       "summary": "Use the official OpenMoHAA player on Windows, Linux or Mac for Spearhead with your own matching PC data. Keep original files and the external save profile backed up.",
       "original_game_title": "Medal of Honor: Allied Assault Spearhead",
+      "original_game": {
+        "format_version": 1,
+        "id": "medal-of-honor-allied-assault-spearhead",
+        "evidence_urls": [
+          "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "medal-of-honor-allied-assault-spearhead-pc",
+            "title": "Medal of Honor: Allied Assault Spearhead (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/openmoh/openmohaa/blob/a2f340195975f4f042e28a60b62561dd9a0b2700/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/openmoh/openmohaa",
       "availability": "packages",
       "setup_url": "https://github.com/openmoh/openmohaa#readme",
@@ -46149,6 +47662,23 @@
       "id": "meteo-dream-mf-community-edition",
       "name": "Mario Forever: Community Edition",
       "original_game_title": "Mario Forever",
+      "original_game": {
+        "format_version": 1,
+        "id": "mario-forever",
+        "evidence_urls": [
+          "https://github.com/meteo-dream/mf-community-edition/blob/7c5bdcda32efe10f0eb9cc9a6063b499914d7449/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "mario-forever-pc",
+            "title": "Mario Forever (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/meteo-dream/mf-community-edition/blob/7c5bdcda32efe10f0eb9cc9a6063b499914d7449/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
       "project_url": "https://github.com/meteo-dream/mf-community-edition",
       "issue_number": 2729,
@@ -46822,6 +48352,23 @@
       "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
       "name": "Might and Magic IX / MM9 Native macOS",
       "original_game_title": "Might and Magic IX",
+      "original_game": {
+        "format_version": 1,
+        "id": "might-and-magic-ix",
+        "evidence_urls": [
+          "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "might-and-magic-ix-pc",
+            "title": "Might and Magic IX (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS/blob/00ff525d36ab4276901a4e9556e12cab5009461a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Build the upstream Apple Silicon app from your owned Might and Magic IX GOG installer.",
       "issue_number": 6109,
       "listed_at": "2026-11-15",
@@ -46859,6 +48406,23 @@
       "name": "Might and Magic VII (OpenEnroth)",
       "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Might and Magic VII",
+      "original_game": {
+        "format_version": 1,
+        "id": "might-and-magic-vii",
+        "evidence_urls": [
+          "https://github.com/OpenEnroth/OpenEnroth/blob/cfaf0beace2272c15832677147d1cef696705c8b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "might-and-magic-vii-pc",
+            "title": "Might and Magic VII (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenEnroth/OpenEnroth/blob/cfaf0beace2272c15832677147d1cef696705c8b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenEnroth/OpenEnroth",
       "platforms": [],
       "availability": "unknown",
@@ -47616,6 +49180,23 @@
       "id": "mr-finster-stunts-hd",
       "name": "Stunts HD",
       "original_game_title": "Stunts",
+      "original_game": {
+        "format_version": 1,
+        "id": "stunts",
+        "evidence_urls": [
+          "https://github.com/mr-finster/stunts-hd/blob/e6995b5fea21b8fa6c3917f7d68357652ca9147a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "stunts-pc",
+            "title": "Stunts (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/mr-finster/stunts-hd/blob/e6995b5fea21b8fa6c3917f7d68357652ca9147a/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play Stunts 1.1 using your own original files in the desktop player.",
       "project_url": "https://github.com/mr-finster/stunts-hd",
       "issue_number": 2862,
@@ -49393,6 +50974,23 @@
       "name": "NAM (Raze)",
       "summary": "Play NAM in Raze using your own original PC game files.",
       "original_game_title": "NAM",
+      "original_game": {
+        "format_version": 1,
+        "id": "nam",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "nam-pc",
+            "title": "NAM (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -49798,6 +51396,23 @@
       "name": "Need for Speed II: Special Edition (NFS Recompiled)",
       "summary": "Use the prepared NFS Recompiled Windows nfs2se.exe with your own Need for Speed II Special Edition installation and CD Fedata/GameData files. The v1.0.1 package contains separate players for NFS II SE and NFS III; choose this game’s player. Keep both original data locations backed up because the game can write to them. Upstream calls this a toy project; exact language, patch and save compatibility remain unconfirmed.",
       "original_game_title": "Need for Speed II: Special Edition",
+      "original_game": {
+        "format_version": 1,
+        "id": "need-for-speed-ii-special-edition",
+        "evidence_urls": [
+          "https://github.com/motor-dev/nfs-recompiled/blob/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "need-for-speed-ii-special-edition-pc",
+            "title": "Need for Speed II: Special Edition (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/motor-dev/nfs-recompiled/blob/77ebdb3b6a21925ccfc4fc4c1d712abec3e1945a/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/motor-dev/nfs-recompiled",
       "platforms": [],
       "availability": "unknown",
@@ -49847,6 +51462,23 @@
       "name": "Need for Speed II: Special Edition (NFSIISE)",
       "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: This is a wrapper around retained original code, rather than a complete source reconstruction. Exact original binaries, assets and host architecture must match the project’s requirements. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Need for Speed II: Special Edition",
+      "original_game": {
+        "format_version": 1,
+        "id": "need-for-speed-ii-special-edition",
+        "evidence_urls": [
+          "https://github.com/zaps166/NFSIISE/blob/66cbaf47fd77e833c9331b81f6c1e52aff56913f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "need-for-speed-ii-special-edition-pc",
+            "title": "Need for Speed II: Special Edition (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/zaps166/NFSIISE/blob/66cbaf47fd77e833c9331b81f6c1e52aff56913f/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/zaps166/NFSIISE",
       "platforms": [],
       "availability": "unknown",
@@ -50568,6 +52200,23 @@
         ]
       },
       "original_game_title": "SimCity 2000",
+      "original_game": {
+        "format_version": 1,
+        "id": "simcity-2000",
+        "evidence_urls": [
+          "https://github.com/OpenSC2K/OpenSC2K/blob/9441f8c2a1d0337abf1b32f67a8adddd135ee02e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "simcity-2000-pc",
+            "title": "SimCity 2000 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenSC2K/OpenSC2K/blob/9441f8c2a1d0337abf1b32f67a8adddd135ee02e/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -50742,6 +52391,23 @@
       "name": "Seihou Densetsu: Shuusou Gyoku (GIAN07)",
       "summary": "Attach an independently permitted, prepared modern GIAN07 Windows x86 player for Shuusou Gyoku with your own original resources. Keep the modern SDL3 route separate from vintage binaries and replay tooling; the retained original README is not the current build contract.",
       "original_game_title": "Seihou Densetsu: Shuusou Gyoku",
+      "original_game": {
+        "format_version": 1,
+        "id": "seihou-densetsu-shuusou-gyoku",
+        "evidence_urls": [
+          "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "seihou-densetsu-shuusou-gyoku-pc",
+            "title": "Seihou Densetsu: Shuusou Gyoku (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/nmlgc/ssg",
       "platforms": [],
       "availability": "unknown",
@@ -50889,6 +52555,23 @@
       "project_url": "https://github.com/NearlyTRex/NocturneDecomp",
       "name": "Nocturne / NocturneDecomp",
       "original_game_title": "Nocturne",
+      "original_game": {
+        "format_version": 1,
+        "id": "nocturne",
+        "evidence_urls": [
+          "https://github.com/NearlyTRex/NocturneDecomp/blob/ed222dc37f38bd9461d6f8b4d9bb88bddad4d9ac/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "nocturne-pc",
+            "title": "Nocturne (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NearlyTRex/NocturneDecomp/blob/ed222dc37f38bd9461d6f8b4d9bb88bddad4d9ac/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use NocturneDecomp with a complete installation from your own copy of Nocturne.",
       "issue_number": 6002,
       "listed_at": "2026-11-14",
@@ -51645,6 +53328,23 @@
         ]
       },
       "original_game_title": "One Must Fall: 2097",
+      "original_game": {
+        "format_version": 1,
+        "id": "one-must-fall-2097",
+        "evidence_urls": [
+          "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "one-must-fall-2097-pc",
+            "title": "One Must Fall: 2097 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/omf2097/openomf/blob/801d29720ae648c1e8675b8b34f0227950a8d819/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -51666,6 +53366,23 @@
       "id": "one-must-fall-2097-omf-remastered",
       "name": "One Must Fall 2097 Remastered",
       "original_game_title": "One Must Fall 2097",
+      "original_game": {
+        "format_version": 1,
+        "id": "one-must-fall-2097",
+        "evidence_urls": [
+          "https://github.com/Jared-woodruff/OMF-2097-Remastered/blob/f99df7bd98d6bee2a842d3bea1514ba60395b995/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "one-must-fall-2097-pc",
+            "title": "One Must Fall 2097 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Jared-woodruff/OMF-2097-Remastered/blob/f99df7bd98d6bee2a842d3bea1514ba60395b995/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play the One Must Fall 2097 fan remaster with classic or updated graphics in the upstream desktop app or browser.",
       "project_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered",
       "issue_number": 5721,
@@ -51880,6 +53597,23 @@
         "help_url": "https://github.com/OpenApoc/OpenApoc/blob/20260408/README.md"
       },
       "original_game_title": "X-COM: Apocalypse",
+      "original_game": {
+        "format_version": 1,
+        "id": "x-com-apocalypse",
+        "evidence_urls": [
+          "https://github.com/OpenApoc/OpenApoc/blob/d06cc102905e35d0e703d2d25204fd4ab2795e12/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "x-com-apocalypse-pc",
+            "title": "X-COM: Apocalypse (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenApoc/OpenApoc/blob/d06cc102905e35d0e703d2d25204fd4ab2795e12/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64"
       ]
@@ -52053,6 +53787,23 @@
         ]
       },
       "original_game_title": "Star Wars Jedi Knight: Dark Forces II",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-jedi-knight-dark-forces-ii",
+        "evidence_urls": [
+          "https://github.com/shinyquagsire23/OpenJKDF2/blob/ae6ed8a81b316421f08a46719b12a4fa9e2fbed9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-jedi-knight-dark-forces-ii-pc",
+            "title": "Star Wars Jedi Knight: Dark Forces II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/shinyquagsire23/OpenJKDF2/blob/ae6ed8a81b316421f08a46719b12a4fa9e2fbed9/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/shinyquagsire23/OpenJKDF2/releases/tag/v0.9.9",
       "recommended_download_channel": "beta",
       "platforms": [
@@ -52155,6 +53906,23 @@
         ]
       },
       "original_game_title": "Chris Sawyer's Locomotion",
+      "original_game": {
+        "format_version": 1,
+        "id": "chris-sawyer-s-locomotion",
+        "evidence_urls": [
+          "https://github.com/OpenLoco/OpenLoco/blob/7161a320ab512139ef3eb0667d2abdac55180499/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "chris-sawyer-s-locomotion-pc",
+            "title": "Chris Sawyer's Locomotion (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenLoco/OpenLoco/blob/7161a320ab512139ef3eb0667d2abdac55180499/README.md"
+            ]
+          }
+        ]
+      },
       "download_asset_hints": {
         "linux-x86-64": [
           "openloco-",
@@ -52358,6 +54126,23 @@
       "availability": "packages",
       "setup_url": "https://docs.openrct2.io/en/latest/",
       "original_game_title": "RollerCoaster Tycoon 2",
+      "original_game": {
+        "format_version": 1,
+        "id": "rollercoaster-tycoon-2",
+        "evidence_urls": [
+          "https://github.com/OpenRCT2/OpenRCT2/blob/64c3fef27b1f11f77cdf37d93c7f20203d50e713/readme.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rollercoaster-tycoon-2-pc",
+            "title": "RollerCoaster Tycoon 2 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenRCT2/OpenRCT2/blob/64c3fef27b1f11f77cdf37d93c7f20203d50e713/readme.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/OpenRCT2/OpenRCT2/releases",
       "manual_setup": {
         "steps": [
@@ -52410,6 +54195,23 @@
       "id": "openspideyps1-gtteancum-spider-man",
       "name": "Spider-Man — OpenSpideyPS1 (GTTeancum)",
       "original_game_title": "Spider-Man",
+      "original_game": {
+        "format_version": 1,
+        "id": "spider-man",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "spider-man-playstation",
+            "title": "Spider-Man (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
       "listed_at": "2026-10-25",
@@ -52441,6 +54243,23 @@
       "id": "openspideyps1-gtteancum-spider-man-2-enter-electro",
       "name": "Spider-Man 2: Enter Electro — OpenSpideyPS1 (GTTeancum)",
       "original_game_title": "Spider-Man 2: Enter Electro",
+      "original_game": {
+        "format_version": 1,
+        "id": "spider-man-2-enter-electro",
+        "evidence_urls": [
+          "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "spider-man-2-enter-electro-playstation",
+            "title": "Spider-Man 2: Enter Electro (PlayStation, region not specified)",
+            "system": "playstation",
+            "evidence_urls": [
+              "https://github.com/GTTeancum/SpideyPS1recomp/blob/6d7a0c38b1856bd35636485181643d3baecb4e49/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Both games are reported to reach gameplay. Complete playthroughs and long sessions have explicitly not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/SpideyPS1recomp",
       "platforms": [
@@ -52578,6 +54397,23 @@
         ]
       },
       "original_game_title": "Tyrian",
+      "original_game": {
+        "format_version": 1,
+        "id": "tyrian",
+        "evidence_urls": [
+          "https://github.com/opentyrian/opentyrian/blob/26e40a2012903812f16aae5dd6af2be50b96b5cb/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "tyrian-pc",
+            "title": "Tyrian (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/opentyrian/opentyrian/blob/26e40a2012903812f16aae5dd6af2be50b96b5cb/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -54233,6 +56069,23 @@
       "issue_number": 2827,
       "listed_at": "2026-10-25",
       "original_game_title": "Alley Cat",
+      "original_game": {
+        "format_version": 1,
+        "id": "alley-cat",
+        "evidence_urls": [
+          "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "alley-cat-pc",
+            "title": "Alley Cat (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -54559,6 +56412,23 @@
       "name": "Pharaoh (Akhenaten)",
       "summary": "Use a prepared Akhenaten Windows player with your own original Pharaoh 1.3 installation and Cleopatra expansion. Pharaoh: A New Era and the demo are different or unsupported inputs. Keep the complete writable original folder backed up because it contains saves. This is a work in progress; campaign and save compatibility have not been confirmed.",
       "original_game_title": "Pharaoh",
+      "original_game": {
+        "format_version": 1,
+        "id": "pharaoh",
+        "evidence_urls": [
+          "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pharaoh-pc",
+            "title": "Pharaoh (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/dalerank/Akhenaten/blob/f8cb205d79dc220d7c0f763f053dd13c014ad926/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/dalerank/Akhenaten",
       "platforms": [],
       "availability": "unknown",
@@ -54743,6 +56613,23 @@
       "name": "Planescape: Torment (original) (GemRB)",
       "summary": "Set up Planescape: Torment (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Planescape: Torment (original)",
+      "original_game": {
+        "format_version": 1,
+        "id": "planescape-torment-original",
+        "evidence_urls": [
+          "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "planescape-torment-original-pc",
+            "title": "Planescape: Torment (original) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/gemrb/gemrb/blob/c0207795d5a754488023dc18bf046961599c73fd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/gemrb/gemrb",
       "availability": "packages",
       "setup_url": "https://github.com/gemrb/gemrb/blob/b33f0e7275ea1fc8a82459b418f6a7b5f1b40108/gemrb/GemRB.cfg.sample.in",
@@ -54808,6 +56695,23 @@
       "project_url": "https://github.com/sp00nznet/pod-recomp",
       "name": "POD Gold / POD Gold Recomp",
       "original_game_title": "POD Gold",
+      "original_game": {
+        "format_version": 1,
+        "id": "pod-gold",
+        "evidence_urls": [
+          "https://github.com/sp00nznet/pod-recomp/blob/ece77fdf3e19c4c0f2e21b07bb34db5015970ea8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pod-gold-pc",
+            "title": "POD Gold (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sp00nznet/pod-recomp/blob/ece77fdf3e19c4c0f2e21b07bb34db5015970ea8/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use the upstream Windows setup to build a player from your own POD Gold disc.",
       "issue_number": 6091,
       "listed_at": "2026-11-15",
@@ -55123,6 +57027,23 @@
       "name": "Pokémon Emerald (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact emerald original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Emerald",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-emerald",
+        "evidence_urls": [
+          "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-emerald-game-boy-advance",
+            "title": "Pokémon Emerald (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -55266,6 +57187,23 @@
       "name": "Pokémon FireRed (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact firered original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon FireRed",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-firered",
+        "evidence_urls": [
+          "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-firered-game-boy-advance",
+            "title": "Pokémon FireRed (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -55461,6 +57399,23 @@
       "name": "Pokémon LeafGreen (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact leafgreen original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon LeafGreen",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-leafgreen",
+        "evidence_urls": [
+          "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-leafgreen-game-boy-advance",
+            "title": "Pokémon LeafGreen (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -55698,6 +57653,23 @@
       "name": "Pokémon Ruby (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact ruby original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Ruby",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-ruby",
+        "evidence_urls": [
+          "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-ruby-game-boy-advance",
+            "title": "Pokémon Ruby (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -55834,6 +57806,23 @@
       "name": "Pokémon Sapphire (Gen1Recomp / G1R Deluxe)",
       "summary": "Import your own exact sapphire original through Gen1Recomp, then register its selected game player. Runtime updates and profiles stay upstream-owned.",
       "original_game_title": "Pokémon Sapphire",
+      "original_game": {
+        "format_version": 1,
+        "id": "pokemon-sapphire",
+        "evidence_urls": [
+          "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "pokemon-sapphire-game-boy-advance",
+            "title": "Pokémon Sapphire (Game Boy Advance, region not specified)",
+            "system": "game-boy-advance",
+            "evidence_urls": [
+              "https://github.com/bryanthaboi/gen1recomp/blob/fae8eba6554a470cb7773808e14a4dea3aa5fd41/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/bryanthaboi/gen1recomp",
       "availability": "packages",
       "setup_url": "https://github.com/bryanthaboi/gen1recomp/blob/1eba2cf5821e770ba21ef409682f834a38ff5c01/README.md",
@@ -56232,6 +58221,23 @@
       "project_url": "https://github.com/iagodemacedo/OpenPopTB-MacOS",
       "name": "Populous: The Beginning / OpenPopTB",
       "original_game_title": "Populous: The Beginning",
+      "original_game": {
+        "format_version": 1,
+        "id": "populous-the-beginning",
+        "evidence_urls": [
+          "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "populous-the-beginning-pc",
+            "title": "Populous: The Beginning (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/iagodemacedo/OpenPopTB-MacOS/blob/1b1c58ef33e0e45b502ec8f09301617e1098d51f/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Prepare the upstream Apple Silicon player from your own Populous: The Beginning files.",
       "issue_number": 6100,
       "listed_at": "2026-11-15",
@@ -56392,6 +58398,23 @@
       "name": "Poseidon: Master of Atlantis (eZeus)",
       "summary": "Prepare Poseidon: Master of Atlantis through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Poseidon: Master of Atlantis",
+      "original_game": {
+        "format_version": 1,
+        "id": "poseidon-master-of-atlantis",
+        "evidence_urls": [
+          "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "poseidon-master-of-atlantis-pc",
+            "title": "Poseidon: Master of Atlantis (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
@@ -56518,6 +58541,23 @@
       "name": "PowerSlave / Exhumed (DOS) (Raze)",
       "summary": "Play PowerSlave / Exhumed (DOS) in Raze using your own original PC game files.",
       "original_game_title": "PowerSlave / Exhumed (DOS)",
+      "original_game": {
+        "format_version": 1,
+        "id": "powerslave-exhumed-dos",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "powerslave-exhumed-dos-pc",
+            "title": "PowerSlave / Exhumed (DOS) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -56763,6 +58803,23 @@
       "name": "Prince of Persia (DOS) (SDLPoP)",
       "summary": "Conditional Windows prepared-player route: attach only an already permitted working native SDLPoP copy. Official external package contents, accepted original/mod DAT set and asset permissions remain unresolved for fresh managed admission; no unsupported external original EXE/ROM requirement is added. Portcove can register this existing copy and start the selected player while upstream owns setup, actual state roots and replacement.",
       "original_game_title": "Prince of Persia (DOS)",
+      "original_game": {
+        "format_version": 1,
+        "id": "prince-of-persia-dos",
+        "evidence_urls": [
+          "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "prince-of-persia-dos-pc",
+            "title": "Prince of Persia (DOS) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/NagyD/SDLPoP/blob/f7be2e939375d369d26e1d10bcdd5ca74d3002a2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/NagyD/SDLPoP",
       "platforms": [],
       "availability": "unknown",
@@ -58043,6 +60100,23 @@
       "project_url": "https://github.com/Paril/q2repro",
       "name": "Quake II / Q2rePRO",
       "original_game_title": "Quake II",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-ii",
+        "evidence_urls": [
+          "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-ii-pc",
+            "title": "Quake II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Paril/q2repro/blob/9619f8e20a74dec67dff0b20eb8f34a3adf926da/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Set up the Q2rePRO engine with your own Quake II rerelease installation.",
       "issue_number": 6102,
       "listed_at": "2026-11-15",
@@ -58081,6 +60155,23 @@
       "name": "Quake II (Yamagi Quake II)",
       "summary": "Windows prepared-player route: use a permitted official Yamagi8.70a copy (8.70 engine with SDL repack) and your own classic QuakeII data prepared with the required3.20 full CTF patch. Select yquake2.exe, preserve real data/profile/DLL roots, and keep expansion/remaster contracts separate. Portcove can register this existing copy and start the selected player; original and save qualification remain separate.",
       "original_game_title": "Quake II",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-ii",
+        "evidence_urls": [
+          "https://github.com/yquake2/yquake2/blob/03319cb2dcda67d849ff82113afa43a1b03cb8da/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-ii-pc",
+            "title": "Quake II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/yquake2/yquake2/blob/03319cb2dcda67d849ff82113afa43a1b03cb8da/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/yquake2/yquake2",
       "platforms": [],
       "availability": "unknown",
@@ -58123,6 +60214,23 @@
       "name": "Quake III Arena (ioquake3)",
       "summary": "Prepare Quake III Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III Arena",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-iii-arena",
+        "evidence_urls": [
+          "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-iii-arena-pc",
+            "title": "Quake III Arena (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ioquake/ioq3",
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
@@ -58194,6 +60302,23 @@
       "name": "Quake III: Team Arena (ioquake3)",
       "summary": "Prepare Quake III: Team Arena through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Quake III: Team Arena",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-iii-team-arena",
+        "evidence_urls": [
+          "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-iii-team-arena-pc",
+            "title": "Quake III: Team Arena (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ioquake/ioq3/blob/52088b9eae247d8e321c8dc1fb49a879652854f9/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ioquake/ioq3",
       "availability": "unknown",
       "setup_url": "https://github.com/ioquake/ioq3/blob/87a99d18206e878a20289f05ac3c16005dcae5c3/README.md",
@@ -58265,6 +60390,23 @@
       "name": "Quake (Ironwail)",
       "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake",
+        "evidence_urls": [
+          "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-pc",
+            "title": "Quake (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/andrei-drexler/ironwail",
       "availability": "unknown",
       "setup_url": "https://github.com/andrei-drexler/ironwail",
@@ -58332,6 +60474,23 @@
       "name": "Quake (vkQuake)",
       "summary": "A Vulkan Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
       "original_game_title": "Quake",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake",
+        "evidence_urls": [
+          "https://github.com/Novum/vkQuake/blob/1e573d7490147fef33fb1aaccc1425df186869e7/readme.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-pc",
+            "title": "Quake (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Novum/vkQuake/blob/1e573d7490147fef33fb1aaccc1425df186869e7/readme.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Novum/vkQuake",
       "platforms": [
         "windows-x86-64",
@@ -59440,6 +61599,23 @@
       "name": "Redneck Rampage (Raze)",
       "summary": "Play Redneck Rampage in Raze using your own original PC game files.",
       "original_game_title": "Redneck Rampage",
+      "original_game": {
+        "format_version": 1,
+        "id": "redneck-rampage",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "redneck-rampage-pc",
+            "title": "Redneck Rampage (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -59990,6 +62166,23 @@
       "name": "Return to Castle Wolfenstein (iortcw)",
       "summary": "Windows prepared-player route: use the iortcw1.51c x64 single-player client with your own correctly prepared RTCW Main and applicable patch/locale data. Preserve actual base/home/game roots. Portcove can register this existing copy and start the selected player; upstream owns setup/replacement. Multiplayer, original assets and save compatibility remain separate.",
       "original_game_title": "Return to Castle Wolfenstein",
+      "original_game": {
+        "format_version": 1,
+        "id": "return-to-castle-wolfenstein",
+        "evidence_urls": [
+          "https://github.com/iortcw/iortcw/blob/438e7d413b5f7277187c35b032eb0ef9093ae778/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "return-to-castle-wolfenstein-pc",
+            "title": "Return to Castle Wolfenstein (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/iortcw/iortcw/blob/438e7d413b5f7277187c35b032eb0ef9093ae778/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/iortcw/iortcw",
       "platforms": [],
       "availability": "unknown",
@@ -60040,6 +62233,23 @@
       "project_url": "https://github.com/klaussilveira/neortcw",
       "name": "Return to Castle Wolfenstein / NeoRTCW",
       "original_game_title": "Return to Castle Wolfenstein",
+      "original_game": {
+        "format_version": 1,
+        "id": "return-to-castle-wolfenstein",
+        "evidence_urls": [
+          "https://github.com/klaussilveira/neortcw/blob/031f5dc1516de035f2f4b288d235fa49724135b7/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "return-to-castle-wolfenstein-pc",
+            "title": "Return to Castle Wolfenstein (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/klaussilveira/neortcw/blob/031f5dc1516de035f2f4b288d235fa49724135b7/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Run the NeoRTCW source port with your own Return to Castle Wolfenstein data.",
       "issue_number": 6118,
       "listed_at": "2026-11-14",
@@ -60450,6 +62660,23 @@
         "help_url": "https://github.com/lunarmeadow/barrett#readme"
       },
       "original_game_title": "Rise of the Triad",
+      "original_game": {
+        "format_version": 1,
+        "id": "rise-of-the-triad",
+        "evidence_urls": [
+          "https://github.com/lunarmeadow/barrett/blob/f292311c32966dbb863e222fd85be7d6bd1a478e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rise-of-the-triad-pc",
+            "title": "Rise of the Triad (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/lunarmeadow/barrett/blob/f292311c32966dbb863e222fd85be7d6bd1a478e/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64",
@@ -60604,6 +62831,23 @@
       "id": "rock-band-blitz-for-pc-static-recompilation-hedgey95-rock-band-blitz",
       "name": "Rock Band Blitz — Rock Band Blitz for PC (static recompilation) (hedgey95)",
       "original_game_title": "Rock Band Blitz",
+      "original_game": {
+        "format_version": 1,
+        "id": "rock-band-blitz",
+        "evidence_urls": [
+          "https://github.com/hedgey95/rock-band-blitz-recomp/blob/49ad903af460cd5982b561648cc9a45aba49b211/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "rock-band-blitz-xbox-360",
+            "title": "Rock Band Blitz (Xbox 360, region not specified)",
+            "system": "xbox-360",
+            "evidence_urls": [
+              "https://github.com/hedgey95/rock-band-blitz-recomp/blob/49ad903af460cd5982b561648cc9a45aba49b211/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Songs reportedly play start to finish with 3D/audio. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/hedgey95/rock-band-blitz-recomp",
       "platforms": [
@@ -61430,6 +63674,23 @@
       "name": "S.T.A.L.K.E.R.: Call of Pripyat (OpenXRay)",
       "summary": "Prepare S.T.A.L.K.E.R.: Call of Pripyat through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Call of Pripyat",
+      "original_game": {
+        "format_version": 1,
+        "id": "s-t-a-l-k-e-r-call-of-pripyat",
+        "evidence_urls": [
+          "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "s-t-a-l-k-e-r-call-of-pripyat-pc",
+            "title": "S.T.A.L.K.E.R.: Call of Pripyat (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenXRay/xray-16",
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
@@ -61505,6 +63766,23 @@
       "name": "S.T.A.L.K.E.R.: Clear Sky (OpenXRay)",
       "summary": "Prepare S.T.A.L.K.E.R.: Clear Sky through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "S.T.A.L.K.E.R.: Clear Sky",
+      "original_game": {
+        "format_version": 1,
+        "id": "s-t-a-l-k-e-r-clear-sky",
+        "evidence_urls": [
+          "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "s-t-a-l-k-e-r-clear-sky-pc",
+            "title": "S.T.A.L.K.E.R.: Clear Sky (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenXRay/xray-16/blob/2586e997f0af18c50d53f3d4948449fa9dbbf8f8/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenXRay/xray-16",
       "availability": "packages",
       "setup_url": "https://github.com/OpenXRay/xray-16/blob/c62d9d343981d50f6ed176412b85d94c61b578b5/README.md",
@@ -62021,6 +64299,23 @@
       "name": "Serious Sam: The First Encounter (SeriousSamClassic)",
       "summary": "Prepare Serious Sam: The First Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The First Encounter",
+      "original_game": {
+        "format_version": 1,
+        "id": "serious-sam-the-first-encounter",
+        "evidence_urls": [
+          "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "serious-sam-the-first-encounter-pc",
+            "title": "Serious Sam: The First Encounter (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
@@ -62083,6 +64378,23 @@
       "name": "Serious Sam: The Second Encounter (SeriousSamClassic)",
       "summary": "Prepare Serious Sam: The Second Encounter through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Serious Sam: The Second Encounter",
+      "original_game": {
+        "format_version": 1,
+        "id": "serious-sam-the-second-encounter",
+        "evidence_urls": [
+          "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "serious-sam-the-second-encounter-pc",
+            "title": "Serious Sam: The Second Encounter (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/tx00100xt/SeriousSamClassic/blob/80b9893e5b74e5a2160eaf63e6d6b3f3981dfbbd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/tx00100xt/SeriousSamClassic",
       "availability": "packages",
       "setup_url": "https://github.com/tx00100xt/SeriousSamClassic/blob/871c9ebf1af0a09a976a080cbdc2ab6e7a21ab57/README.md",
@@ -62192,6 +64504,23 @@
       "name": "Shadow Warrior (Raze)",
       "summary": "Play Shadow Warrior in Raze using your own original PC game files.",
       "original_game_title": "Shadow Warrior",
+      "original_game": {
+        "format_version": 1,
+        "id": "shadow-warrior",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "shadow-warrior-pc",
+            "title": "Shadow Warrior (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -62432,6 +64761,23 @@
       "issue_number": 6093,
       "listed_at": "2026-11-15",
       "original_game_title": "Signus: The Artefact Wars",
+      "original_game": {
+        "format_version": 1,
+        "id": "signus-the-artefact-wars",
+        "evidence_urls": [
+          "https://github.com/signus-game/signus/blob/f1f783d14f3259bd18b2e852498dd36cbaced496/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "signus-the-artefact-wars-pc",
+            "title": "Signus: The Artefact Wars (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/signus-game/signus/blob/f1f783d14f3259bd18b2e852498dd36cbaced496/README.md"
+            ]
+          }
+        ]
+      },
       "platforms": [
         "windows-x86-64",
         "linux-x86-64"
@@ -64680,6 +67026,23 @@
       "name": "Spear of Destiny (ReflectionHLE)",
       "summary": "Play Spear of Destiny through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Spear of Destiny",
+      "original_game": {
+        "format_version": 1,
+        "id": "spear-of-destiny",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "spear-of-destiny-pc",
+            "title": "Spear of Destiny (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -65597,6 +67960,23 @@
       "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
       "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
       "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player",
+        "evidence_urls": [
+          "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-pc",
+            "title": "Star Wars Jedi Knight II: Jedi Outcast (single player) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/JACoders/OpenJK",
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
@@ -65674,6 +68054,23 @@
       "name": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (OpenJK / OpenJO)",
       "summary": "Use the official OpenJK campaign player on Windows or Linux with your matching patched Jedi Academy data.",
       "original_game_title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer)",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer",
+        "evidence_urls": [
+          "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-jedi-knight-jedi-academy-single-player-and-multiplayer-pc",
+            "title": "Star Wars Jedi Knight: Jedi Academy (single player and multiplayer) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/JACoders/OpenJK",
       "availability": "packages",
       "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",
@@ -65945,6 +68342,23 @@
       "name": "Star Wars: X-Wing Alliance (OpenXWA)",
       "summary": "A native engine for X-Wing Alliance using your own original game data.",
       "original_game_title": "Star Wars: X-Wing Alliance",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-x-wing-alliance",
+        "evidence_urls": [
+          "https://github.com/elyosh/OpenXWA/blob/ec6c0f32d1e7dcfce65bb3ff626f498e0fa9e161/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-x-wing-alliance-pc",
+            "title": "Star Wars: X-Wing Alliance (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/elyosh/OpenXWA/blob/ec6c0f32d1e7dcfce65bb3ff626f498e0fa9e161/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/elyosh/OpenXWA",
       "setup_url": "https://github.com/elyosh/OpenXWA",
       "artwork": {
@@ -66004,6 +68418,23 @@
       "name": "Star Wars: X-Wing (OpenXW)",
       "summary": "A native engine for Star Wars: X-Wing using your own original game data.",
       "original_game_title": "Star Wars: X-Wing",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-x-wing",
+        "evidence_urls": [
+          "https://github.com/elyosh/OpenXW/blob/d4874876796208c758ca6408b09f2d525aaa27b1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-x-wing-pc",
+            "title": "Star Wars: X-Wing (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/elyosh/OpenXW/blob/d4874876796208c758ca6408b09f2d525aaa27b1/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/elyosh/OpenXW",
       "setup_url": "https://github.com/elyosh/OpenXW",
       "artwork": {
@@ -66067,6 +68498,23 @@
       "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
       "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
       "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
+      "original_game": {
+        "format_version": 1,
+        "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power",
+        "evidence_urls": [
+          "https://github.com/elyosh/OpenXvT/blob/b118400227ecea36bea430ac9e0572ee1ded00b1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-pc",
+            "title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/elyosh/OpenXvT/blob/b118400227ecea36bea430ac9e0572ee1ded00b1/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/elyosh/OpenXvT",
       "setup_url": "https://github.com/elyosh/OpenXvT",
       "issue_number": 2899,
@@ -66683,6 +69131,23 @@
       "name": "Strife (Crispy Doom family)",
       "summary": "Install the official Crispy Strife Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
       "original_game_title": "Strife",
+      "original_game": {
+        "format_version": 1,
+        "id": "strife",
+        "evidence_urls": [
+          "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "strife-pc",
+            "title": "Strife (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/fabiangreffrath/crispy-doom",
       "availability": "packages",
       "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",
@@ -66910,6 +69375,23 @@
       "id": "supaplex-opensupaplex",
       "name": "OpenSupaplex",
       "original_game_title": "Supaplex",
+      "original_game": {
+        "format_version": 1,
+        "id": "supaplex",
+        "evidence_urls": [
+          "https://github.com/sergiou87/open-supaplex/blob/2ae9e5815c508c15e405892db486495d28f74f6d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "supaplex-pc",
+            "title": "Supaplex (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/sergiou87/open-supaplex/blob/2ae9e5815c508c15e405892db486495d28f74f6d/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
       "project_url": "https://github.com/sergiou87/open-supaplex",
       "issue_number": 5684,
@@ -66948,6 +69430,23 @@
       "name": "Super 3-D Noah's Ark (DOS) (ReflectionHLE)",
       "summary": "Play Super 3-D Noah's Ark (DOS) through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Super 3-D Noah's Ark (DOS)",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-3-d-noah-s-ark-dos",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-3-d-noah-s-ark-dos-pc",
+            "title": "Super 3-D Noah's Ark (DOS) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -67213,6 +69712,23 @@
       "name": "Super Mario Galaxy (Nebula)",
       "summary": "A Super Mario Galaxy Windows port with project-reported start-to-finish play and remaining bugs. Use the project’s installer rather than treating the package as a portable ZIP; its installer/updater manages preparation and replacement. Windows 10 1803+/11 x86-64 needs an AVX2 CPU and Direct3D 12 GPU. Supply your own USA RMGE01 revision 0 ISO, RVZ or extracted folder. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Super Mario Galaxy",
+      "original_game": {
+        "format_version": 1,
+        "id": "super-mario-galaxy",
+        "evidence_urls": [
+          "https://github.com/keepvaibin/nebula/blob/e3a36fa3617dfe379fbb2b08a7a3362c7719f949/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "super-mario-galaxy-wii",
+            "title": "Super Mario Galaxy (Wii, region not specified)",
+            "system": "wii",
+            "evidence_urls": [
+              "https://github.com/keepvaibin/nebula/blob/e3a36fa3617dfe379fbb2b08a7a3362c7719f949/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/keepvaibin/nebula",
       "platforms": [],
       "availability": "unknown",
@@ -67987,6 +70503,23 @@
       "name": "Prince of Persia 2: The Shadow and the Flame (prince-of-persia-2-windows)",
       "summary": "Attach the prepared native Windows player for the original DOS Prince of Persia 2: The Shadow and the Flame. Configure your own original game folder upstream and preserve its saves and drivers separately from player settings.",
       "original_game_title": "Prince of Persia 2: The Shadow and the Flame",
+      "original_game": {
+        "format_version": 1,
+        "id": "prince-of-persia-2-the-shadow-and-the-flame",
+        "evidence_urls": [
+          "https://github.com/Supermedo/prince-of-persia-2-windows/blob/e2c407fa8409ad891bf78c8e98c3e052dd00869b/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "prince-of-persia-2-the-shadow-and-the-flame-pc",
+            "title": "Prince of Persia 2: The Shadow and the Flame (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Supermedo/prince-of-persia-2-windows/blob/e2c407fa8409ad891bf78c8e98c3e052dd00869b/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/Supermedo/prince-of-persia-2-windows",
       "platforms": [
         "windows-x86-64"
@@ -68399,6 +70932,23 @@
       "name": "Syndicate Wars (Syndicate Wars Fan Expansion)",
       "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here. Portcove setup/gameplay not verified.",
       "original_game_title": "Syndicate Wars",
+      "original_game": {
+        "format_version": 1,
+        "id": "syndicate-wars",
+        "evidence_urls": [
+          "https://github.com/swfans/syndwarsfx/blob/5c4b0d562bd3ab465ce3016a25c2932d290ea634/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "syndicate-wars-pc",
+            "title": "Syndicate Wars (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/swfans/syndwarsfx/blob/5c4b0d562bd3ab465ce3016a25c2932d290ea634/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/swfans/syndwarsfx",
       "platforms": [],
       "availability": "unknown",
@@ -68901,6 +71451,23 @@
       "id": "tdrrmk2-uhexen2-tweaked",
       "name": "Hexen II / uHexen2 Tweaked",
       "original_game_title": "Hexen II",
+      "original_game": {
+        "format_version": 1,
+        "id": "hexen-ii",
+        "evidence_urls": [
+          "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
+        ],
+        "source_editions": [
+          {
+            "id": "hexen-ii-pc",
+            "title": "Hexen II (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
+            ]
+          }
+        ]
+      },
       "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
       "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
       "issue_number": 2747,
@@ -69539,6 +72106,23 @@
       "project_url": "https://github.com/idkFoxes/open-thandor",
       "name": "Thandor: The Invasion / Open Thandor",
       "original_game_title": "Thandor: The Invasion",
+      "original_game": {
+        "format_version": 1,
+        "id": "thandor-the-invasion",
+        "evidence_urls": [
+          "https://github.com/idkFoxes/open-thandor/blob/1ef189c49bdb094d399043cc09a4cc3d9c5afb50/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "thandor-the-invasion-pc",
+            "title": "Thandor: The Invasion (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/idkFoxes/open-thandor/blob/1ef189c49bdb094d399043cc09a4cc3d9c5afb50/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Use Open Thandor with an installed copy of the original game on Windows.",
       "issue_number": 6121,
       "listed_at": "2026-11-14",
@@ -69720,6 +72304,23 @@
       "name": "The Catacomb Abyss (CatacombGL)",
       "summary": "Use The Catacomb Abyss with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Abyss",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-abyss",
+        "evidence_urls": [
+          "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-abyss-pc",
+            "title": "The Catacomb Abyss (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
@@ -69787,6 +72388,23 @@
       "name": "The Catacomb Abyss (ReflectionHLE)",
       "summary": "Play The Catacomb Abyss through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Abyss",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-abyss",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-abyss-pc",
+            "title": "The Catacomb Abyss (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -69852,6 +72470,23 @@
       "name": "The Catacomb Apocalypse (CatacombGL)",
       "summary": "Use The Catacomb Apocalypse with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Apocalypse",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-apocalypse",
+        "evidence_urls": [
+          "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-apocalypse-pc",
+            "title": "The Catacomb Apocalypse (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
@@ -69911,6 +72546,23 @@
       "name": "The Catacomb Apocalypse (ReflectionHLE)",
       "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Apocalypse",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-apocalypse",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-apocalypse-pc",
+            "title": "The Catacomb Apocalypse (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -69968,6 +72620,23 @@
       "name": "The Catacomb Armageddon (CatacombGL)",
       "summary": "Use The Catacomb Armageddon with its upstream CatacombGL player on Windows or Linux and your own matching original game files. Setup and updates stay upstream-owned.",
       "original_game_title": "The Catacomb Armageddon",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-armageddon",
+        "evidence_urls": [
+          "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-armageddon-pc",
+            "title": "The Catacomb Armageddon (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ArnoAnsems/CatacombGL/blob/907bd6ec934d7f1dc2031fe9f0f3a8a405ca7330/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ArnoAnsems/CatacombGL",
       "availability": "packages",
       "setup_url": "https://github.com/ArnoAnsems/CatacombGL/blob/1bd619a8449a2f88cb4b9af19c155f044982e5aa/README.md",
@@ -70027,6 +72696,23 @@
       "name": "The Catacomb Armageddon (ReflectionHLE)",
       "summary": "Play The Catacomb Armageddon through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "The Catacomb Armageddon",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-catacomb-armageddon",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-catacomb-armageddon-pc",
+            "title": "The Catacomb Armageddon (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -70150,6 +72836,23 @@
       "name": "The Elder Scrolls III: Morrowind (OpenMW)",
       "summary": "Set up The Elder Scrolls III: Morrowind through its upstream openmw player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "The Elder Scrolls III: Morrowind",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-elder-scrolls-iii-morrowind",
+        "evidence_urls": [
+          "https://github.com/OpenMW/openmw/blob/77eec0471802676324fb014d4d465ea652a8ec27/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-elder-scrolls-iii-morrowind-pc",
+            "title": "The Elder Scrolls III: Morrowind (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenMW/openmw/blob/77eec0471802676324fb014d4d465ea652a8ec27/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenMW/openmw",
       "availability": "packages",
       "setup_url": "https://github.com/OpenMW/openmw/blob/f4bec41444214a7903bebd178389ca22ca13f646/README.md",
@@ -70620,6 +73323,23 @@
       "name": "The Legend of Zelda: Tears of the Kingdom (Zelda-Mobile (OJZen/totk-mobile))",
       "summary": "An experimental Tears of the Kingdom compatibility adaptation running rewritten original ARM64 code on Apple Silicon, with shared Mac/iOS Horizon services and NVN-to-Metal graphics. It is title-specific, rather than a Windows recompilation or standalone original game. The project reports Mac save loading, scene play, audio, cutscenes and keyboard/Xbox controls; a full playthrough is unconfirmed, with first-visit shader stutter and variable frame rates. Build from source on an Apple Silicon M1+ Mac with full Xcode/Command Line Tools and Homebrew; there is no official release package and exact macOS/Metal minimums are unconfirmed. Intel is unsupported. iPad M1+ has limited play/import evidence; iPhone 15 Pro reaches the title without measured gameplay. Use your own base game, v1.4.3 .nsz update and matching prod.keys, with exactly one base/update in local/games/. Module fingerprints refuse other versions, and code/resources/shaders are generated locally. Accepted base format, region/title ID, exact hashes and firmware/font/ticket requirements are unspecified in the retained README. Portcove offers no setup or launch integration and has not tested gameplay.",
       "original_game_title": "The Legend of Zelda: Tears of the Kingdom",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-legend-of-zelda-tears-of-the-kingdom",
+        "evidence_urls": [
+          "https://github.com/OJZen/totk-mobile/blob/6d4c1d36c67c71fa303404c475c4c7ba4a7f2823/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-legend-of-zelda-tears-of-the-kingdom-nintendo-switch",
+            "title": "The Legend of Zelda: Tears of the Kingdom (Nintendo Switch, region not specified)",
+            "system": "nintendo-switch",
+            "evidence_urls": [
+              "https://github.com/OJZen/totk-mobile/blob/6d4c1d36c67c71fa303404c475c4c7ba4a7f2823/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OJZen/totk-mobile",
       "listed_at": "2026-10-25",
       "platforms": [],
@@ -70688,6 +73408,23 @@
       "name": "The Operative: No One Lives Forever (GOTY) (NOLF1 Modern / nolfsrc)",
       "summary": "Research listing. Upstream route: Public release archive plus owned-disc import; native Windows, Wine/Proton elsewhere Limits: Alpha native Windows rebuilt engine; clean public archive/owned-disc route only, retail-image-fetching submodule workflow excluded. Upstream platforms: Native Windows public archive/source build; Linux/macOS use Wine/Proton rather than native builds. Selected Windows executable CPU architecture unknown in frozen research. Original data: Own European GOTY disc images; public archive omits retail assets Portcove setup/gameplay not verified.",
       "original_game_title": "The Operative: No One Lives Forever (GOTY)",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-operative-no-one-lives-forever-goty",
+        "evidence_urls": [
+          "https://github.com/nolffan/nolfsrc/blob/429c9970cbfd2c85a87c16b16cbd39d5ca56d5a4/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-operative-no-one-lives-forever-goty-pc",
+            "title": "The Operative: No One Lives Forever (GOTY) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/nolffan/nolfsrc/blob/429c9970cbfd2c85a87c16b16cbd39d5ca56d5a4/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/nolffan/nolfsrc",
       "platforms": [],
       "availability": "unknown",
@@ -70818,6 +73555,23 @@
       "project_url": "https://github.com/freeserf/freeserf",
       "name": "The Settlers / FreeSerf",
       "original_game_title": "The Settlers",
+      "original_game": {
+        "format_version": 1,
+        "id": "the-settlers",
+        "evidence_urls": [
+          "https://github.com/freeserf/freeserf/blob/f53731046f9929d044d6652770f87c6edf97b120/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "the-settlers-pc",
+            "title": "The Settlers (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/freeserf/freeserf/blob/f53731046f9929d044d6652770f87c6edf97b120/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Build a settlement in FreeSerf using your own DOS or Amiga game data.",
       "issue_number": 6122,
       "listed_at": "2026-11-14",
@@ -71249,6 +74003,23 @@
       "name": "Quake 4 (openQ4)",
       "summary": "A beta openQ4 player using your own legitimate installed PC Quake 4 and matching data. Windows/Linux x64 and ARM64 packages are documented, with Linux ARM64 in preview and macOS experimental. Windows ARM64 has been built but not confirmed on physical hardware. Engine GPL and game SDK terms apply separately; keep all notices and do not treat package availability as permission for every component. Exact accepted original revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and replacement; Portcove has not qualified a release package or confirmed gameplay.",
       "original_game_title": "Quake 4",
+      "original_game": {
+        "format_version": 1,
+        "id": "quake-4",
+        "evidence_urls": [
+          "https://github.com/themuffinator/openQ4/blob/cba4233679755546a41d0d072a3e6b47dbc1148e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "quake-4-pc",
+            "title": "Quake 4 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/themuffinator/openQ4/blob/cba4233679755546a41d0d072a3e6b47dbc1148e/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/themuffinator/openQ4",
       "platforms": [
         "windows-x86-64"
@@ -71351,6 +74122,23 @@
       "project_url": "https://github.com/scemino/engge2",
       "name": "Thimbleweed Park / engge2",
       "original_game_title": "Thimbleweed Park",
+      "original_game": {
+        "format_version": 1,
+        "id": "thimbleweed-park",
+        "evidence_urls": [
+          "https://github.com/scemino/engge2/blob/f0d8939896b021124aa9821e9c7d943db0d82105/README.MD"
+        ],
+        "source_editions": [
+          {
+            "id": "thimbleweed-park-pc",
+            "title": "Thimbleweed Park (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/scemino/engge2/blob/f0d8939896b021124aa9821e9c7d943db0d82105/README.MD"
+            ]
+          }
+        ]
+      },
       "summary": "Play Thimbleweed Park in engge2 using data from your own copy of the game.",
       "issue_number": 6114,
       "listed_at": "2026-11-14",
@@ -72571,6 +75359,23 @@
       "id": "touhou-4-lotus-land-story-portable64",
       "name": "Touhou 4: Lotus Land Story — Portable 64-bit",
       "original_game_title": "Touhou Gensokyo: Lotus Land Story",
+      "original_game": {
+        "format_version": 1,
+        "id": "touhou-gensokyo-lotus-land-story",
+        "evidence_urls": [
+          "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "touhou-gensokyo-lotus-land-story-pc",
+            "title": "Touhou Gensokyo: Lotus Land Story (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/N0zoM1z0/th04/blob/d21200a0605c1e65f507847e98840f4acffb4024/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play the native desktop preview using your own PC-98 game image and external font and sound resources.",
       "project_url": "https://github.com/N0zoM1z0/th04",
       "issue_number": 6128,
@@ -72936,6 +75741,23 @@
       "name": "Transport Tycoon Deluxe (OpenTTD (upstream))",
       "summary": "Play OpenTTD with free base graphics or your own Transport Tycoon Deluxe files. Official Linux, Mac and Windows packages use upstream setup. Keep OpenTTD and JGR Patch Pack as separate variants.",
       "original_game_title": "Transport Tycoon Deluxe",
+      "original_game": {
+        "format_version": 1,
+        "id": "transport-tycoon-deluxe",
+        "evidence_urls": [
+          "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "transport-tycoon-deluxe-pc",
+            "title": "Transport Tycoon Deluxe (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenTTD/OpenTTD/blob/f58f96d4fec6f44c041a6e6a5d0e36bda0fb1ec3/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenTTD/OpenTTD",
       "platforms": [
         "windows-x86-64",
@@ -74092,6 +76914,23 @@
       "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
       "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",
+      "original_game": {
+        "format_version": 1,
+        "id": "ufo-enemy-unknown-x-com-ufo-defense",
+        "evidence_urls": [
+          "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ufo-enemy-unknown-x-com-ufo-defense-pc",
+            "title": "UFO: Enemy Unknown / X-COM: UFO Defense (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenXcom/OpenXcom",
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
@@ -74148,6 +76987,23 @@
       "name": "Ultima VII Part Two: Serpent Isle (Exult)",
       "summary": "Set up Ultima VII Part Two: Serpent Isle through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII Part Two: Serpent Isle",
+      "original_game": {
+        "format_version": 1,
+        "id": "ultima-vii-part-two-serpent-isle",
+        "evidence_urls": [
+          "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ultima-vii-part-two-serpent-isle-pc",
+            "title": "Ultima VII Part Two: Serpent Isle (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/exult/exult",
       "availability": "packages",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
@@ -74210,6 +77066,23 @@
       "name": "Ultima VII: The Black Gate (Exult)",
       "summary": "Set up Ultima VII: The Black Gate through its upstream exult player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Ultima VII: The Black Gate",
+      "original_game": {
+        "format_version": 1,
+        "id": "ultima-vii-the-black-gate",
+        "evidence_urls": [
+          "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "ultima-vii-the-black-gate-pc",
+            "title": "Ultima VII: The Black Gate (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/exult/exult/blob/83332efc805bee5a5374dcd81255eac7a6ca25da/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/exult/exult",
       "availability": "packages",
       "setup_url": "https://github.com/exult/exult/blob/cacb4f584901dab59ff288c750d3622d3378435b/README.md",
@@ -74692,6 +77565,23 @@
         ]
       },
       "original_game_title": "Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom",
+        "evidence_urls": [
+          "https://github.com/UZDoom/UZDoom/blob/cc8704648178450b24dd7892b379294da8644bd1/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-pc",
+            "title": "Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/UZDoom/UZDoom/blob/cc8704648178450b24dd7892b379294da8644bd1/README.md"
+            ]
+          }
+        ]
+      },
       "release_url": "https://github.com/UZDoom/UZDoom/releases",
       "recommended_download_channel": "stable",
       "download_asset_hints": {
@@ -77092,6 +79982,23 @@
       "project_url": "https://github.com/Warzone2100/warzone2100",
       "name": "Warzone 2100",
       "original_game_title": "Warzone 2100",
+      "original_game": {
+        "format_version": 1,
+        "id": "warzone-2100",
+        "evidence_urls": [
+          "https://github.com/Warzone2100/warzone2100/blob/45c6d832a1e95c1e10471ac7b10c1a31cf4c5945/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "warzone-2100-pc",
+            "title": "Warzone 2100 (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/Warzone2100/warzone2100/blob/45c6d832a1e95c1e10471ac7b10c1a31cf4c5945/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Play the official open-source Warzone 2100 release on Windows, Linux or Mac.",
       "issue_number": 5800,
       "listed_at": "2026-11-15",
@@ -77834,6 +80741,23 @@
       "name": "Wing Commander (Kilrathi Saga) (Wing Commander Reloaded / wc1-re)",
       "summary": "Native SDL2 Wing Commander player for your own Kilrathi Saga installation. Portcove can manage a separate Windows x64 engine while the supported in-process launcher selects your existing writable game-data directory. Original files, SAVEGAME.WLD and shared SDL settings remain externally owned and outside Core backups. The older MSVC reconstruction and partial DOS route do not inherit this offer or gameplay qualification.",
       "original_game_title": "Wing Commander (Kilrathi Saga)",
+      "original_game": {
+        "format_version": 1,
+        "id": "wing-commander-kilrathi-saga",
+        "evidence_urls": [
+          "https://github.com/neuromancer/wc1-re/blob/a9ba1d7dee6a9af2d7e1040ec137c1575a898ed9/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wing-commander-kilrathi-saga-pc",
+            "title": "Wing Commander (Kilrathi Saga) (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/neuromancer/wc1-re/blob/a9ba1d7dee6a9af2d7e1040ec137c1575a898ed9/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/neuromancer/wc1-re",
       "setup_url": "https://github.com/neuromancer/wc1-re",
       "issue_number": 2909,
@@ -77883,6 +80807,23 @@
       "project_url": "https://github.com/schlangz/openprivateer-project",
       "name": "Wing Commander: Privateer / OpenPrivateer",
       "original_game_title": "Wing Commander: Privateer",
+      "original_game": {
+        "format_version": 1,
+        "id": "wing-commander-privateer",
+        "evidence_urls": [
+          "https://github.com/schlangz/openprivateer-project/blob/206237ba830c9c79b584153024769a18800c4e66/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wing-commander-privateer-pc",
+            "title": "Wing Commander: Privateer (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/schlangz/openprivateer-project/blob/206237ba830c9c79b584153024769a18800c4e66/README.md"
+            ]
+          }
+        ]
+      },
       "summary": "Fly the Privateer campaign or Righteous Fire in OpenPrivateer using your original game files.",
       "issue_number": 6119,
       "listed_at": "2026-11-14",
@@ -78117,6 +81058,23 @@
       "name": "Wolfenstein 3D (ReflectionHLE)",
       "summary": "Play Wolfenstein 3D through ReflectionHLE with the matching original DOS game files.",
       "original_game_title": "Wolfenstein 3D",
+      "original_game": {
+        "format_version": 1,
+        "id": "wolfenstein-3d",
+        "evidence_urls": [
+          "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wolfenstein-3d-pc",
+            "title": "Wolfenstein 3D (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
       "availability": "packages",
       "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
@@ -78174,6 +81132,23 @@
       "name": "Wolfenstein: Enemy Territory (ET: Legacy)",
       "summary": "Upstream route: Official etlegacy.com stable 2.86.2 desktop installer/archive plus original freely released Wolfenstein: Enemy Territory data; package and original data are distinct. Limits: Maintained native continuation; official download site linked in README. GitHub Releases empty; resolve official package + original free data route. Upstream platforms: Official stable2.86.2 Windows x86/x86-64, Linux i386/x86-64/AArch64 and macOS x86-64/AArch64 installer/archive downloads.64-bit mods must match64-bit client. Original data: Use original free Wolfenstein: Enemy Territory game data under its original EULA; copy pak0.pk3 into etmain/. Third-party mods may also need pak1.pk3 and pak2.pk3. README links Splash Damage for the free release and targets compatibility with ET 2.60b; the GPL engine/mod source alone does not include game data. Portcove setup/gameplay not verified.",
       "original_game_title": "Wolfenstein: Enemy Territory",
+      "original_game": {
+        "format_version": 1,
+        "id": "wolfenstein-enemy-territory",
+        "evidence_urls": [
+          "https://github.com/etlegacy/etlegacy/blob/dc1d8b447d52a5b1916e1dbcd81866828cc485db/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "wolfenstein-enemy-territory-pc",
+            "title": "Wolfenstein: Enemy Territory (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/etlegacy/etlegacy/blob/dc1d8b447d52a5b1916e1dbcd81866828cc485db/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/etlegacy/etlegacy",
       "platforms": [],
       "availability": "unknown",
@@ -78696,6 +81671,23 @@
       "name": "World War II GI (Raze)",
       "summary": "Play World War II GI in Raze using your own original PC game files.",
       "original_game_title": "World War II GI",
+      "original_game": {
+        "format_version": 1,
+        "id": "world-war-ii-gi",
+        "evidence_urls": [
+          "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "world-war-ii-gi-pc",
+            "title": "World War II GI (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/Raze/blob/fa99ac62924d5b2cbb67f46b932bd6acf8952b63/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/ZDoom/Raze",
       "platforms": [
         "windows-x86-64",
@@ -79461,6 +82453,23 @@
       "name": "X-COM: Terror from the Deep (OpenXcom)",
       "summary": "Set up X-COM: Terror from the Deep through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "X-COM: Terror from the Deep",
+      "original_game": {
+        "format_version": 1,
+        "id": "x-com-terror-from-the-deep",
+        "evidence_urls": [
+          "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "x-com-terror-from-the-deep-pc",
+            "title": "X-COM: Terror from the Deep (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/OpenXcom/OpenXcom",
       "availability": "unknown",
       "setup_url": "https://github.com/OpenXcom/OpenXcom/blob/4a4bae5fa2e5a09282928e84943fc84b093e34ff/README.md",
@@ -80164,6 +83173,23 @@
       "name": "Knytt Stories (YKnytt)",
       "summary": "Attach a complete permitted YKnytt Windows installation, the Godot C# implementation of Knytt Stories. Preserve its actual user/world/save directories and freeware asset terms; community-level compatibility and optional network actions remain upstream-owned.",
       "original_game_title": "Knytt Stories",
+      "original_game": {
+        "format_version": 1,
+        "id": "knytt-stories",
+        "evidence_urls": [
+          "https://github.com/youkaicountry/yknytt/blob/360b4b3e09c827556deda2431262bdde085ae18e/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "knytt-stories-pc",
+            "title": "Knytt Stories (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/youkaicountry/yknytt/blob/360b4b3e09c827556deda2431262bdde085ae18e/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/youkaicountry/yknytt",
       "platforms": [
         "windows-x86-64"
@@ -80376,6 +83402,23 @@
       "summary": "Play compatible Doom-engine games with GZDoom’s modern display, audio and mod support using your own game files.",
       "project_url": "https://github.com/ZDoom/gzdoom",
       "original_game_title": "Doom",
+      "original_game": {
+        "format_version": 1,
+        "id": "doom",
+        "evidence_urls": [
+          "https://github.com/ZDoom/gzdoom/blob/c26ce2e6ca2a0c770f140cb25dde0d30073ca8f7/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "doom-pc",
+            "title": "Doom (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/ZDoom/gzdoom/blob/c26ce2e6ca2a0c770f140cb25dde0d30073ca8f7/README.md"
+            ]
+          }
+        ]
+      },
       "issue_number": 1824,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -80603,6 +83646,23 @@
       "name": "Zeus: Master of Olympus (eZeus)",
       "summary": "Prepare Zeus: Master of Olympus through its upstream player using your own original files. Setup, profiles and updates stay upstream-owned.",
       "original_game_title": "Zeus: Master of Olympus",
+      "original_game": {
+        "format_version": 1,
+        "id": "zeus-master-of-olympus",
+        "evidence_urls": [
+          "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "zeus-master-of-olympus-pc",
+            "title": "Zeus: Master of Olympus (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/MaurycyLiebner/eZeus/blob/ec765199f9719d1724fe07ebd776a2240c099dcd/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/MaurycyLiebner/eZeus",
       "availability": "packages",
       "setup_url": "https://github.com/MaurycyLiebner/eZeus/blob/474a96206278293dbd9cde6d506b5570934f8acf/README.md",
@@ -80704,6 +83764,23 @@
       "name": "Zuma Deluxe (Zuma Portable / CircleShootApp)",
       "summary": "Research listing. Upstream route: Decompilation called fully playable upstream; original-data and BASS dependency documented. Limits: Upstream says fully playable with expected bugs/inaccuracies; source build and separate BASS library remain required. Upstream platforms: Windows source-build scripts using legacy MSVC7 by default; optional 64-bit build documented. No observed binary assets; output architecture must follow chosen toolchain/BASS library. Original data: Supply Zuma Deluxe data files from an owned original installation; assets and bass.dll are not included. For 32-bit builds use the original BASS 1.8 DLL; BASS 2.4 is required for 64-bit and optionally supported for 32-bit. The reconstruction reference is the official web/PopCap Ultimate Collection Zuma.exe SHA-256 51cf7bbc6df4a41ec137a52d4496c3149ba32c9ae2acc4653279d04c164809aa; exact Steam-data compatibility remains unestablished here. Portcove setup/gameplay not verified.",
       "original_game_title": "Zuma Deluxe",
+      "original_game": {
+        "format_version": 1,
+        "id": "zuma-deluxe",
+        "evidence_urls": [
+          "https://github.com/kyle-sylvestre/CircleShootApp/blob/7a6a24789ce5b622214d60019df0996c4c066973/README.md"
+        ],
+        "source_editions": [
+          {
+            "id": "zuma-deluxe-pc",
+            "title": "Zuma Deluxe (PC, version not specified)",
+            "system": "pc",
+            "evidence_urls": [
+              "https://github.com/kyle-sylvestre/CircleShootApp/blob/7a6a24789ce5b622214d60019df0996c4c066973/README.md"
+            ]
+          }
+        ]
+      },
       "project_url": "https://github.com/kyle-sylvestre/CircleShootApp",
       "platforms": [],
       "availability": "unknown",

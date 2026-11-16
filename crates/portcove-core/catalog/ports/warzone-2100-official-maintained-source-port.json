@@ -5,6 +5,23 @@
     "project_url": "https://github.com/Warzone2100/warzone2100",
     "name": "Warzone 2100",
     "original_game_title": "Warzone 2100",
+    "original_game": {
+      "format_version": 1,
+      "id": "warzone-2100",
+      "evidence_urls": [
+        "https://github.com/Warzone2100/warzone2100/blob/45c6d832a1e95c1e10471ac7b10c1a31cf4c5945/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "warzone-2100-pc",
+          "title": "Warzone 2100 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/Warzone2100/warzone2100/blob/45c6d832a1e95c1e10471ac7b10c1a31cf4c5945/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play the official open-source Warzone 2100 release on Windows, Linux or Mac.",
     "issue_number": 5800,
     "listed_at": "2026-11-15",

@@ -5,6 +5,23 @@
     "name": "Need for Speed II: Special Edition (NFSIISE)",
     "summary": "Research listing. Upstream route: Cross-platform wrapper with Windows/Linux releases and original game support. Limits: This is a wrapper around retained original code, rather than a complete source reconstruction. Exact original binaries, assets and host architecture must match the project’s requirements. Upstream platforms: Windows x86 runtime/DLL route and native Unix/Linux/macOS source build (macOS up to Mojave). Exact non-Windows host CPUs unknown in frozen evidence. Original data: Supply original Need for Speed II Special Edition game data, including fedata and gamedata directories placed in the port game directory as documented by upstream. This is the Special Edition data contract, not ordinary NFS II or NFS III. Exact supported disc language/patch and original binary fingerprint remain Unknown in the retained README. Portcove setup/gameplay not verified.",
     "original_game_title": "Need for Speed II: Special Edition",
+    "original_game": {
+      "format_version": 1,
+      "id": "need-for-speed-ii-special-edition",
+      "evidence_urls": [
+        "https://github.com/zaps166/NFSIISE/blob/66cbaf47fd77e833c9331b81f6c1e52aff56913f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "need-for-speed-ii-special-edition-pc",
+          "title": "Need for Speed II: Special Edition (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/zaps166/NFSIISE/blob/66cbaf47fd77e833c9331b81f6c1e52aff56913f/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/zaps166/NFSIISE",
     "platforms": [],
     "availability": "unknown",

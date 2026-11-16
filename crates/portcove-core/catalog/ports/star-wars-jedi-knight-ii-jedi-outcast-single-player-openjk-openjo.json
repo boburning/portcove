@@ -5,6 +5,23 @@
     "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
     "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
     "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player",
+      "evidence_urls": [
+        "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-pc",
+          "title": "Star Wars Jedi Knight II: Jedi Outcast (single player) (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/JACoders/OpenJK",
     "availability": "packages",
     "setup_url": "https://github.com/JACoders/OpenJK/blob/260c59c2907187af555a676fe0cc798893bf7757/README.md",

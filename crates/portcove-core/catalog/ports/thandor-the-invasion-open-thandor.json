@@ -5,6 +5,23 @@
     "project_url": "https://github.com/idkFoxes/open-thandor",
     "name": "Thandor: The Invasion / Open Thandor",
     "original_game_title": "Thandor: The Invasion",
+    "original_game": {
+      "format_version": 1,
+      "id": "thandor-the-invasion",
+      "evidence_urls": [
+        "https://github.com/idkFoxes/open-thandor/blob/1ef189c49bdb094d399043cc09a4cc3d9c5afb50/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "thandor-the-invasion-pc",
+          "title": "Thandor: The Invasion (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/idkFoxes/open-thandor/blob/1ef189c49bdb094d399043cc09a4cc3d9c5afb50/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Use Open Thandor with an installed copy of the original game on Windows.",
     "issue_number": 6121,
     "listed_at": "2026-11-14",

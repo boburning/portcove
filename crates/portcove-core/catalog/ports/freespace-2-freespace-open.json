@@ -5,6 +5,23 @@
     "name": "FreeSpace 2 (FreeSpace Open)",
     "summary": "Prepare FreeSpace Open with your own FreeSpace 2 retail v1.2 files using the official installation guide. A separately licensed standalone campaign is a different setup. Windows, Linux and macOS engine downloads are separate from launchers; choose the correct CPU and stable or release-candidate channel. This guide uses Windows release candidate 26.2.0-RC3. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "FreeSpace 2",
+    "original_game": {
+      "format_version": 1,
+      "id": "freespace-2",
+      "evidence_urls": [
+        "https://github.com/scp-fs2open/fs2open.github.com/blob/b00544fa242ec109be6a461f6cd29092c134df53/Readme.md"
+      ],
+      "source_editions": [
+        {
+          "id": "freespace-2-pc",
+          "title": "FreeSpace 2 (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/scp-fs2open/fs2open.github.com/blob/b00544fa242ec109be6a461f6cd29092c134df53/Readme.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/scp-fs2open/fs2open.github.com",
     "platforms": [],
     "availability": "unknown",

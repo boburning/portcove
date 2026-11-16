@@ -4,6 +4,23 @@
     "id": "c-dogs-sdl",
     "name": "C-Dogs SDL",
     "original_game_title": "C-Dogs",
+    "original_game": {
+      "format_version": 1,
+      "id": "c-dogs",
+      "evidence_urls": [
+        "https://github.com/cxong/cdogs-sdl/blob/d9f13c1510174e1006101558b4923ea7b27e40c9/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "c-dogs-pc",
+          "title": "C-Dogs (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/cxong/cdogs-sdl/blob/d9f13c1510174e1006101558b4923ea7b27e40c9/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play C-Dogs through your Linux distribution or a permitted existing desktop copy.",
     "project_url": "https://github.com/cxong/cdogs-sdl",
     "issue_number": 6048,

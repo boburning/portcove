@@ -4,6 +4,23 @@
     "id": "tdrrmk2-uhexen2-tweaked",
     "name": "Hexen II / uHexen2 Tweaked",
     "original_game_title": "Hexen II",
+    "original_game": {
+      "format_version": 1,
+      "id": "hexen-ii",
+      "evidence_urls": [
+        "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
+      ],
+      "source_editions": [
+        {
+          "id": "hexen-ii-pc",
+          "title": "Hexen II (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/TDRRmk2/uhexen2-tweaked/blob/b64cd812d3e69ccf9d0fb4472c7833cddf6a0f41/README.txt"
+          ]
+        }
+      ]
+    },
     "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",
     "project_url": "https://github.com/TDRRmk2/uhexen2-tweaked",
     "issue_number": 2747,

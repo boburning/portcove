@@ -19,6 +19,23 @@
       "match_kind": "underlying-game"
     },
     "original_game_title": "Dirt Dash",
+    "original_game": {
+      "format_version": 1,
+      "id": "dirt-dash",
+      "evidence_urls": [
+        "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "dirt-dash-pc",
+          "title": "Dirt Dash (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/spacestate1/namco22-decompile/blob/aac1da73dfb52a2cfc402f96e94fd4e517cdbb13/README.md"
+          ]
+        }
+      ]
+    },
     "release_url": "https://github.com/spacestate1/namco22-decompile/releases",
     "download_asset_hints": {
       "windows-x86-64": ["windows-release-", ".zip"],

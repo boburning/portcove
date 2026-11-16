@@ -5,6 +5,23 @@
     "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
     "name": "Chaos Overlords / New Chrome",
     "original_game_title": "Chaos Overlords",
+    "original_game": {
+      "format_version": 1,
+      "id": "chaos-overlords",
+      "evidence_urls": [
+        "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "chaos-overlords-pc",
+          "title": "Chaos Overlords (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/kibertoad/chaos-overlords-new-chrome/blob/b3b4009ebe9ecbb1d7ae4825a5e250d9ae7beb1b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Install the upstream strategy game rebuild and import assets from your own Chaos Overlords copy.",
     "issue_number": 6081,
     "listed_at": "2026-11-15",

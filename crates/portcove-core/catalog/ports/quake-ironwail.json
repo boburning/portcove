@@ -5,6 +5,23 @@
     "name": "Quake (Ironwail)",
     "summary": "A native Quake engine for the classic base game on Windows or Linux x64. Use your own compatible Quake files or register a separately prepared copy.",
     "original_game_title": "Quake",
+    "original_game": {
+      "format_version": 1,
+      "id": "quake",
+      "evidence_urls": [
+        "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "quake-pc",
+          "title": "Quake (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/andrei-drexler/ironwail/blob/08d578136ff43d7d1ef38e636dfbfd3e844be7cd/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/andrei-drexler/ironwail",
     "availability": "unknown",
     "setup_url": "https://github.com/andrei-drexler/ironwail",

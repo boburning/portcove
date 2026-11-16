@@ -8,6 +8,23 @@
     "issue_number": 6131,
     "listed_at": "2026-11-14",
     "original_game_title": "AstroMenace",
+    "original_game": {
+      "format_version": 1,
+      "id": "astromenace",
+      "evidence_urls": [
+        "https://github.com/viewizard/astromenace/blob/bbdb3ac5af2774c92b85c4d9b2a238f606911e66/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "astromenace-pc",
+          "title": "AstroMenace (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/viewizard/astromenace/blob/bbdb3ac5af2774c92b85c4d9b2a238f606911e66/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/viewizard/astromenace/blob/v1.4.3/README.md#installation",

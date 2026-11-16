@@ -4,6 +4,23 @@
     "id": "meteo-dream-mf-community-edition",
     "name": "Mario Forever: Community Edition",
     "original_game_title": "Mario Forever",
+    "original_game": {
+      "format_version": 1,
+      "id": "mario-forever",
+      "evidence_urls": [
+        "https://github.com/meteo-dream/mf-community-edition/blob/7c5bdcda32efe10f0eb9cc9a6063b499914d7449/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "mario-forever-pc",
+          "title": "Mario Forever (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/meteo-dream/mf-community-edition/blob/7c5bdcda32efe10f0eb9cc9a6063b499914d7449/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Use a permitted Mario Forever: Community Edition copy, the community remake of Mario Forever.",
     "project_url": "https://github.com/meteo-dream/mf-community-edition",
     "issue_number": 2729,

@@ -5,6 +5,23 @@
     "project_url": "https://github.com/urxp/dRally",
     "name": "Death Rally / dRally",
     "original_game_title": "Death Rally",
+    "original_game": {
+      "format_version": 1,
+      "id": "death-rally",
+      "evidence_urls": [
+        "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "death-rally-pc",
+          "title": "Death Rally (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/urxp/dRally/blob/920d85a7f3c3b95abb685bc26b5f6d67a2f4b982/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Prepare the upstream Windows or Linux alpha with files from your original DOS game.",
     "issue_number": 5661,
     "listed_at": "2026-11-15",

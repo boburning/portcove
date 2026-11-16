@@ -5,6 +5,23 @@
     "name": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (OpenXvT)",
     "summary": "A native engine for X-Wing vs. TIE Fighter with your own Balance of Power game data.",
     "original_game_title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power",
+    "original_game": {
+      "format_version": 1,
+      "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power",
+      "evidence_urls": [
+        "https://github.com/elyosh/OpenXvT/blob/b118400227ecea36bea430ac9e0572ee1ded00b1/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "star-wars-x-wing-vs-tie-fighter-balance-of-power-pc",
+          "title": "Star Wars: X-Wing vs. TIE Fighter + Balance of Power (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/elyosh/OpenXvT/blob/b118400227ecea36bea430ac9e0572ee1ded00b1/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/elyosh/OpenXvT",
     "setup_url": "https://github.com/elyosh/OpenXvT",
     "issue_number": 2899,

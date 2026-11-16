@@ -5,6 +5,23 @@
     "project_url": "https://github.com/civctp2/civctp2",
     "name": "Call to Power II / Apolyton Edition",
     "original_game_title": "Call to Power II",
+    "original_game": {
+      "format_version": 1,
+      "id": "call-to-power-ii",
+      "evidence_urls": [
+        "https://github.com/civctp2/civctp2/blob/cb13a8df2eeaa0533710f8f88afe3a63cc980d3e/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "call-to-power-ii-pc",
+          "title": "Call to Power II (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/civctp2/civctp2/blob/cb13a8df2eeaa0533710f8f88afe3a63cc980d3e/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play your copy of Call to Power II with the Apolyton community edition.",
     "issue_number": 6125,
     "listed_at": "2026-11-14",

@@ -5,6 +5,23 @@
     "project_url": "https://github.com/brettins/open-lords2",
     "name": "Lords of the Realm II / Open Lords2",
     "original_game_title": "Lords of the Realm II",
+    "original_game": {
+      "format_version": 1,
+      "id": "lords-of-the-realm-ii",
+      "evidence_urls": [
+        "https://github.com/brettins/open-lords2/blob/6a211baa76134b34138565601cb52756cbb69b4b/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "lords-of-the-realm-ii-pc",
+          "title": "Lords of the Realm II (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/brettins/open-lords2/blob/6a211baa76134b34138565601cb52756cbb69b4b/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Run the upstream engine preview with your own Lords of the Realm II installation.",
     "issue_number": 6085,
     "listed_at": "2026-11-15",

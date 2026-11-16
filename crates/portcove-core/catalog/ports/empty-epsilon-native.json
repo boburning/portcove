@@ -8,6 +8,23 @@
     "issue_number": 6130,
     "listed_at": "2026-11-14",
     "original_game_title": "EmptyEpsilon",
+    "original_game": {
+      "format_version": 1,
+      "id": "emptyepsilon",
+      "evidence_urls": [
+        "https://github.com/daid/EmptyEpsilon/blob/73d057cd3742e1e5fe15a6b5031b871def5e14db/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "emptyepsilon-pc",
+          "title": "EmptyEpsilon (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/daid/EmptyEpsilon/blob/73d057cd3742e1e5fe15a6b5031b871def5e14db/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/daid/EmptyEpsilon/wiki/Build#define-the-version-number",

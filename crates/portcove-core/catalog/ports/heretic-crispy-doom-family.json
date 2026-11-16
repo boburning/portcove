@@ -5,6 +5,23 @@
     "name": "Heretic (Crispy Doom family)",
     "summary": "Install the official Crispy Heretic Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Heretic",
+    "original_game": {
+      "format_version": 1,
+      "id": "heretic",
+      "evidence_urls": [
+        "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "heretic-pc",
+          "title": "Heretic (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/fabiangreffrath/crispy-doom/blob/35b49519fb4f0360ee1527e8cf0bdf0b6bbfeff2/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/fabiangreffrath/crispy-doom",
     "availability": "packages",
     "setup_url": "https://github.com/fabiangreffrath/crispy-doom/blob/fdeabe4c23a833534b70aa84a22f1685aae7125d/README.md",

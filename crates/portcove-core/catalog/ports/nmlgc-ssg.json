@@ -5,6 +5,23 @@
     "name": "Seihou Densetsu: Shuusou Gyoku (GIAN07)",
     "summary": "Attach an independently permitted, prepared modern GIAN07 Windows x86 player for Shuusou Gyoku with your own original resources. Keep the modern SDL3 route separate from vintage binaries and replay tooling; the retained original README is not the current build contract.",
     "original_game_title": "Seihou Densetsu: Shuusou Gyoku",
+    "original_game": {
+      "format_version": 1,
+      "id": "seihou-densetsu-shuusou-gyoku",
+      "evidence_urls": [
+        "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "seihou-densetsu-shuusou-gyoku-pc",
+          "title": "Seihou Densetsu: Shuusou Gyoku (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/nmlgc/ssg/blob/dc63b340a7c184b456850972b89324d9a8f13c4f/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/nmlgc/ssg",
     "platforms": [],
     "availability": "unknown",

@@ -8,6 +8,23 @@
     "issue_number": 2827,
     "listed_at": "2026-10-25",
     "original_game_title": "Alley Cat",
+    "original_game": {
+      "format_version": 1,
+      "id": "alley-cat",
+      "evidence_urls": [
+        "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "alley-cat-pc",
+          "title": "Alley Cat (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/petarov/alleycat.exe/blob/31092461a8a5a1811990cf3d30a888b6ed38abc7/README.md"
+          ]
+        }
+      ]
+    },
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/petarov/alleycat.exe#readme",

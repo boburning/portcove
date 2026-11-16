@@ -4,6 +4,23 @@
     "id": "chocolate-doom-family",
     "name": "Chocolate Doom",
     "original_game_title": "Doom",
+    "original_game": {
+      "format_version": 1,
+      "id": "doom",
+      "evidence_urls": [
+        "https://github.com/chocolate-doom/chocolate-doom/blob/a2dfd51fcc00d272dc8a17a97ccd6683333ff4ea/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "doom-pc",
+          "title": "Doom (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/chocolate-doom/chocolate-doom/blob/a2dfd51fcc00d272dc8a17a97ccd6683333ff4ea/README.md"
+          ]
+        }
+      ]
+    },
     "summary": "Play Doom with Chocolate Doom, or use the separate Chocolate Heretic, Hexen and Strife players with their matching game data.",
     "project_url": "https://github.com/chocolate-doom/chocolate-doom",
     "issue_number": 5663,

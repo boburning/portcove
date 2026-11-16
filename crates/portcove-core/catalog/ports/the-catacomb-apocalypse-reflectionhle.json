@@ -5,6 +5,23 @@
     "name": "The Catacomb Apocalypse (ReflectionHLE)",
     "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "The Catacomb Apocalypse",
+    "original_game": {
+      "format_version": 1,
+      "id": "the-catacomb-apocalypse",
+      "evidence_urls": [
+        "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+      ],
+      "source_editions": [
+        {
+          "id": "the-catacomb-apocalypse-pc",
+          "title": "The Catacomb Apocalypse (PC, version not specified)",
+          "system": "pc",
+          "evidence_urls": [
+            "https://github.com/ReflectionHLE/ReflectionHLE/blob/6b10c69ae601e9b3d5b1677cffef940d27a4962d/README.md"
+          ]
+        }
+      ]
+    },
     "project_url": "https://github.com/ReflectionHLE/ReflectionHLE",
     "availability": "packages",
     "setup_url": "https://github.com/ReflectionHLE/ReflectionHLE/blob/74f07efcc40142a5727caacebec848c48b141eca/README.md",
