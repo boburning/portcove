@@ -1852,7 +1852,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
     const { button, click } = reviewControls(browser);
     let nativeRead: ReturnType<typeof selectedSetupRead>;
     const report: SetupReport = {
-      scope: "Actual saved hash-batch continuation and fresh source review/cancel",
+      scope: "Finish an actual saved hash-batch scan and review the new match without registering",
       limitations: [
         "Inert owned Windows development inputs; no gameplay, installed package, physical storage or Linux proof",
         "Root and initial batch seeded by first-party CLI; native picker not exercised",
@@ -1884,7 +1884,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       await browser.wait(until.elementLocated(By.id("game-file-libraries-heading")), 5_000);
       await click(button("Refresh folders"));
       await browser.wait(async () => {
-        const controls = await browser.findElements(button("Continue scan"));
+        const controls = await browser.findElements(button("Finish scanning these folders"));
         return (
           controls.length === 1 && controls[0] !== undefined && (await controls[0].isEnabled())
         );
@@ -1894,6 +1894,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.deepEqual(initial.report, fixture.hashResumeInitial.report);
       assert.deepEqual(initial.limits, fixture.hashResumeInitial.limits);
       assert.equal(required(initial.coverage).can_resume, true);
+      const scanId = required(initial.matches).scan_id;
       const presentation = await browser
         .findElement(By.css('[aria-label="Saved folder scan results"]'))
         .getText();
@@ -1903,18 +1904,18 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       const previous = new Set(
         transportValue("activity", command(["activity"])).records.map((record) => record.id),
       );
-      report.checkpoint = "keyboard continuation";
-      const continueButton = await browser.findElement(button("Continue scan"));
+      report.checkpoint = "finish scan by keyboard";
+      const finishButton = await browser.findElement(button("Finish scanning these folders"));
       await executeBrowserScript(
         browser,
         (element) => {
           if (!(element instanceof HTMLElement))
-            throw new Error("Expected focusable scan continuation");
+            throw new Error("Expected focusable Finish scanning button");
           element.focus();
         },
-        continueButton,
+        finishButton,
       );
-      await continueButton.sendKeys(Key.SPACE);
+      await finishButton.sendKeys(Key.SPACE);
       await browser.wait(
         async () =>
           transportValue("activity", command(["activity"])).records.some(
@@ -1933,6 +1934,7 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       }, 5_000);
       const continued = await nativeRead("get_game_file_scan_snapshot");
       assert.equal(continued.freshness, "inputs_match");
+      assert.equal(required(continued.matches).scan_id, scanId);
       assert.equal(required(continued.coverage).batches, 2);
       assert.equal(required(continued.coverage).can_resume, false);
       assert.equal(required(continued.coverage).frontier_exhausted, true);
