@@ -317,7 +317,9 @@ pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
     OutputRelocationInstall, OutputRelocationPlan, OutputRelocationResult, OutputRelocationStatus,
 };
-pub use package_layout::{inspect_package_archive, inspect_package_archive_with_program_filter};
+pub use package_layout::{
+    PackageProgramFilter, inspect_package_archive, inspect_package_archive_with_program_filter,
+};
 pub use package_shape::{
     InstalledPackageShape, InstalledShapeStatus, PackageShape, PackageShapeInspection,
     PackageShapeRecord, ShapeBaseline, ShapeChange, ShapeComponent, ShapeProvenance,
@@ -443,7 +445,7 @@ pub use source_reuse::{
 };
 pub use store_install::{
     GameStore, RegisteredStoreInstall, StoreGameInstall, StoreGameInstalls, StoreInstallHost,
-    SystemStoreInstallHost,
+    StoreOriginalFolder, SystemStoreInstallHost,
 };
 pub use support_bundle::SupportBundleData;
 pub use support_bundle_export::{

@@ -390,6 +390,12 @@ pub(crate) fn derivation_inputs_sha256(port: &serde_json::Value, platform: &str)
         "runtime_subdirectory": runtime_subdirectory,
         "tar_xz_platforms": port["release"]["tar_xz_platforms"],
     });
+    // Recorded only when declared, so digests of routes without it are unchanged.
+    let linux_format =
+        &port["reviewed_package_layouts"][platform]["classify_linux_programs_by_format"];
+    if !linux_format.is_null() {
+        inputs["classify_linux_programs_by_format"] = linux_format.clone();
+    }
     inputs.sort_all_objects();
     Ok(hex::encode(<sha2::Sha256 as sha2::Digest>::digest(
         serde_json::to_string(&inputs)?.as_bytes(),
@@ -468,10 +474,9 @@ pub(crate) fn derive(
     platform: Platform,
     roots: &ShapeRoots,
 ) -> Result<PackageShape> {
-    let ignore_macos_libraries = port
-        .reviewed_package_layouts
-        .get(&platform)
-        .is_some_and(|layout| layout.ignore_verified_macos_libraries);
+    let program_filter = crate::package_layout::PackageProgramFilter::of(
+        port.reviewed_package_layouts.get(&platform),
+    );
     let mut directories = BTreeSet::new();
     // Lowercase relative path to the original file name.
     let mut files = BTreeMap::<String, String>::new();
@@ -495,11 +500,7 @@ pub(crate) fn derive(
                 directories.insert(relative.clone());
                 pending.push((entry.path(), format!("{relative}/")));
             } else if file_type.is_file() {
-                if crate::package_layout::is_program_entry(
-                    &entry,
-                    platform,
-                    ignore_macos_libraries,
-                )? {
+                if crate::package_layout::is_program_entry(&entry, platform, program_filter)? {
                     programs.insert(relative.clone());
                 }
                 files.insert(relative, name);

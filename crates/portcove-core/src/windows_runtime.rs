@@ -43,6 +43,10 @@ const WORKING_FOLDER_LIMIT: usize = 16;
 /// including the 2010, 2012 and 2013 releases.
 pub const VISUAL_CPP_DOWNLOAD_PAGE: &str =
     "https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist";
+// Microsoft-published permalinks for the supported v14 redistributables.
+const VISUAL_CPP_V14_X86: &str = "https://aka.ms/vc14/vc_redist.x86.exe";
+const VISUAL_CPP_V14_X64: &str = "https://aka.ms/vc14/vc_redist.x64.exe";
+const VISUAL_CPP_V14_ARM64: &str = "https://aka.ms/vc14/vc_redist.arm64.exe";
 /// Microsoft's DirectX End-User Runtime Web Installer page.
 pub const DIRECTX_DOWNLOAD_PAGE: &str = "https://www.microsoft.com/download/details.aspx?id=35";
 const DOTNET_DOWNLOAD_PAGE: &str = "https://dotnet.microsoft.com/download/dotnet";
@@ -160,12 +164,17 @@ impl RuntimePrerequisiteReport {
     }
 }
 
-/// Whether `url` is one of the official Microsoft download pages a report names.
+/// Whether `url` is an official Microsoft download destination a report names.
 pub fn is_official_download_page(url: &str) -> bool {
-    if url == VISUAL_CPP_DOWNLOAD_PAGE
-        || url == DIRECTX_DOWNLOAD_PAGE
-        || url == DOTNET_DOWNLOAD_PAGE
-    {
+    if matches!(
+        url,
+        VISUAL_CPP_DOWNLOAD_PAGE
+            | VISUAL_CPP_V14_X86
+            | VISUAL_CPP_V14_X64
+            | VISUAL_CPP_V14_ARM64
+            | DIRECTX_DOWNLOAD_PAGE
+            | DOTNET_DOWNLOAD_PAGE
+    ) {
         return true;
     }
     url.strip_prefix(DOTNET_DOWNLOAD_PAGE)
@@ -392,10 +401,18 @@ pub(crate) fn assess_program_with(
                     Vec::new()
                 },
                 files,
-                download_page: if runtime == WindowsRuntime::DirectxJune2010 {
-                    DIRECTX_DOWNLOAD_PAGE
-                } else {
-                    VISUAL_CPP_DOWNLOAD_PAGE
+                download_page: match (runtime, architecture) {
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::X86)) => {
+                        VISUAL_CPP_V14_X86
+                    }
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::X64)) => {
+                        VISUAL_CPP_V14_X64
+                    }
+                    (WindowsRuntime::VisualCpp2015OrLater, Some(WindowsArchitecture::Arm64)) => {
+                        VISUAL_CPP_V14_ARM64
+                    }
+                    (WindowsRuntime::DirectxJune2010, _) => DIRECTX_DOWNLOAD_PAGE,
+                    _ => VISUAL_CPP_DOWNLOAD_PAGE,
                 }
                 .to_owned(),
             }

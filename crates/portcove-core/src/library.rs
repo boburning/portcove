@@ -1013,6 +1013,19 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_psx_toolchain_acquisition(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("psx-toolchain-acquire.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "psx-toolchain-acquire",
+                "PS1 toolchain",
+                "acquire-toolchain",
+            )?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,

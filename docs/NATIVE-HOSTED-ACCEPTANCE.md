@@ -214,10 +214,23 @@ checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
 the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
 at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through

@@ -92,6 +92,11 @@
       "windows-x86-64": {
         "directories": ["assets", "licenses"],
         "executables": ["pilotwings64recomp.exe"]
+      },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": ["assets", "licenses"],
+        "executables": ["pilotwings64recomp", "pilotwings64recomp.sh"]
       }
     }
   }

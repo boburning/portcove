@@ -137,6 +137,11 @@ describe("desktop components", () => {
     expect(html).toContain("Licensed under MIT or Apache-2.0.");
     expect(html).toContain("Open project repository");
     expect(html).toContain("Open diagnostics");
+    // Players look for help under About; reporting starts there, not in Advanced.
+    const about = html.slice(html.indexOf('aria-label="About Portcove"'));
+    expect(about).toContain("<h3>Report a problem or send feedback</h3>");
+    expect(about).toMatch(/<button[^>]*>Report a problem or send feedback<\/button>/u);
+    expect(html.match(/>Report a problem or send feedback<\/button>/gu)).toHaveLength(1);
   });
 
   it("keeps page introductions concise without losing catalog count or controls", () => {
@@ -301,7 +306,7 @@ describe("desktop components", () => {
           source: "discovery",
           configuration_variable: "PORTCOVE_CHDMAN",
           purpose: "Check CHD game files and prepare disc images",
-          official_url: "https://docs.mamedev.org/tools/chdman.html",
+          official_url: "https://www.mamedev.org/release.html",
         },
         {
           id: "dolphin_tool",
@@ -343,16 +348,15 @@ describe("desktop components", () => {
     expect(html).toContain("Not found");
     expect(html).toContain("C:/Tools/chdman.exe");
     expect(html).toContain("E:/Missing/DolphinTool.exe");
-    expect(html).toContain(
-      "Portcove couldn’t find Future tool. If it’s installed, choose its program file.",
-    );
+    expect(html).toContain("Portcove couldn’t find Future tool.");
+    expect(html).toContain("Official downloads for installation options.");
     expect(html).toContain("Environment variable: PORTCOVE_FUTURE_TOOL");
     expect(html).toContain("Tool details");
-    expect(html).toContain("Official site");
+    expect(html).toContain("Official downloads");
     expect(html).toContain("Locate Future tool…");
     expect(html).not.toContain("Locate DolphinTool…");
     expect(html).toContain("Recheck");
-    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official site<\/button>/u);
+    expect(html).toMatch(/<button[^>]*data-variant="outline"[^>]*>Official downloads<\/button>/u);
     expect(retained).toContain("Couldn’t check disc tools.");
     expect(retained).toContain("Showing the last successful host check.");
     expect(retained).toContain("C:/Tools/chdman.exe");

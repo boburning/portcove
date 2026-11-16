@@ -95,7 +95,9 @@ import {
   itemBody,
   itemTitle,
   itemUrl,
+  normalizedPortTitle,
   normalizedUpstream,
+  normalizePortKey,
   parsePortIssueForm,
   portCatalogMarkers,
   portKeyMarkers,
@@ -176,6 +178,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const configPath = path.join(projectRoot, ".github", "roadmap.json");
 const catalogPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "catalog.json");
+const listingsPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "listings.json");
 
 const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
 export interface RoadmapFieldDefinition {
@@ -2384,6 +2387,44 @@ export class RoadmapClient {
     return await readCompleteConnection(this, query, variables, connection, identity);
   }
 
+  async issueProjectMemberships(issueId: string) {
+    const rows = await readCompleteConnection(
+      {
+        graphql: async (query, variables) => {
+          const data = await this.graphql(query, variables);
+          // A freshly created REST issue can briefly be invisible to GraphQL.
+          if (variables?.after === null && qualificationField(data, "node") === null)
+            return await this.graphql(query, variables);
+          return data;
+        },
+      },
+      `query RoadmapIssueProjectMemberships($id:ID!,$after:String){node(id:$id){...on Issue{id projectItems(first:100,after:$after,includeArchived:true){totalCount nodes{id databaseId isArchived project{id}} pageInfo{hasNextPage endCursor}}}}}`,
+      { id: issueId },
+      (data) => {
+        const node = qualificationField(data, "node");
+        if (qualificationField(node, "id") !== issueId)
+          throw new Error("incomplete GitHub inventory: Issue membership identity mismatch");
+        return qualificationField(node, "projectItems");
+      },
+      (node) => qualificationField(node, "id"),
+    );
+    return rows.map((row) => {
+      const { id } = identifiedProjectItem(row);
+      const projectId = qualificationField(qualificationField(row, "project"), "id");
+      const databaseId = qualificationField(row, "databaseId");
+      const isArchived = qualificationField(row, "isArchived");
+      if (
+        typeof projectId !== "string" ||
+        !projectId ||
+        typeof isArchived !== "boolean" ||
+        (databaseId !== null &&
+          (typeof databaseId !== "number" || !Number.isSafeInteger(databaseId) || databaseId < 1))
+      )
+        throw new Error("incomplete GitHub inventory: malformed Issue Project membership");
+      return { id, projectId, databaseId, isArchived };
+    });
+  }
+
   async listProjects() {
     const root = (await this.ownerType()) === "Organization" ? "organization" : "user";
     const rows = await this.readInventory(
@@ -3804,11 +3845,14 @@ export class RoadmapClient {
   async normalizePortIssue({
     number,
     catalog,
+    listings,
     inventory,
     repositoryIdentity,
   }: {
     number: number;
     catalog: QualificationCatalogObservation;
+    /** Reviewed catalog listings; an exact `issue_number` claim can link a differing key. */
+    listings?: readonly unknown[];
     inventory?: RoadmapInventory;
     repositoryIdentity?: { id: number; game: string };
   }) {
@@ -3847,6 +3891,43 @@ export class RoadmapClient {
           normalizedUpstream(port.project_url) === normalizedUpstream(form.upstream),
       );
       catalogId = adopted?.id ?? null;
+    }
+    if (listings) {
+      const claims = listings.filter(
+        (listing): listing is Record<string, unknown> =>
+          isRecord(listing) && listing.issue_number === number,
+      );
+      if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
+        throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
+      if (claims.length > 1)
+        throw new Error(
+          `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
+        );
+      const listing = claims[0];
+      if (listing && catalogId && listing.id !== catalogId)
+        throw new Error(
+          `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+        );
+      // A research-only listing (not yet in catalog.json) keeps the research key.
+      const port =
+        listing && !catalogId
+          ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
+          : undefined;
+      if (listing && port) {
+        if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
+          throw new Error(
+            `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
+          );
+        const title = `-${normalizedPortTitle(issueTitle)}-`;
+        const games = [listing.original_game_title, listing.name]
+          .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
+          .filter(Boolean);
+        if (!games.some((game) => title.includes(`-${game}-`)))
+          throw new Error(
+            `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
+          );
+        catalogId = port.id;
+      }
     }
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
@@ -4851,7 +4932,9 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
           );
         },
       });
-      const item = await RestPortIntakeClient.fromSDK(config, sdk).createPortIssue({
+      const item = await RestPortIntakeClient.fromSDK(config, sdk, (id) =>
+        client.issueProjectMemberships(id),
+      ).createPortIssue({
         title,
         upstream: url,
         catalogId:
@@ -4894,9 +4977,13 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       const catalog = qualificationCatalogObservation(
         JSON.parse(await readFile(catalogPath, "utf8")),
       );
+      const listingDirectory: unknown = JSON.parse(await readFile(listingsPath, "utf8"));
+      if (!isRecord(listingDirectory) || !Array.isArray(listingDirectory.listings))
+        throw new Error("catalog listings require a listing array");
       const result = await client.normalizePortIssue({
         number: Number(value),
         catalog,
+        listings: listingDirectory.listings,
       });
       await runScopedDoctor(config, client, { issues: [Number(value)] });
       console.log(

@@ -116,6 +116,33 @@ it("does not re-read program files when only the status object refreshes", async
   expect(load).toHaveBeenCalledOnce();
 });
 
+it("rechecks the same installation and distinguishes a failed read from confirmed runtimes", async () => {
+  const load = vi
+    .fn()
+    .mockResolvedValueOnce(report("missing"))
+    .mockRejectedValueOnce(new Error("unavailable"))
+    .mockResolvedValueOnce(report("unknown"))
+    .mockResolvedValueOnce({ ...report("present"), inspection: "partial" })
+    .mockResolvedValueOnce(report("present"));
+  await show(load, installed);
+
+  const recheck = async () => {
+    const button = notice()?.querySelector("button");
+    if (!button) throw new Error("Expected the runtime recheck button");
+    await act(async () => button.click());
+  };
+  await recheck();
+  expect(notice()?.textContent).toContain("could not confirm");
+  await recheck();
+  expect(notice()?.textContent).toContain("could not confirm");
+  await recheck();
+  expect(notice()?.textContent).toContain("could not confirm");
+  await recheck();
+  expect(load.mock.calls).toEqual(Array.from({ length: 5 }, () => ["p", "i1", 1]));
+  expect(notice()?.textContent).toContain("Select Play to try the game again");
+  expect(notice()?.querySelector("a")).toBeNull();
+});
+
 it("never shows a report for an installation that is no longer current", async () => {
   let resolveFirst: (value: RuntimePrerequisiteReport) => void = () => {};
   const load = vi

@@ -1,6 +1,10 @@
 //! Bounded, read-only suggestions. Registration and launch revalidate the chosen file.
 use super::*;
-use std::io::{Read, Seek, SeekFrom};
+use std::{
+    ffi::OsStr,
+    io::{Read, Seek, SeekFrom},
+    path::Component,
+};
 
 const ENTRY_LIMIT: usize = 2048;
 const DEPTH_LIMIT: usize = 5;
@@ -153,7 +157,85 @@ fn supporting_program(path: &Path) -> bool {
         })
 }
 
-fn inspect(root: &Path, platform: Platform) -> Result<(Vec<SetupLaunchTarget>, bool, usize)> {
+fn reviewed_bundle_hint(hint: &str) -> Option<(&OsStr, &OsStr)> {
+    let mut parts = Path::new(hint).components();
+    let Component::Normal(bundle) = parts.next()? else {
+        return None;
+    };
+    let Component::Normal(contents) = parts.next()? else {
+        return None;
+    };
+    let Component::Normal(macos) = parts.next()? else {
+        return None;
+    };
+    let Component::Normal(executable) = parts.next()? else {
+        return None;
+    };
+    (parts.next().is_none()
+        && Path::new(bundle)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("app"))
+        && contents == "Contents"
+        && macos == "MacOS")
+        .then_some((bundle, executable))
+}
+
+fn reviewed_bundle_program(
+    bundle: &Path,
+    platform: Platform,
+    hints: &[String],
+) -> Result<Option<PathBuf>> {
+    if !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64) {
+        return Ok(None);
+    }
+    let mut executables = hints
+        .iter()
+        .filter_map(|hint| reviewed_bundle_hint(hint))
+        .filter(|(name, _)| bundle.file_name() == Some(*name))
+        .map(|(_, program)| program);
+    let Some(program) = executables.next() else {
+        return Ok(None);
+    };
+    if executables.any(|other| other != program) {
+        return Ok(None);
+    }
+    let contents = bundle.join("Contents");
+    crate::external_runtime::open_single_link_file(&contents.join("Info.plist"))?;
+    Ok(Some(contents.join("MacOS").join(program)))
+}
+
+pub(super) fn resolve_selected_bundle(
+    selected: &Path,
+    platform: Platform,
+    hints: &[String],
+) -> Result<Option<PathBuf>> {
+    if !matches!(platform, Platform::MacosX86_64 | Platform::MacosAarch64)
+        || !selected
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("app"))
+    {
+        return Ok(None);
+    }
+    if !selected.is_absolute() {
+        return Err(PortcoveError::usage("choose an absolute application path"));
+    }
+    crate::path::refuse_symlink_ancestors(selected)?;
+    let program = reviewed_bundle_program(selected, platform, hints)?.ok_or_else(|| {
+        PortcoveError::usage("choose the game executable inside this application")
+    })?;
+    if !native_application(&program, platform)? {
+        return Err(PortcoveError::verification(
+            "the reviewed application does not contain a native executable for this host",
+        ));
+    }
+    Ok(Some(program))
+}
+
+fn inspect(
+    root: &Path,
+    platform: Platform,
+    hints: &[String],
+) -> Result<(Vec<SetupLaunchTarget>, bool, usize)> {
     let mut queue = std::collections::VecDeque::from([(root.to_path_buf(), 0_usize)]);
     let mut candidates = Vec::new();
     let mut checked = 0;
@@ -188,29 +270,40 @@ fn inspect(root: &Path, platform: Platform) -> Result<(Vec<SetupLaunchTarget>, b
                     continue;
                 }
             };
-            if metadata.is_dir() {
+            let executable = if metadata.is_dir() {
                 if path
                     .extension()
                     .is_some_and(|ext| ext.eq_ignore_ascii_case("app"))
                 {
-                    complete = false;
+                    match reviewed_bundle_program(&path, platform, hints) {
+                        Ok(Some(program)) => program,
+                        _ => {
+                            complete = false;
+                            continue;
+                        }
+                    }
+                } else {
+                    if depth < DEPTH_LIMIT {
+                        queue.push_back((path, depth + 1));
+                    } else {
+                        complete = false;
+                    }
                     continue;
                 }
-                if depth < DEPTH_LIMIT {
-                    queue.push_back((path, depth + 1));
-                } else {
-                    complete = false;
-                }
             } else if metadata.is_file() {
-                match native_application(&path, platform) {
-                    Ok(true) => {
-                        let supporting = supporting_program(&path);
-                        candidates.push(SetupLaunchTarget { working_directory: directory.clone(), executable:path, supporting_program:supporting,
+                path
+            } else {
+                continue;
+            };
+            match native_application(&executable, platform) {
+                Ok(true) => {
+                    let supporting = supporting_program(&executable);
+                    let working_directory = executable.parent().unwrap_or(&directory).to_path_buf();
+                    candidates.push(SetupLaunchTarget { working_directory, executable, supporting_program:supporting,
                             reason: if supporting { "Appears to be setup or a supporting program. Choose the installed game or upstream launcher instead." } else { "Native application for this host. Confirm that it is the game or upstream launcher." }.into() });
-                    }
-                    Ok(false) => {}
-                    Err(_) => complete = false,
                 }
+                Ok(false) => {}
+                Err(_) => complete = false,
             }
         }
     }
@@ -240,7 +333,12 @@ impl PortcoveService {
             ));
         }
         let platform = Platform::current()?;
-        let (candidates, complete, entries_checked) = inspect(&root, platform)?;
+        let definition = self.catalog.port(port_id).ok();
+        let hints = definition
+            .and_then(|port| port.executable_hints.get(&platform))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        let (candidates, complete, entries_checked) = inspect(&root, platform, hints)?;
         let plausible = candidates
             .iter()
             .filter(|candidate| !candidate.supporting_program)
@@ -259,7 +357,7 @@ impl PortcoveService {
                 .as_deref()
                 .unwrap_or(&pending.listing.name),
         );
-        let unintegrated = self.catalog.port(port_id).is_err();
+        let unintegrated = definition.is_none();
         let project = reqwest::Url::parse(&pending.listing.project_url)
             .ok()
             .and_then(|url| {
@@ -270,12 +368,7 @@ impl PortcoveService {
         let convincing = plausible
             .iter()
             .filter(|target| {
-                let reviewed_hint = self
-                    .catalog
-                    .port(port_id)
-                    .ok()
-                    .and_then(|port| port.executable_hints.get(&platform))
-                    .is_some_and(|hints| matches_executable_hint(&target.executable, hints));
+                let reviewed_hint = matches_executable_hint(&target.executable, hints);
                 let name = identity(
                     &target
                         .executable
@@ -312,8 +405,11 @@ impl PortcoveService {
 }
 
 fn matches_executable_hint(path: &Path, hints: &[String]) -> bool {
-    path.file_name()
-        .is_some_and(|name| hints.iter().any(|hint| name.eq_ignore_ascii_case(hint)))
+    hints.iter().any(|hint| {
+        path.file_name()
+            .is_some_and(|name| name.eq_ignore_ascii_case(hint))
+            || (reviewed_bundle_hint(hint).is_some() && path.ends_with(hint))
+    })
 }
 
 #[cfg(test)]
@@ -336,7 +432,7 @@ mod tests {
         pe(&nested.join("game.exe"));
         pe(&nested.join("setup.exe"));
         fs::write(nested.join("fake.exe"), b"MZ not a program").unwrap();
-        let (targets, complete, _) = inspect(temp.path(), Platform::WindowsX86_64).unwrap();
+        let (targets, complete, _) = inspect(temp.path(), Platform::WindowsX86_64, &[]).unwrap();
         assert!(complete);
         assert_eq!(targets.len(), 2);
         assert!(!targets[0].supporting_program);
@@ -352,6 +448,66 @@ mod tests {
             &["other.exe".into()]
         ));
     }
+
+    #[test]
+    fn mac_setup_only_suggests_reviewed_bundle_programs_for_the_host() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = fs::canonicalize(temp.path()).unwrap();
+        let directory = root.join("OpenLoco.app/Contents/MacOS");
+        fs::create_dir_all(&directory).unwrap();
+        fs::write(directory.parent().unwrap().join("Info.plist"), b"fixture").unwrap();
+        let program = directory.join("OpenLoco");
+        let mut macho = [0_u8; 64];
+        macho[..4].copy_from_slice(&[0xcf, 0xfa, 0xed, 0xfe]);
+        macho[4..8].copy_from_slice(&0x0100_000c_u32.to_le_bytes());
+        macho[12..16].copy_from_slice(&2_u32.to_le_bytes());
+        fs::write(&program, macho).unwrap();
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            fs::set_permissions(&program, fs::Permissions::from_mode(0o755)).unwrap();
+        }
+        let hints = ["OpenLoco.app/Contents/MacOS/OpenLoco".into()];
+        let bundle = root.join("OpenLoco.app");
+        assert_eq!(
+            resolve_selected_bundle(&bundle, Platform::MacosAarch64, &hints).unwrap(),
+            Some(program.clone())
+        );
+        assert!(resolve_selected_bundle(&bundle, Platform::MacosX86_64, &hints).is_err());
+        assert!(resolve_selected_bundle(&bundle, Platform::MacosAarch64, &[]).is_err());
+        let (targets, complete, entries) = inspect(&root, Platform::MacosAarch64, &hints).unwrap();
+        assert!(complete);
+        assert_eq!(entries, 1);
+        assert_eq!(targets.len(), 1);
+        assert_eq!(targets[0].executable, program);
+        assert_eq!(targets[0].working_directory, directory);
+        assert!(matches_executable_hint(&targets[0].executable, &hints));
+        assert!(
+            inspect(&root, Platform::MacosX86_64, &hints)
+                .unwrap()
+                .0
+                .is_empty()
+        );
+        assert!(
+            inspect(&root, Platform::MacosAarch64, &[])
+                .unwrap()
+                .0
+                .is_empty()
+        );
+        assert!(reviewed_bundle_hint("OpenLoco.app/Contents/MacOS/../OpenLoco").is_none());
+
+        #[cfg(unix)]
+        {
+            let outside = tempfile::tempdir().unwrap();
+            let other = outside.path().join("different");
+            fs::rename(&program, &other).unwrap();
+            std::os::unix::fs::symlink(&other, &program).unwrap();
+            let (targets, complete, _) = inspect(&root, Platform::MacosAarch64, &hints).unwrap();
+            assert!(targets.is_empty());
+            assert!(!complete);
+        }
+    }
+
     #[test]
     fn windows_host_suggestions_include_win32_but_exclude_dlls_and_other_processors() {
         let temp = tempfile::tempdir().unwrap();
@@ -377,11 +533,15 @@ mod tests {
         for i in 0..33 {
             pe(&temp.path().join(format!("game{i}.exe")));
         }
-        let (targets, complete, _) = inspect(temp.path(), Platform::WindowsX86_64).unwrap();
+        let (targets, complete, _) = inspect(temp.path(), Platform::WindowsX86_64, &[]).unwrap();
         assert!(!complete);
         assert_eq!(targets.len(), 32);
         let temp = tempfile::tempdir().unwrap();
         fs::create_dir_all(temp.path().join("a/b/c/d/e/f/g")).unwrap();
-        assert!(!inspect(temp.path(), Platform::WindowsX86_64).unwrap().1);
+        assert!(
+            !inspect(temp.path(), Platform::WindowsX86_64, &[])
+                .unwrap()
+                .1
+        );
     }
 }

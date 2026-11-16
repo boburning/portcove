@@ -891,6 +891,7 @@ export const desktopApi = {
     limits: SourceDiscoveryLimits,
     generation: number,
     onEvent?: (event: OperationEvent) => void,
+    finishScanId?: string,
   ) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = (event) => onEvent?.(event);
@@ -898,6 +899,7 @@ export const desktopApi = {
       limits,
       generation,
       onEvent: channel,
+      ...(finishScanId === undefined ? {} : { finishScanId }),
     });
   },
   gameFileScanSnapshot: (generation: number) =>

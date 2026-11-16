@@ -2767,6 +2767,11 @@ export interface UserPreparedRuntimeSpec {
  */
 export interface ReviewedPackageLayout {
   /**
+   * Classify Linux executable-mode files by content: only files starting
+   * with an ELF or `#!` header count, and verified ELF shared libraries do not.
+   */
+  classify_linux_programs_by_format?: boolean;
+  /**
    * Lowercase top-level directory names of the package root, sorted.
    */
   directories: string[];
@@ -6323,9 +6328,17 @@ export interface OutputStoreGameInstalls {
  */
 export interface StoreGameInstall {
   /**
+   * Reviewed search hint. The source profile still verifies the actual files.
+   */
+  original_folder?: StoreOriginalFolder | null;
+  /**
    * Canonical existing folder.
    */
   path: string;
+  /**
+   * Stable store product identity when the installation metadata supplies one.
+   */
+  product_id?: string | null;
   /**
    * The saved game-file folder at exactly this path, when there is one.
    */
@@ -6335,6 +6348,11 @@ export interface StoreGameInstall {
    * The store's title for the game; a label, never an identity.
    */
   title: string;
+  [k: string]: unknown;
+}
+export interface StoreOriginalFolder {
+  path: string;
+  profile_id: string;
   [k: string]: unknown;
 }
 export interface OutputUpdateBatchOutcome {

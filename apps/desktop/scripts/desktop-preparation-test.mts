@@ -31,6 +31,8 @@ export interface PreparationContext {
   artifacts: string[];
   cli: string;
   tool: string;
+  /** Owned install-fixture catalog when the update review serves its own release. */
+  catalogPath?: string;
   confirmNative: ReturnType<typeof nativeConfirmation>;
   restartApplication: (
     name: string,
@@ -1120,6 +1122,7 @@ export async function preparationScenarios({
   artifacts,
   cli,
   tool,
+  catalogPath,
   confirmNative,
   restartApplication,
   interruptApplication,
@@ -1138,7 +1141,12 @@ export async function preparationScenarios({
     assert.equal(response.ok, true);
     return transportValue(contract, response.value);
   };
-  const command = ownedFixtureCommand({ cli, library, output });
+  const command = ownedFixtureCommand({
+    cli,
+    library,
+    output,
+    ...(catalogPath === undefined ? {} : { catalogPath }),
+  });
   const host: Platform =
     process.platform === "win32"
       ? "windows-x86-64"
@@ -3096,9 +3104,13 @@ export async function preparationScenarios({
         15_000,
         "Damaged installation verification did not expose its actual failure",
       );
+      // Calibrated from 5 s (#4879): branch run 43783868461 still showed "Check
+      // installed files" disabled after 5 s while the failed verification's
+      // debug-build workspace refresh settled. The action must still re-enable.
       await browser.wait(
         async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
-        5_000,
+        60_000,
+        "Damaged installation verification did not re-enable its action",
       );
       assert.deepEqual(required((await status(port.id)).readiness).blockers, [
         "invalid_installation",

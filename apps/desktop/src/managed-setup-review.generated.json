@@ -1,0 +1,19 @@
+{
+  "snap64-recomp": {
+    "note": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
+    "warnings": [],
+    "platform_warnings": {
+      "linux-x86-64": [
+        "The managed Linux package needs glibc 2.38 or newer, SDL2, GTK 3 and a Vulkan 1.2 driver."
+      ],
+      "macos-x86-64": [
+        "The unsigned Mac app needs macOS 14 or newer. If macOS refuses its first launch, follow the upstream instructions in START HERE.txt.",
+        "Upstream reports testing on GitHub-hosted Macs only. Portcove has no native Mac execution result for this app."
+      ],
+      "macos-aarch64": [
+        "The unsigned Mac app needs macOS 14 or newer. If macOS refuses its first launch, follow the upstream instructions in START HERE.txt.",
+        "Upstream reports testing on GitHub-hosted Macs only. Portcove has no native Mac execution result for this app."
+      ]
+    }
+  }
+}

@@ -93,7 +93,16 @@
           "verification": "catalog-rules"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install with Portcove",
+            "instruction": "Use a compatible Ocarina of Time game file you own. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete."
+          }
+        ],
+        "warnings": []
+      }
     },
     "game_settings": {
       "format_version": 1,

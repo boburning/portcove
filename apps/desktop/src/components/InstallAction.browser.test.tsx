@@ -9,6 +9,7 @@ import type { ActivityRecord, InstallPlan } from "../types";
 import { StatusLayer } from "./Chrome";
 import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
+import snap64 from "../../../../crates/portcove-core/catalog/ports/snap64-recomp.json";
 import { portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
 import "../styles/index.css";
@@ -292,6 +293,94 @@ it("shows managed Diablo preparation in the Windows review without the upstream 
   expect(dialog.element().textContent).not.toContain("Choose the official Mac ZIP");
   expect(dialog.element().textContent).not.toContain("Portcove has not verified Mac setup");
 });
+
+it.each([
+  ["zelda64-recomp", "North American Majora’s Mask", "Zelda64Recompiled.tar.gz"],
+  ["shipwright", "Ocarina of Time", "disk image"],
+  ["2ship2harkinian", "Majora’s Mask", "disk image"],
+  ["banjo-recomp", "Banjo-Kazooie US 1.0", "BanjoRecompiled from the extracted folder"],
+  ["harvest-moon-64-recomp", "Harvest Moon 64 US", "HarvestMoon64Recompiled.tar.gz"],
+  ["donkey-kong-64-recompiled", "Donkey Kong 64 US 1.0", "DK64Recompiled.tar.gz"],
+  ["aerogauge-recompiled", "AeroGauge US", "aerogauge-recomp-linux-arm64.zip"],
+  ["snowboard-kids-2-recomp", "Snowboard Kids 2 US", "SnowboardKids2Recompiled.tar.gz"],
+  [
+    "diddy-kong-racing-golden-balloon",
+    "Diddy Kong Racing US 1.1 or European 1.1",
+    "mark it executable and open it",
+  ],
+  ["duke-nukem-zero-hour-recompiled", "Duke Nukem: Zero Hour USA", "DNZHRecompiled.tar.gz"],
+])("shows the managed guide for %s in the Windows review", async (id, original, upstreamStep) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original.z64"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(original);
+  expect(setup.element().textContent).toContain("Select Play when setup is complete");
+  expect(dialog.element().textContent).not.toContain(upstreamStep);
+  const platformNotes: Record<string, string[]> = {
+    "donkey-kong-64-recompiled": ["still unverified on Apple Silicon Mac"],
+    "duke-nukem-zero-hour-recompiled": [
+      "still unverified on Linux x64 and Mac",
+      "Gatekeeper behavior is also unverified on Mac",
+    ],
+  };
+  for (const note of platformNotes[id] ?? []) {
+    expect(dialog.element().textContent).toContain(note);
+  }
+});
+
+it.each([
+  ["windows-x86-64", false, false],
+  ["linux-x86-64", true, false],
+  ["macos-x86-64", false, true],
+  ["macos-aarch64", false, true],
+] as const)(
+  "shows only the managed Snap64 package warnings for %s",
+  async (platform, linuxWarning, macWarning) => {
+    const current = currentCatalogPort("snap64-recomp");
+    // Older definitions inherited the upstream guide. Keep coverage for that
+    // input while a current definition supplies the guide on other platforms.
+    const port =
+      platform === "windows-x86-64" && current.presentation
+        ? {
+            ...current,
+            presentation: { ...current.presentation, manual_setup: snap64.listing.manual_setup },
+          }
+        : current;
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    const setup = dialog.getByRole("region", { name: "Game setup" });
+    await expect.element(setup).toBeVisible();
+    expect(setup.element().textContent).toContain("unmodified USA Pokémon Snap cartridge dump");
+    const copy = dialog.element().textContent ?? "";
+    expect(copy.includes("glibc 2.38")).toBe(linuxWarning);
+    expect(copy.includes("START HERE.txt")).toBe(macWarning);
+    expect(copy.includes("no native Mac execution result")).toBe(macWarning);
+    expect(copy).not.toContain("Flatpak");
+    expect(copy).not.toContain("ARM64 tarball");
+  },
+);
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");

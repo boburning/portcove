@@ -8,8 +8,6 @@ import { useSetupSource } from "../features/app-shell/use-setup-source";
 import {
   useGameFileScanObserver,
   gameFileScanLimits as scanLimits,
-  maxAvailableRootsPerScan,
-  availableRootCount,
   type GameFileScan,
 } from "../features/game-file-discovery/use-game-file-scan";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
@@ -991,7 +989,7 @@ export function GameFileLibraries({
   const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
   const [busy, setBusy] = useState("");
   const scanState = useGameFileScanObserver(generation);
-  const { scanning, operationId, candidates: liveCandidates } = scanState;
+  const { scanning, operationId, completedBatches, candidates: liveCandidates } = scanState;
   const [error, setError] = useState<string>();
   const view = useSavedFolderView(generation, setError);
   const { roots, snapshot, readConfirmed, refresh, refreshRoots, acceptRootPreflight } = view;
@@ -1095,12 +1093,6 @@ export function GameFileLibraries({
       const currentRoots = await refreshRoots();
       if (!accepts()) return;
       acceptRootPreflight(currentRoots);
-      if (availableRootCount(currentRoots) >= maxAvailableRootsPerScan) {
-        setNotice(
-          "A scan supports at most eight available folders. Remove an available folder before adding another.",
-        );
-        return;
-      }
       await desktopApi.addGameFileRoot(path, generation);
       if (!accepts()) return;
       outcome.saved = true;
@@ -1235,18 +1227,17 @@ export function GameFileLibraries({
         data-settings-control="add-game-file-root"
         variant="outline"
         size="sm"
-        disabled={
-          Boolean(busy) ||
-          scanning ||
-          roots === undefined ||
-          availableRootCount(roots) >= maxAvailableRootsPerScan
-        }
+        disabled={Boolean(busy) || scanning || roots === undefined}
         onClick={() => void add()}
       >
         {scanAfterAdd ? "Choose folder to scan" : "Add folder"}
       </Button>
     </div>
   );
+  const finishScanId =
+    savedScanAction(snapshot, readConfirmed) === "Continue scan"
+      ? snapshot?.matches?.scan_id
+      : undefined;
   const renderScanActions = () => (
     <div className="actions flex flex-wrap gap-2">
       <Button
@@ -1264,16 +1255,21 @@ export function GameFileLibraries({
       <Button
         data-focusable
         variant="outline"
-        disabled={
-          Boolean(busy) ||
-          scanning ||
-          !roots?.length ||
-          availableRootCount(roots) > maxAvailableRootsPerScan
-        }
+        disabled={Boolean(busy) || scanning || !roots?.length}
         onClick={() => void scan()}
       >
         {savedScanAction(snapshot, readConfirmed)}
       </Button>
+      {finishScanId && (
+        <Button
+          data-focusable
+          variant="outline"
+          disabled={Boolean(busy) || scanning}
+          onClick={() => void scanState.start(refreshRoots, finishScanId)}
+        >
+          Finish scanning these folders
+        </Button>
+      )}
     </div>
   );
   const renderLiveResults = () =>
@@ -1382,12 +1378,6 @@ export function GameFileLibraries({
         Choose folders on this PC, a mounted network share, or a removable drive. Portcove searches
         only saved folders. Searching does not change the game files or save their locations.
       </p>
-      {roots && availableRootCount(roots) >= maxAvailableRootsPerScan && (
-        <p>
-          A scan supports at most eight available folders. Remove an available folder before adding
-          another.
-        </p>
-      )}
       <SavedRootRows
         roots={roots}
         busy={Boolean(busy)}
@@ -1411,7 +1401,13 @@ export function GameFileLibraries({
       />
       {renderScanActions()}
       {busy && <p role="status">{busy}</p>}
-      {scanning && <p role="status">Scanning selected folders…</p>}
+      {scanning && (
+        <p role="status">
+          Scanning selected folders…
+          {completedBatches &&
+            ` ${completedBatches} ${completedBatches === 1 ? "batch" : "batches"} saved.`}
+        </p>
+      )}
       {operationId && <OperationCancellation operationId={operationId} label="Cancel scan" />}
       {renderLiveResults()}
       {scanState.error && <p role="alert">{scanState.error}</p>}

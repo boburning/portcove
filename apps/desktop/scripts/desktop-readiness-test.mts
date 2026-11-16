@@ -252,10 +252,18 @@ async function observeHeldLaunch({
   } finally {
     held.launch_probe = await restoreActionHold(browser, "allowed");
   }
-  await browser.wait(async () => {
-    const play = await primaryActionState(browser);
-    return play?.text === "Try launch" && play.enabled;
-  }, 10_000);
+  // Calibrated from 10 s (#4879): restoring the hold emits a library change whose
+  // debug-build workspace refresh takes 5-15 s; branch run 43783868461 (and run
+  // 43743277016) still showed the held launch after 10 s. "Try launch" and an
+  // enabled action are still required.
+  await browser.wait(
+    async () => {
+      const play = await primaryActionState(browser);
+      return play?.text === "Try launch" && play.enabled;
+    },
+    60_000,
+    "Restored launch hold did not return to Try launch",
+  );
 }
 
 /**

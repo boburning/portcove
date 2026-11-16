@@ -235,6 +235,11 @@
         "directories": [],
         "executables": ["reflectionhle.exe"]
       },
+      "linux-x86-64": {
+        "classify_linux_programs_by_format": true,
+        "directories": [],
+        "executables": ["reflectionhle"]
+      },
       "macos-x86-64": {
         "directories": ["reflectionhle.app"],
         "executables": ["reflectionhle.app/contents/macos/reflectionhle"]

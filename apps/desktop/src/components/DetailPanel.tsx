@@ -115,6 +115,7 @@ import { RuntimePrerequisiteNotice } from "./RuntimePrerequisiteNotice";
 import { ReportProblem } from "./ReportProblem";
 import { DetailQualificationSummary } from "./DetailQualificationSummary";
 import { installPlanActionLabel } from "../install-plan-presentation";
+import managedSetupReview from "../managed-setup-review.generated.json";
 import {
   hasPendingSetupAction,
   portActionPresentation,
@@ -179,6 +180,7 @@ interface DetailPanelProps {
   sourcePath: string;
   setSourcePath: (path: string) => void;
   pickSource?: AsyncAction | undefined;
+  chooseSetupSource?: AsyncAction | undefined;
   pickSourceArchive?: (() => void) | undefined;
   bios?: SourceRecord | undefined;
   biosInspection?: SourceInspectionReport | undefined;
@@ -223,6 +225,7 @@ export function DetailPanel(props: DetailPanelProps) {
     sourcePath,
     setSourcePath,
     pickSource,
+    chooseSetupSource,
     pickSourceArchive,
     bios,
     biosInspection,
@@ -286,6 +289,7 @@ export function DetailPanel(props: DetailPanelProps) {
     sourcePath,
     setSourcePath,
     pickSource,
+    chooseSetupSource,
     pickSourceArchive,
     bios,
     biosInspection,
@@ -1746,6 +1750,7 @@ type SourceControls = Pick<
   | "sourcePath"
   | "setSourcePath"
   | "pickSource"
+  | "chooseSetupSource"
   | "pickSourceArchive"
   | "bios"
   | "biosInspection"
@@ -3557,22 +3562,40 @@ function UninstalledPrimaryActions(
     | "openLibraryStorage"
   >,
 ) {
+  const port = model.sources.port;
+  const presentation = port.presentation;
+  const authoredReviews: Readonly<
+    Record<
+      string,
+      {
+        note: string;
+        warnings: readonly string[];
+        platform_warnings: Partial<Record<InstallPlan["platform"], readonly string[]>>;
+      }
+    >
+  > = managedSetupReview;
+  const review = model.plan?.port_id === port.id ? authoredReviews[port.id] : undefined;
+  const platformWarnings = model.plan ? review?.platform_warnings[model.plan.platform] : undefined;
   return (
     <InstallAction
       gameName={gameIdentityLabel(model.sources.port)}
       setupNote={
-        model.sources.port.presentation?.manual_setup?.steps[0]?.instruction ??
+        review?.note ??
+        presentation?.manual_setup?.steps[0]?.instruction ??
         (!model.sources.port.source_profile && !model.sources.port.bios_source_profile
-          ? (model.sources.port.presentation?.manual_preparation ?? undefined)
+          ? (presentation?.manual_preparation ?? undefined)
           : undefined)
       }
-      setupWarnings={model.sources.port.presentation?.manual_setup?.warnings}
+      setupWarnings={[
+        ...(review?.warnings ?? presentation?.manual_setup?.warnings ?? []),
+        ...(platformWarnings ?? []),
+      ]}
       externalData={model.sources.port.presentation?.saves_and_settings === "external-user-owned"}
       cancellations={model.installCancellations}
       ready={model.launchReady}
       sourceReady={model.sourceReady}
       biosReady={model.biosReady}
-      pickSource={model.sources.pickSource}
+      pickSource={model.sources.chooseSetupSource ?? model.sources.pickSource}
       pickBios={model.sources.pickBios}
       sourceInputId={
         model.sources.port.source_profile

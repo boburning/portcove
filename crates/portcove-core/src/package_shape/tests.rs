@@ -307,6 +307,7 @@ fn a_baseline_part_it_does_not_know_is_unknown_not_a_pass() {
         PLATFORM,
         crate::ReviewedPackageLayout {
             ignore_verified_macos_libraries: false,
+            classify_linux_programs_by_format: false,
             directories: ["data", "lib", "mods", "saves"].map(String::from).to_vec(),
             executables: vec!["game.exe".into()],
         },

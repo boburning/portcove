@@ -331,10 +331,17 @@ its asset hints and reviewed layout, which do not check the switch, so re-check
 it whenever a new release is reviewed. If a release dropped the switch, Core's
 immutable verification would hold the changed installation. The rule covers
 upstream's own update paths, not mods the player installs, and starting the
-managed program directly outside Portcove runs without the switch.
+managed program directly outside Portcove runs without the switch. That includes
+a launch the operating system starts for the player, such as an invite link the
+game registered; the guide tells players to close such a session before updating.
+A check that only reports a newer release or opens its page, and never downloads,
+stages or installs anything, is not an update path under this rule.
 MediEvilRecomp's `--disable-updated`, which upstream provides for an external
 manager, is the first such route
 ([MediEvilRecomp qualification](qualification/medievilrecomp-updater-switch-2026-11-15.md)).
+OpenCE's `HALO_UPDATE_AUTO=false` and `HALO_SERVER_AUTO_UPDATE=off` environment
+values close its game and dedicated-server updaters
+([OpenCE qualification](qualification/opence-updater-switch-2026-11-16.md)).
 
 The supported tracked handoff is a reviewed Windows opt-in. A definition that
 declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
@@ -380,6 +387,12 @@ After Burner Climax (darkuni Recomp) opts in on Windows. For the World release,
 `after_burner_climax.exe` starts its sibling `after_burner_climax_world.exe` with
 `CreateProcessW` and exits.
 [After Burner Climax qualification](qualification/afterburner-climax-tracked-handoff-2026-11-16.md).
+
+Shantae Recomp (vibecodekun) opts in on Windows. Return to Launcher starts the
+same executable again with `CreateProcessW` from an exit hook, and its shader
+preset check runs a hidden helper copy of the same program that the game stops
+before it exits.
+[Shantae qualification](qualification/shantae-recomp-tracked-handoff-2026-11-16.md).
 
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
@@ -2145,10 +2158,27 @@ with execute permission. Existing fingerprints continue to use their declared
 rules. The matching authoring observation is `catalog inspect-package-layout
 --ignore-verified-macos-libraries`.
 
+Linux x86-64 layouts may opt into `classify_linux_programs_by_format` when an
+upstream archive marks data, documentation or versioned shared libraries
+executable. An executable-mode file then counts only when it starts with an ELF
+or `#!` header, and a `.so` or `.so.N` file is excluded only when bounded header
+inspection finds an x86-64 ELF shared object with a dynamic segment and no
+program interpreter. A position-independent program, an ELF program named like
+a library and any program or script name above still count. Windows libraries
+remain outside the fingerprint, as on Windows. Two residuals follow from the
+rule. An executable-mode text file without `#!` is excluded, although a
+reviewed `.sh` launcher could still run it through the shell. A static
+position-independent ELF program named `*.so` has no interpreter and is
+excluded like a library. The gate has never fingerprinted file contents or
+libraries, so these residuals do not weaken an earlier guarantee. The matching
+authoring observation is `catalog inspect-package-layout
+--classify-linux-programs-by-format`.
+
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
 would ignore the field cannot accept them. The macOS library filter requires
-version 30. A selected independent definition
+version 30 and the Linux program format classifier version 36. A selected
+independent definition
 may replace a fingerprint after review but cannot remove one. The fingerprint
 applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
@@ -2791,6 +2821,15 @@ Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
 the listing guide. The discovery directory keeps the upstream guide.
+
+For a warning specific to one managed package, author
+`managed_setup_platform_warnings` in the port record by exact managed platform.
+Catalog generation emits this copy for Desktop separately from signed and retained
+definitions. The managed install review combines the authored managed guide with
+warnings for the platform in its install plan, including when a port definition
+still carries an older guide. The route-wide guide also serves readers without
+this Desktop copy.
+Keep upstream package warnings in the listing.
 
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's

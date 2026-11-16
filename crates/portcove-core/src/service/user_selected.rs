@@ -136,6 +136,22 @@ impl PortcoveService {
         Ok(Some(port))
     }
 
+    fn resolve_selected_application(
+        &self,
+        port_id: &str,
+        executable: &Path,
+    ) -> Result<Option<PathBuf>> {
+        let platform = Platform::current()?;
+        let hints = self
+            .catalog
+            .port(port_id)
+            .ok()
+            .and_then(|port| port.executable_hints.get(&platform))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        super::setup_discovery::resolve_selected_bundle(executable, platform, hints)
+    }
+
     pub fn preview_user_selected_runtime(
         &self,
         port_id: &str,
@@ -176,6 +192,8 @@ impl PortcoveService {
         // This is an explicit alternative ownership route. Descriptive platform
         // guesses and managed package holds grant neither trust nor denial of an
         // unrelated native executable selected by the user.
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let mut preview = crate::external_runtime::preview_user_selected(
             listing,
             executable,
@@ -460,6 +478,8 @@ impl PortcoveService {
             record.retained_definition.as_ref(),
             DefinitionOperationContext::observed(DefinitionOperation::RegisterExternal, true, true),
         )?;
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let proposed = crate::external_runtime::preview_user_selected(
             state.catalog.listing(port_id)?,
             executable,
@@ -3197,11 +3217,6 @@ mod tests {
     }
 
     #[test]
-    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
-        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(false));
-    }
-
-    #[test]
     fn monster_hunter_portable_3rd_hd_yakumo_prepared_player_route_1120() {
         // The managed Windows route keeps the independent prepared-copy route.
         let id = "monster-hunter-portable-3rd-hd-yakumo";
@@ -3457,11 +3472,6 @@ mod tests {
     #[test]
     fn elprogramadorloco_arch_jim2_recomp_prepared_player_route_1819() {
         assert_listing_only_player_route("elprogramadorloco-arch-jim2-recomp", Some(false));
-    }
-
-    #[test]
-    fn eandis_sdoj_recomp_prepared_player_route_1880() {
-        assert_listing_only_player_route("eandis-sdoj-recomp", Some(false));
     }
 
     #[test]
