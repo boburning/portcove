@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "petarov-alleycat-exe",
+    "artwork": {
+      "game_id": 23860,
+      "cover_id": 365732,
+      "image_id": "co7u78",
+      "image_sha256": "6f4f9f2d2032a22dd3a16faa261baec8ac4dfe0c217e9a011bbfc3210a613ee4",
+      "game_slug": "alley-cat",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/petarov/alleycat.exe",
     "name": "Alley Cat (Alley Cat x86-64 recomp)",
     "summary": "Alley Cat native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",

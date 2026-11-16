@@ -6929,6 +6929,79 @@ fn more_matches_than_continuation_records_never_reach_checkpoint_storage() {
 }
 
 #[test]
+fn setup_review_reads_registered_matches_beyond_the_preview_for_the_expected_scan() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("originals");
+    fs::create_dir(&root).unwrap();
+    let payload = b"supported setup source";
+    for index in 0..257 {
+        fs::write(root.join(format!("game-{index:03}.z64")), payload).unwrap();
+    }
+    let catalog = catalog(payload);
+    let library = crate::Library::open(temporary.path().join("library")).unwrap();
+    let saved_root = library.add_game_file_root(&root).unwrap();
+    let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
+    let summary = snapshot.matches.as_ref().unwrap();
+    assert!(!summary.preview_complete);
+    let mut service = PortcoveService::new(library).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let page = service
+        .game_file_scan_matches(&crate::GameFileScanMatchQuery {
+            scan_id: Some(summary.scan_id.clone()),
+            kind: crate::GameFileScanMatchKind::Exact,
+            offset: snapshot.report.candidates.len() as u32,
+            limit: 1,
+            root_id: None,
+            profile_id: None,
+        })
+        .unwrap();
+    let candidate = &page.candidates[0];
+    service
+        .register_source(&candidate.profile_id, &candidate.path)
+        .unwrap();
+    let matches = service.game_file_scan_registered_matches(summary).unwrap();
+    assert_eq!(matches.candidates.len(), 1);
+    assert_eq!(matches.candidates[0].path, candidate.path);
+    assert_eq!(matches.candidates[0].sha256, candidate.sha256);
+    assert!(matches.preliminary_selections.is_empty());
+
+    let mut changed = candidate.clone();
+    changed.sha256 = "0".repeat(64);
+    changed.storage_sha256 = changed.sha256.clone();
+    changed.observed_identity = None;
+    service.library().register_source(&changed).unwrap();
+    assert!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap()
+            .candidates
+            .is_empty()
+    );
+    let changed_summary = crate::GameFileScanMatchSummary {
+        exact_matches: summary.exact_matches - 1,
+        ..summary.clone()
+    };
+    assert_eq!(
+        service
+            .game_file_scan_registered_matches(&changed_summary)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+    service
+        .library()
+        .remove_game_file_root(&saved_root.id)
+        .unwrap();
+    assert_eq!(
+        service
+            .game_file_scan_registered_matches(summary)
+            .unwrap_err()
+            .code,
+        ErrorCode::Conflict
+    );
+}
+
+#[test]
 fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
     let temporary = tempfile::tempdir().unwrap();
     let first = temporary.path().join("first");

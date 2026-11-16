@@ -1470,6 +1470,20 @@ async fn get_game_file_scan_matches(
     .await
 }
 
+#[tauri::command]
+async fn get_game_file_scan_registered_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    expected: portcove_core::GameFileScanMatchSummary,
+) -> DesktopResult<portcove_core::GameFileScanRegisteredMatches> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_scan_registered_matches(&expected)
+            .map_err(Into::into)
+    })
+    .await
+}
+
 /// The game-file profiles the current scan matched inside one saved folder,
 /// so its setup choices cover every match. Reads only.
 #[tauri::command]
@@ -3176,6 +3190,7 @@ pub fn run() -> std::process::ExitCode {
             scan_game_file_roots,
             get_game_file_scan_snapshot,
             get_game_file_scan_matches,
+            get_game_file_scan_registered_matches,
             get_game_file_root_match_profiles,
             get_store_game_installs,
             refresh_game_file_query,

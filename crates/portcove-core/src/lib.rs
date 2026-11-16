@@ -263,7 +263,7 @@ pub use game_file_query::{
 pub use game_file_root::{
     GameFileRoot, GameFileRootAvailability, GameFileScanCoverage, GameFileScanFreshness,
     GameFileScanMatchKind, GameFileScanMatchPage, GameFileScanMatchQuery, GameFileScanMatchSummary,
-    GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
+    GameFileScanRegisteredMatches, GameFileScanSnapshot, MAX_GAME_FILE_SCAN_MATCH_PAGE,
 };
 pub use game_recommendations::{
     ComparisonEdition, ComparisonFreshness, ComparisonPort, ComparisonRelease,

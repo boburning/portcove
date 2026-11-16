@@ -408,6 +408,9 @@ impl PortcoveService {
                 ));
             }
         }
+        // The derivative keeps the legacy artifact and its original acquisition
+        // time. Check that retained acquisition before any data publication.
+        self.require_activation_uploader_continuity(&plan.legacy_install, None)?;
         require_tree(&plan.active_install.path, &plan.active_install_tree)?;
         require_tree(&plan.legacy_install.path, &plan.legacy_install_tree)?;
         let status = self.library.status("ghostship", plan.channel)?;

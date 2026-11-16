@@ -129,6 +129,7 @@ pub(crate) enum CatalogCommand {
         classify_linux_programs_by_format: bool,
     },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
+    #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
         /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
         archive: PathBuf,

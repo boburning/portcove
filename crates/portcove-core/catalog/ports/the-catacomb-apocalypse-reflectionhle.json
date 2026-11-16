@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "the-catacomb-apocalypse-reflectionhle",
+    "artwork": {
+      "game_id": 11046,
+      "cover_id": 161954,
+      "image_id": "co3gyq",
+      "image_sha256": "456243b4b772d56d1c293c82208121190f591a6b23c214e20c8bd05feec8e895",
+      "game_slug": "terror-of-the-catacombs",
+      "match_kind": "underlying-game"
+    },
     "name": "The Catacomb Apocalypse (ReflectionHLE)",
     "summary": "Play The Catacomb Apocalypse through ReflectionHLE with the matching original DOS game files.",
     "original_game_title": "The Catacomb Apocalypse",

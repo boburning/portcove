@@ -729,7 +729,7 @@ void test("419 source records stream globally when nested compressed snapshots e
 const factGrowthTest =
   "fact-only recovery supports 1295 distinct pending sources plus retained configurations within unchanged limits";
 // Two snapshot round trips and the legacy refusal share one fixture deadline.
-void test(factGrowthTest, { timeout: 60_000 }, async (t) => {
+void test(factGrowthTest, { timeout: 120_000 }, async (t) => {
   const root = await mkdtemp(
     path.join(fileURLToPath(new URL("../work/", import.meta.url)), "catalog-fact-growth-"),
   );

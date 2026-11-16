@@ -115,6 +115,13 @@ pub struct GameFileScanMatchPage {
 
 pub const MAX_GAME_FILE_SCAN_MATCH_PAGE: u32 = 512;
 
+/// Retained matches for the current registration of each source profile.
+#[derive(Debug, Default, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GameFileScanRegisteredMatches {
+    pub candidates: Vec<crate::SourceRecord>,
+    pub preliminary_selections: Vec<crate::SourceInspection>,
+}
+
 /// One retained match row written with its scan snapshot.
 #[derive(Debug, Clone)]
 pub(crate) struct GameFileScanMatchRow {
@@ -241,6 +248,10 @@ impl Library {
 
     pub fn game_file_roots(&self) -> Result<Vec<GameFileRoot>> {
         let connection = self.connection()?;
+        Self::game_file_roots_from(&connection)
+    }
+
+    fn game_file_roots_from(connection: &rusqlite::Connection) -> Result<Vec<GameFileRoot>> {
         let mut statement = connection.prepare(
             "SELECT id,path,created_at,updated_at FROM game_file_roots ORDER BY created_at,id",
         )?;
@@ -421,15 +432,7 @@ impl Library {
                 |row| row.get::<_, String>(0),
             )
             .optional()?;
-        let current_roots = {
-            let mut statement = transaction.prepare(
-                "SELECT id,path,created_at,updated_at FROM game_file_roots ORDER BY created_at,id",
-            )?;
-            statement
-                .query_map([], StoredGameFileRoot::from_row)?
-                .map(|row| row?.into_record())
-                .collect::<Result<Vec<_>>>()?
-        };
+        let current_roots = Self::game_file_roots_from(&transaction)?;
         if current_payload.as_deref() != expected_payload || current_roots != expected_roots {
             return Err(PortcoveError::conflict(
                 "saved folders or scan checkpoint changed during the game-file scan; retry the scan",
@@ -623,6 +626,89 @@ impl Library {
         let next = query.offset as usize + returned;
         page.next_offset = (returned > 0 && next < page.total as usize).then_some(next as u32);
         Ok(page)
+    }
+
+    /// Read only rows whose profile and path have a current registration.
+    /// The scan summary and registrations come from the same transaction.
+    pub(crate) fn game_file_scan_registered_matches(
+        &self,
+        expected: &GameFileScanMatchSummary,
+        catalog_sha256: &str,
+    ) -> Result<GameFileScanRegisteredMatches> {
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction()?;
+        let payload = transaction
+            .query_row(
+                "SELECT snapshot_json FROM game_file_scan_state WHERE singleton=1",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?;
+        if payload
+            .as_ref()
+            .is_some_and(|value| value.len() > MAX_SCAN_SNAPSHOT_BYTES)
+        {
+            return Err(PortcoveError::state(
+                "stored game-file scan snapshot exceeds its storage limit",
+            ));
+        }
+        let snapshot = payload
+            .as_deref()
+            .map(crate::source_discovery::decode_game_file_scan)
+            .transpose()?;
+        let roots = Self::game_file_roots_from(&transaction)?;
+        if !snapshot.as_ref().is_some_and(|snapshot| {
+            crate::source_discovery::scan_match_summary(snapshot) == Some(expected)
+                && crate::source_discovery::scan_snapshot_inputs_match(
+                    snapshot,
+                    catalog_sha256,
+                    &roots,
+                )
+        }) {
+            return Err(PortcoveError::conflict(
+                "the saved scan changed; reload its matches",
+            ));
+        }
+
+        let mut result = GameFileScanRegisteredMatches::default();
+        {
+            let mut statement = transaction.prepare(
+                "SELECT matches.kind, matches.record_json, sources.sha256
+                 FROM game_file_scan_matches AS matches
+                 JOIN sources ON sources.profile_id=matches.profile_id AND sources.path=matches.path
+                 WHERE matches.scan_id=?1
+                 ORDER BY matches.kind, matches.ordinal",
+            )?;
+            let mut rows = statement.query([&expected.scan_id])?;
+            while let Some(row) = rows.next()? {
+                let kind: u8 = row.get(0)?;
+                let record: String = row.get(1)?;
+                let registered_sha256: String = row.get(2)?;
+                let invalid = |error: serde_json::Error| {
+                    PortcoveError::state("stored scan match is invalid")
+                        .detail("cause", error.to_string())
+                };
+                if kind == GameFileScanMatchKind::Exact.row_kind() {
+                    let candidate: crate::SourceRecord =
+                        serde_json::from_str(&record).map_err(invalid)?;
+                    if candidate.sha256 == registered_sha256 {
+                        result.candidates.push(candidate);
+                    }
+                } else {
+                    let inspection: crate::SourceInspection =
+                        serde_json::from_str(&record).map_err(invalid)?;
+                    if inspection
+                        .record
+                        .as_ref()
+                        .is_some_and(|source| source.sha256 == registered_sha256)
+                    {
+                        result.preliminary_selections.push(inspection);
+                    }
+                }
+            }
+        }
+        transaction.commit()?;
+        Ok(result)
     }
 
     /// The source profiles of the current scan's exact matches inside one

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-mylifedarklord-recomp",
+    "artwork": {
+      "game_id": 41856,
+      "cover_id": 198218,
+      "image_id": "co48y2",
+      "image_sha256": "b672dc27272bfa474e920c658ae44da34c836d707a85cfcdbd5e549a78e3cbed",
+      "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Crystal Chronicles: My Life as a Darklord (darkuni Recomp)",
     "summary": "Play My Life as a Darklord with darkuni's Windows recompilation and your own WiiWare WAD.",
     "project_url": "https://github.com/darkuni/mylifedarklord-recomp",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-chocobo-dungeon-recomp",
+    "artwork": {
+      "game_id": 18069,
+      "cover_id": 315284,
+      "image_id": "co6r9w",
+      "image_sha256": "b53f4826c68fcd2d8d13672a78b07a03c1bb0390b61a166bf396327d8b0a88f9",
+      "game_slug": "final-fantasy-fables-chocobos-dungeon",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
     "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",

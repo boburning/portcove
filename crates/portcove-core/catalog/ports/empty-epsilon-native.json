@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "empty-epsilon-native",
+    "artwork": {
+      "game_id": 97604,
+      "cover_id": 72092,
+      "image_id": "co1jmk",
+      "image_sha256": "00dbfcb32b16ceda084fbb7e770984d897dba3294e520a6f0fd6183927b37d7a",
+      "game_slug": "emptyepsilon",
+      "match_kind": "underlying-game"
+    },
     "name": "EmptyEpsilon",
     "summary": "Run a spaceship bridge with friends, with separate crew roles, scenarios, and a Game Master mode.",
     "project_url": "https://github.com/daid/EmptyEpsilon",

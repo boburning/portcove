@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "marathon-2-durandal-aleph-one",
+    "artwork": {
+      "game_id": 8710,
+      "cover_id": 272195,
+      "image_id": "co5u0z",
+      "image_sha256": "ba04dcb1e56f2e3ea28b0546ba7a19421b0e8b3154227c033237c512aaf5a34a",
+      "game_slug": "marathon-2-durandal",
+      "match_kind": "underlying-game"
+    },
     "name": "Marathon 2: Durandal (Aleph One)",
     "summary": "Marathon 2: Durandal uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
     "original_game_title": "Marathon 2: Durandal",

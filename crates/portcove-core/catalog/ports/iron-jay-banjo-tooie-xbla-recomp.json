@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "iron-jay-banjo-tooie-xbla-recomp",
+    "artwork": {
+      "game_id": 201645,
+      "cover_id": 294815,
+      "image_id": "co6bhb",
+      "image_sha256": "58106f8aa52becd3cb47516bed37e056e96ad69a8ae8fd614a99d531d217cfca",
+      "game_slug": "banjo-tooie--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Banjo-Tooie — XBLA (Banjo Tooie XBLA Recomp)",
     "summary": "Documented Windows native source-build route using your own Banjo-Tooie XBLA files. Add only a completed authorized banjotooie.exe build; the packaged outer launcher has a separate process-lifetime hold.",
     "original_game_title": "Banjo-Tooie",

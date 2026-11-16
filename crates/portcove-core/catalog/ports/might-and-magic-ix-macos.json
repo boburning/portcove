@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "might-and-magic-ix-macos",
+    "artwork": {
+      "game_id": 7741,
+      "cover_id": 95063,
+      "image_id": "co21cn",
+      "image_sha256": "153c0c5aace95230420b910f2c4cd378070b77a36c03f46aa81e787084d8b77e",
+      "game_slug": "might-and-magic-ix",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/opimuusikat/Might-and-Magic-IX-MacOS",
     "name": "Might and Magic IX / MM9 Native macOS",
     "original_game_title": "Might and Magic IX",

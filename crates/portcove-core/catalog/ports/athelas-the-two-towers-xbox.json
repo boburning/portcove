@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-the-two-towers-xbox",
+    "artwork": {
+      "game_id": 2965,
+      "cover_id": 615761,
+      "image_id": "cod74h",
+      "image_sha256": "def5162525d1bda7d9f3e3dd44ccb625fb593b24bdf12835ba72a8d055d349c1",
+      "game_slug": "the-lord-of-the-rings-the-two-towers",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Two Towers — Original Xbox (Athelas ports/two-towers)",
     "summary": "Use your own USA Xbox The Two Towers through the complete Athelas launcher. Preserve its separate TT-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Two Towers",

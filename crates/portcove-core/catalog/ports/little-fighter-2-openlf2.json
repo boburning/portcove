@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "little-fighter-2-openlf2",
+    "artwork": {
+      "game_id": 8700,
+      "cover_id": 205763,
+      "image_id": "co4ern",
+      "image_sha256": "255b5e8101679f9cc05c4c5e22dd5c5b5f9e42cf37d305bc8d82bc4e4a16b235",
+      "game_slug": "little-fighter-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Little Fighter 2 / OpenLF2",
     "summary": "Play Little Fighter 2 in OpenLF2 with the original v2.0a installer as game data.",
     "project_url": "https://github.com/OpenLF2/OpenLF2",

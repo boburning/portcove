@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "supertuxkart",
+    "artwork": {
+      "game_id": 10763,
+      "cover_id": 117991,
+      "image_id": "co2j1j",
+      "image_sha256": "ae9268429976f25014ad6928cc5f8dac58e987f2a33e14c7e6c1f2a8b9734a7a",
+      "game_slug": "supertuxkart",
+      "match_kind": "underlying-game"
+    },
     "name": "SuperTuxKart",
     "original_game_title": "SuperTuxKart",
     "summary": "Race open-source karts with an offline profile or join multiplayer races.",
@@ -10,9 +18,14 @@
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
-    "release_url": "https://supertuxkart.net/Download.html",
+    "release_url": "https://github.com/supertuxkart/stk-code/releases",
     "setup_url": "https://supertuxkart.net/Download.html",
-    "download_block_reason": "Use the official installer, full portable package, or mobile release for your platform. The portable launchers set up the packaged game and runtime files.",
+    "download_asset_hints": {
+      "windows-x86-64": ["supertuxkart-", "-win.zip"],
+      "linux-x86-64": ["supertuxkart-", "-linux-x86_64.tar.gz"],
+      "macos-x86-64": ["supertuxkart-", "-mac-signed.zip"],
+      "macos-aarch64": ["supertuxkart-", "-mac-signed.zip"]
+    },
     "manual_setup": {
       "steps": [
         {
@@ -28,7 +41,9 @@
           "instruction": "Close SuperTuxKart and copy %APPDATA%/supertuxkart on Windows, ~/Library/Application Support/SuperTuxKart on Mac, or both ~/.config/supertuxkart and ~/.local/share/supertuxkart on Linux. If you have customized the data or configuration locations, preserve those actual folders. Keep any custom files you added to the package separately."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The package’s license notes leave the source recording for its rain sound uncertain."
+      ],
       "references": [
         {
           "title": "Get the Android release",

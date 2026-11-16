@@ -11196,8 +11196,15 @@ mod tests {
         staged.manifest_sha256 = hex::encode(Sha256::digest(&bytes));
         library.update_install_manifest(&staged).unwrap();
         let store = OperationStore::new(library.clone());
+        let activity = library
+            .begin_activity(
+                ActivityOperation::Activate,
+                ActivityTargetKind::Port,
+                Some("zelda64-recomp"),
+            )
+            .unwrap();
         let mut operation = LifecycleOperation::new(
-            "unrecorded-activation",
+            &activity.id,
             LifecycleOperationKind::Activate,
             "zelda64-recomp",
         );
@@ -11209,9 +11216,18 @@ mod tests {
         let status = recovered.status("zelda64-recomp").unwrap();
         assert_eq!(status.active.unwrap().id, active.id);
         assert_eq!(status.staged.unwrap().id, staged.id);
-        let retained = store.get(&operation.id).unwrap().unwrap();
-        let error = retained.last_error.unwrap();
-        assert!(error.contains("holding back this version"), "{error}");
+        assert!(store.get(&operation.id).unwrap().is_none());
+        assert!(!library.has_unfinished_lifecycle("zelda64-recomp").unwrap());
+        let held = library
+            .activities(10)
+            .unwrap()
+            .into_iter()
+            .find(|record| record.id == activity.id)
+            .unwrap();
+        assert_eq!(held.status, ActivityStatus::Failed);
+        let error = held.failure.unwrap();
+        assert_eq!(error.details["reason"], "provider_uploader_not_observed");
+        assert_eq!(error.details["recovery_action"], "check_for_updates");
     }
 
     #[test]

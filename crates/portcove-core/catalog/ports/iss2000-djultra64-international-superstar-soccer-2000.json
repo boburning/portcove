@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "iss2000-djultra64-international-superstar-soccer-2000",
+    "artwork": {
+      "game_id": 3515,
+      "cover_id": 196658,
+      "image_id": "co47qq",
+      "image_sha256": "bec62a26eda767c23915504667465e361cffb7057942016ee6f1d8e6cf442da6",
+      "game_slug": "international-superstar-soccer-2000",
+      "match_kind": "underlying-game"
+    },
     "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
     "original_game_title": "International Superstar Soccer 2000",
     "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",

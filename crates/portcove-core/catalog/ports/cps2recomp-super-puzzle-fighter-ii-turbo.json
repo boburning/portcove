@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-super-puzzle-fighter-ii-turbo",
+    "artwork": {
+      "game_id": 20803,
+      "cover_id": 391720,
+      "image_id": "co8e94",
+      "image_sha256": "75a1f6d023c52e58a90df58df31473ad6fd54302661dabc17f602875c358125d",
+      "game_slug": "super-puzzle-fighter-ii-turbo",
+      "match_kind": "underlying-game"
+    },
     "name": "Super Puzzle FighterII Turbo (CPS-2 Recomp)",
     "summary": "Play Super Puzzle FighterII Turbo using your own matching arcade originals.",
     "original_game_title": "Super Puzzle FighterII Turbo",

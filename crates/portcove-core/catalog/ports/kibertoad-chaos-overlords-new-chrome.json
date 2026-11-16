@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "kibertoad-chaos-overlords-new-chrome",
+    "artwork": {
+      "game_id": 629,
+      "cover_id": 543952,
+      "image_id": "cobnps",
+      "image_sha256": "f7c8ab0a4a9775aa53f166b0056fbb2795eb0bfcc8427552004dc1603a8ae2cb",
+      "game_slug": "chaos-overlords",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/kibertoad/chaos-overlords-new-chrome",
     "name": "Chaos Overlords / New Chrome",
     "original_game_title": "Chaos Overlords",

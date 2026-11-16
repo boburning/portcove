@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "worms-revolution-native-pc-recompilation-sp00nznet-worms-revolution",
+    "artwork": {
+      "game_id": 9334,
+      "cover_id": 90392,
+      "image_id": "co1xqw",
+      "image_sha256": "4b59a0ce6a767414e9c3a6786b883a326e2c382113d319ad01701409a2b98562",
+      "game_slug": "worms-revolution--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Worms Revolution — Worms Revolution — native PC recompilation (sp00nznet)",
     "original_game_title": "Worms Revolution",
     "summary": "The tutorial plays from start to finish, but text and UI are missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "star-wars-jedi-knight-ii-jedi-outcast-single-player-openjk-openjo",
+    "artwork": {
+      "game_id": 152,
+      "cover_id": 90943,
+      "image_id": "co1y67",
+      "image_sha256": "e2a2b34daac0bfa6a3a0c8b679895a0ffe61bc8f4bdff30d23fc6fc248802d26",
+      "game_slug": "star-wars-jedi-knight-ii-jedi-outcast",
+      "match_kind": "underlying-game"
+    },
     "name": "Star Wars Jedi Knight II: Jedi Outcast (single player) (OpenJK / OpenJO)",
     "summary": "Use the official OpenJO campaign player with matching original data from an already working OpenJO setup.",
     "original_game_title": "Star Wars Jedi Knight II: Jedi Outcast (single player)",

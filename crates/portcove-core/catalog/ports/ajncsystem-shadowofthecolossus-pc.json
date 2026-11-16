@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ajncsystem-shadowofthecolossus-pc",
+    "artwork": {
+      "game_id": 37094,
+      "cover_id": 542253,
+      "image_id": "cobmel",
+      "image_sha256": "8741d264b41d69764967acfa1af0204b1ce0ff1d80b9fbf83a9ee5054868dd9b",
+      "game_slug": "shadow-of-the-colossus--1",
+      "match_kind": "underlying-game"
+    },
     "name": "Shadow of the Colossus — 2018 PS4 remake (ShadowOfTheColossus-PC)",
     "summary": "Attach an independently permitted, prepared Shadow of the Colossus PS4-remake Windows installation using its saved-settings play route. Upstream owns setup, runtime replacement and player data; original PS2/PS3 editions do not fit.",
     "original_game_title": "Shadow of the Colossus",

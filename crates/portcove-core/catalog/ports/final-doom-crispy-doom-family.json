@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "final-doom-crispy-doom-family",
+    "artwork": {
+      "game_id": 8191,
+      "cover_id": 89960,
+      "image_id": "co1xew",
+      "image_sha256": "818dc625d986f4b81dd623712e2f07dfd4e0960f87cdbd09d6c0a1f58368b1f7",
+      "game_slug": "final-doom",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Doom (Crispy Doom family)",
     "summary": "Install the official Crispy Doom Windows runtime. Play opens upstream setup and launch controls; supply your own matching original game files.",
     "original_game_title": "Final Doom",

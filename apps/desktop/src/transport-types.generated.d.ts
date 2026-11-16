@@ -1376,6 +1376,7 @@ export interface TransportOutputs {
   desktop_game_file_query_snapshot: OutputGameFileQuerySnapshot;
   desktop_game_file_roots: OutputGameFileRoots;
   desktop_game_file_scan_match_page: OutputGameFileScanMatchPage;
+  desktop_game_file_scan_registered_matches: OutputDesktopGameFileScanRegisteredMatches;
   desktop_game_file_scan_snapshot: OutputGameFileScanSnapshot;
   desktop_install_batch: InstallBatchRecord;
   desktop_install_batch_review: OutputDesktopInstallBatchReview;
@@ -6515,6 +6516,14 @@ export interface OutputDesktopCliCommandContext {
   executable: string | null;
   library_root: string;
   platform: Platform;
+  [k: string]: unknown;
+}
+/**
+ * Retained matches for the current registration of each source profile.
+ */
+export interface OutputDesktopGameFileScanRegisteredMatches {
+  candidates: SourceRecord[];
+  preliminary_selections: SourceInspection[];
   [k: string]: unknown;
 }
 export interface InstallBatchRecord {
