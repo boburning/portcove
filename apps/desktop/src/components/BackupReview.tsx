@@ -32,7 +32,7 @@ export function BackupReviewDialog({
   finalFocus?: React.ComponentProps<typeof DialogContent>["finalFocus"];
 }) {
   const { t } = useAppTranslation("backups");
-  const cancelButton = useRef<HTMLButtonElement>(null);
+  const reviewTitle = useRef<HTMLHeadingElement>(null);
   const {
     preview: review,
     pending,
@@ -56,13 +56,18 @@ export function BackupReviewDialog({
       }}
     >
       <DialogContent
-        initialFocus={cancelButton}
+        initialFocus={reviewTitle}
         showCloseButton={false}
         reviewSize="standard"
         aria-describedby="backup-review-description"
         finalFocus={finalFocus}
       >
-        <DialogTitle id="backup-review-title" className="mb-2 text-xl">
+        <DialogTitle
+          ref={reviewTitle}
+          tabIndex={-1}
+          id="backup-review-title"
+          className="mb-2 text-xl"
+        >
           {restore ? t("review.titleRestore") : t("review.titleDelete")}
         </DialogTitle>
         <DialogDescription id="backup-review-description" className="mb-4 leading-relaxed">
@@ -75,13 +80,7 @@ export function BackupReviewDialog({
         {review && <BackupReviewDetails review={review} />}
         <ActionReviewFailure error={error} />
         <DialogFooter className="mt-4">
-          <Button
-            ref={cancelButton}
-            data-focusable
-            variant="outline"
-            disabled={pending === "apply"}
-            onClick={dismiss}
-          >
+          <Button data-focusable variant="outline" disabled={pending === "apply"} onClick={dismiss}>
             {t("review.cancel")}
           </Button>
           {!review && (

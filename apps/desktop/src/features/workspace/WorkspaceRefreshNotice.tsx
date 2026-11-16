@@ -1,5 +1,5 @@
 import { Notice } from "../../components/ui/patterns";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle } from "lucide-react";
 import { focusAndReveal, focusRegion } from "../../focus";
 import { errorText, failurePresentation } from "../../view-model";
@@ -29,14 +29,31 @@ export function WorkspaceRefreshNotice({
   const retryButton = useRef<HTMLButtonElement>(null);
   const recoveryRetryButton = useRef<HTMLButtonElement>(null);
   const retryRequested = useRef(false);
+  const recoveryRetryInFlight = useRef(false);
+  const [recoveryRetryPending, setRecoveryRetryPending] = useState(false);
+  const recoveryBusy = refreshing || recoveryRetryPending;
   useEffect(() => {
-    if (refreshing || !retryRequested.current) return;
+    if (recoveryBusy || !retryRequested.current) return;
     retryRequested.current = false;
     if (document.activeElement !== document.body) return;
     if (failure || (!recoveryFailure && subscriptionFailure)) focusAndReveal(retryButton.current);
     else if (recoveryFailure) focusAndReveal(recoveryRetryButton.current);
     else focusRegion("workspace");
-  }, [failure, recoveryFailure, refreshing, subscriptionFailure]);
+  }, [failure, recoveryFailure, recoveryBusy, subscriptionFailure]);
+  const requestRecoveryRetry = async () => {
+    if (refreshing || recoveryRetryInFlight.current) return;
+    recoveryRetryInFlight.current = true;
+    retryRequested.current = true;
+    setRecoveryRetryPending(true);
+    try {
+      await retryRecovery();
+    } catch {
+      // The workspace coordinator publishes recovery and refresh failures.
+    } finally {
+      recoveryRetryInFlight.current = false;
+      setRecoveryRetryPending(false);
+    }
+  };
   if (!failure && !recoveryFailure && !subscriptionFailure) return null;
   const recoveryPresentation = recoveryFailure && failurePresentation(recoveryFailure.error);
   const recoveryCode =
@@ -47,7 +64,7 @@ export function WorkspaceRefreshNotice({
       ? String(recoveryFailure.error.code)
       : undefined;
   const recoveryNotice = recoveryFailure && (
-    <Notice intent="danger" className="" role="alert" aria-busy={refreshing}>
+    <Notice intent="danger" className="" role="alert" aria-busy={recoveryBusy}>
       <span
         data-slot="notice-icon"
         className="error-icon grid h-[2rem] w-[2rem] place-items-center"
@@ -65,12 +82,9 @@ export function WorkspaceRefreshNotice({
           ref={recoveryRetryButton}
           variant="outline"
           data-focusable
-          aria-busy={refreshing}
-          focusableWhenDisabled={refreshing}
-          onClick={() => {
-            retryRequested.current = true;
-            void retryRecovery();
-          }}
+          aria-busy={recoveryBusy}
+          focusableWhenDisabled={recoveryBusy}
+          onClick={() => void requestRecoveryRetry()}
         >
           {t("recovery.retry")}
         </Button>
