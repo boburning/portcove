@@ -1113,12 +1113,13 @@ pub(crate) enum ProviderEvidence {
 
 /// Matches a label and its requirements against exact package bytes from the
 /// port's retained history. Once a closure is known, a legacy empty record
-/// cannot authorize dropping that closure on import.
+/// cannot authorize dropping that closure on import. A recipe can claim local
+/// provenance for those bytes when the library also recorded that local source.
 pub(crate) fn provider_evidence(
     connection: &Connection,
     port_id: &str,
     package: &crate::RecipePackage,
-    provider: &ProviderPackageRef,
+    provider: Option<&ProviderPackageRef>,
 ) -> Result<ProviderEvidence> {
     let candidates = connection
         .prepare(
@@ -1133,13 +1134,15 @@ pub(crate) fn provider_evidence(
         .collect::<rusqlite::Result<Vec<_>>>()?;
     let mut recorded = false;
     let mut has_requirements = false;
+    let mut known_requirements = false;
     for (profile_id, revision) in candidates {
         let stored = revision_from(connection, &profile_id, revision)?;
         for member in &stored.packages {
-            if member.sha256 != package.sha256
-                || member.native_id != package.native_id
-                || member.provider.as_ref() != Some(provider)
-            {
+            if member.sha256 != package.sha256 || member.native_id != package.native_id {
+                continue;
+            }
+            known_requirements |= !member.provider_requires.is_empty();
+            if member.provider.as_ref() != provider {
                 continue;
             }
             recorded = true;
@@ -1151,12 +1154,16 @@ pub(crate) fn provider_evidence(
             }
         }
     }
-    Ok(if !recorded {
-        ProviderEvidence::Unrecorded
-    } else if has_requirements || !package.provider_requires.is_empty() {
+    Ok(if recorded {
+        if has_requirements || !package.provider_requires.is_empty() {
+            ProviderEvidence::RequirementsDiffer
+        } else {
+            ProviderEvidence::Matches
+        }
+    } else if known_requirements {
         ProviderEvidence::RequirementsDiffer
     } else {
-        ProviderEvidence::Matches
+        ProviderEvidence::Unrecorded
     })
 }
 

@@ -565,15 +565,12 @@ impl PortcoveService {
                 let stored = layout.package(&package.sha256, &package.native_id);
                 let present = stored.try_exists().unwrap_or(false)
                     && sha256_file(&stored).is_ok_and(|sha| sha == package.sha256);
-                let evidence = match &package.provider {
-                    Some(provider) => profile::provider_evidence(
-                        &connection,
-                        &recipe.port_id,
-                        package,
-                        provider,
-                    )?,
-                    None => profile::ProviderEvidence::Unrecorded,
-                };
+                let evidence = profile::provider_evidence(
+                    &connection,
+                    &recipe.port_id,
+                    package,
+                    package.provider.as_ref(),
+                )?;
                 let closure_member = !package.provider_requires.is_empty()
                     || recipe.packages.iter().filter(|member| member.enabled).any(|member| {
                         member.provider_requires.iter().any(|requirement| {

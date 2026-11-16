@@ -517,6 +517,24 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
         crate::ProfileRecipe::inspect_document(&serde_json::to_vec(&recipe).unwrap()).unwrap(),
         recipe
     );
+    let mut omitted = recipe
+        .packages
+        .iter()
+        .find(|package| package.native_id == "speed_timer.nrm")
+        .unwrap()
+        .clone();
+    omitted.provider = None;
+    omitted.provider_requires.clear();
+    assert!(matches!(
+        crate::profile::provider_evidence(
+            &w.service.library().connection().unwrap(),
+            PORT,
+            &omitted,
+            None,
+        )
+        .unwrap(),
+        crate::profile::ProviderEvidence::RequirementsDiffer
+    ));
     let mut masquerading_as_v1 = serde_json::to_value(&recipe).unwrap();
     masquerading_as_v1["format"] = serde_json::json!(1);
     let error =
