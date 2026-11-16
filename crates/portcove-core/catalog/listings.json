@@ -26822,16 +26822,18 @@
             "instruction": "On Windows, extract the whole ZIP for your system and open Endless Sky.exe. On Linux x86-64, allow the publisher AppImage to run as a program and open it, or use your distribution’s package. Flathub also offers Linux x86-64 and ARM64. On Mac, open the publisher disk image and copy Endless Sky.app to Applications."
           },
           {
-            "title": "Start a pilot and keep your progress",
-            "instruction": "Choose New Pilot, then select a starting scenario. The game saves progress while you are landed. Before updating or moving your game, close it and copy the whole player-data folder, including saves, pilots, preferences, and plugins."
-          },
+            "title": "Start a pilot",
+            "instruction": "Choose New Pilot, then select a starting scenario. The game saves progress while you are landed."
+          }
+        ],
+        "warnings": [
+          "Before updating or moving the game, close it and copy the whole player-data folder, including saves, pilots, preferences, and plugins."
+        ],
+        "references": [
           {
             "title": "Find your player data",
             "instruction": "The default folder is %APPDATA%/endless-sky on Windows, ~/Library/Application Support/endless-sky on Mac, and ~/.local/share/endless-sky on Linux. Linux uses XDG_DATA_HOME if you set it. A Flatpak profile lives under ~/.var/app/io.github.endless_sky.endless_sky/data/endless-sky. If you start the game with --config, keep the folder you selected there."
-          }
-        ],
-        "warnings": [],
-        "references": [
+          },
           {
             "title": "Find the separate Android port",
             "instruction": "F-Droid carries a separately maintained Android port. Its versions and profile handling follow that port."
