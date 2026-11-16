@@ -1568,7 +1568,13 @@ function AppearanceSettings({ appearance }: { appearance?: ThemeState | undefine
   );
 }
 
-function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
+function AboutCard({
+  generation,
+  onOpenDiagnostics,
+}: {
+  generation: number;
+  onOpenDiagnostics: () => void;
+}) {
   return (
     <div className="about-card" data-focus-group>
       <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
@@ -1583,6 +1589,20 @@ function AboutCard({ onOpenDiagnostics }: { onOpenDiagnostics: () => void }) {
         >
           Open project repository
         </ExternalLink>
+      </SettingsRow>
+      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+        <div className="settings-field-copy">
+          <h3>Report a problem or send feedback</h3>
+          <p>
+            Tell us when something broke, or when something was hard, confusing or missing. You
+            review the pre-filled text, and nothing is sent until you choose how: from your GitHub
+            account when signed in, on GitHub, or as copied text. Folder paths and your user name
+            are replaced. Don't include original game files or saves.
+          </p>
+        </div>
+        <div className="settings-field-control justify-self-start">
+          <ReportProblem key={generation} generation={generation} />
+        </div>
       </SettingsRow>
       <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
         <div className="settings-field-copy">
@@ -1931,16 +1951,6 @@ export function SettingsView(props: SettingsViewProps) {
         refresh={refreshDiagnostics}
         hasSnapshot={Boolean(doctor)}
       />
-      <SettingsRow data-focus-group>
-        <h2>Report a problem or send feedback</h2>
-        <p>
-          Tell us when something broke, or when something was hard, confusing or missing. You review
-          the pre-filled text, and nothing is sent until you choose how: from your GitHub account
-          when signed in, on GitHub, or as copied text. Folder paths and your user name are
-          replaced.
-        </p>
-        <ReportProblem key={generation} generation={generation} />
-      </SettingsRow>
       <SettingsRow className="privacy-card">
         <h2>Original game files stay local</h2>
         <p>
@@ -2097,6 +2107,7 @@ export function SettingsView(props: SettingsViewProps) {
           description="Install, update, and play native game ports."
         >
           <AboutCard
+            generation={generation}
             onOpenDiagnostics={() => {
               (onCategoryChange ?? setLocalCategory)("advanced");
               jumpToSettingsSection("advanced");
