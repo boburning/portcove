@@ -64267,7 +64267,7 @@
         "steps": [
           {
             "title": "Use the publisher’s launcher",
-            "instruction": "Download the official launcher for Windows, Linux x64, or Mac. Start the launcher and let it download and update the game before choosing Play. The Mac client uses an Intel build through Rosetta 2 on Apple Silicon. On Linux, you can also install net.unvanquished.Unvanquished from Flathub and update that copy through your package manager."
+            "instruction": "Download the official launcher for Windows, Linux x64, or Mac. Start the launcher and select the download arrow. When the download finishes, select the play arrow. Use this launcher to update the game. The Mac client uses an Intel build through Rosetta 2 on Apple Silicon. On Linux, you can also install net.unvanquished.Unvanquished from Flathub and update that copy through your package manager."
           }
         ],
         "warnings": [],
