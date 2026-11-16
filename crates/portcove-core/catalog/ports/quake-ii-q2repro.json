@@ -5,6 +5,14 @@
     "project_url": "https://github.com/Paril/q2repro",
     "name": "Quake II / Q2rePRO",
     "original_game_title": "Quake II",
+    "artwork": {
+      "game_id": 261085,
+      "cover_id": 434747,
+      "image_id": "co9bgb",
+      "image_sha256": "0582a3455678d4ed8db6a726c1bfeebf0a70bf7996a26c242ddfa8e6da337f80",
+      "game_slug": "quake-ii--1",
+      "match_kind": "underlying-game"
+    },
     "summary": "Set up the Q2rePRO engine with your own Quake II rerelease installation.",
     "issue_number": 6102,
     "listed_at": "2026-11-15",

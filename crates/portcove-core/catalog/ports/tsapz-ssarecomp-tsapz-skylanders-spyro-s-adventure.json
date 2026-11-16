@@ -4,6 +4,14 @@
     "id": "tsapz-ssarecomp-tsapz-skylanders-spyro-s-adventure",
     "name": "Skylanders: Spyro's Adventure — tsapZ SSARecomp (tsapZ)",
     "original_game_title": "Skylanders: Spyro's Adventure",
+    "artwork": {
+      "game_id": 1585,
+      "cover_id": 91751,
+      "image_id": "co1ysn",
+      "image_sha256": "c490cdf9018772d5a7048349548e19f5ce7f601fecafb5b3b1ba193e8d3d3115",
+      "game_slug": "skylanders-spyro-s-adventure",
+      "match_kind": "underlying-game"
+    },
     "summary": "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SSARecomp",
     "listed_at": "2026-10-25",

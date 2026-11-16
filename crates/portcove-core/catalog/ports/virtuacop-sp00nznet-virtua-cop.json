@@ -4,6 +4,14 @@
     "id": "virtuacop-sp00nznet-virtua-cop",
     "name": "Virtua Cop — virtuacop (sp00nznet)",
     "original_game_title": "Virtua Cop",
+    "artwork": {
+      "game_id": 6289,
+      "cover_id": 101083,
+      "image_id": "co25zv",
+      "image_sha256": "6ed5d149335f24abc70ce3b8cc81dc478435b9936ccec608f03cbab9c8896a81",
+      "game_slug": "virtua-cop",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reaches boot, attract mode, coin/start and a playable first-person stage. Stage completion is unverified, and sound is entirely unimplemented. The main game CPU runs as native C; coprocessors remain emulated. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/sp00nznet/virtuacop",
     "listed_at": "2026-10-25",

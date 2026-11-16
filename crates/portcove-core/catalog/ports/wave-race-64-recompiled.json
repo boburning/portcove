@@ -11,6 +11,14 @@
     "availability": "source-only",
     "setup_url": "https://github.com/chronic8000/WaveRace64Recompiled/blob/63817bc71d31210a064f99010a010eb5e335b239/README.md",
     "original_game_title": "Wave Race 64",
+    "artwork": {
+      "game_id": 3629,
+      "cover_id": 478764,
+      "image_id": "coa9f0",
+      "image_sha256": "ff7d17084337bec6a851bfca8706b670eb6441afad1ecc03d99aa1a143d1d196",
+      "game_slug": "wave-race-64",
+      "match_kind": "underlying-game"
+    },
     "manual_setup": {
       "steps": [
         {

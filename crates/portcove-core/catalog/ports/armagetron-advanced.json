@@ -4,6 +4,14 @@
     "id": "armagetron-advanced",
     "name": "Armagetron Advanced",
     "original_game_title": "Armagetron Advanced",
+    "artwork": {
+      "game_id": 51244,
+      "cover_id": 116293,
+      "image_id": "co2hqd",
+      "image_sha256": "0898a1712b7b725397a3f57269f7df2af0df6a951f29e52687229ce7f3d0a92d",
+      "game_slug": "armagetron-advanced",
+      "match_kind": "underlying-game"
+    },
     "summary": "Steer a lightcycle, avoid the trails, and outlast the other riders in local or online arenas.",
     "project_url": "https://gitlab.com/armagetronad/armagetronad",
     "issue_number": 6458,

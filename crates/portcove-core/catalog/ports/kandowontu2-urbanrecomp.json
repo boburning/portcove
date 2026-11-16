@@ -5,6 +5,14 @@
     "name": "SimCity (UrbanRecomp Enhanced)",
     "summary": "An enhanced fork of blackerking/UrbanRecomp for the 1991 SNES SimCity, separate from PC SimCity and SimCity 2000. The project excludes its CPU interpreter from normal releases and keeps it for reference builds. Some cheats and full-game/device coverage are unconfirmed. The project offers Windows/Linux x64, universal macOS, Android ARM64/x86-64 and unsigned iOS ARM64 builds; iOS needs your own signing. Use your own compatible SNES ROM. Exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. You and the project manage installation and updates; release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
     "original_game_title": "SimCity",
+    "artwork": {
+      "game_id": 180001,
+      "cover_id": 199307,
+      "image_id": "co49sb",
+      "image_sha256": "943c6cca82e3b48dc78005bc5ec6cca2ab54b09a6370c2f5bd1255f78d98bb5b",
+      "game_slug": "simcity--2",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/kandowontu2/UrbanRecomp",
     "platforms": [],
     "availability": "unknown",

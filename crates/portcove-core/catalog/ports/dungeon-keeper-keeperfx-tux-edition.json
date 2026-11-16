@@ -5,6 +5,14 @@
     "project_url": "https://github.com/ForkedInTime/keeperfx-tux-edition",
     "name": "Dungeon Keeper / KeeperFX Tux Edition",
     "original_game_title": "Dungeon Keeper",
+    "artwork": {
+      "game_id": 35,
+      "cover_id": 182022,
+      "image_id": "co3wg6",
+      "image_sha256": "9a3409c8b4937b0a9bc70951a1e808112122847099411625581b845a97d4745a",
+      "game_slug": "dungeon-keeper",
+      "match_kind": "underlying-game"
+    },
     "summary": "Set up the community Linux build of KeeperFX using your own Dungeon Keeper files.",
     "issue_number": 6110,
     "listed_at": "2026-11-15",

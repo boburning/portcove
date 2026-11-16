@@ -4,6 +4,14 @@
     "id": "teeworlds",
     "name": "Teeworlds",
     "original_game_title": "Teeworlds",
+    "artwork": {
+      "game_id": 35005,
+      "cover_id": 89927,
+      "image_id": "co1xdz",
+      "image_sha256": "9840d3ed36554a134ffe65d14ff3abda17fa38f8770a322fabf40f7e116d97e7",
+      "game_slug": "teeworlds",
+      "match_kind": "underlying-game"
+    },
     "summary": "Swing through 2D arenas, play local and online matches, and create your own maps.",
     "project_url": "https://github.com/teeworlds/teeworlds",
     "issue_number": 6509,

@@ -4,6 +4,14 @@
     "id": "god-hand-recompiled-lasvola-god-hand",
     "name": "God Hand — God Hand Recompiled (LasVola)",
     "original_game_title": "God Hand",
+    "artwork": {
+      "game_id": 8803,
+      "cover_id": 240595,
+      "image_id": "co55n7",
+      "image_sha256": "32541869180ff7c2333806dde7a751d3f642a27e3b2e81acb41ee8ff9a6646b4",
+      "game_slug": "god-hand",
+      "match_kind": "underlying-game"
+    },
     "summary": "Upstream reports playing into stage 3 from a source build. Later stages and endings remain untested. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/LasVola/godhand-recomp",
     "listed_at": "2026-10-25",

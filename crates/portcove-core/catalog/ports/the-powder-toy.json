@@ -4,6 +4,14 @@
     "id": "the-powder-toy",
     "name": "The Powder Toy",
     "original_game_title": "The Powder Toy",
+    "artwork": {
+      "game_id": 79055,
+      "cover_id": 386298,
+      "image_id": "co8a2i",
+      "image_sha256": "937e42bc49d24c834cdb0e9532a72583354da204bfd4beddba35186b3f3ffc58",
+      "game_slug": "the-powder-toy",
+      "match_kind": "underlying-game"
+    },
     "summary": "Draw with materials and experiment with weather, fluids, and circuits in a physics sandbox.",
     "project_url": "https://github.com/The-Powder-Toy/The-Powder-Toy",
     "issue_number": 6491,

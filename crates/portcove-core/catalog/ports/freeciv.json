@@ -4,6 +4,14 @@
     "id": "freeciv",
     "name": "Freeciv",
     "original_game_title": "Freeciv",
+    "artwork": {
+      "game_id": 73190,
+      "cover_id": 175839,
+      "image_id": "co3rof",
+      "image_sha256": "1eae9fa80c659b4c28cf4bc6d0c24e8610d23735ce3066ed2e506cac687552d8",
+      "game_slug": "freeciv",
+      "match_kind": "underlying-game"
+    },
     "summary": "Build a civilization and compete against computer or human opponents in turn-based strategy.",
     "project_url": "https://github.com/freeciv/freeciv",
     "issue_number": 6502,

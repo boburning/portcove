@@ -4,6 +4,14 @@
     "id": "surge-the-rabbit-opensurge",
     "name": "Surge the Rabbit",
     "original_game_title": "Surge the Rabbit",
+    "artwork": {
+      "game_id": 336999,
+      "cover_id": 447320,
+      "image_id": "co9l5k",
+      "image_sha256": "bbdb4700e295fe80fa53df8559b5ac9d1d736600e19838d79ca40542cb980608",
+      "game_slug": "surge-the-rabbit",
+      "match_kind": "underlying-game"
+    },
     "summary": "Play a retro platformer and build your own levels with the Open Surge engine.",
     "project_url": "https://github.com/alemart/opensurge",
     "issue_number": 6493,
