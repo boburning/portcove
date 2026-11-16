@@ -3267,13 +3267,10 @@ impl PortcoveService {
             }
             self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
+            // A direct request needs a fresh installer refusal before it can
+            // select a different version on the player's behalf.
             let release = operation
-                .interruptible(self.resolve_install_selection(
-                    port,
-                    selected_channel,
-                    platform,
-                    &status,
-                ))
+                .interruptible(self.resolve_release(port, selected_channel, platform))
                 .await?;
             operation.observe_release(&release.release.version, None);
             let mut reporter = OperationReporter {
