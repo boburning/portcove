@@ -713,7 +713,7 @@ fn stored_entries(root: &Path) -> Vec<String> {
 async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
     let temporary = tempfile::tempdir().unwrap();
     let library = Library::open(temporary.path().join("library")).unwrap();
-    let store_root = library.downloads_dir().join("partial-v1");
+    let store_root = library.downloads_dir().join("psx-toolchain-partial-v1");
     let partials = partial_download::PartialDownloads::new(store_root.clone());
     let digest = hex::encode(Sha256::digest(BODY));
     let server = Restarts::serve(vec![
@@ -733,12 +733,17 @@ async fn interrupted_bytes_continue_in_a_later_run_with_the_same_validator() {
         .join(format!("psx-toolchain-{}", Uuid::new_v4()));
     fs::create_dir_all(&staging).unwrap();
     let second = staging.join("second.download");
+    let _acquisition = library.try_lock_psx_toolchain_acquisition().unwrap();
+    assert!(matches!(
+        library.try_lock_psx_toolchain_acquisition(),
+        Err(error) if error.code == crate::ErrorCode::Conflict
+    ));
     let installer = Installer::new(library).unwrap();
     let operation = OperationCoordinator::new("psx_toolchain", None);
     let mut messages = Vec::new();
     tokio::time::timeout(
         Duration::from_secs(30),
-        installer.download(&server.asset(digest), &second, &operation, &mut |event| {
+        installer.download_psx_toolchain(&server.asset(digest), &second, &operation, &mut |event| {
             if let crate::OperationEventKind::Message { message, .. } = event.event {
                 messages.push(message);
             }

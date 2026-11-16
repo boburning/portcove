@@ -2068,7 +2068,7 @@ impl Installer {
         Ok(artifact)
     }
 
-    pub(crate) async fn download<F>(
+    async fn download<F>(
         &self,
         asset: &ReleaseAsset,
         destination: &Path,
@@ -2133,6 +2133,34 @@ impl Installer {
             emit,
             transfer::RESUME_POLICY,
             inside_library.then_some(&partials),
+        )
+        .await
+    }
+
+    /// The PSX acquisition lock serializes access to this store through the
+    /// final move to private staging. Ordinary release downloads cannot sweep it.
+    pub(crate) async fn download_psx_toolchain<F>(
+        &self,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
+        let partials = partial_download::PartialDownloads::new(
+            self.library.downloads_dir().join("psx-toolchain-partial-v1"),
+        );
+        transfer::download_resuming(
+            &client,
+            asset,
+            destination,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+            Some(&partials),
         )
         .await
     }

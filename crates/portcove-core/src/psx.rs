@@ -499,6 +499,16 @@ where
     F: FnMut(OperationEvent),
 {
     let artifact = toolchain_artifact(platform)?;
+    let _acquisition = loop {
+        operation.checkpoint()?;
+        match library.try_lock_psx_toolchain_acquisition() {
+            Ok(lock) => break lock,
+            Err(error) if error.code == crate::ErrorCode::Conflict => {
+                tokio::time::sleep(std::time::Duration::from_millis(250)).await;
+            }
+            Err(error) => return Err(error),
+        }
+    };
     let destination = library
         .toolchains_dir()
         .join("cmake-clang-v1")
@@ -533,7 +543,7 @@ where
         sha256: artifact.sha256.into(),
     };
     crate::Installer::new(library.clone())?
-        .download(&asset, &archive_path, operation, &mut |mut event| {
+        .download_psx_toolchain(&asset, &archive_path, operation, &mut |mut event| {
             if let crate::OperationEventKind::Progress {
                 phase, phase_id, ..
             } = &mut event.event
