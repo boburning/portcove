@@ -2442,6 +2442,19 @@ mod tests {
         let catalog = Catalog::embedded().unwrap();
         let port = catalog.port("blacklabelhq-medievilrecomp").unwrap();
         assert_eq!(port.launch_arguments, ["--disable-updated"]);
+        let port = catalog.port("opencommunityedition-opence").unwrap();
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_UPDATE_AUTO")
+                .map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_SERVER_AUTO_UPDATE")
+                .map(String::as_str),
+            Some("off")
+        );
     }
 
     #[test]
@@ -2462,6 +2475,7 @@ mod tests {
                 "darkuni-afterburner-climax-recomp",
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
+                "opencommunityedition-opence",
                 "snap64-recomp",
                 "vibecodekun-shantaerecomp",
             ])

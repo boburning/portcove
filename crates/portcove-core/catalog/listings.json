@@ -36014,7 +36014,8 @@
           "TRX-",
           "-Mac.dmg"
         ]
-      }
+      },
+      "download_block_reason": "Published TRX packages bundle the Tomb Raider II Golden Mask expansion levels, converted game images and music, and data injections built from the original games. The engine licence does not cover that game content and Portcove has no permission for it, so Portcove does not download these packages. Use an existing copy you are permitted to use. Reconsider with a program-only package or attributable permission for the included content."
     },
     {
       "id": "lufia-ii-recompiled-cellenseres-lufia-ii-rise-of-the-sinistrals",
@@ -42704,7 +42705,8 @@
     {
       "id": "opencommunityedition-opence",
       "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
-      "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image and the upstream updater.",
+      "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image.",
+      "original_game_title": "Halo: Combat Evolved",
       "project_url": "https://github.com/OpenCommunityEdition/OpenCE",
       "issue_number": 1849,
       "listed_at": "2026-10-23",
@@ -42726,36 +42728,24 @@
       "manual_setup": {
         "steps": [
           {
-            "title": "Keep the player package together",
-            "instruction": "Extract halo-windows-release.zip or, on Linux, halo-Linux-release.zip into a separate upstream-owned folder. Finish setup with halo.exe (halo on Linux) and that folder."
+            "title": "Choose your original Xbox disc image on first Play",
+            "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; every edition works. OpenCE extracts its maps into the maps folder beside the player. Keep the disc image outside the game folder, because the game offers any image it finds there. Halo PC or Custom Edition maps do not replace these Xbox maps."
           },
           {
-            "title": "Choose your original Xbox disc image on Play",
-            "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso. OpenCE extracts its maps beside the player. Halo PC or Custom Edition maps do not replace these Xbox maps."
-          },
-          {
-            "title": "Select the ordinary player",
-            "instruction": "Keep the complete release package together and select halo.exe (halo on Linux) with its containing folder as working directory. Leave arguments empty for the normal player. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. Use your own supported Xbox disc image for the upstream first-Play picker; Portcove does not import or authenticate it. Finish any deliberate upstream update or repair separately before starting the registered Play session."
+            "title": "Use a copy you manage yourself",
+            "instruction": "Extract halo-windows-release.zip, or halo-linux-release.zip on Linux, into its own folder and start halo.exe (halo on Linux) from it with no arguments. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. OpenCE asks before installing its own updates and can replace its program files when you accept."
           }
         ],
         "warnings": [
-          "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible. Portcove does not replace or back up this upstream-owned runtime.",
-          "OpenCE replaces its own runtime when you use its updater. Keep the extracted maps, config.toml and your saves backed up; Windows saves normally use the halo folder under AppData/Roaming, unless paths.saves changes it.",
-          "Keep the creating runtime with those files before changes; a separate executable folder does not isolate an existing shared profile or establish save, mod or network compatibility."
+          "OpenCE is a port of a Halo: Combat Evolved decompilation; the project’s AGPL licence does not cover the original game code. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+          "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
+          "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove. Close any game started that way before updating or rolling back in Portcove."
         ],
         "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
         "references": [
           {
-            "title": "Use OpenCE’s updates and keep your data",
-            "instruction": "For the usual Windows layout, the saves are under AppData/Roaming/halo. Check paths.saves for an override and keep config.toml with the extracted maps."
-          },
-          {
             "title": "Keep all actual data locations",
-            "instruction": "Preserve the complete working copy, maps, custom_maps, mods, load_order.toml, config.toml, logs and captures. In the actual Windows save root, keep u, z and shader_cache along with your profiles and progress. The usual save root is AppData/Roaming/halo; paths.saves or HALO_SAVE_ROOT can change it. The data, custom-map and log roots also have configuration or environment overrides, so preserve their actual locations too."
-          },
-          {
-            "title": "Updates and backups",
-            "instruction": "OpenCE asks before an ordinary update and can replace its executable and DLLs, then start another process. Complete those updates upstream outside the registered Play session, then review and relink changed execution intent before Play. Portcove supervises only the selected process and does not adopt the restarted copy. Registration removal preserves all external files. Managed installation, updates, backup, rollback, migration and deletion are not offered for this upstream-owned runtime."
+            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, logs and crash reports. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
           }
         ]
       },

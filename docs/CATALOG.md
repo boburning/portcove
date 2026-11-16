@@ -331,10 +331,17 @@ its asset hints and reviewed layout, which do not check the switch, so re-check
 it whenever a new release is reviewed. If a release dropped the switch, Core's
 immutable verification would hold the changed installation. The rule covers
 upstream's own update paths, not mods the player installs, and starting the
-managed program directly outside Portcove runs without the switch.
+managed program directly outside Portcove runs without the switch. That includes
+a launch the operating system starts for the player, such as an invite link the
+game registered; the guide tells players to close such a session before updating.
+A check that only reports a newer release or opens its page, and never downloads,
+stages or installs anything, is not an update path under this rule.
 MediEvilRecomp's `--disable-updated`, which upstream provides for an external
 manager, is the first such route
 ([MediEvilRecomp qualification](qualification/medievilrecomp-updater-switch-2026-11-15.md)).
+OpenCE's `HALO_UPDATE_AUTO=false` and `HALO_SERVER_AUTO_UPDATE=off` environment
+values close its game and dedicated-server updaters
+([OpenCE qualification](qualification/opence-updater-switch-2026-11-16.md)).
 
 The supported tracked handoff is a reviewed Windows opt-in. A definition that
 declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
