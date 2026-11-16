@@ -610,9 +610,7 @@ describe("source intake dialog", () => {
         );
         await page.getByRole("button", { name: "Discover", exact: true }).click();
         await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
-        await page
-          .getByRole("button", { name: "View details for Orchard Quest", exact: true })
-          .click();
+        await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
         await page.getByRole("tab", { name: "Game files", exact: true }).click();
         await page
           .getByRole("button", {
