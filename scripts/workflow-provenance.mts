@@ -239,6 +239,7 @@ export const hostedLocalCheckAuthorityPaths = Object.freeze([
   "scripts/validation-plan.mts",
   "scripts/audit.mts",
   "scripts/audit-evidence.mts",
+  "scripts/native-audit-checkpoint.mts",
   "scripts/audit-archive.mts",
   "scripts/audit-reuse.mts",
   "scripts/github-artifact-download.mts",
