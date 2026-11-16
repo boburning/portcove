@@ -227,6 +227,9 @@ Moving the review left owned-ready at eight executed scenarios, below the count 
 granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
 180 s default, so its release-channel restart journey now keeps that allowance, and
 the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
 The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.

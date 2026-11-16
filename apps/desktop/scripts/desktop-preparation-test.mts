@@ -3104,9 +3104,13 @@ export async function preparationScenarios({
         15_000,
         "Damaged installation verification did not expose its actual failure",
       );
+      // Calibrated from 5 s (#4879): branch run 43783868461 still showed "Check
+      // installed files" disabled after 5 s while the failed verification's
+      // debug-build workspace refresh settled. The action must still re-enable.
       await browser.wait(
         async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
-        5_000,
+        60_000,
+        "Damaged installation verification did not re-enable its action",
       );
       assert.deepEqual(required((await status(port.id)).readiness).blockers, [
         "invalid_installation",
