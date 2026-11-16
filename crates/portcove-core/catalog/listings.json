@@ -21781,7 +21781,7 @@
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/INSTALL.markdown",
       "issue_number": 2652,
       "listed_at": "2026-10-25",
       "manual_setup": {
@@ -21804,7 +21804,7 @@
           },
           {
             "title": "Point this engine at its own data",
-            "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
           },
           {
             "title": "Use the distribution package on Ubuntu",
@@ -21817,8 +21817,8 @@
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
         "references": [
           {
-            "title": "Keep the actual original and player data",
-            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            "title": "Build for a current Intel Mac",
+            "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D1X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
           },
           {
             "title": "Preserve this game’s profile",
@@ -21840,7 +21840,7 @@
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/INSTALL.markdown",
       "issue_number": 2653,
       "listed_at": "2026-10-25",
       "manual_setup": {
@@ -21863,7 +21863,7 @@
           },
           {
             "title": "Point this engine at its own data",
-            "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
           },
           {
             "title": "Use the distribution package on Ubuntu",
@@ -21876,8 +21876,8 @@
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
         "references": [
           {
-            "title": "Keep the actual original and player data",
-            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            "title": "Build for a current Intel Mac",
+            "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D2X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
           },
           {
             "title": "Preserve this game’s profile",
