@@ -36,6 +36,14 @@
       display: none;
     }
   }
+  .initials {
+    color: var(--color-art-text);
+    font-size: clamp(1rem, 40cqi, var(--text-3xl));
+    font-weight: var(--font-weight-black);
+    letter-spacing: -0.08em;
+    line-height: var(--leading-display);
+    text-shadow: 0 3px 10px var(--color-bg-overlay);
+  }
   .illustration {
     position: absolute;
     inset: 0;

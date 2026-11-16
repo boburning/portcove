@@ -95,10 +95,12 @@ export function ArtworkFrame({
         <span className="grid max-w-full justify-items-center gap-2 p-2 text-pc-muted-foreground">
           <Gamepad2 aria-hidden="true" className="size-6 max-w-full" />
         </span>
-      ) : (
+      ) : identityArtwork ? (
         <span className={styles.illustration} data-cover-illustration>
           <Gamepad2 className={styles.illustrationController} />
         </span>
+      ) : (
+        <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
       {image && (
         <span
