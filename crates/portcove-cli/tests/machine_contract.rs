@@ -1127,7 +1127,7 @@ fn disc_tool_commands_are_library_free_restart_safe_and_machine_readable() {
     assert_eq!(listed["data"].as_array().unwrap().len(), 2);
     assert_eq!(
         listed["data"][0]["official_url"],
-        "https://docs.mamedev.org/tools/chdman.html"
+        "https://www.mamedev.org/release.html"
     );
     assert!(!library.exists());
     assert!(!preferences.exists());
