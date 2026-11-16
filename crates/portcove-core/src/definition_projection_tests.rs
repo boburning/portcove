@@ -347,7 +347,14 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ("troyedwardsjr-z2rs", 20),
         ("body-harvest-recompiled", 21),
         ("dune-ii-dune-dynasty", 18),
-        ("doom-3-classic-dhewm3", 23),
+        (
+            "doom-3-classic-dhewm3",
+            crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        ),
+        (
+            "doom-3-resurrection-of-evil-classic-dhewm3",
+            crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        ),
         ("doom-3-classic-dude-doom-3-unified-development-engine", 23),
     ] {
         let position = document["catalog"]["ports"]

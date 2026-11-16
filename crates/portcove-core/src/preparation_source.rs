@@ -573,11 +573,16 @@ pub(crate) fn materialize(
             "runtime source preparation identity changed",
         ));
     }
-    crate::source_inspection::verify_registered_with_checkpoint(
+    let (verified_source, _) = crate::source_inspection::verify_registered_source_with_checkpoint(
         catalog,
         &inputs.source,
         checkpoint,
     )?;
+    if native(port) && !same_source(&verified_source, &inputs.source) {
+        return Err(PortcoveError::source(
+            "native original set changed before copying",
+        ));
+    }
     let qualification = crate::InstallQualification::from_catalog(catalog, &port.id, inputs.host)?;
     let selected = crate::install::resolve_declared_executable(payload, &qualification)?;
     let expected = crate::adapter::launch_working_directory(port, payload, &selected, inputs.host)?;
@@ -614,25 +619,6 @@ pub(crate) fn materialize(
         })
         .collect::<Result<std::collections::BTreeMap<_, _>>>()?;
 
-    let native_observation = if native(port) {
-        let observation = crate::source_inspection::inspect_with_checkpoint(
-            catalog,
-            &inputs.source.profile_id,
-            &inputs.source.path,
-            checkpoint,
-        )?;
-        if !same_source(
-            &observation.clone().require_admitted_record()?,
-            &inputs.source,
-        ) {
-            return Err(PortcoveError::source(
-                "native original set changed before copying",
-            ));
-        }
-        Some(observation)
-    } else {
-        None
-    };
     if !replace_prepared && (native(port) || working != payload) {
         require_vacant_outputs(port, payload, working, &before)?;
     }
@@ -667,14 +653,7 @@ pub(crate) fn materialize(
     }
     materialize_single_source(port, inputs, working, checkpoint, process_quiesced)?;
     if native_relative(port) {
-        let source = native_observation
-            .as_ref()
-            .ok_or_else(|| {
-                PortcoveError::verification("relative native originals lack inspection")
-            })?
-            .clone()
-            .require_admitted_record()?;
-        crate::relative_file_set::materialize_native(port, &source, working, checkpoint)?;
+        crate::relative_file_set::materialize_native(port, &verified_source, working, checkpoint)?;
     } else {
         for target in &port.runtime_source_set {
             checkpoint()?;
@@ -691,7 +670,10 @@ pub(crate) fn materialize(
             )?;
         }
     }
-    if let Some(observed) = native_observation {
+    if native(port) {
+        let observed = verified_source.observed_identity.as_ref().ok_or_else(|| {
+            PortcoveError::verification("verified native originals lack their observed identity")
+        })?;
         for target in &port.runtime_source_set {
             checkpoint()?;
             let component = observed

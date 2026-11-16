@@ -3398,7 +3398,7 @@ mod tests {
             .iter()
             .find(|case| case["port_id"] == id)
             .unwrap();
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = crate::test_fixture::retained_manual_dhewm3_catalog(id);
         let port = catalog.port(id).unwrap().clone();
         let disposable = case["disposable_probes"].as_array();
         if disposable.is_some() {
