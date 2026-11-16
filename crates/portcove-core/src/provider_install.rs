@@ -7,7 +7,11 @@
 //! authorization bound to the plan digest, rechecks the staged bytes and the
 //! profile revision under the port lock, then installs through the ordinary
 //! profile path. Bytes that differ from the plan invalidate it.
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::PathBuf,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -655,6 +659,33 @@ impl PortcoveService {
                     ).detail("package", &installed.native_id));
                 }
             }
+            let disabled = plan
+                .members
+                .iter()
+                .filter(|member| {
+                    current
+                        .packages
+                        .iter()
+                        .any(|package| !package.enabled && same(member, &package.native_id))
+                })
+                .map(|member| member.file_name.as_str())
+                .collect::<BTreeSet<_>>();
+            for (name, member) in &reviewed {
+                if disabled.contains(name) {
+                    continue;
+                }
+                for requirement in &member.requirements {
+                    if let Some(required) = requirement
+                        .members
+                        .keys()
+                        .find(|id| disabled.contains(id.as_str()))
+                    {
+                        return Err(PortcoveError::conflict(
+                            "turn on the required mod in this setup, then review the Thunderstore version again",
+                        ).detail("package", *name).detail("requires", required));
+                    }
+                }
+            }
             // Existing dependants may still require an older exact package or
             // bytes. Surface that before the user is asked to authorize.
             for installed in &current.packages {
@@ -672,6 +703,7 @@ impl PortcoveService {
                     |provider, id, hash| {
                         if let Some(member) = plan.members.iter().find(|member| same(member, id)) {
                             return member.file_name == id
+                                && !disabled.contains(id)
                                 && member.sha256 == hash
                                 && reviewed
                                     .get(id)
