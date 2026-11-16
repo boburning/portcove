@@ -1756,6 +1756,16 @@ export async function collectRepositoryHealth(
                 ? "location-reachable; exact-bytes-unverified"
                 : "unclassified-or-actionable";
   };
+  const replayObservation = (
+    retained: HealthObservation,
+    location: LocationRecord,
+    metadataReused: boolean,
+  ): HealthObservation => {
+    const evidence = structuredClone(retained);
+    delete evidence.artifact_identities;
+    delete evidence.historical_artifact_identities;
+    return { ...evidence, ...location, attempted: false, metadata_reused: metadataReused };
+  };
   let operationRecords = 0;
   for (const record of fairRecords) {
     abortSignal?.throwIfAborted();
@@ -1786,12 +1796,7 @@ export async function collectRepositoryHealth(
       ) {
         // A received response is a spent read, including a capped body. Only
         // unattempted budget tails can resume; a new job may observe again.
-        observations.push({
-          ...structuredClone(retained),
-          ...record,
-          attempted: false,
-          metadata_reused: false,
-        });
+        observations.push(replayObservation(retained, record, false));
         reusedHistory.add(locationKey(record));
         continue;
       }
@@ -1801,12 +1806,7 @@ export async function collectRepositoryHealth(
         collected(retained) &&
         started - Date.parse(retained.observed_at) < 24 * 3600000
       ) {
-        observations.push({
-          ...structuredClone(retained),
-          ...record,
-          attempted: false,
-          metadata_reused: true,
-        });
+        observations.push(replayObservation(retained, record, true));
         reusedHistory.add(locationKey(record));
         continue;
       }

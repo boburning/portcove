@@ -701,6 +701,14 @@ summary; material changes to observed pin identities remain visible as new or
 changed conditions. Metadata assessment recovery is reported separately from
 endpoint recovery and does not establish destination availability.
 
+The health monitor shows the observed operation and the affected artifact
+platforms and variants when the incident matches the active inventory in the
+monitoring session. The JSON report includes the exact declared direct or
+historical identities for that port. Repository-only incidents and conditions
+retained from a prior session without that match show unknown artifact scope.
+Reporting scope leaves observation history, byte verification and operational
+hold decisions with their existing owners.
+
 Optional reviewed source-archive bindings remain a distinct path for literal
 GitHub `/owner/repository/archive/<40-lowercase-hex>.zip` URLs. They bind the exact
 artifact scope, numeric repository identity and immutable commit/tree/ordered
