@@ -3622,6 +3622,17 @@ mod tests {
         assert!(staged.staged, "{id}");
         service.activate_staged(id).unwrap();
         phase("rolling-activation-complete");
+        let catalog = if matches!(
+            id,
+            "doom-3-classic-dhewm3" | "doom-3-resurrection-of-evil-classic-dhewm3"
+        ) {
+            let current = Catalog::embedded().unwrap();
+            assert!(current.port(id).unwrap().source_profile.is_some());
+            service.replace_catalog_for_test(current.clone());
+            current
+        } else {
+            catalog
+        };
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, second.id, "{id}");
         phase("rollback-complete");
@@ -3630,10 +3641,19 @@ mod tests {
         restarted.replace_catalog_for_test(catalog);
         phase("restart-complete");
         let retained = restarted.installed_port(&previous).unwrap();
+        assert_eq!(retained.source_profile, port.source_profile, "{id}");
+        assert_eq!(retained.persistent_paths, port.persistent_paths, "{id}");
         let spec = restarted
             .prepare_launch_for_install(&retained, &previous, None, None)
             .unwrap();
         assert_eq!(spec.working_directory, previous.path.join(folder), "{id}");
+        for path in &probes {
+            assert_eq!(
+                fs::read(spec.working_directory.join(path)).unwrap(),
+                contents(path),
+                "{id}: retained rollback {path}"
+            );
+        }
         // An unknown runtime addition is never a wildcard data scope. It does
         // not hold removal (#5359): the removal review lists it before consent.
         let unknown = spec.working_directory.join("unknown-player-addition");
