@@ -63367,6 +63367,86 @@
       "windows_runtime_path_policy": "relative-file-max-path"
     },
     {
+      "id": "mario-kart-64-mariokart64recomp",
+      "name": "Mario Kart 64 / MarioKart64Recomp",
+      "summary": "Play the Mario Kart 64 recompilation with your own North American cartridge dump.",
+      "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.9.2",
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledwindows/0.9.2/MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+            "size": 23847630,
+            "sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4",
+            "published_at": "2026-02-13T03:00:00Z"
+          }
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "MarioKart64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American Mario Kart 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\MarioKart64Recompiled. Portcove refuses to start a managed copy that contains portable.txt, so the managed copy uses that profile and a copy you manage yourself without portable.txt shares it. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Mario Kart 64",
+        "manual_setup": {
+          "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
+          "warnings": [
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "The reviewed v0.9.2 release currently supports single-player modes."
+          ],
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then select your own North American Mario Kart 64 cartridge dump in the player. The player checks the file and keeps its own copy in its profile, so keep your original separately. Another edition is not accepted."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole Windows package and run MarioKart64Recompiled.exe with its assets and the supplied SDL2 and DXC libraries beside it."
+            }
+          ],
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\MarioKart64Recompiled. It holds the copied original, saves, settings and mods. A copy you run with portable.txt keeps them in its own folder instead. Keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2342,
+          "cover_id": 289642,
+          "image_id": "co67hm",
+          "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
+          "game_slug": "mario-kart-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "mariokart64recompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "mario-kart-wii-wiicompiled",
       "name": "Mario Kart Wii / WiiCompiled",
       "summary": "Register your already prepared vanilla WiiCompiled Windows player after upstream setup with your own Mario Kart Wii disc.",
@@ -70434,6 +70514,85 @@
       }
     },
     {
+      "id": "star-fox-64-starfox64recomp",
+      "name": "Star Fox 64 / Starfox64Recomp",
+      "summary": "Play the Star Fox 64 recompilation with your own North American revision 1.1 cartridge dump.",
+      "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v1.0.3",
+            "url": "https://gitlab.com/api/v4/projects/83978879/packages/generic/starfox64recompiledwindows/1.0.3/Starfox64Recompiled-v1.0.3-Windows-RelWithDebInfo.zip",
+            "size": 24382268,
+            "sha256": "768c18b0aeb325a0102f722338f09a270a76eeebea29154764147a93d0bde530",
+            "published_at": "2025-12-30T03:00:00Z"
+          }
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Starfox64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Starfox64Recompiled. Portcove refuses to start a managed copy that contains portable.txt, so the managed copy uses that profile and a copy you manage yourself without portable.txt shares it. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Star Fox 64",
+        "manual_setup": {
+          "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
+          "warnings": [
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          ],
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks the file and keeps its own copy in its profile, so keep your original separately. Another edition is not accepted."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole Windows package and run Starfox64Recompiled.exe with its assets and the supplied SDL2 and DXC libraries beside it."
+            }
+          ],
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\Starfox64Recompiled. It holds the copied original, saves, settings and mods. A copy you run with portable.txt keeps them in its own folder instead. Keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2591,
+          "cover_id": 524514,
+          "image_id": "cob8pu",
+          "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
+          "game_slug": "star-fox-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "starfox64recompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "star-wars-atari-darkuni",
       "name": "Star Wars (Atari arcade) / darkuni",
       "summary": "Play Atari’s 1983 Star Wars with darkuni’s arcade hardware recreation and your own ROM set.",
@@ -74118,6 +74277,111 @@
           "match_kind": "underlying-game"
         }
       }
+    },
+    {
+      "id": "vibecodekun-shantaerecomp",
+      "name": "Shantae / shantaerecomp (vibecodekun)",
+      "summary": "Play the Shantae recompilation with your own exact USA Game Boy Color ROM.",
+      "project_url": "https://github.com/vibecodekun/shantaerecomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "vibecodekun/shantaerecomp",
+        "asset_hints": {
+          "windows-x86-64": [
+            "shantae-recomp-",
+            "-windows-x64.zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "shantae.exe"
+        ]
+      },
+      "persistent_paths": [
+        "rom.cfg",
+        "runtime_prefs.ini",
+        "imgui.ini",
+        "keybinds.ini",
+        "shantae.ini",
+        "librashader_probe.txt",
+        "shantae.sav",
+        "shantae.rtc",
+        "shantae.state1",
+        "shantae.state2",
+        "shantae.state3",
+        "shantae.state4",
+        "shantae.state5",
+        "shantae.state6",
+        "shantae.state7",
+        "shantae.state8",
+        "shantae.state9",
+        "shantae.state10",
+        "shader_presets",
+        "shader_cache",
+        "borders",
+        "cheats",
+        "prints"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, pick your own exact Shantae USA Game Boy Color ROM in the game's chooser; it accepts only that ROM and remembers its path in rom.cfg, so keep the ROM where it is. The game keeps its settings (rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini), the shantae.sav battery save, save states shantae.state1 to shantae.state10, shader presets and the shader cache in the game folder, and Portcove keeps them, with any borders, cheats and prints folders you add, across updates, backups and rollback. Return to Launcher starts the same program again from the game folder, and Portcove keeps tracking it. The game finds its folder through a Windows API that cannot represent every character, so use a short library path with plain ASCII characters; Portcove refuses other install folders before download. Setting GBRECOMP_STATE_DIR or GBRECOMP_ASSET_DIR for your user account moves the game's data outside the managed copy. Portcove replaces the program; you own the ROM.",
+        "original_game_title": "Shantae",
+        "manual_setup": {
+          "help_url": "https://github.com/vibecodekun/shantaerecomp",
+          "steps": [
+            {
+              "title": "Choose your original ROM on first start",
+              "instruction": "Start the game and pick your own exact Shantae USA Game Boy Color ROM in its chooser: SHA-256 1b92e22d5510c51bab97d23074e4aad7464d93eb15f7596ef7da0a5efa27a19d, CRC32 E994B59B. World, Switch and Limited Run Games releases are different ROMs. The chooser enables Play only for the accepted original and remembers its path in rom.cfg, so keep the ROM where it is."
+            },
+            {
+              "title": "Use a copy you manage yourself",
+              "instruction": "Keep the complete package for your system together with its libraries, assets, shaders and notices, and start shantae.exe on Windows or shantae on Linux from its own folder with no arguments. Return to Launcher closes the game and starts the same program again."
+            }
+          ],
+          "warnings": [
+            "The project uses the PolyForm Noncommercial License 1.0.0; observe its noncommercial terms. The package includes recompiled game code without a licence grant, an unlicensed gbrecompiled engine fork, shaders under their own licences, and the Lato, Noto Sans Symbols 2 and OpenMoji fonts under the OFL and CC BY-SA licences. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "Save and save-state compatibility is specific to this build; do not assume another gbrecompiled game or version can read them. Portcove has not observed native setup, gameplay or saves."
+          ],
+          "references": [
+            {
+              "title": "Keep the game folder's data",
+              "instruction": "By default the game keeps rom.cfg, keybinds.ini, runtime_prefs.ini, imgui.ini, shantae.ini, the shantae.sav battery save, shantae.state1 to shantae.state10, shader_presets and shader_cache beside the program; GBRECOMP_STATE_DIR moves them elsewhere. In a copy you manage yourself, back these up before replacing the program."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 8432,
+          "cover_id": 103146,
+          "image_id": "co27l6",
+          "image_sha256": "7df41a67e947e2e6179f7fc876f2e4ce2671e6f7c1b485844ad49bfec6be7fb3",
+          "game_slug": "shantae",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets",
+            "shaders"
+          ],
+          "executables": [
+            "shantae.exe"
+          ]
+        }
+      },
+      "windows_tracked_handoff": true,
+      "windows_runtime_path_policy": "printable-ascii-max-path"
     },
     {
       "id": "vidanox-banjotooierecompiled",

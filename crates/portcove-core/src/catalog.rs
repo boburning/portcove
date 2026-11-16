@@ -2463,6 +2463,7 @@ mod tests {
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
                 "snap64-recomp",
+                "vibecodekun-shantaerecomp",
             ])
         );
         let parse = |edit: &dyn Fn(&mut PortDefinition)| {
