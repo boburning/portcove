@@ -529,10 +529,12 @@ fn is_elf_shared_library(file: &mut fs::File) -> io::Result<bool> {
     }
     let offset = u64::from_le_bytes(header[32..40].try_into().unwrap());
     let count = u64::from(half(56));
-    if !(1..=128).contains(&count)
-        || offset < 64
-        || offset + count * PROGRAM_HEADER_SIZE > file.metadata()?.len()
-    {
+    // e_phoff is untrusted: an overflowing table end is not a verified library.
+    let length = file.metadata()?.len();
+    let table_end = count
+        .checked_mul(PROGRAM_HEADER_SIZE)
+        .and_then(|size| offset.checked_add(size));
+    if !(1..=128).contains(&count) || offset < 64 || table_end.is_none_or(|end| end > length) {
         return Ok(false);
     }
     let mut dynamic = false;
@@ -941,7 +943,38 @@ mod tests {
         assert!(!check(&foreign), "not x86-64");
         let truncated = elf(3, &[1, 2]);
         assert!(!check(&truncated[..100]), "program headers out of bounds");
+        let mut wrapped = elf(3, &[1, 2]);
+        wrapped[32..40].copy_from_slice(&(u64::MAX - 8).to_le_bytes());
+        assert!(!check(&wrapped), "program header offset wraps");
+        let mut empty = elf(3, &[1, 2]);
+        empty[56..58].copy_from_slice(&0_u16.to_le_bytes());
+        assert!(!check(&empty), "no program headers");
+        let mut class32 = elf(3, &[1, 2]);
+        class32[4] = 1;
+        assert!(!check(&class32), "ELFCLASS32");
+        let mut big_endian = elf(3, &[1, 2]);
+        big_endian[5] = 2;
+        assert!(!check(&big_endian), "big-endian");
         assert!(!check(b"\x7fELF"));
+    }
+
+    #[test]
+    fn archive_inspection_refuses_the_linux_classifier_for_other_platforms() {
+        let temporary = tempfile::tempdir().unwrap();
+        let archive = temporary.path().join("game.zip");
+        fs::write(&archive, b"inert").unwrap();
+        for platform in [Platform::WindowsX86_64, Platform::MacosAarch64] {
+            let error = inspect_package_archive_with_program_filter(
+                &archive,
+                platform,
+                5,
+                &"0".repeat(64),
+                LINUX_FORMAT,
+            )
+            .unwrap_err();
+            assert_eq!(error.code, crate::ErrorCode::Usage, "{platform:?}");
+            assert!(error.message.contains("requires Linux"), "{platform:?}");
+        }
     }
 
     #[test]

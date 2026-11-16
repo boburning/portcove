@@ -1017,8 +1017,8 @@ pub struct ReviewedPackageLayout {
     /// Exclude verified macOS shared libraries from this fingerprint.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ignore_verified_macos_libraries: bool,
-    /// Classify Linux executable-mode files by content: only files with an
-    /// executable signature count, and verified ELF shared libraries do not.
+    /// Classify Linux executable-mode files by content: only files starting
+    /// with an ELF or `#!` header count, and verified ELF shared libraries do not.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub classify_linux_programs_by_format: bool,
     /// Lowercase top-level directory names of the package root, sorted.

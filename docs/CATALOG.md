@@ -2152,8 +2152,13 @@ or `#!` header, and a `.so` or `.so.N` file is excluded only when bounded header
 inspection finds an x86-64 ELF shared object with a dynamic segment and no
 program interpreter. A position-independent program, an ELF program named like
 a library and any program or script name above still count. Windows libraries
-remain outside the fingerprint, as on Windows. The matching authoring
-observation is `catalog inspect-package-layout
+remain outside the fingerprint, as on Windows. Two residuals follow from the
+rule. An executable-mode text file without `#!` is excluded, although a
+reviewed `.sh` launcher could still run it through the shell. A static
+position-independent ELF program named `*.so` has no interpreter and is
+excluded like a library. The gate has never fingerprinted file contents or
+libraries, so these residuals do not weaken an earlier guarantee. The matching
+authoring observation is `catalog inspect-package-layout
 --classify-linux-programs-by-format`.
 
 Independent definitions using this gate
