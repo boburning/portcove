@@ -364,7 +364,9 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
     operation_routes: [{ operation: "update", runtime_kind: "managed" }],
-    prerequisites: ["desktop", "owned-fixture"],
+    // Its offered release comes from the owned install fixture's direct manifest,
+    // not the live provider API (#4879).
+    prerequisites: ["desktop", "owned-fixture", "install-fixture"],
     source: "desktop-preparation-test.mts",
   }),
   scenario("native-missing-readiness-recovery", "Missing rendered readiness recovers safely.", {

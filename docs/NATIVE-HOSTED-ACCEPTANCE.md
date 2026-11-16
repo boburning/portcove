@@ -214,10 +214,14 @@ checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
 the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
 at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through

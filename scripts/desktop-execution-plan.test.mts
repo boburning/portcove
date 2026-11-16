@@ -413,8 +413,29 @@ void test("execution planning preserves the independently reviewed pre-change or
     const artworkFixtureAdded =
       selection.selected_scenarios.includes("native-local-artwork-picker-and-recovery") &&
       !row.selection.prerequisites.includes("install-fixture");
+    // The game update review now serves its offered release from the same
+    // owned install fixture instead of the live provider API (#4879).
+    const updateReviewSelected = [
+      ...selection.selected_scenarios,
+      ...selection.setup_scenarios,
+    ].includes("native-game-update-review");
+    const updateReviewFixtureAdded =
+      updateReviewSelected && !row.selection.prerequisites.includes("install-fixture");
+    const installFixtureAdded = artworkFixtureAdded || updateReviewFixtureAdded;
+    // Prerequisites keep first-declaration order, and the update review declares
+    // install-fixture straight after owned-fixture.
+    const withInstallFixture = (prerequisites: string[]) => {
+      if (!installFixtureAdded) return prerequisites;
+      const owned = prerequisites.indexOf("owned-fixture");
+      if (!updateReviewFixtureAdded || owned < 0) return [...prerequisites, "install-fixture"];
+      return [
+        ...prerequisites.slice(0, owned + 1),
+        "install-fixture",
+        ...prerequisites.slice(owned + 1),
+      ];
+    };
     const expectedSelection = structuredClone(row.selection);
-    if (artworkFixtureAdded) expectedSelection.prerequisites.push("install-fixture");
+    expectedSelection.prerequisites = withInstallFixture(expectedSelection.prerequisites);
     assert.deepEqual(historicalSelection(selection), expectedSelection);
     const plan = planDesktopExecution(selection, { platform: baselinePlatform(row.platform) });
     assert.deepEqual(historicalSelection(plan.selection), expectedSelection);
@@ -445,7 +466,7 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
-          (artworkFixtureAdded &&
+          (installFixtureAdded &&
             [
               "apps/desktop/scripts/desktop-install-fixture.mts",
               "apps/desktop/scripts/desktop-install-test.mts",
@@ -584,10 +605,14 @@ void test("execution planning preserves the independently reviewed pre-change or
       }
       assert.deepEqual(plan.session, expectedSession);
     }
-    assert.deepEqual(plan.build.cliFeatures, row.serialized_verify_plan.cli_features);
+    const expectedCliFeatures =
+      updateReviewSelected && row.serialized_verify_plan.cli_features.length === 0
+        ? ["portcove-core/qualification-fixtures"]
+        : row.serialized_verify_plan.cli_features;
+    assert.deepEqual(plan.build.cliFeatures, expectedCliFeatures);
     assert.deepEqual(
       plan.build.qualificationFeatures,
-      artworkFixtureAdded
+      installFixtureAdded
         ? ["qualification-fixtures"]
         : row.serialized_verify_plan.qualification_features,
     );
@@ -612,10 +637,11 @@ void test("execution planning preserves the independently reviewed pre-change or
         ...structuredClone(row.serialized_verify_plan),
         harness_deadline_ms: desktopHarnessDeadlineMs(selection),
       }; // Deliberately retained pre-change deadline owner.
-      if (artworkFixtureAdded) {
-        expected.prerequisites.push("install-fixture");
+      if (installFixtureAdded) {
+        expected.prerequisites = withInstallFixture(expected.prerequisites);
         expected.qualification_features = ["qualification-fixtures"];
       }
+      expected.cli_features = expectedCliFeatures;
       // This prerequisite now runs before lease/build; preserve the old oracle.
       Reflect.deleteProperty(actual, "frontend_command");
       // Admission metadata is independently checked by the current runner tests.
