@@ -243,6 +243,10 @@ pub(crate) fn inspect(
 
 pub(crate) fn is_direct_ps2_iso_profile(catalog: &Catalog, profile: &SourceProfile) -> bool {
     profile.kind == SourceKind::UpstreamValidatedDisc
+        && profile
+            .accepted_extensions
+            .iter()
+            .any(|extension| extension.eq_ignore_ascii_case("iso"))
         && catalog.ports().iter().any(|port| {
             port.source_profile.as_deref() == Some(profile.id.as_str())
                 && port.runtime_source_materialization
