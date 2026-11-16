@@ -64268,17 +64268,17 @@
           {
             "title": "Use the publisher’s launcher",
             "instruction": "Download the official launcher for Windows, Linux x64, or Mac. Start the launcher and let it download and update the game before choosing Play. The Mac client uses an Intel build through Rosetta 2 on Apple Silicon. On Linux, you can also install net.unvanquished.Unvanquished from Flathub and update that copy through your package manager."
-          },
-          {
-            "title": "Keep your settings and downloaded content",
-            "instruction": "Close Unvanquished before backing up. Copy Documents/My Games/Unvanquished on Windows, ~/Library/Application Support/Unvanquished on Mac, or ~/.local/share/unvanquished on Linux. Use the game’s actual homepath if you changed it, and ~/.var/app/net.unvanquished.Unvanquished/data/unvanquished for the Flatpak. Keep the backup private because it can contain your client key."
           }
         ],
         "warnings": [],
         "references": [
           {
+            "title": "Keep your settings and downloaded content",
+            "instruction": "Close Unvanquished before backing up. Copy Documents/My Games/Unvanquished on Windows, ~/Library/Application Support/Unvanquished on Mac, or ~/.local/share/unvanquished on Linux. Use the game’s actual homepath if you changed it, and ~/.var/app/net.unvanquished.Unvanquished/data/unvanquished for the Flatpak. Keep the backup private because it can contain your client key."
+          },
+          {
             "title": "Use the universal ZIP for other Linux architectures",
-            "instruction": "The universal ZIP includes Linux x64, ARM64, ARM hard-float and i686 engine archives, Windows x64 and i686 engine archives, and the Intel Mac app. Unpack the matching inner engine archive alongside the pkg folder and keep the complete set together. Start daemon on Linux, daemon.exe on Windows, or the complete Unvanquished.app on Mac. This is a manually prepared copy. The official release does not provide an Android client."
+            "instruction": "The universal ZIP includes Linux x64, ARM64, ARM hard-float and i686 engine archives, Windows x64 and i686 engine archives, and the Intel Mac app. On Linux or Windows, unpack the matching inner engine archive alongside the pkg folder and keep the complete set together. Start daemon on Linux or daemon.exe on Windows. On Mac, prefer the official launcher because macOS can prevent the manually extracted app from reading its adjacent game data. The official release does not provide an Android client."
           }
         ],
         "help_url": "https://wiki.unvanquished.net/wiki/Install_and_play"
