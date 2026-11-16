@@ -30313,6 +30313,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Bomberman Fantasy Race",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 22773,
           "cover_id": 352710,
@@ -30401,6 +30410,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Bomberman Party Edition",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 18786,
           "cover_id": 473835,
@@ -30481,6 +30499,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Bomberman World",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 27255,
           "cover_id": 380305,
@@ -30575,6 +30602,15 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Final Fantasy VII",
         "variant_label": "PlayStation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 427,
           "cover_id": 120422,
@@ -30655,6 +30691,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Klonoa: Door to Phantomile",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 4959,
           "cover_id": 155686,
@@ -30735,6 +30780,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Legend of Mana",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 14986,
           "cover_id": 511116,
@@ -30815,6 +30869,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Marvel vs. Capcom: Clash of Super Heroes",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 8246,
           "cover_id": 408383,
@@ -30895,6 +30958,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Wars: Masters of Teräs Käsi",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 18044,
           "cover_id": 128842,
@@ -30975,6 +31047,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Metal Slug X",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 18840,
           "cover_id": 397601,
@@ -31107,6 +31188,17 @@
         "manual_preparation": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove builds a private player on Windows, Linux or Mac and skips the kit’s setup launcher when you play. On Mac, select Apple Command Line Tools or Xcode with the macOS SDK first. Portcove preserves your saves, settings, installed mods, texture packs and overlay captures; bundled mods belong to each runtime version. A copy installed earlier keeps its previous saves-and-settings scope until you update. Generation, runtime, lifecycle and gameplay are untested with these versions on every platform.",
         "original_game_title": "Mortal Kombat 4",
         "variant_label": "PlayStation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": [
+            "Generation, runtime, lifecycle and gameplay are untested with these versions on every platform."
+          ]
+        },
         "artwork": {
           "game_id": 1622,
           "cover_id": 237769,
@@ -31187,6 +31279,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Rampage Through Time",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 45091,
           "cover_id": 371171,
@@ -31268,6 +31369,15 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Star Wars: Episode I – Jedi Power Battles",
         "variant_label": "PlayStation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 6606,
           "cover_id": 506749,
@@ -31349,6 +31459,15 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Street Fighter Alpha 3",
         "variant_label": "PlayStation",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 6704,
           "cover_id": 294008,
@@ -31493,6 +31612,15 @@
         ],
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Twisted Metal 4",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Set up the managed player",
+              "instruction": "Select your own matching game files. Portcove checks the files and builds the player."
+            }
+          ],
+          "warnings": []
+        },
         "artwork": {
           "game_id": 4698,
           "cover_id": 85914,

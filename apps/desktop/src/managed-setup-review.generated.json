@@ -8,6 +8,204 @@
       ]
     }
   },
+  "bomberman-fantasy-race-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "bomberman-party-edition-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "bomberman-world-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "final-fantasy-vii-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "klonoa-door-to-phantomile-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "legend-of-mana-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "marvel-vs-capcom-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "masters-of-teras-kasi-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "metal-slug-x-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "mortal-kombat-4-recompiled": {
+    "note": "Select your own complete Mortal Kombat 4 (USA) CHD (SLUS-00605, 1 track) and retail SCPH-1001 BIOS. Portcove checks the files and builds the player.",
+    "warnings": [
+      "Generation, runtime, lifecycle and gameplay are untested with these versions on every platform."
+    ],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "rampage-through-time-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "jedi-power-battles-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "street-fighter-alpha-3-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
+  "twisted-metal-4-recompiled": {
+    "note": "Select your own matching game files. Portcove checks the files and builds the player.",
+    "warnings": [],
+    "platform_warnings": {
+      "macos-aarch64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ],
+      "macos-x86-64": [
+        "Install Apple Command Line Tools or Xcode with the macOS SDK, and make sure it is selected.",
+        "Portcove has not verified native Mac setup or gameplay."
+      ]
+    }
+  },
   "snap64-recomp": {
     "note": "Choose your own unmodified USA Pokémon Snap cartridge dump. Portcove checks the original and installs the managed package for this device. Select Play when setup is complete.",
     "warnings": [],
