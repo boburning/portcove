@@ -6,7 +6,12 @@ import type { CatalogDocument } from "../../types";
 export function useSourceIntakeState(catalog: CatalogDocument | undefined, generation: number) {
   const [request, setRequest] = useState<SourceIntakeRequest>();
   const open = useCallback(
-    (portId: string, profileId: string, paths: string[] = []) => {
+    (
+      portId: string,
+      profileId: string,
+      paths: string[] = [],
+      setup?: SourceIntakeRequest["setup"],
+    ) => {
       const port = catalog?.ports.find((candidate) => candidate.id === portId);
       const profile = catalog?.source_profiles?.find((candidate) => candidate.id === profileId);
       if (port && profile)
@@ -17,6 +22,7 @@ export function useSourceIntakeState(catalog: CatalogDocument | undefined, gener
           profile,
           purpose: port.bios_source_profile === profileId ? "bios" : "game",
           paths,
+          ...(setup ? { setup } : {}),
         });
     },
     [catalog, generation],

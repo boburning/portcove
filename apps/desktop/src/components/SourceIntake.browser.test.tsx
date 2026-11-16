@@ -6,6 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
+import App from "../App";
+import { initializeLocalization, LocalizationProvider } from "../localization";
 import type {
   HostToolStatus,
   SourceImportPlan,
@@ -17,7 +19,8 @@ import type {
 } from "../types";
 import { SourceIntakeDialog, type SourceIntakeRequest } from "./SourceIntake";
 import { PreparationControl, type RunPreparation } from "./Preparation";
-import { preparation } from "../dev-scenarios/interactive/scenarios";
+import { preparation, workspace } from "../dev-scenarios/interactive/scenarios";
+import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 
 const profile: SourceProfile = {
   id: "game",
@@ -362,6 +365,196 @@ describe("source intake dialog", () => {
     expect(button("Copy into Portcove")).toBeUndefined();
     expect(button("Use current location")).toBeUndefined();
   });
+
+  it("continues only after refresh and uses the saved copy rather than the picked path", async () => {
+    const imported = prepareImport();
+    const refresh = vi.fn().mockRejectedValueOnce(new Error("unavailable"));
+    const continueSetup = vi.fn();
+    await root.rerender(
+      <SourceIntakeDialog
+        request={{ ...request(["D:/Game.z64"]), setup: { channel: "stable", other: undefined } }}
+        close={vi.fn()}
+        onAdded={refresh}
+        onContinueSetup={continueSetup}
+      />,
+    );
+    await act(async () => button("Copy into Portcove")!.click());
+    await act(async () => button("Copy into Portcove")!.click());
+    expect(button("Continue setup")).toBeUndefined();
+    refresh.mockResolvedValue(undefined);
+    await act(async () => button("Retry refresh")!.click());
+    await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+    expect(continueSetup).toHaveBeenCalledExactlyOnceWith(record("D:/Inbox/Game.z64"));
+    expect(imported).toHaveBeenCalledOnce();
+  });
+
+  it.each(["game", "bios", "changed BIOS"])(
+    "checks the selected App setup handoff for %s",
+    async (scenario) => {
+      const installedSources: SourceRecord[] = [];
+      const first = scenario === "bios" ? "bios" : "game";
+      const replaceBios = scenario === "changed BIOS";
+      const bios = { ...profile, id: "bios", label: "Fixture BIOS" };
+      const transport = installInteractiveTransport("setup", (message) => {
+        throw new Error(message);
+      });
+      const selectedRecord = (id: string, path: string) => ({ ...record(path), profile_id: id });
+      if (replaceBios) installedSources.push(selectedRecord("bios", "D:/original-bios.z64"));
+      vi.spyOn(desktopApi, "workspaceSnapshot").mockImplementation(async () => {
+        const snapshot = workspace("setup");
+        const port = snapshot.catalog.ports.find((port) => port.id === "orchard")!;
+        port.source_profile = profile.id;
+        port.bios_source_profile = bios.id;
+        snapshot.catalog.source_profiles = [profile, bios];
+        snapshot.sources = [...installedSources];
+        const has = (id: string) => installedSources.some((source) => source.profile_id === id);
+        const reason = !has(profile.id) ? "missing_source" : !has(bios.id) ? "missing_bios" : null;
+        const status = snapshot.statuses.find((status) => status.port_id === port.id)!;
+        status.active = null;
+        status.staged = null;
+        status.readiness = {
+          launchable: false,
+          pending_setup: false,
+          blockers: reason ? [reason] : [],
+        };
+        status.port_actions = [
+          {
+            action: "install",
+            availability: reason ? "waiting" : "allowed",
+            reason: reason ?? "available",
+          },
+        ];
+        return snapshot;
+      });
+      vi.spyOn(picker, "pickSourcePath").mockImplementation(async ({ id }) => `D:/${id}.z64`);
+      vi.spyOn(desktopApi, "inspectSourceIntake").mockImplementation(async (id, paths) => ({
+        ...intake(paths[0]!),
+        profile_id: id,
+      }));
+      vi.spyOn(desktopApi, "planSourceImport").mockImplementation(async (id, path, mode) => ({
+        schema_version: 1,
+        profile_id: id,
+        mode,
+        source: selectedRecord(id, path),
+        admission_mode: "exact_identity",
+        destination: path,
+        destination_exists: true,
+        existing_registration: null,
+        reuse_existing: false,
+        required_bytes: 0,
+        source_guard_sha256: "b".repeat(64),
+        plan_sha256: "c".repeat(64),
+      }));
+      const save = vi
+        .spyOn(desktopApi, "importSource")
+        .mockImplementation(async (id, path, mode) => {
+          const registered = selectedRecord(id, path);
+          if (replaceBios) installedSources[0] = selectedRecord("bios", "D:/replacement-bios.z64");
+          installedSources.push(registered);
+          return {
+            import_id: `imported-${id}`,
+            profile_id: id,
+            mode,
+            outcome: "registered_current_location",
+            registered,
+            copied: false,
+            original_deleted: false,
+            original_retained: true,
+            recovered: false,
+          };
+        });
+      const reuse = vi.spyOn(desktopApi, "reviewSourceReuse").mockImplementation(async () => ({
+        registration: installedSources.find((source) => source.profile_id === profile.id)!,
+        inspection: report("D:/game.z64"),
+        reference: { profile_id: profile.id, reference_sha256: "d".repeat(64) },
+        applications: [],
+      }));
+      const review = vi.spyOn(desktopApi, "plan").mockResolvedValue({
+        port_id: "orchard",
+        channel: "stable",
+        platform: "windows-x86-64",
+        bundled_runtime: null,
+        action: "download",
+        source_requirements: [],
+        download_bytes: 1024,
+        release: {
+          version: "2.0",
+          channel: "stable",
+          published_at: null,
+          asset: {
+            name: "orchard.zip",
+            url: "https://example.com/orchard.zip",
+            size: 1024,
+            sha256: "a".repeat(64),
+          },
+        },
+        storage: {
+          library_root: "D:/Portcove",
+          volume_total_bytes: 1024 ** 4,
+          volume_available_bytes: 512 * 1024 ** 3,
+        },
+        output_location: {
+          port_id: "orchard",
+          library_root: "D:/Portcove",
+          configured_output_directory: null,
+          default_output_directory: "D:/Portcove/versions/orchard",
+          effective_output_directory: "D:/Portcove/versions/orchard",
+          selection_source: "library_default",
+          user_data_root: "D:/Portcove/user/orchard",
+        },
+      });
+      const install = vi.spyOn(desktopApi, "install");
+      const launch = vi.spyOn(desktopApi, "launch");
+      const register = async (id: string) => {
+        await page
+          .getByRole("button", {
+            name: id === "game" ? "Choose game files to check" : "Choose BIOS file to check",
+            exact: true,
+          })
+          .click();
+        await page.getByRole("button", { name: "Use current location", exact: true }).click();
+        await page.getByRole("button", { name: "Use current location", exact: true }).click();
+        await page.getByRole("button", { name: "Continue setup", exact: true }).click();
+      };
+      try {
+        localStorage.clear();
+        initializeLocalization(["en"]);
+        await root.rerender(
+          <LocalizationProvider api={desktopApi}>
+            <App />
+          </LocalizationProvider>,
+        );
+        await page.getByRole("button", { name: "Discover", exact: true }).click();
+        await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
+        await page
+          .getByRole("button", { name: "View details for Orchard Quest", exact: true })
+          .click();
+        await page.getByRole("tab", { name: "Game files", exact: true }).click();
+        await page
+          .getByRole("button", {
+            name: first === "game" ? "Check game files" : "Check required BIOS",
+            exact: true,
+          })
+          .click();
+        await register(first);
+        expect(review).not.toHaveBeenCalled();
+        if (!replaceBios) await register(first === "game" ? "bios" : "game");
+        const outcome = replaceBios
+          ? page.getByText("The saved files have changed.", { exact: false })
+          : page.getByRole("dialog", { name: "Review installation", exact: true });
+        await expect.element(outcome).toBeVisible();
+        expect(review.mock.calls).toEqual(replaceBios ? [] : [["orchard", "stable"]]);
+        expect(save).toHaveBeenCalledTimes(replaceBios ? 1 : 2);
+        expect(reuse.mock.calls).toEqual(replaceBios ? [] : [[profile.id, 1]]);
+        expect(install).not.toHaveBeenCalled();
+        expect(launch).not.toHaveBeenCalled();
+      } finally {
+        await root.rerender(null);
+        transport.dispose();
+        localStorage.clear();
+      }
+    },
+  );
 
   it("keeps an in-flight import bound to its original library and discards its completion after switching", async () => {
     const apply = prepareImport();

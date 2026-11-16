@@ -158,6 +158,52 @@ describe("current review intent", () => {
     expect(install.sourceReference).toBeUndefined();
   });
 
+  it.each(["matches", "changed BIOS", "changed library"])(
+    "binds a selected setup continuation to its accepted inputs when context %s",
+    async (scenario) => {
+      const bios: SourceRecord = {
+        profile_id: "bios",
+        path: "D:/saved-bios.bin",
+        sha256: "a".repeat(64),
+        size: 64,
+        storage_sha256: "a".repeat(64),
+        storage_size: 64,
+        updated_at: 1,
+      };
+      const expected = { generation: 1, game: undefined, bios };
+      const current = {
+        ...expected,
+        generation: scenario === "changed library" ? 2 : 1,
+        bios: scenario === "changed BIOS" ? { ...bios, path: "D:/other-bios.bin" } : bios,
+      };
+      const review = vi.fn().mockResolvedValue(undefined);
+      let continueSetup!: () => void;
+      function Continuation() {
+        const selection = useSetupReviewSelection();
+        continueSetup = () => selection.requestReview("first", "stable", undefined, expected);
+        usePendingSetupReview(
+          selection,
+          "first",
+          "first",
+          {
+            ...portStatus(),
+            port_id: "first",
+            port_actions: [{ action: "install", availability: "allowed", reason: "available" }],
+          },
+          undefined,
+          review,
+          "",
+          vi.fn(),
+          current,
+        );
+        return null;
+      }
+      await act(async () => root.render(createElement(Continuation)));
+      await act(async () => continueSetup());
+      expect(review).toHaveBeenCalledTimes(scenario === "matches" ? 1 : 0);
+    },
+  );
+
   it.each(["", "D:/previous-choice.z64"])(
     "completes a queued saved-file choice across source draft %j and automatic prefill",
     async (initialPath) => {

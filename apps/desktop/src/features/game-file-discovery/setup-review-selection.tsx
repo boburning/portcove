@@ -1,10 +1,21 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import type { PortStatus, ReleaseChannel, SourceRegistrationReference } from "../../types";
+import type {
+  PortStatus,
+  ReleaseChannel,
+  SourceRecord,
+  SourceRegistrationReference,
+} from "../../types";
 
 /** Matches the largest batch Core reviews and installs at once. */
 export const maxSetupReviewSelection = 512;
 type Selection = ReturnType<typeof useSelection>;
 const SelectionContext = createContext<Selection | undefined>(undefined);
+
+interface SetupInputs {
+  generation: number;
+  game: SourceRecord | undefined;
+  bios: SourceRecord | undefined;
+}
 
 function useSelection() {
   const [selected, setSelected] = useState<string[]>([]);
@@ -12,14 +23,21 @@ function useSelection() {
     portId: string;
     channel: ReleaseChannel;
     sourceReference?: SourceRegistrationReference;
+    inputs?: SetupInputs;
   }>();
   const pending = useRef<typeof pendingReview>(undefined);
   const requestReview = (
     portId: string,
     channel: ReleaseChannel,
     sourceReference?: SourceRegistrationReference,
+    inputs?: SetupInputs,
   ) => {
-    const request = { portId, channel, ...(sourceReference ? { sourceReference } : {}) };
+    const request = {
+      portId,
+      channel,
+      ...(sourceReference ? { sourceReference } : {}),
+      ...(inputs ? { inputs } : {}),
+    };
     pending.current = request;
     setPendingReview(request);
   };
@@ -76,6 +94,7 @@ export function usePendingSetupReview(
   reviewInstallation: (reference?: SourceRegistrationReference) => Promise<void>,
   sourcePath: string,
   clearSourcePath: (path: string) => void,
+  currentInputs?: SetupInputs,
 ) {
   const { pendingReview, takeReview } = selection;
   useEffect(() => {
@@ -89,6 +108,7 @@ export function usePendingSetupReview(
       !refreshFailure &&
       !status.active &&
       !status.external_runtime &&
+      (!request.inputs || JSON.stringify(request.inputs) === JSON.stringify(currentInputs)) &&
       status.port_actions?.some(
         (action) => action.action === "install" && action.availability === "allowed",
       );
@@ -109,5 +129,6 @@ export function usePendingSetupReview(
     reviewInstallation,
     sourcePath,
     clearSourcePath,
+    currentInputs,
   ]);
 }
