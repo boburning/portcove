@@ -520,6 +520,7 @@ describe("source intake dialog", () => {
           })
           .click();
         await expect.poll(() => lookup.mock.calls.length + savedMatches.mock.calls.length).toBe(1);
+        const storeReadsBeforeCheck = lookup.mock.calls.length;
         if (newCheck) {
           await page.getByRole("tab", { name: "Game files", exact: true }).click();
           await page.getByRole("button", { name: "Check required BIOS", exact: true }).click();
@@ -538,7 +539,12 @@ describe("source intake dialog", () => {
             ? page.getByRole("button", { name: "Choose game files", exact: true })
             : page.getByText("The stored folder lacks the required original files.");
         await expect.element(outcome).toBeVisible();
-        expect(lookup).toHaveBeenCalledTimes(fromSaved ? 0 : 1);
+        expect(storeReadsBeforeCheck).toBe(fromSaved ? 0 : 1);
+        await expect.poll(() => lookup.mock.calls.length).toBe(1);
+        const fallback = fromSaved
+          ? page.getByRole("button", { name: "Check Dark Forces files from Steam", exact: true })
+          : outcome;
+        await expect.element(fallback).toBeVisible();
         expect(savedMatches.mock.calls).toEqual(
           fromSaved
             ? [

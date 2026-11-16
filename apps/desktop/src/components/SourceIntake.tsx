@@ -116,8 +116,8 @@ function useSourceIntakeSession({
   const [saved, setSaved] = useState<SourceRecord>();
   const [refreshFailed, setRefreshFailed] = useState(false);
   const [selectedPaths, setSelectedPaths] = useState(request.paths);
-  const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"]>(
-    request.setup?.storeOriginals ?? [],
+  const [storeOriginals, setStoreOriginals] = useState<StoreGameInstalls["installs"] | undefined>(
+    request.setup?.storeOriginals,
   );
   const selectedPathsRef = useRef(request.paths);
   const intent = useRef(0);
@@ -171,10 +171,19 @@ function useSourceIntakeSession({
     [copy.checking, loadInspection],
   );
 
+  const savedLocations = request.setup?.savedOriginals?.paths;
+  const savedLocationFailed = Boolean(
+    !saved &&
+    selectedPaths.length === 1 &&
+    savedLocations?.includes(selectedPaths[0]!) &&
+    (error || (result && !result.report?.inspection?.record)),
+  );
+
   useEffect(() => {
     if (
       !request.setup ||
-      request.setup.storeOriginals !== undefined ||
+      storeOriginals !== undefined ||
+      (savedLocations && !savedLocationFailed) ||
       request.purpose !== "game" ||
       request.profile.kind !== "file-set" ||
       request.paths.length !== 0
@@ -190,12 +199,14 @@ function useSourceIntakeSession({
             ),
           );
       },
-      () => {},
+      () => {
+        if (current) setStoreOriginals([]);
+      },
     );
     return () => {
       current = false;
     };
-  }, [request]);
+  }, [request, savedLocationFailed, savedLocations, storeOriginals]);
 
   useEffect(() => {
     if (request.paths.length > 0) {
@@ -355,7 +366,7 @@ function useSourceIntakeSession({
         : undefined,
     choose,
     inspect,
-    storeOriginals,
+    storeOriginals: storeOriginals ?? [],
     review,
     apply,
     retryRefresh,

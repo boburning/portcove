@@ -1888,6 +1888,7 @@ function SelectedPortPanel({
 }) {
   const selectedRoute = model.port?.id;
   const selectedChannel = model.status?.channel;
+  const installAction = model.status?.port_actions?.find((action) => action.action === "install");
   useLayoutEffect(() => {
     const requests = setupOriginalRequests.current;
     return () => {
@@ -1897,6 +1898,10 @@ function SelectedPortPanel({
     libraryGeneration,
     selectedRoute,
     selectedChannel,
+    model.sourceProfile?.id,
+    model.biosProfile?.id,
+    installAction?.availability,
+    installAction?.reason,
     model.status?.active?.id,
     model.status?.external_runtime?.id,
     setupOriginalRequests,
@@ -1925,11 +1930,7 @@ function SelectedPortPanel({
     status &&
     !status.active &&
     !status.external_runtime &&
-    status.port_actions?.some(
-      (action) =>
-        action.action === "install" &&
-        (action.availability === "allowed" || action.availability === "waiting"),
-    );
+    (installAction?.availability === "allowed" || installAction?.availability === "waiting");
   const inspectSource = (
     profile: NonNullable<typeof model.sourceProfile>,
     suggestions?: Pick<
@@ -1960,7 +1961,7 @@ function SelectedPortPanel({
           ).catch(() => undefined);
           if (!requests.isCurrent(request)) return;
           if (savedOriginals?.paths.length) {
-            inspectSource(originalProfile, { savedOriginals, storeOriginals: [] });
+            inspectSource(originalProfile, { savedOriginals });
             return;
           }
           if (originalProfile.kind !== "file-set") {
