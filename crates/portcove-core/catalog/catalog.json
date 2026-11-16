@@ -63426,7 +63426,7 @@
             "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledwindows/0.9.2/MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
             "size": 23847630,
             "sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4",
-            "published_at": "2026-08-11T16:04:05Z"
+            "published_at": "2026-02-13T03:00:00Z"
           }
         }
       },
@@ -63440,7 +63440,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own North American Mario Kart 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\MarioKart64Recompiled. The managed copy has no portable.txt, so it uses that profile; a copy you manage yourself without portable.txt shares it. Do not add portable.txt to the managed folder. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "manual_preparation": "On first Play, select your own North American Mario Kart 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\MarioKart64Recompiled. Portcove refuses to start a managed copy that contains portable.txt, so the managed copy uses that profile and a copy you manage yourself without portable.txt shares it. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
         "original_game_title": "Mario Kart 64",
         "manual_setup": {
           "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
@@ -70573,7 +70573,7 @@
             "url": "https://gitlab.com/api/v4/projects/83978879/packages/generic/starfox64recompiledwindows/1.0.3/Starfox64Recompiled-v1.0.3-Windows-RelWithDebInfo.zip",
             "size": 24382268,
             "sha256": "768c18b0aeb325a0102f722338f09a270a76eeebea29154764147a93d0bde530",
-            "published_at": "2026-08-11T17:30:15Z"
+            "published_at": "2025-12-30T03:00:00Z"
           }
         }
       },
@@ -70587,7 +70587,7 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
-        "manual_preparation": "On first Play, select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Starfox64Recompiled. The managed copy has no portable.txt, so it uses that profile; a copy you manage yourself without portable.txt shares it. Do not add portable.txt to the managed folder. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "manual_preparation": "On first Play, select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Starfox64Recompiled. Portcove refuses to start a managed copy that contains portable.txt, so the managed copy uses that profile and a copy you manage yourself without portable.txt shares it. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
         "original_game_title": "Star Fox 64",
         "manual_setup": {
           "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
