@@ -971,3 +971,131 @@ Preserve this contributor text.`;
     );
   });
 }
+const listingClaimCases = [
+  "listing",
+  "listing-upstream",
+  "listing-ambiguous",
+  "listing-unknown",
+  "listing-unclaimed",
+  "exact-with-listing",
+] as const;
+for (const claim of listingClaimCases) {
+  void test(`normalize-port ${claim} catalog listing issue claim`, async () => {
+    const calls: IntakeCall[] = [];
+    const mockedConfig = structuredClone(config);
+    mockedConfig.project.number = 7;
+    const key = claim === "exact-with-listing" ? "listed-port" : "research-key";
+    let body = renderPortIssueBody({
+      title: "Listed Port",
+      upstream: "https://github.com/example/listed-port",
+      portKey: key,
+    });
+    const issue = () => ({
+      node_id: "I_listed",
+      html_url: "https://github.com/boburning/portcove/issues/42",
+      number: 42,
+      title: "[Port] Listed Port",
+      body,
+      state: "OPEN",
+      parent: null,
+    });
+    const client = await sdkRoadmap(mockedConfig, {
+      allowMutations: true,
+      rest: ({ method, endpoint, body: payload }) => {
+        calls.push({ method, endpoint, body: payload });
+        if (method === "GET" && endpoint === "users/boburning")
+          return { type: "User", node_id: "OWNER" };
+        assert.equal(endpoint, "repos/boburning/portcove/issues/42");
+        if (method === "PATCH") {
+          const value = fixtureObject(payload);
+          assert.ok(typeof value.body === "string");
+          body = value.body;
+        } else assert.equal(method, "GET");
+        return issue();
+      },
+      graphql: (query, variables) => {
+        calls.push({ method: "POST", endpoint: "graphql", query, variables });
+        if (query.includes("projectV2(number:")) return projectData("PVT_project", 7, []);
+        throw new Error(`Unexpected normalization operation ${query}`);
+      },
+    });
+    client.repositoryIssues = async () =>
+      await fixtureIssueInventory(client, [{ ...issue(), type: "Issue", url: issue().html_url }]);
+    const readInventory = client.readInventory.bind(client);
+    client.readInventory = async (query, variables, select, identity) =>
+      query.includes("projectItems(")
+        ? [{ id: "PVTI_listed", isArchived: false, project: { id: "PVT_project" } }]
+        : await readInventory(query, variables, select, identity);
+    client.directProjectItem = async () => ({
+      id: "PVTI_listed",
+      content: { ...issue(), type: "Issue", url: issue().html_url },
+      fieldValues: [
+        ["Status", "Ready"],
+        ["Priority", "High"],
+        ["Horizon", "Next"],
+        ["Target release", "Alpha 2"],
+        ["Work type", "Port"],
+        ["Workstream", "Sources and ROM validation"],
+        ["Platform", "Windows"],
+        ["Port stage", "Cataloged"],
+        ["Effort", "M"],
+      ].map(([name, value]) => ({ name: value, field: { name } })),
+    });
+    const catalog = {
+      ports: [
+        {
+          id: "listed-port",
+          project_url:
+            claim === "listing-upstream"
+              ? "https://github.com/example/other-project"
+              : "https://github.com/Example/Listed-Port.git",
+        },
+        { id: "sibling-port", project_url: "https://github.com/example/listed-port" },
+      ],
+    };
+    const listings = [
+      {
+        id: claim === "listing-unknown" ? "retired-port" : "listed-port",
+        issue_number: claim === "listing-unclaimed" ? 41 : 42,
+      },
+      { id: "sibling-port", issue_number: claim === "listing-ambiguous" ? 42 : 43 },
+    ];
+    const run = async () => await client.normalizePortIssue({ number: 42, catalog, listings });
+    if (
+      claim === "listing-upstream" ||
+      claim === "listing-ambiguous" ||
+      claim === "listing-unknown"
+    ) {
+      await assert.rejects(
+        run,
+        claim === "listing-upstream"
+          ? /upstream differs from catalog listed-port/
+          : claim === "listing-ambiguous"
+            ? /claimed by multiple catalog listings: listed-port, sibling-port/
+            : /claimed by unknown catalog ID retired-port/,
+      );
+      assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
+      assert.match(body, new RegExp(`<!-- portcove-port-key: ${key} -->`, "u"));
+      return;
+    }
+    const first = await run();
+    // An unclaimed captured body is already canonical, so only a link rewrites it.
+    assert.equal(first.bodyChanged, claim !== "listing-unclaimed");
+    assert.equal(first.projectItemAdded, false);
+    assert.deepEqual(first.fieldsChanged, []);
+    if (claim === "listing-unclaimed") {
+      assert.match(body, /<!-- portcove-port-key: research-key -->/u);
+      assert.doesNotMatch(body, /<!-- portcove-catalog-id:/u);
+    } else {
+      assert.match(body, /<!-- portcove-catalog-id: listed-port -->/u);
+      assert.doesNotMatch(body, /<!-- portcove-port-key:|<!-- portcove-research:/u);
+    }
+    const second = await run();
+    assert.equal(second.bodyChanged, false);
+    assert.equal(
+      calls.filter((call) => call.method === "PATCH").length,
+      claim === "listing-unclaimed" ? 0 : 1,
+    );
+    assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
+  });
+}

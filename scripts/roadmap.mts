@@ -176,6 +176,7 @@ const scriptPath = fileURLToPath(import.meta.url);
 const projectRoot = path.resolve(path.dirname(scriptPath), "..");
 const configPath = path.join(projectRoot, ".github", "roadmap.json");
 const catalogPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "catalog.json");
+const listingsPath = path.join(projectRoot, "crates", "portcove-core", "catalog", "listings.json");
 
 const layouts = new Set(["TABLE_LAYOUT", "BOARD_LAYOUT", "ROADMAP_LAYOUT"]);
 export interface RoadmapFieldDefinition {
@@ -3804,11 +3805,14 @@ export class RoadmapClient {
   async normalizePortIssue({
     number,
     catalog,
+    listings,
     inventory,
     repositoryIdentity,
   }: {
     number: number;
     catalog: QualificationCatalogObservation;
+    /** Reviewed catalog listings; an exact `issue_number` claim can link a differing key. */
+    listings?: readonly unknown[];
     inventory?: RoadmapInventory;
     repositoryIdentity?: { id: number; game: string };
   }) {
@@ -3847,6 +3851,31 @@ export class RoadmapClient {
           normalizedUpstream(port.project_url) === normalizedUpstream(form.upstream),
       );
       catalogId = adopted?.id ?? null;
+    }
+    if (!catalogId && listings) {
+      const claimed = [
+        ...new Set(
+          listings
+            .filter((listing) => isRecord(listing) && listing.issue_number === number)
+            .map((listing) => (isRecord(listing) ? listing.id : undefined)),
+        ),
+      ];
+      if (claimed.length > 1)
+        throw new Error(
+          `issue #${number} is claimed by multiple catalog listings: ${claimed.map(String).join(", ")}`,
+        );
+      if (claimed.length === 1) {
+        const port = (catalog?.ports ?? []).find((candidate) => candidate.id === claimed[0]);
+        if (!port)
+          throw new Error(
+            `issue #${number} is claimed by unknown catalog ID ${String(claimed[0])}`,
+          );
+        if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
+          throw new Error(
+            `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
+          );
+        catalogId = port.id;
+      }
     }
     if (catalogId && !(catalog?.ports ?? []).some((port) => port.id === catalogId)) {
       throw new Error(`issue #${number} claims unknown catalog ID ${catalogId}`);
@@ -4894,9 +4923,13 @@ async function main(argv: readonly string[], commandScope?: RoadmapRequestScope)
       const catalog = qualificationCatalogObservation(
         JSON.parse(await readFile(catalogPath, "utf8")),
       );
+      const listingDirectory: unknown = JSON.parse(await readFile(listingsPath, "utf8"));
+      if (!isRecord(listingDirectory) || !Array.isArray(listingDirectory.listings))
+        throw new Error("catalog listings require a listing array");
       const result = await client.normalizePortIssue({
         number: Number(value),
         catalog,
+        listings: listingDirectory.listings,
       });
       await runScopedDoctor(config, client, { issues: [Number(value)] });
       console.log(
