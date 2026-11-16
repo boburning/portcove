@@ -94,7 +94,7 @@ fn inspection_accepts_exported_bytes_and_rejects_malformed_or_forged_recipes() {
         "digest binds content"
     );
     let mut future = serde_json::to_value(&recipe).unwrap();
-    future["format"] = serde_json::json!(2);
+    future["format"] = serde_json::json!(RECIPE_FORMAT + 1);
     assert_eq!(
         ProfileRecipe::inspect(future.to_string().as_bytes())
             .unwrap_err()
