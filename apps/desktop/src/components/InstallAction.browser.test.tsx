@@ -467,6 +467,55 @@ it.each([
   },
 );
 
+it.each([
+  ["automobili-lamborghini-recompiled", "windows-x86-64", "US Automobili Lamborghini", "Android"],
+  ["battleship", "windows-x86-64", "Super Smash Bros. 64 USA 1.0", "disk image"],
+  ["kirby-letsgo-oracles-decomp", "windows-x86-64", "Add ROM", "AppImage"],
+  ["lighthouse", "linux-x86-64", "supported Banjo-Kazooie", "disk image"],
+  ["perfect-dark", "windows-x86-64", "US Rev 1 Perfect Dark", "SDL2.framework"],
+  ["resident-evil-gaiden-recomp", "windows-x86-64", "Game Boy Color original", "Android"],
+] as const)("uses the managed setup of %s on %s", async (id, platform, expected, upstream) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: id, active: null }}
+      installPlan={{ ...plan, channel: port.channels[0] ?? plan.channel, port_id: id, platform }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(expected);
+  expect(dialog.element().textContent).not.toContain(upstream);
+});
+
+it.each(["macos-x86-64", "macos-aarch64"] as const)(
+  "keeps Perfect Dark’s framework requirement visible on %s",
+  async (platform) => {
+    const port = currentCatalogPort("perfect-dark");
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="/Player/perfect-dark.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, channel: "rolling", port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect
+      .element(dialog.getByText(/install SDL2\.framework in \/Library\/Frameworks/u))
+      .toBeVisible();
+  },
+);
+
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
   const port = currentCatalogPort("alariq-mc2");
   const install = vi.fn();

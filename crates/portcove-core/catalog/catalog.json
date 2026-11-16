@@ -29234,24 +29234,13 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Banjo-Kazooie",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "macOS: get the upstream application",
-              "instruction": "Windows and Linux use Portcove’s managed Install route where offered. On macOS, get the Mac ZIP from the upstream Releases page. The release is a ZIP holding a disk image, and Portcove cannot extract or manage replacement of a disk image. Open the disk image yourself and copy the complete application to a permanent folder you choose."
-            },
-            {
-              "title": "macOS: register the copy and choose Play",
-              "instruction": "Use Choose existing installation and select the Lighthouse executable inside the copied application bundle (in its Contents/MacOS folder). Review the executable and launch location, then choose Play explicitly. Supply your own matching original in the game’s own picker. Follow upstream instructions for updates to this copy."
-            },
-            {
-              "title": "macOS: keep the app data separate",
-              "instruction": "Portcove does not own this copy, its data, update, backup or rollback. Check the upstream readme for where this build keeps settings and saves, and preserve that folder and your original separately before replacing the application."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own supported Banjo-Kazooie cartridge dump. Portcove checks the original and installs the managed Lighthouse package."
             }
-          ],
-          "warnings": [
-            "Portcove has no native macOS execution result for this port. An external registration gives Portcove no ownership of the copy."
-          ],
-          "help_url": "https://github.com/HarbourMasters/Lighthouse/releases"
+          ]
         },
         "artwork": {
           "game_id": 2148,
@@ -30034,24 +30023,11 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Automobili Lamborghini",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "Install the official Android package",
-              "instruction": "Choose lamborghini-recomp-android-arm64.apk from the upstream release. Use an ARM64 device with Android 9 or newer and Vulkan 1.1 with scalar block layout."
-            },
-            {
-              "title": "Import your original",
-              "instruction": "Open Lamborghini Recompiled and use its file picker to import your own USA cartridge dump. The launcher validates the entire ROM after normalizing its byte order."
-            }
-          ],
-          "warnings": [
-            "These packages use upstream or player-managed setup, replacement and data backups. Portcove has no native execution or populated-save result for these sibling packages."
-          ],
-          "help_url": "https://github.com/alondero/automobililamborghini-recomp/blob/main/docs/ANDROID.md",
-          "references": [
-            {
-              "title": "Keep the Android profile",
-              "instruction": "Use in-place updates signed by the same upstream signer to keep the app-private saves, Controller Pak data and settings. Clearing app data or uninstalling erases that profile. Use the diagnostics ZIP for troubleshooting."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own US Automobili Lamborghini cartridge dump. Portcove checks the original and installs the managed package for this computer."
             }
           ]
         },
@@ -33486,14 +33462,14 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Perfect Dark",
         "manual_setup": {
-          "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos",
           "warnings": [],
           "steps": [
             {
-              "title": "Set up SDL2 on your Mac",
-              "instruction": "Before Play on Intel or Apple Silicon, follow the upstream Mac instructions to install SDL2.framework for your Mac in /Library/Frameworks. Portcove manages the Perfect Dark player archive. You manage the system framework separately. Use your own US Rev 1 Perfect Dark source with this player."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own US Rev 1 Perfect Dark game file. Portcove checks the original and installs the managed player for this computer."
             }
-          ]
+          ],
+          "help_url": "https://github.com/perfect-dark-pc-port/perfect_dark#macos"
         },
         "artwork": {
           "game_id": 271424,
@@ -33896,22 +33872,13 @@
         "saves_and_settings": "portcove-managed",
         "original_game_title": "Super Smash Bros.",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "macOS Apple Silicon: get the upstream application",
-              "instruction": "Windows and Linux use Portcove’s managed Install route. On macOS Apple Silicon, get the non-JP BattleShip.dmg from upstream Releases for the USA source route. Portcove cannot extract or manage replacement of this disk image. Mount it yourself and copy the complete BattleShip.app to your chosen location; keep its bundled libraries, resources and Torch companion intact."
-            },
-            {
-              "title": "macOS: register the copy and choose Play",
-              "instruction": "Use Choose existing installation to select BattleShip.app/Contents/MacOS/BattleShip inside your copied application bundle. Review the executable and launch location, then choose Play explicitly. The upstream first-run wizard requests your own matching Super Smash Bros. USA 1.0 original and extracts its game assets. Discovery and registration do not run the wizard or Torch. Follow upstream instructions for updates to this copy."
-            },
-            {
-              "title": "macOS: preserve app data separately",
-              "instruction": "The upstream macOS bundle stores settings, saves and extracted game assets under ~/Library/Application Support/BattleShip/, outside the application bundle. Preserve that folder and your original game separately. An external registration does not give Portcove ownership, managed Update, Backup or Rollback for this copy."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own Super Smash Bros. 64 USA 1.0 cartridge dump. Portcove checks the original and installs the managed BattleShip package."
             }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/JRickey/BattleShip/releases"
+          ]
         },
         "artwork": {
           "game_id": 1626,
@@ -39659,20 +39626,13 @@
         "manual_preparation": "Choose and check your own exact Resident Evil Gaiden (USA) original. Portcove installs the unchanged official Windows package, creates its local saves folder and manages local saves and settings. Review the resolved Windows account-wide preferences path before installation: the game may overwrite it and discard unknown entries, affecting other copies. Portcove never owns or backs up that shared file. A local runtime_prefs.ini fallback belongs to this managed installation. Existing external copies remain yours to manage. Use printable ASCII paths within Windows MAX_PATH bounds. Gameplay remains untested. MIT and clean-room claims are attributed upstream assertions, not blanket redistribution permission.",
         "original_game_title": "Resident Evil Gaiden",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "Android ARM64 package",
-              "instruction": "On ARM64 Android 7 or later, open the official ReGaiden v0.4.2 release and use its standalone Android APK. Open ROM Setup, choose Locate ROM (.gbc), and select your own exact Resident Evil Gaiden (USA) original. The app verifies and copies it to private storage."
-            },
-            {
-              "title": "Keep the installed Android profile",
-              "instruction": "Keep the original separately. Use the upstream APK over the existing copy only if Android accepts its signature. If installation is refused, preserve the old app and data. The app's saves, states and settings are private. The visible snapshots and asset_dump folders are separate exports."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own Resident Evil Gaiden (USA) Game Boy Color original. Portcove checks the original and installs the managed Windows player."
             }
-          ],
-          "warnings": [
-            "Android installation and data belong to the player. Export what your device can back up before replacing the APK. Removing the app can erase its private files."
-          ],
-          "help_url": "https://github.com/sergiomanzur/regaiden-recomp/blob/v0.4.2/README.md"
+          ]
         },
         "artwork": {
           "game_id": 969,
@@ -61680,24 +61640,13 @@
         "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
         "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "Set up a separate Linux copy",
-              "instruction": "Download the upstream Linux x86-64 AppImage, make it executable and run it outside your Portcove library. Use Add ROM with your own supported Oracle of Ages or Oracle of Seasons cartridge dump. The AppImage can update itself. Preserve the actual SDL profile or portable data next to the AppImage before replacing it."
-            },
-            {
-              "title": "Set up Oracles on Mac",
-              "instruction": "On Intel or Apple Silicon with macOS 11 or later, open the upstream disk image and copy Oracles.app to a writable location. Follow the upstream instructions for the unnotarized app. Use Add ROM with your own supported cartridge dump. Preserve the actual profile under Library/Application Support or the portable data beside the app."
-            },
-            {
-              "title": "Set up Oracles on Android",
-              "instruction": "Use the upstream arm64 APK on Android 8 or later. Install it using Android’s prompts, then use Add ROM to choose your own supported cartridge dump from Downloads. Preserve app data before uninstalling."
+              "title": "Set up the managed copy",
+              "instruction": "Portcove installs the Windows Oracles player. After installation, choose Play and use Add ROM to select your own supported Oracle of Ages or Oracle of Seasons cartridge dump."
             }
-          ],
-          "warnings": [
-            "You and upstream manage these Linux, Mac and Android copies."
-          ],
-          "help_url": "https://github.com/kirby-letsgo/oracles-decomp#readme"
+          ]
         }
       },
       "reviewed_package_layouts": {
