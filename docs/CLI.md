@@ -2520,6 +2520,10 @@ a required member. Recipes use format 2 when they include exact provider
 requirements. An automatic update that needs a multi-wrapper review waits
 for the player to confirm the affected content.
 
+Library database schema 63 requires Desktop and CLI versions that preserve exact
+provider dependencies. Close older clients before the first open by a newer
+client. The upgrade preserves existing revisions and player files.
+
 `portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is
 read-only. For each installed provider package it reports `current`, `newer_files`
 (with candidate file IDs in ascending order), `installed_file_removed` or

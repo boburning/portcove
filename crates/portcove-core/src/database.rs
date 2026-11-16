@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 62;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 63;
 
 struct Migration {
     version: i64,
@@ -395,7 +395,21 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_62,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 63,
+        name: "exact provider dependency writer protocol",
+        apply: migration_63,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
+    // Older clients can replace the canonical mods projection via backup
+    // restore without reading the revision that owns its provider closure.
+    // The exclusive migration lease and ledger fence those writers without
+    // rewriting existing profile revisions or replacing any player files.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_62(transaction: &Transaction<'_>) -> Result<()> {
     // The library lease excludes already-open writers during migration. Once
@@ -2891,6 +2905,27 @@ mod tests {
     }
 
     #[test]
+    fn provider_dependency_writer_upgrade_requires_exclusive_access() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 62).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&62)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&63));
+    }
+
+    #[test]
     fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3940,6 +3975,7 @@ mod tests {
         schema_59: 59,
         schema_60: 60,
         schema_61: 61,
+        schema_62: 62,
     }
 
     #[test]
