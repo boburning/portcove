@@ -156,6 +156,14 @@
       "saved": "Receta de configuración guardada.",
       "savePicker": "Guardar receta de configuración"
     },
+    "remove": {
+      "action": "Quitar",
+      "cancel": "Cancelar",
+      "choose": "Quitar {{name}} de esta configuración",
+      "confirm": "Confirmar eliminación",
+      "history": "Las revisiones anteriores conservan este mod para recuperarlo.",
+      "removed": "Se quitó {{name}} de esta configuración."
+    },
     "reread": "Volver a leer los perfiles",
     "separator": ", ",
     "setups": "Perfiles",

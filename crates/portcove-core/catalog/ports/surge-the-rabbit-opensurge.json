@@ -1,0 +1,49 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "surge-the-rabbit-opensurge",
+    "name": "Surge the Rabbit",
+    "original_game_title": "Surge the Rabbit",
+    "summary": "Play a retro platformer and build your own levels with the Open Surge engine.",
+    "project_url": "https://github.com/alemart/opensurge",
+    "issue_number": 6493,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "availability": "packages",
+    "release_url": "https://github.com/alemart/opensurge/releases/latest",
+    "setup_url": "https://opensurge2d.org/",
+    "download_block_reason": "Download and update the game through the publisher or your Linux package source.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Install and open the game",
+          "instruction": "On Windows, extract the entire publisher ZIP into a folder you can write to and open opensurge.exe. The package includes the game and uses a 32-bit Windows executable. On Linux, install Open Surge from your distribution or install Surge Engine from Flathub for x86-64 or ARM64."
+        },
+        {
+          "title": "Start the bundled adventure",
+          "instruction": "Choose Start Game from the Surge the Rabbit title screen. The package already includes the levels and other game files. No separate game data is needed."
+        },
+        {
+          "title": "Keep your settings and creations",
+          "instruction": "Close the game before copying your files. On Windows, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Get the publisher’s Android build",
+          "instruction": "The publisher offers an Android APK for ARM64 and 32-bit ARM in the release downloads. Keep your own copies of any projects you import. The Android app stores its active data in its own app storage."
+        }
+      ],
+      "help_url": "https://wiki.opensurge2d.org/"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "surge-the-rabbit-opensurge",
+    "origin": {
+      "project_url": "https://github.com/alemart/opensurge"
+    },
+    "decisions": []
+  }
+}

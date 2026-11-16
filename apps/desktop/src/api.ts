@@ -347,6 +347,20 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  removeModPackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("remove_mod_package", {
+      portId,
+      profileId,
+      nativeId,
+      expectedRevision,
+      generation,
+    }),
   setModUpdatePolicy: (
     portId: string,
     profileId: string,
