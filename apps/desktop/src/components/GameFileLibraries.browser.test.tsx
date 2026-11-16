@@ -2304,7 +2304,7 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("reviews and adds games whose matches were shown beyond the scan preview", async () => {
+it("adds a game whose registered match is outside the scan preview", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
   const paged: SourceRecord = {
@@ -2313,14 +2313,9 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     path: "D:/Games/paged.z64",
     sha256: "c".repeat(64),
   };
-  vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValue({
-    scan_id: stored.matches!.scan_id,
-    kind: "exact",
-    offset: 1,
-    total: 2,
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
     candidates: [paged],
     preliminary_selections: [],
-    next_offset: null,
   });
   vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
   const port = {
@@ -2353,8 +2348,7 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     </SetupReviewSelectionProvider>,
   );
   await click("Refresh folders");
-  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
-  await click("Show more matches");
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
@@ -2372,7 +2366,7 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
   );
 });
 
-it("reviews more than sixteen eligible games across multiple saved scan pages", async () => {
+it("reviews more than sixteen eligible games without opening their match pages", async () => {
   const sources = Array.from({ length: 21 }, (_, index): SourceRecord => ({
     ...savedCandidate,
     profile_id: `profile-${index}`,
@@ -2396,32 +2390,13 @@ it("reviews more than sixteen eligible games across multiple saved scan pages", 
   ];
   const stored = storedMatchesSnapshot();
   stored.report.candidates = sources.slice(0, 9);
-  const storedCandidates = [
-    ...sources.slice(0, 15),
-    ...Array.from({ length: 58 }, (_, index): SourceRecord => ({
-      ...savedCandidate,
-      path: `D:/Games/unregistered-${index}.z64`,
-    })),
-    ...sources.slice(15),
-  ];
-  const scanId = stored.matches!.scan_id;
-  stored.matches!.exact_matches = storedCandidates.length;
+  stored.matches!.exact_matches = 79;
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
   const pages = vi.spyOn(desktopApi, "gameFileScanMatches");
-  for (const [offset, end] of [
-    [9, 73],
-    [73, storedCandidates.length],
-  ] as const) {
-    pages.mockResolvedValueOnce({
-      scan_id: scanId,
-      kind: "exact",
-      offset,
-      total: storedCandidates.length,
-      candidates: storedCandidates.slice(offset, end),
-      preliminary_selections: [],
-      next_offset: end < storedCandidates.length ? end : null,
-    });
-  }
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: sources,
+    preliminary_selections: [],
+  });
   const selectedIds = eligible.map((source) => `port-${source.profile_id}`);
   const plan = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
     items: selectedIds.map((port_id) => ({ port_id, hold: "Waiting for setup input" })),
@@ -2459,15 +2434,12 @@ it("reviews more than sixteen eligible games across multiple saved scan pages", 
     </SetupReviewSelectionProvider>,
   );
   await click("Refresh folders");
+  expect(document.body.textContent).toContain("Showing 9 of 79 matches.");
   expect(document.body.textContent).toContain(
-    "0 selected · 8 eligible · 1 game needs a version choice",
+    "0 selected · 20 eligible · 1 game needs a version choice",
   );
-  await click("Show more matches");
-  await click("Show more matches");
-  expect(pages.mock.calls).toEqual([
-    [{ scan_id: scanId, kind: "exact", offset: 9, limit: 64 }, 1],
-    [{ scan_id: scanId, kind: "exact", offset: 73, limit: 64 }, 1],
-  ]);
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  expect(pages).not.toHaveBeenCalled();
   await click("Select all 20 eligible");
   await click("Review installing 20 selected");
   expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
