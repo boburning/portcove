@@ -21,7 +21,7 @@
         },
         {
           "title": "Select your original game folder",
-          "instruction": "Use your installed Steam or EA App copy. If the installer does not find it, choose the folder containing both game.exe and gamemd.exe. On Linux, the folder picker needs Zenity or KDialog."
+          "instruction": "Use your installed Steam or EA App copy. If the installer does not find it, choose the folder containing Red Alert 2 game.exe version 1.006 and Yuri’s Revenge gamemd.exe version 1.001. On Linux, the folder picker needs Zenity or KDialog."
         },
         {
           "title": "Build and start either game",
