@@ -4404,7 +4404,7 @@ mod tests {
     fn disc_tool_navigation_uses_only_fixed_registry_ids() {
         assert_eq!(
             host_tool_official_url("chdman").unwrap(),
-            "https://docs.mamedev.org/tools/chdman.html"
+            "https://www.mamedev.org/release.html"
         );
         assert_eq!(
             host_tool_official_url("dolphin_tool").unwrap(),
