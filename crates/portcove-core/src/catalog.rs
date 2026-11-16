@@ -9293,6 +9293,50 @@ mod tests {
         );
     }
 
+    /// Nookery v1.0.0 has no automatic `rom/GAFE01.iso` lookup. Its reviewed
+    /// `--disc` option opens the staged disc and skips the prelaunch menu, and
+    /// `--user-dir .` keeps every profile write in the installation. The
+    /// playtest data paths stay first, so updated copies keep them.
+    #[test]
+    fn nookery_opens_the_staged_disc_and_keeps_playtest_data() {
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("animal-crossing-pc-port").unwrap();
+        assert_eq!(port.adapter, AdapterKind::StagedSourcePortable);
+        assert_eq!(port.platforms, [Platform::WindowsX86_64]);
+        assert_eq!(port.release.repository, "flyngmt/Nookery");
+        assert_eq!(
+            port.release.asset_hints[&Platform::WindowsX86_64],
+            ["Nookery-v", "-windows-x86_64.zip"]
+        );
+        assert_eq!(
+            port.executable_hints[&Platform::WindowsX86_64],
+            ["Nookery.exe"]
+        );
+        assert_eq!(
+            port.runtime_source_filename.as_deref(),
+            Some("rom/GAFE01.iso")
+        );
+        assert_eq!(
+            port.launch_arguments,
+            ["--user-dir", ".", "--disc", "rom/GAFE01.iso"]
+        );
+        assert_eq!(
+            port.persistent_paths,
+            [
+                "save",
+                "settings.ini",
+                "keybindings.ini",
+                "texture_pack",
+                "config.json",
+                "config.json.bad",
+                "input.json",
+                "nes_roms",
+            ]
+        );
+        assert_eq!(port.runtime_mutable_paths, ["imgui.ini"]);
+        assert!(port.launch_environment.is_empty());
+    }
+
     #[test]
     fn copied_runtime_sources_require_persistent_ownership() {
         let mut catalog = Catalog::embedded().unwrap();
