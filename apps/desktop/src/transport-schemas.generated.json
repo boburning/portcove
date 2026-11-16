@@ -31785,6 +31785,188 @@
     "title": "ModSetupsView",
     "type": "object"
   },
+  "official_catalog_automatic_refresh": {
+    "$defs": {
+      "DefinitionDeliveryServing": {
+        "oneOf": [
+          {
+            "const": "verified",
+            "description": "The appointed metadata and index verified against the compiled root.",
+            "type": "string"
+          },
+          {
+            "const": "not_served",
+            "description": "The appointed location serves no metadata: its timestamp is absent (HTTP 404 or 410).",
+            "type": "string"
+          },
+          {
+            "const": "incomplete",
+            "description": "Metadata is served, but a file it requires is absent: a partial publication.",
+            "type": "string"
+          },
+          {
+            "const": "unreachable",
+            "description": "The location could not be reached, refused access (HTTP 403) or did not answer completely.",
+            "type": "string"
+          },
+          {
+            "const": "expired",
+            "description": "Signed metadata was served but has expired.",
+            "type": "string"
+          },
+          {
+            "const": "verification_failed",
+            "description": "Something was served but did not authenticate.",
+            "type": "string"
+          },
+          {
+            "const": "not_configured",
+            "description": "This build appoints no official catalog location.",
+            "type": "string"
+          }
+        ]
+      },
+      "ListingDeliveryStatus": {
+        "properties": {
+          "anchor_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "delivery_schema": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "expires_at": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "fallback_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "listing_count": {
+            "format": "uint",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "repository_root_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "selected": {
+            "type": "boolean"
+          },
+          "target_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "withdrawn_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "delivery_schema",
+          "revision",
+          "selected",
+          "anchor_sha256",
+          "repository_root_sha256",
+          "target_sha256",
+          "expires_at",
+          "listing_count",
+          "withdrawn_ids",
+          "fallback_reason"
+        ],
+        "type": "object"
+      },
+      "OfficialCatalogAutomaticOutcome": {
+        "oneOf": [
+          {
+            "const": "turned_off",
+            "description": "The player turned automatic updates off; nothing was contacted or changed.",
+            "type": "string"
+          },
+          {
+            "const": "not_configured",
+            "description": "This build appoints no official catalog.",
+            "type": "string"
+          },
+          {
+            "const": "already_running",
+            "description": "Another official catalog refresh is still running; this one was skipped.",
+            "type": "string"
+          },
+          {
+            "const": "unavailable",
+            "description": "The location served nothing that verified; nothing changed.",
+            "type": "string"
+          },
+          {
+            "const": "refreshed",
+            "description": "The authenticated refresh completed through the existing listing delivery.",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The result of one scheduled official catalog refresh.",
+    "properties": {
+      "outcome": {
+        "$ref": "#/$defs/OfficialCatalogAutomaticOutcome"
+      },
+      "serving": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/DefinitionDeliveryServing"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "What the location served, when `outcome` is `unavailable`."
+      },
+      "status": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ListingDeliveryStatus"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "The resulting selection, when `outcome` is `refreshed`."
+      }
+    },
+    "required": [
+      "outcome",
+      "serving",
+      "status"
+    ],
+    "title": "OfficialCatalogAutomaticRefresh",
+    "type": "object"
+  },
   "official_catalog_review": {
     "$defs": {
       "OfficialCatalogSource": {

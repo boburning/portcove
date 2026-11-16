@@ -7,7 +7,8 @@ export type PortCapabilityReport = Generated.TransportOutputs["port_capability_r
 export type SourceReuseReview = Generated.TransportOutputs["source_reuse_review"];
 export type SourceRegistrationReference = SourceReuseReview["reference"];
 export type OfficialCatalogReview = Generated.TransportOutputs["official_catalog_review"];
-export type OfficialCatalogSetup = Generated.TransportOutputs["official_catalog_setup"];
+export type OfficialCatalogAutomaticRefresh =
+  Generated.TransportOutputs["official_catalog_automatic_refresh"];
 export type DefinitionRefresh = Generated.TransportOutputs["definition_refresh"];
 
 export type { ReleaseChannel } from "./transport-types.generated";

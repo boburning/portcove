@@ -280,6 +280,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "official_catalog_automatic_refresh",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::OfficialCatalogAutomaticRefresh,
+                >(contract)),
+            ),
+            (
                 "definition_refresh",
                 serde_json::json!(schema_for_contract::<portcove_core::DefinitionRefresh>(
                     contract

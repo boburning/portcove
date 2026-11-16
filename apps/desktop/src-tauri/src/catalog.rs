@@ -1,6 +1,6 @@
 use crate::{
     DesktopResult, DesktopState, blocking_async_service, blocking_async_service_at_generation,
-    blocking_service, blocking_service_at_generation, confirm_destructive,
+    blocking_service, blocking_service_at_generation, blocking_worker, confirm_destructive,
 };
 use portcove_core::{
     CatalogStatus, CatalogTrustKey, CatalogUpdatePlan, CatalogUpdateSource, OperationEvent,
@@ -199,18 +199,52 @@ pub(crate) async fn get_official_catalog_review(
     .await
 }
 
+/// The host-wide automatic-update choice Core keeps in host preferences; on
+/// unless the player turned it off.
 #[tauri::command]
-pub(crate) async fn enable_official_catalog(
+pub(crate) async fn get_official_catalog_automatic_updates(
+    state: tauri::State<'_, DesktopState>,
+) -> DesktopResult<bool> {
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?.clone();
+    blocking_worker(move || Ok(preferences.official_catalog_automatic_updates()?)).await
+}
+
+/// Returns the value now stored, so the caller shows what Core holds.
+#[tauri::command]
+pub(crate) async fn set_official_catalog_automatic_updates(
+    state: tauri::State<'_, DesktopState>,
+    enabled: bool,
+) -> DesktopResult<bool> {
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?.clone();
+    blocking_worker(move || {
+        preferences.set_official_catalog_automatic_updates(enabled)?;
+        Ok(preferences.official_catalog_automatic_updates()?)
+    })
+    .await
+}
+
+/// One scheduled refresh for the selected library. Core decides whether the
+/// player's choice allows it, whether another refresh is running and whether
+/// the location served anything that verified; this adapter only forwards it.
+#[tauri::command]
+pub(crate) async fn refresh_official_catalog_automatically(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
-    expected_plan: String,
-) -> DesktopResult<portcove_core::OfficialCatalogSetup> {
-    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
-        service
-            .library()
-            .enable_official_catalog(&expected_plan)
-            .map_err(Into::into)
-    })
+    on_event: tauri::ipc::Channel<OperationEvent>,
+) -> DesktopResult<portcove_core::OfficialCatalogAutomaticRefresh> {
+    let preferences = state.preferences.as_ref().map_err(Clone::clone)?.clone();
+    blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .refresh_official_catalog_automatically(&preferences, |event| {
+                    let _ = on_event.send(event);
+                })
+                .await
+                .map_err(Into::into)
+        },
+    )
     .await
 }
 

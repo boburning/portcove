@@ -477,11 +477,20 @@ export const desktopApi = {
   listingDeliveryStatus: () => invoke<ListingDeliveryStatus>("get_listing_delivery_status"),
   officialCatalogReview: (generation: number) =>
     invoke<import("./types").OfficialCatalogReview>("get_official_catalog_review", { generation }),
-  enableOfficialCatalog: (expectedPlan: string, generation: number) =>
-    invoke<import("./types").OfficialCatalogSetup>("enable_official_catalog", {
-      expectedPlan,
-      generation,
-    }),
+  officialCatalogAutomaticUpdates: () => invoke<boolean>("get_official_catalog_automatic_updates"),
+  setOfficialCatalogAutomaticUpdates: (enabled: boolean) =>
+    invoke<boolean>("set_official_catalog_automatic_updates", { enabled }),
+  refreshOfficialCatalogAutomatically: (
+    generation: number,
+    onEvent: (event: OperationEvent) => void,
+  ) => {
+    const channel = new Channel<OperationEvent>();
+    channel.onmessage = onEvent;
+    return invoke<import("./types").OfficialCatalogAutomaticRefresh>(
+      "refresh_official_catalog_automatically",
+      { generation, onEvent: channel },
+    );
+  },
   refreshOfficialCatalog: (generation: number, onEvent: (event: OperationEvent) => void) => {
     const channel = new Channel<OperationEvent>();
     channel.onmessage = onEvent;

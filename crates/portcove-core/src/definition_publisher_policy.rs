@@ -25,8 +25,9 @@ pub use launch_assessment::{
 pub(crate) mod provisioning;
 pub use provisioning::{
     DefinitionAuthorityProvisioning, DefinitionAuthorityReview, DefinitionDeliveryInspection,
-    DefinitionDeliveryServing, OfficialCatalogReview, OfficialCatalogSetup, OfficialCatalogSource,
-    PublishedDefinition, inspect_official_definition_delivery,
+    DefinitionDeliveryServing, OfficialCatalogAutomaticOutcome, OfficialCatalogAutomaticRefresh,
+    OfficialCatalogReview, OfficialCatalogSetup, OfficialCatalogSource, PublishedDefinition,
+    inspect_official_definition_delivery,
 };
 
 #[path = "listing_delivery.rs"]

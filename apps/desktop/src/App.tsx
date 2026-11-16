@@ -37,6 +37,7 @@ import { useSourceIntakeState } from "./features/source-intake/use-source-intake
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState } from "./features/operations/use-operation-state";
+import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import { targetInvocationContext } from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
@@ -2157,6 +2158,12 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
   });
+  useOfficialCatalogAutoRefresh(
+    bootstrap.generation,
+    Boolean(data.catalog) && !data.recoveryFailure,
+    Boolean(operations.busy),
+    data.refreshAfterMutation,
+  );
   const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const {
