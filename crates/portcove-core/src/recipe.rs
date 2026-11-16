@@ -380,7 +380,13 @@ impl PortcoveService {
         let connection = self.library.connection()?;
         let revision = match revision {
             Some(number) => profile::revision_by_number(&connection, profile_id, number)?,
-            None => profile::current_revision(&connection, port_id, profile_id)?,
+            None => {
+                let profile = profile::profile_by_id(&connection, port_id, profile_id)?;
+                let revision =
+                    profile::revision_by_number(&connection, profile_id, profile.current_revision)?;
+                profile::require_active_default_revision(&connection, &profile, &revision)?;
+                revision
+            }
         };
         if revision.build.port_id != port_id {
             return Err(PortcoveError::not_found(

@@ -593,7 +593,7 @@ export async function publishRelease(options: {
       repo: "portcove",
       tag_name: options.tag,
       ...(options.commit ? { target_commitish: options.commit } : {}),
-      name: `Portcove ${options.version}`,
+      name: `Portcove ${options.tag.startsWith("nightly-") ? "Nightly — " : ""}${options.version}`,
       body: options.notes,
       draft: true,
       prerelease: options.prerelease,

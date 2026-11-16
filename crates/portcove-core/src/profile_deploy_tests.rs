@@ -852,12 +852,12 @@ fn launch_pins_a_non_default_profiles_exact_build_without_moving_the_active_poin
         .into_iter()
         .find(|install| install.id == "first")
         .unwrap();
-    // The game later updates: a newer build becomes the global active build.
-    let second = install(w.service.library(), "second", b"newer runtime", true);
     let pinned = w
         .service
         .copy_profile("starship", &w.default, "Pinned")
         .unwrap();
+    // The customized profile retains its exact build after Default advances.
+    let second = install(w.service.library(), "second", b"newer runtime", true);
     let active = || {
         w.service
             .library()

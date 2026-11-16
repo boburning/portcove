@@ -248,7 +248,7 @@ type Job = {
   if?: string;
   uses?: string;
   secrets?: string;
-  environment?: string;
+  environment?: string | { name?: string; deployment?: boolean };
   needs?: string | string[];
   permissions?: Record<string, string>;
   steps?: Step[];
@@ -307,10 +307,10 @@ void test("catalog keys reach only one signing step per role, from main", async 
   assert.deepEqual(Object.keys(sign.on), ["workflow_call"]);
   const job = sign.jobs.sign!;
   // The environment follows the role and can only be one of the four catalog environments.
-  assert.equal(
-    job.environment,
-    "${{ inputs.role == 'official-definitions' && 'production-catalog-definitions' || inputs.role == 'official-policy' && 'production-catalog-policy' || inputs.role == 'snapshot' && 'production-catalog-snapshot' || 'production-catalog-timestamp' }}",
-  );
+  assert.deepEqual(job.environment, {
+    name: "${{ inputs.role == 'official-definitions' && 'production-catalog-definitions' || inputs.role == 'official-policy' && 'production-catalog-policy' || inputs.role == 'snapshot' && 'production-catalog-snapshot' || 'production-catalog-timestamp' }}",
+    deployment: false,
+  });
   assert.deepEqual(job.permissions, { contents: "read" });
   const steps = job.steps!;
   const signing = steps.filter(

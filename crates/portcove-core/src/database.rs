@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 61;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 62;
 
 struct Migration {
     version: i64,
@@ -389,7 +389,20 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_61,
         verify: crate::carry_ledger::verify_schema,
     },
+    Migration {
+        version: 62,
+        name: "atomic Default runtime revision writer protocol",
+        apply: migration_62,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_62(transaction: &Transaction<'_>) -> Result<()> {
+    // The library lease excludes already-open writers during migration. Once
+    // recorded, older clients reject this ledger before opening the library.
+    // Existing profiles with an older resolved runtime can be refreshed by Core.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_61(transaction: &Transaction<'_>) -> Result<()> {
     // Digests of files Portcove didn't install that a version switch carried
@@ -3926,6 +3939,7 @@ mod tests {
         schema_58: 58,
         schema_59: 59,
         schema_60: 60,
+        schema_61: 61,
     }
 
     #[test]
