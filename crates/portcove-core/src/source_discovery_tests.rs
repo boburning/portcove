@@ -4773,6 +4773,7 @@ fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
     }
     let mut selected = request(&first);
     selected.roots.push(owned.clone());
+    selected.profile_ids = vec!["star-fox-64".into()];
     selected.limits.max_file_bytes = payload.len() as u64;
     let report = super::scan(
         &catalog(payload),
