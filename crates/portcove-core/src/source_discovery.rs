@@ -1178,13 +1178,21 @@ fn validate_continuation(
     let available = roots
         .iter()
         .filter(|root| root.availability == GameFileRootAvailability::Available)
-        .map(|root| &root.path)
-        .collect::<Vec<_>>();
+        .map(|root| root.path.as_path())
+        .collect::<BTreeSet<_>>();
+    let searched = snapshot
+        .report
+        .searched_roots
+        .iter()
+        .map(PathBuf::as_path)
+        .collect::<BTreeSet<_>>();
     for (path, expected) in &cursor.observed {
         operation.checkpoint()?;
         *checks += 1;
         if *checks > MAX_RESUME_CHECKS
-            || !available.iter().any(|root| path.starts_with(root))
+            || !path
+                .ancestors()
+                .any(|ancestor| available.contains(ancestor))
             || path.components().any(|part| {
                 matches!(
                     part,
@@ -1201,16 +1209,17 @@ fn validate_continuation(
             ));
         }
     }
-    let mut pending_paths = BTreeSet::new();
+    let mut pending_paths = BTreeMap::new();
     for directory in &cursor.pending {
-        if !pending_paths.insert(&directory.path)
+        if pending_paths
+            .insert(directory.path.as_path(), directory)
+            .is_some()
             || directory.depth > limits.max_depth
-            || !snapshot.report.searched_roots.iter().any(|root| {
-                directory
-                    .path
-                    .strip_prefix(root)
-                    .is_ok_and(|relative| relative.components().count() == directory.depth as usize)
-            })
+            || !directory
+                .path
+                .ancestors()
+                .nth(directory.depth as usize)
+                .is_some_and(|ancestor| searched.contains(ancestor))
             || directory.seen.len() > MAX_CONTINUATION_RECORDS
             || directory.deferred_file.as_ref().is_some_and(|name| {
                 !directory.seen.contains(name)
@@ -1239,28 +1248,17 @@ fn validate_continuation(
         }
     }
     for path in cursor.observed.keys() {
-        if !snapshot
-            .report
-            .searched_roots
-            .iter()
-            .any(|root| path.starts_with(root))
-        {
+        if !path.ancestors().any(|ancestor| searched.contains(ancestor)) {
             return Err(PortcoveError::state(
                 "scan continuation path is outside its recorded scope",
             ));
         }
-        if let Some(parent) = path.parent() {
-            for directory in cursor
-                .pending
-                .iter()
-                .filter(|directory| directory.path == parent)
-            {
-                let name = path.file_name().and_then(|name| name.to_str());
-                if name.is_none_or(|name| !directory.seen.contains(name)) {
-                    return Err(PortcoveError::state(
-                        "scan continuation lost an examined directory entry",
-                    ));
-                }
+        if let Some(directory) = path.parent().and_then(|parent| pending_paths.get(parent)) {
+            let name = path.file_name().and_then(|name| name.to_str());
+            if name.is_none_or(|name| !directory.seen.contains(name)) {
+                return Err(PortcoveError::state(
+                    "scan continuation lost an examined directory entry",
+                ));
             }
         }
     }
@@ -1746,7 +1744,11 @@ fn scan_with_continuation<'a>(
     roots.dedup();
     let mut selected = Vec::<PathBuf>::new();
     for root in roots {
-        if !selected.iter().any(|parent| root.starts_with(parent)) {
+        if !root.ancestors().skip(1).any(|ancestor| {
+            selected
+                .binary_search_by(|parent| parent.as_path().cmp(ancestor))
+                .is_ok()
+        }) {
             selected.push(root);
         }
     }

@@ -8,7 +8,6 @@ import { useSetupSource } from "../features/app-shell/use-setup-source";
 import {
   useGameFileScanObserver,
   gameFileScanLimits as scanLimits,
-  availableRootCount,
   type GameFileScan,
 } from "../features/game-file-discovery/use-game-file-scan";
 import { LatestRequestGeneration } from "../shared/concurrency-state";
@@ -270,11 +269,7 @@ function savedScanAction(
   if (!readConfirmed) return "Scan saved folders";
   if (snapshot?.coverage?.restart_required) return "Start new scan";
   if (snapshot?.freshness !== "inputs_match") return "Scan saved folders";
-  if (snapshot.coverage?.can_resume) {
-    return availableRootCount(snapshot.roots) > 8
-      ? "Finish scanning these folders"
-      : "Continue scan";
-  }
+  if (snapshot.coverage?.can_resume) return "Continue scan";
   return "Scan saved folders";
 }
 
@@ -429,9 +424,7 @@ function completedScanCoverage(
   readConfirmed: boolean,
 ) {
   const coverage = snapshot.coverage;
-  const scanAction = savedScanAction(snapshot, readConfirmed);
-  const canContinue =
-    scanAction === "Continue scan" || scanAction === "Finish scanning these folders";
+  const canContinue = savedScanAction(snapshot, readConfirmed) === "Continue scan";
   const matchCeilingReached =
     coverage !== undefined &&
     coverage !== null &&

@@ -1865,7 +1865,7 @@ it("finishes a retained scan of nine folders with the existing Core scan action"
   await root.rerender(
     <GameFileLibraries generation={1} key="continued-nine-roots" ports={[]} profiles={[]} />,
   );
-  await click("Finish scanning these folders");
+  await click("Continue scan");
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledExactlyOnceWith(
     continued.limits,
     1,
