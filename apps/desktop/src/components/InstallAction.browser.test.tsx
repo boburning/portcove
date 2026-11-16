@@ -323,6 +323,16 @@ it.each([
   expect(setup.element().textContent).toContain(original);
   expect(setup.element().textContent).toContain("Select Play when setup is complete");
   expect(dialog.element().textContent).not.toContain(upstreamStep);
+  const platformNotes: Record<string, string[]> = {
+    "donkey-kong-64-recompiled": ["still unverified on Apple Silicon Mac"],
+    "duke-nukem-zero-hour-recompiled": [
+      "still unverified on Linux x64 and Mac",
+      "Gatekeeper behavior is also unverified on Mac",
+    ],
+  };
+  for (const note of platformNotes[id] ?? []) {
+    expect(dialog.element().textContent).toContain(note);
+  }
 });
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {
