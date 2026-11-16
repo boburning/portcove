@@ -101,7 +101,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Diddy Kong Racing Rev 1 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/akratch/goldenballoon#readme"
+      }
     },
     "game_settings": {
       "format_version": 1,
