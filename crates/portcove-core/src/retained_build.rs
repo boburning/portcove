@@ -484,22 +484,7 @@ impl PortcoveService {
             PortcoveError::conflict("referenced installation lost its retained contract")
         })?;
         self.require_retained_build_permission(&installer, &install, &catalog)?;
-        let now = Library::now();
-        let history = successor_history(previous, &build, now)?;
-        let reference = RetainedBuildReference {
-            id: previous.map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
-            setup_id: setup_id.into(),
-            build,
-            history,
-            revision: previous
-                .map_or(Some(1), |r| r.revision.checked_add(1))
-                .ok_or_else(|| {
-                    PortcoveError::state("retained-build reference revision exhausted")
-                })?,
-            created_at: previous.map_or(now, |r| r.created_at),
-            updated_at: previous.map_or(now, |r| now.max(r.updated_at)),
-        };
-        write_reference(transaction, &reference)?;
+        let reference = write_successor_reference(transaction, setup_id, build, previous)?;
         self.reference_publication_checkpoint()?;
         Ok(reference)
     }
@@ -870,7 +855,7 @@ pub(crate) fn references_from(connection: &Connection) -> Result<Vec<RetainedBui
     Ok(references)
 }
 
-fn reference_from(
+pub(crate) fn reference_from(
     connection: &Connection,
     port_id: &str,
     setup_id: &str,
@@ -889,6 +874,30 @@ pub(crate) fn restore_references(
         write_reference(connection, reference)?;
     }
     Ok(())
+}
+
+/// Records retention for an exact binding whose policy is enforced by the caller.
+pub(crate) fn write_successor_reference(
+    connection: &Connection,
+    setup_id: &str,
+    build: RetainedBuildIdentity,
+    previous: Option<&RetainedBuildReference>,
+) -> Result<RetainedBuildReference> {
+    let now = Library::now();
+    let history = successor_history(previous, &build, now)?;
+    let reference = RetainedBuildReference {
+        id: previous.map_or_else(|| uuid::Uuid::new_v4().to_string(), |r| r.id.clone()),
+        setup_id: setup_id.into(),
+        build,
+        history,
+        revision: previous
+            .map_or(Some(1), |r| r.revision.checked_add(1))
+            .ok_or_else(|| PortcoveError::state("retained-build reference revision exhausted"))?,
+        created_at: previous.map_or(now, |r| r.created_at),
+        updated_at: previous.map_or(now, |r| now.max(r.updated_at)),
+    };
+    write_reference(connection, &reference)?;
+    Ok(reference)
 }
 
 fn write_reference(connection: &Connection, reference: &RetainedBuildReference) -> Result<()> {

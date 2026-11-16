@@ -2509,6 +2509,7 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
+            crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
@@ -2590,6 +2591,7 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
+        crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3439,13 +3441,15 @@ impl Library {
         let previous_id = previous_id.ok_or_else(|| {
             PortcoveError::not_found(format!("{port_id} has no rollback version"))
         })?;
+        let previous = Self::install_by_id(&transaction, Some(&previous_id))?
+            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
+        crate::profile::follow_active_install(&transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
         )?;
         transaction.commit()?;
-        Self::install_by_id(&connection, Some(&previous_id))?
-            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))
+        Ok(previous)
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
@@ -3459,6 +3463,9 @@ impl Library {
             )
             .optional()?
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        let staged = Self::install_by_id(&transaction, Some(&staged_id))?
+            .ok_or_else(|| PortcoveError::state("staged version disappeared during activation"))?;
+        crate::profile::follow_active_install(&transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,

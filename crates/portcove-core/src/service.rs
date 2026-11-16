@@ -11104,24 +11104,24 @@ mod tests {
         register_zelda_install(&library, "v1", true);
         register_zelda_install(&library, "v2", false);
 
-        let error = service_with_fault(
+        let service = service_with_fault(
             library.clone(),
             LifecycleFaultPoint::ActivationMetadataCommitted,
-        )
-        .activate_staged("zelda64-recomp")
-        .unwrap_err();
+        );
+        let port_id = "zelda64-recomp";
+        let default = service.ensure_default_profile(port_id).unwrap();
+        let error = service.activate_staged(port_id).unwrap_err();
         assert!(error.message.contains("injected lifecycle failure"));
 
+        let committed = service.profile_revisions(port_id, &default.id).unwrap();
+        assert_eq!(committed.len(), 2);
+
         let recovered = service_with_release(library, "v2");
-        assert_eq!(
-            recovered
-                .status("zelda64-recomp")
-                .unwrap()
-                .active
-                .unwrap()
-                .version,
-            "v2"
-        );
+        let active = recovered.status(port_id).unwrap().active.unwrap();
+        assert_eq!(active.version, "v2");
+        let revisions = recovered.profile_revisions(port_id, &default.id).unwrap();
+        assert_eq!(revisions, committed);
+        assert_eq!(revisions[1].build.install_id, active.id);
         assert!(recovered.repair_plan().unwrap().items.is_empty());
     }
 

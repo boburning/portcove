@@ -2315,9 +2315,12 @@ same result.
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
 from a profile's current revision with its **own save group**: progress is not
-copied. The default profile follows the game's current build; any other profile
-launches the exact build its revision names, so a game update never changes a
-customized setup. `copy --current-build` makes an upgraded copy on the current
+copied. When the active runtime changes, Default receives a new revision with
+that runtime in the same library transaction. Its save group and earlier
+recovery builds stay available. Run `ensure-default` to refresh a Default
+revision left behind by an older client before copying or exporting it. Other
+profiles launch the exact build their revisions name, so a game update never
+changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
 Stale `--expected-revision` values fail as `conflict`.
 
