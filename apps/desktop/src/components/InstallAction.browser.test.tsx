@@ -302,7 +302,11 @@ it.each([
   ["donkey-kong-64-recompiled", "Donkey Kong 64 US 1.0", "DK64Recompiled.tar.gz"],
   ["aerogauge-recompiled", "AeroGauge US", "aerogauge-recomp-linux-arm64.zip"],
   ["snowboard-kids-2-recomp", "Snowboard Kids 2 US", "SnowboardKids2Recompiled.tar.gz"],
-  ["diddy-kong-racing-golden-balloon", "Diddy Kong Racing Rev 1", "mark it executable and open it"],
+  [
+    "diddy-kong-racing-golden-balloon",
+    "Diddy Kong Racing US 1.1 or European 1.1",
+    "mark it executable and open it",
+  ],
   ["duke-nukem-zero-hour-recompiled", "Duke Nukem: Zero Hour USA", "DNZHRecompiled.tar.gz"],
 ])("shows the managed guide for %s in the Windows review", async (id, original, upstreamStep) => {
   const port = currentCatalogPort(id);
