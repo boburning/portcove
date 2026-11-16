@@ -953,11 +953,17 @@ that is ready gets its own one-game batch. If a required registered original
 is unavailable, its game waits without spending an attempt and can become
 ready again when the same file or folder returns. Before the batch starts,
 Portcove checks that the original is available and the choice still stands.
-The game is re-planned and freshly authorized for the batch. It is never
-launched, and an installed game is never reinstalled or updated. A failed or
-interrupted attempt is not retried with the same plan; it
-becomes eligible again when the plan changes. Uninstalling a game is
-remembered, so it is not set up or reported again until you choose a mode for it.
+The game is re-planned and freshly authorized for the batch. Play remains an
+explicit action. Standing setup leaves installed games in place. After
+uninstalling, choose a mode again before the game can be set up or reported.
+
+Portcove retries a failed setup on a later pass while the game is ready, up to
+three failed attempts for the same plan. A changed plan becomes eligible again.
+If an earlier Portcove version spent all three attempts while your registered
+original was offline, reconnect it and repeat
+`games intent PORT_ID set-up-when-ready`. Then run `games setup-ready`. The renewed
+choice reuses the same registration.
+
 Each pass first settles setup batches left mid-run by an interruption, against
 committed state, before starting anything: an install that was committed counts
 as ready, and a game with nothing committed and no unfinished install or update
@@ -965,9 +971,8 @@ journal is marked interrupted. A game whose earlier work hasn't finished
 recovering stays in progress and waits with that reason; nothing new starts for
 it and nothing is counted. Only batches whose in-progress games are all
 set-up-when-ready games are settled this way; other interrupted batches stay in
-progress for you to continue with `games batch-resume`. For a set-up-when-ready
-game an interruption counts as a failed attempt with that plan, so it is set up afresh (re-planned and freshly authorized) on the next
-pass, and repeated interruptions stop at the same three-attempt limit. Batches
+progress for you to continue with `games batch-resume`. An interruption for a
+set-up-when-ready game counts as one failed attempt for that plan. Batches
 another process is still running, and games another operation holds, are left
 alone.
 The same pass also applies eligible mod updates for setups that allow them; see
