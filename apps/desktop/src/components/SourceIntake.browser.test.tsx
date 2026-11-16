@@ -472,7 +472,8 @@ describe("source intake dialog", () => {
         await page.getByRole("button", { name: "Discover", exact: true }).click();
         await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
         await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
-        await page
+        const installation = page.getByRole("region", { name: "Game actions", exact: true });
+        await installation
           .getByRole("button", {
             name: newCheck ? "Choose game files and BIOS" : "Choose game files",
             exact: true,
@@ -491,7 +492,7 @@ describe("source intake dialog", () => {
         const outcome = newCheck
           ? page.getByRole("dialog", { name: "Check BIOS for Orchard Quest" })
           : noMatch
-            ? page.getByRole("button", { name: "Choose game files", exact: true })
+            ? installation.getByRole("button", { name: "Choose game files", exact: true })
             : page.getByText("The stored folder lacks the required original files.");
         await expect.element(outcome).toBeVisible();
         await expect.poll(() => pickerOpen.mock.calls.length).toBe(noMatch ? 1 : 0);
@@ -676,7 +677,10 @@ describe("source intake dialog", () => {
         await page.getByRole("textbox", { name: "Search Discover" }).fill("Orchard Quest");
         await page.getByRole("button", { name: /^Orchard Quest(?:[,. ·]|$)/u }).click();
         if (fromStore) {
-          await page.getByRole("button", { name: "Choose game files", exact: true }).click();
+          await page
+            .getByRole("region", { name: "Game actions", exact: true })
+            .getByRole("button", { name: "Choose game files", exact: true })
+            .click();
         } else {
           await page.getByRole("tab", { name: "Game files", exact: true }).click();
           await page
