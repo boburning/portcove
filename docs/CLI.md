@@ -380,8 +380,9 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. `capabilities` advertises `port_capability_schema`
-and `listing_formats` independently from API schema 93 and event schema 3.
+current or retained listing. Read the active CLI API from
+`capabilities.schema_version`. The same response advertises the operation event
+schema, port capability schema and listing formats in their own fields.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the

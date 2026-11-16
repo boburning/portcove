@@ -496,6 +496,7 @@ pub use windows_runtime::{
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
+// Public 94 adds the exact local mod package review contract.
 pub const API_SCHEMA_VERSION: u32 = 94;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
