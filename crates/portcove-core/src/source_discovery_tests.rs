@@ -3224,6 +3224,13 @@ fn directory_depth_entry_file_size_and_hash_budgets_bound_work() {
             .contains(&SourceDiscoveryLimit::FileSize)
     );
     assert_eq!(limited.hash_bytes, 0);
+    assert!(limited.issues.iter().any(|issue| {
+        issue
+            .path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("child/source.z64"))
+            && issue.message.contains("per-file size limit")
+    }));
     selected.limits.max_file_bytes = 100;
     selected.limits.max_hash_bytes = payload.len() as u64 - 1;
     let limited = scan(&catalog(payload), &selected).unwrap();
@@ -4739,6 +4746,51 @@ fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
     .unwrap_err();
     assert_eq!(error.code, ErrorCode::Usage);
     assert!(error.message.contains("too many owned paths"));
+}
+
+#[test]
+fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
+    let temporary = tempfile::tempdir().unwrap();
+    let root = fs::canonicalize(temporary.path()).unwrap();
+    let first = root.join("first");
+    let owned = root.join("owned");
+    fs::create_dir(&first).unwrap();
+    fs::create_dir(&owned).unwrap();
+    let library = crate::Library::open(root.join("library")).unwrap();
+    library
+        .register_output_root(&crate::library::OutputRootRecord {
+            path: owned.clone(),
+            port_id: "sample".into(),
+            marker_id: uuid::Uuid::new_v4().to_string(),
+            volume_identity: "fixture".into(),
+        })
+        .unwrap();
+    let payload = b"supported original";
+    fs::write(first.join("original.z64"), payload).unwrap();
+    fs::write(owned.join("ignored.z64"), payload).unwrap();
+    for index in 0..64 {
+        fs::write(first.join(format!("large-{index}.z64")), [0; 64]).unwrap();
+    }
+    let mut selected = request(&first);
+    selected.roots.push(owned.clone());
+    selected.profile_ids = vec!["star-fox-64".into()];
+    selected.limits.max_file_bytes = payload.len() as u64;
+    let report = super::scan(
+        &catalog(payload),
+        &selected,
+        &crate::OperationCoordinator::new("late-owned-path", None),
+        // The registry changes after the initial exclusions are collected.
+        vec![],
+        Some(&library),
+    )
+    .unwrap();
+    assert_eq!(report.candidates.len(), 1);
+    assert_eq!(report.candidates[0].path, first.join("original.z64"));
+    assert_eq!(report.issues.len(), 64);
+    assert_eq!(report.issues_omitted, 1);
+    assert!(report.issues.iter().any(|issue| {
+        issue.path.as_ref() == Some(&owned) && issue.message.contains("managed game output")
+    }));
 }
 
 #[test]

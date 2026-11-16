@@ -25,6 +25,7 @@ const CONTINUATION_FORMAT_VERSION: u32 = 3;
 const MAX_CONTINUATION_RECORDS: usize = 16_384;
 const MAX_CONTINUATION_BYTES: usize = 4 * 1024 * 1024;
 const MAX_RESUME_CHECKS: u32 = 100_000;
+const OVERSIZED_FILE_ISSUE: &str = "This file exceeds the scan’s per-file size limit.";
 /// Safety ceiling for matches (exact and preliminary combined) one
 /// saved-folder scan retains across batches, in library rows.
 /// `max_candidates` bounds each batch; reaching this ceiling ends the scan as
@@ -2768,6 +2769,7 @@ impl Discovery<'_> {
         }
         if size > self.limits.max_file_bytes {
             self.reached.insert(SourceDiscoveryLimit::FileSize);
+            self.issue(Some(path.into()), None, OVERSIZED_FILE_ISSUE.into());
             return Ok(());
         }
         let before = self.budget.hashed;
@@ -3389,9 +3391,20 @@ impl Discovery<'_> {
             return Ok(());
         }
         if self.report.issues.len() >= 64 {
-            return Err(PortcoveError::usage(
-                "too many owned paths to report in one game-file scan; select a narrower root",
-            ));
+            // Required exclusions take priority over these new optional
+            // diagnostics, including when a prior batch already recorded them.
+            let Some(advisory) = self
+                .report
+                .issues
+                .iter()
+                .rposition(|issue| issue.message == OVERSIZED_FILE_ISSUE)
+            else {
+                return Err(PortcoveError::usage(
+                    "too many owned paths to report in one game-file scan; select a narrower root",
+                ));
+            };
+            self.report.issues.remove(advisory);
+            self.report.issues_omitted += 1;
         }
         self.issue(Some(path), None, message.into());
         Ok(())
