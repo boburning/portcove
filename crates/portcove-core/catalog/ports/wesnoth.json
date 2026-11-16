@@ -8,12 +8,7 @@
     "project_url": "https://github.com/wesnoth/wesnoth",
     "issue_number": 6447,
     "listed_at": "2026-11-16",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64",
-      "macos-x86-64",
-      "macos-aarch64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
     "availability": "packages",
     "release_url": "https://wiki.wesnoth.org/Download",
     "setup_url": "https://wiki.wesnoth.org/Download",
