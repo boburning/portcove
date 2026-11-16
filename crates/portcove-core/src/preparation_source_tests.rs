@@ -379,6 +379,8 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
             "blake-stone-planet-strike-bstone",
             "diablo-devilutionx",
             "diablo-hellfire-devilutionx",
+            "doom-3-classic-dhewm3",
+            "doom-3-resurrection-of-evil-classic-dhewm3",
             "g-diffuser",
             "openpete"
         ]
