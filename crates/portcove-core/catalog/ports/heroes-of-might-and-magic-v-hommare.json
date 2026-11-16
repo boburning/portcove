@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "heroes-of-might-and-magic-v-hommare",
+    "artwork": {
+      "game_id": 370,
+      "cover_id": 130420,
+      "image_id": "co2sms",
+      "image_sha256": "e04cfa7518d8c13e87dc54d50a12747c46e493fcdc75da76cce7f5a6e93008a5",
+      "game_slug": "heroes-of-might-and-magic-v",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/livmaster-dev/HommaRe-public",
     "name": "Heroes of Might and Magic V / HommaRe",
     "original_game_title": "Heroes of Might and Magic V",

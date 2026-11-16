@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tdrrmk2-uhexen2-tweaked",
+    "artwork": {
+      "game_id": 6637,
+      "cover_id": 123981,
+      "image_id": "co2nnx",
+      "image_sha256": "8cebb6f64cbae0c0fc025f79b1c752fbe67bbf0b225162563779a15060a2ec58",
+      "game_slug": "hexen-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Hexen II / uHexen2 Tweaked",
     "original_game_title": "Hexen II",
     "summary": "Play Hexen II with the upstream Tweaked OpenGL player and your prepared original game files.",

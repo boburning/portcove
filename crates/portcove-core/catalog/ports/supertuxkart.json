@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "supertuxkart",
+    "artwork": {
+      "game_id": 10763,
+      "cover_id": 117991,
+      "image_id": "co2j1j",
+      "image_sha256": "ae9268429976f25014ad6928cc5f8dac58e987f2a33e14c7e6c1f2a8b9734a7a",
+      "game_slug": "supertuxkart",
+      "match_kind": "underlying-game"
+    },
     "name": "SuperTuxKart",
     "original_game_title": "SuperTuxKart",
     "summary": "Race open-source karts with an offline profile or join multiplayer races.",

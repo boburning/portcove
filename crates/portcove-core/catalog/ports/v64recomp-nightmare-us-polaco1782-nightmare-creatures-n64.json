@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "v64recomp-nightmare-us-polaco1782-nightmare-creatures-n64",
+    "artwork": {
+      "game_id": 3414,
+      "cover_id": 258182,
+      "image_id": "co5j7q",
+      "image_sha256": "09a5818258730eb15ac2a392fff1c0a2b640a0e3a25bb4efe3bdbdf749edb84b",
+      "game_slug": "nightmare-creatures",
+      "match_kind": "underlying-game"
+    },
     "name": "Nightmare Creatures (N64) — v64recomp / nightmare-us (polaco1782)",
     "original_game_title": "Nightmare Creatures (N64)",
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

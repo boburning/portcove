@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "marathon-aleph-one",
+    "artwork": {
+      "game_id": 8709,
+      "cover_id": 272194,
+      "image_id": "co5u0y",
+      "image_sha256": "3bd435a19179213afd3b8d69bf4d1fcf670666365f73c08fc72663c1c127bb50",
+      "game_slug": "marathon",
+      "match_kind": "underlying-game"
+    },
     "name": "Marathon (Aleph One)",
     "summary": "Marathon uses its complete official Aleph One Windows package. Shared player profiles remain upstream-owned.",
     "original_game_title": "Marathon",

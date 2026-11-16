@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "ufo-enemy-unknown-x-com-ufo-defense-openxcom",
+    "artwork": {
+      "game_id": 24,
+      "cover_id": 547861,
+      "image_id": "cobqqd",
+      "image_sha256": "00ce468d682d7356d9b31166de01348e6175e342f39451ac4df729f9441e79fb",
+      "game_slug": "x-com-ufo-defense",
+      "match_kind": "underlying-game"
+    },
     "name": "UFO: Enemy Unknown / X-COM: UFO Defense (OpenXcom)",
     "summary": "Set up UFO: Enemy Unknown / X-COM: UFO Defense through its upstream OpenXcom player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "UFO: Enemy Unknown / X-COM: UFO Defense",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "pod-gold-sp00nznet-recomp",
+    "artwork": {
+      "game_id": 124943,
+      "cover_id": 84178,
+      "image_id": "co1sya",
+      "image_sha256": "92421e3938af0cb5afd9951b66bf3f6b6b267faefa939b26e1a5a0508ac75823",
+      "game_slug": "pod-gold",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/sp00nznet/pod-recomp",
     "name": "POD Gold / POD Gold Recomp",
     "original_game_title": "POD Gold",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "cps2recomp-vampire-hunter-2",
+    "artwork": {
+      "game_id": 39697,
+      "cover_id": 126033,
+      "image_id": "co2p8x",
+      "image_sha256": "243859e4f548685adde6e95b00aac40faedc7335e254a0081f5f54e4b72a628c",
+      "game_slug": "vampire-hunter-2",
+      "match_kind": "underlying-game"
+    },
     "name": "Vampire Hunter2: Darkstalkers Revenge (CPS-2 Recomp)",
     "summary": "Play Vampire Hunter2: Darkstalkers Revenge using your own matching arcade originals.",
     "original_game_title": "Vampire Hunter2: Darkstalkers Revenge",

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "abilliontokens-urbz-recomp",
+    "artwork": {
+      "game_id": 2158,
+      "cover_id": 92889,
+      "image_id": "co1zo9",
+      "image_sha256": "de98062b2e9ff0f3a1de9b182c99e1b94a87d16398229917174d668bdedd1d70",
+      "game_slug": "the-urbz-sims-in-the-city",
+      "match_kind": "underlying-game"
+    },
     "name": "The Urbz: Sims in the City — Original Xbox (Urbz recomp)",
     "summary": "Register an independently permitted prepared The Urbz: Sims in the City original-Xbox Windows player with your own matching USA disc data and preserved external profile.",
     "original_game_title": "The Urbz: Sims in the City",

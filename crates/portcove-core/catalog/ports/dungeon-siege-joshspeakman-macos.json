@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "dungeon-siege-joshspeakman-macos",
+    "artwork": {
+      "game_id": 329,
+      "cover_id": 97352,
+      "image_id": "co2348",
+      "image_sha256": "916d34141868c80d9c7d178af505e52c6b11dfb42315484ce449310e98c08fd4",
+      "game_slug": "dungeon-siege",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Joshspeakman/dungeon-siege-macos",
     "name": "Dungeon Siege / Dungeon Siege macOS",
     "original_game_title": "Dungeon Siege",

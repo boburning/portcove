@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "burnout-xbox-burnout-recompilation",
+    "artwork": {
+      "game_id": 3838,
+      "cover_id": 298365,
+      "image_id": "co6e7x",
+      "image_sha256": "0a1035b40a1ccc60fee6b289cc8bf7d66ab12affa10e8773a7da68bc8f5b7e04",
+      "game_slug": "burnout",
+      "match_kind": "underlying-game"
+    },
     "name": "Burnout (Xbox) (Burnout Recompilation)",
     "summary": "Register the completed original Burnout Xbox native Windows launcher and preserve its separate build, settings and save folders.",
     "original_game_title": "Burnout (Xbox)",

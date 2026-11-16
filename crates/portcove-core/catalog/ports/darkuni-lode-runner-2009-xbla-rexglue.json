@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-lode-runner-2009-xbla-rexglue",
+    "artwork": {
+      "game_id": 166708,
+      "cover_id": 176489,
+      "image_id": "co3s6h",
+      "image_sha256": "36ad7bf39a153365f0bdd918780ec889d4b494d9d9a9dfe4dc26a236c43f638c",
+      "game_slug": "lode-runner--2",
+      "match_kind": "underlying-game"
+    },
     "name": "Lode Runner (2009 XBLA, darkuni Recomp)",
     "summary": "Play Lode Runner with darkuni's Windows recompilation and your own purchased Xbox 360 package.",
     "project_url": "https://github.com/darkuni/lode-runner-recomp",

@@ -40318,6 +40318,14 @@
             }
           ],
           "warnings": []
+        },
+        "artwork": {
+          "game_id": 306600,
+          "cover_id": 391210,
+          "image_id": "co8duy",
+          "image_sha256": "23d0d34aa9c5e2ee1918c5808d28ad5c2475fc8dfc775c86adb467afcf6fb097",
+          "game_slug": "ace-combat-3-electrosphere--1",
+          "match_kind": "underlying-game"
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
@@ -45999,6 +46007,14 @@
             "The source check uses first data-track identity and track count. Keep the full original disc intact."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/men-in-black-the-game-recomp#readme"
+        },
+        "artwork": {
+          "game_id": 12898,
+          "cover_id": 198885,
+          "image_id": "co49gl",
+          "image_sha256": "794f27cae235d7ad463b69d7f0a32614edb49002e1b36e80a4eb96e193f554ac",
+          "game_slug": "men-in-black-the-game",
+          "match_kind": "underlying-game"
         }
       },
       "bios_source_profile": "psx-scph-5552-bios"
@@ -48421,6 +48437,14 @@
             "Portcove checks the first data track and the track count. Keep the entire original disc intact."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/spyro-the-dragon-recomp#readme"
+        },
+        "artwork": {
+          "game_id": 1576,
+          "cover_id": 166697,
+          "image_id": "co3kmh",
+          "image_sha256": "5051273a774f090c6dd2f40c494afb29fb905b9da6929c8fb539f8abf0167e9b",
+          "game_slug": "spyro-the-dragon",
+          "match_kind": "underlying-game"
         }
       },
       "bios_source_profile": "psx-scph-5552-bios"
@@ -51644,6 +51668,14 @@
               "instruction": "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 6,
+          "cover_id": 329139,
+          "image_id": "co71yr",
+          "image_sha256": "43f883b7fc3d81c7edde48abc6be26739f0e4102e5192088d41efd1f25b4780a",
+          "game_slug": "baldurs-gate-ii-shadows-of-amn",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -51723,6 +51755,14 @@
               "instruction": "GemRB can also write gem-*.ini into GamePath before trying SavePath, so preserve and use a working data copy; SavePath alone does not isolate original installation writes. Preserve that working copy, actual save/config locations and mods with GemRB closed before updates. Do not move saves between different games or editions."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 5,
+          "cover_id": 93899,
+          "image_id": "co20gb",
+          "image_sha256": "fb4d7aecfe6b9aa0159cc286af5be599be7bebd2ccf3a1884d7089b41b16c1d9",
+          "game_slug": "baldur-s-gate",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -53090,6 +53130,14 @@
               "instruction": "You and upstream own runtime replacement, originals, saves, settings and profiles. Close all actual players and preserve the working copy and every actual data location before upstream changes. Removing the registration leaves all external files untouched. Managed Install, Update, Backup, Rollback, migration, original authentication and external deletion are unavailable for this route."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 170995,
+          "cover_id": 179083,
+          "image_id": "co3u6j",
+          "image_sha256": "175f303e2c586c76fd610d2d1e5e191724dccb7f3332bf392cefa2753b31d9d7",
+          "game_slug": "doom--3",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -53263,6 +53311,14 @@
           ],
           "warnings": [],
           "help_url": "https://github.com/Brawmario/infinite-mario-64-ever/blob/v0.1.5/README.md"
+        },
+        "artwork": {
+          "game_id": 1074,
+          "cover_id": 329251,
+          "image_id": "co721v",
+          "image_sha256": "f918d6ea5c09e5b5f44c8863b0a465e145956a26ca98646c25f84c8da3a290f5",
+          "game_slug": "super-mario-64",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -53345,6 +53401,14 @@
             "The beta needs the Microsoft Visual C++ 2015-2022 x86 runtime and a Windows PC that runs 32-bit apps.",
             "Movies play only when FFmpeg is installed on your PATH or named by the M2_FFMPEG environment variable."
           ]
+        },
+        "artwork": {
+          "game_id": 2684,
+          "cover_id": 117510,
+          "image_id": "co2io6",
+          "image_sha256": "379b30b6eed6e6d693cb0526adae4a070a4602296dfd7e1815c2dffd7282e4a9",
+          "game_slug": "mercenaries-2-world-in-flames",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -53598,6 +53662,14 @@
               "instruction": "The installer can choose Documents/OpenFodder or an installation-local data layout. The complete root contains Data, Campaigns and Saves; openfodder.ini in the working directory can add other search paths. Preserve the actual chosen root, Saves, campaign/mod files and configuration with the player closed before upstream replacement. The original Amiga/DOS, demo and sequel data have separate preparation requirements."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 5519,
+          "cover_id": 171195,
+          "image_id": "co3o3f",
+          "image_sha256": "2394e928556e1da5ad176cb85b929764b9ff10da02b4482cbd13a9d08ee1c5a4",
+          "game_slug": "cannon-fodder",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -53680,6 +53752,14 @@
               "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. Linux uses ~/.config/CatacombGL, with this game’s saves under Cat3D/. A custom --ini or --log location stays external. All four games share the profile and control settings. Close other CatacombGL copies before starting another. Back up the whole profile, saves and original data before updating. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8705,
+          "cover_id": 161618,
+          "image_id": "co3gpe",
+          "image_sha256": "20ba52818fd79a353633c6d0a187802a3e956ef6551b6b45d6cc92e23c63016e",
+          "game_slug": "catacomb-3-d",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -53898,6 +53978,14 @@
               "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8705,
+          "cover_id": 161618,
+          "image_id": "co3gpe",
+          "image_sha256": "20ba52818fd79a353633c6d0a187802a3e956ef6551b6b45d6cc92e23c63016e",
+          "game_slug": "catacomb-3-d",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -54276,6 +54364,14 @@
               "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 2443,
+          "cover_id": 100803,
+          "image_id": "co25s3",
+          "image_sha256": "1f70f40053df3da6afa38bb1286a556c0de4b13afded1581dccbb04573428b43",
+          "game_slug": "commander-keen-in-goodbye-galaxy-secret-of-the-oracle",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -54347,6 +54443,14 @@
               "instruction": "Preserve your original-data folder, matching episode support files, complete working player and actual writable profile before changing versions. /USERPATH explicitly selects the save/config directory; otherwise the upstream build can use its default directory or an SDL user-path fallback. Keep separate episode profiles and all custom paths backed up with players closed. Upstream claims DOS-save compatibility; Portcove has not exercised your saves and does not promise automatic conversion, managed backup or rollback."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 2445,
+          "cover_id": 100804,
+          "image_id": "co25s4",
+          "image_sha256": "8796a86f3e2722a7af5018e5d75b91879d334752596525c3785bb6ddd2455a63",
+          "game_slug": "commander-keen-in-goodbye-galaxy-the-armageddon-machine",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -54510,6 +54614,14 @@
               "instruction": "OpenRealm saves the data folder it last used in config.cfg in the shared profile. After a run with -data data, a Windows copy started without -data looks for that relative data folder instead of searching for a Warcraft III installation; pass -data with your own folder for that copy. If the profile folder cannot be written, OpenRealm keeps config.cfg and saves under share/warcraft-3 beside the program instead."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 132,
+          "cover_id": 90530,
+          "image_id": "co1xuq",
+          "image_sha256": "7fec1528a806a6d4db90c23cb07f077aece432e0f38ebe1a6fcb372b5ae045bd",
+          "game_slug": "warcraft-iii-reign-of-chaos",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -54701,6 +54813,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 13679,
+          "cover_id": 120224,
+          "image_id": "co2krk",
+          "image_sha256": "cbf8936cad25945fd10b997916370d33bc9c90cf1e9919b29c893eaeceaa1396",
+          "game_slug": "alien-vs-predator--1",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -54918,6 +55038,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 6702,
+          "cover_id": 295597,
+          "image_id": "co6c31",
+          "image_sha256": "33863d0b345228cb96f795bb6db1418d0e1a028d37a1ed75d38c1bd2e008c791",
+          "game_slug": "street-fighter-alpha-warriors-dreams",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -54985,6 +55113,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 6703,
+          "cover_id": 295068,
+          "image_id": "co6boc",
+          "image_sha256": "f8acb4b0e86aeb0a5c924275728733c4111e4079dda155e482a2c138654d5303",
+          "game_slug": "street-fighter-alpha-2",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55052,6 +55188,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 39314,
+          "cover_id": 537176,
+          "image_id": "cobihk",
+          "image_sha256": "88c89b2b3eff8e4dff79dc0b77c74fd9b50f267e24840b0a8a5fb094c604114f",
+          "game_slug": "super-gem-fighter-mini-mix",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55119,6 +55263,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 20803,
+          "cover_id": 391720,
+          "image_id": "co8e94",
+          "image_sha256": "75a1f6d023c52e58a90df58df31473ad6fd54302661dabc17f602875c358125d",
+          "game_slug": "super-puzzle-fighter-ii-turbo",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55186,6 +55338,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 39697,
+          "cover_id": 126033,
+          "image_id": "co2p8x",
+          "image_sha256": "243859e4f548685adde6e95b00aac40faedc7335e254a0081f5f54e4b72a628c",
+          "game_slug": "vampire-hunter-2",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55253,6 +55413,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 206672,
+          "cover_id": 572032,
+          "image_id": "coc9ds",
+          "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+          "game_slug": "vampire-savior-the-lord-of-vampire",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55320,6 +55488,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 39696,
+          "cover_id": 277040,
+          "image_id": "co5xrk",
+          "image_sha256": "7a11bbfecdeb76bca796bf34c075df70c8f7c865a690686960adb3a33b732e5f",
+          "game_slug": "vampire-savior-2-the-lord-of-vampire",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -55788,6 +55964,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/afterburner-climax-recomp/blob/9eeeb46030a2247e7b13b0f6241b42c4f32383b7/README.md"
+        },
+        "artwork": {
+          "game_id": 20085,
+          "cover_id": 117692,
+          "image_id": "co2it8",
+          "image_sha256": "ad86e1041f7cb8e7fd7965a2b8d38b6eb88420c72c7306079cb83a9107227104",
+          "game_slug": "after-burner-climax",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -55862,6 +56046,14 @@
             "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
           ],
           "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
+        },
+        "artwork": {
+          "game_id": 18069,
+          "cover_id": 315284,
+          "image_id": "co6r9w",
+          "image_sha256": "b53f4826c68fcd2d8d13672a78b07a03c1bb0390b61a166bf396327d8b0a88f9",
+          "game_slug": "final-fantasy-fables-chocobos-dungeon",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -55936,6 +56128,14 @@
             "The reviewed package README lists OutRun Online Arcade’s title ID in its export example. Use Lode Runner’s 5841085B title folder."
           ],
           "help_url": "https://github.com/darkuni/lode-runner-recomp/blob/9e34a077456f0715df2a1a76b27020421c419e22/README.md"
+        },
+        "artwork": {
+          "game_id": 166708,
+          "cover_id": 176489,
+          "image_id": "co3s6h",
+          "image_sha256": "36ad7bf39a153365f0bdd918780ec889d4b494d9d9a9dfe4dc26a236c43f638c",
+          "game_slug": "lode-runner--2",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56011,6 +56211,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/mylifedarklord-recomp/blob/f9581ce34708a63b3da5608f02d7cd1201d2d1c7/README.md"
+        },
+        "artwork": {
+          "game_id": 41856,
+          "cover_id": 198218,
+          "image_id": "co48y2",
+          "image_sha256": "b672dc27272bfa474e920c658ae44da34c836d707a85cfcdbd5e549a78e3cbed",
+          "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-darklord",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56081,6 +56289,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/mylifeking-recomp/blob/e7f038a121f6b55622516b1c9cf7cd7518c258e9/README.md"
+        },
+        "artwork": {
+          "game_id": 21054,
+          "cover_id": 127210,
+          "image_id": "co2q5m",
+          "image_sha256": "30c780d62487c5466f220004a47b15461ac702a423e469f82ef1f5b6921d1bce",
+          "game_slug": "final-fantasy-crystal-chronicles-my-life-as-a-king",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56155,6 +56371,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/outrun-arcade-recomp/blob/e1c57e065b74e594d38778b05d13fdc895e90d4b/README.md"
+        },
+        "artwork": {
+          "game_id": 21204,
+          "cover_id": 352378,
+          "image_id": "co7jwa",
+          "image_sha256": "c9d0ec6eabc78a904fbd0bba158c2afe610ae46cbab6deb1404e8adb4138c3ab",
+          "game_slug": "outrun-online-arcade",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56230,6 +56454,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/poker-smash-recomp/blob/0465face8472373cac3283e13655206941310a62/README.md"
+        },
+        "artwork": {
+          "game_id": 21351,
+          "cover_id": 51143,
+          "image_id": "qao4hoonhugsw03xmifm",
+          "image_sha256": "ff66efc38bdde254be2944957a7dc48296c47a333e12b1c04ef29dd1df015aee",
+          "game_slug": "poker-smash",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56301,6 +56533,14 @@
             "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data."
           ],
           "help_url": "https://github.com/darkuni/target-terror-wii-recomp/blob/51bf36f469fe502ca6aeeab20f07ca42fca3671e/README.md"
+        },
+        "artwork": {
+          "game_id": 5213,
+          "cover_id": 272083,
+          "image_id": "co5txv",
+          "image_sha256": "6cd058c5b3471cd965e8b12a1b90bc75c909329f2932c39c90be073f31bca8e2",
+          "game_slug": "target-terror",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56401,6 +56641,14 @@
               "instruction": "On Linux preserve ~/.d1x-rebirth. On Mac preserve ~/Library/Preferences/D1X Rebirth. Keep any D1X_REBIRTH_HOME override, original files, saves, missions and settings with the creating engine."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1872,
+          "cover_id": 90240,
+          "image_id": "co1xmo",
+          "image_sha256": "5ba9d96e8ba1c8ac014ef5899b9d6f7ba04c2b4ad13bc8671cb45cbd67c98a4f",
+          "game_slug": "descent",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -56493,6 +56741,14 @@
               "instruction": "On Linux preserve ~/.d2x-rebirth. On Mac preserve ~/Library/Preferences/D2X Rebirth. Keep any D2X_REBIRTH_HOME override, original files, saves, missions and settings with the creating engine."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 668,
+          "cover_id": 565833,
+          "image_id": "coc4ll",
+          "image_sha256": "39ad11455f95ca1af43d6f066ab3e11074769815ebf1844352818d0670950279",
+          "game_slug": "descent-ii",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -56670,6 +56926,14 @@
             "The managed DevilutionX 1.5.5 Linux x86-64 AppImage can stop before the menu because its bundled engine files become unavailable. If that is the selected package, follow the upstream Linux instructions for a separate installation. Keep your current originals and profile."
           ],
           "help_url": "https://github.com/diasurgical/DevilutionX/blob/master/docs/installing.md"
+        },
+        "artwork": {
+          "game_id": 125,
+          "cover_id": 161304,
+          "image_id": "co3ggo",
+          "image_sha256": "514e501260b0929c26bc55653acff593099b98a5d4f83ad2c04a00f026778440",
+          "game_slug": "diablo",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -56899,6 +57163,14 @@
               "instruction": "Make an in-game memory-card save before updating, switching versions or rolling back. Quick saves are tied to the port version and have one slot. Keep the working runtime if your latest progress exists only in its quick save. Back up your actual profile: Windows normally uses AppData/Roaming/AlienResurrectionPort/AlienResurrection; Linux normally uses XDG_DATA_HOME/AlienResurrectionPort/AlienResurrection or ~/.local/share/AlienResurrectionPort/AlienResurrection. A custom --save-dir uses that chosen location."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 44995,
+          "cover_id": 504131,
+          "image_id": "coaszn",
+          "image_sha256": "4a5c0dbbfb4f7c8f6815e2c171d5eb9f0e2efb5a657c4ff5b5acd6726c39c704",
+          "game_slug": "alien-resurrection",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -57128,6 +57400,14 @@
             "Use a short library path containing plain ASCII characters for this Windows build. Its external profile locations have their own upstream path limits. Older installations retain their original path contract.",
             "Use the existing non-owning route for custom fs_basepath/fs_savepath/fs_configpath, custom mods, the separate dedicated server or another upstream workflow."
           ]
+        },
+        "artwork": {
+          "game_id": 280,
+          "cover_id": 86963,
+          "image_id": "co1v3n",
+          "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+          "game_slug": "doom-3",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -57305,6 +57585,14 @@
               "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 in matching folders. Start ./dude from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 280,
+          "cover_id": 86963,
+          "image_id": "co1v3n",
+          "image_sha256": "20898ef516580905831395d134adc6d7daaa96ddbd56f8ab8a4523b3fb442c19",
+          "game_slug": "doom-3",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -57410,6 +57698,14 @@
           "warnings": [
             "Use a separately prepared copy for custom paths, native mods or a dedicated server. Keep backups of your external saves and settings."
           ]
+        },
+        "artwork": {
+          "game_id": 672,
+          "cover_id": 98348,
+          "image_id": "co23vw",
+          "image_sha256": "5e6c08295efabf713d9d2a6cd3327091d38727bb8352e4d2cbd7fe9f1d950e90",
+          "game_slug": "doom-3-resurrection-of-evil",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -57608,6 +57904,14 @@
               "instruction": "Choose the DUDE x86-64 Doom 3 game tarball. The separately named dude-q4 package is a Quake 4 add-on. Extract the complete folder and keep its game libraries and bundled Vulkan loader. The reviewed executable needs glibc 2.34, SDL2, OpenAL and the OpenSSL variant of libcurl. Place your classic Doom 3 v1.3.1 base/pak000.pk4 through base/pak008.pk4 and Resurrection of Evil d3xp/pak000.pk4 and d3xp/pak001.pk4 in matching folders. Start ./dude with +set fs_game d3xp from the prepared directory. Preserve ~/.config/dude and ~/.local/share/dude or their XDG equivalents, plus any custom paths. DUDE can copy the legacy dhewm3 config on first run. Preserve both config trees before opening DUDE. The managed Linux x86-64 copy reads your PK4s from its own runtime and starts with its packaged modules. Use a separate upstream copy for custom paths, native mods or a custom library search path. If a managed first launch would copy a legacy profile, complete that setup in an upstream copy first."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 672,
+          "cover_id": 98348,
+          "image_id": "co23vw",
+          "image_sha256": "5e6c08295efabf713d9d2a6cd3327091d38727bb8352e4d2cbd7fe9f1d950e90",
+          "game_slug": "doom-3-resurrection-of-evil",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -57742,6 +58046,14 @@
               "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 312,
+          "cover_id": 303937,
+          "image_id": "co6iip",
+          "image_sha256": "9aaabe14844aa0f4152bc03a571c5e8f327dfa173469a2fd9e8cfc302e6fe6db",
+          "game_slug": "doom-ii-hell-on-earth",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -58624,6 +58936,14 @@
           "warnings": [
             "The project has not published a license for its engine source. The original game is supplied separately."
           ]
+        },
+        "artwork": {
+          "game_id": 51319,
+          "cover_id": 187084,
+          "image_id": "co40cs",
+          "image_sha256": "c2e32fabc42dfecbd3df1c16b759095bb0a448dde224c1586f388aa559f53728",
+          "game_slug": "elf-bowling",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -58881,6 +59201,14 @@
               "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8191,
+          "cover_id": 89960,
+          "image_id": "co1xew",
+          "image_sha256": "818dc625d986f4b81dd623712e2f07dfd4e0960f87cdbd09d6c0a1f58368b1f7",
+          "game_slug": "final-doom",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -59647,6 +59975,14 @@
             }
           ],
           "help_url": "https://github.com/1nputs/gunstars/blob/bb41264b475c4adbda32d2b8d02fd3f1c4b20bec/README.md"
+        },
+        "artwork": {
+          "game_id": 6405,
+          "cover_id": 181813,
+          "image_id": "co3wad",
+          "image_sha256": "f7e5092e239205de58efbd3bfeddd433cd49ae5ce454dcc10dbfaae97864573d",
+          "game_slug": "gunstar-heroes",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -60065,6 +60401,14 @@
               "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 3512,
+          "cover_id": 76354,
+          "image_id": "co1mwy",
+          "image_sha256": "4b88f98af3997f8fb298284318b37aefd24c925bdf7c375c7e92153107c80ecb",
+          "game_slug": "hexen-beyond-heretic",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -60987,6 +61331,14 @@
               "instruction": "The supported original is the Europe English/German revision 0 release, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf. The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 3515,
+          "cover_id": 196658,
+          "image_id": "co47qq",
+          "image_sha256": "bec62a26eda767c23915504667465e361cffb7057942016ee6f1d8e6cf442da6",
+          "game_slug": "international-superstar-soccer-2000",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -62124,6 +62476,14 @@
               "instruction": "Use the official Marathon2 Mac disk image. Copy Classic Marathon 2.app to Applications and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8710,
+          "cover_id": 272195,
+          "image_id": "co5u0z",
+          "image_sha256": "ba04dcb1e56f2e3ea28b0546ba7a19421b0e8b3154227c033237c512aaf5a34a",
+          "game_slug": "marathon-2-durandal",
+          "match_kind": "underlying-game"
         }
       },
       "launch_arguments": [
@@ -62195,6 +62555,14 @@
               "instruction": "Use the official Marathon Mac disk image. Copy Classic Marathon.app to Applications and open the complete app. The package includes the scenario and supports Intel and Apple Silicon. Preserve the actual Aleph One or title-specific data in ~/Library/Application Support, its preferences in ~/Library/Preferences and custom scenarios before replacing it."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8709,
+          "cover_id": 272194,
+          "image_id": "co5u0y",
+          "image_sha256": "3bd435a19179213afd3b8d69bf4d1fcf670666365f73c08fc72663c1c127bb50",
+          "game_slug": "marathon",
+          "match_kind": "underlying-game"
         }
       },
       "launch_arguments": [
@@ -62774,6 +63142,14 @@
               "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_breakthrough.exe in the extracted folder. You and upstream own that copy and its profile."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 9229,
+          "cover_id": 117326,
+          "image_id": "co2ij2",
+          "image_sha256": "fdab78afeca54812c27d6b67ce16169392589401c01f1a0514a95ab0e155e24d",
+          "game_slug": "medal-of-honor-allied-assault-breakthrough",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -63045,6 +63421,14 @@
               "instruction": "On Windows ARM64, choose the official ARM64 ZIP. After preparing the same original files, use launch_openmohaa_spearhead.exe in the extracted folder. You and upstream own that copy and its profile."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 9228,
+          "cover_id": 117327,
+          "image_id": "co2ij3",
+          "image_sha256": "5edafb96670c4028ebabeb0e5e2c0af732499003009610ba333a62bf89035319",
+          "game_slug": "medal-of-honor-allied-assault-spearhead",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -63808,6 +64192,14 @@
               "instruction": "If Library identifies this Windows copy as Portcove-managed, use its offered compatible beta update. Portcove stages the replacement before activation and carries current declared local data, including before first Play. Each version keeps its own recomp_cache, diagnostics and compiler companions; the new runtime regenerates its native-code cache. Runtime rollback carries current declared data and does not rewind saves. For an existing copy you added yourself, you or upstream provide updates: prepare a separate folder, preserve the actual settings and save locations, and change the registered player when ready. These experimental releases do not establish full-game compatibility."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 16748,
+          "cover_id": 96257,
+          "image_id": "co229t",
+          "image_sha256": "549d52069f2100f79c03ab5744e93ac495baa48caca51f95f22b71442b4fbc69",
+          "game_slug": "super-mario-advance-4-super-mario-bros-3",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -63974,6 +64366,14 @@
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 843,
+          "cover_id": 375214,
+          "image_id": "co81im",
+          "image_sha256": "d6927888c6f6184250267a1bf04115a97b1145679102e7627863df4b5de866d2",
+          "game_slug": "rayman-2-the-great-escape",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -64061,6 +64461,14 @@
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1626,
+          "cover_id": 131928,
+          "image_id": "co2tso",
+          "image_sha256": "b8c0edf9685259b4e1cfb879e8d5275dd1c1aa124f98c9612ee4cd03f6ed0d9e",
+          "game_slug": "super-smash-bros",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -65575,6 +65983,14 @@
               "instruction": "Preserve the complete working game folder, actual upstream configuration/profile and any explicitly selected content or save locations. The reviewed documentation and source do not establish one universal Windows persistence coordinate; registration does not convert saves, adopt data or prove another campaign compatible."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 8964,
+          "cover_id": 114000,
+          "image_id": "co2fyo",
+          "image_sha256": "40edd16071877da61a3325fb0643a524ebb1309ab0b94296677b750d03fd82f2",
+          "game_slug": "perimeter",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -65832,6 +66248,14 @@
               "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1511,
+          "cover_id": 266335,
+          "image_id": "co5pi7",
+          "image_sha256": "da39e547225cadcd7350c01316cfcd15215e5209e848fe6c044dc2a386f4ed59",
+          "game_slug": "pokemon-blue-version",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -66841,6 +67265,14 @@
               "instruction": "Normal desktop data uses LÖVE’s OS user save directory with identity pokemon-love2d (normally %APPDATA%/LOVE/pokemon-love2d on Windows). portable.txt beside gen1recomp.exe redirects saves/options/generated data to that writable player folder, but updates/ payloads remain in the OS save directory. Preserve both actual locations, all imported game caches, saves/ slots and legacy save files, options and backup/staged witnesses, mods, kept original copies, imports/exports, screenshots and custom profiles. Games have distinct saves but share options and runtime. Removing the marker switches roots without moving progress. Close the player before copying/replacing anything; keep the creating runtime and originals. No automatic save/cache conversion or populated-data adoption is promised."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1512,
+          "cover_id": 266345,
+          "image_id": "co5pih",
+          "image_sha256": "4be67775dc5afbbffb9c1a81c7ac009368ef1a2cefefab08defa813f73790f02",
+          "game_slug": "pokemon-yellow-version-special-pikachu-edition",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -67307,6 +67739,14 @@
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: id1, history.txt. Its backup does not include external profiles."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 333,
+          "cover_id": 434745,
+          "image_id": "co9bg9",
+          "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+          "game_slug": "quake",
+          "match_kind": "underlying-game"
         }
       },
       "external_profile_policy": "ironwail-linux-v1"
@@ -67385,6 +67825,14 @@
             "Save compatibility across vkQuake versions is still unverified."
           ],
           "help_url": "https://github.com/Novum/vkQuake/releases/tag/1.37.0"
+        },
+        "artwork": {
+          "game_id": 333,
+          "cover_id": 434745,
+          "image_id": "co9bg9",
+          "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+          "game_slug": "quake",
+          "match_kind": "underlying-game"
         }
       },
       "external_profile_policy": "vkquake-linux-v1"
@@ -67697,6 +68145,14 @@
               "instruction": "You and upstream own the external copy's data: ROM copy, settings.json, saves/ including Controller Pak and checkpoints, mods and renderer data in the game folder. Back up these locations separately; registration does not migrate or certify their compatibility."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 47680,
+          "cover_id": 78624,
+          "image_id": "co1oo0",
+          "image_sha256": "699ea0aab212fba7fdf8dbf33c333accca4a9c2491ddbf9a2faf9def215c7596",
+          "game_slug": "winback-covert-operations",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -68814,6 +69270,14 @@
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. The managed copy has no declared local player data to back up. Back up the external profile separately."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1467,
+          "cover_id": 85687,
+          "image_id": "co1u47",
+          "image_sha256": "8fecac0c2aacf3b0b0eb0ff86932d3b0f6e8ac2bf81d562d89edefadccb8bf99",
+          "game_slug": "sin-and-punishment",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -69506,6 +69970,14 @@
               "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 6633,
+          "cover_id": 90725,
+          "image_id": "co1y05",
+          "image_sha256": "f8963aad889a000c3ce362c05e6fed2497d89393d07e25a7c08e1c7458a69e69",
+          "game_slug": "spear-of-destiny",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -69686,6 +70158,14 @@
             "The publisher does not provide a license for its project code."
           ],
           "help_url": "https://github.com/darkuni/starwars-arcade-recomp/releases/tag/V1.1.0b"
+        },
+        "artwork": {
+          "game_id": 12858,
+          "cover_id": 136614,
+          "image_id": "co2xeu",
+          "image_sha256": "afe76c1966766a2dfc1b3cfb0913f98f6ee831d43b8c6427e7d9c0dc74f8a44a",
+          "game_slug": "star-wars",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -69800,6 +70280,14 @@
               "instruction": "Preserve the Linux OpenJO profile at $XDG_DATA_HOME/openjo or ~/.local/share/openjo, or ~/Library/Application Support/OpenJO on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 152,
+          "cover_id": 90943,
+          "image_id": "co1y67",
+          "image_sha256": "e2a2b34daac0bfa6a3a0c8b679895a0ffe61bc8f4bdff30d23fc6fc248802d26",
+          "game_slug": "star-wars-jedi-knight-ii-jedi-outcast",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -69939,6 +70427,14 @@
               "instruction": "Preserve the complete actual OpenJK profile, including base and each mod's directory, openjk.cfg, logs, screenshots, recorded demos and server-downloaded packages or unfinished downloads. The selected non-portable Windows build normally uses Documents/My Games/OpenJK; fs_homepath overrides, portable builds or an unavailable Documents folder can change the location. Keep the external working GameData copy and its originals too. Upstream or you replace this multiplayer runtime. Server downloads and mods are not Portcove-managed runtime updates, and existing demos, mods, saves or server compatibility are not guaranteed after replacement. Preserve the actual Linux OpenJK profile at $XDG_DATA_HOME/openjk or ~/.local/share/openjk, or ~/Library/Application Support/OpenJK on Mac. Keep any explicit fs_homepath, original data, mods and the creating runtime. The upstream apps can share a profile location."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 153,
+          "cover_id": 248980,
+          "image_id": "co5c44",
+          "image_sha256": "345b83219a614f9c5f4c6b3cb97f56eacc151aa47f71a92cc3864e2fb7f52128",
+          "game_slug": "star-wars-jedi-knight-jedi-academy",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -70299,6 +70795,14 @@
             }
           ],
           "help_url": "https://github.com/elyosh/OpenXvT/blob/ed6e2c41e0cb2ba2413dd57dea269faad99fb685/README.md"
+        },
+        "artwork": {
+          "game_id": 400431,
+          "cover_id": 560622,
+          "image_id": "coc0ku",
+          "image_sha256": "48fb01b4132a136ffc701224d19a905ae57df29a218fd948903db71dcb1774c8",
+          "game_slug": "star-wars-x-wing-vs-tie-fighter-balance-of-power-campaigns",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -71308,6 +71812,14 @@
               "instruction": "The Linux demo keeps its saves and settings in ~/.hexen2demo, separate from the Windows retail copy. Back up that profile before replacing your Linux build. The Tweaked publisher offers a Windows package. Intel and Apple Silicon Mac binaries and an Android package are unavailable for this fork’s release."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 6637,
+          "cover_id": 123981,
+          "image_id": "co2nnx",
+          "image_sha256": "8cebb6f64cbae0c0fc025f79b1c752fbe67bbf0b225162563779a15060a2ec58",
+          "game_slug": "hexen-ii",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -71830,6 +72342,14 @@
               "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. Linux uses ~/.config/CatacombGL, with this game’s saves under Apocalypse/. A custom --ini or --log location stays external. All four games share the profile and control settings. Close other CatacombGL copies before starting another. Back up the whole profile, saves and original data before updating. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 11046,
+          "cover_id": 161954,
+          "image_id": "co3gyq",
+          "image_sha256": "456243b4b772d56d1c293c82208121190f591a6b23c214e20c8bd05feec8e895",
+          "game_slug": "terror-of-the-catacombs",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -72048,6 +72568,14 @@
               "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 11046,
+          "cover_id": 161954,
+          "image_id": "co3gyq",
+          "image_sha256": "456243b4b772d56d1c293c82208121190f591a6b23c214e20c8bd05feec8e895",
+          "game_slug": "terror-of-the-catacombs",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -72161,6 +72689,14 @@
               "instruction": "Windows normally keeps CatacombGL.ini and game-specific data under the actual Roaming AppData/CatacombGL folder. Linux uses ~/.config/CatacombGL, with this game’s saves under Armageddon/. A custom --ini or --log location stays external. All four games share the profile and control settings. Close other CatacombGL copies before starting another. Back up the whole profile, saves and original data before updating. Upstream v0.5.7 documents no controller support and no save compatibility with the original DOS games. ReflectionHLE is a separate implementation; do not move saves between them on the basis of a shared game title."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 71138,
+          "cover_id": 161955,
+          "image_id": "co3gyr",
+          "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+          "game_slug": "curse-of-the-catacombs",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -72379,6 +72915,14 @@
               "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 71138,
+          "cover_id": 161955,
+          "image_id": "co3gyr",
+          "image_sha256": "fb864a37f3dca169965256da093dbb8373cd09279693444c07e83314e1c3b542",
+          "game_slug": "curse-of-the-catacombs",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -72547,6 +73091,14 @@
           "warnings": [
             "The v0.5 Mac DMG requires Apple Silicon. The publisher does not provide an Intel Mac or Android package in this release."
           ]
+        },
+        "artwork": {
+          "game_id": 124693,
+          "cover_id": 227126,
+          "image_id": "co4v92",
+          "image_sha256": "2a9ba0a6c3e5becfa3315f164e4ac001cde02c41604e4d576cbe3624aa5a010f",
+          "game_slug": "serf-city-life-is-feudal",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -72641,6 +73193,14 @@
               "instruction": "Keep MIKO.CFG and GENSOU.SCR together under your effective save directory. The bundled launchers use save-normal and save-no-life-loss. A direct run without --save-dir uses %LOCALAPPDATA%/TH04 on Windows or $XDG_DATA_HOME/th04 on Linux, usually ~/.local/share/th04. Close the game before replacing its player."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 45964,
+          "cover_id": 217575,
+          "image_id": "co4nvr",
+          "image_sha256": "f32a4573b6f8f10dceacef3bbe57797253a94262417436d35f833df7d597f26c",
+          "game_slug": "touhou-gensoukyou-lotus-land-story",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -72734,6 +73294,14 @@
               "instruction": "Portcove installs and replaces its separate official runtime using the declared release rules. Existing external registrations retain their files and user/upstream ownership. Runtime rollback carries current declared data; it does not rewind saves or establish older-runtime compatibility. Gameplay and populated-save compatibility remain separate qualification. Portcove preserves only these declared local inputs during replacement and backup: spaceranger-config. Its backup does not include external profiles."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 3619,
+          "cover_id": 182561,
+          "image_id": "co3wv5",
+          "image_sha256": "b3d1f8733df8d9ce0e36e973108a019b27bc570b4e827128fa0cd9dbbe22bc3e",
+          "game_slug": "toy-story-2-buzz-lightyear-to-the-rescue",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -72981,6 +73549,14 @@
               "instruction": "On Linux back up the active user and config folders shown in openxcom.log. The user folder can be ~/.local/share/openxcom or ~/.openxcom. Also keep ~/.config/openxcom or any XDG or command-line overrides. On Mac keep ~/Library/Application Support/OpenXcom or the configured XDG directory. Preserve originals, settings, mods and saves before replacing an upstream nightly."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 24,
+          "cover_id": 547861,
+          "image_id": "cobqqd",
+          "image_sha256": "00ce468d682d7356d9b31166de01348e6175e342f39451ac4df729f9441e79fb",
+          "game_slug": "x-com-ufo-defense",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -73064,6 +73640,14 @@
               "instruction": "Use Exult’s TestFlight build if you receive an invitation, or build the pinned 1.12.1 source yourself in Xcode for iOS or iPadOS 13 or later. Prepare a game folder with your own Serpent Isle files under game/serpentisle/static. Use lowercase for every file and folder name, then copy the complete game folder into the app with Finder or iTunes file sharing. Keep the app’s Documents folder, including its settings, saves and autosaves, before changing the app. The iOS guide is at https://exult.info/docs.html#iOS-Guide."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 9574,
+          "cover_id": 139720,
+          "image_id": "co2zt4",
+          "image_sha256": "2dcd06eb9ea0098c0060e4ba19c5bc02789fdce48b7705d107ccdf0963a57cf3",
+          "game_slug": "ultima-vii-part-two-serpent-isle",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -73232,6 +73816,14 @@
               "instruction": "On Linux, keep configuration in $XDG_CONFIG_HOME/uzdoom (default ~/.config/uzdoom) and saves under $XDG_DATA_HOME/games/uzdoom/savegames (default ~/.local/share/games/uzdoom/savegames). Screenshots have a separate Pictures location. On Apple Silicon with macOS 12 or newer, copy the complete UZDoom.app from the official ARM64 DMG to Applications and open it through macOS. Preserve ~/Library/Preferences/uzdoom.ini and ~/Documents/UZDoom."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -73713,6 +74305,14 @@
           "warnings": [
             "This is the desktop beta release. PortMaster ARM64 on compatible handheld firmware uses a separate upstream release. There is no Android APK or Linux ARM64 desktop package in this release."
           ]
+        },
+        "artwork": {
+          "game_id": 112224,
+          "cover_id": 382135,
+          "image_id": "co86uv",
+          "image_sha256": "59575e65a4aa51b62901ee362317de0999082530001f8ffd920166dc898b02be",
+          "game_slug": "vyruz-destruction-of-the-untel-empire",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -74159,6 +74759,14 @@
               "instruction": "Use the official Android APK from the upstream releases. In its launcher, select this entry’s exact game version and complete matching original folder. The app may ask for broad storage access to browse shared folders. Keep your originals separately and back up the app’s appdata folder, where accessible, before replacing the app. Android installation and updates are handled by you and the upstream app."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 262516,
+          "cover_id": 325157,
+          "image_id": "co6yw5",
+          "image_sha256": "c6997e9d87f5abc5fa7603d6e6b2597e5d7913354c1705eb075c16851cc56c5a",
+          "game_slug": "wolfenstein-3d--1",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -74660,6 +75268,14 @@
               "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 673,
+          "cover_id": 268663,
+          "image_id": "co5rav",
+          "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+          "game_slug": "doom",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {

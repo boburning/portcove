@@ -1516,8 +1516,9 @@ credentials; clients need no key and only fetch the bounded mapped image through
 the existing shared resolver. Do not bundle images or treat display permission as
 Steam export permission. All current and future covers use the shared full-image
 presentation: preserve aspect ratio, show the complete cover, and use the card's
-surface instead of a generated colored matte. Generated colors return only when
-no usable image is displayed.
+surface instead of a generated colored matte. Discover and Library cards draw
+an offline controller illustration whenever a usable cover is missing or fails
+to render.
 
 The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
 records the catalog-wide preparation, accepted port and original identities, and

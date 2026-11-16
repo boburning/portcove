@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "grand-theft-auto-san-andreas-unity",
+    "artwork": {
+      "game_id": 732,
+      "cover_id": 120933,
+      "image_id": "co2lb9",
+      "image_sha256": "8f6a8446fea52cb23348258ffc8304e13324ea2366bb9b07d46bcc8171d4843e",
+      "game_slug": "grand-theft-auto-san-andreas",
+      "match_kind": "underlying-game"
+    },
     "name": "San Andreas Unity",
     "original_game_title": "Grand Theft Auto: San Andreas",
     "summary": "Explore San Andreas and use the project’s multiplayer features with game data from your own PC installation.",

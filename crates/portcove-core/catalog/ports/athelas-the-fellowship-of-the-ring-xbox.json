@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "athelas-the-fellowship-of-the-ring-xbox",
+    "artwork": {
+      "game_id": 2972,
+      "cover_id": 79153,
+      "image_id": "co1p2p",
+      "image_sha256": "718e8f9e2f7d7b3fd2574741e49dd9558014abb87d37c2c5b8c9589a53d41f28",
+      "game_slug": "the-lord-of-the-rings-the-fellowship-of-the-ring",
+      "match_kind": "underlying-game"
+    },
     "name": "The Lord of the Rings: The Fellowship of the Ring (Athelas ports/fellowship)",
     "summary": "Use your own USA Xbox The Fellowship of the Ring through the complete Athelas launcher. Preserve its separate FOTR-Xbox data and upstream setup/update ownership; registration observes the launcher only.",
     "original_game_title": "The Lord of the Rings: The Fellowship of the Ring",
