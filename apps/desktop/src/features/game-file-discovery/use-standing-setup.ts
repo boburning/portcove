@@ -53,21 +53,23 @@ export function useStandingSetupCatchUp(
 
   useEffect(() => {
     if (!ready) return;
-    let active = true;
-    let running = false;
-    let requested = false;
-    let retried = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    const pass = {
+      active: true,
+      running: false,
+      requested: false,
+      retried: false,
+      timer: undefined as ReturnType<typeof setTimeout> | undefined,
+    };
     const queue = (delay: number) => {
-      clearTimeout(timer);
-      timer = setTimeout(() => void run(), delay);
+      clearTimeout(pass.timer);
+      pass.timer = setTimeout(() => void run(), delay);
     };
     const run = async () => {
-      running = true;
+      pass.running = true;
       let deferred = false;
       try {
         const result = await desktopApi.runStandingSetup(generation, () => undefined);
-        if (!active) return;
+        if (!pass.active) return;
         deferred =
           result.already_running ||
           (result.mod_updates ?? []).some((update) => update.outcome === "deferred");
@@ -76,16 +78,16 @@ export function useStandingSetupCatchUp(
       } catch {
         // A later pass can try again after a transient library or host failure.
       } finally {
-        running = false;
-        if (active) {
-          if (requested) {
-            requested = false;
+        pass.running = false;
+        if (pass.active) {
+          if (pass.requested) {
+            pass.requested = false;
             queue(settleMilliseconds);
-          } else if (deferred && !retried) {
-            retried = true;
+          } else if (deferred && !pass.retried) {
+            pass.retried = true;
             queue(busyRetryMilliseconds);
           } else {
-            retried = false;
+            pass.retried = false;
             queue(recheckMilliseconds);
           }
           events.dispatchEvent(new Event("pass"));
@@ -93,17 +95,16 @@ export function useStandingSetupCatchUp(
       }
     };
     const request = () => {
-      retried = false;
-      if (running) requested = true;
+      pass.retried = false;
+      if (pass.running) pass.requested = true;
       else queue(settleMilliseconds);
     };
     schedule.current = request;
     events.addEventListener("request", request);
     return () => {
-      // oxlint-disable-next-line react/immutability -- oxc#28401: effect-local binding.
-      active = false;
+      pass.active = false;
       events.removeEventListener("request", request);
-      clearTimeout(timer);
+      clearTimeout(pass.timer);
       schedule.current = undefined;
     };
   }, [generation, ready]);
