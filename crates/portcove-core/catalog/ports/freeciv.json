@@ -30,7 +30,7 @@
       "references": [
         {
           "title": "Find saves and settings",
-          "instruction": "The default profile is %APPDATA%/.freeciv on Windows and ~/.freeciv on Linux and Mac. Keep the full folder if you use custom data. Use your selected save location if you configured a different one."
+          "instruction": "The default profile is %APPDATA%/.freeciv on Windows and ~/.freeciv on Linux and Mac. Look in its saves folder for saved games. Keep the full profile for settings and custom data, and copy any other save location you configured."
         },
         {
           "title": "Check other desktop builds",
