@@ -283,6 +283,9 @@ pub(crate) fn inspect_with_checkpoint(
                 && is_direct_ps2_iso_profile(catalog, profile)
             {
                 let canonical = path.canonicalize()?;
+                if !std::fs::symlink_metadata(&canonical)?.is_file() {
+                    return Err(PortcoveError::source("select a regular ISO file"));
+                }
                 let mut input = crate::external_runtime::open_identity_handle(&canonical)?;
                 let initial = input.metadata()?;
                 verify_open_source_location(&canonical, &input, &initial)?;
