@@ -2290,8 +2290,22 @@ this version adopts from local files records the marker; an adopted tree with a
 separately recorded runtime is also recognized. A manifest rewrite or prepared
 derivative carries the original's recorded facts and install time and never
 adds a marker the original lacked, so a derivative of a pre-baseline build stays
-pre-baseline. Rolling back to a held build reports `review_required`. A held
-recovery keeps its journal for review, as an acquisition hold does.
+pre-baseline. Rolling back to a held build reports `review_required`.
+
+Binding and launching an exact profile pin require the recorded uploader
+decision and current activation policy. An already-bound pin shows a hold with
+the reason and next action. The Default launch continues to follow the active
+runtime. Ghostship legacy recovery checks the original retained artifact's
+uploader continuity before publishing the derivative or recovered progress.
+The derivative uses the original acquisition time, so a pre-baseline Ghostship
+artifact remains eligible.
+
+An interrupted activation held for uploader continuity leaves the build staged
+and retires the activation request. A verified publication that cannot activate
+for this reason is recovered as staged when no other staged build would be
+displaced and no external registration would be replaced. Check for updates to
+resolve an eligible build. Other held publications keep their journals and
+payloads for review. A journal still awaiting recovery defers standing updates.
 
 To accept a new uploader, review the account and the held release on the
 canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`

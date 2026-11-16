@@ -1552,9 +1552,6 @@ impl PortcoveService {
             return Ok(Some(active));
         }
         let pinned = profile::revision_by_number(&connection, &profile_id, revision)?.build;
-        if pinned.install_id == active.id {
-            return Ok(Some(active));
-        }
         let unavailable = |reason: &str| {
             PortcoveError::conflict(
                 "the selected profile's exact build cannot be launched; no other build was substituted",
@@ -1562,10 +1559,31 @@ impl PortcoveService {
             .detail("profile", &selected.display_name)
             .detail("reason", reason)
         };
-        let install = crate::Library::install_by_id(&connection, Some(&pinned.install_id))?
-            .ok_or_else(|| unavailable("the build is no longer installed"))?;
-        self.verified_retained_build(port_id, &install.id)
-            .map_err(|error| unavailable(&error.message))?;
+        let (install, verified) = if pinned.install_id == active.id {
+            // The normal active launch checks its own executable. Read the
+            // authenticated manifest here to check the rest of the exact pin.
+            self.require_activation_gates(&active, None)
+                .map_err(|error| error.detail("profile", &selected.display_name))?;
+            let identity = crate::install::retained_build_identity_for_install(&active);
+            (active, identity)
+        } else {
+            let install = crate::Library::install_by_id(&connection, Some(&pinned.install_id))?
+                .ok_or_else(|| unavailable("the build is no longer installed"))?;
+            let identity = self.verified_retained_build(port_id, &install.id);
+            (install, identity)
+        };
+        let verified = verified.map_err(|error| {
+            if error.code == crate::ErrorCode::Unsupported {
+                error.detail("profile", &selected.display_name)
+            } else {
+                unavailable(&error.message)
+            }
+        })?;
+        if pinned != verified {
+            return Err(unavailable(
+                "the build no longer matches the selected revision",
+            ));
+        }
         Ok(Some(install))
     }
 
