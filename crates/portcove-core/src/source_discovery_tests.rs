@@ -6815,7 +6815,7 @@ fn scan_matches_are_paged_in_order_by_folder_and_refuse_a_replaced_scan() {
     let (snapshot, _) = scan_to_end(&catalog, &library, &SourceDiscoveryLimits::default());
     let scan_id = snapshot.matches.as_ref().unwrap().scan_id.clone();
     let mut service = PortcoveService::new(library).unwrap();
-    service.replace_catalog_for_test(catalog);
+    service.replace_catalog_for_test(catalog.clone());
     let query = |offset, limit, root_id: Option<&str>, scan_id: Option<&str>| {
         service.game_file_scan_matches(&crate::GameFileScanMatchQuery {
             scan_id: scan_id.map(str::to_owned),
