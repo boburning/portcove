@@ -318,11 +318,7 @@ fn live_text(live: &portcove_core::LiveMods) -> String {
 }
 
 fn read_recipe(path: &PathBuf) -> Result<portcove_core::ProfileRecipe> {
-    let mut bytes = Vec::new();
-    std::fs::File::open(path)?
-        .take(MAX_REQUEST_BYTES + 1)
-        .read_to_end(&mut bytes)?;
-    portcove_core::ProfileRecipe::inspect_document(&bytes)
+    portcove_core::ProfileRecipe::read_document(std::fs::File::open(path)?)
 }
 
 fn recipe_text(title: &str, recipe: &portcove_core::ProfileRecipe) -> String {

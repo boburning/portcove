@@ -10,7 +10,11 @@
 //! registered and every package's bytes in the store; otherwise the plan holds and
 //! nothing changes. An identity round trip does not establish gameplay or save
 //! compatibility.
-use std::collections::{BTreeMap, BTreeSet};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    io::Read,
+    path::Path,
+};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -144,6 +148,15 @@ fn identity(recipe: &ProfileRecipe) -> Result<String> {
 }
 
 impl ProfileRecipe {
+    /// Reads a local recipe or CLI JSON envelope with the same bound as inspection.
+    pub fn read_document(reader: impl Read) -> Result<Self> {
+        let mut bytes = Vec::new();
+        reader
+            .take(MAX_RECIPE_BYTES as u64 + 1)
+            .read_to_end(&mut bytes)?;
+        Self::inspect_document(&bytes)
+    }
+
     /// Like [`ProfileRecipe::inspect`], also accepting the CLI's JSON output
     /// envelope (the recipe under `data`). The whole document is parsed with
     /// duplicate-key refusal first, so the envelope cannot hide a second value.
@@ -411,6 +424,21 @@ impl PortcoveService {
             .detail("reason", error.message)
         })?;
         Ok(recipe)
+    }
+
+    /// Exports the current resolved setup into the player-selected file.
+    pub fn write_profile_recipe(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        destination: &Path,
+    ) -> Result<()> {
+        let recipe = self.export_profile_recipe(port_id, profile_id, None)?;
+        let bytes = serde_json::to_vec(&recipe)?;
+        if bytes.len() > MAX_RECIPE_BYTES {
+            return Err(invalid("the exported recipe would exceed 256 KiB"));
+        }
+        crate::durability::write_bytes_atomically(destination, &bytes, true)
     }
 
     /// Plans an import without changing anything.

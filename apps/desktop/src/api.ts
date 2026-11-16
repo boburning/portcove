@@ -311,6 +311,26 @@ export const desktopApi = {
       profileId,
       generation,
     }),
+  exportModRecipe: (portId: string, profileId: string, path: string, generation: number) =>
+    invoke<void>("export_mod_recipe", { portId, profileId, path, generation }),
+  inspectModRecipe: (portId: string, path: string, generation: number) =>
+    invoke<import("./transport-types.generated").OutputRecipeImportPlan>("inspect_mod_recipe", {
+      portId,
+      path,
+      generation,
+    }),
+  applyModRecipe: (
+    portId: string,
+    displayName: string,
+    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetup>("apply_mod_recipe", {
+      portId,
+      displayName,
+      plan,
+      generation,
+    }),
   setModPackageEnabled: (
     portId: string,
     profileId: string,
