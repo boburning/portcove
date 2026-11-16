@@ -1440,14 +1440,18 @@ async fn scan_game_file_roots(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     limits: portcove_core::SourceDiscoveryLimits,
+    finish_scan_id: Option<String>,
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
-        service
-            .scan_game_file_roots_with_progress(&limits, |event| {
-                let _ = on_event.send(event);
-            })
-            .map_err(Into::into)
+        let emit = |event| {
+            let _ = on_event.send(event);
+        };
+        match finish_scan_id {
+            Some(id) => service.finish_game_file_scan_with_progress(&id, &limits, emit),
+            None => service.scan_game_file_roots_with_progress(&limits, emit),
+        }
+        .map_err(Into::into)
     })
     .await
 }

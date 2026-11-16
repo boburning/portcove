@@ -2975,6 +2975,56 @@ fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() 
 }
 
 #[test]
+fn finishing_saved_folders_preserves_published_batches_after_cancellation() {
+    let temporary = tempfile::tempdir().unwrap();
+    let payload = b"synthetic supported source";
+    let catalog = catalog(payload);
+    let library_path = temporary.path().join("library");
+    let mut service = PortcoveService::new(crate::Library::open(&library_path).unwrap()).unwrap();
+    service.replace_catalog_for_test(catalog.clone());
+    for index in 0..17 {
+        let root = temporary.path().join(format!("selected-{index}"));
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join("source.z64"), payload).unwrap();
+        service.library().add_game_file_root(&root).unwrap();
+    }
+    let limits = SourceDiscoveryLimits::default();
+    let first = service.scan_game_file_roots(&limits).unwrap();
+    assert_eq!(first.report.files_hashed, 8);
+    let scan_id = first.matches.unwrap().scan_id;
+    let result = service.finish_game_file_scan_with_progress(&scan_id, &limits, |event| {
+        if matches!(
+            &event.event,
+            crate::OperationEventKind::Progress { phase_id: Some(phase), completed: 2, .. }
+                if phase == "saved_folder_scan_checkpoints"
+        ) {
+            service.request_cancellation(&event.operation_id).unwrap();
+        }
+    });
+    assert_eq!(result.unwrap_err().code, ErrorCode::Cancelled);
+    drop(service);
+
+    let mut service = PortcoveService::new(crate::Library::open(&library_path).unwrap()).unwrap();
+    service.replace_catalog_for_test(catalog);
+    let partial = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(partial.report.files_hashed, 16);
+    assert!(partial.coverage.unwrap().can_resume);
+    let replaced_id = uuid::Uuid::new_v4().to_string();
+    let error = service
+        .finish_game_file_scan_with_progress(&replaced_id, &limits, |_| {})
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    let finished = service
+        .finish_game_file_scan_with_progress(&scan_id, &limits, |_| {})
+        .unwrap();
+    let matches = finished.matches.unwrap();
+    assert_eq!((matches.scan_id, matches.exact_matches), (scan_id, 34));
+    let coverage = finished.coverage.unwrap();
+    assert_eq!(coverage.batches, 3);
+    assert!(coverage.frontier_exhausted);
+}
+
+#[test]
 fn cancellation_before_snapshot_publication_preserves_the_previous_snapshot() {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("selected");
