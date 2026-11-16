@@ -575,3 +575,64 @@ async fn a_hold_is_not_shown_after_the_setup_stops_allowing_unattended_updates()
         .unwrap();
     assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
 }
+
+#[tokio::test]
+async fn revoking_automatic_policy_after_planning_does_not_apply_the_update() {
+    let w = world();
+    w.install_first(&wrapper(&[("hd-link.o2r", "objects/link.bin", b"v1")]))
+        .await;
+    w.allow_automatic();
+    let before = w.revision();
+    let next = wrapper(&[("hd-link.o2r", "objects/link.bin", b"v2")]);
+    let (root, _requests, server) = serve_http_bytes(vec![
+        project("2.0", &[(10, 1), (11, next.len())]),
+        redirect(),
+        file(&next),
+        project("2.0", &[(10, 1), (11, next.len())]),
+        redirect(),
+        file(&next),
+    ]);
+    let client = GameBananaClient::with_roots(&root, None).unwrap();
+    let plan = w
+        .service
+        .plan_provider_install_with(&client, PORT, &w.profile, PROJECT, 11)
+        .await
+        .unwrap();
+    let provider = ProviderClient::gamebanana(&client, PORT).unwrap();
+    let automatic = w
+        .service
+        .plan_provider_install_in_mode(
+            &provider,
+            PORT,
+            &w.profile,
+            &PROJECT.to_string(),
+            "11",
+            ProviderInstallMode::Automatic,
+        )
+        .await
+        .unwrap();
+    server.join().unwrap();
+    assert_eq!(automatic, plan);
+    let authorization = w.service.authorize_provider_install(&plan).unwrap();
+    w.service
+        .set_profile_update_policy(PORT, &w.profile, ProfileUpdatePolicy::KeepCurrent)
+        .unwrap();
+
+    let error = w
+        .service
+        .apply_automatic_provider_install(&automatic, &authorization.token)
+        .unwrap_err();
+    assert_eq!(error.code, ErrorCode::Conflict);
+    assert_eq!(w.revision(), before);
+
+    w.service
+        .discard_provider_install_in_mode(&automatic, ProviderInstallMode::Automatic)
+        .unwrap();
+    // Automatic staging cleanup leaves an identical, independently reviewed plan intact.
+    let reviewed = w.service.authorize_provider_install(&plan).unwrap();
+    let after = w
+        .service
+        .apply_provider_install(&plan, &reviewed.token)
+        .unwrap();
+    assert_eq!(after.revision, before.revision + 1);
+}

@@ -2216,7 +2216,7 @@
           },
           {
             "title": "Set up the Android beta",
-            "instruction": "Install the official Android APK on an ARM64 device with Android 10 or newer and a Vulkan 1.2 driver. To use Internal storage > Snap64, allow the storage permission on Android 10 or All files access on Android 11 and newer. Choose Not now to use the app’s private folder instead. Select your original in the app’s file picker."
+            "instruction": "Install the official APK on ARM64 with Android 10 or newer and a Vulkan 1.2 driver. Android may ask your browser or file manager to allow app installation. For Internal storage > Snap64, allow storage permission on Android 10 or All files access on Android 11 and newer. Not now uses the app’s own folder and asks again on the next start. Don’t ask again keeps using the app’s own folder. Select your original in the app’s file picker."
           },
           {
             "title": "Supply your original",
@@ -2236,7 +2236,11 @@
           },
           {
             "title": "Keep the Android game folder",
-            "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you chose the private folder, keep an accessible backup before uninstalling or clearing app data. Install updates over the same upstream signer."
+            "instruction": "Back up Internal storage > Snap64 if you use the shared folder. If you use the app’s own folder, keep an accessible backup before uninstalling or clearing app data. To move to the shared folder later, enable All files access or the storage permission for Snap64 Recomp, then open the game. It copies missing game files and keeps existing files in Snap64. Check the shared saves before clearing the private folder. Install updates over the copy signed by the same upstream key."
+          },
+          {
+            "title": "Set up the game on Steam Deck",
+            "instruction": "Use the official Linux x64 tarball or Flatpak and follow the project’s Steam Deck guide to add it from Desktop Mode. The publisher tested both 1.1.8 packages on a Steam Deck OLED in Desktop Mode. Earlier builds with the 1.1.7 Deck fixes also ran in Gaming Mode, where gyro aim sometimes felt slow. Follow the guide’s controller settings for the gyro mode you choose."
           }
         ]
       },
@@ -4758,6 +4762,14 @@
     },
     {
       "id": "abilliontokens-bustinout-recomp",
+      "artwork": {
+        "game_id": 4151,
+        "cover_id": 93688,
+        "image_id": "co20ag",
+        "image_sha256": "19cf1088d6277178b2efd8c1880ad19619394fca0d0f22661034d5af20ec884a",
+        "game_slug": "the-sims-bustin-out",
+        "match_kind": "underlying-game"
+      },
       "name": "The Sims: Bustin' Out — Original Xbox (The Sims: Bustin' Out - Static Recompilation)",
       "summary": "The project reports a playable Linux household in The Sims: Bustin’ Out, with experimental Hor+ widescreen. Physical gamepad use and visible save/reload are unconfirmed. Linux uses Vulkan/SDL3; Windows is intended to use Direct3D 12/XAudio2, but the README says it has never been compiled while a win64 ZIP is published. Windows play remains unconfirmed. Setup needs your own North American original-Xbox disc: default.xbe, 3211264 bytes, SHA-1 6feea04a12fb134253abe2b5662da634d0048232. Other regions and revisions need separate review. Generated game code stays local; no separate console BIOS requirement is stated. You and the project manage installation and version changes. Release files are not qualified packages in Portcove, and Portcove has not confirmed setup or gameplay.",
       "original_game_title": "The Sims: Bustin' Out",
@@ -13491,6 +13503,14 @@
     },
     {
       "id": "bakugan-ps3-recomp-mauryln-mauryln-bakugan-battle-brawlers",
+      "artwork": {
+        "game_id": 4703,
+        "cover_id": 198036,
+        "image_id": "co48t0",
+        "image_sha256": "176ffcb2838fd3fcdb7a1b8054093b4a0a1273e463bc36ad31fa2cf133c2e575",
+        "game_slug": "bakugan-battle-brawlers",
+        "match_kind": "underlying-game"
+      },
       "name": "Bakugan: Battle Brawlers — Bakugan PS3 recomp (Mauryln) (Mauryln)",
       "original_game_title": "Bakugan: Battle Brawlers",
       "summary": "The project reports startup, videos, menus and the start of a duel. 3D graphics are deformed, and tutorial/story gameplay and sound effects fail. Original files and setup are described below. Portcove has not verified setup or gameplay.",
@@ -16685,6 +16705,14 @@
     },
     {
       "id": "call-of-duty-3-cod3recomp",
+      "artwork": {
+        "game_id": 949,
+        "cover_id": 88878,
+        "image_id": "co1wku",
+        "image_sha256": "5be576add7615a9e917ec05ffc2af44211f8cdbff262d5c97fa20aee1544bfcc",
+        "game_slug": "call-of-duty-3",
+        "match_kind": "underlying-game"
+      },
       "name": "Call of Duty 3 (CoD3Recomp)",
       "summary": "An in-development Call of Duty 3 port with project-reported level loading and early play. The Windows setup/player extracts your own Xbox 360 full XGD1/XGD2/XGD3 or stripped ISO, or uses an installed folder containing default.xex. Its check compares executable size with the compiled target; exact accepted region, revision and cryptographic hashes are unconfirmed. A native source build is separate. This guide has not confirmed the Windows package’s host CPU architecture; the Xbox 360 CPU does not establish it. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Call of Duty 3",
@@ -29430,6 +29458,14 @@
     },
     {
       "id": "getlostin-ctr-nitrofueled-pc",
+      "artwork": {
+        "game_id": 113113,
+        "cover_id": 135934,
+        "image_id": "co2wvy",
+        "image_sha256": "dc3e0199d93b20f39ad8e6f7656f1efb7d0ebbb94fab91832b3ff5a3a70ce631",
+        "game_slug": "crash-team-racing-nitro-fueled",
+        "match_kind": "underlying-game"
+      },
       "name": "Crash Team Racing: Nitro-Fueled (CTR-NitroFueled-PC)",
       "summary": "Attach an independently permitted, prepared GetLostIn CTR Nitro-Fueled Windows installation. Its native settings launcher waits for the game runner; upstream owns PS4-data preparation, runtime replacement and the external save/cache roots.",
       "original_game_title": "Crash Team Racing: Nitro-Fueled",
@@ -31286,6 +31322,14 @@
     },
     {
       "id": "gumpolas-tootawersrecomp",
+      "artwork": {
+        "game_id": 2965,
+        "cover_id": 615761,
+        "image_id": "cod74h",
+        "image_sha256": "def5162525d1bda7d9f3e3dd44ccb625fb593b24bdf12835ba72a8d055d349c1",
+        "game_slug": "the-lord-of-the-rings-the-two-towers",
+        "match_kind": "underlying-game"
+      },
       "name": "The Lord of the Rings: The Two Towers — Original Xbox (Two Towers Recomp)",
       "summary": "Use the independently maintained Gumpolas Two Towers Windows player with your own Xbox USA game files. Its direct entry, settings and saves remain separate from Athelas’s embedded port.",
       "original_game_title": "The Lord of the Rings: The Two Towers",
@@ -34245,6 +34289,14 @@
     },
     {
       "id": "jedeyesniv-art-pacman-ce-pc-recomp",
+      "artwork": {
+        "game_id": 20900,
+        "cover_id": 234086,
+        "image_id": "co50me",
+        "image_sha256": "cea44b3c05ed406820122ae52dd28231d5b2ce4a21e7089304610d89a8066b56",
+        "game_slug": "pac-man-championship-edition",
+        "match_kind": "underlying-game"
+      },
       "name": "Pac-Man Championship Edition (Pac-Man Championship Edition (2007): native PC port)",
       "summary": "Prepared native Windows Pac-Man Championship Edition (2007) player using your own Xbox 360 package or matching extracted files. Upstream owns runtime updates and portable saves; Steam Deck uses Proton.",
       "original_game_title": "Pac-Man Championship Edition",
@@ -34688,6 +34740,14 @@
     },
     {
       "id": "josiahg2502-glitch-newsuperpaperbros",
+      "artwork": {
+        "game_id": 2191,
+        "cover_id": 526324,
+        "image_id": "coba44",
+        "image_sha256": "d1bfd5538cf045c99228595c72a8bd73d224c9fb392bbe5f02a678185ef1d170",
+        "game_slug": "super-paper-mario",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Paper Mario (New Super Paper Bros.)",
       "summary": "An experimental Super Paper Mario port with project-reported gameplay and enhancements. Windows 10/11 x64 uses Direct3D 12/Vulkan; new Linux 64-bit support needs glibc 2.35+ and Vulkan. Screenshot names do not establish macOS support. Use your own supported Wii disc and follow the project’s setup. Its source packager expects an HQ-music mod locally; that optional content is separate from engine requirements. You and the project manage installation and version changes. Exact original revision/hashes, BIOS/firmware needs and full platform/gameplay coverage are unconfirmed, and release files are not qualified packages in Portcove. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Super Paper Mario",
@@ -38528,6 +38588,14 @@
     },
     {
       "id": "mdomangue26-thebigs2",
+      "artwork": {
+        "game_id": 4716,
+        "cover_id": 280042,
+        "image_id": "co602y",
+        "image_sha256": "fa5b03274ab0a31993a02f5bc6bce86d3ef64984f1fc9e26057a2883e66669a2",
+        "game_slug": "the-bigs-2",
+        "match_kind": "underlying-game"
+      },
       "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
       "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
       "original_game_title": "The Bigs 2",
@@ -39535,6 +39603,14 @@
     },
     {
       "id": "mgrayd-fable2pubgames-recomp",
+      "artwork": {
+        "game_id": 21328,
+        "cover_id": 431477,
+        "image_id": "co98xh",
+        "image_sha256": "793f6e451b5b086d8c1ed7cb1a6a1b47f7894649dc6acbe01e54fc851044dec9",
+        "game_slug": "fable-ii-pub-games",
+        "match_kind": "underlying-game"
+      },
       "name": "Fable II Pub Games (MGRayd Recomp)",
       "summary": "Windows player for the Xbox 360 Pub Games, with an optional upstream save link.",
       "project_url": "https://github.com/MGRayd/Fable2PubGames-Recomp",
@@ -39731,6 +39807,14 @@
     },
     {
       "id": "midnight-club-los-angeles-complete-edition-mcla-recomp",
+      "artwork": {
+        "game_id": 44581,
+        "cover_id": 282514,
+        "image_id": "co61zm",
+        "image_sha256": "dbf838b25db9e5be092917fbbf445e29254f57825261a51c2bfa4c8db43b4d58",
+        "game_slug": "midnight-club-los-angeles-complete-edition",
+        "match_kind": "underlying-game"
+      },
       "name": "Midnight Club: Los Angeles Complete Edition (MCLA Recomp)",
       "summary": "A Midnight Club: Los Angeles Complete Edition build kit that compiles locally, rather than a ready-made player. Windows x86-64 uses Direct3D 12; Linux native Vulkan source instructions have one project-reported free-roam test, with exact CPU support unconfirmed. A jailbroken PS5 route is separate. Use your own USA/Europe Complete Edition Xbox 360 ISO, title 545407F8. Setup extracts it, translates default.xex and builds locally. Base/non-Complete releases and other code revisions are not established compatible. No game code, data or keys are supplied. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Midnight Club: Los Angeles Complete Edition",
@@ -42665,6 +42749,14 @@
           {
             "title": "Play in a browser on desktop or mobile",
             "instruction": "The official browser build supports touch controls on mobile, including Android. Use the browser link on modern Macs. The older Mac 1.5.3 installer contains only PowerPC and 32-bit Intel code."
+          },
+          {
+            "title": "Play the companion Neverputt game",
+            "instruction": "On Windows, run neverputt.exe from the same extracted 1.6.0 folder and keep the included data and libraries beside it. On Debian or Ubuntu, install the neverputt package with its data dependencies. In Neverputt, choose Play, a course, and one to four players to play on the same computer. On Linux, back up the shared ~/.neverball folder to keep its settings."
+          },
+          {
+            "title": "Find Neverputt on Mac",
+            "instruction": "If you use MacPorts, its neverball port installs Neverputt separately. Start neverputt from a terminal. The older official disk image contains a 32-bit Intel and PowerPC Neverputt installer. The project’s mobile browser link is for Neverball."
           }
         ],
         "help_url": "https://play.neverball.org/"
@@ -44591,6 +44683,14 @@
     },
     {
       "id": "openport-labs-galaxy-android",
+      "artwork": {
+        "game_id": 1077,
+        "cover_id": 95604,
+        "image_id": "co21ro",
+        "image_sha256": "5b90832f5b3a7d5f419f7ab22dfca5557c780e5ee7f9d081c62fe6758dae6074",
+        "game_slug": "super-mario-galaxy",
+        "match_kind": "underlying-game"
+      },
       "name": "Super Mario Galaxy (Galaxy Android)",
       "summary": "An Android ARM64 Super Mario Galaxy port derived from decompilation work. Vulkan 1.0 and AAudio are required. The project’s features and planned higher frame rates/camera improvements remain its own claims or plans; complete campaign and device coverage are unconfirmed. Petari ancestry does not establish desktop support. Use your own Wii disc with the project’s extraction/conversion instructions. Exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. You and the project manage setup and updates; Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Super Mario Galaxy",
@@ -49210,6 +49310,14 @@
     },
     {
       "id": "psx-jackie-chan-recomp-claudiovarandas-jackie-chan-stuntmaster",
+      "artwork": {
+        "game_id": 18943,
+        "cover_id": 113058,
+        "image_id": "co2f8i",
+        "image_sha256": "3ccb32aac7e3b1b15561c58359847af01fdd9f164f331682e994adfe0f94b604",
+        "game_slug": "jackie-chan-stuntmaster",
+        "match_kind": "underlying-game"
+      },
       "name": "Jackie Chan Stuntmaster — psx-jackie-chan-recomp (ClaudioVarandas)",
       "original_game_title": "Jackie Chan Stuntmaster",
       "summary": "Experimental project. native 3D/sound/widescreen at 60 FPS claim; game-specific interrupt fixes; release packaging undone, no full playthrough. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -50346,6 +50454,14 @@
     },
     {
       "id": "ratchet-clank-2002-ps2-rac-rs",
+      "artwork": {
+        "game_id": 1289,
+        "cover_id": 79006,
+        "image_id": "co1oym",
+        "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
+        "game_slug": "ratchet-clank",
+        "match_kind": "underlying-game"
+      },
       "name": "Ratchet & Clank (2002, PS2) (RAC-RS)",
       "summary": "Attach an independently permitted, prepared rac-rs Windows game after upstream builds it from your supported Ratchet & Clank disc. Direct no-argument launch reads the generated play configuration; preserve the whole source/prepared installation, player data and update recovery.",
       "original_game_title": "Ratchet & Clank (2002, PS2)",
@@ -52735,6 +52851,14 @@
     },
     {
       "id": "saints-row-xbox-360-2006-static-recompilation-sp00nznet-saints-row-2006",
+      "artwork": {
+        "game_id": 825,
+        "cover_id": 135048,
+        "image_id": "co2w7c",
+        "image_sha256": "570c6115a8c0d512bef2533e20530f3c92001ef08034aa0197721151fbf0d7ad",
+        "game_slug": "saints-row",
+        "match_kind": "underlying-game"
+      },
       "name": "Saints Row (2006) — Saints Row (Xbox 360, 2006) — Static Recompilation (sp00nznet)",
       "original_game_title": "Saints Row (2006)",
       "summary": "The alpha reaches the menu and New Game. The first mission, combat and vehicles remain untested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -53480,6 +53604,14 @@
     },
     {
       "id": "shihabal3amri-tekken-tag-tournament-2-pc",
+      "artwork": {
+        "game_id": 1238,
+        "cover_id": 88292,
+        "image_id": "co1w4k",
+        "image_sha256": "cbab1d1d08cc84c2a8466a19ad6cc7223cfbbf0054c802d872cb9f058ee5e31a",
+        "game_slug": "tekken-tag-tournament-2",
+        "match_kind": "underlying-game"
+      },
       "name": "Tekken Tag Tournament 2 (tekken-tag-tournament-2-pc)",
       "summary": "A Tekken Tag Tournament 2 Windows 10/11 player installer. ttt2_setup.exe checks your own Xbox 360 disc and supported TU3, builds the PC version and prepares shaders. Separate ttt2-server Windows/Linux amd64 and Linux ARM64 packages host servers; they are not Linux players. The project’s claims of 59 fighters, rollback and ranked play are untested here. Its installer and server maintainers manage preparation, rather than Portcove. Exact accepted game revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "Tekken Tag Tournament 2",
@@ -53878,6 +54010,14 @@
     },
     {
       "id": "skate-2007-skate1recompiled",
+      "artwork": {
+        "game_id": 2585,
+        "cover_id": 302824,
+        "image_id": "co6hns",
+        "image_sha256": "70ecd4b6d0a90821d8cc0c45e86a61f34e44047f4795d3e94afba438920536df",
+        "game_slug": "skate",
+        "match_kind": "underlying-game"
+      },
       "name": "skate (2007) (Skate1Recompiled)",
       "summary": "A skate (2007) Windows player/source route using your own Xbox 360 disc image. Drag it onto Setup.bat to import and build locally. Source examples use Skate. (USA).iso; preserve all extracted files, including default.xex. Exact Windows package architecture and accepted regional executable revision/hashes are unconfirmed. macOS ARM64 source instructions are explicitly untested, and Intel Mac is unsupported. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "skate (2007)",
@@ -55241,6 +55381,14 @@
     },
     {
       "id": "south-park-let-s-go-tower-defense-play-south-park-td-recompiled",
+      "artwork": {
+        "game_id": 1260,
+        "cover_id": 125213,
+        "image_id": "co2om5",
+        "image_sha256": "1009f05680aafe27e69a1d183fa9ceca60e93c6f51c1b8ff449e107c310a64e0",
+        "game_slug": "south-park-let-s-go-tower-defense-play",
+        "match_kind": "underlying-game"
+      },
       "name": "South Park: Let's Go Tower Defense Play! (South Park TD Recompiled)",
       "summary": "Attach an independently permitted, prepared South Park: Let’s Go Tower Defense Play! Windows player with its exact owned XBLA data and upstream startup settings already saved. Normal direct play stays in process; preserve separate game, settings and Documents save roots, and finish update/restart changes upstream.",
       "original_game_title": "South Park: Let's Go Tower Defense Play!",
@@ -55678,6 +55826,14 @@
     },
     {
       "id": "splatterhouse-recompiled-native-xbox-360-pc-port-0c0de-splatterhouse-2010",
+      "artwork": {
+        "game_id": 7191,
+        "cover_id": 302385,
+        "image_id": "co6hbl",
+        "image_sha256": "9ec2dc44ba3085b584ca58a25b359e4859afb05385da7d185fe778ce29a4f8b6",
+        "game_slug": "splatterhouse",
+        "match_kind": "underlying-game"
+      },
       "name": "Splatterhouse (2010) — Splatterhouse Recompiled — native Xbox 360 → PC port (0c0de)",
       "original_game_title": "Splatterhouse (2010)",
       "summary": "The project claims campaign and DLC play from start to finish at 60 FPS. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -55971,6 +56127,14 @@
     },
     {
       "id": "ssx-3-xbox-pal-ssx3-recomp-koenhendriks",
+      "artwork": {
+        "game_id": 4174,
+        "cover_id": 77926,
+        "image_id": "co1o4m",
+        "image_sha256": "5967440316a59e9279e539e64369ea71840f44e8c2f989751e0b215dfe1bfffa",
+        "game_slug": "ssx-3",
+        "match_kind": "underlying-game"
+      },
       "name": "SSX 3 (Xbox, PAL) (SSX3-recomp (koenhendriks))",
       "summary": "A separate koenhendriks SSX 3 implementation with a Windows x86-64 release and Linux x86-64 source-build racing reported by the project. Asahi Linux ARM64 reaches menus only; native macOS is unsupported. Use your own PAL original-Xbox dump with default.xbe and the complete data/ directory, and point the launcher at that extracted root for its PAL check. The bertibertig and PS2 versions have different inputs and players. Exact accepted XBE revision/hash is unspecified. Portcove has not confirmed setup or gameplay.",
       "original_game_title": "SSX 3 (Xbox, PAL)",
@@ -59459,6 +59623,14 @@
     },
     {
       "id": "tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition",
+      "artwork": {
+        "game_id": 21693,
+        "cover_id": 379427,
+        "image_id": "co84rn",
+        "image_sha256": "baec1856e39ef539e7ce6a401cd80205f321b3aa98482cb22d214269c2dd59dc",
+        "game_slug": "tekken-tag-tournament-2-wii-u-edition",
+        "match_kind": "underlying-game"
+      },
       "name": "Tekken Tag Tournament 2 Wii U Edition — Tekken Tag 2 Ultimate Edition (Petexy)",
       "original_game_title": "Tekken Tag Tournament 2 Wii U Edition",
       "summary": "Experimental project. The project reports boot through arcade mode. GamePad screen and speaker, online play, software keyboard and errors, and unused audio effects remain missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -63150,6 +63322,14 @@
     },
     {
       "id": "tsapz-imaginatorsrecomp-tsapz-skylanders-imaginators",
+      "artwork": {
+        "game_id": 19576,
+        "cover_id": 94971,
+        "image_id": "co21a3",
+        "image_sha256": "ceb090daa63dbc80e1f66f190a81872dc89faebd0552775eaab8c9103a5cddb4",
+        "game_slug": "skylanders-imaginators",
+        "match_kind": "underlying-game"
+      },
       "name": "Skylanders: Imaginators — tsapZ ImaginatorsRecomp (tsapZ)",
       "original_game_title": "Skylanders: Imaginators",
       "summary": "Firstlevelplays; later parts of the game have not been played; German PS3 text is optional,voices are experimental;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -63363,6 +63543,14 @@
     },
     {
       "id": "turok-xbox-360-static-recompilation-sp00nznet-turok-2008",
+      "artwork": {
+        "game_id": 1330,
+        "cover_id": 130295,
+        "image_id": "co2sjb",
+        "image_sha256": "1060b1f1f97bb68ac809cfe9dec3c302d74203fd80c94a7fb5426b0feb4892cc",
+        "game_slug": "turok",
+        "match_kind": "underlying-game"
+      },
       "name": "Turok (2008) — Turok (Xbox 360) - Static Recompilation (sp00nznet)",
       "original_game_title": "Turok (2008)",
       "summary": "Only the logo, loading spinner, settings and input are established. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -64328,6 +64516,14 @@
     },
     {
       "id": "untildawn-pc-supercatelvis-supercatelvis-until-dawn-2015-ps4-original",
+      "artwork": {
+        "game_id": 7609,
+        "cover_id": 129806,
+        "image_id": "co2s5q",
+        "image_sha256": "87eabcf00131896aff5d50cc81142c31e350b0e3a6fcb8c955fb8547fe63d66e",
+        "game_slug": "until-dawn",
+        "match_kind": "underlying-game"
+      },
       "name": "Until Dawn (2015 PS4 original) — UntilDawn_PC (SuperCatElvis) (SuperCatElvis)",
       "original_game_title": "Until Dawn (2015 PS4 original)",
       "summary": "Information only. The project retains a complete-playthrough claim on its i9-12900KF/RTX 3090 Ti development PC. WIP 0.1.4 adds a renderer thread, faster rendering, a hair fix and more movie skipping, with missing Skip text still noted. The new renderer has only been played on NVIDIA; RX 9070 XT observations concern WIP 0.1.3. Reported scenes range from about 60 FPS in light scenes to 35–45 FPS in busy scenes and 21–25 FPS at the heaviest points. Shader pauses, crashes, temporary deformation, motion drift and graphics defects remain. Renderer_thread=0 is the project’s fallback for threading regressions. Intel graphics are untested; native 4K and stable 60 FPS are goals. New downloads are unavailable while closed-source runtime provenance and distribution rights for game-derived shaders/icon remain unresolved. Original CUSA02636/update 01.03 and a native description do not resolve that condition. Portcove has not confirmed setup or gameplay.",
@@ -64339,6 +64535,44 @@
       "availability": "unknown",
       "download_block_reason": "New downloads are unavailable while the closed-source player’s distribution/provenance remains unresolved, including declared game-derived shader programs and its icon. A native description or own-disc requirement does not approve those files. Information about original CUSA02636/update 01.03 and project-reported progress is retained under this entry’s existing identity. Exact package/source provenance must be resolved before downloads are offered.",
       "issue_number": 3461
+    },
+    {
+      "id": "unvanquished",
+      "name": "Unvanquished",
+      "original_game_title": "Unvanquished",
+      "summary": "Build bases and play team matches as humans or aliens, online or in a local game.",
+      "project_url": "https://github.com/Unvanquished/Unvanquished",
+      "issue_number": 6468,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://unvanquished.net/download/",
+      "setup_url": "https://unvanquished.net/download/",
+      "download_block_reason": "Get the official Unvanquished launcher or the universal ZIP from the publisher’s download page.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the publisher’s launcher",
+            "instruction": "Download the official launcher for Windows, Linux x64, or Mac. Start the launcher and select the download arrow. When the download finishes, select the play arrow. Use this launcher to update the game. The Mac client uses an Intel build through Rosetta 2 on Apple Silicon. On Linux, you can also install net.unvanquished.Unvanquished from Flathub and update that copy through your package manager."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Keep your settings and downloaded content",
+            "instruction": "Close Unvanquished before backing up. Copy Documents/My Games/Unvanquished on Windows, ~/Library/Application Support/Unvanquished on Mac, or ~/.local/share/unvanquished on Linux. Use the game’s actual homepath if you changed it, and ~/.var/app/net.unvanquished.Unvanquished/data/unvanquished for the Flatpak. Keep the backup private because it can contain your client key."
+          },
+          {
+            "title": "Use the universal ZIP for other Linux architectures",
+            "instruction": "The universal ZIP includes Linux x64, ARM64, ARM hard-float and i686 engine archives, Windows x64 and i686 engine archives, and the Intel Mac app. On Linux or Windows, unpack the matching inner engine archive alongside the pkg folder and keep the complete set together. Start daemon on Linux or daemon.exe on Windows. On Mac, prefer the official launcher because macOS can prevent the manually extracted app from reading its adjacent game data. The official release does not provide an Android client."
+          }
+        ],
+        "help_url": "https://wiki.unvanquished.net/wiki/Install_and_play"
+      }
     },
     {
       "id": "ur-quan-masters",
@@ -65838,6 +66072,14 @@
     },
     {
       "id": "vigilante-8-arcade-xbox-360-2008-static-recompilation-sp00nznet-vigilante-8-arcade",
+      "artwork": {
+        "game_id": 23035,
+        "cover_id": 430249,
+        "image_id": "co97zd",
+        "image_sha256": "7a8551df8070c27503169103b86f3270f336821bb8848e76b6ba2d5b802e2800",
+        "game_slug": "vigilante-8-arcade",
+        "match_kind": "underlying-game"
+      },
       "name": "Vigilante 8 Arcade — Vigilante 8 Arcade (Xbox 360, 2008) — Static Recompilation (sp00nznet)",
       "original_game_title": "Vigilante 8 Arcade",
       "summary": "The project reports boot, audio and input in 0.10. Modes, split-screen and relay behaviour have not been rechecked against the older build. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
@@ -66661,7 +66903,7 @@
           },
           {
             "title": "Install through upstream on Linux",
-            "instruction": "Use the publisher's matching Ubuntu 22.04 or 24.04 x64 DEB through your package manager. For other Linux distributions, the publisher also offers the net.wz2100.wz2100 Flatpak for x64 and ARM64. Start Warzone 2100 through your desktop application menu."
+            "instruction": "On Ubuntu 26.04 x64 or ARM64, install warzone2100 from the Ubuntu package repository and open it from your app menu. On Ubuntu 22.04 or 24.04 x64, you can install the publisher’s matching DEB through your package manager. The publisher also offers the net.wz2100.wz2100 Flatpak for Linux x64 and ARM64."
           },
           {
             "title": "Open the Mac application",
@@ -66674,6 +66916,12 @@
         ],
         "warnings": [
           "The upstream desktop player can register a handler for Discord join links when it starts. Package replacement and backups are player-managed."
+        ],
+        "references": [
+          {
+            "title": "Keep the Ubuntu package’s campaign files",
+            "instruction": "The Ubuntu 26.04 repository package starts through its own sandboxed launcher. Its default profile is ~/.local/share/warzone2100. Close the game before copying your campaign saves and other player data. When switching from a separately installed copy of the same release, keep the original backup until the loaded campaign is working."
+          }
         ]
       }
     },
@@ -67069,6 +67317,14 @@
     },
     {
       "id": "whompay-saintsreborn",
+      "artwork": {
+        "game_id": 825,
+        "cover_id": 135048,
+        "image_id": "co2w7c",
+        "image_sha256": "570c6115a8c0d512bef2533e20530f3c92001ef08034aa0197721151fbf0d7ad",
+        "game_slug": "saints-row",
+        "match_kind": "underlying-game"
+      },
       "name": "Saints Row (Saints Reborn)",
       "summary": "Saints Reborn is the renamed SaintsRowPC implementation, retaining its existing updates. The project claims start-to-finish story, side missions and free roam, with multiplayer issues remaining. SaintsReborn-Setup.exe downloads compiler/tools, imports your own 2006 Xbox 360 Saints Row disc and builds locally, creating play/update shortcuts. Setup or UpdateSaintsReborn manages replacement. Windows x86-64 is documented; Linux setup is explicitly planned rather than available. Exact accepted revision/hashes and BIOS/firmware needs are unconfirmed. Portcove has not qualified a release package or confirmed setup or gameplay.",
       "original_game_title": "Saints Row",
@@ -67149,6 +67405,14 @@
     },
     {
       "id": "wii-play-tanks-rebirth",
+      "artwork": {
+        "game_id": 357342,
+        "cover_id": 475001,
+        "image_id": "coa6ih",
+        "image_sha256": "dfada541d3c86d963393bb91d4ab568b91d83d2e6dbd33cd2737af5c2cd74a89",
+        "game_slug": "tanks-rebirth",
+        "match_kind": "port"
+      },
       "project_url": "https://github.com/RighteousRyan1/TanksRebirth",
       "name": "Tanks Rebirth",
       "summary": "A standalone recreation of Wii Play’s Tanks mode with upstream packages for Windows, Linux and Intel Mac.",

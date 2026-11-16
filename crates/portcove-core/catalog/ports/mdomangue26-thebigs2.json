@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "mdomangue26-thebigs2",
+    "artwork": {
+      "game_id": 4716,
+      "cover_id": 280042,
+      "image_id": "co602y",
+      "image_sha256": "fa5b03274ab0a31993a02f5bc6bce86d3ef64984f1fc9e26057a2883e66669a2",
+      "game_slug": "the-bigs-2",
+      "match_kind": "underlying-game"
+    },
     "name": "The Bigs 2 (The Bigs 2 ReXGlue)",
     "summary": "Attach an independently permitted, prepared The Bigs 2 ReXGlue Windows player with your own Xbox 360 disc data already extracted upstream. Preserve its writable-package or existing per-user data layout; the published Windows package was only Wine-tested upstream.",
     "original_game_title": "The Bigs 2",

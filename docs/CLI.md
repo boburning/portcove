@@ -2321,10 +2321,17 @@ same result.
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
 from a profile's current revision with its **own save group**: progress is not
-copied. The default profile follows the game's current build; any other profile
-launches the exact build its revision names, so a game update never changes a
-customized setup. `copy --current-build` makes an upgraded copy on the current
+copied. When the active runtime changes, Default receives a new revision with
+that runtime in the same library transaction. Its save group and earlier
+recovery builds stay available. Run `ensure-default` to refresh a Default
+revision left behind by an older client before copying or exporting it. Library
+database schema 62 requires Desktop and CLI versions that coordinate this
+change. Other profiles launch the exact build their revisions name, so a game
+update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
+When Default reaches its recovery-build limit, `installation reference-retire`
+can retire a superseded offer after review. Retirement keeps the recorded setup
+revision and progress. A build still used by the selected setup must stay retained.
 Stale `--expected-revision` values fail as `conflict`.
 
 `install-package` inspects a local archive without extracting or executing it, stores
@@ -2549,6 +2556,10 @@ detail gives the exact project and file to review with `provider-plan`. Compare
 the acquired package digests against the recipe before trying the import again.
 The plan also holds for a different platform, an original requirement the game
 does not use, or an unregistered or different original.
+In Desktop, go to Setups and mods to export a recipe or open a recipe file.
+The review identifies exact inputs that are present and those still needed.
+When the review is ready, name the new setup and choose Create setup from
+recipe. The new setup has its own fresh progress.
 `recipe-apply` works only when every input is already present, requires the reviewed
 `plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
 creates a new profile with its own save group. A recipe's provider labels are
@@ -2562,12 +2573,14 @@ recipe's identity exactly; that is not evidence of gameplay or save compatibilit
 
 `profile policy PORT_ID PROFILE_ID automatic-eligible` lets the standing pass
 (`games setup-ready`) install a newer provider file for that setup without asking
-again. Desktop runs the same pass only while at least one game is set to install
-when ready or a folder has automatic setup; otherwise run `games setup-ready`. Setups with the other policies
-(`review-updates`, the default, and `keep-current`) are never contacted. The policy
-is consent, not authorization: each pass checks for updates again, plans the newer
-file with the same checks as `provider-plan`, and authorizes and applies that exact
-plan at once.
+again. While Desktop is open, the shared pass runs after the library opens,
+when the library changes (including a supervised game exit), after a mod setup
+change or a current provider project refresh, and every 15 minutes. A deferred
+update gets one earlier retry after 30 seconds. The CLI can run the pass with
+`games setup-ready`. Setups with the other policies (`review-updates`, the default,
+and `keep-current`) are never contacted. Each pass checks for updates again, plans
+the newer file with the same checks as `provider-plan`, and verifies the policy
+and exact setup revision under the port lock before applying the plan.
 
 Updates are decided per installed provider file. One is applied only when the
 observation is current, the provider offers exactly one newer file (for Thunderstore,
@@ -2604,9 +2617,11 @@ updates for the setup in use and refreshes after an applied one; it does not sho
 deferred or unavailable updates or holds for other setups, which
 `games setup-ready` lists.
 
-Library metadata schema 6 carries profiles, revisions and the selected profile; it is
-emitted only when profiles exist and import validates each profile against its
-retained reference before writing. Precedence between packages that provide the same
+Library metadata schema 6 carries profiles, revisions and the selected profile.
+Schema 11 also carries historical profile revisions whose runtime offers were
+retired, while requiring the current and selected revisions to stay retained.
+Export uses schema 11 when a profile has a retired recovery build. Import checks
+each profile against its retained reference before writing. Precedence between packages that provide the same
 asset path (`asset-override` ordering) follows the supplied order, last wins (see
 [the game's own mod list](#the-games-own-mod-list)).
 

@@ -2,6 +2,10 @@ import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
+import {
+  onStandingSetupPass,
+  requestStandingSetup,
+} from "../features/game-file-discovery/use-standing-setup";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
 import type { LiveMods, ModCodeReview, ModSetupView, ModSetupsView } from "../types";
@@ -10,6 +14,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
+import { ModRecipeControl } from "./ModRecipeControl";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -85,6 +90,11 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
     };
   }, [portId, generation, busy, request]);
 
+  useEffect(() => {
+    if (busy) return;
+    return onStandingSetupPass(() => setRequest((value) => value + 1));
+  }, [busy]);
+
   const reread = () => {
     setFailure(undefined);
     setRequest((value) => value + 1);
@@ -100,6 +110,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
       await action();
       setOutcome(success);
       succeeded = true;
+      requestStandingSetup();
     } catch (failure) {
       setFailure({ text: errorText(failure) });
     } finally {
@@ -113,6 +124,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   const refreshAfterProviderInstall = (message: string) => {
     setOutcome(message);
     setFresh(false);
+    requestStandingSetup();
     setRequest((value) => value + 1);
   };
   return {
@@ -146,6 +158,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     refreshAfterProviderInstall,
   } = useModSetupInventory(portId, generation, busy);
   const [browserBusy, setBrowserBusy] = useState(false);
+  const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
   // A chosen package that runs code waits here for the player's explicit choice.
   const [codeReview, setCodeReview] = useState<{
@@ -180,7 +193,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   if (busy) return <p role="status">{t("mods.busy")}</p>;
   // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
-  const locked = working || !fresh || browserBusy;
+  const locked = working || !fresh || browserBusy || recipeBusy;
 
   const { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked } =
     currentModSetup(view);
@@ -346,7 +359,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   profileName={selected.profile.display_name}
                   inUse={selected.profile.id === selectedId}
                   onBusyChange={setBrowserBusy}
-                  disabled={working || !fresh || blocked}
+                  disabled={working || !fresh || blocked || recipeBusy}
                   onInstalled={refreshAfterProviderInstall}
                 />
               )}
@@ -385,6 +398,14 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           )}
         </>
       )}
+      <ModRecipeControl
+        portId={portId}
+        profileId={selected?.profile.id}
+        generation={generation}
+        disabled={locked}
+        onBusyChange={setRecipeBusy}
+        onImported={refreshAfterProviderInstall}
+      />
     </section>
   );
 }

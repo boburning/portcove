@@ -21,7 +21,7 @@ const unsupportedByReason: Record<string, string[]> = {
     apply_provider_install discard_provider_install
     choose_steamgriddb_artwork check_steamgriddb_listings set_steamgriddb_key
     clear_steamgriddb_key
-    export_portable_saves import_portable_saves
+    export_portable_saves import_portable_saves export_mod_recipe apply_mod_recipe
     acquire_game_update activate_port add_game_file_root add_games_to_library add_mod_package
     add_source adopt_batch adopt_port
     apply_catalog_update apply_game_setting apply_game_update apply_steam_batch_add
@@ -43,7 +43,7 @@ const unsupportedByReason: Record<string, string[]> = {
     remove_external_runtime remove_game_file_root remove_library_membership remove_port remove_source
     reset_artwork reset_output_location restore_backup revoke_catalog_key
     rollback_catalog rollback_port run_install_batch start_install_batch cancel_install_batch
-    set_port_intent acknowledge_port_readiness run_standing_setup
+    set_port_intent acknowledge_port_readiness
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
     set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
@@ -54,7 +54,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
-    inspect_source
+    inspect_source inspect_mod_recipe
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_provider_install

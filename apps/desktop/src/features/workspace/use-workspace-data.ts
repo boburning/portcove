@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-query";
 import { desktopApi } from "../../api";
 import { listenDesktopEvent } from "../../desktop-events";
+import { requestStandingSetup } from "../game-file-discovery/use-standing-setup";
 import type {
   ActivityFeed,
   PortListingStatus,
@@ -560,6 +561,7 @@ export function usePortcoveData(libraryGeneration = 0) {
     >({
       register: (accept) => listenDesktopEvent("portcove://library-changed", accept),
       onEvent: () => {
+        requestStandingSetup();
         invalidateDiagnostics();
         void retryRecovery().catch(() => {
           /* The refresh failure remains visible; this event has no awaiting caller. */
