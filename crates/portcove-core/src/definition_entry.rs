@@ -208,7 +208,13 @@ impl DefinitionContentIndex {
             ));
         }
         if let Some(policy) = port.external_profile_policy {
-            let minimum = crate::native_external_profile::minimum_capability(policy);
+            let minimum =
+                if crate::native_external_profile::quake_linux::uses_split_ironwail_originals(&port)
+                {
+                    crate::native_external_profile::quake_linux::SPLIT_IRONWAIL_CAPABILITY
+                } else {
+                    crate::native_external_profile::minimum_capability(policy)
+                };
             if !document.required_capabilities.iter().any(|requirement| {
                 requirement.template == "native-portable" && requirement.minimum_version >= minimum
             }) {

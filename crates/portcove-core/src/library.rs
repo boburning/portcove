@@ -102,7 +102,8 @@ fn encode_external_catalog(catalog: &Catalog, port_id: &str) -> Result<String> {
             &crate::installed_contract::InstalledContract::capture(catalog, port_id)?,
         )?);
     }
-    Ok(serde_json::to_string(&catalog.authoritative_document())?)
+    let retained = crate::installed_contract::retained_catalog_document(catalog, port_id);
+    Ok(serde_json::to_string(&retained)?)
 }
 
 fn decode_external_catalog(content: &str, port_id: &str) -> Result<Catalog> {
@@ -3632,6 +3633,16 @@ mod tests {
                 .funding_urls
                 .is_none()
         );
+    }
+
+    #[test]
+    fn legacy_external_catalog_excludes_unrelated_split_ironwail() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = "quake-vkquake";
+        let encoded = encode_external_catalog(&catalog, id).unwrap();
+        let retained = decode_external_catalog(&encoded, id).unwrap();
+        assert!(retained.port(id).is_ok());
+        assert!(retained.port("quake-ironwail").is_err());
     }
 
     #[test]
