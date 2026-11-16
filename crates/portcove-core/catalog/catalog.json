@@ -35706,32 +35706,13 @@
         "manual_preparation": "Choose your own Wave Race 64 (USA) (Rev A) original. Portcove installs the unchanged official v1.0.2 Windows package, prepares the original beside the game and creates portable.txt so saves, settings and mods stay with the managed copy. Choose Start Game in the launcher. Portcove has not tested gameplay.",
         "original_game_title": "Wave Race 64",
         "manual_setup": {
-          "steps": [
-            {
-              "title": "Windows: use a copy you already prepared",
-              "instruction": "On Windows, choose Install for the copy Portcove manages. To keep playing a copy you extracted yourself, select WaveRace64Recomp.exe with its folder as the working directory and leave arguments empty. You and upstream maintain that copy."
-            },
-            {
-              "title": "Linux: download and extract the package",
-              "instruction": "Download the official package ending in -linux-x86_64.tar.gz and extract the whole folder somewhere writable. Install the SDL2, GTK 3, FreeType and Vulkan packages named in its README-LINUX.txt. The inspected v1.0.2 program needs glibc 2.43 and libstdc++ with GLIBCXX_3.4.32."
-            },
-            {
-              "title": "Linux: choose your original game",
-              "instruction": "Run WaveRace64Recomp.sh, choose Load ROM and select your own Wave Race 64 (USA) (Rev A) original. You maintain this copy: replace it yourself when upstream publishes a new version."
-            }
-          ],
           "warnings": [
             "The package contains recompiled game code; some bundled components have their own notices. Use only your own original game."
           ],
-          "help_url": "https://github.com/danielgomesvieira2000/wave-race-64-recomp/blob/ac2a296530f957f128388a6fc18028529c7f2b40/README.md",
-          "references": [
+          "steps": [
             {
-              "title": "Find your saves and settings",
-              "instruction": "A copy with an empty portable.txt beside the program keeps saves and settings in its own folder: the saves folder and the .json settings files. Without it, Windows uses %LOCALAPPDATA%\\WaveRace64Recomp and Linux uses $XDG_DATA_HOME/WaveRace64Recomp, usually ~/.local/share/WaveRace64Recomp. Back these up before replacing a copy you maintain."
-            },
-            {
-              "title": "Move from a Windows copy you added earlier",
-              "instruction": "A v1.0.2 folder you added to Portcove keeps working where it is. Portcove doesn't copy its saves or settings into a managed copy. To switch, close the game and back up that folder's saves folder and .json settings files. Remove the registration (your files stay in place) and choose Install, but don't start the game yet. Open its saved data folder from the game's details and copy the saves folder and .json files into it. Portcove adds them to the game the first time you start it. If you've already started the managed copy, its own saves replace files copied this way."
+              "title": "Set up the managed copy",
+              "instruction": "Select your own Wave Race 64 (USA Rev A) cartridge dump. Portcove checks the original and installs the managed Windows package. After installation, choose Play in Portcove, then Start Game in the launcher."
             }
           ]
         },
@@ -38379,18 +38360,11 @@
         "original_game_title": "Star Wars: Dark Forces",
         "variant_label": "PC",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "Set up Dark Forces on Linux",
-              "instruction": "Install io.github.theforceengine.tfe from Flathub on x86-64 or ARM64 Linux. On Steam Deck, use Discover in Desktop Mode. Supply your own installed PC Dark Forces data. The Flatpak can read the default Steam game folder or use your copy, including DARK.GOB, in ~/.var/app/io.github.theforceengine.tfe/data/. Use Flathub for package updates. Follow the upstream Linux guide if you prefer a local build."
-            }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/TheForceEngine/TheForceEngine#linux",
-          "references": [
-            {
-              "title": "Preserve your Linux game profile",
-              "instruction": "Flatpak settings, pilots and saves are under ~/.var/app/io.github.theforceengine.tfe/config/. Keep its data/ folder too if it contains your original files. A native Linux build normally uses ~/.local/share/TheForceEngine or the configured TFE_DATA_HOME. Keep your actual pilot, saves, settings, mods and original PC data before replacing the engine. Use Flathub or upstream for replacement. This Linux guide is separate from Portcove’s managed Windows route."
+              "title": "Set up the managed copy",
+              "instruction": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player."
             }
           ]
         },
@@ -57214,18 +57188,13 @@
         "manual_preparation": "On first Play, choose your own Tetrisphere US NTPE revision 0 ROM in .z64, .v64, .n64 or ZIP form. The game validates and imports it; no separate installer or BIOS is required. The imported ROM, settings, progress and diagnostics live in data beside tetrisphere.exe. Portcove carries that declared folder between compatible runtime versions, including data present before first Play. Older upstream user-profile data is not silently imported: follow upstream instructions to copy it to data before launching. Runtime rollback carries current data and does not rewind saves. Existing external copies keep their files and runtime update owner. Play has not been tested through Portcove. Linux uses the same adjacent data directory. Keep lib/ beside tetrisphere; the game needs those companion files. A compatible Vulkan driver and upstream system dependencies are required. Play has not been tested through Portcove on Linux.",
         "original_game_title": "Tetrisphere",
         "manual_setup": {
+          "warnings": [],
           "steps": [
             {
-              "title": "Set up a separate upstream copy",
-              "instruction": "Download the Windows or Linux package from upstream and run the Blocksphere launcher. Select your own Tetrisphere US NTPE revision 0 ROM or ZIP and choose a new, empty folder outside your Portcove library."
-            },
-            {
-              "title": "Carry your progress to a new upstream version",
-              "instruction": "Install the new version in another empty folder. Copy data/ from your previous Blocksphere installation into the new folder before choosing Play. Keep the previous folder until you verify your settings and progress in the new copy."
+              "title": "Set up the managed copy",
+              "instruction": "Portcove installs the managed Blocksphere package. On first Play, choose your own Tetrisphere US NTPE revision 0 cartridge dump or ZIP in the game."
             }
-          ],
-          "warnings": [],
-          "help_url": "https://github.com/djultra64/Blocksphere#readme"
+          ]
         },
         "artwork": {
           "game_id": 3612,
@@ -73833,46 +73802,15 @@
         "manual_preparation": "Use a separate official VCMI launcher to import your own Heroes III Complete or Shadow of Death data into the default Windows profile under Documents/My Games/vcmi. Close the launcher before choosing Play. Portcove manages the official x64 engine and starts VCMI_client.exe. Your imported data, saves, settings and mods remain in the shared Windows profile. Back up that profile yourself before changing versions. Custom profile paths require a separate upstream copy. Keep a compatible runtime for unfinished games, since saves can differ across major versions.",
         "original_game_title": "Heroes of Might and Magic III",
         "manual_setup": {
-          "steps": [
-            {
-              "title": "Install VCMI on Windows or Mac",
-              "instruction": "On Windows x64, extract the portable ZIP or run the x64 installer, then open VCMI_launcher.exe. On Windows ARM64, run the official VCMI-Windows-arm64.exe installer and open VCMI Launcher from the Start menu. Update that copy through the upstream installer. On Mac, choose the Intel or Apple Silicon DMG, copy VCMI.app to Applications and use its launcher."
-            },
-            {
-              "title": "Run the VCMI AppImage on Linux",
-              "instruction": "Choose VCMI-Linux-x64.AppImage for x86-64 or VCMI-Linux-arm64.AppImage for ARM64 from the official release. Make the full AppImage executable and open it on a system with glibc 2.38 or newer and AppImage support. Use its built-in launcher to import your Heroes III data. If you use a distribution package or Flatpak instead, follow the upstream Linux guide and update through that package manager."
-            },
-            {
-              "title": "Import your Heroes III data",
-              "instruction": "In VCMI Launcher, import your GOG offline installer with its matching BIN file, or use a supported Heroes III Complete or Shadow of Death installation. Keep the launcher for data import and optional mods."
-            },
-            {
-              "title": "Choose the client after upstream setup",
-              "instruction": "To register an upstream copy on Windows x64, select VCMI_client.exe and its containing folder. On Linux x64, use the native vcmiclient executable and its containing folder for a distribution package. Play through the upstream launcher on Windows ARM64 or when using an AppImage, Flatpak or Mac app."
-            }
-          ],
           "warnings": [
             "Heroes III Restoration of Erathia and the HD Edition are not supported; use Complete or Shadow of Death game data.",
             "VCMI saves from different major versions are usually incompatible. Finish ongoing games or keep your current runtime and a profile backup before changing major versions.",
-            "Windows game data, saves and settings normally live in Documents/My Games/vcmi; keep that profile when updating the upstream runtime."
+            "Windows game data, saves and settings normally live in Documents/My Games/vcmi; back up that profile before changing VCMI versions."
           ],
-          "help_url": "https://vcmi.eu/download/",
-          "references": [
+          "steps": [
             {
-              "title": "Preserve the profile for your installation",
-              "instruction": "Windows normally uses Documents/My Games/vcmi. Mac uses ~/Library/Application Support/vcmi. Linux normally uses ~/.local/share/vcmi, or ~/.var/app/eu.vcmi.VCMI/data/vcmi for Flatpak. Keep the actual data and settings folders, including any custom profile paths, when changing versions."
-            },
-            {
-              "title": "Linux setup guide",
-              "instruction": "https://vcmi.eu/players/Installation_Linux/"
-            },
-            {
-              "title": "Upstream Android setup",
-              "instruction": "Use the official Android setup guide for Google Play, F-Droid or the matching upstream APK (ARM64, ARMv7 or x86-64). Import your own Heroes III data in the app and keep your originals separately. Install and update through the same channel because Android checks package identity and signing. Preserve the app profile before removing it. Android guide at https://vcmi.eu/players/Installation_Android/."
-            },
-            {
-              "title": "Upstream iPhone and iPad setup",
-              "instruction": "Check the upstream iOS guide for the current system requirements. Use VCMI’s upstream TestFlight route when available, or provision the official IPA yourself through the upstream sideloading guide. In VCMI Launcher, select your owned Heroes III Complete GOG installer EXE and its matching BIN. Alternatively, copy owned Complete or Shadow of Death Data and Maps, plus optional Mp3, into the VCMI folder in Files. Keep the app’s Documents folder, including Saves and config, before changing its channel or identity. iOS guide at https://vcmi.eu/players/Installation_iOS/."
+              "title": "Set up the managed copy",
+              "instruction": "Use a separate official VCMI Launcher to import your own Heroes III game data into the default Windows profile. Close the launcher before choosing Play in Portcove."
             }
           ]
         },

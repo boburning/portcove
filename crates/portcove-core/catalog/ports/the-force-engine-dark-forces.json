@@ -64,7 +64,16 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "warnings": [],
+        "steps": [
+          {
+            "title": "Set up the managed copy",
+            "instruction": "Select your complete installed PC Dark Forces folder or add a ZIP of it. Portcove checks the game files and installs the managed Windows player."
+          }
+        ]
+      }
     },
     "managed_initialization": "tfe-dark-forces-portable-v1",
     "launch_from_install_root": true,

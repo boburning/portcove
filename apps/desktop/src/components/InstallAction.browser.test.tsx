@@ -474,6 +474,15 @@ it.each([
   ["lighthouse", "linux-x86-64", "supported Banjo-Kazooie", "disk image"],
   ["perfect-dark", "windows-x86-64", "US Rev 1 Perfect Dark", "SDL2.framework"],
   ["resident-evil-gaiden-recomp", "windows-x86-64", "Game Boy Color original", "Android"],
+  ["djultra64-blocksphere", "linux-x86-64", "On first Play", "outside your Portcove library"],
+  [
+    "the-force-engine-dark-forces",
+    "windows-x86-64",
+    "complete installed PC Dark Forces",
+    "Flathub",
+  ],
+  ["vcmi-vcmi", "windows-x86-64", "into the default Windows profile", "DMG"],
+  ["wave-race-64-recomp", "windows-x86-64", "Start Game in the launcher", "leave arguments empty"],
 ] as const)("uses the managed setup of %s on %s", async (id, platform, expected, upstream) => {
   const port = currentCatalogPort(id);
   await root.rerender(
@@ -492,6 +501,9 @@ it.each([
   await expect.element(setup).toBeVisible();
   expect(setup.element().textContent).toContain(expected);
   expect(dialog.element().textContent).not.toContain(upstream);
+  expect(dialog.element().textContent?.includes("saves from different major versions")).toBe(
+    id === "vcmi-vcmi",
+  );
 });
 
 it.each(["macos-x86-64", "macos-aarch64"] as const)(
