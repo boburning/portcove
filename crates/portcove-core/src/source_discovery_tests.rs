@@ -4836,6 +4836,77 @@ fn new_owned_omissions_still_refuse_beyond_the_issue_limit() {
 }
 
 #[test]
+fn oversized_saved_iso_can_be_checked_directly_for_declared_ps2_profiles() {
+    let temporary = tempfile::tempdir().unwrap();
+    let library_path = temporary.path().join("library");
+    let library = crate::Library::open(&library_path).unwrap();
+    let root = temporary.path().canonicalize().unwrap();
+    for index in 0..9 {
+        let selected = root.join(format!("selected-{index}"));
+        fs::create_dir(&selected).unwrap();
+        library.add_game_file_root(&selected).unwrap();
+    }
+    let iso = root.join("selected-0").join("original.iso");
+    fs::write(&iso, b"synthetic disc for the existing pinned validator").unwrap();
+    let catalog = Catalog::embedded().unwrap();
+    let profiles = [
+        "opengoal-jak1-disc",
+        "opengoal-jak2-disc",
+        "opengoal-jak3-disc",
+    ];
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: 16,
+        ..Default::default()
+    };
+    let service = PortcoveService::new(library).unwrap();
+    let first = service.scan_game_file_roots(&limits).unwrap();
+    assert!(first.coverage.unwrap().can_resume);
+    let scan_id = first.matches.unwrap().scan_id;
+    drop(service);
+
+    let reopened = crate::Library::open(&library_path).unwrap();
+    let service = PortcoveService::new(reopened).unwrap();
+    let finished = service
+        .finish_game_file_scan_with_progress(&scan_id, &limits, |_| {})
+        .unwrap();
+    assert!(finished.coverage.unwrap().frontier_exhausted);
+    assert_eq!(finished.matches.unwrap().scan_id, scan_id);
+    let saved = service.game_file_scan_snapshot().unwrap().unwrap();
+    assert_eq!(saved.matches.unwrap().scan_id, scan_id);
+    for report in [first.report, finished.report, saved.report] {
+        assert_eq!(report.files_hashed, 0);
+        let issues: Vec<_> = report
+            .issues
+            .iter()
+            .filter(|issue| issue.path.as_deref() == Some(iso.as_path()))
+            .collect();
+        assert_eq!(issues.len(), 1);
+        let mut actual_profiles: Vec<_> = issues[0]
+            .direct_check_profiles
+            .iter()
+            .map(String::as_str)
+            .collect();
+        actual_profiles.sort_unstable();
+        assert_eq!(actual_profiles, profiles);
+    }
+    let inspection =
+        crate::source_inspection::inspect(&catalog, "opengoal-jak2-disc", &iso).unwrap();
+    assert_eq!(
+        inspection.validator.unwrap().result,
+        crate::SourceValidatorResult::NotRun
+    );
+    assert!(inspection.record.is_some());
+    let plan = service
+        .plan_source_import(
+            "opengoal-jak2-disc",
+            &iso,
+            crate::SourceImportMode::UseCurrentLocation,
+        )
+        .unwrap();
+    assert_eq!(plan.source.sha256, inspection.record.unwrap().sha256);
+}
+
+#[test]
 fn oversized_file_advisories_leave_room_for_a_late_owned_path() {
     let temporary = tempfile::tempdir().unwrap();
     let root = fs::canonicalize(temporary.path()).unwrap();

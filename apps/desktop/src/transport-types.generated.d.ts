@@ -3994,6 +3994,10 @@ export interface SourceDiscoveryReport {
   [k: string]: unknown;
 }
 export interface SourceDiscoveryIssue {
+  /**
+   * Profiles whose bounded direct inspection can check this skipped file.
+   */
+  direct_check_profiles?: string[];
   message: string;
   path: string | null;
   profile_id: string | null;

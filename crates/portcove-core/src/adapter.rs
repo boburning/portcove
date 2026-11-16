@@ -1247,7 +1247,6 @@ pub(crate) fn prepare_runtime_source_set_member(
         return checkpoint();
     }
 
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
@@ -1984,12 +1983,13 @@ pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> 
     Ok(destination.with_file_name(format!("{name}.portcove-source.json")))
 }
 
+pub(crate) const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
 fn copy_runtime_source(
     source: &Path,
     destination: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     checkpoint()?;
     let extension = source
         .extension()

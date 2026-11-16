@@ -16795,6 +16795,44 @@
       "issue_number": 3305
     },
     {
+      "id": "captain-claw-pjasicek-openclaw",
+      "name": "Captain Claw / OpenClaw",
+      "original_game_title": "Captain Claw",
+      "summary": "Build OpenClaw with upstream instructions and use the CLAW.REZ archive from your own Captain Claw installation.",
+      "project_url": "https://github.com/pjasicek/OpenClaw",
+      "issue_number": 5913,
+      "listed_at": "2026-11-15",
+      "platforms": [],
+      "availability": "source-only",
+      "setup_url": "https://github.com/pjasicek/OpenClaw/blob/v0.3/README.md",
+      "download_block_reason": "The released Windows ZIP and PortMaster package include original Captain Claw resources. The upstream source build is the route for using your own original.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Build an upstream player",
+            "instruction": "Use the tagged upstream build instructions to make your player. The Linux build needs the SDL2 libraries and TinyXML listed by upstream. On CMake 4, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 at configure time for this tag. On Windows the tag provides an upstream Visual Studio solution. Launch the actual OpenClaw player from its working folder, which is Build_Release for the Linux build. The optional Mono launcher edits the configuration."
+          },
+          {
+            "title": "Use your own Captain Claw data",
+            "instruction": "Keep your original installation intact. Put a separate copy of its CLAW.REZ alongside the source-built player, the project ASSETS.ZIP and the tagged working-folder config.xml. Leave AssetsFolder empty when the files are together. Start the player with that folder as its working folder. Keep the original edition and asset package together."
+          },
+          {
+            "title": "Keep the data from your working copy",
+            "instruction": "Close the player before copying config.xml and the save file selected by SavesFile, normally SAVES.XML. Keep any edited assets and settings with the working copy. A local config.xml selects that folder. Without it, the Linux player looks under ~/.config/openclaw. Use upstream tools when changing the player."
+          }
+        ],
+        "warnings": [
+          "The PortMaster launcher can replace CLAW.REZ with its bundled archive. Keep any original you supply outside that working folder."
+        ],
+        "references": [
+          {
+            "title": "Check Mac and Android build availability",
+            "instruction": "Upstream has Mac and Android build material. The reviewed release has neither an Intel or Apple Silicon Mac app nor an Android APK."
+          }
+        ]
+      }
+    },
+    {
       "id": "cars-race-o-rama-recompiled-m1ndcrap-cars-race-o-rama",
       "name": "Cars Race-O-Rama — Cars Race-O-Rama Recompiled (m1ndcrap)",
       "original_game_title": "Cars Race-O-Rama",
@@ -21781,7 +21819,7 @@
       "original_game_title": "Descent",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/INSTALL.markdown",
       "issue_number": 2652,
       "listed_at": "2026-10-25",
       "manual_setup": {
@@ -21804,7 +21842,7 @@
           },
           {
             "title": "Point this engine at its own data",
-            "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            "instruction": "Put descent.hog and descent.pig from your compatible Descent copy in a separate directory. Start D1X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D1X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
           },
           {
             "title": "Use the distribution package on Ubuntu",
@@ -21817,8 +21855,8 @@
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
         "references": [
           {
-            "title": "Keep the actual original and player data",
-            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            "title": "Build for a current Intel Mac",
+            "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D1X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
           },
           {
             "title": "Preserve this game’s profile",
@@ -21840,7 +21878,7 @@
       "original_game_title": "Descent II",
       "project_url": "https://github.com/dxx-rebirth/dxx-rebirth",
       "availability": "unknown",
-      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/6943b924bea749543ef5729f31a28345e79716d2/INSTALL.markdown",
+      "setup_url": "https://github.com/dxx-rebirth/dxx-rebirth/blob/fda30d3aa27e36ce6d72465d8dcf78dd44b64c26/INSTALL.markdown",
       "issue_number": 2653,
       "listed_at": "2026-10-25",
       "manual_setup": {
@@ -21863,7 +21901,7 @@
           },
           {
             "title": "Point this engine at its own data",
-            "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. On Mac use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. The upstream instructions also list supported shareware or demo files."
+            "instruction": "Put the retail descent2.hog, descent2.ham, descent2.s22 and alien1.pig, alien2.pig, fire.pig, groupa.pig, ice.pig and water.pig from your Descent II copy in a separate directory. Start D2X-Rebirth with -hogdir followed by the quoted directory path. For the packaged Apple Silicon app, use open -a /path/to/D2X-Rebirth.app --args -hogdir followed by the quoted data directory. For an Intel source build, run the compiled player with -hogdir and that same directory. The upstream instructions also list supported shareware or demo files."
           },
           {
             "title": "Use the distribution package on Ubuntu",
@@ -21876,8 +21914,8 @@
         "help_url": "https://github.com/dxx-rebirth/dxx-rebirth/actions",
         "references": [
           {
-            "title": "Keep the actual original and player data",
-            "instruction": "Keep separate player/profile copies for Descent and Descent II. Preserve the build’s actual writable directory, player profiles, saves, missions and configuration; custom D1X_REBIRTH_HOME/D2X_REBIRTH_HOME or build choices can change it. Preserve the complete working player folder as well. Upstream describes DOS-save compatibility; no Portcove save conversion or native observation is established."
+            "title": "Build for a current Intel Mac",
+            "instruction": "The upstream macOS build instructions cover SCons and SDL 2. Use those instructions to build D2X-Rebirth on your Intel Mac. The current Actions Mac package needs Apple Silicon. The old 0.58.1 Mac disk image includes only 32-bit Intel and PowerPC code."
           },
           {
             "title": "Preserve this game’s profile",
@@ -23470,6 +23508,55 @@
           "-Mac-uni.zip"
         ]
       }
+    },
+    {
+      "id": "doom-odamex",
+      "name": "Doom / Odamex",
+      "original_game_title": "Doom",
+      "summary": "Play Doom or Freedoom with the Odamex client and keep its saves and settings with your upstream installation.",
+      "project_url": "https://github.com/odamex/odamex",
+      "issue_number": 5669,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/odamex/odamex#readme",
+      "release_url": "https://github.com/odamex/odamex/releases",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your game data",
+            "instruction": "Use an IWAD from your own Doom installation or a freely available Freedoom IWAD. Keep the supplied odamex.wad with the upstream client. It contains engine resources and the client still needs your IWAD."
+          },
+          {
+            "title": "Start Odamex on Windows",
+            "instruction": "Extract the complete x64 ZIP. Open odamex.exe for the client or odalaunch.exe for the launcher. The publisher also offers a 32-bit ZIP. Put your own IWAD where the launcher can select it, or pass -iwad followed by the quoted path to the client."
+          },
+          {
+            "title": "Start Odamex on Linux",
+            "instruction": "Install net.odamex.Odamex from Flathub for x86-64 or ARM64. Use the desktop launcher or run flatpak run net.odamex.Odamex client -iwad followed by the path to your IWAD. The publisher also provides separate Flatpak bundles for both architectures."
+          },
+          {
+            "title": "Start Odamex on a Mac",
+            "instruction": "Open the publisher’s universal disk image and keep the complete app folder together. Choose Odamex.app for the client or odalaunch.app for the launcher. Both Intel and Apple Silicon client slices in 12.3.0 require macOS 11 or later."
+          }
+        ],
+        "warnings": [
+          "Package replacement and preservation stay with the package manager or your external installation. Online play requires compatible game data and server settings."
+        ],
+        "help_url": "https://flathub.org/apps/net.odamex.Odamex",
+        "references": [
+          {
+            "title": "Preserve the client profile",
+            "instruction": "The inspected Linux publisher Flatpak uses ~/.odamex for settings, logs and saved games. Preserve the actual profile and its matching IWAD before changing engines or packages."
+          }
+        ]
+      },
+      "download_block_reason": "The bundled engine WAD includes game sounds whose redistribution terms need verification. Use Flathub or the upstream project for an external copy."
     },
     {
       "id": "doom-rpg-doomrpg-re",
@@ -32673,37 +32760,38 @@
       "id": "iss2000-djultra64-international-superstar-soccer-2000",
       "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
       "original_game_title": "International Superstar Soccer 2000",
-      "summary": "An early native port of the European International Superstar Soccer 2000 release with portable Windows and Linux setup packages.",
+      "summary": "Play the European International Superstar Soccer 2000 native port with your own original game files.",
       "project_url": "https://github.com/djultra64/ISS2000",
       "platforms": [
-        "windows-x86-64",
-        "linux-x86-64"
+        "linux-x86-64",
+        "windows-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/djultra64/ISS2000",
       "manual_setup": {
         "steps": [
           {
-            "title": "Check the required game files",
-            "instruction": "Use your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf."
+            "title": "Choose your original game files on first start",
+            "instruction": "When the game asks, select your own Europe English/German revision 0 original as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy in its data folder, so keep your original separately."
           },
           {
-            "title": "Start the Windows x64 package",
+            "title": "Start a Windows x64 copy you manage yourself",
             "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
           },
           {
-            "title": "Start the Linux x64 package",
+            "title": "Start a Linux x64 copy you manage yourself",
             "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
           }
         ],
         "warnings": [
-          "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery."
+          "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery.",
+          "The project’s GPL licence does not cover the recompiled original game code. Portcove downloads it only from the project’s own releases. You need your own original game files."
         ],
         "help_url": "https://github.com/djultra64/ISS2000",
         "references": [
           {
             "title": "Keep the portable data folder",
-            "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
+            "instruction": "The supported original is the Europe English/German revision 0 release, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf. The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
           }
         ]
       },
@@ -41373,6 +41461,47 @@
       }
     },
     {
+      "id": "neverball",
+      "name": "Neverball",
+      "original_game_title": "Neverball",
+      "summary": "Tilt the floor to roll a ball through obstacle courses and collect enough coins to open the goal.",
+      "project_url": "https://github.com/Neverball/neverball",
+      "issue_number": 6400,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://neverball.org/download",
+      "setup_url": "https://neverball.org/download",
+      "download_block_reason": "The stable Windows ZIP is on Neverball’s original release host. Use that ZIP or your Linux package manager for the desktop game.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Run the stable Windows player",
+            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe with Windows support for 32-bit applications."
+          },
+          {
+            "title": "Install the Linux game through your package manager",
+            "instruction": "Install neverball from Debian or Ubuntu and let your package manager install the common files, levels and runtime libraries. Start Neverball with a working OpenGL driver."
+          },
+          {
+            "title": "Keep your runs and settings",
+            "instruction": "Close the desktop game and copy the full Neverball folder in Documents/My Games on Windows or ~/.neverball on Linux. It contains your settings, records and replays. Keep custom levels you added to the installation separately before replacing the package."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Play in a browser on desktop or mobile",
+            "instruction": "The official browser build supports touch controls on mobile, including Android. Use the browser link on modern Macs. The older Mac 1.5.3 installer contains only PowerPC and 32-bit Intel code."
+          }
+        ],
+        "help_url": "https://play.neverball.org/"
+      }
+    },
+    {
       "id": "nevercookfirst-dimensionsrecomp",
       "name": "LEGO Dimensions / DimensionsRecomp (NeverCookFirst)",
       "summary": "Windows LEGO Dimensions guidance for an independently permitted completed legodimensions.exe installation using your own exact Xbox 360 disc and TU23. Upstream installer/updater owns replacement, content, mods and data.",
@@ -42970,6 +43099,53 @@
       ]
     },
     {
+      "id": "openarena",
+      "name": "OpenArena",
+      "original_game_title": "OpenArena",
+      "summary": "Play OpenArena’s standalone maps and modes with the game data in its own release.",
+      "project_url": "https://sourceforge.net/projects/oarena/",
+      "issue_number": 6385,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://sourceforge.net/projects/oarena/files/",
+      "setup_url": "https://sourceforge.net/projects/oarena/files/",
+      "download_block_reason": "Use the complete publisher ZIP or the Linux distribution package. These players are installed and updated outside Portcove.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Use the complete Windows release",
+            "instruction": "Extract openarena-0.8.8.zip into a dedicated folder and keep baseoa and missionpack beside openarena.exe. The full release includes the base game and both patches. The Windows player is 32-bit and needs Windows support for 32-bit applications. Start openarena.exe from that folder."
+          },
+          {
+            "title": "Choose the upstream Linux player",
+            "instruction": "On Debian or Ubuntu, install openarena with your package manager and let it install the engine and map packages. For the older publisher ZIP, extract openarena-0.8.8.zip and run ./openarena.x86_64 from the openarena-0.8.8 folder with baseoa and missionpack beside it. That binary needs SDL 1.2, Vorbis and a working OpenGL driver."
+          },
+          {
+            "title": "Back up your OpenArena profile",
+            "instruction": "Close the game and copy %APPDATA%/OpenArena on Windows or ~/.openarena on Linux, including baseoa/q3config.cfg, custom maps, demos and mods. Keep any custom content you added to the installation separately before replacing it."
+          }
+        ],
+        "warnings": [
+          "Use OpenArena’s own data and add-ons. If you join a server, use the game version and assets the server expects."
+        ],
+        "references": [
+          {
+            "title": "Use the separate Android port",
+            "instruction": "The separately maintained PlayFDroid OpenArena Android release has touchscreen controls and downloads the official game data into app-specific storage on first launch. Follow its release and installation instructions. Desktop profile folders do not apply to that app."
+          },
+          {
+            "title": "Check Mac compatibility",
+            "instruction": "The official 0.8.8 ZIP contains legacy 32-bit Intel and PowerPC Mac binaries. Use those only with a matching legacy Mac environment. Current Intel and Apple Silicon Macs need a separately built player."
+          }
+        ],
+        "help_url": "https://github.com/PlayFDroid/openarena-android/releases"
+      }
+    },
+    {
       "id": "opencommunityedition-opence",
       "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
       "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image.",
@@ -42999,8 +43175,12 @@
             "instruction": "On first Play, select your own Halo: Combat Evolved Xbox .iso or .xiso; every edition works. OpenCE extracts its maps into the maps folder beside the player. Keep the disc image outside the game folder, because the game offers any image it finds there. Halo PC or Custom Edition maps do not replace these Xbox maps."
           },
           {
-            "title": "Use a copy you manage yourself",
-            "instruction": "Extract halo-windows-release.zip, or halo-linux-release.zip on Linux, into its own folder and start halo.exe (halo on Linux) from it with no arguments. The release package is for playing; debug builds stop at failed assertions, and symbol archives are not players. OpenCE asks before installing its own updates and can replace its program files when you accept."
+            "title": "Run a Windows copy you manage yourself",
+            "instruction": "Extract halo-windows-release.zip into its own folder and start halo.exe with no arguments. Use the release package for playing. Debug builds stop at failed assertions, and symbol archives contain debug information. OpenCE asks before installing its own updates and can replace its program files when you accept."
+          },
+          {
+            "title": "Run the external Linux player",
+            "instruction": "Extract halo-linux-release.zip and keep libSDL3.so.0 beside halo. Make halo executable if needed with chmod u+x halo and run ./halo from that folder. Use a Linux host that can run 32-bit x86 programs. It needs 32-bit glibc 2.29 or newer, OpenGL and display libraries, and PipeWire or PulseAudio client libraries. Choose your own Xbox ISO or XISO on first launch. The file picker needs a desktop portal or zenity. If neither is available, start with a copy of the image beside halo. OpenCE handles updates for this external copy."
           }
         ],
         "warnings": [
@@ -43008,11 +43188,15 @@
           "Optional Halo Custom Edition maps and their matching resources belong in custom_maps. OpenSauce maps are incompatible.",
           "Clicking a Halo or Discord invite starts OpenCE directly, outside Portcove, using the version that last registered the link. Close any game started that way before updating or rolling back in Portcove, and start OpenCE from Portcove once after an update before using an invite."
         ],
-        "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/899219cc0a14b03bc12f0517a1e9ee4c37158af8/README.md",
+        "help_url": "https://github.com/OpenCommunityEdition/OpenCE/blob/95b4a165c13a340c7598896b6c9ff2224889e9e7/README.md",
         "references": [
           {
             "title": "Keep all actual data locations",
-            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and its debug logs. Profiles, saves and the shader cache are in AppData/Roaming/halo on Windows unless paths.saves or HALO_SAVE_ROOT changes it. In a copy you manage yourself, back these up before an update."
+            "instruction": "Beside the program OpenCE keeps config.toml, the extracted maps, custom_maps, mods, load_order.toml, screenshots, crash reports and debug logs. The default profile, save and shader cache location is AppData/Roaming/halo on Windows and $XDG_DATA_HOME/halo-linux on Linux, usually ~/.local/share/halo-linux. If paths.saves or HALO_SAVE_ROOT overrides it, copy the configured location before an update."
+          },
+          {
+            "title": "Use the publisher’s Android release",
+            "instruction": "On a 64-bit ARM device with Android 9 or newer, extract app-release.apk from halo-android-release.zip and install it with Android’s package installer. Start OpenCE and choose your own Halo Xbox ISO or XISO with the system picker. Allow about 2 GB for the extracted maps. The app handles its own updates. Before uninstalling, copy your maps and the save/u profiles from Android/data/com.halo.decomp/files. That app folder also contains config.toml and mods."
           }
         ]
       },
@@ -50067,6 +50251,43 @@
       }
     },
     {
+      "id": "ring-racers",
+      "name": "Dr. Robotnik's Ring Racers",
+      "original_game_title": "Dr. Robotnik's Ring Racers",
+      "summary": "Race karts through courses with items, drifting, and time trials.",
+      "project_url": "https://github.com/KartKrewDev/RingRacers",
+      "issue_number": 6412,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://www.kartkrew.org/",
+      "setup_url": "https://www.kartkrew.org/news/2025-11-02_dr-robotniks-ring-racers-version-24.html",
+      "download_block_reason": "Use Kart Krew's full desktop release or the Linux Flatpak. These packages include the game's assets.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the official desktop game",
+            "instruction": "Use Kart Krew's Windows installer or copy the complete application from the Mac disk image. The Windows 2.4 player uses 32-bit application support. The Mac 2.4 app contains both Intel and Apple Silicon players. Keep the game files together."
+          },
+          {
+            "title": "Use Flathub on Linux",
+            "instruction": "Install org.kartkrew.RingRacers from Flathub on x86-64 or ARM64. Use the installed app launcher so it can find its packaged data. Flathub manages this installation and its updates."
+          },
+          {
+            "title": "Keep the actual profile before replacing the game",
+            "instruction": "Close the game and preserve the folder that contains ringdata.dat, ringprofiles.prf and ringconfig.cfg. Keep Grand Prix saves, replays and add-ons you want to retain as well. The Flatpak profile lives at ~/.var/app/org.kartkrew.RingRacers/.ringracers. A separate native installation may use a different profile or your chosen -home location."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://www.kartkrew.org/"
+      }
+    },
+    {
       "id": "riotashley81-jpg-vagrantstory-recomp",
       "name": "Vagrant Story (Vagrant Story Recompiled)",
       "summary": "A hybrid Vagrant Story port: its ROM-free Windows player reads your own USA SLUS-01040 PlayStation disc, then compiles battle, menu and title code in the background with bundled GCC. An interpreter/TinyCC handles remaining code, so full-game native coverage is unconfirmed. The separate MSVC source build is a development route. The project manages generated code and caches. Other player platforms, exact accepted revision/hashes and BIOS/firmware requirements are unconfirmed. Portcove has not confirmed setup or gameplay.",
@@ -55759,7 +55980,17 @@
             "instruction": "Back up the working folder on Windows and in the publisher’s Linux ZIP. On Mac, back up ~/Library/Application Support/OpenSupaplex. Keep PLAYER.LST, HALLFAME.LST, SUPAPLEX.CFG, ADVANCED.CFG, any SAVEGAME files and any added levels."
           }
         ],
-        "warnings": []
+        "warnings": [],
+        "references": [
+          {
+            "title": "Play the original levels in a separate Linux folder",
+            "instruction": "If you have permission to use both the Linux player and the original Supaplex SpeedFix 6.3 files, keep the original archive and place a working copy of its data files beside the OpenSupaplex executable in a separate writable folder. Run OpenSupaplex from that folder. The old DOS executable is unnecessary. The separate original data does not include the newer player's packaged music."
+          },
+          {
+            "title": "Save and resume an original level",
+            "instruction": "For a single snapshot in the working folder, start OpenSupaplex with --force-savegame-sav. Press Ctrl+W during the level to write SAVEGAME.SAV. Close the game before copying that file. To resume in a fresh folder with the same original data, copy the snapshot there and start with --load-savegame."
+          }
+        ]
       }
     },
     {
@@ -56786,6 +57017,49 @@
         "warnings": [
           "Choose Drake’s Deception in the shared upstream launcher before Play; the saved --play shortcut is collection-global and closing the GUI can leave a child running."
         ]
+      }
+    },
+    {
+      "id": "supertuxkart",
+      "name": "SuperTuxKart",
+      "original_game_title": "SuperTuxKart",
+      "summary": "Race open-source karts with an offline profile or join multiplayer races.",
+      "project_url": "https://github.com/supertuxkart/stk-code",
+      "issue_number": 6408,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://supertuxkart.net/Download.html",
+      "setup_url": "https://supertuxkart.net/Download.html",
+      "download_block_reason": "Use the official installer, full portable package, or mobile release for your platform. The portable launchers set up the packaged game and runtime files.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Start the official desktop package",
+            "instruction": "On Windows, use the installer for your architecture or extract the complete portable ZIP and run run_game.bat at its root. On Linux, extract the complete archive for your architecture, open its folder in a terminal and run ./run_game.sh. On Mac, extract the signed ZIP and open the SuperTuxKart application as a complete bundle. The 1.5 universal package contains Intel and Apple Silicon players."
+          },
+          {
+            "title": "Make an offline profile",
+            "instruction": "Start the game and select Offline Account in the new player setup. Enter a player name and select that profile at sign-in to play without an online account. All required base game data comes with the full packages."
+          },
+          {
+            "title": "Keep your profile and custom data",
+            "instruction": "Close SuperTuxKart and copy %APPDATA%/supertuxkart on Windows, ~/Library/Application Support/SuperTuxKart on Mac, or both ~/.config/supertuxkart and ~/.local/share/supertuxkart on Linux. If you have customized the data or configuration locations, preserve those actual folders. Keep any custom files you added to the package separately."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Get the Android release",
+            "instruction": "Use the Android store link or the official APK on the upstream Downloads page. Android handles installation and updates. Preserve your Android app data before uninstalling or switching package sources."
+          }
+        ],
+        "help_url": "https://supertuxkart.net/Download.html"
       }
     },
     {
@@ -62186,6 +62460,52 @@
       "issue_number": 3461
     },
     {
+      "id": "ur-quan-masters",
+      "name": "The Ur-Quan Masters",
+      "original_game_title": "Star Control II",
+      "summary": "Explore the original Star Control II campaign in The Ur-Quan Masters with the project's base game data.",
+      "project_url": "https://sourceforge.net/projects/sc2/",
+      "issue_number": 6376,
+      "listed_at": "2026-11-15",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://sc2.sourceforge.net/downloads.php",
+      "download_block_reason": "Use the publisher's setup or your Linux package manager. The release bundles game content under separate terms and installation stays with the upstream installer or package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install the Windows release",
+            "instruction": "Download uqm-0.8-win32.exe from the publisher and run the installer. Keep the base game content selected and use the installed shortcut to play. The installer and player are 32-bit and require Windows support for 32-bit applications."
+          },
+          {
+            "title": "Install from your Linux distribution",
+            "instruction": "On Debian or Ubuntu, install uqm with your package manager and let it install the required uqm-content package. Start The Ur-Quan Masters from the app menu or run uqm. Ubuntu 26.04 publishes x86-64 and ARM64 packages. Other distribution packages are linked on the project's download page."
+          },
+          {
+            "title": "Install the Intel Mac app",
+            "instruction": "Open uqm-0.8-macos.dmg and copy The Ur-Quan Masters.app to Applications. The Intel app includes the base game content. The publisher documents where to add the optional voice and 3DO music packages inside the app bundle."
+          },
+          {
+            "title": "Back up your profile",
+            "instruction": "Close the game and copy %APPDATA%/uqm on Windows or ~/.uqm on Linux and macOS. Keep the save and teams subdirectories and the settings files. Copy any add-ons you placed in the installation separately before replacing the package."
+          }
+        ],
+        "warnings": [
+          "Keep the stock profile separate from MegaMod profiles and use the matching base data and add-ons."
+        ],
+        "references": [
+          {
+            "title": "Check platform availability",
+            "instruction": "The 0.8.0 Mac download contains an Intel executable. The publisher offers no native Apple Silicon app or Android APK in this release. The project links separately maintained ports."
+          }
+        ]
+      }
+    },
+    {
       "id": "urban-chaos-openchaos",
       "name": "Urban Chaos (OpenChaos)",
       "summary": "Research listing. Upstream route: Desktop native packages, owned-data setup and upstream end-to-end-play claim. Limits: Upstream says end-to-end playable; newer modernization with remaining bugs, not Portcove support. Upstream platforms: Windows x86-64 package; macOS Apple-Silicon ARM64 and Linux Steam Deck packages/builds documented. Linux selected artifact CPU not explicitly mapped in frozen release research. Original data: Supply an owned installed Urban Chaos (1999 PC) copy, from Steam, GOG or disc/disc image; OpenChaos requires the original files and includes no game assets. Retained README accepts any localization/language and places OpenChaos executable in the installed game folder. Exact retail patch fingerprint is not pinned; original executable/DLL-replacing mods are not supported. Portcove setup/gameplay not verified.",
@@ -66690,6 +67010,48 @@
       }
     },
     {
+      "id": "xonotic",
+      "name": "Xonotic",
+      "original_game_title": "Xonotic",
+      "summary": "Play Xonotic's standalone arena shooter with the maps and game data included in its official release.",
+      "project_url": "https://gitlab.com/xonotic/xonotic",
+      "issue_number": 6394,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://xonotic.org/download/",
+      "setup_url": "https://xonotic.org/download/",
+      "download_block_reason": "Get Xonotic from its official download page or Flathub. Upstream serves the ZIP outside Portcove's package providers.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Run the player from the release folder",
+            "instruction": "Extract the full official ZIP and keep data beside the player in the Xonotic folder. On Windows start xonotic.exe for x64 or xonotic-x86.exe for 32-bit Windows. On Linux x64 run ./xonotic-linux-sdl.sh with glibc 2.29 or newer, SDL2, libvorbisfile, libcurl, libpng and a working OpenGL 2.1 driver. On Intel Mac open Xonotic.app from the Xonotic folder. The dedicated server binaries cannot open the player."
+          },
+          {
+            "title": "Use the package manager if you installed the Flatpak",
+            "instruction": "On Linux you can install org.xonotic.Xonotic through Flathub. Use your Flatpak app manager to update or remove that copy. Its profile lives at ~/.var/app/org.xonotic.Xonotic/.xonotic."
+          },
+          {
+            "title": "Keep your settings and custom maps",
+            "instruction": "Close the game and copy the full profile before replacing your package. For the official ZIP copy Saved Games/xonotic from your Windows user folder, ~/.xonotic on Linux, or ~/Library/Application Support/xonotic on Mac. Keep your private stats key with the backup and copy custom content added to the installation separately."
+          }
+        ],
+        "warnings": [],
+        "references": [
+          {
+            "title": "Check Apple Silicon and Android availability",
+            "instruction": "The stable ZIP contains an Intel Mac player. Apple Silicon does not have a native player in that ZIP, and Android has no official stable package in this release."
+          }
+        ],
+        "help_url": "https://xonotic.org/faq/"
+      }
+    },
+    {
       "id": "y0oshi-lain-psx-decompiled",
       "name": "Serial Experiments Lain (lain-psx-decompiled)",
       "summary": "Attach an independently permitted, prepared Serial Experiments Lain Windows client with both owned Japanese discs already imported. Its native client runs the game in process; preserve the separate imported-disc, memory-card and mod data tree.",
@@ -67096,7 +67458,7 @@
           },
           {
             "title": "Choose your original game",
-            "instruction": "On first Play, choose a compatible game IWAD detected by GZDoom. Follow upstream’s IWAD instructions if your game is not detected; the engine and original game files are separate. For the Portcove-managed Windows player, add the folder that holds your own IWAD to GZDoom’s IWAD search paths in its settings instead of copying game files into the managed player folder."
+            "instruction": "Choose a compatible IWAD when GZDoom opens the game selector. If the managed Windows player cannot find your game, close it and open gzdoom_portable.ini in the managed player folder. Under [IWADSearch.Directories], add Path= followed by the full path to the folder holding your IWAD. If the file is empty, add the section heading first. Keep existing entries and choose Play again."
           }
         ],
         "warnings": [
@@ -67106,7 +67468,7 @@
         "references": [
           {
             "title": "Keep your profile and saved games",
-            "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom. On Mac, preserve its Preferences and Documents data. Keep your actual data locations, original files and mods when updating the upstream runtime."
+            "instruction": "A Portcove-managed Windows install keeps gzdoom_portable.ini, Save, Screenshots and Demos beside the managed player and does not share or import the normal-profile locations described next. GZDoom normally keeps Windows settings in Documents/My Games/GZDoom and saved games in Saved Games/GZDoom. Portable Windows mode uses gzdoom_portable.ini and Save beside the player instead. On Linux, preserve ~/.config/gzdoom, including gzdoom.ini and savegames. On Mac, preserve ~/Library/Preferences/gzdoom.ini and ~/Documents/GZDoom, including Savegames and Screenshots. Keep any IWADs and add-ons you placed in ~/Library/Application Support/GZDoom. Keep your actual data locations, original files and mods when updating the upstream runtime."
           }
         ]
       },

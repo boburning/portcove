@@ -241,6 +241,19 @@ pub(crate) fn inspect(
     inspect_with_checkpoint(catalog, profile_id, path, &|| Ok(()))
 }
 
+pub(crate) fn is_direct_ps2_iso_profile(catalog: &Catalog, profile: &SourceProfile) -> bool {
+    profile.kind == SourceKind::UpstreamValidatedDisc
+        && profile
+            .accepted_extensions
+            .iter()
+            .any(|extension| extension.eq_ignore_ascii_case("iso"))
+        && catalog.ports().iter().any(|port| {
+            port.source_profile.as_deref() == Some(profile.id.as_str())
+                && port.runtime_source_materialization
+                    == Some(crate::RuntimeSourceMaterialization::Ps2Iso)
+        })
+}
+
 pub(crate) fn inspect_with_checkpoint(
     catalog: &Catalog,
     profile_id: &str,
@@ -264,6 +277,34 @@ pub(crate) fn inspect_with_checkpoint(
             max_zip_entries: 4096,
         };
         if profile.kind == SourceKind::UpstreamValidatedDisc {
+            if path
+                .extension()
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("iso"))
+                && is_direct_ps2_iso_profile(catalog, profile)
+            {
+                let canonical = path.canonicalize()?;
+                if !std::fs::symlink_metadata(&canonical)?.is_file() {
+                    return Err(PortcoveError::source("select a regular ISO file"));
+                }
+                let mut input = crate::external_runtime::open_identity_handle(&canonical)?;
+                let initial = input.metadata()?;
+                verify_open_source_location(&canonical, &input, &initial)?;
+                let identity = crate::source_file::read_raw_identity_from_reader(
+                    path,
+                    &mut input,
+                    initial.len(),
+                    crate::adapter::MAX_RUNTIME_SOURCE_BYTES,
+                    &mut budget,
+                )?;
+                checkpoint()?;
+                verify_open_source_location(&canonical, &input, &initial)?;
+                if path.canonicalize()? != canonical {
+                    return Err(PortcoveError::conflict(
+                        "selected ISO location changed during inspection",
+                    ));
+                }
+                return inspect_pinned_validator_identity(catalog, profile_id, path, &identity);
+            }
             return inspect_pinned_validator(catalog, profile_id, path, u64::MAX, &mut budget);
         }
         return inspect_file(catalog, profile_id, path, u64::MAX, &mut budget);
