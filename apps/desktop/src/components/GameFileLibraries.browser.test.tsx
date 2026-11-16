@@ -2372,6 +2372,110 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
   );
 });
 
+it("reviews more than sixteen eligible games across multiple saved scan pages", async () => {
+  const sources = Array.from({ length: 21 }, (_, index): SourceRecord => ({
+    ...savedCandidate,
+    profile_id: `profile-${index}`,
+    path: `D:/Games/game-${index}.z64`,
+    sha256: index.toString(16).padStart(64, "0"),
+  }));
+  const [ambiguous, ...eligible] = sources;
+  const ports = [
+    ...sources.map((source) => ({
+      ...portDefinition(),
+      id: `port-${source.profile_id}`,
+      name: `Game ${source.profile_id}`,
+      source_profile: source.profile_id,
+    })),
+    {
+      ...portDefinition(),
+      id: "alternative",
+      name: "Alternative version",
+      source_profile: ambiguous!.profile_id,
+    },
+  ];
+  const stored = storedMatchesSnapshot();
+  stored.report.candidates = sources.slice(0, 9);
+  const storedCandidates = [
+    ...sources.slice(0, 15),
+    ...Array.from({ length: 58 }, (_, index): SourceRecord => ({
+      ...savedCandidate,
+      path: `D:/Games/unregistered-${index}.z64`,
+    })),
+    ...sources.slice(15),
+  ];
+  const scanId = stored.matches!.scan_id;
+  stored.matches!.exact_matches = storedCandidates.length;
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const pages = vi.spyOn(desktopApi, "gameFileScanMatches");
+  for (const [offset, end] of [
+    [9, 73],
+    [73, storedCandidates.length],
+  ] as const) {
+    pages.mockResolvedValueOnce({
+      scan_id: scanId,
+      kind: "exact",
+      offset,
+      total: storedCandidates.length,
+      candidates: storedCandidates.slice(offset, end),
+      preliminary_selections: [],
+      next_offset: end < storedCandidates.length ? end : null,
+    });
+  }
+  const selectedIds = eligible.map((source) => `port-${source.profile_id}`);
+  const plan = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: selectedIds.map((port_id) => ({ port_id, hold: "Waiting for setup input" })),
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  const run = vi.spyOn(desktopApi, "runInstallBatch");
+  const add = vi.spyOn(desktopApi, "addGamesToLibrary");
+  const statuses = new Map(
+    ports.map((port) => [
+      port.id,
+      {
+        ...portStatus(),
+        port_id: port.id,
+        port_actions: [
+          {
+            action: "install" as const,
+            availability: "allowed" as const,
+            reason: "available" as const,
+          },
+        ],
+      },
+    ]),
+  );
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={ports}
+        profiles={sources.map((source) => ({ ...sourceProfile(), id: source.profile_id }))}
+        registeredSources={sources}
+        statuses={statuses}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain(
+    "0 selected · 8 eligible · 1 game needs a version choice",
+  );
+  await click("Show more matches");
+  await click("Show more matches");
+  expect(pages.mock.calls).toEqual([
+    [{ scan_id: scanId, kind: "exact", offset: 9, limit: 64 }, 1],
+    [{ scan_id: scanId, kind: "exact", offset: 73, limit: 64 }, 1],
+  ]);
+  await click("Select all 20 eligible");
+  await click("Review installing 20 selected");
+  expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
+  expect(add).not.toHaveBeenCalled();
+});
+
 it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
