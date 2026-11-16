@@ -95,7 +95,9 @@ import {
   itemBody,
   itemTitle,
   itemUrl,
+  normalizedPortTitle,
   normalizedUpstream,
+  normalizePortKey,
   parsePortIssueForm,
   portCatalogMarkers,
   portKeyMarkers,
@@ -3852,27 +3854,39 @@ export class RoadmapClient {
       );
       catalogId = adopted?.id ?? null;
     }
-    if (!catalogId && listings) {
-      const claimed = [
-        ...new Set(
-          listings
-            .filter((listing) => isRecord(listing) && listing.issue_number === number)
-            .map((listing) => (isRecord(listing) ? listing.id : undefined)),
-        ),
-      ];
-      if (claimed.length > 1)
+    if (listings) {
+      const claims = listings.filter(
+        (listing): listing is Record<string, unknown> =>
+          isRecord(listing) && listing.issue_number === number,
+      );
+      if (claims.some((listing) => typeof listing.id !== "string" || !listing.id))
+        throw new Error(`issue #${number} is claimed by a malformed catalog listing`);
+      if (claims.length > 1)
         throw new Error(
-          `issue #${number} is claimed by multiple catalog listings: ${claimed.map(String).join(", ")}`,
+          `issue #${number} is claimed by multiple catalog listings: ${claims.map((listing) => String(listing.id)).join(", ")}`,
         );
-      if (claimed.length === 1) {
-        const port = (catalog?.ports ?? []).find((candidate) => candidate.id === claimed[0]);
-        if (!port)
-          throw new Error(
-            `issue #${number} is claimed by unknown catalog ID ${String(claimed[0])}`,
-          );
+      const listing = claims[0];
+      if (listing && catalogId && listing.id !== catalogId)
+        throw new Error(
+          `issue #${number} identifies catalog ${catalogId} but listing ${String(listing.id)} claims it; reconcile the listing issue_number before normalizing`,
+        );
+      // A research-only listing (not yet in catalog.json) keeps the research key.
+      const port =
+        listing && !catalogId
+          ? (catalog?.ports ?? []).find((candidate) => candidate.id === listing.id)
+          : undefined;
+      if (listing && port) {
         if (normalizedUpstream(port.project_url) !== normalizedUpstream(form.upstream))
           throw new Error(
             `issue #${number} upstream differs from catalog ${port.id} project URL; reconcile the upstream before linking`,
+          );
+        const title = `-${normalizedPortTitle(issueTitle)}-`;
+        const games = [listing.original_game_title, listing.name]
+          .map((value) => (typeof value === "string" ? normalizePortKey(value) : ""))
+          .filter(Boolean);
+        if (!games.some((game) => title.includes(`-${game}-`)))
+          throw new Error(
+            `issue #${number} title does not name the game of catalog listing ${port.id}; reconcile the listing issue_number before linking`,
           );
         catalogId = port.id;
       }

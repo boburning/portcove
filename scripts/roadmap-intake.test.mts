@@ -977,19 +977,33 @@ const listingClaimCases = [
   "listing-ambiguous",
   "listing-unknown",
   "listing-unclaimed",
+  "listing-wrong-game",
+  "listing-malformed",
   "exact-with-listing",
+  "exact-conflict",
+  "marker-conflict",
 ] as const;
+const listingClaimRefusals: Partial<Record<(typeof listingClaimCases)[number], RegExp>> = {
+  "listing-upstream": /upstream differs from catalog listed-port/,
+  "listing-ambiguous": /claimed by multiple catalog listings: listed-port, sibling-port/,
+  "listing-wrong-game": /title does not name the game of catalog listing sibling-port/,
+  "listing-malformed": /claimed by a malformed catalog listing/,
+  "exact-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
+  "marker-conflict": /identifies catalog listed-port but listing sibling-port claims it/,
+};
 for (const claim of listingClaimCases) {
   void test(`normalize-port ${claim} catalog listing issue claim`, async () => {
     const calls: IntakeCall[] = [];
     const mockedConfig = structuredClone(config);
     mockedConfig.project.number = 7;
-    const key = claim === "exact-with-listing" ? "listed-port" : "research-key";
+    const key =
+      claim === "exact-with-listing" || claim === "exact-conflict" ? "listed-port" : "research-key";
     let body = renderPortIssueBody({
       title: "Listed Port",
       upstream: "https://github.com/example/listed-port",
-      portKey: key,
+      ...(claim === "marker-conflict" ? { catalogId: "listed-port" } : { portKey: key }),
     });
+    const initialBody = body;
     const issue = () => ({
       node_id: "I_listed",
       html_url: "https://github.com/boburning/portcove/issues/42",
@@ -1053,37 +1067,51 @@ for (const claim of listingClaimCases) {
         { id: "sibling-port", project_url: "https://github.com/example/listed-port" },
       ],
     };
+    const siblingClaims = [
+      "listing-ambiguous",
+      "listing-wrong-game",
+      "exact-conflict",
+      "marker-conflict",
+    ].includes(claim);
     const listings = [
       {
-        id: claim === "listing-unknown" ? "retired-port" : "listed-port",
-        issue_number: claim === "listing-unclaimed" ? 41 : 42,
+        // A listing for a research-only port has no catalog.json entry yet.
+        id:
+          claim === "listing-unknown"
+            ? "research-only-port"
+            : claim === "listing-malformed"
+              ? 7
+              : "listed-port",
+        name: "Listed Port / Native",
+        original_game_title: "Listed Port",
+        issue_number:
+          claim === "listing-unclaimed" || (siblingClaims && claim !== "listing-ambiguous")
+            ? 41
+            : 42,
       },
-      { id: "sibling-port", issue_number: claim === "listing-ambiguous" ? 42 : 43 },
+      {
+        // Shares the upstream but names another game.
+        id: "sibling-port",
+        name: "Sibling Game / Native",
+        original_game_title: "Sibling Game",
+        issue_number: siblingClaims ? 42 : 43,
+      },
     ];
     const run = async () => await client.normalizePortIssue({ number: 42, catalog, listings });
-    if (
-      claim === "listing-upstream" ||
-      claim === "listing-ambiguous" ||
-      claim === "listing-unknown"
-    ) {
-      await assert.rejects(
-        run,
-        claim === "listing-upstream"
-          ? /upstream differs from catalog listed-port/
-          : claim === "listing-ambiguous"
-            ? /claimed by multiple catalog listings: listed-port, sibling-port/
-            : /claimed by unknown catalog ID retired-port/,
-      );
+    const refusal = listingClaimRefusals[claim];
+    if (refusal) {
+      await assert.rejects(run, refusal);
       assert.equal(calls.filter((call) => call.method === "PATCH").length, 0);
-      assert.match(body, new RegExp(`<!-- portcove-port-key: ${key} -->`, "u"));
+      assert.equal(body, initialBody);
       return;
     }
     const first = await run();
-    // An unclaimed captured body is already canonical, so only a link rewrites it.
-    assert.equal(first.bodyChanged, claim !== "listing-unclaimed");
+    const unlinked = claim === "listing-unclaimed" || claim === "listing-unknown";
+    // An unlinked captured body is already canonical, so only a link rewrites it.
+    assert.equal(first.bodyChanged, !unlinked);
     assert.equal(first.projectItemAdded, false);
     assert.deepEqual(first.fieldsChanged, []);
-    if (claim === "listing-unclaimed") {
+    if (unlinked) {
       assert.match(body, /<!-- portcove-port-key: research-key -->/u);
       assert.doesNotMatch(body, /<!-- portcove-catalog-id:/u);
     } else {
@@ -1092,10 +1120,7 @@ for (const claim of listingClaimCases) {
     }
     const second = await run();
     assert.equal(second.bodyChanged, false);
-    assert.equal(
-      calls.filter((call) => call.method === "PATCH").length,
-      claim === "listing-unclaimed" ? 0 : 1,
-    );
+    assert.equal(calls.filter((call) => call.method === "PATCH").length, unlinked ? 0 : 1);
     assert.equal(calls.filter((call) => call.query?.includes("addProjectV2ItemById")).length, 0);
   });
 }
