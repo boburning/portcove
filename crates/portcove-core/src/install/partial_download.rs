@@ -160,7 +160,15 @@ impl PartialDownloads {
         file.seek(SeekFrom::End(0)).ok()?;
         // Bounds apply to everything else in the store, including entries a
         // crash left behind.
-        self.sweep(&key, asset.size);
+        let received = resumed.as_ref().map_or(0, |entry| entry.bytes);
+        if !self.admit(&key, asset.size, received) {
+            if resumed.is_none() {
+                // No validator or useful bytes can belong to this entry.
+                drop(file);
+                let _ = fs::remove_file(&part);
+            }
+            return None;
+        }
         Some(Lease {
             file,
             root: self.root.clone(),
@@ -198,14 +206,16 @@ impl PartialDownloads {
         })
     }
 
-    /// Removes expired, unpaired, leftover and surplus entries other than
-    /// `keeping`, so `keeping` plus the rest fits the bounds. An entry another
-    /// transfer holds is left alone.
-    fn sweep(&self, keeping: &str, keeping_bytes: u64) {
+    /// Makes room for the incoming asset while counting the full declared
+    /// length of each other active transfer. Idle entries use their actual size.
+    fn admit(&self, keeping: &str, keeping_bytes: u64, received: u64) -> bool {
         let Ok(entries) = fs::read_dir(&self.root) else {
-            return;
+            return false;
         };
-        let mut kept = Vec::new();
+        let mut idle = Vec::new();
+        let mut count = 1;
+        let mut total = keeping_bytes;
+        let mut needed = keeping_bytes.saturating_sub(received);
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let path = entry.path();
@@ -228,32 +238,62 @@ impl PartialDownloads {
             let Ok(metadata) = fs::symlink_metadata(&path) else {
                 continue;
             };
-            let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
-            let expired = SystemTime::now()
-                .duration_since(modified)
-                .is_ok_and(|age| age > self.max_age);
-            if expired || !metadata.is_file() {
-                self.remove_unheld(key);
+            if !metadata.is_file() && self.remove_unheld(key) {
                 continue;
             }
-            kept.push((modified, key.to_owned(), metadata.len()));
+            let idle_metadata = metadata
+                .is_file()
+                .then(|| {
+                    let file = OpenOptions::new().read(true).write(true).open(&path).ok()?;
+                    file.try_lock().ok()?;
+                    // An interrupted transfer can drop its lock after writing
+                    // more bytes than the directory walk initially observed.
+                    file.metadata().ok()
+                })
+                .flatten();
+            if let Some(metadata) = idle_metadata {
+                let modified = metadata.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+                let expired = SystemTime::now()
+                    .duration_since(modified)
+                    .is_ok_and(|age| age > self.max_age);
+                if expired && self.remove_unheld(key) {
+                    continue;
+                }
+                idle.push((modified, key.to_owned(), metadata.len()));
+                total = total.saturating_add(metadata.len());
+            } else {
+                // The size is encoded in every transfer's key, even before a
+                // response supplies the validator record. An unreadable
+                // entry without a valid size cannot guarantee another lease.
+                let Some(size) = key
+                    .rsplit_once('-')
+                    .and_then(|(_, size)| size.parse::<u64>().ok())
+                else {
+                    return false;
+                };
+                total = total.saturating_add(size.max(metadata.len()));
+                // A concurrent transfer may reset its representation and
+                // truncate after we read the directory entry.
+                needed = needed.saturating_add(size);
+            }
+            count += 1;
         }
-        kept.sort();
-        let mut total = kept
-            .iter()
-            .map(|(_, _, size)| size)
-            .sum::<u64>()
-            .saturating_add(keeping_bytes);
-        let mut count = kept.len() + 1;
-        for (_, key, size) in kept {
-            if count <= self.max_entries && total <= self.max_bytes {
-                break;
+        idle.sort();
+        let fits = |count, total| {
+            count <= self.max_entries
+                && total <= self.max_bytes
+                && fs4::available_space(&self.root).is_ok_and(|available| needed <= available)
+        };
+        for (_, key, size) in idle {
+            if fits(count, total) {
+                return true;
             }
             if self.remove_unheld(&key) {
                 total = total.saturating_sub(size);
                 count -= 1;
             }
         }
+        fits(count, total)
     }
 
     /// Removes an entry unless another transfer holds it.

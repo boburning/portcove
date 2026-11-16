@@ -944,11 +944,10 @@ fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
     held.describe(Some("\"v\""), Some(asset.size));
     held.writer().unwrap().write_all(original).unwrap();
 
-    // A competing asset forces eviction, but it cannot unlink the held part.
-    let competing = partials.lease(&asset_numbered(2, 64)).unwrap();
+    // The first lease owns the only slot until it publishes or releases it.
+    assert!(partials.lease(&asset_numbered(2, 64)).is_none());
     assert!(partials.lease(&asset).is_none());
-    assert_eq!(parts(&root).len(), 2);
-    competing.discard();
+    assert_eq!(parts(&root).len(), 1);
 
     let destination = temporary.path().join("completed.zip");
     std::thread::scope(|scope| {
@@ -980,6 +979,31 @@ fn a_held_partial_survives_eviction_and_publishes_before_the_next_claim() {
     assert!(fresh.resumed().is_none());
     fresh.writer().unwrap().write_all(b"new transfer").unwrap();
     assert_eq!(fs::read(destination).unwrap(), original);
+}
+
+#[test]
+fn unfinished_active_download_reserves_its_declared_bytes() {
+    use std::io::Write as _;
+
+    let temporary = tempfile::tempdir().unwrap();
+    let root = temporary.path().join("partial-v1");
+    let partials = partial_download::PartialDownloads::with_bounds(
+        root.clone(),
+        4,
+        (1 << 20) + 8,
+        Duration::from_secs(3600),
+    );
+    let first = partials.lease(&asset_numbered(1, 1 << 20)).unwrap();
+    first.describe(Some("\"v1\""), Some(1 << 20));
+    first.writer().unwrap().write_all(b"first").unwrap();
+    let second = asset_numbered(2, 1 << 20);
+
+    assert!(partials.lease(&second).is_none());
+    assert_eq!(parts(&root).len(), 1);
+
+    drop(first);
+    assert!(partials.lease(&second).is_some());
+    assert_eq!(parts(&root).len(), 2);
 }
 
 #[test]
