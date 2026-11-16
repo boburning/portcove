@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for testing Portcove. Use this form when something broke or behaved incorrectly.
+        Thanks for reporting this. Use this form when something broke or behaved incorrectly.
         If something worked but was hard, slow or confusing, or for an idea, use **Feedback**
         instead. In Portcove, **Settings > About > Report a problem or send feedback** fills in
         your version and platform for you.
