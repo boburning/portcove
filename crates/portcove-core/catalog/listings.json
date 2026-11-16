@@ -57284,11 +57284,11 @@
         "steps": [
           {
             "title": "Back up existing SuperTux profiles",
-            "instruction": "Close SuperTux and copy your active profile and any older SuperTux profile to a separate location before starting a new release. Keep the backup until you have checked your story progress and settings."
+            "instruction": "Close SuperTux and copy your active profile and any older SuperTux profile to a separate location before starting a new release. For the Windows portable edition, include the user folder next to the launcher. On Linux, check for an older ~/.supertux2 folder. Keep the backup until you have checked your story progress and settings."
           },
           {
             "title": "Start the package for your computer",
-            "instruction": "On Windows, extract the complete portable ZIP and run run_supertux_portable.bat, or use the official installer. On Linux, make the publisher’s AppImage executable and start it. If FUSE is unavailable, pass --appimage-extract-and-run when starting the AppImage. On Mac, pick the Intel or Apple Silicon disk image and copy the complete SuperTux.app into Applications."
+            "instruction": "On Windows, extract the complete portable ZIP and run run_supertux_portable.bat, or use the official installer. On Linux, make the publisher’s AppImage executable and start it. If FUSE is unavailable, pass --appimage-extract-and-run when starting the AppImage. The publisher’s download page also links to Flatpak for Linux. On Mac, pick the Intel or Apple Silicon disk image and copy the complete SuperTux.app into Applications. On first launch, choose whether to allow Internet access for the in-game add-on catalog. You can decline and still play the built-in worlds."
           }
         ],
         "warnings": [
@@ -57301,7 +57301,7 @@
           },
           {
             "title": "Install the Android build for your device",
-            "instruction": "The publisher’s release provides Android APKs for ARM64, ARMv7, x86, and x86-64. Use the package for your device. Keep your Android app data before uninstalling or switching package sources."
+            "instruction": "Open the project’s GitHub Releases page and expand the 0.7.0 release assets for the ARM64, ARMv7, x86, and x86-64 APKs. Use the package for your device. Keep your Android app data before uninstalling or switching package sources."
           }
         ],
         "help_url": "https://www.supertux.org/download"
