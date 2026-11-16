@@ -142,7 +142,7 @@ pub(crate) enum ProfileCommand {
         /// Recipe JSON file (`profile recipe-export` output).
         recipe_file: PathBuf,
     },
-    /// Plan importing a recipe: reports each input as available, acquirable or unavailable.
+    /// Review whether the exact inputs required by a recipe are available.
     RecipePlan {
         /// Recipe JSON file.
         recipe_file: PathBuf,
@@ -318,11 +318,7 @@ fn live_text(live: &portcove_core::LiveMods) -> String {
 }
 
 fn read_recipe(path: &PathBuf) -> Result<portcove_core::ProfileRecipe> {
-    let mut bytes = Vec::new();
-    std::fs::File::open(path)?
-        .take(MAX_REQUEST_BYTES + 1)
-        .read_to_end(&mut bytes)?;
-    portcove_core::ProfileRecipe::inspect_document(&bytes)
+    portcove_core::ProfileRecipe::read_file(path)
 }
 
 fn recipe_text(title: &str, recipe: &portcove_core::ProfileRecipe) -> String {

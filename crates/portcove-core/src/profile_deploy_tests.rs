@@ -1463,6 +1463,39 @@ fn code_without_consent_is_never_recorded_from_stored_or_live_bytes() {
 }
 
 #[test]
+fn a_recipe_reports_missing_local_code_consent_even_when_exact_bytes_are_available() {
+    let w = recomp_world();
+    let (package, sha) = code_package(&w, "code.nrm", b"\0");
+    w.service
+        .install_mod_package_allowing_code(RECOMP, &w.default, &package, 1, &sha)
+        .unwrap();
+    let recipe = w
+        .service
+        .export_profile_recipe(RECOMP, &w.default, None)
+        .unwrap();
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    std::fs::remove_file(layout.code_consent()).unwrap();
+    let held = w.service.plan_recipe_import(&recipe).unwrap();
+    assert_eq!(held.packages[0].status, crate::RecipeInputStatus::Available);
+    assert!(!held.can_apply);
+    assert!(
+        held.holds
+            .iter()
+            .any(|hold| hold.contains("permission in this library"))
+    );
+
+    record_code_consent(&layout, &sha).unwrap();
+    let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(
+        !reviewed
+            .holds
+            .iter()
+            .any(|hold| hold.contains("permission in this library"))
+    );
+    assert_ne!(held.plan_sha256, reviewed.plan_sha256);
+}
+
+#[test]
 fn a_switch_held_for_missing_consent_changes_nothing_and_allowing_the_file_resumes_it() {
     let w = recomp_world();
     let (code, sha) = code_package(&w, "code.nrm", b"\0");

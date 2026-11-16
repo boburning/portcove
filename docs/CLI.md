@@ -2550,6 +2550,10 @@ detail gives the exact project and file to review with `provider-plan`. Compare
 the acquired package digests against the recipe before trying the import again.
 The plan also holds for a different platform, an original requirement the game
 does not use, or an unregistered or different original.
+In Desktop, go to Setups and mods to export a recipe or open a recipe file.
+The review identifies exact inputs that are present and those still needed.
+When the review is ready, name the new setup and choose Create setup from
+recipe. The new setup has its own fresh progress.
 `recipe-apply` works only when every input is already present, requires the reviewed
 `plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
 creates a new profile with its own save group. A recipe's provider labels are
