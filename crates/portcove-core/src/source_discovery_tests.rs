@@ -3224,6 +3224,13 @@ fn directory_depth_entry_file_size_and_hash_budgets_bound_work() {
             .contains(&SourceDiscoveryLimit::FileSize)
     );
     assert_eq!(limited.hash_bytes, 0);
+    assert!(limited.issues.iter().any(|issue| {
+        issue
+            .path
+            .as_deref()
+            .is_some_and(|path| path.ends_with("child/source.z64"))
+            && issue.message.contains("per-file size limit")
+    }));
     selected.limits.max_file_bytes = 100;
     selected.limits.max_hash_bytes = payload.len() as u64 - 1;
     let limited = scan(&catalog(payload), &selected).unwrap();

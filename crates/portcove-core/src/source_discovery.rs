@@ -2768,6 +2768,11 @@ impl Discovery<'_> {
         }
         if size > self.limits.max_file_bytes {
             self.reached.insert(SourceDiscoveryLimit::FileSize);
+            self.issue(
+                Some(path.into()),
+                None,
+                "This file exceeds the scan’s per-file size limit.".into(),
+            );
             return Ok(());
         }
         let before = self.budget.hashed;
