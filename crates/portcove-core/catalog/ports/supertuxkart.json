@@ -33,7 +33,9 @@
           "instruction": "Close SuperTuxKart and copy %APPDATA%/supertuxkart on Windows, ~/Library/Application Support/SuperTuxKart on Mac, or both ~/.config/supertuxkart and ~/.local/share/supertuxkart on Linux. If you have customized the data or configuration locations, preserve those actual folders. Keep any custom files you added to the package separately."
         }
       ],
-      "warnings": [],
+      "warnings": [
+        "The package’s license notes leave the source recording for its rain sound uncertain."
+      ],
       "references": [
         {
           "title": "Get the Android release",
