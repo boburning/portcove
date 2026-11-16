@@ -426,6 +426,31 @@ retains the thirty-two-MiB byte bound; there is no growing per-revision cache li
 or new storage service. Cache eviction and unavailable physical storage still
 provide no durability guarantee.
 
+### Scheduled managed package drift
+
+The configured observer’s existing schedule supplies the exact current GitHub
+release and asset selected by Core. A downstream inspection reads only those
+complete source handoffs from the same run and attempt. It compares eligible
+packages for routes with reviewed shape baselines and an owning listing issue.
+An older reviewed fallback stays distinct from the latest candidate. Other
+providers, incomplete scopes and unavailable archives have no current shape
+assessment from this job.
+
+The read-only inspection verifies size and SHA-256 before comparing the archive
+through `portcove catalog inspect-package-drift`, an alias for the verified
+package-shape inspector. Nothing from the archive runs. The inspection retains a
+bounded report and reuses finished comparisons only for matching package,
+definition and reviewed baseline inputs. Failed archive checks remain visible
+and can be retried in a later observation. Installed-state eligibility stays
+with Core.
+
+A separate main-branch job has only the issue write permission for the notice.
+It records one bot-owned marker comment per affected canonical issue, with the
+platform, channel, artifact identity, changed components and inspection run.
+Compatible or unknown evidence leaves existing observations in issue history.
+The notice job keeps an unchanged marker and refuses duplicate or concurrently
+changed markers. It does not publish or edit the catalog.
+
 ## Resource bounds and availability evidence
 
 The configured per-batch bounds are 256 API requests and ten newly read pages
