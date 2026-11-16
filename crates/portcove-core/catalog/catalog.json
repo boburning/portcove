@@ -63406,6 +63406,86 @@
       "windows_runtime_path_policy": "relative-file-max-path"
     },
     {
+      "id": "mario-kart-64-mariokart64recomp",
+      "name": "Mario Kart 64 / MarioKart64Recomp",
+      "summary": "Play the Mario Kart 64 recompilation with your own North American cartridge dump.",
+      "project_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v0.9.2",
+            "url": "https://gitlab.com/api/v4/projects/84098210/packages/generic/mariokart64recompiledwindows/0.9.2/MarioKart64Recompiled-v0.9.2-Windows-RelWithDebInfo.zip",
+            "size": 23847630,
+            "sha256": "4b41226ad7d4c6012878194fa88fe1a83c1fa8f425dfbaa2a7ea87eb01c1c2b4",
+            "published_at": "2026-08-11T16:04:05Z"
+          }
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "MarioKart64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American Mario Kart 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\MarioKart64Recompiled. The managed copy has no portable.txt, so it uses that profile; a copy you manage yourself without portable.txt shares it. Do not add portable.txt to the managed folder. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Mario Kart 64",
+        "manual_setup": {
+          "help_url": "https://gitlab.com/sonicdcer/MarioKart64Recomp/-/blob/3885e86a4b2088188ddb3914aa26ad4f147bb5df/README.md",
+          "warnings": [
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+            "The reviewed v0.9.2 release currently supports single-player modes."
+          ],
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then select your own North American Mario Kart 64 cartridge dump in the player. The player checks the file and keeps its own copy in its profile, so keep your original separately. Another edition is not accepted."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole Windows package and run MarioKart64Recompiled.exe with its assets and the supplied SDL2 and DXC libraries beside it."
+            }
+          ],
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\MarioKart64Recompiled. It holds the copied original, saves, settings and mods. A copy you run with portable.txt keeps them in its own folder instead. Keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2342,
+          "cover_id": 289642,
+          "image_id": "co67hm",
+          "image_sha256": "6024ad15454ac8e18d972b6d5544e85bb975cdde2f1717c3aff547e351b36ff2",
+          "game_slug": "mario-kart-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "mariokart64recompiled.exe"
+          ]
+        }
+      }
+    },
+    {
       "id": "mario-kart-wii-wiicompiled",
       "name": "Mario Kart Wii / WiiCompiled",
       "summary": "Register your already prepared vanilla WiiCompiled Windows player after upstream setup with your own Mario Kart Wii disc.",
@@ -70468,6 +70548,85 @@
           ],
           "executables": [
             "reflectionhle.app/contents/macos/reflectionhle"
+          ]
+        }
+      }
+    },
+    {
+      "id": "star-fox-64-starfox64recomp",
+      "name": "Star Fox 64 / Starfox64Recomp",
+      "summary": "Play the Star Fox 64 recompilation with your own North American revision 1.1 cartridge dump.",
+      "project_url": "https://gitlab.com/sonicdcer/Starfox64Recomp",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "direct-manifest",
+        "direct": {
+          "windows-x86-64": {
+            "version": "v1.0.3",
+            "url": "https://gitlab.com/api/v4/projects/83978879/packages/generic/starfox64recompiledwindows/1.0.3/Starfox64Recompiled-v1.0.3-Windows-RelWithDebInfo.zip",
+            "size": 24382268,
+            "sha256": "768c18b0aeb325a0102f722338f09a270a76eeebea29154764147a93d0bde530",
+            "published_at": "2026-08-11T17:30:15Z"
+          }
+        }
+      },
+      "executable_hints": {
+        "windows-x86-64": [
+          "Starfox64Recompiled.exe"
+        ]
+      },
+      "persistent_paths": [],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "external-user-owned",
+        "manual_preparation": "On first Play, select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks it and keeps a copy in its profile, together with saves, settings and mods; keep your original separately. The profile is %LOCALAPPDATA%\\Starfox64Recompiled. The managed copy has no portable.txt, so it uses that profile; a copy you manage yourself without portable.txt shares it. Do not add portable.txt to the managed folder. Portcove neither backs up nor removes the profile, and rollback does not rewind it; back it up before changing versions. Portcove replaces the player; you own the original and the profile.",
+        "original_game_title": "Star Fox 64",
+        "manual_setup": {
+          "help_url": "https://gitlab.com/sonicdcer/Starfox64Recomp/-/blob/061d4c8050c07bcac09a4074657ec4e49a1504b9/README.md",
+          "warnings": [
+            "The package includes Chiaro fonts by Fontworks that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          ],
+          "steps": [
+            {
+              "title": "Choose your original cartridge dump on first Play",
+              "instruction": "Choose Play, then select your own North American revision 1.1 Star Fox 64 cartridge dump in the player. The player checks the file and keeps its own copy in its profile, so keep your original separately. Another edition is not accepted."
+            },
+            {
+              "title": "Keep the complete player package",
+              "instruction": "For a copy you manage yourself, extract the whole Windows package and run Starfox64Recompiled.exe with its assets and the supplied SDL2 and DXC libraries beside it."
+            }
+          ],
+          "references": [
+            {
+              "title": "Keep your actual profile when updating",
+              "instruction": "Preserve the player's profile before replacing a copy you manage yourself: normally %LOCALAPPDATA%\\Starfox64Recompiled. It holds the copied original, saves, settings and mods. A copy you run with portable.txt keeps them in its own folder instead. Keep a working copy before replacing the player."
+            }
+          ]
+        },
+        "artwork": {
+          "game_id": 2591,
+          "cover_id": 524514,
+          "image_id": "cob8pu",
+          "image_sha256": "2c004bd7f2d6fdcdbd306a1cf9bca990bfae075dae322dda2d9fc223e0011518",
+          "game_slug": "star-fox-64",
+          "match_kind": "underlying-game"
+        }
+      },
+      "reviewed_package_layouts": {
+        "windows-x86-64": {
+          "directories": [
+            "assets"
+          ],
+          "executables": [
+            "starfox64recompiled.exe"
           ]
         }
       }
