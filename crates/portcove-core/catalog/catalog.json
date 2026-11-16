@@ -62125,6 +62125,90 @@
       }
     },
     {
+      "id": "iss2000-djultra64-international-superstar-soccer-2000",
+      "name": "International Superstar Soccer 2000 — ISS2000 (djultra64)",
+      "summary": "Play the European International Superstar Soccer 2000 native port with your own cartridge dump.",
+      "project_url": "https://github.com/djultra64/ISS2000",
+      "support_tier": "beta",
+      "channels": [
+        "stable"
+      ],
+      "platforms": [
+        "linux-x86-64"
+      ],
+      "adapter": "native-portable",
+      "release": {
+        "provider": "github",
+        "repository": "djultra64/ISS2000",
+        "asset_hints": {
+          "linux-x86-64": [
+            "ISS2000-Linux-",
+            ".zip"
+          ]
+        }
+      },
+      "executable_hints": {
+        "linux-x86-64": [
+          "launch.sh"
+        ]
+      },
+      "persistent_paths": [
+        "data",
+        "screenshots"
+      ],
+      "presentation": {
+        "installation_method": "portable-package",
+        "source_requirements": [],
+        "saves_and_settings": "portcove-managed",
+        "manual_preparation": "On first Play, select your own Europe English/German revision 0 ROM when the game asks; it needs a desktop file-picker portal (xdg-desktop-portal FileChooser). The game copies the ROM into the data folder of the managed game folder, together with its graphics and input settings, Controller Pak saves and a diagnostic runtime.log; keep your original separately. Portcove starts the game through upstream's launch.sh, which loads the bundled libraries, and keeps data and screenshots across updates, backups and rollback. The Linux package needs x86-64, Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. The project's GPL licence does not cover the recompiled game code; Portcove downloads it only from the project's own releases.",
+        "original_game_title": "International Superstar Soccer 2000",
+        "manual_setup": {
+          "steps": [
+            {
+              "title": "Choose your own cartridge dump on first start",
+              "instruction": "When the game asks, select your own Europe English/German revision 0 ROM, SHA-256 6ce6739b8ead149857c9442178a1ecd9b7f6d15b93a582c7208ca85d493817bf, as a ZIP, Z64, N64 or V64 file. Other revisions are not interchangeable. The game keeps its own copy of the ROM in its data folder, so keep your original separately."
+            },
+            {
+              "title": "Start a Windows x64 copy you manage yourself",
+              "instruction": "Extract ISS2000-Windows-0.7.1.zip into a writable folder and run iss2000.exe. Use a Vulkan-capable GPU and select your supported original when asked."
+            },
+            {
+              "title": "Start a Linux x64 copy you manage yourself",
+              "instruction": "Extract ISS2000-Linux-0.7.1.zip into a writable folder and run ./launch.sh there. It loads the adjacent lib/ files and appends diagnostics to data/runtime.log. Use Vulkan, glibc 2.38 and libstdc++ with GLIBCXX 3.4.32 or newer. Select your supported original when asked."
+            }
+          ],
+          "warnings": [
+            "Upstream’s Windows smoke test reached the title screen, but the normal window-close request did not finish. Use the upstream setup route. Portcove has not observed normal exit, gameplay or save recovery.",
+            "The project’s GPL licence does not cover the recompiled original game code. Portcove downloads it only from the project’s own releases. You need your own original game files."
+          ],
+          "help_url": "https://github.com/djultra64/ISS2000",
+          "references": [
+            {
+              "title": "Keep the portable data folder",
+              "instruction": "The upstream picker accepts ZIP, Z64, N64 or V64 containing the matching original. Keep your original separately. The player stores its private ROM copy, settings and Controller Pak saves under data/ beside the executable. Back up that folder before replacing the package."
+            }
+          ]
+        }
+      },
+      "reviewed_package_layouts": {
+        "linux-x86-64": {
+          "directories": [
+            "data",
+            "lib",
+            "licenses",
+            "screenshots"
+          ],
+          "executables": [
+            "iss2000",
+            "launch.sh",
+            "lib/libdbus-1.so.3",
+            "lib/libsdl2-2.0.so.0",
+            "lib/libsdl3.so.0"
+          ]
+        }
+      }
+    },
+    {
       "id": "jagged-alliance-2-ja2-stracciatella",
       "name": "Jagged Alliance 2 (JA2 Stracciatella)",
       "summary": "A native engine for Jagged Alliance 2 using your own original installation.",
