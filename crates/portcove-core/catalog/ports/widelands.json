@@ -29,12 +29,12 @@
         }
       ],
       "warnings": [
-        "Close Widelands before copying its data. Keep your saves, settings, maps, add-ons, and replays together. Use the same game version and required add-ons when opening an older save for the first time."
+        "Close Widelands before copying its data. Keep your saves, settings, maps, add-ons, and replays together. If you started the game with --homedir, keep the folder you selected. Use the same game version and required add-ons when opening an older save for the first time."
       ],
       "references": [
         {
           "title": "Find your Windows or Mac data",
-          "instruction": "Look in %USERPROFILE%/.widelands on Windows or ~/.widelands on Mac. If you started the game with --homedir, use the folder you selected."
+          "instruction": "Look in %USERPROFILE%/.widelands on Windows or ~/.widelands on Mac."
         },
         {
           "title": "Find your Linux data",
