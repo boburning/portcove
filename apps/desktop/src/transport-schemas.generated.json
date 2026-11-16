@@ -70640,9 +70640,27 @@
       "StoreGameInstall": {
         "description": "One game folder a store installed, as the store's own metadata records it.",
         "properties": {
+          "original_folder": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StoreOriginalFolder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reviewed search hint. The source profile still verifies the actual files."
+          },
           "path": {
             "description": "Canonical existing folder.",
             "type": "string"
+          },
+          "product_id": {
+            "description": "Stable store product identity when the installation metadata supplies one.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "saved_root_id": {
             "description": "The saved game-file folder at exactly this path, when there is one.",
@@ -70664,6 +70682,21 @@
           "title",
           "path",
           "saved_root_id"
+        ],
+        "type": "object"
+      },
+      "StoreOriginalFolder": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "path"
         ],
         "type": "object"
       }

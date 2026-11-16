@@ -115,15 +115,18 @@ fn steam_libraries_gog_and_epic_installs_are_listed_read_only() {
         ],
         gog: vec![
             RegisteredStoreInstall {
+                product_id: None,
                 title: "Fallout 2".into(),
                 path: gog_folder.clone(),
             },
             // The same folder from another store entry is listed once.
             RegisteredStoreInstall {
+                product_id: None,
                 title: "Fallout 2 duplicate".into(),
                 path: gog_folder.join("."),
             },
             RegisteredStoreInstall {
+                product_id: None,
                 title: "Missing".into(),
                 path: temporary.path().join("missing"),
             },
@@ -186,7 +189,7 @@ fn vdf_reader_accepts_escapes_comments_and_the_older_library_layout() {
     assert_eq!(steam_library_paths("unquoted"), Vec::<PathBuf>::new());
     assert_eq!(
         steam_app_manifest("\"AppState\" { \"installdir\" \"Game\" }"),
-        Some((String::new(), "Game".into()))
+        Some((String::new(), "Game".into(), None))
     );
     assert_eq!(
         steam_app_manifest("\"AppState\" { \"name\" \"No folder\" }"),
@@ -208,6 +211,7 @@ fn the_install_limit_marks_the_list_incomplete() {
         let folder = temporary.path().join(index.to_string());
         fs::create_dir(&folder).unwrap();
         gog.push(RegisteredStoreInstall {
+            product_id: None,
             title: index.to_string(),
             path: folder,
         });
@@ -264,6 +268,111 @@ fn service_with(temporary: &Path, host: FixtureHost) -> PortcoveService {
 }
 
 #[test]
+fn classic_steam_original_hint_requires_matching_manifest_identity_and_a_folder() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(&steam, 32400, "Dark Forces", "Classic", true);
+    steam_app(&steam, 2292260, "Dark Forces", "Remaster", true);
+    steam_app(&steam, 1234, "Dark Forces", "Ambiguous", true);
+    let manifest = steam.join("steamapps/appmanifest_1234.acf");
+    let wrong_id = fs::read_to_string(&manifest)
+        .unwrap()
+        .replace("1234", "32400");
+    fs::write(manifest, wrong_id).unwrap();
+    for folder in ["Classic", "Remaster", "Ambiguous"] {
+        fs::create_dir(steam.join("steamapps/common").join(folder).join("Game")).unwrap();
+    }
+    let service = service_with(
+        temporary.path(),
+        FixtureHost {
+            steam: vec![steam.clone()],
+            ..FixtureHost::default()
+        },
+    );
+    let report = service.store_game_installs().unwrap();
+    let installs = report.installs;
+    assert_eq!(installs.len(), 3);
+    let hints = installs
+        .iter()
+        .filter_map(|install| install.original_folder.as_ref())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        hints,
+        vec![&StoreOriginalFolder {
+            profile_id: "dark-forces-pc-complete-installed-data".into(),
+            path: canonical(&steam.join("steamapps/common/Classic/Game")),
+        }]
+    );
+    assert!(
+        installs
+            .iter()
+            .any(|install| install.path.ends_with("Ambiguous") && install.product_id.is_none())
+    );
+    assert!(
+        installs
+            .iter()
+            .any(|install| install.path.ends_with("Remaster")
+                && install.product_id.as_deref() == Some("2292260"))
+    );
+    fs::remove_dir(steam.join("steamapps/common/Classic/Game")).unwrap();
+    let report = service.store_game_installs().unwrap();
+    assert!(
+        report
+            .installs
+            .iter()
+            .all(|install| install.original_folder.is_none())
+    );
+}
+
+#[test]
+fn conflicting_steam_metadata_keeps_the_folder_without_a_product_hint() {
+    for text in [
+        r#""AppState" { "appid" "32400" "installdir" "Classic" "installdir" "Other" }"#,
+        r#""AppState" { "appid" "32400" } "Other" { "installdir" "Classic" }"#,
+    ] {
+        let (_, folder, id) = steam_app_manifest(text).unwrap();
+        assert_eq!(folder, "Classic");
+        assert!(id.is_none());
+    }
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    steam_app(&steam, 32400, "Dark Forces", "Classic", true);
+    steam_app(&steam, 42900, "Other game", "Classic", true);
+    fs::create_dir(steam.join("steamapps/common/Classic/Game")).unwrap();
+    let detection = detect(&FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    });
+    assert_eq!(detection.report.installs.len(), 1);
+    assert!(detection.report.installs[0].product_id.is_none());
+    assert!(detection.report.installs[0].original_folder.is_none());
+}
+
+#[cfg(unix)]
+#[test]
+fn linked_steam_install_is_protected_without_an_original_folder_hint() {
+    let temporary = tempfile::tempdir().unwrap();
+    let steam = temporary.path().join("Steam");
+    let elsewhere = temporary.path().join("elsewhere");
+    fs::create_dir_all(elsewhere.join("Game")).unwrap();
+    steam_app(&steam, 32400, "Dark Forces", "Classic", false);
+    std::os::unix::fs::symlink(&elsewhere, steam.join("steamapps/common/Classic")).unwrap();
+    let detection = detect(&FixtureHost {
+        steam: vec![steam],
+        ..FixtureHost::default()
+    });
+    let row = &detection.report.installs[0];
+    assert_eq!(row.path, canonical(&elsewhere));
+    assert_eq!(row.product_id.as_deref(), Some("32400"));
+    assert!(row.original_folder.is_none());
+    assert!(
+        detection
+            .protected
+            .contains(&(GameStore::Steam, row.path.clone()))
+    );
+}
+
+#[test]
 fn unit_test_services_read_no_store_by_default() {
     let temporary = tempfile::tempdir().unwrap();
     let service =
@@ -292,6 +401,7 @@ fn gog_and_epic_folders_and_folders_containing_them_cannot_be_moved() {
         temporary.path(),
         FixtureHost {
             gog: vec![RegisteredStoreInstall {
+                product_id: None,
                 title: "Fallout 2".into(),
                 path: gog.clone(),
             }],
@@ -391,10 +501,12 @@ fn folders_that_hold_the_library_or_are_roots_are_not_suggested() {
         FixtureHost {
             gog: vec![
                 RegisteredStoreInstall {
+                    product_id: None,
                     title: "Everything".into(),
                     path: temporary.path().to_path_buf(),
                 },
                 RegisteredStoreInstall {
+                    product_id: None,
                     title: "Root".into(),
                     path: std::path::absolute(Path::new(std::path::MAIN_SEPARATOR_STR)).unwrap(),
                 },
