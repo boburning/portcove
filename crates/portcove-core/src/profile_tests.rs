@@ -286,6 +286,90 @@ fn default_refresh_repairs_a_legacy_active_pointer_without_rewriting_history() {
 }
 
 #[test]
+fn retiring_an_offered_default_build_frees_a_slot_and_keeps_history_portable() {
+    use crate::{
+        ReleaseChannel,
+        operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore},
+        retained_build::MAX_OFFERED_REVISIONS,
+    };
+
+    let (_temporary, service, first) = fixture();
+    let port_id = &first.port_id;
+    let library = service.library();
+    let default = service.ensure_default_profile(port_id).unwrap();
+    let mut current = first.clone();
+    for number in 0..MAX_OFFERED_REVISIONS {
+        let id = format!("runtime-{number}");
+        current = install(library, &id, id.as_bytes(), true);
+    }
+    let next = install(library, "next", b"next runtime", false);
+    let connection = library.connection().unwrap();
+    let cap = require_default_recovery_capacity(&connection, port_id, &next.id).unwrap_err();
+    assert_eq!(cap.code, ErrorCode::Conflict);
+    assert!(library.activate_staged(port_id).is_err());
+    let status = library.status(port_id, ReleaseChannel::Stable).unwrap();
+    assert_eq!(status.active.unwrap().id, current.id);
+    assert_eq!(status.staged.unwrap().id, next.id);
+    assert!(
+        service
+            .preview_retained_build_removal(port_id, &default.id)
+            .is_err()
+    );
+    assert!(
+        service
+            .preview_retained_build_binding(port_id, &default.id, &next.id)
+            .is_err()
+    );
+
+    // An already materialized historical revision keeps its build until the
+    // player switches away. Current Default activation advances this selection.
+    set_selection(&connection, port_id, &default.id, 1).unwrap();
+    assert!(
+        service
+            .preview_retained_build_revision_retirement(port_id, &default.id, 1)
+            .is_err()
+    );
+    let current_revision = profile_from(&connection, port_id, &default.id)
+        .unwrap()
+        .current_revision;
+    set_selection(&connection, port_id, &default.id, current_revision).unwrap();
+
+    // An interrupted install whose own new build is independent of the offer
+    // can wait for a slot. The player can retire the offer under the port lock.
+    let store = OperationStore::new(library.clone());
+    let mut pending = LifecycleOperation::new(&next.id, LifecycleOperationKind::Install, port_id);
+    pending.install = Some(next.clone());
+    pending.activate = true;
+    pending.phase = LifecyclePhase::PayloadPublished;
+    store.put(&mut pending).unwrap();
+    let plan = service
+        .preview_retained_build_revision_retirement(port_id, &default.id, 1)
+        .unwrap();
+    let authorization = service
+        .authorize_retained_build_revision_retirement(port_id, &default.id, 1, &plan.preview_sha256)
+        .unwrap();
+    let retired = service
+        .retire_retained_build_revision(port_id, &default.id, 1, &authorization.token)
+        .unwrap();
+    assert_eq!(retired.build.install_id, first.id);
+    assert!(store.get(&pending.id).unwrap().is_some());
+    store.remove(&pending.id).unwrap();
+
+    service.library().activate_staged(port_id).unwrap();
+    let profiles = export(&connection).unwrap();
+    let references = crate::retained_build::references_from(&connection).unwrap();
+    assert!(has_retired_history(&profiles, &references));
+    assert!(validate_export(&profiles, &references, false).is_err());
+    validate_export(&profiles, &references, true).unwrap();
+    assert_eq!(profiles[0].revisions[0].build.install_id, first.id);
+    assert_eq!(
+        profiles[0].revisions.last().unwrap().build.install_id,
+        next.id
+    );
+    assert!(first.path.is_dir());
+}
+
+#[test]
 fn invalid_revisions_are_rejected_without_changing_the_profile() {
     let (_temporary, service, _first) = fixture();
     let default = service.ensure_default_profile("starship").unwrap();

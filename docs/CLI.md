@@ -2322,6 +2322,9 @@ revision left behind by an older client before copying or exporting it. Other
 profiles launch the exact build their revisions name, so a game update never
 changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
+When Default reaches its recovery-build limit, `installation reference-retire`
+can retire a superseded offer after review. Retirement keeps the recorded setup
+revision and progress. A build still used by the selected setup must stay retained.
 Stale `--expected-revision` values fail as `conflict`.
 
 `install-package` inspects a local archive without extracting or executing it, stores
@@ -2601,9 +2604,11 @@ updates for the setup in use and refreshes after an applied one; it does not sho
 deferred or unavailable updates or holds for other setups, which
 `games setup-ready` lists.
 
-Library metadata schema 6 carries profiles, revisions and the selected profile; it is
-emitted only when profiles exist and import validates each profile against its
-retained reference before writing. Precedence between packages that provide the same
+Library metadata schema 6 carries profiles, revisions and the selected profile.
+Schema 11 also carries historical profile revisions whose runtime offers were
+retired, while requiring the current and selected revisions to stay retained.
+Export uses schema 11 when a profile has a retired recovery build. Import checks
+each profile against its retained reference before writing. Precedence between packages that provide the same
 asset path (`asset-override` ordering) follows the supplied order, last wins (see
 [the game's own mod list](#the-games-own-mod-list)).
 

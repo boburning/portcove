@@ -531,6 +531,32 @@ impl PortcoveService {
     }
 }
 
+pub(crate) fn require_default_recovery_capacity(
+    connection: &Connection,
+    port_id: &str,
+    install_id: &str,
+) -> Result<()> {
+    if let Some(profile) = default_profile(connection, port_id)?
+        && let Some(reference) =
+            crate::retained_build::reference_from(connection, port_id, &profile.id)?
+    {
+        crate::retained_build::require_binding_history_capacity(&reference, install_id)?;
+    }
+    Ok(())
+}
+
+pub(crate) fn owns_reference(
+    connection: &Connection,
+    port_id: &str,
+    setup_id: &str,
+) -> Result<bool> {
+    Ok(connection.query_row(
+        "SELECT EXISTS(SELECT 1 FROM profiles WHERE id=?1 AND port_id=?2)",
+        params![setup_id, port_id],
+        |row| row.get(0),
+    )?)
+}
+
 pub(crate) fn require_active_default_revision(
     connection: &Connection,
     profile: &Profile,
@@ -559,15 +585,21 @@ pub(crate) fn follow_active_install(
         return Ok(());
     };
     let mut next = revision_from(transaction, &profile.id, profile.current_revision)?;
-    if next.build.matches_install(install) {
+    let build = crate::install::retained_build_identity_for_install(install)?;
+    if next.build == build {
         return Ok(());
+    }
+    if next.build.install_id == build.install_id {
+        return Err(PortcoveError::conflict(
+            "Default's registered build identity changed in place. Restore its exact runtime or install a separately identified build.",
+        ));
     }
     let previous = crate::retained_build::reference_from(transaction, port_id, &profile.id)?
         .filter(|reference| reference.build == next.build)
         .ok_or_else(|| {
             PortcoveError::conflict("Default's retained binding differs from its revision")
         })?;
-    next.build = crate::install::retained_build_identity_for_install(install)?;
+    next.build = build;
     next.parent_revision = Some(profile.current_revision);
     next.revision = profile
         .current_revision
@@ -847,9 +879,34 @@ pub(crate) fn export(connection: &Connection) -> Result<Vec<LibraryProfile>> {
 /// Checks profiles against the exported retained references before any write: each
 /// profile needs the reference keyed by its ID, a complete append-only history, and
 /// revisions that only name builds that reference retains.
+/// Historical profile revisions remain inspectable when a player retires an
+/// offered runtime. The reference continues to own the current and selected
+/// builds, and this observation carries no acquisition or execution authority.
+pub(crate) fn has_retired_history(
+    profiles: &[LibraryProfile],
+    references: &[crate::RetainedBuildReference],
+) -> bool {
+    profiles.iter().any(|entry| {
+        references
+            .iter()
+            .find(|reference| {
+                reference.setup_id == entry.profile.id
+                    && reference.build.port_id == entry.profile.port_id
+            })
+            .is_some_and(|reference| {
+                entry.revisions.iter().any(|revision| {
+                    !reference
+                        .retained_builds()
+                        .any(|build| build.install_id == revision.build.install_id)
+                })
+            })
+    })
+}
+
 pub(crate) fn validate_export(
     profiles: &[LibraryProfile],
     references: &[crate::RetainedBuildReference],
+    allow_retired_history: bool,
 ) -> Result<()> {
     if profiles.len() > MAX_EXPORTED_PROFILES {
         return Err(PortcoveError::verification(
@@ -880,8 +937,8 @@ pub(crate) fn validate_export(
             })?;
         let retained = reference
             .retained_builds()
-            .map(|build| build.install_id.as_str())
-            .collect::<BTreeSet<_>>();
+            .map(|build| (build.install_id.as_str(), build))
+            .collect::<BTreeMap<_, _>>();
         if let Some(selected) = entry.selected_revision {
             if selected == 0 || selected > profile.current_revision {
                 return Err(PortcoveError::verification(
@@ -896,11 +953,20 @@ pub(crate) fn validate_export(
         }
         for (index, revision) in entry.revisions.iter().enumerate() {
             validate_revision(revision)?;
+            let retained_build = retained.get(revision.build.install_id.as_str());
+            let required = !allow_retired_history
+                || revision.revision == profile.current_revision
+                || Some(revision.revision) == entry.selected_revision;
             if revision.build.port_id != profile.port_id
                 || revision.profile_id != profile.id
                 || revision.revision != index as u64 + 1
                 || !digest_matches(revision)?
-                || !retained.contains(revision.build.install_id.as_str())
+                || (required && retained_build.is_none())
+                || (allow_retired_history
+                    && revision.revision == profile.current_revision
+                    && reference.build != revision.build)
+                || (allow_retired_history
+                    && retained_build.is_some_and(|build| *build != &revision.build))
             {
                 return Err(PortcoveError::verification(
                     "a profile revision differs from its recorded identity or retained builds",

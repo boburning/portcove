@@ -4284,6 +4284,11 @@ impl PortcoveService {
         crate::runtime::require_ready(&port, Platform::current()?, &staged)?;
         self.managed_install_root(port_id, &staged.path)?;
         Installer::new(self.library.clone())?.verify_critical(&staged, &qualification)?;
+        crate::profile::require_default_recovery_capacity(
+            &self.library.connection()?,
+            port_id,
+            &staged.id,
+        )?;
         if let Some(active) = &status.active {
             // The first mutation follows; a snapshot failure stops the change here.
             self.snapshot_before_version_change(
