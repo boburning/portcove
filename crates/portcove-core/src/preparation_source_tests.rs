@@ -380,7 +380,8 @@ fn source_only_inventory_excludes_existing_mutable_and_managed_owners() {
             "diablo-devilutionx",
             "diablo-hellfire-devilutionx",
             "g-diffuser",
-            "openpete"
+            "openpete",
+            "quake-ironwail"
         ]
     );
 }

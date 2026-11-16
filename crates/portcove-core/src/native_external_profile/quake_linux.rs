@@ -3,7 +3,35 @@ use std::{fs, path::Path};
 
 use crate::{ExternalProfilePolicy, Platform, PortDefinition, PortcoveError, Result};
 
+pub(crate) const SPLIT_IRONWAIL_CAPABILITY: u32 = 39;
+
 const IRONWAIL_TAR: [&str; 2] = ["ironwail-", "-linux-x64.tar.gz"];
+const CLASSIC_ORIGINALS: &str = "quake-classic-pc-pak-set";
+const IRONWAIL_SPLIT_ARGUMENTS: [&str; 5] = ["-basedir", "originals", "-basedir", ".", "-noaddons"];
+
+pub(crate) fn uses_split_ironwail_originals(port: &PortDefinition) -> bool {
+    port.external_profile_policy == Some(ExternalProfilePolicy::IronwailLinuxV1)
+        && port.source_profile.as_deref() == Some(CLASSIC_ORIGINALS)
+}
+
+pub(crate) fn require_unshadowed_ironwail_originals(root: &Path) -> Result<()> {
+    let data = root.join("id1");
+    crate::path::refuse_symlink_ancestors(&data)?;
+    let entries = match fs::read_dir(&data) {
+        Ok(entries) => entries,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(error) => return Err(error.into()),
+    };
+    for entry in entries {
+        let name = entry?.file_name().to_string_lossy().to_ascii_lowercase();
+        if matches!(name.as_str(), "pak0.pak" | "pak1.pak") {
+            return Err(PortcoveError::conflict(
+                "The Ironwail save folder already contains a Quake PAK. Keep this copy and its saves together, or use a separate library for verified setup.",
+            ));
+        }
+    }
+    Ok(())
+}
 
 pub(super) fn applies(policy: ExternalProfilePolicy) -> bool {
     matches!(
@@ -48,13 +76,25 @@ pub(super) fn validate(port: &PortDefinition, policy: ExternalProfilePolicy) -> 
             ),
             _ => unreachable!("only the reviewed Quake Linux policies are validated here"),
         };
+    let source_and_arguments_match = if uses_split_ironwail_originals(port) {
+        port.launch_arguments == IRONWAIL_SPLIT_ARGUMENTS
+            && port.runtime_source_set.len() == 2
+            && ["pak0.pak", "pak1.pak"].iter().all(|name| {
+                port.runtime_source_set.iter().any(|target| {
+                    target.source_filenames == [*name]
+                        && target.destination == format!("originals/id1/{name}")
+                        && target.materialization == crate::RuntimeSourceMaterialization::Copy
+                })
+            })
+    } else {
+        port.source_profile.is_none() && port.launch_arguments == ["-basedir", ".", last_argument]
+    };
     let linux = Platform::LinuxX86_64;
     if port.id != id
         || !port.release.repository.eq_ignore_ascii_case(repo)
         || !port.platforms.contains(&linux)
         || port.channels != [crate::ReleaseChannel::Stable]
-        || port.source_profile.is_some()
-        || port.launch_arguments != ["-basedir", ".", last_argument]
+        || !source_and_arguments_match
         || port.persistent_paths != persistent
         || port
             .release
@@ -150,6 +190,30 @@ mod tests {
             changed.persistent_paths.push(".vkquake".into());
             assert!(validate(&changed, policy).is_err());
         }
+    }
+
+    #[test]
+    fn managed_ironwail_protects_its_verified_originals_from_writable_paks() {
+        let catalog = crate::Catalog::embedded().unwrap();
+        let port = catalog.port("quake-ironwail").unwrap();
+        let retained = crate::test_fixture::retained_manual_ironwail_catalog();
+        let old = retained.port("quake-ironwail").unwrap();
+        assert!(uses_split_ironwail_originals(port));
+        assert!(!uses_split_ironwail_originals(old));
+        assert_eq!(port.persistent_paths, old.persistent_paths);
+        assert_eq!(old.launch_arguments, ["-basedir", ".", "-noaddons"]);
+
+        let temporary = tempfile::tempdir().unwrap();
+        let saves = temporary.path().join("id1");
+        fs::create_dir(&saves).unwrap();
+        let slot = saves.join("slot.sav");
+        fs::write(&slot, b"preserve this save").unwrap();
+        require_unshadowed_ironwail_originals(temporary.path()).unwrap();
+        let pak = saves.join("PAK0.PAK");
+        fs::write(&pak, b"user original").unwrap();
+        assert!(require_unshadowed_ironwail_originals(temporary.path()).is_err());
+        assert_eq!(fs::read(pak).unwrap(), b"user original");
+        assert_eq!(fs::read(slot).unwrap(), b"preserve this save");
     }
 
     #[test]

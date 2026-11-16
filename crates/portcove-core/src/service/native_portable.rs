@@ -3398,7 +3398,11 @@ mod tests {
             .iter()
             .find(|case| case["port_id"] == id)
             .unwrap();
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = if id == "quake-ironwail" {
+            crate::test_fixture::retained_manual_ironwail_catalog()
+        } else {
+            Catalog::embedded().unwrap()
+        };
         let port = catalog.port(id).unwrap().clone();
         let disposable = case["disposable_probes"].as_array();
         if disposable.is_some() {
@@ -3622,6 +3626,12 @@ mod tests {
         assert!(staged.staged, "{id}");
         service.activate_staged(id).unwrap();
         phase("rolling-activation-complete");
+        let catalog = if id == "quake-ironwail" {
+            Catalog::embedded().unwrap()
+        } else {
+            catalog
+        };
+        service.replace_catalog_for_test(catalog.clone());
         let previous = service.rollback(id).unwrap();
         assert_eq!(previous.id, second.id, "{id}");
         phase("rollback-complete");
@@ -3745,7 +3755,11 @@ mod tests {
             .iter()
             .find(|row| row["port_id"] == id)
             .expect("managed route needs an independent launch expectation");
-        let catalog = Catalog::embedded().unwrap();
+        let catalog = if id == "quake-ironwail" {
+            crate::test_fixture::retained_manual_ironwail_catalog()
+        } else {
+            Catalog::embedded().unwrap()
+        };
         let port = catalog.port(id).unwrap();
         assert_eq!(
             serde_json::to_value(&port.launch_arguments).unwrap(),

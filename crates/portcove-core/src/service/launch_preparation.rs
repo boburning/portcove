@@ -279,6 +279,11 @@ impl PortcoveService {
             },
             &checkpoint,
         )?;
+        if crate::native_external_profile::quake_linux::uses_split_ironwail_originals(port) {
+            crate::native_external_profile::quake_linux::require_unshadowed_ironwail_originals(
+                &spec.working_directory,
+            )?;
+        }
         if active.port_id == "ghostship" && active.version == "2.0.0" && !spec.arguments.is_empty()
         {
             return Err(PortcoveError::verification(

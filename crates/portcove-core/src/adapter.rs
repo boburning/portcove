@@ -412,6 +412,7 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                || crate::native_external_profile::quake_linux::uses_split_ironwail_originals(port)
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || crate::native_portable_data::directory_name(port, platform).is_some()

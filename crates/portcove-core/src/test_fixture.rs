@@ -20,6 +20,28 @@ pub(crate) fn gitlab_listing_observation() -> serde_json::Value {
     })
 }
 
+pub(crate) fn retained_manual_ironwail_catalog() -> crate::Catalog {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let mut document = catalog.authoritative_document();
+    let retained: crate::PortDefinition = serde_json::from_str(include_str!(
+        "testdata/retained-ironwail-manual-2026-11-16.json"
+    ))
+    .unwrap();
+    let current = document
+        .ports
+        .iter_mut()
+        .find(|port| port.id == retained.id)
+        .unwrap();
+    *current = retained;
+    document
+        .source_catalog
+        .as_mut()
+        .unwrap()
+        .contracts
+        .retain(|contract| contract.port_id != current.id);
+    crate::Catalog::from_json(&serde_json::to_string(&document).unwrap()).unwrap()
+}
+
 pub(crate) fn v26_diagnostic_port(id: &str) -> crate::PortDefinition {
     let value: serde_json::Value =
         serde_json::from_str(include_str!("../tests/fixtures/direct-diagnostic-v26.json")).unwrap();

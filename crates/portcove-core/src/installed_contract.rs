@@ -35,6 +35,57 @@ pub(crate) struct InstalledContract {
     admission: Option<DefinitionSelectionIdentity>,
 }
 
+pub(crate) fn retained_catalog_document(
+    catalog: &Catalog,
+    selected: &str,
+) -> crate::CatalogDocument {
+    let mut document = catalog.authoritative_document();
+    let excluded_ports = document
+        .ports
+        .iter()
+        .filter(|port| {
+            port.id != selected
+                && crate::native_external_profile::quake_linux::uses_split_ironwail_originals(port)
+        })
+        .map(|port| port.id.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    if excluded_ports.is_empty() {
+        return document;
+    }
+    let excluded_profiles = document
+        .ports
+        .iter()
+        .filter(|port| excluded_ports.contains(&port.id))
+        .filter_map(|port| port.source_profile.clone())
+        .collect::<std::collections::BTreeSet<_>>();
+    document
+        .ports
+        .retain(|port| !excluded_ports.contains(&port.id));
+    if let Some(sources) = document.source_catalog.as_mut() {
+        sources
+            .contracts
+            .retain(|contract| !excluded_ports.contains(&contract.port_id));
+        sources
+            .qualification
+            .retain(|record| !excluded_ports.contains(&record.scope.port_id));
+        let still_used = document
+            .ports
+            .iter()
+            .flat_map(|port| port.source_profile.iter().chain(&port.bios_source_profile))
+            .chain(
+                sources
+                    .contracts
+                    .iter()
+                    .map(|contract| &contract.profile_id),
+            )
+            .collect::<std::collections::BTreeSet<_>>();
+        sources.identities.retain(|profile| {
+            !excluded_profiles.contains(&profile.id) || still_used.contains(&profile.id)
+        });
+    }
+    document
+}
+
 impl InstalledContract {
     pub(crate) fn port_id(&self) -> &str {
         &self.port_id
@@ -59,7 +110,7 @@ impl InstalledContract {
             catalog_json: if definition.is_some() {
                 String::new()
             } else {
-                serde_json::to_string(&catalog.authoritative_document())?
+                serde_json::to_string(&retained_catalog_document(catalog, port_id))?
             },
             definition,
             admission,
@@ -815,6 +866,40 @@ mod tests {
     // manifest-embedded (JSON-escaped) copy that browsing reads under
     // MAX_CATALOG_BYTES. Each stays within the stated margin below the bound
     // older clients still enforce, so growth fails here before it strands them.
+    #[test]
+    fn retained_catalog_keeps_split_ironwail_only_for_its_own_installation() {
+        let catalog = Catalog::embedded().unwrap();
+        let id = "quake-ironwail";
+        let profile = catalog.port(id).unwrap().source_profile.as_deref().unwrap();
+        let unrelated = "zelda64-recomp";
+        let projected = InstalledContract::capture(&catalog, unrelated)
+            .unwrap()
+            .catalog(unrelated)
+            .unwrap();
+        assert!(projected.port(id).is_err());
+        assert!(
+            !projected
+                .authoritative_document()
+                .source_catalog
+                .unwrap()
+                .identities
+                .iter()
+                .any(|identity| identity.id == profile)
+        );
+
+        let retained = InstalledContract::capture(&catalog, id)
+            .unwrap()
+            .for_source_only_preparation()
+            .unwrap()
+            .catalog(id)
+            .unwrap();
+        assert!(
+            crate::native_external_profile::quake_linux::uses_split_ironwail_originals(
+                retained.port(id).unwrap()
+            )
+        );
+    }
+
     #[test]
     fn catalog_growth_stays_within_the_legacy_compatibility_margin() {
         use crate::signed_catalog::{

@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "debian-gdp89-classic-quake-pak-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "d7c2e9414c1a52cd01d54b7a7ce66ee1ea4877de7024a18a9d4f7697cccac19e",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/quake.yaml",
+        "live_url": null,
+        "claim": "Debian game-data-packager lists exact SHA-256 identities for the classic Quake 1.06 base PAK and registered retail PAK. This evidence covers both byte identities.",
+        "reviewed_at": "2026-11-16"
+      },
+      {
         "id": "the-force-engine-complete-data-archive-2026-10-18",
         "role": "byte_identity",
         "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
@@ -4074,6 +4084,68 @@
       }
     ],
     "identities": [
+      {
+        "id": "quake-classic-pc-pak-set",
+        "label": "Classic Quake PC original PAK files",
+        "kind": "file-set",
+        "variants": [
+          {
+            "id": "classic-registered",
+            "title": "Classic Quake PC with both original PAKs",
+            "region": null,
+            "revision": null,
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-quake-pak-identities"
+            ],
+            "representations": [
+              {
+                "id": "classic-paks",
+                "extensions": [],
+                "kind": "file-set",
+                "members": [
+                  {
+                    "id": "pak0",
+                    "label": "pak0.pak",
+                    "filenames": [
+                      "pak0.pak"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": null,
+                        "sha256": "35a9c55e5e5a284a159ad2a62e0e8def23d829561fe2f54eb402dbc0a9a946af",
+                        "crc32": null
+                      }
+                    ]
+                  },
+                  {
+                    "id": "pak1",
+                    "label": "pak1.pak",
+                    "filenames": [
+                      "pak1.pak"
+                    ],
+                    "identities": [
+                      {
+                        "scope": "file-set-member",
+                        "sha1": null,
+                        "sha256": "94e355836ec42bc464e4cbe794cfb7b5163c6efa1bcc575622bb36475bf1cf30",
+                        "crc32": null
+                      }
+                    ]
+                  }
+                ],
+                "evidence_ids": [
+                  "debian-gdp89-classic-quake-pak-identities"
+                ]
+              }
+            ]
+          }
+        ],
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null
+      },
       {
         "id": "ocarina-of-time",
         "label": "The Legend of Zelda: Ocarina of Time source",
@@ -16394,6 +16466,37 @@
       }
     ],
     "contracts": [
+      {
+        "id": "quake-ironwail-classic-originals",
+        "port_id": "quake-ironwail",
+        "role": "game",
+        "profile_id": "quake-classic-pc-pak-set",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-registered"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-quake-pak-identities"
+        ],
+        "authority_ref": "d7c2e9414c1a52cd01d54b7a7ce66ee1ea4877de7024a18a9d4f7697cccac19e",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/quake.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "v0.8.2",
+            "artifact_sha256": "fcb0219d13c50f64728892f0558b4761ba5578319a6cc01021fad981c6333aa5"
+          },
+          {
+            "upstream_ref": "v0.8.2",
+            "artifact_sha256": "0e54e9089ce72bad73c288148cfb5474a00b05d9e1da1c8feb0b76665faf7d01"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
       {
         "id": "shipwright-game-source",
         "port_id": "shipwright",

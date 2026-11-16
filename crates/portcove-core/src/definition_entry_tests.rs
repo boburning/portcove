@@ -209,7 +209,7 @@ fn openmohaa_prepared_unix_layout_requires_native33() {
 
 #[test]
 fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
-    let catalog = crate::Catalog::embedded().unwrap();
+    let catalog = crate::test_fixture::retained_manual_ironwail_catalog();
     for id in ["quake-ironwail", "quake-vkquake"] {
         let mut creating_port = catalog.port(id).unwrap().clone();
         creating_port.reviewed_package_layouts.clear();
@@ -227,6 +227,34 @@ fn quake_linux_entries_require_native15_for_fresh_and_retained_reads() {
                 } else {
                     assert!(result.unwrap().capabilities().compatible);
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn split_ironwail_requires_new_capability_for_fresh_and_retained_reads() {
+    let catalog = crate::Catalog::embedded().unwrap();
+    let port = catalog.port("quake-ironwail").unwrap();
+    let mut entry = entry_for_port(port);
+    let floor = crate::native_external_profile::quake_linux::SPLIT_IRONWAIL_CAPABILITY;
+    entry["required_capabilities"][0]["maximum_version"] = json!(floor);
+    for minimum in [floor - 1, floor] {
+        entry["required_capabilities"][0]["minimum_version"] = json!(minimum);
+        let bytes = serde_json::to_vec(&entry).unwrap();
+        for result in [
+            inspect(&entry),
+            index(&bytes, &port.id).inspect_retained_entry("official", &port.id, &bytes),
+        ] {
+            if minimum < floor {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains(&format!("version {floor}"))
+                );
+            } else {
+                assert!(result.unwrap().capabilities().compatible);
             }
         }
     }
