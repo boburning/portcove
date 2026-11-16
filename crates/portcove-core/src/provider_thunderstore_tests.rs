@@ -508,6 +508,24 @@ async fn reviewed_thunderstore_closure_requires_all_exact_wrapper_members() {
             )
             .is_err()
     );
+    let recipe = w
+        .service
+        .export_profile_recipe(PORT, &w.profile, None)
+        .unwrap();
+    assert_eq!(recipe.format, 2);
+    assert_eq!(
+        crate::ProfileRecipe::inspect_document(&serde_json::to_vec(&recipe).unwrap()).unwrap(),
+        recipe
+    );
+    let mut masquerading_as_v1 = serde_json::to_value(&recipe).unwrap();
+    masquerading_as_v1["format"] = serde_json::json!(1);
+    let error =
+        crate::ProfileRecipe::inspect_document(&serde_json::to_vec(&masquerading_as_v1).unwrap())
+            .unwrap_err();
+    assert!(
+        error.message.contains("requirements need recipe format 2"),
+        "{error:?}"
+    );
     let remove = |revision: &crate::ProfileRevision| {
         let mut packages = revision.packages.clone();
         packages.retain(|package| package.native_id != "shared_first.nrm");

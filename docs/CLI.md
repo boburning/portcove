@@ -2509,7 +2509,8 @@ reviewed mod code in that closure requires explicit permission.
 
 An enabled dependant requires every recorded member of its exact provider
 dependencies to stay enabled. Disable the dependant before disabling or removing
-a required member. An automatic update that needs a multi-wrapper review waits
+a required member. Recipes use format 2 when they include exact provider
+requirements. An automatic update that needs a multi-wrapper review waits
 for the player to confirm the affected content.
 
 `portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is

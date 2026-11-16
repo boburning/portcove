@@ -23,7 +23,8 @@ use crate::{
     profile_deploy::sha256_file,
 };
 
-pub const RECIPE_FORMAT: u32 = 1;
+pub const RECIPE_FORMAT: u32 = 2;
+const LEGACY_RECIPE_FORMAT: u32 = 1;
 const MAX_RECIPE_BYTES: usize = 256 * 1024;
 const MAX_PACKAGES: usize = 512;
 const MAX_TEXT: usize = 256;
@@ -174,7 +175,7 @@ impl ProfileRecipe {
             serde_json::from_slice(bytes)
                 .map_err(|error| invalid(&format!("it is not JSON with unique keys ({error})")))?;
         match value.get("format").and_then(serde_json::Value::as_u64) {
-            Some(1) => {}
+            Some(1 | 2) => {}
             Some(_) => {
                 return Err(PortcoveError::unsupported(
                     "this recipe uses a format this Portcove does not understand",
@@ -195,10 +196,18 @@ impl ProfileRecipe {
     }
 
     fn validate(&self) -> Result<()> {
-        if self.format != RECIPE_FORMAT {
+        if !matches!(self.format, LEGACY_RECIPE_FORMAT | RECIPE_FORMAT) {
             return Err(PortcoveError::unsupported(
                 "this recipe uses a format this Portcove does not understand",
             ));
+        }
+        if self.format == LEGACY_RECIPE_FORMAT
+            && self
+                .packages
+                .iter()
+                .any(|package| !package.provider_requires.is_empty())
+        {
+            return Err(invalid("exact provider requirements need recipe format 2"));
         }
         if !text_ok(&self.runtime.artifact.asset_name)
             || self
@@ -379,7 +388,15 @@ impl PortcoveService {
             ));
         }
         let mut recipe = ProfileRecipe {
-            format: RECIPE_FORMAT,
+            format: if revision
+                .packages
+                .iter()
+                .any(|package| !package.provider_requires.is_empty())
+            {
+                RECIPE_FORMAT
+            } else {
+                LEGACY_RECIPE_FORMAT
+            },
             port_id: port_id.into(),
             runtime: RecipeRuntime {
                 artifact: revision.build.artifact.clone(),
