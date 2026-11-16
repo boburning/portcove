@@ -2781,6 +2781,12 @@ independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
 
+`node scripts/catalog-chip-gaps.mts` (add `--json` for per-port detail) reports, without
+editing anything, which listings lack the facts behind the original-system, platform and
+update-channel chips. Gaps are unknown, never errors; listing-only ports have no update
+channel by design. Its candidate systems come only from reviewed siblings with the same
+original title and still need their own pinned evidence.
+
 Use `integration.presentation.manual_setup` when Portcove-managed setup needs
 different steps or warnings from the upstream package in `listing.manual_setup`.
 The managed definition uses its own guide when present and otherwise inherits
