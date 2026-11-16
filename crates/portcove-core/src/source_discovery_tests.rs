@@ -3015,7 +3015,16 @@ fn finishing_saved_folders_preserves_published_batches_after_cancellation() {
         .unwrap_err();
     assert_eq!(error.code, ErrorCode::Conflict);
     let finished = service
-        .finish_game_file_scan_with_progress(&scan_id, &limits, |_| {})
+        .finish_game_file_scan_with_progress(&scan_id, &limits, |event| {
+            if matches!(
+                &event.event,
+                crate::OperationEventKind::Progress { phase_id: Some(phase), completed: 3, .. }
+                    if phase == "saved_folder_scan_checkpoints"
+            ) {
+                let next = service.scan_game_file_roots(&limits).unwrap();
+                assert_ne!(next.matches.unwrap().scan_id, scan_id);
+            }
+        })
         .unwrap();
     let matches = finished.matches.unwrap();
     assert_eq!((matches.scan_id, matches.exact_matches), (scan_id, 34));
