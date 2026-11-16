@@ -15,13 +15,15 @@ GitHub Source code archives require a development toolchain.
 
 Releases from 0.1.0 onward name every file with its version, for example
 `Portcove_0.1.0_x64-setup.exe`. The release page is the inventory for the exact
-version you choose. Alpha 1 and Alpha 2 keep their original filenames and
-their own [release notes](releases/0.1.0-alpha.1-release-notes.md).
+version you choose. Alpha 1 and Alpha 2 keep their original filenames and their
+own release notes ([Alpha 1](releases/0.1.0-alpha.1-release-notes.md),
+[Alpha 2](releases/0.1.0-alpha.2-release-notes.md)).
 
 ## Verify a download
 
 Download `SHA256SUMS` from the same release. Compute the SHA-256 of the file you
-downloaded and compare it with the line for that exact filename:
+downloaded and compare it with the line for that exact filename. Run the Linux
+and macOS commands in the folder that holds both the download and `SHA256SUMS`:
 
 - **Windows (PowerShell):** `Get-FileHash .\Portcove_<version>_x64-setup.exe -Algorithm SHA256`
 - **Linux:** `sha256sum -c --ignore-missing SHA256SUMS`

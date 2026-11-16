@@ -118,7 +118,7 @@ complete inventory.
 
 The first Public beta application hosts are **Windows x86-64**, qualified at the
 existing supported Windows/WebView2 baseline, and **Linux x86-64** as an AppImage
-(owner decisions of 2026-11-14 on #534). macOS builds ship as experimental.
+(owner decisions on [#534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340)). macOS builds ship as experimental.
 Existing before-1.0 commitments remain unchanged. Shared trust, correctness and Windows-delivery checks
 remain required on their appropriate Linux/WSL/macOS or Windows hosts. See the
 [scope and evidence classes](DELIVERY.md#first-public-beta-host-boundary).

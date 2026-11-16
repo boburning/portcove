@@ -207,8 +207,8 @@ effective. Preparation, a successful rehearsal and an ordinary merge each retain
 their own scope; publication requires its existing explicit authority.
 
 The first public beta application release covers Windows x86-64 and Linux x86-64
-(AppImage), with experimental macOS builds, under the owner's 2026-11-14
-decisions on #534. Follow the
+(AppImage), with experimental macOS builds, under the owner's decisions on
+[#534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340). Follow the
 [release boundary](DELIVERY.md#first-public-beta-host-boundary).
 Linux releases rely on the owner's
 [renewed GLib advisory acceptance](https://github.com/boburning/portcove/issues/706#issuecomment-6904321682)

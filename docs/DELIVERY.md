@@ -30,15 +30,15 @@ publication authority.
 
 The owner-approved first public beta application hosts are **Windows x86-64**,
 at its existing supported Windows/WebView2 baseline, and **Linux x86-64** as an
-AppImage. Linux joined the beta in the owner's 2026-11-14 release decisions on
-#534; its GLib advisory acceptance is recorded on #706. macOS builds ship as
+AppImage. Linux joined the beta in the owner's release decisions on
+[#534](https://github.com/boburning/portcove/issues/534#issuecomment-6864263340); its GLib advisory acceptance is recorded on #706. macOS builds ship as
 experimental and are not beta acceptance targets. This changes the application
 host release commitment, not the original platforms of games Portcove manages,
 historical port inventory membership, or truthful per-port support metadata.
 The November 3 port-commitment decision below separately removes the full-cohort
 first-beta deadline while preserving tracked work and safeguards.
 
-| Obligation                             | First Windows beta boundary                                                                                                                                                                                                                              |
+| Obligation                             | First public beta boundary                                                                                                                                                                                                                               |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Windows application/product acceptance | Required: supported baseline, native player journeys, accessibility, installation, preservation, recovery, trusted catalog delivery and application updates at their actual scope. Windows Steam remains Required.                                       |
 | Shared infrastructure/correctness      | Required regardless of execution OS: authority, signatures, provenance, exact inputs, consent, locks, persistence, recovery and useful shared tests/build/publishing infrastructure. Linux/WSL or macOS execution does not make a shared check optional. |
