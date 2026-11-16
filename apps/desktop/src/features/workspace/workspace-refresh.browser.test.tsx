@@ -679,6 +679,58 @@ describe("workspace refresh recovery", () => {
     expect(data.statuses[0]).toBe(retained);
   });
 
+  function staleSnapshotRefusal() {
+    return {
+      ...failureReport(),
+      code: "conflict" as const,
+      message:
+        "the library changed while its workspace snapshot was being assembled; retry the read",
+      details: { workspace_snapshot_stale: "true", retryable: "true" },
+    };
+  }
+
+  it("reads once more after a stale snapshot refusal without reporting a refresh failure", async () => {
+    await render();
+    const fresh = structuredClone(snapshot);
+    fresh.statuses[0]!.successful_launches += 1;
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot)
+      .mockRejectedValueOnce(staleSnapshotRefusal())
+      .mockResolvedValueOnce(fresh);
+
+    await act(async () => data.retryRefresh());
+
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(data.refreshFailure).toBeUndefined();
+    expect(data.statuses[0]?.successful_launches).toBe(fresh.statuses[0]?.successful_launches);
+  });
+
+  it("reports a stale snapshot refusal that repeats on the immediate re-read", async () => {
+    await render();
+    const second = staleSnapshotRefusal();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot)
+      .mockRejectedValueOnce(staleSnapshotRefusal())
+      .mockRejectedValueOnce(second);
+
+    await act(async () => data.retryRefresh());
+
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledTimes(2);
+    expect(data.refreshFailure?.error).toBe(second);
+  });
+
+  it("reports any other snapshot failure without reading again", async () => {
+    await render();
+    const error = failureReport();
+    vi.mocked(desktopApi.workspaceSnapshot).mockClear();
+    vi.mocked(desktopApi.workspaceSnapshot).mockRejectedValueOnce(error);
+
+    await act(async () => data.retryRefresh());
+
+    expect(desktopApi.workspaceSnapshot).toHaveBeenCalledOnce();
+    expect(data.refreshFailure?.error).toBe(error);
+  });
+
   it("clears refresh failure on unchanged readback while accepting newer activities", async () => {
     await render();
     const before = { catalog: data.catalog, statuses: data.statuses, sources: data.sources };
