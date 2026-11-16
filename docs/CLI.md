@@ -2318,9 +2318,10 @@ from a profile's current revision with its **own save group**: progress is not
 copied. When the active runtime changes, Default receives a new revision with
 that runtime in the same library transaction. Its save group and earlier
 recovery builds stay available. Run `ensure-default` to refresh a Default
-revision left behind by an older client before copying or exporting it. Other
-profiles launch the exact build their revisions name, so a game update never
-changes a customized setup. `copy --current-build` makes an upgraded copy on the current
+revision left behind by an older client before copying or exporting it. Library
+database schema 62 requires Desktop and CLI versions that coordinate this
+change. Other profiles launch the exact build their revisions name, so a game
+update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
 build instead, leaving the source profile, its build and its progress unchanged.
 When Default reaches its recovery-build limit, `installation reference-retire`
 can retire a superseded offer after review. Retirement keeps the recorded setup
