@@ -2932,8 +2932,25 @@ fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() 
         fs::write(root.join("source.z64"), payload).unwrap();
         library.add_game_file_root(&root).unwrap();
     }
-    let limits = SourceDiscoveryLimits::default();
+    let oversized = temporary.path().join("selected-0").join("oversized.z64");
+    fs::write(&oversized, [0; 64]).unwrap();
+    let oversized = fs::canonicalize(oversized).unwrap();
+    let limits = SourceDiscoveryLimits {
+        max_file_bytes: payload.len() as u64,
+        ..SourceDiscoveryLimits::default()
+    };
+    let oversized_advisories = |report: &SourceDiscoveryReport| {
+        report
+            .issues
+            .iter()
+            .filter(|issue| {
+                issue.path.as_ref() == Some(&oversized)
+                    && issue.message == super::OVERSIZED_FILE_ISSUE
+            })
+            .count()
+    };
     let first = publish_saved_batch(&catalog, &library, &limits).unwrap();
+    assert_eq!(oversized_advisories(&first.report), 1);
     assert_eq!(first.report.searched_roots.len(), 9);
     assert_eq!(first.report.files_hashed, 8);
     let first_matches = first.matches.unwrap();
@@ -2948,6 +2965,7 @@ fn saved_root_partitions_resume_after_reopening_with_the_same_match_inventory() 
     let finished = publish_saved_batch(&catalog, &reopened, &limits).unwrap();
     assert_eq!(reopened.game_file_roots().unwrap().len(), 9);
     assert_eq!(finished.report.files_hashed, 9);
+    assert_eq!(oversized_advisories(&finished.report), 1);
     let matches = finished.matches.unwrap();
     assert_eq!(matches.scan_id, first_matches.scan_id);
     assert_eq!(matches.exact_matches, 18);
