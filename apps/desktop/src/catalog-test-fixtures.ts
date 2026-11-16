@@ -109,11 +109,31 @@ export function currentCatalogPort(id: string): PortDefinition {
   return authoredPortFixture(authored);
 }
 
-/** Preserve omitted nullable evidence URLs without inventing source claims. */
+function sourceRepresentationDefaults(identities: unknown): unknown {
+  if (!Array.isArray(identities)) return identities;
+  return identities.map((identity: unknown) => {
+    if (!isRecord(identity) || !Array.isArray(identity.variants)) return identity;
+    return {
+      ...identity,
+      variants: identity.variants.map((variant: unknown) => {
+        if (!isRecord(variant) || !Array.isArray(variant.representations)) return variant;
+        return {
+          ...variant,
+          representations: variant.representations.map((representation: unknown) =>
+            isRecord(representation) ? { evidence_ids: [], ...representation } : representation,
+          ),
+        };
+      }),
+    };
+  });
+}
+
+/** Apply Core's defaults for omitted evidence fields before schema validation. */
 export function authoredSourceCatalogFixture(authored: unknown): SourceCatalog {
   if (!isRecord(authored)) throw new Error("Invalid authored source catalog fixture");
   const value: unknown = {
     ...authored,
+    identities: sourceRepresentationDefaults(authored.identities),
     evidence: Array.isArray(authored.evidence)
       ? authored.evidence.map((entry: unknown) =>
           isRecord(entry) ? { live_url: null, ...entry } : entry,
