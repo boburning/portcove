@@ -5,10 +5,10 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: street-rod-native-startup-${{ github.ref }}
+  group: neverball-native-startup-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  street-rod-windows-startup:
+  neverball-windows-startup:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
@@ -45,11 +45,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE) { throw 'Product source differs' }
-          pwsh -NoProfile -File scripts/street-rod-hosted-input.ps1
+          pwsh -NoProfile -File scripts/neverball-hosted-input.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Input binding failed' }
       - name: Execute exact candidate with maintained native admission
         shell: pwsh
-        run: node scripts/street-rod-hosted-owner.mjs
+        run: node scripts/neverball-hosted-owner.mjs
       - name: Retain bounded real native evidence in job logs
         if: always()
         shell: pwsh
