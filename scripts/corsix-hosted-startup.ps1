@@ -14,6 +14,10 @@ $rootHandle = $null
 $gameBound = $false
 $window = [IntPtr]::Zero
 $failure = $null
+$stdoutSink = $null
+$stderrSink = $null
+$stdout = $null
+$stderr = $null
 $forcedCleanup = $false
 function Invoke-CliJson([string]$name, [string[]]$arguments) {
   $raw = & $cli --library $library @arguments --json 2> (Join-Path $native "$name.stderr.log")
@@ -74,8 +78,10 @@ try {
   if (-not $process.Start()) { throw 'Owned CLI did not start' }
   $rootHandle = $process.SafeHandle
   $rootCreated = [CorsixWindow]::Created($rootHandle)
-  $stdout = $process.StandardOutput.ReadToEndAsync()
-  $stderr = $process.StandardError.ReadToEndAsync()
+  $stdoutSink = [IO.FileStream]::new((Join-Path $native 'player.stdout.log'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read,1,[IO.FileOptions]::WriteThrough)
+  $stderrSink = [IO.FileStream]::new((Join-Path $native 'player.stderr.log'),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read,1,[IO.FileOptions]::WriteThrough)
+  $stdout = $process.StandardOutput.BaseStream.CopyToAsync($stdoutSink)
+  $stderr = $process.StandardError.BaseStream.CopyToAsync($stderrSink)
   $deadline = [DateTime]::UtcNow.AddSeconds(65)
   $record = $null
   while ([DateTime]::UtcNow -lt $deadline -and -not $process.HasExited) {
@@ -103,8 +109,10 @@ try {
     Start-Sleep -Milliseconds 400
   }
   if (-not $gameBound -or $window -eq [IntPtr]::Zero) { throw 'No visible exact owned game window before finite deadline' }
-  Start-Sleep -Seconds 3
+  $startupCpu = $game.TotalProcessorTime.TotalSeconds
+  Start-Sleep -Seconds 20
   if ($game.HasExited) { throw 'Owned player exited before capture' }
+  @{settle_seconds=20; cpu_before=$startupCpu; cpu_after=$game.TotalProcessorTime.TotalSeconds; working_set=$game.WorkingSet64; profile_config_exists=(Test-Path -LiteralPath (Join-Path $profile 'config.txt'))} | ConvertTo-Json | Set-Content (Join-Path $native 'startup-observation.json') -Encoding utf8
   [uint32]$windowOwner = 0
   [void][CorsixWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
@@ -119,8 +127,7 @@ try {
   @{request=$request; root_pid=$process.Id; root_identity="windows-filetime:$rootCreated"; child_pid=$game.Id; child_identity=$record.child_identity; child_path=$actualPlayer; child_sha256=(Get-FileHash -LiteralPath $actualPlayer -Algorithm SHA256).Hash.ToLowerInvariant(); session=$game.SessionId; window=$window.ToInt64(); title=[CorsixWindow]::Title($window); width=$width; height=$height} | ConvertTo-Json | Set-Content (Join-Path $native 'observed.json') -Encoding utf8
   Close-OwnedGameWindow
   if (-not $process.WaitForExit(20000)) { throw 'Owned CLI did not complete after normal close' }
-  $stdout.GetAwaiter().GetResult() | Set-Content (Join-Path $native 'player.stdout.log') -Encoding utf8
-  $stderr.GetAwaiter().GetResult() | Set-Content (Join-Path $native 'player.stderr.log') -Encoding utf8
+  if (-not $stdout.Wait(5000) -or -not $stderr.Wait(5000)) { throw 'Game stream capture did not complete after normal exit' }
   $final = Invoke-CliJson 'launch' @('launch','show',$request)
   if ($process.ExitCode -ne 0 -or $final.data.outcome -ne 'succeeded' -or $final.data.exit_code -ne 0) { throw 'Actual managed launch did not exit successfully' }
   $config = Join-Path $profile 'config.txt'
@@ -147,6 +154,10 @@ try {
   $positive = (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
   @{positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
   if (-not $positive -and -not $failure) { $failure='Positive owned exit was not established' }
+  if (Test-Path -LiteralPath (Join-Path $profile 'config.txt')) { Copy-Item -LiteralPath (Join-Path $profile 'config.txt') -Destination (Join-Path $native 'profile-at-cleanup.log') }
+  foreach ($sink in @($stdoutSink,$stderrSink)) { if ($sink) { $sink.Flush() } }
+  if ($stdoutSink -and $stdout.IsCompleted) { $stdoutSink.Dispose() }
+  if ($stderrSink -and $stderr.IsCompleted) { $stderrSink.Dispose() }
   if ($game) { $game.Dispose() }
   if ($process) { $process.Dispose() }
 }
