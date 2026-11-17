@@ -975,7 +975,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
     updates: 3,
     integrations: 3,
     controls: 2,
-    advanced: 4,
+    advanced: 3,
   };
   for (const [name, group] of Object.entries(rows.groups)) {
     assert.equal(group.rows.length, expectedRows[name], `${name} row count changed`);
