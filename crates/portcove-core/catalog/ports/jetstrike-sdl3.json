@@ -1,0 +1,61 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "jetstrike-sdl3",
+    "name": "JetStrike / SDL3 Port",
+    "summary": "Play the original DOS JetStrike with the SDL3 port and your own game data.",
+    "original_game_title": "JetStrike",
+    "project_url": "https://github.com/kylofon/jetstrike-sdl3",
+    "issue_number": 5826,
+    "listed_at": "2026-11-17",
+    "platforms": ["windows-x86-64"],
+    "availability": "packages",
+    "setup_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md",
+    "release_url": "https://github.com/kylofon/jetstrike-sdl3/releases/tag/v0.1.0",
+    "download_asset_hints": {
+      "windows-x86-64": ["jsport-", "-win64.zip"]
+    },
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Prepare a writable copy of your original game",
+          "instruction": "Use your own DOS CD-ROM installation. Keep JS_CDROM.EXE and the INTRO, DATA, GFX, MAP, MISC and PLANE directories together in a writable Game copy."
+        },
+        {
+          "title": "Use the upstream Windows setup",
+          "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open JetStrike.exe to choose your data and options. The optional Rip CD music action uses your owned CUE image and writes the 14 audio tracks under Game/MUSIC."
+        },
+        {
+          "title": "Register the actual player in Portcove",
+          "instruction": "Choose jsport.exe as the existing installation and its containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. The folder must contain the DOS CD-ROM data. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+        }
+      ],
+      "warnings": [
+        "Use your own original game files. The native port includes reconstructed original program behavior and its own separately licensed port code."
+      ],
+      "references": [
+        {
+          "title": "Keep your settings and progress before replacing files",
+          "instruction": "Back up JS.CFG, js_save.000 through js_save.009 and any MUSIC folder with your working game data. Copy %APPDATA%/JetStrike/settings.ini as well. Close both the player and launcher before replacing files. Portcove keeps a launch registration. You and upstream own runtime replacement and backups. Removing the registration leaves the working files and profile in place."
+        },
+        {
+          "title": "Other platforms",
+          "instruction": "This release publishes a Windows x64 package. The publisher has no reviewed Linux, Intel Mac, Apple Silicon or Android package for this route."
+        }
+      ],
+      "help_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "jetstrike-sdl3",
+    "origin": {
+      "project_url": "https://github.com/kylofon/jetstrike-sdl3",
+      "repository": {
+        "host": "github.com",
+        "id": "1401488808"
+      }
+    },
+    "decisions": []
+  }
+}
