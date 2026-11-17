@@ -965,11 +965,14 @@ it("bounds and coalesces collection requests through the shared remote queue", a
       active--;
       return { asset_sha256: sha, choice_revision: revision, png_base64: "cG5n" };
     });
-  const hashes = ["a", "b", "c", "d"].map((value) => value.repeat(64));
-  for (const sha of hashes) {
-    const key = cache.collectionKey("project", sha, 3);
-    cache.loadCollectionCover(key, "project", sha, 3, () => true);
-    cache.loadCollectionCover(key, "project", sha, 3, () => true);
+  const members = ["a", "b", "c", "d", "e", "f", "1", "2"].map((value, index) => ({
+    portId: index < 4 ? "project-a" : "project-b",
+    sha: value.repeat(64),
+  }));
+  for (const { portId, sha } of members) {
+    const key = cache.collectionKey(portId, sha, 3);
+    cache.loadCollectionCover(key, portId, sha, 3, () => true);
+    cache.loadCollectionCover(key, portId, sha, 3, () => true);
   }
   await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(maximumRemoteRequests));
   while (releases.length) {
@@ -978,12 +981,14 @@ it("bounds and coalesces collection requests through the shared remote queue", a
   }
   await vi.waitFor(() =>
     expect(
-      hashes.every((sha) => cache.readCollection(cache.collectionKey("project", sha, 3)).image),
+      members.every(
+        ({ portId, sha }) => cache.readCollection(cache.collectionKey(portId, sha, 3)).image,
+      ),
     ).toBe(true),
   );
   expect(peak).toBe(maximumRemoteRequests);
-  expect(load).toHaveBeenCalledTimes(4);
-  for (const sha of hashes) expect(load).toHaveBeenCalledWith("project", sha, 3, 8);
+  expect(load).toHaveBeenCalledTimes(members.length);
+  for (const { portId, sha } of members) expect(load).toHaveBeenCalledWith(portId, sha, 3, 8);
 });
 
 it("refuses collection thumbnails with a different choice revision", async () => {
