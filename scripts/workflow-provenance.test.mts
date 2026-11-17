@@ -92,8 +92,8 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
     }),
     [
       {
-        source: "eac71a8db5639448f904b648d1241faf784ad8a1",
-        scenario: "native-reviewed-discovery-setup-batch",
+        source: "c3f199f18aeb1434d5b9665a8de1c5a31b1dac1e",
+        scenario: "native-large-discovery-setup-review",
       },
     ],
   );

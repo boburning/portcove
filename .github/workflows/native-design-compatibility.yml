@@ -937,9 +937,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: reviewed-discovery-setup-batch
-            source: eac71a8db5639448f904b648d1241faf784ad8a1
-            scenario: native-reviewed-discovery-setup-batch
+          - name: large-discovery-setup-review
+            source: c3f199f18aeb1434d5b9665a8de1c5a31b1dac1e
+            scenario: native-large-discovery-setup-review
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/slice3-native-temp
