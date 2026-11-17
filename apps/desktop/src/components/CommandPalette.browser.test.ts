@@ -1,7 +1,7 @@
 import { captureParityState } from "../../test/parity-capture";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vite-plus/test";
 import { Boxes, Library } from "lucide-react";
-import { userEvent } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { CommandPalette, type PaletteCommand } from "./CommandPalette";
@@ -26,6 +26,28 @@ const commands: [PaletteCommand, PaletteCommand] = [
 ];
 
 describe("command palette", () => {
+  it("offers a visible close control without running a command", async () => {
+    const available = commands.map((command) => ({ ...command, action: vi.fn() }));
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    const close = vi.fn();
+    try {
+      await act(async () =>
+        root.render(createElement(CommandPalette, { open: true, commands: available, close })),
+      );
+      await expect.element(page.getByRole("combobox", { name: "Search commands" })).toHaveFocus();
+      const dismiss = page.getByRole("button", { name: "Close", exact: true });
+      await expect.element(dismiss).toBeVisible();
+      await dismiss.click();
+      expect(close).toHaveBeenCalledOnce();
+      for (const command of available) expect(command.action).not.toHaveBeenCalled();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.restoreAllMocks();
+    }
+  });
   it("has an exact dialog name and labelled search control in the rendered DOM", async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     HTMLElement.prototype.scrollIntoView = vi.fn();
