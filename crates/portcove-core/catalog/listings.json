@@ -55886,6 +55886,53 @@
       }
     },
     {
+      "id": "skifree-reborn",
+      "name": "SkiFree / SkiFree Reborn",
+      "summary": "Build a desktop version of SkiFree from Chris Pirih’s original Windows game.",
+      "original_game_title": "SkiFree",
+      "project_url": "https://github.com/sp00nznet/skifree",
+      "issue_number": 6077,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/sp00nznet/skifree/blob/v0.4.0/README.md#download",
+      "release_url": "https://github.com/sp00nznet/skifree/releases/tag/v0.4.0",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Get the original SkiFree file",
+            "instruction": "Get ski32.exe from Chris Pirih’s site at https://ski.ihoc.net/#download. Keep that original file in a separate folder. The upstream installer builds SkiFree using this file."
+          },
+          {
+            "title": "Prepare and play a desktop build",
+            "instruction": "Open the installer for Windows x64, Linux x86-64 or Apple Silicon with macOS 15 or later. Choose the folder containing ski32.exe, select This computer, then choose Build and Play. Keep the generated launch script with its build folder so it can find the game files."
+          }
+        ],
+        "warnings": [
+          "The Linux v0.4.0 build can create skifree_save.json, but File > Load crashed when opening that saved run. Keep a backup of the file for a later version with working load."
+        ],
+        "references": [
+          {
+            "title": "Install build dependencies",
+            "instruction": "On Windows the upstream installer may install Python, CMake, Visual Studio Build Tools and SDL2. On Linux install a C and C++ compiler, CMake, Python 3, pkg-config, SDL2 and SDL2_ttf development files. The Linux installer needs glibc 2.34 or later and uses zenity or kdialog to select folders. On Mac use Homebrew and Xcode’s command line tools."
+          },
+          {
+            "title": "Build for Intel Mac or Android",
+            "instruction": "The release publishes an Apple Silicon installer. For Intel Mac, use the tagged project’s setup.sh and its documented build dependencies. Android is a separate target in the upstream installer and uses Docker to build an APK from your original file. An APK is not included in the release."
+          },
+          {
+            "title": "Keep files created by the game",
+            "instruction": "Before rebuilding, close the game and copy skifree.ini, skifree_save.json and skifree.replay if present. Look in the working folder used by the launch script. The upstream installer owns preparation and replacement of the runtime."
+          }
+        ],
+        "help_url": "https://github.com/sp00nznet/skifree/blob/v0.4.0/README.md#download"
+      }
+    },
+    {
       "id": "skullburglar-nlwstein-50-cent-blood-on-the-sand",
       "name": "50 Cent: Blood on the Sand — Skullburglar (nlwstein)",
       "original_game_title": "50 Cent: Blood on the Sand",
