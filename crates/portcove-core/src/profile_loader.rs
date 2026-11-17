@@ -7,11 +7,13 @@ use std::{
 
 use crate::{
     AdapterKind, InstallRecord, Library, LoaderContractRef, Platform, PortDefinition,
-    PortcoveError, PortcoveService, ProfileRevision, RecompModInspection, ReleaseSource, Result,
-    RetainedBuildIdentity, profile,
+    PortcoveError, PortcoveService, ProfileRevision, RecompModInspection, ReleaseSource,
+    ResolvedPackage, Result, RetainedBuildIdentity, profile,
     profile_deploy::{Layout, live_package_path},
     recomp_mod::version_parts,
 };
+
+pub(crate) const RECOMP_DEPENDENCY_REVIEW: &str = "recomp_dependencies";
 
 struct ReviewedLoader {
     id: &'static str,
@@ -163,32 +165,50 @@ fn require_recomp_versions(
 ) -> Result<()> {
     let mut enabled = BTreeMap::new();
     for package in revision.packages.iter().filter(|package| package.enabled) {
-        let stored = layout.package(&package.sha256, &package.native_id);
-        let path = if stored.try_exists()? {
-            stored
-        } else {
-            live_package_path(layout, &package.native_id)?
-        };
-        let inspected = crate::inspect_recomp_mod(&path, game)?;
-        if inspected.sha256 != package.sha256
-            || inspected.size != package.size
-            || package.native_id != format!("{}.nrm", inspected.native_id)
-            || inspected.holds.contains(&crate::RecompModHold::OtherGame)
-        {
-            return Err(PortcoveError::verification(
-                "the exact mod bytes or their native identity changed; review the package again",
-            )
-            .detail("package", &package.native_id));
-        }
+        let inspected = inspect_retained_recomp(layout, package, game)?;
         enabled.insert(inspected.native_id.clone(), inspected);
     }
     validate_recomp_versions(&enabled, runtime.strip_prefix('v').unwrap_or(runtime), game)
 }
 
-fn validate_recomp_versions(
+fn inspect_retained_recomp(
+    layout: &Layout,
+    package: &ResolvedPackage,
+    game: &str,
+) -> Result<RecompModInspection> {
+    let stored = layout.package(&package.sha256, &package.native_id);
+    let path = if stored.try_exists()? {
+        stored
+    } else {
+        live_package_path(layout, &package.native_id)?
+    };
+    let inspected = crate::inspect_recomp_mod(&path, game)?;
+    if inspected.sha256 != package.sha256
+        || inspected.size != package.size
+        || package.native_id != format!("{}.nrm", inspected.native_id)
+        || inspected.holds.contains(&crate::RecompModHold::OtherGame)
+    {
+        return Err(PortcoveError::verification(
+            "the exact mod bytes or their native identity changed; review the package again",
+        )
+        .detail("package", &package.native_id));
+    }
+    Ok(inspected)
+}
+
+pub(crate) fn validate_recomp_versions(
     enabled: &BTreeMap<String, RecompModInspection>,
     runtime: &str,
     game: &str,
+) -> Result<()> {
+    validate_recomp_versions_allowing_missing(enabled, runtime, game, None)
+}
+
+fn validate_recomp_versions_allowing_missing(
+    enabled: &BTreeMap<String, RecompModInspection>,
+    runtime: &str,
+    game: &str,
+    missing_local: Option<(&str, &[String])>,
 ) -> Result<()> {
     fn minimum(current: &str, required: &str, owner: &str, subject: &str) -> Result<()> {
         if version_parts(current).is_some_and(|current| {
@@ -269,7 +289,12 @@ fn validate_recomp_versions(
                     .detail("requires", &dependency.id)
                     .detail("minimum_version", required));
                 }
-            } else {
+            } else if !missing_local.is_some_and(|(local_id, missing)| {
+                local_id == id
+                    && missing
+                        .iter()
+                        .any(|name| crate::native_mod_list::native_name(name) == dependency.id)
+            }) {
                 return Err(PortcoveError::conflict(
                     "a required native mod is missing or disabled. Install or enable it before continuing",
                 )
@@ -302,6 +327,61 @@ impl PortcoveService {
                 PortcoveError::conflict("the installed runtime changed; review the setup again")
             })?;
         require_contract(&install, build, declared, needs_loader)
+    }
+
+    /// Reviews the enabled set that an exact package replacement would publish.
+    pub(crate) fn review_recomp_changes<'a>(
+        &self,
+        layout: &Layout,
+        current: &ProfileRevision,
+        staged: impl IntoIterator<Item = &'a RecompModInspection>,
+        missing_local: Option<(&str, &[String])>,
+    ) -> Result<()> {
+        use crate::native_mod_list::{native_name, recomp_game};
+
+        let Some(game) = recomp_game(&current.build.port_id) else {
+            return Ok(());
+        };
+        let staged = staged.into_iter().collect::<Vec<_>>();
+        let replaces = |inspection: &RecompModInspection, package: &ResolvedPackage| {
+            inspection
+                .native_id
+                .eq_ignore_ascii_case(native_name(&package.native_id))
+        };
+        let mut enabled = BTreeMap::new();
+        for package in current
+            .packages
+            .iter()
+            .filter(|package| package.enabled && !staged.iter().any(|item| replaces(item, package)))
+        {
+            let inspection = inspect_retained_recomp(layout, package, game)?;
+            enabled.insert(inspection.native_id.clone(), inspection);
+        }
+        for inspection in staged {
+            if current
+                .packages
+                .iter()
+                .all(|package| package.enabled || !replaces(inspection, package))
+            {
+                enabled.insert(inspection.native_id.clone(), inspection.clone());
+            }
+        }
+        if enabled.is_empty() {
+            return Ok(());
+        }
+        let install =
+            Library::install_by_id(&self.library.connection()?, Some(&current.build.install_id))?
+                .filter(|install| current.build.matches_install(install))
+                .ok_or_else(|| {
+                    PortcoveError::conflict("the installed runtime changed; review the setup again")
+                })?;
+        require_contract(&install, &current.build, current.loader.as_ref(), true)?;
+        let runtime = install
+            .version
+            .strip_prefix('v')
+            .unwrap_or(&install.version);
+        validate_recomp_versions_allowing_missing(&enabled, runtime, game, missing_local)
+            .map_err(|error| error.detail("review_stage", RECOMP_DEPENDENCY_REVIEW))
     }
 
     pub(crate) fn require_revision_loader(&self, revision: &ProfileRevision) -> Result<()> {
