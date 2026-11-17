@@ -17,7 +17,7 @@
       "steps": [
         {
           "title": "Choose your package",
-          "instruction": "The Windows x64 installer includes Java. On Mac, choose the Intel or Apple Silicon disk image with bundled Java. On Linux, use your distribution's package or the community FreeCol Flatpak for x86-64 or ARM64."
+          "instruction": "The Windows x64 installer includes Java. On Mac, choose the Intel or Apple Silicon disk image with bundled Java. The Mac apps are unsigned. If macOS blocks one, use the portable ZIP with your installed Java. On Linux, use your distribution's package or the community FreeCol Flatpak for x86-64 or ARM64."
         },
         {
           "title": "Run the portable Java download",
