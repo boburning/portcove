@@ -848,6 +848,18 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "mod_file_preservation_plan",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ModFilePreservationPlan>(contract)
+                ),
+            ),
+            (
+                "mod_file_preservation_result",
+                serde_json::json!(schema_for_contract::<
+                    portcove_core::ModFilePreservationResult,
+                >(contract)),
+            ),
+            (
                 "mod_code_review",
                 serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
                     contract

@@ -1227,6 +1227,18 @@ export default interface Resources {
       "createFirst": "Create first setup",
       "defaultRefreshRequired": "Default still records an older game version. Refresh it before copying or exporting this setup.",
       "empty": "No mods. The game plays without changes in this setup.",
+      "filePreservation": {
+        "adopt": "For a supported mod, use Add mod file and choose this saved file.",
+        "details": "File details",
+        "finish": "Finish preserving file",
+        "inspect": "Review file",
+        "inspectName": "Review {{fileName}}",
+        "move": "Move this file to a saved location outside the mods folder.",
+        "outcome": "The file was preserved outside the mods folder.",
+        "pending": "A mod file move was interrupted. Finish preserving the file before changing setups.",
+        "preserve": "Preserve file",
+        "restore": "Save this edit outside the mods folder and restore the original mod kept by this setup."
+      },
       "fromProvider": "<name /> (from <provider />)",
       "gameChanged": "This game changed. Refresh its details before changing mods.",
       "heading": "Setups and mods",

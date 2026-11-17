@@ -505,6 +505,7 @@ pub(crate) fn recover_restore(
             "restore preparation was interrupted before backup verification",
         ));
     }
+    crate::profile_file_preservation::require_idle(&service.library, &operation.port_id)?;
     let recovery_root = restore.recovery_root.clone();
     let staged = restore.staged_data.clone();
     let user_root = restore.user_root.clone();

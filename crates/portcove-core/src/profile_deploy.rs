@@ -66,7 +66,7 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
-    fn port_id(&self) -> String {
+    pub(crate) fn port_id(&self) -> String {
         self.user
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -102,7 +102,7 @@ impl Layout {
     pub(crate) fn tmp(&self) -> PathBuf {
         self.store().join("tmp")
     }
-    fn mods(&self) -> PathBuf {
+    pub(crate) fn mods(&self) -> PathBuf {
         self.user.join(MODS)
     }
     pub(crate) fn journal(&self) -> PathBuf {
@@ -229,7 +229,7 @@ pub(crate) fn clear_restore_pending(user: &Path) -> Result<()> {
     }
 }
 
-fn mark_restore_pending(layout: &Layout) -> Result<()> {
+pub(crate) fn mark_restore_pending(layout: &Layout) -> Result<()> {
     fs::create_dir_all(layout.store())?;
     crate::durability::write_bytes_atomically(&layout.pending(), b"1", true)
 }
@@ -535,6 +535,15 @@ fn enabled(revision: &ProfileRevision) -> impl Iterator<Item = &ResolvedPackage>
     revision.packages.iter().filter(|package| package.enabled)
 }
 
+pub(crate) fn is_runtime_mod_marker(port_id: &str, file_name: &str, size: u64) -> bool {
+    size == 0
+        && file_name == "custom_mod_files_go_here.txt"
+        && matches!(
+            native_mod_list::loader_list(port_id),
+            Some(LoaderList::Ship(_))
+        )
+}
+
 /// Classifies live mods files against the revisions that may own them. A file is
 /// owned when an enabled package of any listed revision has its name and bytes;
 /// listing both the deployed and the newest revision lets an interrupted
@@ -554,10 +563,7 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                 .insert(package.sha256.as_str());
         }
     }
-    let ship_loader = matches!(
-        native_mod_list::loader_list(&layout.port_id()),
-        Some(LoaderList::Ship(_))
-    );
+    let port_id = layout.port_id();
     for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -570,10 +576,8 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
             }
             // Shipwright 9.3.1 creates this empty file when it creates mods/.
             // It is shared runtime scaffolding and deployment leaves it in place.
-            None if ship_loader
-                && name == "custom_mod_files_go_here.txt"
-                && metadata.is_file()
-                && metadata.len() == 0 => {}
+            None if metadata.is_file()
+                && is_runtime_mod_marker(&port_id, &name, metadata.len()) => {}
             _ => observation.unmanaged.push(name),
         }
     }
@@ -1770,6 +1774,7 @@ impl PortcoveService {
     /// records the last completed phase, and each phase is skipped once done, so a
     /// resumed switch never re-parks data that has already arrived.
     pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
+        self.recover_mod_file_locked(port_id, layout)?;
         self.finish_interrupted_switch_locked(port_id, layout)?;
         // Keep supported native menu changes before an explicit setup action
         // rewrites the game's list.
@@ -1983,6 +1988,7 @@ impl PortcoveService {
             return Ok(());
         }
         let layout = self.deploy_layout(port_id)?;
+        self.recover_mod_file_locked(port_id, &layout)?;
         if layout.journal().try_exists()? {
             return Err(PortcoveError::state(
                 "a profile switch was interrupted; finish it before playing",
@@ -2123,6 +2129,7 @@ impl PortcoveService {
             revision: Some(revision),
             unmanaged: observation.unmanaged,
             changed_owned: observation.drifted,
+            pending_preservation: crate::profile_file_preservation::pending(&layout)?,
             native_list: native_status(&layout, &owner),
         })
     }
@@ -2222,6 +2229,9 @@ pub struct LiveMods {
     pub unmanaged: Vec<String>,
     /// Installed files whose bytes changed outside Portcove; never overwritten.
     pub changed_owned: Vec<String>,
+    /// An authorized file move waiting for recovery, even if the live name disappeared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_preservation: Option<crate::ModFilePreservationPlan>,
     /// The game's own enabled-mods list compared with the selected revision.
     pub native_list: NativeModListStatus,
 }

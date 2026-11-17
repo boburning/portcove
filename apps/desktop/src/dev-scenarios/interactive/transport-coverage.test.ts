@@ -38,7 +38,7 @@ const unsupportedByReason: Record<string, string[]> = {
     open_manual_setup_folder open_pending_setup_folder open_source_evidence
     open_source_inbox open_support_report_folder open_user_data
     poll_github_device_login recheck_host_tool
-    recover_ghostship_legacy_data recover_library_import refresh_game_file_query
+    preserve_mod_file recover_ghostship_legacy_data recover_library_import refresh_game_file_query
     refresh_official_definition register_external_runtime
     register_user_selected_runtime relink_external_runtime relink_game_file_root
     relink_mod_setup_original relink_source relink_user_selected_runtime relocate_output
@@ -56,7 +56,7 @@ const unsupportedByReason: Record<string, string[]> = {
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
     catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
-    inspect_source inspect_mod_recipe
+    inspect_mod_file inspect_mod_recipe inspect_source
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
     plan_profile_recovery plan_provider_install preview_mod_setup_retirement
