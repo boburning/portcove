@@ -736,9 +736,11 @@ it.for([2, 4] as const)(
     const frame = document.querySelector<HTMLElement>(".collection-art")!;
     frame.scrollIntoView();
     await expect.poll(() => frame.querySelectorAll("img").length).toBe(count);
+    document.querySelector(".game-hero")!.scrollIntoView({ block: "center" });
     await expect
       .poll(() => document.querySelectorAll(".game-hero-collection img").length)
       .toBe(count);
+    document.querySelector(".port-card-library")!.scrollIntoView({ block: "center" });
     await expect
       .poll(() => document.querySelectorAll(".port-card-library .collection-art img").length)
       .toBe(count);

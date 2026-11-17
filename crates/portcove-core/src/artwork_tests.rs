@@ -2895,14 +2895,12 @@ fn collection_members_obey_local_choice_and_retain_registered_identity_after_dir
     service
         .register_user_selected_runtime(id, &executable, &working, &[], &consent.token)
         .unwrap();
-    service.replace_catalog_for_test(retention_catalog(&[]));
+    let listed_bytes = coloured_jpeg([30, 180, 30]);
+    let listed = retention_mapping("collectionlisted", &listed_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[("collection-other", Some(&listed))]));
+    // A real publication sweeps unreferenced originals; retained members must survive.
+    published_cover(&service, &listed, || Ok(listed_bytes)).unwrap();
     for cover in [&first, &second] {
-        assert!(
-            service
-                .referenced_remote_originals()
-                .unwrap()
-                .contains(&cover.image_sha256)
-        );
         assert!(cached_original(&service, cover));
         assert!(
             !service
@@ -2912,7 +2910,13 @@ fn collection_members_obey_local_choice_and_retain_registered_identity_after_dir
                 .is_empty()
         );
     }
-    service.replace_catalog_for_test(retention_catalog(&[(id, None)]));
+    let fresh_bytes = coloured_jpeg([180, 180, 30]);
+    let fresh = retention_mapping("collectionfresh", &fresh_bytes);
+    service.replace_catalog_for_test(retention_catalog(&[
+        (id, None),
+        ("collection-other", Some(&fresh)),
+    ]));
+    published_cover(&service, &fresh, || Ok(fresh_bytes)).unwrap();
     assert_eq!(
         service
             .collection_cover_thumbnail(id, &first.image_sha256, reset.choice.revision)
@@ -2920,12 +2924,9 @@ fn collection_members_obey_local_choice_and_retain_registered_identity_after_dir
             .code,
         crate::ErrorCode::NotFound
     );
-    assert!(
-        !service
-            .referenced_remote_originals()
-            .unwrap()
-            .contains(&first.image_sha256)
-    );
+    assert!(!cached_original(&service, &first));
+    assert!(!cached_original(&service, &second));
+    assert!(cached_original(&service, &fresh));
 }
 
 #[test]
