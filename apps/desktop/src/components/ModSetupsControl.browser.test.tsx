@@ -1030,9 +1030,7 @@ it("moves a reviewed unmanaged file and gives its preserved location for ordinar
 
   const root = mounted.at(-1)?.root;
   if (!root) throw new Error("setup control did not mount");
-  await act(async () =>
-    root.render(<ModSetupsControl portId="shipwright" generation={7} busy />),
-  );
+  await act(async () => root.render(<ModSetupsControl portId="shipwright" generation={7} busy />));
   await act(async () =>
     root.render(<ModSetupsControl portId="shipwright" generation={7} busy={false} />),
   );
