@@ -96,6 +96,9 @@ it.each([
   expect(lowerHelp.getBoundingClientRect().bottom).toBeLessThanOrEqual(
     dialog.getBoundingClientRect().bottom + 1,
   );
+  const close = page.getByRole("button", { name: "Close", exact: true });
+  await userEvent.keyboard("{Tab}");
+  await expect.element(close).toHaveFocus();
   await userEvent.keyboard("{Tab}");
   await expect.element(input).toHaveFocus();
   await input.fill("another long retained query with no matching command");
@@ -104,8 +107,13 @@ it.each([
     dialog.querySelector('[role="status"]')!.getBoundingClientRect().top,
   ).toBeGreaterThanOrEqual(input.element().getBoundingClientRect().bottom);
   await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
+  await expect.element(close).toHaveFocus();
+  await userEvent.keyboard("{Shift>}{Tab}{/Shift}");
   expect(document.activeElement).toBe(help);
   await userEvent.keyboard("{Escape}");
+  await expect.element(opener).toHaveFocus();
+  await opener.click();
+  await close.click();
   await expect.element(opener).toHaveFocus();
 });
 
