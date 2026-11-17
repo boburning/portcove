@@ -8,18 +8,12 @@
     "project_url": "https://github.com/kylofon/jetstrike-sdl3",
     "issue_number": 5826,
     "listed_at": "2026-11-17",
-    "platforms": [
-      "windows-x86-64",
-      "linux-x86-64"
-    ],
+    "platforms": ["windows-x86-64", "linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/kylofon/jetstrike-sdl3/blob/v0.1.0/README.md",
     "release_url": "https://github.com/kylofon/jetstrike-sdl3/releases/tag/v0.1.0",
     "download_asset_hints": {
-      "windows-x86-64": [
-        "jsport-",
-        "-win64.zip"
-      ]
+      "windows-x86-64": ["jsport-", "-win64.zip"]
     },
     "manual_setup": {
       "steps": [
