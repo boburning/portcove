@@ -998,6 +998,12 @@
       .collection-title {
       margin-block-start: 0;
     }
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):not(:only-child)
+      .collection-identity:not(:focus-visible)
+      .collection-project {
+      display: -webkit-box;
+    }
   }
 }
 

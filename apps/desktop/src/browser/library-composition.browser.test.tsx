@@ -905,6 +905,15 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
   expectContainedCover(prompt);
   await captureParityState("library-short-covers-compact-grouped-initial");
   await focusFooterControlsInViewport(prompt);
+  const choiceButton = prompt.querySelector<HTMLButtonElement>(".collection-actions button")!;
+  const prefix = choiceButton.querySelector("span")!.firstChild!;
+  expect(prefix.nodeType).toBe(Node.TEXT_NODE);
+  const chooseStart = prefix.textContent!.indexOf("Choose");
+  expect(chooseStart).toBeGreaterThanOrEqual(0);
+  const prefixRange = document.createRange();
+  prefixRange.setStart(prefix, chooseStart);
+  prefixRange.setEnd(prefix, chooseStart + "Choose".length);
+  expect(prefixRange.getClientRects()).toHaveLength(1);
   await captureParityState("library-short-covers-compact-grouped-choices");
   const choices = page.elementLocator(prompt.querySelector<HTMLElement>(".collection-actions")!);
   const choose = choices.getByRole("button", { name: `Choose ${project}`, exact: true });
@@ -928,9 +937,21 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
     "collection-0",
   );
   expect(card.querySelector(".collection-title")?.textContent).toBe(title);
-  expect(card.querySelector(".collection-project")?.textContent).toContain(project);
+  const projectLabel = card.querySelector<HTMLElement>(".collection-project")!;
+  expect(projectLabel.textContent).toContain(project);
+  expect(projectLabel.title).toBe(project);
+  expect(projectLabel.getBoundingClientRect().height).toBeLessThanOrEqual(
+    Number.parseFloat(getComputedStyle(projectLabel).lineHeight) * 2 + 1,
+  );
   expectContainedCover(card);
   await captureParityState("library-short-covers-compact-grouped-selected-focus");
+  const identity = card.querySelector<HTMLButtonElement>("button.collection-identity")!;
+  identity.focus();
+  await expect.element(page.elementLocator(identity)).toHaveFocus();
+  expect(projectLabel.getBoundingClientRect().height).toBeGreaterThan(
+    Number.parseFloat(getComputedStyle(projectLabel).lineHeight) * 2,
+  );
+  await captureParityState("library-short-covers-compact-grouped-full-identity");
   await focusFooterControlsInViewport(card);
   const more = page.elementLocator(card).getByRole("button", { name: /^More actions for/ });
   more.element().focus();
@@ -1017,6 +1038,10 @@ it("keeps twelve short-window Covers contained through fallback artwork and the 
   expect(fallback.querySelectorAll("img")).toHaveLength(0);
   expect(fallback.querySelector("[data-cover-illustration]")).not.toBeNull();
   expectContainedCover(missing);
+  fallback.scrollIntoView({ block: "center" });
+  const fallbackBounds = fallback.getBoundingClientRect();
+  expect(fallbackBounds.top).toBeGreaterThanOrEqual(0);
+  expect(fallbackBounds.bottom).toBeLessThanOrEqual(innerHeight);
   await captureParityState("library-short-covers-many-fallback");
   const last = cards.at(-1)!;
   await focusFooterControlsInViewport(last);
