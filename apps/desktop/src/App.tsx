@@ -1480,6 +1480,16 @@ function CurrentView({
   setupSource?: SourceRecord | undefined;
   setSetupSource: (source?: SourceRecord) => void;
 }) {
+  const { setReviewedActivityId, setView, setActivitySection } = ui;
+  const openTask = useCallback(
+    (activityId?: string) => {
+      setReviewedActivityId(activityId);
+      setView("updates");
+      setActivitySection("tasks");
+      window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
+    },
+    [setReviewedActivityId, setView, setActivitySection],
+  );
   if (ui.view === "updates")
     return (
       <UpdateCenter
@@ -1584,12 +1594,7 @@ function CurrentView({
           bootstrap.generation,
         )
       }
-      onTask={(activityId) => {
-        ui.setReviewedActivityId(activityId);
-        ui.setView("updates");
-        ui.setActivitySection("tasks");
-        window.requestAnimationFrame(() => document.querySelector<HTMLElement>("main h1")?.focus());
-      }}
+      onTask={openTask}
       onBrowseCatalog={onAddGames}
       onDiscover={() => {
         ui.setView("catalog");

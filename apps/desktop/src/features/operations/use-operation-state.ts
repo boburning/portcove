@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listenDesktopEvent } from "../../desktop-events";
 import type { ActivityRecord, OperationEvent } from "../../types";
 import { failurePresentation, isCancellation } from "../../view-model";
@@ -61,8 +61,9 @@ export function useOperationState(configuration: {
       activeOwner.current = undefined;
     };
   }, [generation]);
-  const pendingOperations = new Map(
-    [...invocations].filter(([, record]) => record.phase === "pending"),
+  const pendingOperations = useMemo(
+    () => new Map([...invocations].filter(([, record]) => record.phase === "pending")),
+    [invocations],
   );
   const busy = [...pendingOperations.values()].at(-1)?.name;
   // Compatibility selector for feature-specific recovery. The records, rather
