@@ -21832,11 +21832,13 @@ mod journal_diagnostic_tests {
         tables
             .into_iter()
             .map(|table| {
-                let sql = format!(
-                    "SELECT * FROM \"{}\" ORDER BY rowid",
-                    table.replace('"', "\"\"")
-                );
-                let mut q = db.prepare(&sql).unwrap();
+                let select = format!("SELECT * FROM \"{}\"", table.replace('"', "\"\""));
+                let columns = db.prepare(&select).unwrap().column_count();
+                let order = (1..=columns)
+                    .map(|position| position.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut q = db.prepare(&format!("{select} ORDER BY {order}")).unwrap();
                 let values = q
                     .query_map([], |row| {
                         (0..row.as_ref().column_count())

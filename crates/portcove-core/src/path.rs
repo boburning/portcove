@@ -132,6 +132,29 @@ pub(crate) fn normalized_absolute(path: &Path, role: &str) -> Result<std::path::
     Ok(resolved)
 }
 
+/// Compare saved Win32 disk and UNC spellings even when their volume is offline
+/// or the reader runs on another OS. Only the volume prefix and separators change.
+pub(crate) fn comparable_windows_absolute(path: &Path) -> Option<String> {
+    let separators = path.to_str()?.replace('\\', "/");
+    let mut ordinary = match separators.strip_prefix("//?/") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC/") {
+            Some(unc) => format!("//{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => separators,
+    };
+    if matches!(ordinary.as_bytes(), [drive, b':', b'/', ..] if drive.is_ascii_alphabetic()) {
+        ordinary.get_mut(..1)?.make_ascii_uppercase();
+        return Some(ordinary);
+    }
+    let mut unc = ordinary.strip_prefix("//")?.split('/');
+    let (host, share) = (unc.next()?, unc.next()?);
+    (![host, share]
+        .iter()
+        .any(|name| matches!(*name, "" | "." | ".." | "?")))
+    .then_some(ordinary)
+}
+
 /// V1's durable and child-process contracts use Unicode strings on every host.
 /// Reject an unrepresentable path at the boundary instead of storing or passing
 /// a lossy alias that cannot identify the original filesystem object.

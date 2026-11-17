@@ -72,6 +72,43 @@ pub(crate) enum ProfileCommand {
         /// Profile ID from `profile list`.
         profile_id: String,
     },
+    /// List admitted saved originals for this setup's exact runtime.
+    OriginalInstances {
+        /// Catalog port ID owning the setup.
+        port_id: String,
+        /// Setup ID from `profile list`.
+        profile_id: String,
+        /// Original source requirement ID from this setup's originals.
+        requirement_id: String,
+    },
+    /// Choose one saved original for a customized setup.
+    SelectOriginal {
+        /// Catalog port ID owning the setup.
+        port_id: String,
+        /// Customized setup ID from `profile list`.
+        profile_id: String,
+        /// Original source requirement ID from this setup's originals.
+        requirement_id: String,
+        /// Exact instance ID from `profile original-instances`.
+        instance_id: String,
+        /// Setup revision whose originals you reviewed.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Link the same original in a new location without changing the setup.
+    RelinkOriginal {
+        /// Catalog port ID owning the setup.
+        port_id: String,
+        /// Customized setup ID from `profile list`.
+        profile_id: String,
+        /// Original source requirement ID from this setup's originals.
+        requirement_id: String,
+        /// New path to the same original, verified before its location is updated.
+        path: PathBuf,
+        /// Setup revision that recorded the original you are finding.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Record how this profile should follow newer eligible releases.
     Policy {
         /// Catalog port ID owning the profile.
@@ -277,6 +314,9 @@ impl ProfileCommand {
             Self::EnsureDefault { .. } => "profile.ensure-default",
             Self::Copy { .. } => "profile.copy",
             Self::Revisions { .. } => "profile.revisions",
+            Self::OriginalInstances { .. } => "profile.original-instances",
+            Self::SelectOriginal { .. } => "profile.select-original",
+            Self::RelinkOriginal { .. } => "profile.relink-original",
             Self::Policy { .. } => "profile.policy",
             Self::Revise { .. } => "profile.revise",
             Self::InstallPackage { .. } => "profile.install-package",
@@ -304,6 +344,7 @@ impl ProfileCommand {
             self,
             Self::List { .. }
                 | Self::Revisions { .. }
+                | Self::OriginalInstances { .. }
                 | Self::Live { .. }
                 | Self::Setups { .. }
                 | Self::PackagePlan { .. }
@@ -836,6 +877,72 @@ pub(crate) async fn execute(
                     .map(revision_line)
                     .collect::<Vec<_>>()
                     .join("\n")
+            },
+        ),
+        ProfileCommand::OriginalInstances {
+            port_id,
+            profile_id,
+            requirement_id,
+        } => render_read_success(
+            mode,
+            name,
+            service.profile_original_instances(&port_id, &profile_id, &requirement_id)?,
+            |instances| {
+                if instances.is_empty() {
+                    return "No saved originals for this requirement".into();
+                }
+                instances
+                    .iter()
+                    .map(|instance| {
+                        format!(
+                            "{}  {}",
+                            instance.instance_id,
+                            clean(&instance.path.display().to_string())
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            },
+        ),
+        ProfileCommand::SelectOriginal {
+            port_id,
+            profile_id,
+            requirement_id,
+            instance_id,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.select_profile_original(
+                &port_id,
+                &profile_id,
+                expected_revision,
+                &requirement_id,
+                &instance_id,
+            )?,
+            |revision| format!("Saved original selected\n{}", revision_line(revision)),
+        ),
+        ProfileCommand::RelinkOriginal {
+            port_id,
+            profile_id,
+            requirement_id,
+            path,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.relink_profile_original(
+                &port_id,
+                &profile_id,
+                expected_revision,
+                &requirement_id,
+                &path,
+            )?,
+            |instance| {
+                format!(
+                    "Saved original relinked to {}",
+                    clean(&instance.path.display().to_string())
+                )
             },
         ),
         ProfileCommand::Policy {

@@ -27,6 +27,7 @@ mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod mod_original_commands;
 mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
@@ -3046,6 +3047,9 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            mod_original_commands::review_mod_setup_original,
+            mod_original_commands::select_mod_setup_original,
+            mod_original_commands::relink_mod_setup_original,
             mod_setup_commands::get_mod_setups,
             mod_setup_commands::create_default_mod_setup,
             mod_setup_commands::copy_mod_setup,

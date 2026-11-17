@@ -369,6 +369,16 @@ impl PortcoveService {
         profile_id: &str,
         request: &ProfileRevisionRequest,
     ) -> Result<ProfileRevision> {
+        self.create_profile_revision_with_original_locked(port_id, profile_id, request, None)
+    }
+
+    pub(crate) fn create_profile_revision_with_original_locked(
+        &self,
+        port_id: &str,
+        profile_id: &str,
+        request: &ProfileRevisionRequest,
+        replacement_original: Option<OriginalBinding>,
+    ) -> Result<ProfileRevision> {
         let connection = self.library.connection()?;
         let profile = profile_from(&connection, port_id, profile_id)?;
         if profile.current_revision != request.expected_revision {
@@ -390,6 +400,13 @@ impl PortcoveService {
         }
         let build = self.verified_retained_build(port_id, &install_id)?;
         let previous = self.current_retained_reference(port_id, profile_id)?;
+        let mut originals = current.originals.clone();
+        let original_changed = replacement_original.is_some();
+        if let Some(replacement) = replacement_original {
+            originals.retain(|binding| binding.requirement_id != replacement.requirement_id);
+            originals.push(replacement);
+            originals.sort_by(|left, right| left.requirement_id.cmp(&right.requirement_id));
+        }
         let mut next = ProfileRevision {
             profile_id: profile_id.into(),
             revision: current
@@ -398,7 +415,7 @@ impl PortcoveService {
                 .ok_or_else(|| PortcoveError::state("profile revision exhausted"))?,
             parent_revision: Some(current.revision),
             build: build.clone(),
-            originals: current.originals.clone(),
+            originals,
             loader: request.loader.clone().or_else(|| current.loader.clone()),
             packages: request.packages.clone().unwrap_or(current.packages.clone()),
             orderings: request
@@ -439,6 +456,13 @@ impl PortcoveService {
         updated.current_revision = next.revision;
         updated.updated_at = next.created_at.max(updated.updated_at);
         write_profile(&transaction, &updated)?;
+        if original_changed
+            && selection(&transaction, port_id)? == Some((profile_id.to_owned(), current.revision))
+        {
+            // The materialized mods and save group did not change. The next
+            // launch must read the new original together with that same layout.
+            set_selection(&transaction, port_id, profile_id, next.revision)?;
+        }
         transaction.commit()?;
         Ok(next)
     }
@@ -464,6 +488,7 @@ impl PortcoveService {
         self.catalog().port(port_id)?;
         let connection = self.library.connection()?;
         let sources = self.library.sources()?;
+        let mut checked_originals = BTreeMap::new();
         let mut views = Vec::new();
         for profile in profiles_from(&connection, port_id)? {
             let revision = revision_from(&connection, &profile.id, profile.current_revision)?;
@@ -476,7 +501,14 @@ impl PortcoveService {
                 .and_then(|resolved| resolved.install)
                 .map(|install| install.version);
             views.push(ProfileView {
-                originals: original_statuses(&revision.originals, &sources),
+                originals: original_statuses(
+                    &connection,
+                    &revision.originals,
+                    &sources,
+                    profile.is_default,
+                    self.catalog(),
+                    &mut checked_originals,
+                )?,
                 profile,
                 revision,
                 build_availability,
@@ -703,30 +735,46 @@ pub(crate) fn bind_original(requirement_id: &str, source: &SourceRecord) -> Orig
 /// Compares bindings with the registry by content identity. A path change alone
 /// never changes the result; a missing original holds only its own operations.
 fn original_statuses(
+    connection: &Connection,
     bindings: &[OriginalBinding],
     sources: &[SourceRecord],
-) -> Vec<OriginalStatus> {
+    follows_default: bool,
+    catalog: &crate::Catalog,
+    checked: &mut BTreeMap<String, OriginalAvailability>,
+) -> Result<Vec<OriginalStatus>> {
     bindings
         .iter()
         .map(|binding| {
-            let candidates = sources
+            let default = sources
                 .iter()
-                .filter(|source| source.profile_id == binding.requirement_id)
-                .collect::<Vec<_>>();
-            let availability = if candidates.is_empty() {
-                OriginalAvailability::Missing
-            } else if candidates
-                .iter()
-                .any(|source| bind_original(&binding.requirement_id, source) == *binding)
-            {
-                OriginalAvailability::Verified
+                .find(|source| source.profile_id == binding.requirement_id);
+            let availability = if follows_default {
+                match default {
+                    Some(source) if bind_original(&binding.requirement_id, source) == *binding => {
+                        OriginalAvailability::Verified
+                    }
+                    Some(_) => OriginalAvailability::Changed,
+                    None => OriginalAvailability::Missing,
+                }
             } else {
-                OriginalAvailability::Changed
+                let id = crate::source_instances::identity(binding)?;
+                if let Some(availability) = checked.get(&id) {
+                    *availability
+                } else {
+                    let source =
+                        crate::source_instances::find(connection, &binding.requirement_id, &id)?;
+                    let availability = match source {
+                        Some(source) => crate::profile_originals::storage_status(catalog, &source),
+                        None => OriginalAvailability::Missing,
+                    };
+                    checked.insert(id, availability);
+                    availability
+                }
             };
-            OriginalStatus {
+            Ok(OriginalStatus {
                 binding: binding.clone(),
                 availability,
-            }
+            })
         })
         .collect()
 }

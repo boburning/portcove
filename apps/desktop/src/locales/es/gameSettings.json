@@ -147,6 +147,25 @@
     "on_one": "{{count}} mod activado",
     "on_many": "{{count}} mods activados",
     "on_other": "{{count}} mods activados",
+    "original": {
+      "choose": "Elige un original",
+      "embedded": "Esta instalación usa los datos del juego que ya preparó. Para usar otro original, prepara otra instalación con esos archivos.",
+      "heading": "Archivos originales del juego",
+      "identity": "Detalles del archivo",
+      "noAlternatives": "No hay otro original registrado disponible para esta configuración.",
+      "registered": "Otros originales registrados",
+      "relink": "Buscar el mismo original",
+      "relinked": "Se actualizó la ubicación guardada de este original.",
+      "review": "Revisar los archivos originales",
+      "sameLocation": "{{path}} ({{identity}})",
+      "selected": "Se guardaron los archivos originales para esta configuración.",
+      "status": {
+        "changed": "El original guardado difiere del archivo registrado para esta configuración.",
+        "missing": "No se encuentra el archivo registrado para esta configuración.",
+        "verified": "El original coincide con el archivo registrado para esta configuración."
+      },
+      "use": "Usar este original"
+    },
     "otherBuild": "Este perfil se queda en la versión del juego con la que se creó, así que las actualizaciones del juego no lo cambian. Para probar estos mods con la versión actual del juego, cópialo a esa versión. Este perfil y sus partidas guardadas se quedan como están.",
     "outcome": {
       "added": "Se añadió un mod a {{name}}.",

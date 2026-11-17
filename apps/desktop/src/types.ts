@@ -70,6 +70,14 @@ export type GameSettingChange = Requests.TransportInputs["game_setting_change"];
 export type GameUpdateAcquisition = Generated.TransportOutputs["game_update_acquisition"];
 export type ModSetupsView = Generated.TransportOutputs["mod_setups_view"];
 export type ModSetupView = NonNullable<ModSetupsView["inventory"]>["profiles"][number];
+export type ModSetupOriginalReview = Generated.TransportOutputs["profile_original_review"];
+export type ModSetupOriginalTarget = {
+  generation: number;
+  portId: string;
+  profileId: string;
+  expectedRevision: number;
+  requirementId: string;
+};
 export type ModSetup = ModSetupView["profile"];
 export type ModUpdatePolicy = ModSetup["intent"]["update_policy"];
 export type ModAutoUpdateCheck = NonNullable<ModSetupsView["last_automatic_checks"]>[number];
