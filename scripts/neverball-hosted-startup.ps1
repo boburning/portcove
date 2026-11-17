@@ -61,6 +61,7 @@ function Close-OwnedGameWindow {
   [NeverballWindow]::CloseOwned($window,[uint32]$game.Id)
 }
 try {
+  @(Get-CimInstance Win32_VideoController | Select-Object -First 4 Name,DriverVersion,VideoProcessor,AdapterRAM) | ConvertTo-Json | Set-Content (Join-Path $native 'host-video.json') -Encoding utf8
   if (-not [IO.Path]::IsPathFullyQualified($profile)) { throw 'Absolute known-folder profile required' }
   if (Test-Path -LiteralPath $profile) { throw 'Pre-existing Neverball profile: no trial started' }
   $profileAbsentVerified = $true
@@ -92,6 +93,7 @@ try {
   while ([DateTime]::UtcNow -lt $deadline -and -not $process.HasExited) {
     $observed = Invoke-CliJson 'live-launch' @('launch','show',$request)
     $record = $observed.data
+    if ($record.outcome -eq 'failed') { throw ('Actual supervised player failed before image binding: '+$record.exit_code) }
     if ($record -and $record.child_pid) {
       if (-not $game) {
         $game = [Diagnostics.Process]::GetProcessById([int]$record.child_pid)
@@ -159,7 +161,14 @@ try {
 
 } catch {
   $failure = $_
-  @{phase='failed'; message=$_.Exception.Message; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-failure.json")) -Encoding utf8
+  if ($process) {
+    try {
+      Start-Sleep -Seconds 3
+      $events = @(Get-WinEvent -FilterHashtable @{LogName='Application';Id=1000;StartTime=$process.StartTime.AddSeconds(-2)} -MaxEvents 40 -ErrorAction Stop | Where-Object { $_.Message.Contains($expectedPlayer) } | Select-Object -First 3)
+      @{query_start=$process.StartTime.ToUniversalTime().ToString('o');query_end=[DateTime]::UtcNow.ToString('o');expected_player=$expectedPlayer;events=@($events | ForEach-Object { @{record_id=$_.RecordId;provider=$_.ProviderName;time=$_.TimeCreated.ToUniversalTime().ToString('o');message=$_.Message.Substring(0,[Math]::Min(16000,$_.Message.Length))} })} | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $native 'exact-player-application-error.json') -Encoding utf8
+    } catch { @{query='bounded Application/1000 since retained root start, exact private player path only';error=$_.Exception.Message} | ConvertTo-Json | Set-Content (Join-Path $native 'crash-event-query.json') -Encoding utf8 }
+  }
+  @{phase='failed'; message=$failure.Exception.Message; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-failure.json")) -Encoding utf8
 } finally {
   if ($process -and -not $process.HasExited) {
     if ($gameBound -and -not $game.HasExited -and $window -ne [IntPtr]::Zero) { try { Close-OwnedGameWindow; [void]$process.WaitForExit(5000) } catch {} }
