@@ -6,6 +6,14 @@
     "original_game_title": "Syphon Filter Redux",
     "summary": "Experimental project. Archived native mouse/camera renderer research; successor Alexbeav/SF-pc-port based on Madxbio decomp is distinct lineage, no successor results borrowed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Alexbeav/syphon_filter_redux",
+    "artwork": {
+      "game_id": 4115,
+      "cover_id": 90991,
+      "image_id": "co1y7j",
+      "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
+      "game_slug": "syphon-filter",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

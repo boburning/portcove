@@ -6,6 +6,14 @@
     "original_game_title": "Mushihimesama (Xbox 360)",
     "summary": "An initial playtest is reported; broad progression coverage unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/beebs1998-repo/rexglue-mushi",
+    "artwork": {
+      "game_id": 47442,
+      "cover_id": 540301,
+      "image_id": "cobkwd",
+      "image_sha256": "6830ccd3115b64cae2d5ad6e1910264fb45e6ef8006af6adb9d3f3caa3b45ee7",
+      "game_slug": "mushihimesama-hd",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",
