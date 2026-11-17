@@ -361,6 +361,27 @@ fn generated_table() -> &'static [GeneratedEntry] {
     TABLE.get_or_init(|| parse_table(GENERATED_TABLE).unwrap_or_default())
 }
 
+/// Exact, independently reviewed versions whose observations still apply to this route.
+pub(crate) fn reviewed_release_digests(
+    port: &PortDefinition,
+    platform: Platform,
+) -> Vec<(&'static str, &'static str)> {
+    let mut route = generated_table()
+        .iter()
+        .filter(|entry| entry.port_id == port.id && entry.platform == platform)
+        .peekable();
+    if route.peek().is_none() {
+        return Vec::new();
+    }
+    let Some(inputs) = applicable_generated_inputs(port, platform) else {
+        return Vec::new();
+    };
+    route
+        .filter(|entry| entry.derivation_inputs_sha256 == inputs)
+        .map(|entry| (entry.version.as_str(), entry.sha256.as_str()))
+        .collect()
+}
+
 fn parse_table(text: &str) -> Result<Vec<GeneratedEntry>> {
     let table: GeneratedTable = serde_json::from_str(text)?;
     if table.format != TABLE_FORMAT
@@ -475,15 +496,17 @@ fn embedded_raw_port(port_id: &str) -> Option<serde_json::Value> {
 
 /// Compare the same typed representation on both sides so absent fields and
 /// their deserialized defaults cannot look like different derivation inputs.
-fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> Option<bool> {
-    let platform_value = serde_json::to_value(entry.platform).ok()?;
-    let platform = platform_value.as_str()?;
-    let raw = embedded_raw_port(&entry.port_id)?;
-    if derivation_inputs_sha256(&raw, platform).ok()? != entry.derivation_inputs_sha256 {
-        return Some(false);
-    }
-    let embedded: PortDefinition = serde_json::from_value(raw).ok()?;
-    same_derivation_inputs(&embedded, port, entry.platform)
+fn generated_inputs_match(entry: &GeneratedEntry, port: &PortDefinition) -> bool {
+    applicable_generated_inputs(port, entry.platform).as_deref()
+        == Some(entry.derivation_inputs_sha256.as_str())
+}
+
+fn applicable_generated_inputs(port: &PortDefinition, platform: Platform) -> Option<String> {
+    let platform_value = serde_json::to_value(platform).ok()?;
+    let raw = embedded_raw_port(&port.id)?;
+    let inputs = derivation_inputs_sha256(&raw, platform_value.as_str()?).ok()?;
+    let embedded = serde_json::from_value(raw).ok()?;
+    (same_derivation_inputs(&embedded, port, platform) == Some(true)).then_some(inputs)
 }
 
 /// Compare the catalog facts used to derive both shapes on the same platform.
@@ -755,7 +778,7 @@ pub(crate) fn evaluate(
 ) -> (ShapeVerdict, ShapeProvenance) {
     let entry = preferred_generated_entry(generated_table(), &port.id, platform, sha256);
     if let Some(entry) = entry
-        && generated_inputs_match(entry, port) != Some(true)
+        && !generated_inputs_match(entry, port)
     {
         return (
             ShapeVerdict::Unknown {

@@ -2367,7 +2367,11 @@ capability still records the comparison without adding the refusal. Unknown
 parts remain visible, and the other acquisition and layout checks still apply.
 If an exact candidate has a retained refusal observation, an update check
 recomputes its verdict with the current applicable baseline before saying the
-release is waiting for review.
+release is waiting for review. A fresh installation can select the newest
+applicable reviewed GitHub package when its latest exact candidate is
+withheld. The fallback must match the current selector and a reviewed version
+and digest. A reviewed setup shows that different package before approval.
+Installed, staged, and non-owning routes keep their own update behavior.
 
 The baseline is, in order: the generated table entry for the exact artifact,
 else the route's newest generated entry; the explicit fingerprint; the shape

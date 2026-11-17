@@ -1472,7 +1472,7 @@ impl PortcoveService {
             return Err(crate::cartridge_build::retired_creation());
         }
         let resolution = self
-            .resolve_release(port, selected_channel, platform)
+            .resolve_install_selection(port, selected_channel, platform, &status)
             .await?;
         let release = resolution.release;
         let mut preservation_notices = port.preservation_notices();
@@ -2823,6 +2823,95 @@ impl PortcoveService {
         Ok(resolved)
     }
 
+    async fn resolve_install_selection(
+        &self,
+        port: &PortDefinition,
+        channel: ReleaseChannel,
+        platform: Platform,
+        status: &PortStatus,
+    ) -> Result<crate::ScopedResolvedRelease> {
+        let resolution = self.resolve_release(port, channel, platform).await?;
+        if first_managed_install(status)
+            && let Some(verdict) =
+                self.current_package_shape_refusal(port, platform, &resolution.release)?
+        {
+            return self
+                .resolve_shape_fallback(port, platform, &resolution)
+                .await?
+                .ok_or_else(|| {
+                    crate::package_shape::withheld::refusal(port, &resolution.release, &verdict)
+                });
+        }
+        Ok(resolution)
+    }
+
+    async fn resolve_shape_fallback(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        withheld: &crate::ScopedResolvedRelease,
+    ) -> Result<Option<crate::ScopedResolvedRelease>> {
+        if withheld.fallback_reason.is_some() {
+            return Ok(None);
+        }
+        let Some(resolved) = self
+            .releases
+            .resolve_shape_fallback(port, platform, withheld.scope.as_ref(), &withheld.release)
+            .await?
+        else {
+            return Ok(None);
+        };
+        resolved.require_selection(port, platform, withheld.release.channel)?;
+        if resolved.release.version == withheld.release.version
+            || !crate::package_shape::reviewed_release_digests(port, platform)
+                .iter()
+                .any(|(version, sha256)| {
+                    *version == resolved.release.version
+                        && sha256.eq_ignore_ascii_case(&resolved.release.asset.sha256)
+                })
+        {
+            return Err(PortcoveError::verification(
+                "provider fallback is not an exact reviewed release for the current definition",
+            ));
+        }
+        Installer::new(self.library.clone())?.require_github_artifact_identity(
+            &port.id,
+            &resolved.release,
+            resolved.github_identity.as_ref(),
+        )?;
+        Ok(Some(resolved))
+    }
+
+    fn current_package_shape_refusal(
+        &self,
+        port: &PortDefinition,
+        platform: Platform,
+        release: &ResolvedRelease,
+    ) -> Result<Option<crate::package_shape::ShapeVerdict>> {
+        let Some(capability) =
+            crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
+        else {
+            return Ok(None);
+        };
+        Ok(crate::package_shape::withheld::current(
+            &self.library,
+            port,
+            platform,
+            release,
+            capability,
+            || {
+                Installer::new(self.library.clone())
+                    .and_then(|installer| installer.local_shape_baseline(port, platform))
+                    .ok()
+                    .flatten()
+            },
+        )
+        .unwrap_or_else(|error| {
+            tracing::warn!(%error, port_id = %port.id, "could not read the package shape observation");
+            None
+        }))
+    }
+
     pub(crate) fn require_definition_adoption(
         &self,
         catalog: &Catalog,
@@ -3058,33 +3147,11 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
-        let withheld = if update_available
-            && let Some(capability) =
-                crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
+        if update_available
+            && let Some(verdict) = self.current_package_shape_refusal(port, platform, release)?
         {
-            crate::package_shape::withheld::current(
-                &self.library,
-                port,
-                platform,
-                release,
-                capability,
-                || {
-                    Installer::new(self.library.clone())
-                        .and_then(|installer| installer.local_shape_baseline(port, platform))
-                        .ok()
-                        .flatten()
-                },
-            )
-            .unwrap_or_else(|error| {
-                tracing::warn!(%error, port_id, "could not read the package shape observation");
-                None
-            })
-        } else {
-            None
-        };
-        if let Some(verdict) = &withheld {
             return Err(crate::package_shape::withheld::refusal(
-                port, release, verdict,
+                port, release, &verdict,
             ));
         }
         let check = UpdateCheck {
@@ -3200,6 +3267,8 @@ impl PortcoveService {
             }
             self.library.ensure_settings(port_id, selected_channel)?;
             let platform = Platform::current()?;
+            // A direct request needs a fresh installer refusal before it can
+            // select a different version on the player's behalf.
             let release = operation
                 .interruptible(self.resolve_release(port, selected_channel, platform))
                 .await?;
@@ -3208,8 +3277,41 @@ impl PortcoveService {
                 operation: &operation,
                 emit: &mut emit,
             };
-            self.apply_scoped_release(port, status, overrides, release, activate, &mut reporter)
-                .await
+            let first_install = first_managed_install(&status);
+            let result = self
+                .apply_scoped_release(
+                    port,
+                    status.clone(),
+                    overrides,
+                    release.clone(),
+                    activate,
+                    &mut reporter,
+                )
+                .await;
+            if first_install
+                && let Err(error) = &result
+                && matches!(
+                    error.known_cause(),
+                    Some(crate::failure::KnownFailureCause::PackageShapeDrift)
+                )
+                && !error.details.contains_key("cleanup_state")
+                && let Some(fallback) = operation
+                    .interruptible(self.resolve_shape_fallback(port, platform, &release))
+                    .await?
+            {
+                operation.observe_release(&fallback.release.version, None);
+                return self
+                    .apply_scoped_release(
+                        port,
+                        status,
+                        overrides,
+                        fallback,
+                        activate,
+                        &mut reporter,
+                    )
+                    .await;
+            }
+            result
         }
         .await;
         let result = self.finish_activity(activity, result);
@@ -3353,12 +3455,20 @@ impl PortcoveService {
             &port.id,
         )?;
         let platform = Platform::current()?;
+        let first_install = first_managed_install(&status);
         let resolution = if scope.is_some()
             || crate::managed_runtime_policy::requires_provider_resolution_on(port, platform)
+            || (first_install
+                && !crate::package_shape::reviewed_release_digests(port, platform).is_empty())
         {
             let resolved = reporter
                 .operation
-                .interruptible(self.resolve_release(port, release.channel, platform))
+                .interruptible(self.resolve_install_selection(
+                    port,
+                    release.channel,
+                    platform,
+                    &status,
+                ))
                 .await?;
             if resolved.release.asset != release.asset
                 || resolved.release.version != release.version
@@ -7317,6 +7427,14 @@ fn output_authorization_target(port_id: &str, output_directory: Option<&Path>) -
     Ok(format!("{port_id}\n{destination}"))
 }
 
+fn first_managed_install(status: &PortStatus) -> bool {
+    status.active.is_none()
+        && status.previous.is_none()
+        && status.staged.is_none()
+        && status.acquisition.is_none()
+        && status.external_runtime.is_none()
+}
+
 fn output_destination_fingerprint(preview: &OutputDestinationPreview) -> Result<String> {
     // Free-space counts are useful preview facts, but unrelated writes on the
     // selected volume must not invalidate consent while the destination stays
@@ -8201,6 +8319,126 @@ mod tests {
         assert_eq!(
             after.last_update_check.unwrap().check.channel,
             ReleaseChannel::Beta
+        );
+    }
+
+    #[tokio::test]
+    async fn shape_refusal_changes_only_fresh_install_selection() {
+        use crate::package_shape::{PackageShape, PackageShapeRecord, ShapeVerdict};
+
+        struct ShapeFallbackProvider {
+            latest: ResolvedRelease,
+            older: ResolvedRelease,
+        }
+
+        #[async_trait::async_trait]
+        impl ReleaseProvider for ShapeFallbackProvider {
+            async fn resolve(
+                &self,
+                _: &PortDefinition,
+                _: ReleaseChannel,
+                _: Platform,
+            ) -> Result<ResolvedRelease> {
+                Ok(self.latest.clone())
+            }
+
+            async fn resolve_shape_fallback(
+                &self,
+                port: &PortDefinition,
+                platform: Platform,
+                scope: Option<&crate::DefinitionAcquisitionScope>,
+                withheld: &ResolvedRelease,
+            ) -> Result<Option<crate::ScopedResolvedRelease>> {
+                assert!(scope.is_none());
+                assert_eq!(*withheld, self.latest);
+                let mut selection = crate::ScopedResolvedRelease::legacy(self.older.clone())
+                    .for_selection(port, platform, withheld.channel)?;
+                selection.fallback_reason = Some("wait for latest package review".into());
+                Ok(Some(selection))
+            }
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let library = Library::open(temp.path().join("library")).unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("super-mario-world-recomp").unwrap();
+        let platform = Platform::WindowsX86_64;
+        let channel = ReleaseChannel::Stable;
+        let reviewed = crate::package_shape::reviewed_release_digests(port, platform);
+        let (_, older_digest) = reviewed
+            .iter()
+            .find(|(version, _)| *version == "v0.15.9")
+            .unwrap();
+        let release = |version: &str, sha256: &str| ResolvedRelease {
+            version: version.into(),
+            channel,
+            published_at: None,
+            asset: crate::ReleaseAsset {
+                name: "game.zip".into(),
+                url: format!("https://example.invalid/{version}/game.zip"),
+                size: 42,
+                sha256: sha256.into(),
+            },
+            uploader_continuity: None,
+        };
+        let latest = release("v0.16.0", &"b".repeat(64));
+        let older = release("v0.15.9", older_digest);
+        let service = PortcoveService::with_provider(
+            library.clone(),
+            Arc::new(ShapeFallbackProvider {
+                latest: latest.clone(),
+                older: older.clone(),
+            }),
+        )
+        .unwrap();
+        let mut status = service.status(&port.id).unwrap();
+        assert_eq!(
+            service
+                .resolve_install_selection(port, channel, platform, &status)
+                .await
+                .unwrap()
+                .release,
+            latest
+        );
+
+        let shape = PackageShape {
+            programs: Some(vec!["alternate.exe".into()]),
+            ..PackageShape::default()
+        };
+        let (verdict, provenance) =
+            crate::package_shape::evaluate(port, platform, &latest.asset.sha256, &shape, None);
+        assert!(matches!(verdict, ShapeVerdict::Drifted { .. }));
+        crate::package_shape::withheld::record(
+            &library,
+            port,
+            platform,
+            &latest,
+            crate::package_shape::enforcement_capability(port.adapter).unwrap(),
+            &PackageShapeRecord {
+                shape_version: crate::package_shape::SHAPE_VERSION,
+                shape: Some(shape),
+                provenance,
+                verdict,
+            },
+        )
+        .unwrap();
+        let fallback = service
+            .resolve_install_selection(port, channel, platform, &status)
+            .await
+            .unwrap();
+        assert_eq!(fallback.release, older);
+        assert!(fallback.fallback_reason.is_some());
+
+        register_zelda_install(&library, "v1", true);
+        status.previous = service.status("zelda64-recomp").unwrap().active;
+        assert!(status.previous.is_some());
+        assert_eq!(
+            service
+                .resolve_install_selection(port, channel, platform, &status)
+                .await
+                .unwrap()
+                .release,
+            latest
         );
     }
 

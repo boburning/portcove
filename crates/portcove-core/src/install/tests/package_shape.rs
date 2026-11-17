@@ -44,7 +44,8 @@ fn serve_archive(members: &[&str]) -> (crate::ReleaseAsset, std::thread::JoinHan
 }
 
 async fn install(installer: &Installer, library: &Library, version: &str, members: &[&str]) {
-    let (_, result) = attempt_install(installer, library, version, members).await;
+    let operation = OperationCoordinator::new("install", None);
+    let (_, result) = attempt_install(installer, library, version, members, &operation).await;
     result.unwrap();
 }
 
@@ -53,6 +54,7 @@ async fn attempt_install(
     library: &Library,
     version: &str,
     members: &[&str],
+    operation: &OperationCoordinator,
 ) -> (ResolvedRelease, Result<InstallRecord>) {
     let (asset, server) = serve_archive(members);
     let release = ResolvedRelease {
@@ -70,9 +72,7 @@ async fn attempt_install(
         managed: None,
         qualification: InstallQualification::test("sample-game.exe"),
     };
-    let result = installer
-        .install(request, &OperationCoordinator::new("install", None), |_| {})
-        .await;
+    let result = installer.install(request, operation, |_| {}).await;
     server.join().unwrap();
     (release, result)
 }
@@ -149,11 +149,13 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
         manifest.get_mut("package_shape").unwrap()["provenance"] = serde_json::json!("reviewed");
     });
     library.update_install_manifest(&active).unwrap();
+    let retry = OperationCoordinator::new("install", None);
     let (release, result) = attempt_install(
         &installer,
         &library,
         "v3",
         &["sample-game.exe", "updater.exe", "data/level.dat"],
+        &retry,
     )
     .await;
     let error = result.unwrap_err();
@@ -198,6 +200,28 @@ async fn install_withholds_known_drift_before_publishing_and_preserves_the_activ
         b"config.ini"
     );
     assert!(!active.path.join("updater.exe").exists());
+
+    let store = crate::operation::OperationStore::new(library.clone());
+    assert!(store.get(retry.operation_id()).unwrap().is_none());
+    // The second archive reuses the same logical operation after private cleanup.
+    let (_, retried) = attempt_install(
+        &installer,
+        &library,
+        "v2-compatible",
+        &["sample-game.exe", "config.ini", "data/reviewed.dat"],
+        &retry,
+    )
+    .await;
+    let retried = retried.unwrap();
+    assert!(retried.path.join("data/reviewed.dat").is_file());
+    assert!(store.get(retry.operation_id()).unwrap().is_none());
+    assert!(
+        installer
+            .installed_package_shapes("sample")
+            .unwrap()
+            .iter()
+            .any(|install| install.active && install.install_id == retried.id)
+    );
 }
 
 fn sample_definition() -> PortDefinition {
