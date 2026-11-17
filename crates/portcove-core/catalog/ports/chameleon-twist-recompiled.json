@@ -5,6 +5,14 @@
     "name": "Chameleon Twist: Recompiled",
     "summary": "Use a permitted Chameleon Twist player with your own supported Japanese cartridge dump.",
     "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
+    "artwork": {
+      "game_id": 366631,
+      "cover_id": 487277,
+      "image_id": "coafzh",
+      "image_sha256": "05cdf54296f1849f88cada5061f62100bada95de22d6d996274486d149812c6d",
+      "game_slug": "chameleon-twist--1",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 125,
     "listed_at": "2026-10-23",
     "platforms": ["windows-x86-64"],

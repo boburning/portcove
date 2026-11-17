@@ -6,6 +6,14 @@
     "original_game_title": "Mindustry",
     "summary": "Build factories, supply your defenses, and command units in an open-source tower-defense strategy game.",
     "project_url": "https://github.com/Anuken/Mindustry",
+    "artwork": {
+      "game_id": 83368,
+      "cover_id": 481338,
+      "image_id": "coabei",
+      "image_sha256": "dd4f2a49b6b08059e2d2e45cc81642722d3a470cee6e110bf8a610f446bb3243",
+      "game_slug": "mindustry",
+      "match_kind": "port"
+    },
     "issue_number": 6506,
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

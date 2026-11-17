@@ -4707,6 +4707,14 @@
       "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
       "original_game_title": "3D Pinball for Windows: Space Cadet",
       "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+      "artwork": {
+        "game_id": 79247,
+        "cover_id": 318016,
+        "image_id": "co6tds",
+        "image_sha256": "e2d9a8e5b3d4fbd987a7b5a895dee21bd2b38f34f7694551d71388d07f9a9a79",
+        "game_slug": "3d-pinball-space-cadet",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 2553,
       "listed_at": "2026-10-25",
       "platforms": [
@@ -5359,6 +5367,14 @@
       "original_game_title": "Ace of Spades",
       "summary": "Play the OpenSpades client on compatible Ace of Spades 0.75 servers.",
       "project_url": "https://github.com/yvt/openspades",
+      "artwork": {
+        "game_id": 98371,
+        "cover_id": 309650,
+        "image_id": "co6mxe",
+        "image_sha256": "3928a25d7189ed20fd4ef10212ad1baf44d749875d16b51998a7567aba31d6fb",
+        "game_slug": "openspades",
+        "match_kind": "port"
+      },
       "issue_number": 5755,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -13154,6 +13170,14 @@
       "original_game_title": "Aero the Acro-Bat",
       "summary": "The project reports movement, jumping, landing and music in the first circus stage of v0.1.1. A full campaign, bosses, physical controllers and the complete soundtrack are unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/Ryah/ATA-Recomp",
+      "artwork": {
+        "game_id": 5348,
+        "cover_id": 115672,
+        "image_id": "co2h94",
+        "image_sha256": "a6e79fb8befe19650e10fe2562b3df076577b8e39189c9d98206c87babd6caab",
+        "game_slug": "aero-the-acro-bat",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -16648,6 +16672,14 @@
       "name": "Buzz Aldrin’s Race Into Space",
       "summary": "Direct the American or Soviet space program in the updated strategy game.",
       "project_url": "https://github.com/raceintospace/raceintospace",
+      "artwork": {
+        "game_id": 80723,
+        "cover_id": 55453,
+        "image_id": "eeepswgxaiuaxqt8qlxb",
+        "image_sha256": "ebd2ffef955f3c0aed9c8ae0d7c2761cd1337f18803abfbd150e8543eacc225d",
+        "game_slug": "buzz-aldrins-race-into-space--1",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6133,
       "listed_at": "2026-11-14",
       "original_game_title": "Buzz Aldrin’s Race Into Space",
@@ -17237,6 +17269,14 @@
       "original_game_title": "Captain America: Super Soldier",
       "summary": "Title screen boots, story loading crashes due to missing function addresses. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled",
+      "artwork": {
+        "game_id": 4745,
+        "cover_id": 86640,
+        "image_id": "co1uuo",
+        "image_sha256": "0160d9791906e70d5112234a8095c6e00a20106f0601c852c4490be880bf98b4",
+        "game_slug": "captain-america-super-soldier",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -17904,6 +17944,14 @@
       "name": "Chameleon Twist: Recompiled",
       "summary": "Use a permitted Chameleon Twist player with your own supported Japanese cartridge dump.",
       "project_url": "https://github.com/Rainchus/ChameleonTwist1-JP-Recomp",
+      "artwork": {
+        "game_id": 366631,
+        "cover_id": 487277,
+        "image_id": "coafzh",
+        "image_sha256": "05cdf54296f1849f88cada5061f62100bada95de22d6d996274486d149812c6d",
+        "game_slug": "chameleon-twist--1",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 125,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -18119,6 +18167,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom with Chocolate Doom, or use the separate Chocolate Heretic, Hexen and Strife players with their matching game data.",
       "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5663,
       "listed_at": "2026-11-15",
       "availability": "packages",
@@ -18827,6 +18883,14 @@
       "original_game_title": "Conan (2007)",
       "summary": "The project describes a Direct3D 12 player. It requires a controller and has physics defects at high frame rates. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/crazyriddler/Conan2007Recomp",
+      "artwork": {
+        "game_id": 9006,
+        "cover_id": 135210,
+        "image_id": "co2wbu",
+        "image_sha256": "628d0b91fc81f6122d700a857d54b512da1f781a087d2f8ec199074eda692581",
+        "game_slug": "conan--1",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -21805,6 +21869,14 @@
       "original_game_title": "Dance Dance Revolution 1st Mix",
       "summary": "The project reports startup, animation, synchronized music and arrows, and fixes for specific freezes. Complete tracks and a full playthrough are unconfirmed; Portcove has not confirmed gameplay. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/bmbelo87/ddr-1st-recomp",
+      "artwork": {
+        "game_id": 3679,
+        "cover_id": 126807,
+        "image_id": "co2puf",
+        "image_sha256": "171ce8d10382072005d90b14de3e4f6e78f2d9bf1067d2b8b8cf18454e88f7a8",
+        "game_slug": "dance-dance-revolution",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -24196,6 +24268,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom or Freedoom with DOOM Retro’s lighting, display and gameplay options.",
       "project_url": "https://github.com/bradharding/doomretro",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5664,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -24242,6 +24322,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom or Freedoom in DSDA-Doom, a source port with tools for recording and replaying speedruns.",
       "project_url": "https://github.com/dsda-org/dsda-doom",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5665,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -24423,6 +24511,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom or Freedoom in Nugget Doom, with additional gameplay, control and display options.",
       "project_url": "https://github.com/MrAlaux/Nugget-Doom",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5729,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -24490,6 +24586,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom or Freedoom with the Odamex client and keep its saves and settings with your upstream installation.",
       "project_url": "https://github.com/odamex/odamex",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5669,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -24595,6 +24699,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom or Freedoom in the Eternity Engine with its own game data, settings and saves.",
       "project_url": "https://github.com/team-eternity/eternity",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5689,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -24715,6 +24827,14 @@
       "original_game_title": "Doom",
       "summary": "Play Doom and Freedoom with the Woof! source port and keep each game's settings and saves with its player.",
       "project_url": "https://github.com/fabiangreffrath/woof",
+      "artwork": {
+        "game_id": 673,
+        "cover_id": 268663,
+        "image_id": "co5rav",
+        "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+        "game_slug": "doom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5718,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -27963,6 +28083,14 @@
       "summary": "Prepared experimental Windows ROLLER player using your own Whiplash/Fatal Racing retail assets. Native setup and data remain upstream/player owned; daily builds do not establish stable or full-game compatibility.",
       "original_game_title": "Whiplash",
       "project_url": "https://github.com/FatalDecomp/ROLLER",
+      "artwork": {
+        "game_id": 95503,
+        "cover_id": 140534,
+        "image_id": "co30fq",
+        "image_sha256": "ded4a4f4b221a9895363996be38b309ace9640e13f5eef51deb6861cb3f677ee",
+        "game_slug": "whiplash--1",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/FatalDecomp/ROLLER",
@@ -29240,6 +29368,14 @@
       "original_game_title": "FreeCol",
       "summary": "Explore, trade, and guide a colony to independence in this open-source turn-based strategy game.",
       "project_url": "https://github.com/FreeCol/freecol",
+      "artwork": {
+        "game_id": 92716,
+        "cover_id": 78391,
+        "image_id": "co1ohj",
+        "image_sha256": "8ccd904815592b835f0cf0ec0f4fd26465d558256b7f332a4bcd1db18da806a1",
+        "game_slug": "freecol",
+        "match_kind": "port"
+      },
       "issue_number": 6520,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -30666,6 +30802,14 @@
       "name": "GoldenEye 007 XBLA Recomp",
       "summary": "Explore GoldenEye 007 XBLA Recomp and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
+      "artwork": {
+        "game_id": 143406,
+        "cover_id": 139439,
+        "image_id": "co2zlb",
+        "image_sha256": "c473764e98d87044c4569ee2e98db237a72da5a9f28e987e8ddb74063cfcd213",
+        "game_slug": "goldeneye-007-xbox-live-arcade",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 163,
       "listed_at": "2026-10-23",
       "platforms": [],
@@ -31317,6 +31461,14 @@
       "original_game_title": "Gran Turismo 2 (Arcade Mode v1.0)",
       "summary": "Information only. The project reports early menus, races and driving, with widescreen, PGXP and skipped-FMV limitations. This is unfinished and Portcove has not confirmed a playthrough. Downloads, builds, registration and launch are unavailable because the README contradicts itself about committed generated game C and the tree used for release builds. The exact build route or a clean reproducible own-disc route must be established first; this does not determine general copyright status or whether a native player exists. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/VuloB1/GranTurismo2Recomp",
+      "artwork": {
+        "game_id": 1597,
+        "cover_id": 93687,
+        "image_id": "co20af",
+        "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+        "game_slug": "gran-turismo-2",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -31329,6 +31481,14 @@
       "original_game_title": "Gran Turismo 2 (Simulation Mode v1.0)",
       "summary": "Information only. The project reports Simulation builds but no personal testing or playthrough. Its separate Arcade disc reaches races; that does not establish Simulation play. Downloads, builds, registration and launch are unavailable because the README contradicts itself about committed generated game C and the tree used for release builds. The exact build route or a clean reproducible own-disc route must be established first; this does not determine general copyright status or whether a native player exists. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/VuloB1/GranTurismo2SimRecomp",
+      "artwork": {
+        "game_id": 1597,
+        "cover_id": 93687,
+        "image_id": "co20af",
+        "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+        "game_slug": "gran-turismo-2",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -31622,6 +31782,14 @@
       "original_game_title": "Gran Turismo 2 (Simulation Mode v1.2)",
       "summary": "Upstream reports menus, the garage and race rendering from a mix of recompiled and progressively decompiled code. Save/load through a full session remains unconfirmed. Portcove has not confirmed runtime behavior or gameplay. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/SamiulH25/gt2-recomp",
+      "artwork": {
+        "game_id": 1597,
+        "cover_id": 93687,
+        "image_id": "co20af",
+        "image_sha256": "a6f251729a583e075d008435e77d8c7aa52b966890e45e2aa8ebb20dd3a2f6c0",
+        "game_slug": "gran-turismo-2",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -32108,6 +32276,14 @@
       "name": "Plants vs. Zombies 2 / PvZ2 Gardendless (Gzh0821)",
       "summary": "Keep your permitted Standard or Lite Gardendless player, export your saves and preserve the data used by that edition.",
       "project_url": "https://github.com/Gzh0821/pvzg_site",
+      "artwork": {
+        "game_id": 361106,
+        "cover_id": 479734,
+        "image_id": "coaa5y",
+        "image_sha256": "636204b03a9331ef9ce886af63538c17fe940de15e8f1158a8a1922d19f6d3e3",
+        "game_slug": "plants-vs-zombies-2-gardendless",
+        "match_kind": "port"
+      },
       "issue_number": 1874,
       "listed_at": "2026-10-23",
       "funding_urls": [
@@ -33721,6 +33897,14 @@
       "original_game_title": "ICO (ICO & Shadow of the Colossus Collection)",
       "summary": "Upstream reports the title, opening and gameplay controls at 30 FPS. Long sessions have not been tried. Follow the setup instructions below. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/feanor-noldorin/ico-recomp",
+      "artwork": {
+        "game_id": 144612,
+        "cover_id": 329257,
+        "image_id": "co7221",
+        "image_sha256": "e0df92cada2e8c192c7b519bc3c1650aab100c6795dc119b5613ff808114dbac",
+        "game_slug": "ico--1",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -37181,6 +37365,14 @@
     {
       "id": "la-pingvino-the-puzzle-pits",
       "project_url": "https://github.com/LaPingvino/The-Puzzle-Pits",
+      "artwork": {
+        "game_id": 62400,
+        "cover_id": 42395,
+        "image_id": "db70locrelhbrat6cmyo",
+        "image_sha256": "0123b46b3856eb26430b974218e1432ad092d3ac99454afbb74ac5784bdf6a24",
+        "game_slug": "puzzle-pits",
+        "match_kind": "port"
+      },
       "name": "The Puzzle Pits",
       "original_game_title": "The Puzzle Pits",
       "summary": "Move barrels, cross traps and resume puzzles with level passwords.",
@@ -37654,6 +37846,14 @@
       "summary": "Attach an independently permitted, already prepared Darkwatch: Darker Edition native Windows runtime. Resolve its actual active version and keep the complete upstream installation; Play Darkwatch.exe only checks startup and does not wait for the game.",
       "original_game_title": "Darkwatch",
       "project_url": "https://github.com/linkssy2/DarkwatchDarkerEdition",
+      "artwork": {
+        "game_id": 5808,
+        "cover_id": 218257,
+        "image_id": "co4oep",
+        "image_sha256": "b9e783902a647705e25fe671a96c5c7aa30dcf33f0c5753426034a81e9b6647a",
+        "game_slug": "darkwatch",
+        "match_kind": "underlying-game"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -40840,6 +41040,14 @@
       "summary": "Research listing. Upstream route: Official README says MM7 playable; desktop nightly packages available. Limits: MM7 playable upstream; MM6/MM8 planned. Nightly-only releases may contain bugs. Upstream platforms: Nightly Windows x86/x86-64 ZIPs, Linux x86-64 Flatpak, macOS ARM64/x86-64 DMGs and Android universal APK. MM7 current; other MM games remain planned. Original data: Supply original Might and Magic VII game data, from a GOG installation or another installed/extracted retail copy: at least ANIMS, DATA, MUSIC and SOUNDS directories. Point OPENENROTH_MM7_PATH at that data when needed. MM6/MM8 are planned targets, not substitutes for MM7 assets; exact accepted language/patch revision is not pinned in retained README. Portcove setup/gameplay not verified.",
       "original_game_title": "Might and Magic VII",
       "project_url": "https://github.com/OpenEnroth/OpenEnroth",
+      "artwork": {
+        "game_id": 7739,
+        "cover_id": 95062,
+        "image_id": "co21cm",
+        "image_sha256": "02a4481dd50afe0dd4e088a4b20e33512f5c7d75f2a0d4b83c1bf13091398893",
+        "game_slug": "might-and-magic-vii-for-blood-and-honor",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/OpenEnroth/OpenEnroth",
@@ -40921,6 +41129,14 @@
       "original_game_title": "Mindustry",
       "summary": "Build factories, supply your defenses, and command units in an open-source tower-defense strategy game.",
       "project_url": "https://github.com/Anuken/Mindustry",
+      "artwork": {
+        "game_id": 83368,
+        "cover_id": 481338,
+        "image_id": "coabei",
+        "image_sha256": "dd4f2a49b6b08059e2d2e45cc81642722d3a470cee6e110bf8a610f446bb3243",
+        "game_slug": "mindustry",
+        "match_kind": "port"
+      },
       "issue_number": 6506,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -42604,6 +42820,14 @@
       "original_game_title": "Mushihimesama (Xbox 360)",
       "summary": "An initial playtest is reported; broad progression coverage unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/beebs1998-repo/rexglue-mushi",
+      "artwork": {
+        "game_id": 47442,
+        "cover_id": 540301,
+        "image_id": "cobkwd",
+        "image_sha256": "6830ccd3115b64cae2d5ad6e1910264fb45e6ef8006af6adb9d3f3caa3b45ee7",
+        "game_slug": "mushihimesama-hd",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64"
@@ -44421,6 +44645,14 @@
     {
       "id": "nocturne-nearlytrex",
       "project_url": "https://github.com/NearlyTRex/NocturneDecomp",
+      "artwork": {
+        "game_id": 4850,
+        "cover_id": 549033,
+        "image_id": "cobrmx",
+        "image_sha256": "9813bc82278130ad270ce89f2f17d87ed54c4964e4b58b66d01c41596b5582ea",
+        "game_slug": "nocturne",
+        "match_kind": "underlying-game"
+      },
       "name": "Nocturne / NocturneDecomp",
       "original_game_title": "Nocturne",
       "summary": "Use NocturneDecomp with a complete installation from your own copy of Nocturne.",
@@ -44643,6 +44875,14 @@
       "summary": "Attach an independently permitted, prepared Hercules Recompiled Windows folder using your own exact PAL PlayStation disc and language. Its native UI waits for the selected language’s game child; preserve separate language data, cards, settings and optional texture-pack boundaries.",
       "original_game_title": "Disney's Hercules",
       "project_url": "https://github.com/obaidr1/hercules-recompiled",
+      "artwork": {
+        "game_id": 9814,
+        "cover_id": 306451,
+        "image_id": "co6kgj",
+        "image_sha256": "528c7512baa531fd26a51b34080a1a4a747795a384a6ed2003bbdb65543a5bed",
+        "game_slug": "disneys-hercules-action-game",
+        "match_kind": "underlying-game"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -45125,6 +45365,14 @@
       "original_game_title": "One Must Fall 2097",
       "summary": "Play the One Must Fall 2097 fan remaster with classic or updated graphics in the upstream desktop app or browser.",
       "project_url": "https://github.com/Jared-woodruff/OMF-2097-Remastered",
+      "artwork": {
+        "game_id": 14429,
+        "cover_id": 128159,
+        "image_id": "co2qvz",
+        "image_sha256": "1bc40ce34e65abbf3e01125acc5f319a1e40d2664f19a3b860c214f834e13c51",
+        "game_slug": "one-must-fall-2097",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5721,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -45654,6 +45902,14 @@
       "name": "Command & Conquer: Red Alert, Tiberian Dawn & Dune 2000 / OpenRA (OpenRA)",
       "summary": "Choose Red Alert, Tiberian Dawn or Dune 2000, then let OpenRA prepare the game content on first Play.",
       "project_url": "https://github.com/OpenRA/OpenRA",
+      "artwork": {
+        "game_id": 57205,
+        "cover_id": 198255,
+        "image_id": "co48z3",
+        "image_sha256": "da301705205bb3596cd69bdf6464dca6bf50eee06c09bd257c7f77c0a34ad898",
+        "game_slug": "openra",
+        "match_kind": "port"
+      },
       "issue_number": 1852,
       "listed_at": "2026-10-23",
       "funding_urls": [
@@ -45728,6 +45984,14 @@
       "original_game_title": "Ratchet & Clank",
       "summary": "The launcher release includes the first native port and skips unmatched assembly. SDK releases and matching-progress counts do not establish that all six games are playable. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/OpenRAC/OpenRAC",
+      "artwork": {
+        "game_id": 1289,
+        "cover_id": 300607,
+        "image_id": "co6fy7",
+        "image_sha256": "e49a8722b0f5e5982aa5bfe01f9e73c35e528e611c11a74cd9f130560af8373e",
+        "game_slug": "ratchet-clank",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -45757,6 +46021,14 @@
       "original_game_title": "Ratchet & Clank",
       "summary": "The native app replaces platform services but retains PS2Recomp’s fallback game executor. Level 0, rendering and overlay checks do not establish complete gameplay. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Nikityyy/OpenRatchet",
+      "artwork": {
+        "game_id": 1289,
+        "cover_id": 79006,
+        "image_id": "co1oym",
+        "image_sha256": "bf88a5ba52a820c9494d6326c0a089032096bb5c82728c43d1915cd47316ed01",
+        "game_slug": "ratchet-clank",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -46022,6 +46294,14 @@
       "original_game_title": "Cyber Troopers Virtual-On Oratorio Tangram M.S.B.S. Ver.5.66",
       "summary": "The project reports playing the alpha from start to finish. Split-screen is experimental, and online play is unsupported. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/kitaaaaaa/Oratan-recomp",
+      "artwork": {
+        "game_id": 172535,
+        "cover_id": 181684,
+        "image_id": "co3w6s",
+        "image_sha256": "6e9e759f1c84a4a342c26bb99602367e7be5c44713bb37d40ba9179d4914fd6e",
+        "game_slug": "cyber-troopers-virtual-on-oratorio-tangram-msbs-ver-5-dot-66",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -47218,6 +47498,14 @@
       "original_game_title": "Perfect Dark (Xbox Live Arcade remaster)",
       "summary": "The project reports D3D12 boot, audio and input, plus mission-restart fixes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/nikolaygorb/PerfectDarkRemasterRecomp",
+      "artwork": {
+        "game_id": 1466,
+        "cover_id": 138035,
+        "image_id": "co2yib",
+        "image_sha256": "ab9ff7d1027a64b7224f5d114f0403d82f23d0a2f00c98816c7404e0eb6c3d71",
+        "game_slug": "perfect-dark--1",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -47508,6 +47796,14 @@
     {
       "id": "petarov-saboteur2",
       "project_url": "https://github.com/petarov/saboteur2",
+      "artwork": {
+        "game_id": 12964,
+        "cover_id": 155265,
+        "image_id": "co3bsx",
+        "image_sha256": "51fc1cce83d056f44213924b067ed27eec2c1d0d907b25cf97759950e3ca6308",
+        "game_slug": "saboteur-ii",
+        "match_kind": "underlying-game"
+      },
       "name": "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
       "summary": "Saboteur II: Avenging Angel native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
       "issue_number": 2722,
@@ -47746,6 +48042,14 @@
       "summary": "Use a prepared Akhenaten Windows player with your own original Pharaoh 1.3 installation and Cleopatra expansion. Pharaoh: A New Era and the demo are different or unsupported inputs. Keep the complete writable original folder backed up because it contains saves. This is a work in progress; campaign and save compatibility have not been confirmed.",
       "original_game_title": "Pharaoh",
       "project_url": "https://github.com/dalerank/Akhenaten",
+      "artwork": {
+        "game_id": 30276,
+        "cover_id": 77347,
+        "image_id": "co1noj",
+        "image_sha256": "0c543334af185f3b478d21b215a3e0fb3ed3c75e9a9527e56c100207ae1f80cc",
+        "game_slug": "pharaoh-plus-cleopatra",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/dalerank/Akhenaten",
@@ -48051,6 +48355,14 @@
       "original_game_title": "Monster Hunter Portable 2nd G (optional FUComplete mod)",
       "summary": "This is a work in progress rather than a general release. The project reports village, quest, combat and zone tests, with remaining edge cases and interpreter fallback for some code. Standalone overlay generation is not yet a confirmed documented procedure, and macOS hydration is incomplete. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/francl35/Poke",
+      "artwork": {
+        "game_id": 20427,
+        "cover_id": 592889,
+        "image_id": "cocph5",
+        "image_sha256": "e6ea4af776e418086e925c3efacb1984fe141efd44113413a7005991b5addccc",
+        "game_slug": "monster-hunter-freedom-unite",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "macos-aarch64"
@@ -49667,6 +49979,14 @@
       "original_game_title": "Metroid Prime",
       "summary": "The project claims the whole game is complete without significant bugs. Development focuses on VR. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ethannicholas/prime-recomp",
+      "artwork": {
+        "game_id": 1105,
+        "cover_id": 181616,
+        "image_id": "co3w4w",
+        "image_sha256": "a1edc2e606ed753e2749ccf5b4a544c087ebda7fb00866c4592d8f013aa016c4",
+        "game_slug": "metroid-prime",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64",
@@ -50037,6 +50357,14 @@
       "name": "ProjectR / San Francisco Rush: The Rock",
       "summary": "Arcade Rush: The Rock route using your own sfrushrk CHD/raw disk and four required audio ROMs. It uses an independently permitted Windows ProjectR installation and upstream import; Rush 2049 and console copies are different inputs. Ordinary keyboard driving is unsupported. The shared runtime/profile stays upstream-owned.",
       "project_url": "https://t3hd0gg.com/project-r/",
+      "artwork": {
+        "game_id": 122731,
+        "cover_id": 377989,
+        "image_id": "co83np",
+        "image_sha256": "e9a873207692cf5a9e9541bb2d81508e51344ef59e48f87544c5194163b490b9",
+        "game_slug": "san-francisco-rush-the-rock-alcatraz-edition",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 132,
       "listed_at": "2026-10-23",
       "platforms": [],
@@ -51566,6 +51894,14 @@
       "original_game_title": "Ratchet & Clank (2016)",
       "summary": "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/btsouth/ratchet-clank-pc",
+      "artwork": {
+        "game_id": 11065,
+        "cover_id": 97220,
+        "image_id": "co230k",
+        "image_sha256": "39608aea09a6dce8b08e6c061193f41fdbd07e7535e769be317b92ac9ecfa640",
+        "game_slug": "ratchet-and-clank",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64"
@@ -53104,6 +53440,14 @@
       "original_game_title": "Road Trip / Choro Q HG 2",
       "summary": "Native setup generates the game on your device. Rendering, input, save-state and widescreen features are project claims. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/silentsudin/RoadTripAdventure-recomp",
+      "artwork": {
+        "game_id": 44694,
+        "cover_id": 119202,
+        "image_id": "co2jz6",
+        "image_sha256": "7170c8616c73ace7c1adad6110aea11926d5e7749c06d1c4ef161ecb9a1e4113",
+        "game_slug": "road-trip",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64",
@@ -53415,6 +53759,14 @@
       "original_game_title": "The Lord of the Rings: The Return of the King",
       "summary": "The project reports boot, menus, movies and Helm’s Deep audio/gameplay near 60 FPS on an M1 Max. Frame rates drop during the largest fights. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/kenny08gt/rotk-native",
+      "artwork": {
+        "game_id": 2973,
+        "cover_id": 94191,
+        "image_id": "co20of",
+        "image_sha256": "6f9fb86207583d1e105e843e62b5230634e3746752c9532cceb7d83abcae18a6",
+        "game_slug": "the-lord-of-the-rings-the-return-of-the-king",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "macos-aarch64"
@@ -54025,6 +54377,14 @@
       "name": "Ace Combat 3: Electrosphere Recompiled (sal063)",
       "summary": "Explore Ace Combat 3: Electrosphere Recompiled (sal063) and follow the upstream project for requirements, downloads and setup.",
       "project_url": "https://github.com/sal063/Ace-Combat-3-static-recompilation",
+      "artwork": {
+        "game_id": 14751,
+        "cover_id": 243133,
+        "image_id": "co57lp",
+        "image_sha256": "83ee46d9cc823edc47e620bfa455a37f6147cd2b8f0dc8823580000b250d476a",
+        "game_slug": "ace-combat-3-electrosphere",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 1788,
       "listed_at": "2026-10-23",
       "platforms": [],
@@ -54181,6 +54541,14 @@
       "original_game_title": "Scrabble (1999)",
       "summary": "The project describes a native playable board-and-word runtime with an enhanced frontend. Complete opponent and game-mode coverage have not been verified. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Bitsandbreakpoints/scrabble-psx-pc-recomp",
+      "artwork": {
+        "game_id": 407938,
+        "cover_id": 574181,
+        "image_id": "cocb1h",
+        "image_sha256": "939f482b75aedcaa8b6b289a1bff04eec5489dc561fa1446c85f7fc84e517c99",
+        "game_slug": "scrabble--13",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -54788,6 +55156,14 @@
       "original_game_title": "Shutoko Battle X",
       "summary": "The project documents a fix for a quest-race black screen. Full progression remains unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/ludusregard/SBX-Recomp",
+      "artwork": {
+        "game_id": 7017,
+        "cover_id": 417234,
+        "image_id": "co8xxu",
+        "image_sha256": "cefba31e2e891bb4346feabe15db0c48d91b05a96df42dad284af3ce0fcc136e",
+        "game_slug": "import-tuner-challenge",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -54818,6 +55194,14 @@
       "name": "Signus: The Artefact Wars",
       "summary": "Play the open-source release of Signus with the complete game data and the upstream bugfix patch.",
       "project_url": "https://github.com/signus-game/signus",
+      "artwork": {
+        "game_id": 70464,
+        "cover_id": 51377,
+        "image_id": "puyeaw80zv35bynot9aj",
+        "image_sha256": "0d66ab3754ae499702ae2856b1e3765092d5d75f5baa6bcbc7dd0d997f0ce82c",
+        "game_slug": "signus-the-artifact-wars",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6093,
       "listed_at": "2026-11-15",
       "original_game_title": "Signus: The Artefact Wars",
@@ -60441,6 +60825,14 @@
       "summary": "Upstream route: Maintained native port with current Windows/Ubuntu packages. Limits: Canonical rename from mefistotelis/swars; audit included updated assets and installer source contract. Upstream platforms: Windows/Ubuntu packages and source builds; Windows MinGW32 dependency path documented. Exact selected artifact CPUs unknown in frozen release evidence. Original data: Supply an owned Syndicate Wars CD or CD image (including a supported digital-store image) during SyndWarsFX installation. Upstream installer copies required original files, downloads its extra gfx/sfx/level resources and may convert music; the disc/image is not needed after installation. Match the selected language to the source release; exact pressing/patch digest is Unknown here. Portcove setup/gameplay not verified.",
       "original_game_title": "Syndicate Wars",
       "project_url": "https://github.com/swfans/syndwarsfx",
+      "artwork": {
+        "game_id": 51,
+        "cover_id": 238611,
+        "image_id": "co5443",
+        "image_sha256": "4179a76419f505676b389b72e931a429acbb0bf5987d10c7764b90b3accdab7f",
+        "game_slug": "syndicate-wars",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/swfans/syndwarsfx",
@@ -60592,6 +60984,14 @@
       "original_game_title": "Syphon Filter Redux",
       "summary": "Experimental project. Archived native mouse/camera renderer research; successor Alexbeav/SF-pc-port based on Madxbio decomp is distinct lineage, no successor results borrowed. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/Alexbeav/syphon_filter_redux",
+      "artwork": {
+        "game_id": 4115,
+        "cover_id": 90991,
+        "image_id": "co1y7j",
+        "image_sha256": "20acf73d36a68feb7a54b5a2347279935265d80fe4ef582f6439cc58a0efea00",
+        "game_slug": "syphon-filter",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -64446,6 +64846,14 @@
       "original_game_title": "Toy Story 2: Buzz Lightyear to the Rescue",
       "summary": "Information only. ToyStory2 Recompiled has a native player, but exact gameplay progress is unconfirmed. New downloads remain unavailable while committed/distributed translated game C and package provenance are unresolved. Standalone own-disc information and optional RetComM integration do not clear that condition. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/PeriBluGaming/ToyStory2Recomp",
+      "artwork": {
+        "game_id": 3619,
+        "cover_id": 182561,
+        "image_id": "co3wv5",
+        "image_sha256": "b3d1f8733df8d9ce0e36e973108a019b27bc570b4e827128fa0cd9dbbe22bc3e",
+        "game_slug": "toy-story-2-buzz-lightyear-to-the-rescue",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64",
@@ -64535,6 +64943,14 @@
       "original_game_title": "Transformers (2004)",
       "summary": "This native static game remains experimental. Exact gameplay completion has not been established by this review. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/TPepperoni666/Transformers-2004-PS2-Port",
+      "artwork": {
+        "game_id": 18361,
+        "cover_id": 79183,
+        "image_id": "co1p3j",
+        "image_sha256": "ca716070eebd3390f455bdf33ee4c05b81ebcad9963769a3c6d962bfbb0cd1c7",
+        "game_slug": "transformers",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -69057,6 +69473,14 @@
       "original_game_title": "Widelands",
       "summary": "Build roads, supply workshops, and grow a settlement in this open-source strategy game.",
       "project_url": "https://github.com/widelands/widelands",
+      "artwork": {
+        "game_id": 47043,
+        "cover_id": 86674,
+        "image_id": "co1uvm",
+        "image_sha256": "13666c205039e2943eaacdcf531ee908f72df1ce74d4f8632eb40175998b30c3",
+        "game_slug": "widelands",
+        "match_kind": "port"
+      },
       "issue_number": 6518,
       "listed_at": "2026-11-16",
       "platforms": [

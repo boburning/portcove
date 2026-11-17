@@ -3,6 +3,14 @@
   "listing": {
     "id": "petarov-saboteur2",
     "project_url": "https://github.com/petarov/saboteur2",
+    "artwork": {
+      "game_id": 12964,
+      "cover_id": 155265,
+      "image_id": "co3bsx",
+      "image_sha256": "51fc1cce83d056f44213924b067ed27eec2c1d0d907b25cf97759950e3ca6308",
+      "game_slug": "saboteur-ii",
+      "match_kind": "underlying-game"
+    },
     "name": "Saboteur II: Avenging Angel (Saboteur II x86-64 recomp)",
     "summary": "Saboteur II: Avenging Angel native recompilation; fresh acquisition retains the existing embedded-original-data condition, with guidance for a permitted existing copy.",
     "issue_number": 2722,

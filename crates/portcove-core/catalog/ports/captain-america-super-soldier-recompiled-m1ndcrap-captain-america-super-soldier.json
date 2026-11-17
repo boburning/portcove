@@ -6,6 +6,14 @@
     "original_game_title": "Captain America: Super Soldier",
     "summary": "Title screen boots, story loading crashes due to missing function addresses. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/m1ndcrap/Captain-America-Super-Soldier-Recompiled",
+    "artwork": {
+      "game_id": 4745,
+      "cover_id": 86640,
+      "image_id": "co1uuo",
+      "image_sha256": "0160d9791906e70d5112234a8095c6e00a20106f0601c852c4490be880bf98b4",
+      "game_slug": "captain-america-super-soldier",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": [],
     "availability": "unknown",

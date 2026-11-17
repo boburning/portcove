@@ -6,6 +6,14 @@
     "original_game_title": "FreeCol",
     "summary": "Explore, trade, and guide a colony to independence in this open-source turn-based strategy game.",
     "project_url": "https://github.com/FreeCol/freecol",
+    "artwork": {
+      "game_id": 92716,
+      "cover_id": 78391,
+      "image_id": "co1ohj",
+      "image_sha256": "8ccd904815592b835f0cf0ec0f4fd26465d558256b7f332a4bcd1db18da806a1",
+      "game_slug": "freecol",
+      "match_kind": "port"
+    },
     "issue_number": 6520,
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

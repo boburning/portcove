@@ -6,6 +6,14 @@
     "original_game_title": "Widelands",
     "summary": "Build roads, supply workshops, and grow a settlement in this open-source strategy game.",
     "project_url": "https://github.com/widelands/widelands",
+    "artwork": {
+      "game_id": 47043,
+      "cover_id": 86674,
+      "image_id": "co1uvm",
+      "image_sha256": "13666c205039e2943eaacdcf531ee908f72df1ce74d4f8632eb40175998b30c3",
+      "game_slug": "widelands",
+      "match_kind": "port"
+    },
     "issue_number": 6518,
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

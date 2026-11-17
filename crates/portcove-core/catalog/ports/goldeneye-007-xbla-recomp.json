@@ -5,6 +5,14 @@
     "name": "GoldenEye 007 XBLA Recomp",
     "summary": "Explore GoldenEye 007 XBLA Recomp and follow the upstream project for requirements, downloads and setup.",
     "project_url": "https://github.com/SunJaycy/GoldenEye-Recomp",
+    "artwork": {
+      "game_id": 143406,
+      "cover_id": 139439,
+      "image_id": "co2zlb",
+      "image_sha256": "c473764e98d87044c4569ee2e98db237a72da5a9f28e987e8ddb74063cfcd213",
+      "game_slug": "goldeneye-007-xbox-live-arcade",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 163,
     "listed_at": "2026-10-23",
     "platforms": [],

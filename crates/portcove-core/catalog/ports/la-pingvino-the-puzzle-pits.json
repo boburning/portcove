@@ -3,6 +3,14 @@
   "listing": {
     "id": "la-pingvino-the-puzzle-pits",
     "project_url": "https://github.com/LaPingvino/The-Puzzle-Pits",
+    "artwork": {
+      "game_id": 62400,
+      "cover_id": 42395,
+      "image_id": "db70locrelhbrat6cmyo",
+      "image_sha256": "0123b46b3856eb26430b974218e1432ad092d3ac99454afbb74ac5784bdf6a24",
+      "game_slug": "puzzle-pits",
+      "match_kind": "port"
+    },
     "name": "The Puzzle Pits",
     "original_game_title": "The Puzzle Pits",
     "summary": "Move barrels, cross traps and resume puzzles with level passwords.",

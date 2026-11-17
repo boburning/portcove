@@ -6,6 +6,14 @@
     "summary": "Space Cadet on modern desktop systems using your own Windows or Full Tilt game resources. The official Windows player is a ZIP; upstream or you provide updates.",
     "original_game_title": "3D Pinball for Windows: Space Cadet",
     "project_url": "https://github.com/k4zmu2a/SpaceCadetPinball",
+    "artwork": {
+      "game_id": 79247,
+      "cover_id": 318016,
+      "image_id": "co6tds",
+      "image_sha256": "e2d9a8e5b3d4fbd987a7b5a895dee21bd2b38f34f7694551d71388d07f9a9a79",
+      "game_slug": "3d-pinball-space-cadet",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 2553,
     "listed_at": "2026-10-25",
     "platforms": ["windows-x86-64"],

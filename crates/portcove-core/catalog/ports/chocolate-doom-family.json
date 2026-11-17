@@ -6,6 +6,14 @@
     "original_game_title": "Doom",
     "summary": "Play Doom with Chocolate Doom, or use the separate Chocolate Heretic, Hexen and Strife players with their matching game data.",
     "project_url": "https://github.com/chocolate-doom/chocolate-doom",
+    "artwork": {
+      "game_id": 673,
+      "cover_id": 268663,
+      "image_id": "co5rav",
+      "image_sha256": "08ad09aebaeb32cdd6531a13043b57d6fcab1dad1f60d34c8f9c5b5d6b9f2829",
+      "game_slug": "doom",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5663,
     "listed_at": "2026-11-15",
     "availability": "packages",
