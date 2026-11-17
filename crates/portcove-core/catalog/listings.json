@@ -51222,6 +51222,12 @@
         "warnings": [
           "Keep a copy of the whole profile when moving the game. The progress files and levelscores folder hold different parts of your progress."
         ],
+        "references": [
+          {
+            "title": "Install the Windows runtime if needed",
+            "instruction": "The Windows player uses the Microsoft Visual C++ v14 x64 runtime. If Windows reports a missing MSVCP140 or VCRUNTIME140 DLL, get the x64 Redistributable from https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist/."
+          }
+        ],
         "help_url": "https://github.com/karjonas/Puzzle-Moppet/blob/2026.09.30/README.md#releases"
       }
     },
