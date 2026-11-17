@@ -27,6 +27,7 @@ pub(crate) enum RecompList {
     Listed {
         enabled: Vec<String>,
         order: Vec<String>,
+        enabled_list_present: bool,
     },
     Unreadable(String),
 }
@@ -69,7 +70,11 @@ pub(crate) fn read(user: &Path) -> RecompList {
     };
     let object = parsed.as_object().expect("json_document returns an object");
     match (ids(object, "enabled_mods"), ids(object, "mod_order")) {
-        (Ok(enabled), Ok(order)) => RecompList::Listed { enabled, order },
+        (Ok(enabled), Ok(order)) => RecompList::Listed {
+            enabled,
+            order,
+            enabled_list_present: object.contains_key("enabled_mods"),
+        },
         (Err(reason), _) | (_, Err(reason)) => RecompList::Unreadable(reason),
     }
 }
@@ -196,6 +201,7 @@ mod tests {
         assert_eq!(
             read(directory.path()),
             RecompList::Listed {
+                enabled_list_present: true,
                 enabled: strings(&["y"]),
                 order: strings(&["y", "x"])
             }

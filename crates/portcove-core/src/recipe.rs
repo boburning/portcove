@@ -3,7 +3,7 @@
 //! A recipe describes what a profile *is*: runtime identity, original-input
 //! references, package identities, dependency closure, enabled state, typed
 //! orderings and the loader contract. It never carries original game payloads,
-//! credentials, private machine paths, saves or settings. A recipe is untrusted
+//! credentials, private machine paths, saves or arbitrary settings. A recipe is untrusted
 //! data: it grants no URL, path, script, acquisition or execution authority.
 //! Inspection is local and needs no provider account. Applying one goes through
 //! ordinary Core state: the exact runtime must already be installed, every original
@@ -25,10 +25,12 @@ use crate::{
     PortcoveService, Profile, ProviderPackageRef, Result, RuntimeIdentity, TypedOrdering,
     profile::{self, valid_native_id},
     profile_deploy::sha256_file,
+    recomp_mod_settings::{self, RecipeModSetting},
 };
 
 pub const RECIPE_FORMAT: u32 = 2;
 const LEGACY_RECIPE_FORMAT: u32 = 1;
+const MAX_RECIPE_SETTINGS: usize = 64;
 const MAX_RECIPE_BYTES: usize = 256 * 1024;
 const MAX_PACKAGES: usize = 512;
 const MAX_TEXT: usize = 256;
@@ -77,6 +79,9 @@ pub struct ProfileRecipe {
     pub originals: Vec<RecipeOriginal>,
     pub packages: Vec<RecipePackage>,
     pub orderings: Vec<TypedOrdering>,
+    /// Portable, exact-package settings. Omitted by format 1.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub settings: Vec<RecipeModSetting>,
     /// Inputs this recipe cannot reproduce; always stated, never implied.
     pub uncaptured: Vec<String>,
     /// SHA-256 of the recipe's canonical content with this field empty.
@@ -240,6 +245,30 @@ impl ProfileRecipe {
                 .any(|package| !package.provider_requires.is_empty())
         {
             return Err(invalid("exact provider requirements need recipe format 2"));
+        }
+        if self.settings.len() > MAX_RECIPE_SETTINGS
+            || (self.format == LEGACY_RECIPE_FORMAT && !self.settings.is_empty())
+            || (!self.settings.is_empty()
+                && crate::native_mod_list::recomp_game(&self.port_id).is_none())
+        {
+            return Err(invalid(
+                "this format or loader cannot share the supplied settings",
+            ));
+        }
+        let mut setting_ids = BTreeSet::new();
+        for setting in &self.settings {
+            if !setting.validates_shape()
+                || !setting_ids.insert((&setting.native_id, &setting.option_id))
+                || !self.packages.iter().any(|package| {
+                    package.enabled
+                        && package.native_id == setting.native_id
+                        && package.sha256 == setting.package_sha256
+                })
+            {
+                return Err(invalid(
+                    "a setting does not name a unique option for an exact enabled package",
+                ));
+            }
         }
         if !text_ok(&self.runtime.artifact.asset_name)
             || self
@@ -425,11 +454,28 @@ impl PortcoveService {
                 "profile is not registered for this port",
             ));
         }
+        let loader = if revision.packages.iter().any(|package| package.enabled) {
+            self.profile_loader_binding(&revision.build, revision.loader.as_ref(), true)?
+        } else {
+            revision.loader.clone()
+        };
+        let settings = match crate::native_mod_list::recomp_game(port_id) {
+            Some(game) => {
+                recomp_mod_settings::export(&self.deploy_layout(port_id)?, game, &revision)?
+            }
+            None => Vec::new(),
+        };
+        let mut uncaptured = default_uncaptured();
+        if !settings.is_empty() {
+            uncaptured.retain(|line| line != "settings are not exported");
+            uncaptured.push("ordinary settings, free-form text and settings of disabled or unmanaged mods are not exported".into());
+        }
         let mut recipe = ProfileRecipe {
-            format: if revision
-                .packages
-                .iter()
-                .any(|package| !package.provider_requires.is_empty())
+            format: if !settings.is_empty()
+                || revision
+                    .packages
+                    .iter()
+                    .any(|package| !package.provider_requires.is_empty())
             {
                 RECIPE_FORMAT
             } else {
@@ -443,7 +489,7 @@ impl PortcoveService {
                 installed_contract_sha256: revision.build.installed_contract_sha256.clone(),
                 platform: revision.build.platform,
             },
-            loader: revision.loader.clone(),
+            loader,
             originals: revision
                 .originals
                 .iter()
@@ -468,7 +514,8 @@ impl PortcoveService {
                 })
                 .collect(),
             orderings: revision.orderings.clone(),
-            uncaptured: default_uncaptured(),
+            settings,
+            uncaptured,
             identity_sha256: String::new(),
         };
         recipe.identity_sha256 = identity(&recipe)?;
@@ -526,6 +573,13 @@ impl PortcoveService {
                     && build.installed_contract_sha256 == recipe.runtime.installed_contract_sha256
                     && build.platform == recipe.runtime.platform
                 {
+                    if let Err(error) = self.profile_loader_binding(
+                        &build,
+                        recipe.loader.as_ref(),
+                        recipe.packages.iter().any(|package| package.enabled),
+                    ) {
+                        holds.push(error.message);
+                    }
                     exact = Some(install);
                     break;
                 }
@@ -756,6 +810,19 @@ impl PortcoveService {
                 ));
             }
         }
+        if !recipe.settings.is_empty()
+            && packages
+                .iter()
+                .all(|package| package.status == RecipeInputStatus::Available)
+            && let Some(game) = crate::native_mod_list::recomp_game(&recipe.port_id)
+            && let Err(error) =
+                recomp_mod_settings::validate_portable(&layout, game, recipe, |_| None)
+        {
+            holds.push(format!(
+                "The recipe's mod settings need review. {}",
+                error.message
+            ));
+        }
         let mut plan = RecipeImportPlan {
             recipe: recipe.clone(),
             runtime,
@@ -879,7 +946,7 @@ impl PortcoveService {
             loader: plan.recipe.loader.clone(),
             packages,
             orderings: plan.recipe.orderings.clone(),
-            settings: BTreeMap::new(),
+            settings: recomp_mod_settings::import(&plan.recipe.settings)?,
             save_group: String::new(),
             limits: Vec::new(),
             created_at: 0,

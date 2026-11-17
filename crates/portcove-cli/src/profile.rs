@@ -6,7 +6,8 @@ use std::{io::Read, path::PathBuf};
 use clap::{Subcommand, ValueEnum};
 use portcove_core::{
     OriginalAvailability, PortcoveError, PortcoveService, Profile, ProfileInventory,
-    ProfileRevision, ProfileRevisionRequest, ProfileUpdatePolicy, Result,
+    ProfileProgressCopy, ProfileRecoveryPlan, ProfileRevision, ProfileRevisionRequest,
+    ProfileUpdatePolicy, Result,
 };
 
 use crate::{OutputMode, human::clean, render_read_success};
@@ -60,6 +61,15 @@ pub(crate) enum ProfileCommand {
         /// build; the source profile keeps its own build and progress.
         #[arg(long)]
         current_build: bool,
+        /// Copy supported progress from this reviewed source revision digest.
+        #[arg(long, requires_all = ["progress_target_install", "progress_target_revision"])]
+        progress_from_revision: Option<String>,
+        /// Exact destination installation ID reviewed for the progress copy.
+        #[arg(long, requires = "progress_from_revision")]
+        progress_target_install: Option<String>,
+        /// Digest of the reviewed destination revision (Default with --current-build).
+        #[arg(long, requires = "progress_from_revision")]
+        progress_target_revision: Option<String>,
     },
     /// Show every immutable revision of one profile, oldest first.
     Revisions {
@@ -301,6 +311,30 @@ pub(crate) enum ProfileCommand {
         /// JSON `ProfileRevisionRequest`; `expected_revision` must be the revision you reviewed.
         request_file: PathBuf,
     },
+    /// Review an earlier setup revision and the current progress it will keep.
+    RecoverPlan {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Earlier revision from `profile revisions`.
+        revision: u64,
+    },
+    /// Apply an exact recovery review and keep the setup's current progress.
+    Recover {
+        /// Catalog port ID owning the profile.
+        port_id: String,
+        /// Profile ID from `profile list`.
+        profile_id: String,
+        /// Earlier revision from `profile revisions`.
+        revision: u64,
+        /// `plan_sha256` from `profile recover-plan`.
+        #[arg(long)]
+        expected_plan: String,
+        /// Confirm without a prompt. The digest and hold checks still apply.
+        #[arg(long)]
+        yes: bool,
+    },
 }
 
 impl ProfileCommand {
@@ -315,6 +349,8 @@ impl ProfileCommand {
             Self::RelinkOriginal { .. } => "profile.relink-original",
             Self::Policy { .. } => "profile.policy",
             Self::Revise { .. } => "profile.revise",
+            Self::RecoverPlan { .. } => "profile.recover-plan",
+            Self::Recover { .. } => "profile.recover",
             Self::InstallPackage { .. } => "profile.install-package",
             Self::PackagePlan { .. } => "profile.package-plan",
             Self::PackageApply { .. } => "profile.package-apply",
@@ -350,6 +386,7 @@ impl ProfileCommand {
                 | Self::ProviderBrowse { .. }
                 | Self::ProviderProject { .. }
                 | Self::ProviderUpdates { .. }
+                | Self::RecoverPlan { .. }
         )
     }
 }
@@ -850,10 +887,29 @@ pub(crate) async fn execute(
             source_profile_id,
             name: display,
             current_build,
+            progress_from_revision,
+            progress_target_install,
+            progress_target_revision,
         } => render_read_success(
             mode,
             name,
-            if current_build {
+            if let Some(((source_revision_sha256, target_install_id), target_revision_sha256)) =
+                progress_from_revision
+                    .zip(progress_target_install)
+                    .zip(progress_target_revision)
+            {
+                service.copy_profile_with_progress(
+                    &port_id,
+                    &source_profile_id,
+                    &display,
+                    current_build,
+                    &ProfileProgressCopy {
+                        source_revision_sha256,
+                        target_install_id,
+                        target_revision_sha256,
+                    },
+                )?
+            } else if current_build {
                 service.copy_profile_onto_current_build(&port_id, &source_profile_id, &display)?
             } else {
                 service.copy_profile(&port_id, &source_profile_id, &display)?
@@ -1210,6 +1266,55 @@ pub(crate) async fn execute(
                 |profile| summary("Profile created from recipe", profile),
             )
         }
+        ProfileCommand::RecoverPlan {
+            port_id,
+            profile_id,
+            revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.plan_profile_recovery(&port_id, &profile_id, revision)?,
+            recovery_plan_text,
+        ),
+        ProfileCommand::Recover {
+            port_id,
+            profile_id,
+            revision,
+            expected_plan,
+            yes,
+        } => {
+            let plan = service.plan_profile_recovery(&port_id, &profile_id, revision)?;
+            if plan.plan_sha256 != expected_plan {
+                return Err(PortcoveError::conflict(
+                    "The setup recovery changed. Run profile recover-plan to review it again.",
+                ));
+            }
+            if mode == OutputMode::Human {
+                println!("{}", recovery_plan_text(&plan));
+            }
+            if !plan.holds.is_empty() {
+                return Err(PortcoveError::conflict(
+                    "This recovery is held. See the issues reported by profile recover-plan.",
+                ));
+            }
+            crate::require_confirmation(
+                "Recover this setup revision and keep its current progress?",
+                yes,
+                non_interactive,
+            )?;
+            render_read_success(
+                mode,
+                name,
+                service.apply_profile_recovery(&port_id, &profile_id, revision, &expected_plan)?,
+                |revision| {
+                    format!(
+                        "Setup recovered with current progress\n{}",
+                        revision_line(revision)
+                    )
+                },
+            )
+        }
+
         ProfileCommand::Revise {
             port_id,
             profile_id,
@@ -1224,6 +1329,66 @@ pub(crate) async fn execute(
             )
         }
     }
+}
+
+fn recovery_plan_text(plan: &ProfileRecoveryPlan) -> String {
+    let mut lines = vec![
+        format!("Recover setup revision {}", plan.target.revision),
+        format!("Current{}", revision_line(&plan.current)),
+        format!("Target{}", revision_line(&plan.target)),
+        format!("Runtime {}", clean(&plan.target.build.artifact.asset_name)),
+        "Keep current progress. Save compatibility depends on the game and mods.".into(),
+        format!("Update policy {:?}", plan.update_policy),
+    ];
+    lines.extend(plan.target.packages.iter().map(|package| {
+        let state = if package.enabled {
+            "Enabled"
+        } else {
+            "Disabled"
+        };
+        format!("{state} · {}", clean(&package.native_id))
+    }));
+    for order in &plan.target.orderings {
+        let names = order
+            .native_ids
+            .iter()
+            .map(|name| clean(name))
+            .collect::<Vec<_>>();
+        lines.push(format!(
+            "Load order {} · {}",
+            clean(&order.domain),
+            names.join(", ")
+        ));
+    }
+    if !plan.target.settings.is_empty() {
+        let keys = plan
+            .target
+            .settings
+            .keys()
+            .map(|key| clean(key))
+            .collect::<Vec<_>>();
+        lines.push(format!("Recorded settings · {}", keys.join(", ")));
+    }
+    for original in &plan.originals {
+        lines.push(format!(
+            "Original {} · {:?}",
+            clean(&original.binding.requirement_id),
+            original.availability,
+        ));
+    }
+    lines.extend(
+        plan.target
+            .limits
+            .iter()
+            .map(|limit| format!("Limit · {}", clean(limit))),
+    );
+    lines.extend(
+        plan.holds
+            .iter()
+            .map(|hold| format!("Held · {}", clean(&hold.message))),
+    );
+    lines.push(format!("Plan SHA-256 {}", clean(&plan.plan_sha256)));
+    lines.join("\n")
 }
 
 fn summary(title: &str, profile: &Profile) -> String {

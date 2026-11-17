@@ -10,7 +10,8 @@ use crate::{
     service_at_generation,
 };
 use portcove_core::{
-    ModSetupsView, PortcoveError, Profile, ProfileRecipe, ProfileRevision, RecipeImportPlan,
+    ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
+    ProfileRevision, RecipeImportPlan,
 };
 
 #[tauri::command]
@@ -49,16 +50,136 @@ pub(crate) async fn copy_mod_setup(
     profile_id: String,
     display_name: String,
     current_build: bool,
+    progress: Option<ProfileProgressCopy>,
 ) -> DesktopResult<Profile> {
     let state = state.inner().clone();
     blocking_worker(move || {
         let service = service_at_generation(&state, generation)?;
-        if current_build {
+        if let Some(progress) = progress {
+            service.copy_profile_with_progress(
+                &port_id,
+                &profile_id,
+                &display_name,
+                current_build,
+                &progress,
+            )
+        } else if current_build {
             service.copy_profile_onto_current_build(&port_id, &profile_id, &display_name)
         } else {
             service.copy_profile(&port_id, &profile_id, &display_name)
         }
         .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_mod_setup_revisions(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<ProfileRevision>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.profile_revisions(&port_id, &profile_id)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn plan_profile_recovery(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+) -> DesktopResult<ProfileRecoveryPlan> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.plan_profile_recovery(&port_id, &profile_id, revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn apply_profile_recovery(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+    expected_plan_sha256: String,
+) -> DesktopResult<ProfileRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .apply_profile_recovery(&port_id, &profile_id, revision, &expected_plan_sha256)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn list_mod_setup_recovery_builds(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<portcove_core::RetainedBuildHistoryResolution>> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service
+                .resolve_retained_build(&port_id, &profile_id)
+                .map(|setup| setup.history)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn preview_mod_setup_retirement(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+) -> DesktopResult<portcove_core::RetainedBuildRetirementPreview> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        read_at_generation(&state, generation, |service| {
+            service.preview_retained_build_revision_retirement(&port_id, &profile_id, revision)
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn retire_mod_setup_recovery_build(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    revision: u64,
+    expected_preview_sha256: String,
+) -> DesktopResult<portcove_core::RetainedBuildRevision> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        let service = service_at_generation(&state, generation)?;
+        let approval = service.authorize_retained_build_revision_retirement(
+            &port_id,
+            &profile_id,
+            revision,
+            &expected_preview_sha256,
+        )?;
+        service
+            .retire_retained_build_revision(&port_id, &profile_id, revision, &approval.token)
+            .map_err(Into::into)
     })
     .await
 }

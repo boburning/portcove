@@ -341,6 +341,7 @@ impl PortcoveService {
         let layout = self.deploy_layout(port_id)?;
         let extensions = adapter_extensions(port_id).unwrap_or(&[]);
         let current = profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+        self.profile_loader_binding(&current.build, current.loader.as_ref(), true)?;
 
         let projects = match client {
             ProviderClient::Thunderstore { client, community } => {

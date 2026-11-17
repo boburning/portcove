@@ -103,6 +103,7 @@ mod mod_provider;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
+mod profile_loader;
 mod profile_originals;
 mod provider_auto_update;
 mod provider_browse;
@@ -116,6 +117,7 @@ mod qualification_checkpoint;
 mod recipe;
 mod recomp_mod;
 mod recomp_mod_list;
+mod recomp_mod_settings;
 mod recovery;
 mod relative_file_set;
 mod release;
@@ -357,12 +359,13 @@ pub use preparation::{
 pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, LaunchKind, LaunchSpec};
 pub use profile::{
     LibraryProfile, LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus,
-    Profile, ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest,
-    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, ProviderRequirement, RequestedPackage,
-    ResolvedPackage, TypedOrdering,
+    Profile, ProfileIntent, ProfileInventory, ProfileProgressCopy, ProfileRevision,
+    ProfileRevisionRequest, ProfileUpdatePolicy, ProfileView, ProviderPackageRef,
+    ProviderRequirement, RequestedPackage, ResolvedPackage, TypedOrdering,
 };
 pub use profile_deploy::{
     LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
+    ProfileRecoveryPlan, ProfileRecoveryProgress,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
 pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
@@ -378,6 +381,7 @@ pub use recipe::{
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
 };
+pub use recomp_mod_settings::{RecipeModSetting, RecipeModSettingValue};
 pub use release::{
     GithubReleaseProvider, ObservationEvidence, ObservedReleaseIdentity, ObservedResolution,
     ReleaseProvider, UpstreamChannelObservation, UpstreamObservationReport,
@@ -501,9 +505,10 @@ pub use windows_runtime::{
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
 // Public 94 adds exact local mod package review and apply.
-// Public 95 binds reviewed Thunderstore packages to their exact wrapper closure.
+// Public 95 adds exact reviewed Thunderstore dependencies and wrapper evidence.
 // Public 96 adds saved original-instance selection and byte-verified relinking.
-pub const API_SCHEMA_VERSION: u32 = 96;
+// Public 97 exposes exact setup recovery and isolated progress copying.
+pub const API_SCHEMA_VERSION: u32 = 97;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 64;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 65;
 
 struct Migration {
     version: i64,
@@ -407,6 +407,12 @@ const MIGRATIONS: &[Migration] = &[
         apply: crate::source_instances::migrate,
         verify: verify_migration_64,
     },
+    Migration {
+        version: 65,
+        name: "guarded exact setup recovery writer protocol",
+        apply: migration_65,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
 
 fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
@@ -414,6 +420,12 @@ fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
     // restore without reading the revision that owns its provider closure.
     // The exclusive migration lease and ledger fence those writers without
     // rewriting existing profile revisions or replacing any player files.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_65(transaction: &Transaction<'_>) -> Result<()> {
+    // Recovery may commit a newer setup revision before projecting it. Every
+    // writer must honor the pending materialization guard before launch.
     crate::profile::verify_selection_migration(transaction)
 }
 
@@ -3991,6 +4003,7 @@ mod tests {
         schema_61: 61,
         schema_62: 62,
         schema_63: 63,
+        schema_64: 64,
     }
 
     #[test]

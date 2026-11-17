@@ -80,6 +80,11 @@ export type ModSetupOriginalTarget = {
 };
 export type ModSetup = ModSetupView["profile"];
 export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
+export type ModSetupRecoveryBuild =
+  Generated.TransportOutputs["retained_build_resolution"]["history"][number];
+export type ModSetupRetirementPreview =
+  Generated.TransportOutputs["retained_build_retirement_preview"];
+export type ModSetupRecoveryPlan = Generated.TransportOutputs["profile_recovery_plan"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];

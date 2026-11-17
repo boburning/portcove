@@ -317,6 +317,11 @@ export const desktopApi = {
     displayName: string,
     generation: number,
     currentBuild = false,
+    progress?: {
+      source_revision_sha256: string;
+      target_install_id: string;
+      target_revision_sha256: string;
+    },
   ) =>
     invoke<import("./types").ModSetup>("copy_mod_setup", {
       portId,
@@ -324,7 +329,64 @@ export const desktopApi = {
       displayName,
       generation,
       currentBuild,
+      ...(progress && { progress }),
     }),
+  modSetupRevisions: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRevision[]>("list_mod_setup_revisions", {
+      portId,
+      profileId,
+      generation,
+    }),
+  planProfileRecovery: (portId: string, profileId: string, revision: number, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryPlan>("plan_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  applyProfileRecovery: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPlanSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRevision>("apply_profile_recovery", {
+      portId,
+      profileId,
+      revision,
+      expectedPlanSha256,
+      generation,
+    }),
+  modSetupRecoveryBuilds: (portId: string, profileId: string, generation: number) =>
+    invoke<import("./types").ModSetupRecoveryBuild[]>("list_mod_setup_recovery_builds", {
+      portId,
+      profileId,
+      generation,
+    }),
+  previewModSetupRetirement: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview>("preview_mod_setup_retirement", {
+      portId,
+      profileId,
+      revision,
+      generation,
+    }),
+  retireModSetupRecoveryBuild: (
+    portId: string,
+    profileId: string,
+    revision: number,
+    expectedPreviewSha256: string,
+    generation: number,
+  ) =>
+    invoke<import("./types").ModSetupRetirementPreview["revision"]>(
+      "retire_mod_setup_recovery_build",
+      { portId, profileId, revision, expectedPreviewSha256, generation },
+    ),
   useModSetup: (portId: string, profileId: string, generation: number) =>
     invoke<import("./types").ModSetupRevision>("use_mod_setup", {
       portId,

@@ -52,6 +52,10 @@ pub(crate) fn adapter_extensions(port_id: &str) -> Option<&'static [&'static str
     }
 }
 
+#[path = "profile_recovery.rs"]
+mod recovery;
+pub use recovery::{ProfileRecoveryPlan, ProfileRecoveryProgress};
+
 pub(crate) struct Layout {
     /// The port's canonical live data root, `user/<port>`.
     user: PathBuf,
@@ -111,6 +115,106 @@ impl Layout {
     fn pending(&self) -> PathBuf {
         self.store().join("restore-pending")
     }
+}
+
+/// Clone only progress covered by the reviewed save contract. The parked
+/// destination belongs to the unpublished new profile, so no live path moves.
+pub(crate) fn copy_supported_progress(
+    service: &PortcoveService,
+    connection: &rusqlite::Connection,
+    source: &crate::Profile,
+    revision: &ProfileRevision,
+    destination: &crate::Profile,
+    target: &crate::RetainedBuildIdentity,
+) -> Result<PathBuf> {
+    let port_id = &source.port_id;
+    let contract = crate::portable_saves::contract_for(port_id).ok_or_else(|| {
+        PortcoveError::unsupported("this game has no reviewed progress-copy contract")
+    })?;
+    service.require_completed_restore(port_id)?;
+    let layout = Layout::for_user(&service.library.user_dir(port_id));
+    let journal = layout.journal();
+    crate::path::refuse_symlink_ancestors(&journal)?;
+    if journal.try_exists()? {
+        return Err(PortcoveError::conflict(
+            "finish applying the current setup before copying progress",
+        ));
+    }
+    // A pending runtime restore leaves canonical progress authoritative. The
+    // journal and materialized revision below guard incomplete setup changes.
+    let source_build = service.verified_retained_build(port_id, &revision.build.install_id)?;
+    if source_build != revision.build {
+        return Err(PortcoveError::conflict(
+            "the source setup's exact runtime could not be verified",
+        ));
+    }
+    let persistence_paths = service.profile_persistent_paths(port_id)?;
+    let mut admitted_paths = vec![persistence_paths];
+    for build in [&source_build, target] {
+        let install = crate::Library::install_by_id(connection, Some(&build.install_id))?
+            .ok_or_else(|| PortcoveError::state("the reviewed installation is missing"))?;
+        if !contract.versions.contains(&install.version.as_str())
+            || !contract.platforms.contains(&build.platform)
+        {
+            return Err(PortcoveError::unsupported(
+                "the source or destination runtime has no reviewed progress-copy contract; choose fresh progress",
+            ));
+        }
+        admitted_paths.push(service.installed_progress_paths(&install)?);
+    }
+    let root = match profile::selection(connection, port_id)? {
+        Some((selected, materialized)) if selected == source.id => {
+            if materialized != revision.revision {
+                return Err(PortcoveError::conflict(
+                    "finish applying the source setup before copying progress",
+                ));
+            }
+            layout.user.clone()
+        }
+        Some(_) => layout.parked(&source.id),
+        None => {
+            return Err(PortcoveError::state(
+                "the game has no materialized save group",
+            ));
+        }
+    };
+    let (_, saves) = crate::portable_saves::classify(contract, &root)?;
+    if saves.is_empty() {
+        return Err(PortcoveError::state(
+            "the source setup has no supported progress to copy",
+        ));
+    }
+    let output = layout.parked(&destination.id);
+    let parent = output.parent().expect("the profile state directory");
+    crate::path::refuse_symlink_ancestors(parent)?;
+    fs::create_dir_all(parent)?;
+    let staging = tempfile::Builder::new()
+        .prefix(".copy-progress-")
+        .tempdir_in(parent)?;
+    for (relative, bytes) in saves {
+        let top = relative
+            .split('/')
+            .next()
+            .expect("a reviewed relative path");
+        if !admitted_paths
+            .iter()
+            .all(|paths| paths.iter().any(|path| path == top))
+        {
+            return Err(PortcoveError::unsupported(
+                "the installed runtimes and setup switch do not agree on the save location",
+            ));
+        }
+        let path = staging.path().join(relative);
+        fs::create_dir_all(path.parent().expect("a staged save parent"))?;
+        crate::durability::write_bytes_atomically(&path, &bytes, false)?;
+    }
+    crate::durability::sync_publication(staging.path())?;
+    crate::durability::rename_noreplace(staging.path(), &output)?;
+    if let Err(error) = crate::durability::sync_publication(parent) {
+        let _ = fs::remove_dir_all(&output);
+        return Err(error);
+    }
+    Ok(output)
 }
 
 /// True while the canonical live data is newer than the installed build's copy.
@@ -699,9 +803,8 @@ pub enum NativeModListStatus {
     /// it as the profile's next revision when supervised play ends, or at the next
     /// profile change or launch.
     Reordered { native_order: Vec<String> },
-    /// The list differs in which of the profile's mods it names (for example a
-    /// mod disabled in the game's menu, which the game re-enables at its next
-    /// start). Portcove rewrites those entries before the next launch.
+    /// The native enabled set differs. Supported disables can become a new
+    /// revision. Ambiguous entries stay visible for review.
     Differs {
         missing: Vec<String>,
         unexpected: Vec<String>,
@@ -721,13 +824,20 @@ fn read_live_list(layout: &Layout, list: LoaderList) -> LiveList {
     match list {
         LoaderList::Ship(contract) => match native_mod_list::read(&layout.user, &contract) {
             NativeList::Absent | NativeList::Unlisted => LiveList::NotWritten,
+            // Ship's Clear List requests a rebuilt order on restart. Its
+            // reviewed menu has no per-package enable/disable control.
+            NativeList::Listed(names) if names.is_empty() => LiveList::NotWritten,
             NativeList::Unreadable(reason) => LiveList::Unreadable(reason),
             NativeList::Listed(names) => LiveList::Loads(names),
         },
         LoaderList::Recomp => match crate::recomp_mod_list::read(&layout.user) {
             crate::recomp_mod_list::RecompList::Absent => LiveList::NotWritten,
             crate::recomp_mod_list::RecompList::Unreadable(reason) => LiveList::Unreadable(reason),
-            crate::recomp_mod_list::RecompList::Listed { enabled, order } => {
+            crate::recomp_mod_list::RecompList::Listed {
+                enabled_list_present: false,
+                ..
+            } => LiveList::NotWritten,
+            crate::recomp_mod_list::RecompList::Listed { enabled, order, .. } => {
                 // The runtime places enabled mods it has no order for before the
                 // ordered ones.
                 let on = enabled.iter().collect::<BTreeSet<_>>();
@@ -753,10 +863,7 @@ fn native_status(layout: &Layout, revision: &ProfileRevision) -> NativeModListSt
         LiveList::NotWritten => NativeModListStatus::NotWritten,
         LiveList::Unreadable(reason) => NativeModListStatus::Unreadable { reason },
         LiveList::Loads(names) => {
-            let listed = names
-                .into_iter()
-                .filter(|name| managed.contains(&name.to_lowercase()))
-                .collect::<Vec<_>>();
+            let listed = filter_managed_names(names, &managed);
             if listed == expected {
                 return NativeModListStatus::InSync;
             }
@@ -785,8 +892,15 @@ fn native_status(layout: &Layout, revision: &ProfileRevision) -> NativeModListSt
     }
 }
 
-/// The override order after the player reordered the same enabled mods in the
-/// game's menu; disabled packages keep their relative place at the end. None when
+fn filter_managed_names(names: Vec<String>, managed: &BTreeSet<String>) -> Vec<String> {
+    names
+        .into_iter()
+        .filter(|name| managed.contains(&name.to_lowercase()))
+        .collect()
+}
+
+/// The override order after a native edit; disabled packages keep their
+/// relative place at the end. None when
 /// the list cannot be mapped one-to-one onto the revision's packages.
 fn adopted_order(
     revision: &ProfileRevision,
@@ -840,7 +954,7 @@ fn declared_state_paths(service: &PortcoveService, port_id: &str) -> Result<Vec<
         .collect())
 }
 
-fn live_package_path(layout: &Layout, native_id: &str) -> Result<PathBuf> {
+pub(crate) fn live_package_path(layout: &Layout, native_id: &str) -> Result<PathBuf> {
     if !profile::valid_native_id(native_id) {
         return Err(PortcoveError::verification(
             "a package native ID is not a plain file name; nothing was changed",
@@ -1511,8 +1625,19 @@ impl PortcoveService {
             ));
         };
         // Refuse before anything is parked or marked, so a refusal changes nothing.
+        self.require_revision_loader(&target)?;
         require_projectable(port_id, &target)?;
         require_code_allowed(&layout, &target)?;
+        if let Some(game) = native_mod_list::recomp_game(port_id)
+            && (current_id != profile_id || current_revision != target.revision)
+        {
+            let user = if current_id == profile_id {
+                layout.user.clone()
+            } else {
+                layout.parked(profile_id)
+            };
+            crate::recomp_mod_settings::review_projection(&user, &layout, game, &target)?;
+        }
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
         let latest = if current_id == profile_id {
             Some(&target)
@@ -1531,10 +1656,12 @@ impl PortcoveService {
             self.reconcile_selected(port_id, &layout, &connection, &target)?;
             return Ok(target);
         }
-        // Bring live data up to date from the launched build before parking it, and
-        // keep a reorder made in the game's menu before the configuration is parked.
-        self.collect_active_user_data_if_launched(port_id)?;
-        self.adopt_native_mod_order_locked(port_id)?;
+        // Bring live data up to date from the launched build before parking it,
+        // including supported edits from the game's mod menu.
+        if selected_profile_uses_active_build(&connection, port_id)? {
+            self.collect_active_user_data_if_launched(port_id)?;
+        }
+        self.reconcile_native_changes_locked(port_id, false)?;
         let (current_id, current_revision) = profile::selection(&connection, port_id)?
             .ok_or_else(|| PortcoveError::state("the port has no selected profile"))?;
         let departing = profile::revision_by_number(&connection, &current_id, current_revision)?;
@@ -1570,13 +1697,27 @@ impl PortcoveService {
         connection: &rusqlite::Connection,
         current: &ProfileRevision,
     ) -> Result<()> {
+        if self.reconcile_selected_projection(port_id, layout, connection, current)? {
+            self.sync_build_after_change(port_id, layout);
+        }
+        Ok(())
+    }
+
+    fn reconcile_selected_projection(
+        &self,
+        port_id: &str,
+        layout: &Layout,
+        connection: &rusqlite::Connection,
+        current: &ProfileRevision,
+    ) -> Result<bool> {
         let Some((id, revision)) = profile::selection(connection, port_id)? else {
-            return Ok(());
+            return Ok(false);
         };
         if id != current.profile_id || revision == current.revision {
-            return Ok(());
+            return Ok(false);
         }
         let materialized = profile::revision_by_number(connection, &id, revision)?;
+        self.require_revision_loader(current)?;
         require_projectable(port_id, current)?;
         require_code_allowed(layout, current)?;
         require_clean(
@@ -1587,8 +1728,7 @@ impl PortcoveService {
         deploy(layout, Some(&materialized), current)?;
         self.project_native_mod_list(layout, current, Some(&materialized))?;
         profile::set_selection(connection, port_id, &id, current.revision)?;
-        self.sync_build_after_change(port_id, layout);
-        Ok(())
+        Ok(true)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1631,9 +1771,9 @@ impl PortcoveService {
     /// resumed switch never re-parks data that has already arrived.
     pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
         self.finish_interrupted_switch_locked(port_id, layout)?;
-        // A reorder made in the game's menu during play outside supervision is
-        // kept before any change rewrites the game's list.
-        self.adopt_native_mod_order_locked(port_id)
+        // Keep supported native menu changes before an explicit setup action
+        // rewrites the game's list.
+        self.reconcile_native_changes_locked(port_id, false)
     }
 
     fn finish_interrupted_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
@@ -1693,14 +1833,18 @@ impl PortcoveService {
         )
     }
 
-    /// Keeps a reorder the player made in the game's menu as the selected
-    /// profile's next revision. Only a permutation of the same enabled mods is
-    /// adopted; any other difference is reported and later rewritten. The port
-    /// lock must be held.
-    pub(crate) fn adopt_native_mod_order_locked(&self, port_id: &str) -> Result<()> {
-        if native_mod_list::loader_list(port_id).is_none() {
+    /// Reconcile the selected, materialized profile after reading the native
+    /// list. An order change or a disable of a known enabled package is an
+    /// exact change. An enabled entry for an absent package gives no authority
+    /// to restore its bytes. The port lock must be held.
+    pub(crate) fn reconcile_native_mod_list_locked(&self, port_id: &str) -> Result<()> {
+        self.reconcile_native_changes_locked(port_id, true)
+    }
+
+    fn reconcile_native_changes_locked(&self, port_id: &str, capture_settings: bool) -> Result<()> {
+        let Some(list) = native_mod_list::loader_list(port_id) else {
             return Ok(());
-        }
+        };
         let layout = self.deploy_layout(port_id)?;
         if layout.journal().try_exists()? {
             // Mid-switch, the live configuration may belong to the arriving profile.
@@ -1715,19 +1859,73 @@ impl PortcoveService {
             // An interrupted change is finished from the revision, not the game.
             return Ok(());
         }
-        let NativeModListStatus::Reordered { native_order } = native_status(&layout, &current)
-        else {
-            return Ok(());
+        let mut packages = current.packages.clone();
+        let orderings = if let LiveList::Loads(names) = read_live_list(&layout, list) {
+            let names = filter_managed_names(names, &managed_names(&current));
+            if names == native_projection(&current) {
+                None
+            } else {
+                let Some(orderings) = adopted_order(&current, &names) else {
+                    return Ok(());
+                };
+                let names = names.iter().map(String::as_str).collect::<BTreeSet<_>>();
+                for package in packages.iter_mut().filter(|package| package.enabled) {
+                    package.enabled =
+                        names.contains(native_mod_list::native_name(&package.native_id));
+                }
+                Some(orderings)
+            }
+        } else {
+            None
         };
-        let Some(orderings) = adopted_order(&current, &native_order) else {
-            return Ok(());
+        let settings = if let Some(game) =
+            native_mod_list::recomp_game(port_id).filter(|_| capture_settings)
+        {
+            let captured =
+                crate::recomp_mod_settings::capture(&layout.user, &layout, game, &current)?;
+            (captured != current.settings).then_some(captured)
+        } else {
+            None
         };
+        if orderings.is_none() && settings.is_none() {
+            return Ok(());
+        }
+        let disabled = packages != current.packages;
+        if disabled && !matches!(list, LoaderList::Recomp) {
+            return Ok(());
+        }
+        if disabled {
+            let mut candidate = current.clone();
+            candidate.packages.clone_from(&packages);
+            if let Some(orderings) = &orderings {
+                candidate.orderings.clone_from(orderings);
+            }
+            // Leave an invalid native edit visible. Explicit setup actions can
+            // still resolve it without first replaying it.
+            if require_projectable(port_id, &candidate).is_err()
+                || require_clean(
+                    &observe(&layout, &[&current])?,
+                    "recording native mod changes",
+                )
+                .is_err()
+            {
+                return Ok(());
+            }
+            mark_restore_pending(&layout)?;
+        }
         let request = ProfileRevisionRequest {
             expected_revision: current.revision,
-            orderings: Some(orderings),
+            packages: disabled.then_some(packages),
+            orderings,
+            settings,
             ..Default::default()
         };
         let next = self.create_profile_revision_locked(port_id, &id, &request)?;
+        if disabled {
+            deploy(&layout, Some(&current), &next)?;
+            // The last game may have used a pinned runtime, so retain this
+            // pending projection until the next launch restores its own build.
+        }
         profile::set_selection(&connection, port_id, &id, next.revision)?;
         Ok(())
     }
@@ -1764,18 +1962,21 @@ impl PortcoveService {
                 let on = wanted.iter().cloned().collect::<BTreeSet<_>>();
                 let (enabled, order) = match recomp_mod_list::read(&layout.user) {
                     RecompList::Unreadable(_) => return Ok(false),
-                    RecompList::Listed { enabled, order } => {
+                    RecompList::Listed { enabled, order, .. } => {
                         recomp_mod_list::merged(&enabled, &order, &managed, &wanted, &on)
                     }
                     RecompList::Absent => (wanted.clone(), wanted),
                 };
+                if let Some(game) = native_mod_list::recomp_game(&layout.port_id()) {
+                    crate::recomp_mod_settings::project(&layout.user, layout, game, revision)?;
+                }
                 recomp_mod_list::write(&layout.user, &enabled, &order)
             }
         }
     }
 
-    /// Before a launch restores canonical data into the build: adopt a menu
-    /// reorder, then make the game's list equal the selected revision. The port
+    /// Before launch restores canonical data, reconcile supported native edits
+    /// and project the exact selected revision. The port
     /// lock must be held.
     pub(crate) fn prepare_native_mod_list_locked(&self, port_id: &str) -> Result<()> {
         if native_mod_list::loader_list(port_id).is_none() || self.deploy_layout(port_id).is_err() {
@@ -1787,13 +1988,29 @@ impl PortcoveService {
                 "a profile switch was interrupted; finish it before playing",
             ));
         }
-        self.adopt_native_mod_order_locked(port_id)?;
         let connection = self.library.connection()?;
-        let Some((id, revision)) = profile::selection(&connection, port_id)? else {
+        let Some((id, _)) = profile::selection(&connection, port_id)? else {
             return Ok(());
         };
+        let current = profile_current(&connection, port_id, &id)?;
+        self.reconcile_selected_projection(port_id, &layout, &connection, &current)?;
+        self.reconcile_native_mod_list_locked(port_id)?;
+        let (_, revision) = profile::selection(&connection, port_id)?
+            .ok_or_else(|| PortcoveError::state("the port has no selected profile"))?;
         let selected = profile::revision_by_number(&connection, &id, revision)?;
         require_projectable(port_id, &selected)?;
+        if let NativeModListStatus::Differs {
+            missing,
+            unexpected,
+        } = native_status(&layout, &selected)
+        {
+            return Err(PortcoveError::conflict(
+                "the game's mod list needs review. Check enabled mods and their dependencies in Setups and mods before playing.",
+            )
+            .detail("missing", missing.join(", "))
+            .detail("unexpected", unexpected.join(", "))
+            .with_known_cause(crate::failure::KnownFailureCause::NativeModListReview));
+        }
         // Mark first: from here the canonical copy may be newer than the build's.
         mark_restore_pending(&layout)?;
         self.project_native_mod_list(&layout, &selected, None)?;
@@ -1825,7 +2042,12 @@ impl PortcoveService {
     /// only when that succeeded. Otherwise the mark keeps collection from copying
     /// the stale build over the profile until launch restores it.
     fn sync_build_after_change(&self, port_id: &str, layout: &Layout) {
-        if self.restore_active_user_data_if_launched(port_id) {
+        let can_refresh = self
+            .library
+            .connection()
+            .and_then(|connection| selected_profile_uses_active_build(&connection, port_id))
+            .is_ok_and(|uses_active| uses_active);
+        if can_refresh && self.restore_active_user_data_if_launched(port_id) {
             let _ = clear_restore_pending(&layout.user);
         }
     }
@@ -1935,6 +2157,10 @@ pub struct ModSetupsView {
     /// its own build; an upgraded copy can use this one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_install_id: Option<String>,
+    /// This game has a reviewed progress contract. Runtime and save contents
+    /// are checked again during an explicit copy.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub progress_copy_supported: bool,
 }
 
 impl PortcoveService {
@@ -1951,6 +2177,7 @@ impl PortcoveService {
                 held_updates: Vec::new(),
                 provider: None,
                 current_install_id: None,
+                progress_copy_supported: false,
             });
         };
         // Reviews abandoned without Cancel (a closed window, a changed setup)
@@ -1965,6 +2192,7 @@ impl PortcoveService {
             provider: crate::provider_install::bound_provider(port_id)
                 .map(|(provider, _)| provider.to_owned()),
             current_install_id,
+            progress_copy_supported: crate::portable_saves::contract_for(port_id).is_some(),
             port_id: port_id.into(),
             supported: true,
             later_mods_take_priority: matches!(
@@ -1996,6 +2224,22 @@ pub struct LiveMods {
     pub changed_owned: Vec<String>,
     /// The game's own enabled-mods list compared with the selected revision.
     pub native_list: NativeModListStatus,
+}
+
+/// The canonical setup can belong to a retained runtime other than global active.
+fn selected_profile_uses_active_build(
+    connection: &rusqlite::Connection,
+    port_id: &str,
+) -> Result<bool> {
+    let Some((id, revision)) = profile::selection(connection, port_id)? else {
+        return Ok(true);
+    };
+    if profile::profile_by_id(connection, port_id, &id)?.is_default {
+        return Ok(true);
+    }
+    let selected = profile::revision_by_number(connection, &id, revision)?;
+    Ok(profile::active_install_id(connection, port_id)?.as_deref()
+        == Some(selected.build.install_id.as_str()))
 }
 
 /// A change reviewed against `expected` still applies when the only newer
