@@ -30400,6 +30400,46 @@
       ]
     },
     {
+      "id": "gnu-freedink",
+      "name": "Dink Smallwood / GNU FreeDink",
+      "original_game_title": "Dink Smallwood",
+      "summary": "Play the original Dink Smallwood adventure with the GNU FreeDink engine and its bundled game data.",
+      "project_url": "https://www.gnu.org/software/freedink/",
+      "issue_number": 6536,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "release_url": "https://www.gnu.org/software/freedink/",
+      "setup_url": "https://formulae.brew.sh/formula/freedink",
+      "download_block_reason": "Install and update FreeDink through your package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install FreeDink",
+            "instruction": "On Debian or Ubuntu, install the freedink package and its dependencies, then open Dink Smallwood from the launcher or run freedink. On Intel or Apple Silicon Mac, run brew install freedink and then freedink. Homebrew also packages FreeDink for Linux ARM64. These packages include or install the game data."
+          },
+          {
+            "title": "Start and save the adventure",
+            "instruction": "Choose Start from the title screen. Use the arrow keys to walk and Space to talk or examine. Talk to a Save Machine to keep your progress. Choose Continue from the title screen to load your saved game."
+          }
+        ],
+        "warnings": [
+          "Close FreeDink before backing up your saves. Keep save files from the active game or D-Mod directory and its matching subfolder under ~/.dink."
+        ],
+        "references": [
+          {
+            "title": "Find the base game saves",
+            "instruction": "Look for save files in the game data’s dink directory or in ~/.dink/dink. For a Homebrew install, check share/dink/dink inside the folder reported by brew --prefix freedink before you upgrade or remove the package."
+          }
+        ],
+        "help_url": "https://www.gnu.org/software/freedink/"
+      }
+    },
+    {
       "id": "go-go-ackman-go-go-ackman-recompiled",
       "name": "Go Go Ackman (Go Go Ackman Recompiled)",
       "summary": "Use an already permitted Go Go Ackman v1.0 Windows player with your own exact Japanese ROM. The project combines compiled game code with an interpreter; full-game compatibility is unconfirmed. Fresh downloads remain conditional on permission for embedded translation content. Portcove has not confirmed setup or gameplay. Linux Flatpak is a separate upstream package.",
