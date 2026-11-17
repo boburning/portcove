@@ -16,6 +16,11 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import {
+  matchesIgdbRegionalCover,
+  validIgdbRegionalCover,
+  type IgdbRegionalCover,
+} from "./inspect-igdb-artwork.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
@@ -64,6 +69,7 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  igdb_regional_cover?: IgdbRegionalCover;
   /** Desktop review copy, outside signed and retained definition schemas. */
   managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
@@ -322,6 +328,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
   const listing = value.listing;
+  const regional = value.igdb_regional_cover;
+  if (regional !== undefined) {
+    if (!validIgdbRegionalCover(regional))
+      throw new Error("Invalid authored IGDB regional cover selection.");
+    if (listing.artwork != null && !matchesIgdbRegionalCover(listing.artwork, regional))
+      throw new Error("Authored artwork does not match its IGDB regional cover selection.");
+  }
   if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(

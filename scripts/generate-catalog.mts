@@ -377,14 +377,23 @@ const current = authored.catalog;
 // Listing-only entries can already own reviewed covers before gaining an
 // integration. Supply those accepted facts only to artwork preparation; Core's
 // accepted operational baseline and compatibility checks remain unchanged.
+const regionalCovers = new Map(
+  authored.records.flatMap(({ listing, igdb_regional_cover }) =>
+    igdb_regional_cover ? [[listing.id, igdb_regional_cover] as const] : [],
+  ),
+);
 const acceptedArtwork = {
   ...current,
   ports: [
-    ...current.ports,
+    ...current.ports.map((port) => {
+      const selection = regionalCovers.get(port.id);
+      return selection ? { ...port, igdb_regional_cover: selection } : port;
+    }),
     ...authored.records
       .filter(({ integration }) => !integration)
-      .map(({ listing }) => ({
+      .map(({ listing, igdb_regional_cover }) => ({
         id: listing.id,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         name: listing.name,
         project_url: listing.project_url,
         presentation: { artwork: listing.artwork },
@@ -472,6 +481,8 @@ async function prepareArtworkProposal(fullProposal = false) {
   );
   const input = captured.document;
   validateCurrentCatalog(input);
+  if (input.ports.some((port) => Object.hasOwn(port, "igdb_regional_cover")))
+    throw new Error("IGDB regional cover selections belong in authored port records.");
   const identitiesFile = option("--identities");
   const identities = identitiesFile ? readArtworkJson(identitiesFile, 1024 * 1024) : {};
   const refreshPortIds = option("--refresh-artwork")?.split(",") ?? [];

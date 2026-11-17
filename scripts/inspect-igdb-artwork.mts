@@ -25,6 +25,45 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
 
+export interface IgdbRegionalCover {
+  game_id: number;
+  slug: string;
+  name: string;
+  platform_id: number;
+  localization_id: number;
+  region_id: number;
+  cover_id: number;
+  image_id: string;
+}
+
+export function validIgdbRegionalCover(value: unknown): value is IgdbRegionalCover {
+  return (
+    isRecord(value) &&
+    Object.keys(value).length === 8 &&
+    positiveId(value.game_id) &&
+    matchesString(slugPattern, value.slug) &&
+    typeof value.name === "string" &&
+    Boolean(value.name.trim()) &&
+    value.name.length <= 255 &&
+    positiveId(value.platform_id) &&
+    positiveId(value.localization_id) &&
+    positiveId(value.region_id) &&
+    positiveId(value.cover_id) &&
+    matchesString(imagePattern, value.image_id)
+  );
+}
+
+export function matchesIgdbRegionalCover(value: unknown, selection: IgdbRegionalCover) {
+  return (
+    validArtworkMapping(value) &&
+    value.match_kind === "underlying-game" &&
+    value.game_id === selection.game_id &&
+    value.game_slug === selection.slug &&
+    value.cover_id === selection.cover_id &&
+    value.image_id === selection.image_id
+  );
+}
+
 export interface ArtworkPort extends Record<string, unknown> {
   id: string;
   name?: unknown;
@@ -32,6 +71,7 @@ export interface ArtworkPort extends Record<string, unknown> {
   source_profile?: unknown;
   /** Reviewed original-title facts supplied by per-record preparation. */
   underlying_game?: unknown;
+  igdb_regional_cover?: IgdbRegionalCover;
   presentation?: ({ artwork?: unknown } & Record<string, unknown>) | null;
 }
 export interface ArtworkCatalog extends Record<string, unknown> {
@@ -63,12 +103,14 @@ interface DeclaredIdentity {
   project_url: string | null;
   platform_ids: number[];
   edition: string | null;
+  localization?: { id: number; region_id: number };
 }
 interface ObservedGame {
   id: number;
   name: string;
   slug: string;
   cover?: unknown;
+  game_localizations?: unknown;
   alternative_names?: { name: string }[] | null;
   websites?: { url: string }[] | null;
   platforms?: number[] | null;
@@ -262,6 +304,16 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
       "Artwork identity needs bounded public names and valid optional fixed references.",
     );
   }
+  const localization = value.localization;
+  if (
+    localization !== undefined &&
+    (kind !== "underlying-game" ||
+      !positiveId(value.game_id) ||
+      !isRecord(localization) ||
+      !positiveId(localization.id) ||
+      !positiveId(localization.region_id))
+  )
+    throw new Error("Artwork localization requires a fixed original game and region.");
   const projectUrl = value.project_url ? evidenceUrl(value.project_url) : null;
   const platforms = value.platform_ids ?? [];
   if (!Array.isArray(platforms) || platforms.length > 16 || !platforms.every(positiveId))
@@ -286,6 +338,11 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
     project_url: projectUrl,
     platform_ids: platforms,
     edition: value.edition ?? null,
+    ...(isRecord(value.localization) &&
+    positiveId(value.localization.id) &&
+    positiveId(value.localization.region_id)
+      ? { localization: { id: value.localization.id, region_id: value.localization.region_id } }
+      : {}),
   };
 }
 
@@ -423,6 +480,12 @@ function reusableMapping(
   )
     return null;
   const mapping = accepted.presentation.artwork;
+  const regional = port.igdb_regional_cover ?? accepted.igdb_regional_cover;
+  if (regional)
+    return JSON.stringify(regional) === JSON.stringify(accepted.igdb_regional_cover) &&
+      matchesIgdbRegionalCover(mapping, regional)
+      ? structuredClone(mapping)
+      : null;
   const identity = isRecord(declarations)
     ? declarations[mapping.match_kind === "port" ? "port" : "underlying_game"]
     : undefined;
@@ -459,6 +522,7 @@ export function artworkPreparationInput(
     /* The raw declaration remains bound and produces the existing refusal. */
   }
   const mappings = accepted.ports
+    .filter((entry) => !entry.igdb_regional_cover)
     .map((entry) => entry.presentation?.artwork)
     .filter(
       (mapping) =>
@@ -511,6 +575,7 @@ function observedContent(value: unknown): ImageContent {
 
 function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
   const mappings = context.acceptedPorts
+    .filter((port) => !port.igdb_regional_cover)
     .map((port) => port.presentation?.artwork)
     .filter(
       (mapping): mapping is IgdbArtwork =>
@@ -582,6 +647,7 @@ async function selectCover(
   kind: IgdbArtworkMatch,
   context: ArtworkContext,
   exceptions: ArtworkException[],
+  authoredRegional?: IgdbRegionalCover,
 ): Promise<SelectedCover | null> {
   if (!identity) {
     exceptions.push(exception(kind, "identity-not-declared"));
@@ -590,11 +656,13 @@ async function selectCover(
   let declared;
   try {
     declared = declaredIdentity(identity, kind);
+    if (declared.localization && !authoredRegional)
+      throw new Error("Regional cover selection requires an authored port record.");
   } catch {
     exceptions.push(exception(kind, "identity-declaration-invalid"));
     return null;
   }
-  if (kind === "underlying-game" && !context.refreshing) {
+  if (kind === "underlying-game" && !declared.localization && !context.refreshing) {
     const mapping = acceptedOriginal(declared, context);
     if (mapping)
       return {
@@ -643,7 +711,30 @@ async function selectCover(
     return null;
   }
   const game = identified.game;
-  const cover = isRecord(game.cover) ? game.cover : undefined;
+  let candidate = game.cover;
+  if (declared.localization) {
+    const { id, region_id } = declared.localization;
+    const localizations: unknown[] = Array.isArray(game.game_localizations)
+      ? game.game_localizations
+      : [];
+    const matches = localizations.filter((row) => isRecord(row) && row.id === id);
+    const regional = matches.length === 1 && isRecord(matches[0]) ? matches[0] : undefined;
+    if (
+      localizations.length > 256 ||
+      regional?.game !== game.id ||
+      regional.region !== region_id ||
+      !isRecord(regional.cover) ||
+      regional.cover.game_localization !== id ||
+      !authoredRegional ||
+      regional.cover.id !== authoredRegional.cover_id ||
+      regional.cover.image_id !== authoredRegional.image_id
+    ) {
+      exceptions.push(exception(kind, "regional-cover-unavailable-or-mismatched"));
+      return null;
+    }
+    candidate = regional.cover;
+  }
+  const cover = isRecord(candidate) ? candidate : undefined;
   if (!cover || !positiveId(cover.id) || !matchesString(imagePattern, cover.image_id)) {
     exceptions.push(exception(kind, "no-usable-cover"));
     return null;
@@ -776,7 +867,13 @@ export async function prepareCatalogArtwork(
     options.signal?.throwIfAborted();
     const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
     const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
-    const reused = reusableMapping(port, accepted.get(port.id), supplied);
+    const priorPort = accepted.get(port.id);
+    const regional = port.igdb_regional_cover ?? priorPort?.igdb_regional_cover;
+    if (regional !== undefined && !validIgdbRegionalCover(regional))
+      throw new Error(`Invalid authored regional cover: ${port.id}`);
+    if (priorPort?.igdb_regional_cover && priorPort.project_url !== port.project_url)
+      throw new Error(`Regional cover needs new source review: ${port.id}`);
+    const reused = reusableMapping(port, priorPort, supplied);
     if (!workset.has(port.id)) {
       const prior = accepted.get(port.id)?.presentation?.artwork;
       const mapping = port.presentation?.artwork;
@@ -814,9 +911,23 @@ export async function prepareCatalogArtwork(
     };
     context.refreshing = refresh.has(port.id);
     const exceptions: ArtworkException[] = [];
-    const selected =
-      (await selectCover(declarations?.port, "port", context, exceptions)) ??
-      (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
+    const selected = regional
+      ? await selectCover(
+          {
+            game_id: regional.game_id,
+            slug: regional.slug,
+            names: [regional.name],
+            evidence_url: port.project_url,
+            platform_ids: [regional.platform_id],
+            localization: { id: regional.localization_id, region_id: regional.region_id },
+          },
+          "underlying-game",
+          context,
+          exceptions,
+          regional,
+        )
+      : ((await selectCover(declarations.port, "port", context, exceptions)) ??
+        (await selectCover(declarations.underlying_game, "underlying-game", context, exceptions)));
     const companion = port.presentation?.companion_cover;
     if (context.refreshing && validArtworkMapping(companion)) {
       const content = await inspectCoverContent(
@@ -1266,7 +1377,7 @@ export function createIgdbInspector(
       const verified = declaredIdentity(identity);
       return inspectMetadata(
         "games",
-        `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id; where ${
+        `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id${verified.localization ? ",game_localizations.id,game_localizations.game,game_localizations.region,game_localizations.cover.id,game_localizations.cover.image_id,game_localizations.cover.game_localization" : ""}; where ${
           verified.game_id != null
             ? `id = ${verified.game_id}`
             : verified.names
