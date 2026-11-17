@@ -38271,11 +38271,11 @@
         "references": [
           {
             "title": "Set up the Android release",
-            "instruction": "Use the publisher’s arm64-v8a or armeabi-v7a APK on Android 7 or later and follow its Android guide to place your original data. The shared lba2cc folder requires Android’s All Files Access on Android 11 or later. Back up the user/LBA2 folder where the game put its settings and saves before replacing or uninstalling the app."
+            "instruction": "Use the publisher’s arm64-v8a or armeabi-v7a APK on Android 7 or later and follow its Android guide to place your original data. The shared lba2cc folder requires Android’s All Files Access on Android 11 or later. Check the active save folder in the startup log. With shared storage, back up lba2cc/user/LBA2. App-owned fallback folders can be erased on uninstall, so verify a separate copy of your saves before uninstalling."
           },
           {
             "title": "Keep your saves when changing packages",
-            "instruction": "With the game closed, copy the Twinsen/LBA2 folder under Windows AppData Roaming, the Linux data directory, or macOS Application Support. If you chose --user-dir, use that directory. If you added portable.txt, copy User/LBA2 beside the engine. Keep originals and profiles separate from replacement package files."
+            "instruction": "With the game closed, copy Twinsen/LBA2 under %APPDATA% on Windows, $XDG_DATA_HOME or ~/.local/share on Linux, or ~/Library/Application Support on Mac. If you chose --user-dir or LBA2_USER_DIR, copy that directory with its profiles. If you added portable.txt, copy User/LBA2 beside the engine. Keep originals and profiles separate from replacement package files."
           }
         ],
         "help_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data"
