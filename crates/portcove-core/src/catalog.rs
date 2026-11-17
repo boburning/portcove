@@ -711,7 +711,6 @@ impl Catalog {
                     || !port.setup_executable_hints.is_empty()
                     || !port.setup_arguments.is_empty()
                     || port.source_environment.is_some()
-                    || port.user_data_environment.is_some()
                     || port.managed_shared_preferences.is_some()
                     || port.managed_initialization.is_some())
             {
@@ -891,10 +890,31 @@ impl Catalog {
                         )));
                     }
                 }
-                if let Some(artwork) = &presentation.artwork
-                    && (artwork.game_id == 0
+                if presentation
+                    .companion_cover
+                    .as_ref()
+                    .is_some_and(|companion| {
+                        presentation.artwork.as_ref().is_some_and(|primary| {
+                            primary.game_id == companion.game_id
+                                || primary.image_sha256 == companion.image_sha256
+                                || primary.image_id == companion.image_id
+                        })
+                    })
+                {
+                    return Err(PortcoveError::usage(format!(
+                        "{} needs distinct primary and companion covers",
+                        port.id
+                    )));
+                }
+                for artwork in presentation
+                    .artwork
+                    .iter()
+                    .chain(&presentation.companion_cover)
+                {
+                    if artwork.game_id == 0
                         || artwork.cover_id == 0
                         || artwork.image_id.is_empty()
+                        || artwork.image_id.len() > 128
                         || artwork.image_sha256.len() != 64
                         || !artwork
                             .image_sha256
@@ -905,14 +925,16 @@ impl Catalog {
                             .bytes()
                             .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit())
                         || artwork.game_slug.is_empty()
+                        || artwork.game_slug.len() > 512
                         || !artwork.game_slug.bytes().all(|byte| {
                             byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-'
-                        }))
-                {
-                    return Err(PortcoveError::usage(format!(
-                        "{} has an invalid IGDB artwork mapping",
-                        port.id
-                    )));
+                        })
+                    {
+                        return Err(PortcoveError::usage(format!(
+                            "{} has an invalid IGDB artwork mapping",
+                            port.id
+                        )));
+                    }
                 }
                 let expected_requirements = [
                     (
@@ -1804,7 +1826,8 @@ impl Catalog {
                     }
                 }
                 None if !port.runtime_source_hashes.is_empty()
-                    && port.managed_initialization.is_none() =>
+                    && port.managed_initialization.is_none()
+                    && !crate::preparation::source::native_relative(port) =>
                 {
                     return Err(PortcoveError::usage(format!(
                         "{} has runtime source identities without materialization",
@@ -1882,7 +1905,8 @@ impl Catalog {
                         && matches_member;
                     let valid = valid
                         && (!relative_set
-                            || (port.managed_initialization.is_some()
+                            || ((port.managed_initialization.is_some()
+                                || crate::preparation::source::native_relative(port))
                                 && target.source_filenames.len() == 1
                                 && target.materialization == RuntimeSourceMaterialization::Copy
                                 && crate::archive::validate_relative_path(
@@ -2437,6 +2461,27 @@ mod tests {
     use super::*;
 
     #[test]
+    fn updater_switch_routes_pass_their_complete_upstream_switch() {
+        // The managed route is safe only while the game starts with this switch.
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("blacklabelhq-medievilrecomp").unwrap();
+        assert_eq!(port.launch_arguments, ["--disable-updated"]);
+        let port = catalog.port("opencommunityedition-opence").unwrap();
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_UPDATE_AUTO")
+                .map(String::as_str),
+            Some("false")
+        );
+        assert_eq!(
+            port.launch_environment
+                .get("HALO_SERVER_AUTO_UPDATE")
+                .map(String::as_str),
+            Some("off")
+        );
+    }
+
+    #[test]
     fn windows_tracked_handoff_is_opt_in_and_requires_a_native_windows_executable() {
         let catalog = Catalog::embedded().unwrap();
         // Only reviewed routes opt in; every other embedded port keeps the
@@ -2449,9 +2494,14 @@ mod tests {
                 .map(|port| port.id.as_str())
                 .collect::<std::collections::BTreeSet<_>>(),
             std::collections::BTreeSet::from([
+                "bstoney-yt-mercenaries-2-decompilation",
+                "cdlewis-snowboardkids-recomp",
+                "darkuni-afterburner-climax-recomp",
                 "goldeneye-007-n64-pc-port",
                 "monster-hunter-portable-3rd-hd-yakumo",
+                "opencommunityedition-opence",
                 "snap64-recomp",
+                "vibecodekun-shantaerecomp",
             ])
         );
         let parse = |edit: &dyn Fn(&mut PortDefinition)| {
@@ -2901,6 +2951,13 @@ mod tests {
         ] {
             assert!(!ids.is_empty());
             assert_eq!(ids.iter().collect::<HashSet<_>>().len(), ids.len());
+            // Ascending order lets concurrent additions merge instead of colliding at the end.
+            if let Some(pair) = ids.windows(2).find(|pair| pair[0] >= pair[1]) {
+                panic!(
+                    "keep reviewed legacy addition IDs in ascending order; move {:?} before {:?}",
+                    pair[1], pair[0]
+                );
+            }
             for id in ids {
                 assert!(
                     id.split('-').all(|part| !part.is_empty()
@@ -3240,7 +3297,10 @@ mod tests {
             );
             assert_eq!(
                 port.presentation.as_ref().unwrap().manual_setup.is_some(),
-                matches!(id, "dkc3-recomp" | "sonic-3-and-knuckles-recomp"),
+                matches!(
+                    id,
+                    "dkc3-recomp" | "sonic-3-and-knuckles-recomp" | "super-mario-world-recomp"
+                ),
                 "{id}"
             );
             assert!(port.automated_tested_platforms.is_empty(), "{id}");
@@ -3377,11 +3437,18 @@ mod tests {
                         "v0.15.9",
                         "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82",
                     ),
-                ],
+                    (
+                        "v0.15.10",
+                        "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc",
+                    ),
+                ]
+                .as_slice(),
                 [
                     "super-mario-world-recomp-0-12-0-source-contract",
                     "super-mario-world-recomp-0-15-9-source-contract",
-                ],
+                    "super-mario-world-recomp-0-15-10-source-contract",
+                ]
+                .as_slice(),
             ),
             (
                 "the-legend-of-zelda-a-link-to-the-past-snes-recomp",
@@ -3395,11 +3462,13 @@ mod tests {
                         "v0.6.6",
                         "53b613b86e87bfacc8462f485047c7fd22f82886dac69087aa0f0ef15eca7be2",
                     ),
-                ],
+                ]
+                .as_slice(),
                 [
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-1-source-contract",
                     "the-legend-of-zelda-a-link-to-the-past-snes-recomp-0-6-6-source-contract",
-                ],
+                ]
+                .as_slice(),
             ),
         ] {
             let port = catalog.port(id).unwrap();
@@ -9830,3 +9899,50 @@ mod tests {
 #[cfg(test)]
 #[path = "catalog_native_pin_tests.rs"]
 mod native_pin_tests;
+#[test]
+fn dhewm3_originals_apply_only_to_the_reviewed_player_packages() {
+    let catalog = Catalog::embedded().unwrap();
+    let corpus: serde_json::Value = serde_json::from_str(include_str!(
+        "testdata/native-engine-adoption-2026-11-02.json"
+    ))
+    .unwrap();
+    for id in [
+        "doom-3-classic-dhewm3",
+        "doom-3-resurrection-of-evil-classic-dhewm3",
+    ] {
+        let contract = catalog
+            .source_catalog()
+            .unwrap()
+            .contracts
+            .iter()
+            .find(|contract| contract.port_id == id)
+            .unwrap();
+        assert!(contract.release_policy.is_none());
+        assert_eq!(contract.applicability.len(), 2);
+        let case = corpus["cases"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|case| case["port_id"] == id)
+            .unwrap();
+        let tag = case["release"]["tag_name"].as_str().unwrap();
+        let mut reviewed = 0;
+        for asset in case["release"]["assets"].as_array().unwrap() {
+            let name = asset["name"].as_str().unwrap();
+            let Some(sha256) = asset["digest"]
+                .as_str()
+                .and_then(|value| value.strip_prefix("sha256:"))
+            else {
+                continue;
+            };
+            let expected = matches!(
+                name,
+                "dhewm3-1.5.5_Linux_amd64.tar.gz" | "dhewm3-1.5.5_win32.zip"
+            );
+            reviewed += usize::from(expected);
+            assert_eq!(contract.applies_to_release(tag, sha256), expected, "{name}");
+            assert!(!contract.applies_to_release("1.5.6", sha256));
+        }
+        assert_eq!(reviewed, 2);
+    }
+}

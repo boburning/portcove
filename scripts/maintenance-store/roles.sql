@@ -77,3 +77,14 @@ GRANT EXECUTE ON FUNCTION portcove_maintenance.acquire_collection(),
   TO portcove_maintenance_collector;
 -- A run inserted without a ticket takes one from the same sequence at insert.
 GRANT USAGE ON SEQUENCE portcove_maintenance.collection_acquisition TO portcove_maintenance_collector;
+
+-- GitHub intake owns these checkpoints. The collector can only observe them.
+GRANT INSERT ON
+  portcove_maintenance.discovery_intake_batches, portcove_maintenance.discovery_intake_candidates
+  TO portcove_maintenance_executor;
+GRANT UPDATE (revision, receipt_body, previous_receipt_sha256)
+  ON portcove_maintenance.discovery_intake_batches TO portcove_maintenance_executor;
+GRANT UPDATE (checkpoint)
+  ON portcove_maintenance.discovery_intake_candidates TO portcove_maintenance_executor;
+GRANT SELECT ON portcove_maintenance_meta.discovery_intake_activation
+  TO portcove_maintenance_executor;

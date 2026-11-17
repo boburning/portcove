@@ -93,12 +93,12 @@ implementation, rendering, audio, codecs, gameplay and bug fixes.
 
 Each installation has one owner for runtime replacement:
 
-| Offered route                  | Runtime replacement and updates    | Portcove's responsibility                                                                                                                                                                                                            |
-| ------------------------------ | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Managed official package       | Portcove                           | Accepted artifact identity, safe installation, documented input/setup invocation and launch; player-data protection for explicitly owned paths. Offer update, rollback, backup and removal only where established.                   |
-| Supported upstream preparation | Explicitly selected for the output | Delegate the substantive work to upstream's CLI, builder, extractor or setup window. If upstream retains an updater/launcher, use non-owning registration; its mutable runtime cannot also be a Portcove-owned immutable version.    |
-| Existing installation          | Player or upstream launcher        | Explicit selected executable, working directory and bounded arguments; register, launch, and remove the registration while preserving external files. User selection establishes execution intent, not curated package authenticity. |
-| No useful reasonable route     | Unoffered                          | Record the precise upstream dependency or product deferral and reconsideration condition on the canonical issue. Preserve research, patches and failures as evidence.                                                                |
+| Offered route                  | Runtime replacement and updates    | Portcove's responsibility                                                                                                                                                                                                                                                                     |
+| ------------------------------ | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Managed official package       | Portcove                           | Accepted artifact identity, safe installation, documented input/setup invocation and launch; player-data protection for explicitly owned paths. Offer update, rollback, backup and removal only where established.                                                                            |
+| Supported upstream preparation | Explicitly selected for the output | Delegate the substantive work to upstream's CLI, builder, extractor or setup window. If upstream retains an updater/launcher, use non-owning registration unless a complete upstream switch qualifies a managed route; its mutable runtime cannot also be a Portcove-owned immutable version. |
+| Existing installation          | Player or upstream launcher        | Explicit selected executable, working directory and bounded arguments; register, launch, and remove the registration while preserving external files. User selection establishes execution intent, not curated package authenticity.                                                          |
+| No useful reasonable route     | Unoffered                          | Record the precise upstream dependency or product deferral and reconsideration condition on the canonical issue. Preserve research, patches and failures as evidence.                                                                                                                         |
 
 A supported setup window is acceptable. Shared PSX preparation remains useful:
 it invokes upstream generation/rebuild rather than implementing each engine.
@@ -137,17 +137,18 @@ the same day the owner made tier 3 the default for upstream-hosted packages,
 following the model of launchers such as Quiver: Portcove fetches what the
 upstream itself publishes and holds a package only for concrete reasons.
 
-| Tier | Route                                                                                                                                                                    | Rights basis needed                                                                                                                            |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | Discovery listing: name, summary and the upstream project link, with no download or install route                                                                        | An attributable public project; no package rights decision                                                                                     |
-| 2    | Existing installation: the player obtains the package from upstream; Portcove registers it, verifies declared facts where bound, launches it and preserves external data | The player's own copy; Portcove neither hosts nor fetches the package                                                                          |
-| 3    | Managed acquisition from the official upstream release: Portcove downloads the publisher's own release asset on the player's request, verifies it and installs it        | The package must come from the upstream's own release location, verified against its accepted identity, and must not bundle original game data |
-| 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                    |
+| Tier | Route                                                                                                                                                                    | Rights basis needed                                                                                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | Discovery listing: name, summary and the upstream project link, with no download or install route                                                                        | An attributable public project; no package rights decision                                                                                                                       |
+| 2    | Existing installation: the player obtains the package from upstream; Portcove registers it, verifies declared facts where bound, launches it and preserves external data | The player's own copy; Portcove neither hosts nor fetches the package                                                                                                            |
+| 3    | Managed acquisition from the official upstream release: Portcove downloads the publisher's own release asset on the player's request, verifies it and installs it        | The package must come from the upstream's own release location, verified against its accepted identity, and must not bundle original game data beyond the owner exceptions below |
+| 4    | Re-hosting, mirroring or caching packages for redistribution                                                                                                             | Not offered                                                                                                                                                                      |
 
 - **Recorded notes, not holds.** Recompiled, translated or inherited game
   program code without a grant, bundled fonts of any licence that are not extracted from the game, icons, launcher
   art such as box art and logos, unlicensed helper code, forks or launchers,
-  and an unlicensed own layer are recorded as known limitations in the
+  third-party library binaries shipped without their licence notices, and an
+  unlicensed own layer are recorded as known limitations in the
   listing's warning. Portcove never re-hosts them; the upstream that
   publishes them answers for their terms.
 - **Explicit prohibitions stay held.** An upstream that forbids redistribution
@@ -162,6 +163,19 @@ upstream itself publishes and holds a package only for concrete reasons.
   as symbol names and offsets is code, not game data; contents the player's
   original generates on first run are not bundled. A package whose contents
   are unknown stays held until they are listed.
+- **Owner exceptions to the game-data hold.** On November 15, 2026 the owner
+  made two narrow kinds of bundled game material recorded notes instead of
+  holds. First, launcher or menu art that only the upstream's own front end
+  shows when it is captured or derived from the game, such as posters made
+  from screenshots or menu art made from a community texture pack. Images,
+  textures, fonts or audio extracted unmodified from the game stay held, and
+  so does art the recompiled game itself uses. Second, game data that its
+  rights holder released for free redistribution, such as a freeware release
+  or an official demo, when the package bundles it unmodified. Shareware
+  episodes are not decided by this exception. Neither exception lifts an
+  explicit prohibition in the material's own licence or the upstream's terms.
+  Each listing names the material in its warning, and the player still
+  supplies any full game separately.
 - **Confirmed false positives.** When a person confirms that a
   [release-content scan](UPSTREAM-OBSERVATIONS.md#release-content-scan)
   finding is not game data, such as a homebrew test ROM, a reviewed entry in
@@ -174,7 +188,7 @@ upstream itself publishes and holds a package only for concrete reasons.
   also covers the ordinary listing download from the upstream's own releases.
   Its accepted identity is that release location, checked against the
   provider's published digest when there is one. Later releases stay offered
-  unless one bundles game data or a verified
+  unless one bundles game data outside the owner exceptions or a verified
   rights-holder request arrives; either restores the listing's
   `download_block_reason`. A listing hold applies to every platform of the
   port, so a port keeps its hold while one platform's route, such as an
@@ -287,20 +301,47 @@ approved metadata/intake scope and scheduling remain unchanged.
 The `native-portable` adapter offers the existing managed installation, update,
 retained-version, backup and recovery lifecycle to fitting upstream archives.
 For ordinary GitHub discovery, releases containing only explicit other-OS
-players are outside that platform's stream. Same-OS, unknown or mixed package
+players are outside that platform's stream. PortMaster packages target handheld
+Linux firmware and count as another platform's players on every desktop
+platform, so a PortMaster-only release never enters a desktop stream. Same-OS, unknown or mixed package
 names still use the normal variant, processor and integrity refusals; source-only
 releases never silently select an older runtime. Curated identities retain their
 existing exact selection.
 It does not need a game-specific adapter. Setup provider and runtime update owner
 are independent: the game can ask for original files on first launch while
 Portcove continues to replace its runtime. A launcher that replaces its own
-runtime instead uses the non-owning existing-installation route.
+runtime instead uses the non-owning existing-installation route, unless the
+updater switch described below qualifies it.
 
 Verify that the selected process stays alive through edition dispatch and
 settings-triggered restarts, or uses a supported tracked handoff. A launcher that
 starts a successor and exits can end Core's supervision while the game still
 uses its files. Keep that upstream-owned route non-owning until its full lifetime
 can be tracked; bypassing useful setup or settings is not a management fix.
+
+An upstream player with its own updater can take a managed route only when
+upstream provides a switch that removes every update path, meaning the startup
+check, manual checks and installing a download, and the route passes that
+switch through `launch_arguments` or `launch_environment`. Record dated source
+evidence that the switch reaches each update entry point. A switch that only
+skips the startup check, such as an offline flag that leaves a manual check or
+an install button available, does not qualify; the route stays non-owning. The
+evidence is bound to the reviewed release: the route follows later releases by
+its asset hints and reviewed layout, which do not check the switch, so re-check
+it whenever a new release is reviewed. If a release dropped the switch, Core's
+immutable verification would hold the changed installation. The rule covers
+upstream's own update paths, not mods the player installs, and starting the
+managed program directly outside Portcove runs without the switch. That includes
+a launch the operating system starts for the player, such as an invite link the
+game registered; the guide tells players to close such a session before updating.
+A check that only reports a newer release or opens its page, and never downloads,
+stages or installs anything, is not an update path under this rule.
+MediEvilRecomp's `--disable-updated`, which upstream provides for an external
+manager, is the first such route
+([MediEvilRecomp qualification](qualification/medievilrecomp-updater-switch-2026-11-15.md)).
+OpenCE's `HALO_UPDATE_AUTO=false` and `HALO_SERVER_AUTO_UPDATE=off` environment
+values close its game and dedicated-server updaters
+([OpenCE qualification](qualification/opence-updater-switch-2026-11-16.md)).
 
 The supported tracked handoff is a reviewed Windows opt-in. A definition that
 declares `windows_tracked_handoff: true` must offer Windows with a native `.exe`
@@ -331,6 +372,27 @@ inside the installation. Its shipped `portable.txt` keeps settings, saves and
 the prepared game in the declared `data` folder. Prepared copies keep their
 non-owning registration, which does not track successors.
 [Yakumo qualification](qualification/yakumo-tracked-handoff-2026-11-12.md).
+
+Snowboard Kids: Recompiled by cdlewis also opts in on Windows. After a failed
+start, choosing the other region's ROM relaunches the same executable with
+`CreateProcessW`, and its in-install crashpad handler exits with the game.
+[Snowboard Kids qualification](qualification/snowboardkids-cdlewis-tracked-handoff-2026-11-15.md).
+
+The Mercenaries 2 native beta opts in on Windows. Quitting to the main menu or
+loading a save starts the same executable again with Rust's `Command::spawn`
+and closes the original.
+[Mercenaries 2 qualification](qualification/mercenaries2-tracked-handoff-2026-11-15.md).
+
+After Burner Climax (darkuni Recomp) opts in on Windows. For the World release,
+`after_burner_climax.exe` starts its sibling `after_burner_climax_world.exe` with
+`CreateProcessW` and exits.
+[After Burner Climax qualification](qualification/afterburner-climax-tracked-handoff-2026-11-16.md).
+
+Shantae Recomp (vibecodekun) opts in on Windows. Return to Launcher starts the
+same executable again with `CreateProcessW` from an exit hook, and its shader
+preset check runs a hidden helper copy of the same program that the game stops
+before it exits.
+[Shantae qualification](qualification/shantae-recomp-tracked-handoff-2026-11-16.md).
 
 Adding this route does not adopt an existing external registration. Players can
 review a separate managed copy while keeping the current copy usable. Core can
@@ -435,7 +497,12 @@ sealed source receipts. Unapproved populated adoption and persistence changes st
 held. Preserving removal retains declared profile data and leaves external
 originals unchanged. Native1–5 definitions and older SourceOnly interpretations
 retain their existing semantics. Fresh and retained indexed entries with native
-source profiles require a Native6 lower bound.
+source profiles require a Native6 lower bound. Native capability 37
+also admits complete exact relative-file sets with SHA-256-bound Copy targets.
+Each observed relative path must map to a unique runtime destination. Preparation
+uses private staging beside the resolved player and retains the Native6 output
+ownership and publication checks. The relative-file-set verifier determines
+whether the original can be a ZIP or must be an installed folder.
 
 Use an official ZIP, tar.gz or tgz with an independently expected SHA-256,
 reviewed native package and executable hints, and a small declared persistence
@@ -547,6 +614,26 @@ beside its assets and uses the default HOME/.openglad profile.
 Use a separately prepared copy for OpenGlad's custom profile override or
 a custom Unix library search path. Existing platform contracts keep their
 creating definitions.
+
+NativePortable capability 39 covers the official Endless Sky Windows x64 ZIP and
+Linux x64 standalone AppImage. The release selectors accept the publisher’s
+portable package names and retain the provider artifact identity. Launch uses
+the normal SDL roaming profile on Windows or the Linux data directory from
+`XDG_DATA_HOME` or `HOME/.local/share`. Core checks that player data stays
+outside the library and registered output roots. The Linux AppImage also
+requires an independent temporary mount location and a clean executable
+directory without an adjacent portable profile. Portcove manages the runtime.
+Players retain and back up their pilots, settings and plugins separately.
+The universal Mac disk image remains an upstream package.
+
+Surge the Rabbit uses the publisher’s Windows portable ZIP. The selected
+32-bit player runs on the Windows x64 host route with the bundled game data.
+Portcove sets `OPENSURGE_USER_PATH` to the existing per-title data directory.
+The normal launch uses the bundled game and its separate writable data directory.
+Native portable definitions with a managed userdata environment use their
+declared arguments, since an alternate game-folder argument can change the
+runtime’s write destination. The engine can reopen a project in the same process.
+Separately opened project folders retain their own files and backup ownership.
 
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
@@ -766,14 +853,33 @@ declared data paths stay the same: changing `--data-dir` or a data-location
 environment variable cannot silently redirect a retained installation. A supported
 transition must establish compatibility before changing these execution facts.
 
+To promote a reviewed listing to a managed native-portable route, run
+`node scripts/promote-listing.mts --port ID --archive PLATFORM=PATH --executable
+PLATFORM=NAME --preparation TEXT` with the official archive you verified. It records
+Core's inspected layout and the listing's asset hints in a new `integration`, leaves
+the listing only its unmanaged platforms, inserts the ID into the sorted legacy
+additions fixture, flips the port's download test to the managed route, drops the
+superseded listing-only player test, formats the edits and regenerates the catalog.
+Pass the publisher digest with `--sha256 PLATFORM=HEX`; without it Core only checks
+the local hash and the command says so. Kept paths (`--persistent`) require an
+explicit `--saves` choice, and a listing without `original_game_title` needs
+`--original-game-title`. `--repository`, `--channel`, `--env` and repeated
+`--launch-arg` values (written in order) cover the other declarations. It refuses
+a listing that still has a `download_block_reason`, or whose summary names a
+structured fact such as the release channel, before writing anything. It needs a built CLI (`--cli` or `PORTCOVE_CLI`, default
+`target/debug/portcove`), and each managed platform needs an archive that the host
+can inspect, so a Windows host promotes only Windows. The guide, rights warnings,
+provider digest, write locations and process lifetime remain the author's review.
+
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
 that the package is ready for Play. Avoid a redundant first step telling the player
-to install. Desktop uses this first step in the managed installation review and
-keeps the guide in Files even when Core needs no source profile. Listing guides
-also survive as saved-download handoffs after a definition disappears. Keep their
-steps truthful for both routes, spell out any external launch arguments, and put
-managed retention/backup/replacement details in the integration's
+to install. Put the managed step in the integration's guide when it belongs
+in the managed installation review. The full guide is available in Files even
+when Core needs no source profile. Listing guides also survive as saved-download
+handoffs after a definition disappears. Spell out any external launch arguments
+in the upstream guide and put managed retention, backup and replacement details
+in the integration's
 `presentation.manual_preparation`, which Desktop scopes to managed ownership.
 An empty Core
 input requirement describes Portcove's action; it does not assert that the upstream
@@ -808,8 +914,9 @@ They do not block those operations, and only a reviewed loader-read name
 beside the executable, such as `dinput8.ini`, `ReShade.ini`, `dxvk.conf` or
 `Game.exe.config`, blocks launch. Verification and the removal review list them,
 backups keep a separate copy that restore does not put back, and removal backs
-them up first. They are not declared player data and are not collected or
-carried forward. Past the unknown-file caps only a backup or removal is held;
+them up first. They are not declared player data and are not collected as such;
+harmless ones are carried to the version that becomes active under the
+[Tier 2 contract](ARCHITECTURE.md#unknown-player-side-files). Past the unknown-file caps only a backup or removal is held;
 see the [architecture contract](ARCHITECTURE.md#unknown-player-side-files).
 Updates extract into a new version, collect
 declared data from the active version even before its first launch, restore it to
@@ -1001,11 +1108,14 @@ sources. Directory reads retain no-follow, single-link and before/after object
 identity checks; cache revalidation uses the same streaming path. Cancellation
 is checked between chunks. A hash or size mismatch refuses admission/publication,
 and interrupted writes stay in the existing private staging/recovery boundary.
-The 128 MiB member, 512 MiB aggregate and 256-member capability limits remain:
-the current reviewed 48-member Dark Forces representation totals 68,386,776 bytes,
-with a largest member of 14,244,049 bytes (catalog measured 2026-10-27). No reviewed
-supported representation was demonstrated to need a larger bound. Streaming
-reduces scratch allocation; it does not expand source or archive authority.
+ZIP intake retains its 128 MiB member and 512 MiB declared aggregate limits.
+An exact schema-2 identity above either ZIP limit accepts an installed directory
+only, with at most 640 MiB per member and 2 GiB of declared members. Both shapes
+retain the 256-member limit, portable relative paths and caller hash budgets.
+A source identity cannot mix ZIP-compatible and large directory-only variants.
+The larger directory limits accommodate the classic Doom 3 and Resurrection of
+Evil PK4 sizes. An identity declaration alone does not qualify a port’s
+installation, preparation or retained-data transition.
 
 The reviewed Windows TFE v1.22.420 package selects the constrained
 `tfe-dark-forces-portable-v1` initializer and requires staged-source capability
@@ -1399,7 +1509,9 @@ refuse an identity mismatch before replacing embedded bytes. This cheap check
 does not establish full source-contract equality: Rust still compares complete
 frozen legacy projections and retains its qualification and negative assertions.
 Add independently reviewed additive IDs to this fixture once instead of updating
-the expected count and three exclusion lists separately. Do not regenerate the
+the expected count and three exclusion lists separately. Insert each ID in ascending
+order; the generator and the Rust catalog tests refuse an unsorted list, so
+concurrent additions usually merge instead of colliding at the end. Do not regenerate the
 fixture from the catalog or derive expected identities from a proposal.
 An unavailable validator or failed declaration check stops this proposal, retains
 its process receipts and leaves the accepted catalog/libraries unchanged. A new
@@ -1425,8 +1537,15 @@ credentials; clients need no key and only fetch the bounded mapped image through
 the existing shared resolver. Do not bundle images or treat display permission as
 Steam export permission. All current and future covers use the shared full-image
 presentation: preserve aspect ratio, show the complete cover, and use the card's
-surface instead of a generated colored matte. Generated colors return only when
-no usable image is displayed.
+surface instead of a generated colored matte. Discover and Library cards draw
+an offline controller illustration whenever a usable cover is missing or fails
+to render.
+
+A managed definition for two games can also declare `integration.presentation.companion_cover`
+in its authored record. Verify the second game's IGDB identity and image digest
+independently. Discover's Covers layout shows both full images when the primary
+is the current catalog default and the companion loads. A missing companion
+leaves the primary visible. The usual local cover choice takes precedence.
 
 The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
 records the catalog-wide preparation, accepted port and original identities, and
@@ -1464,6 +1583,16 @@ image acquisition. A coverless port falls through to its identified original gam
 Missing, ambiguous, mismatched or
 unusable assets produce specific nonblocking cover exceptions and generated
 fallback; a decoded image cannot establish semantic identity.
+
+For a known regional cover, put `igdb_regional_cover` in the authored port record.
+Pin the original IGDB game's `game_id`, `slug`, `name` and `platform_id`, then
+the IGDB `localization_id` and `region_id` for the supported edition, and its
+reviewed `cover_id` and `image_id`. Preparation verifies the localized cover's
+relationship to that game and region. Refresh keeps the reviewed regional cover
+when IGDB offers a different asset or the lookup is unavailable. A replacement
+cover requires updating the pin and verifying the new image. If the pinned
+image is confirmed Gone, the listing uses its fallback illustration. Only the verified image mapping goes into the
+generated catalog and listing directory.
 
 The assembled accepted records are the baseline. Artwork preparation also reads
 accepted listing-only covers, so adding a managed integration can retain its
@@ -1528,7 +1657,16 @@ missing, invalid and then oldest observed references automatically against the
 This is the existing operator cadence, not a new scheduler or player startup task.
 Ordinary executable updates do not refresh artwork.
 
-A logical workset may exceed 400 IDs. The driver admits operations of at most 400
+A logical workset may exceed 400 IDs. The catalog generator's `--prepare-artwork`
+runs a larger workset as consecutive operations of at most 400 IDs over the same
+input, assembles the proposal per port and reconciles exact-image Gone observations
+from every operation into all records. Ports outside an explicit workset keep their
+unchanged input until that reconciliation, so each one a Gone image withdraws gets
+its fallback record and invalidated ID. Game-media records from earlier operations
+are relabelled when a later operation finds their selected image Gone. Those
+operations share one provider budget; that path neither adapts admission nor
+checkpoints progress. The prepare-port
+driver admits operations of at most 400
 selected IDs and adjusts subsequent admission using observed elapsed time,
 requests and image bytes. Completed identities are atomically checkpointed after
 each result under the existing preparation lock. Reinvoke the same full workset
@@ -1801,8 +1939,8 @@ caller-forwarded arguments are refused. This flag cannot combine with a position
 source extension, settings/shared-preferences selector, or the version-17 Windows
 positional-file path policy. Omitted/false retains previous behavior.
 
-The existing relative-file-set bounds and identity scope remain unchanged: exact
-declared members are authenticated; additional scanned files are not thereby
+The binding uses the relative-file-set verifier and its bounds. Exact declared
+members are authenticated; additional scanned files are not thereby
 authenticated as a complete original tree. This binding grants no runtime write
 protection, source ownership, assembly, acquisition or update authority. A source
 directory alone does not establish a safe title route. Opt-in registrations retain
@@ -2066,10 +2204,27 @@ with execute permission. Existing fingerprints continue to use their declared
 rules. The matching authoring observation is `catalog inspect-package-layout
 --ignore-verified-macos-libraries`.
 
+Linux x86-64 layouts may opt into `classify_linux_programs_by_format` when an
+upstream archive marks data, documentation or versioned shared libraries
+executable. An executable-mode file then counts only when it starts with an ELF
+or `#!` header, and a `.so` or `.so.N` file is excluded only when bounded header
+inspection finds an x86-64 ELF shared object with a dynamic segment and no
+program interpreter. A position-independent program, an ELF program named like
+a library and any program or script name above still count. Windows libraries
+remain outside the fingerprint, as on Windows. Two residuals follow from the
+rule. An executable-mode text file without `#!` is excluded, although a
+reviewed `.sh` launcher could still run it through the shell. A static
+position-independent ELF program named `*.so` has no interpreter and is
+excluded like a library. The gate has never fingerprinted file contents or
+libraries, so these residuals do not weaken an earlier guarantee. The matching
+authoring observation is `catalog inspect-package-layout
+--classify-linux-programs-by-format`.
+
 Independent definitions using this gate
 require [NativePortable version 18](DEFINITION-DELIVERY.md) so readers that
 would ignore the field cannot accept them. The macOS library filter requires
-version 30. A selected independent definition
+version 30 and the Linux program format classifier version 36. A selected
+independent definition
 may replace a fingerprint after review but cannot remove one. The fingerprint
 applies to staging and grants no
 qualification. Persistent-path anchors stay in the existing `persistent_paths`
@@ -2172,8 +2327,22 @@ this version adopts from local files records the marker; an adopted tree with a
 separately recorded runtime is also recognized. A manifest rewrite or prepared
 derivative carries the original's recorded facts and install time and never
 adds a marker the original lacked, so a derivative of a pre-baseline build stays
-pre-baseline. Rolling back to a held build reports `review_required`. A held
-recovery keeps its journal for review, as an acquisition hold does.
+pre-baseline. Rolling back to a held build reports `review_required`.
+
+Binding and launching an exact profile pin require the recorded uploader
+decision and current activation policy. An already-bound pin shows a hold with
+the reason and next action. The Default launch continues to follow the active
+runtime. Ghostship legacy recovery checks the original retained artifact's
+uploader continuity before publishing the derivative or recovered progress.
+The derivative uses the original acquisition time, so a pre-baseline Ghostship
+artifact remains eligible.
+
+An interrupted activation held for uploader continuity leaves the build staged
+and retires the activation request. A verified publication that cannot activate
+for this reason is recovered as staged when no other staged build would be
+displaced and no external registration would be replaced. Check for updates to
+resolve an eligible build. Other held publications keep their journals and
+payloads for review. A journal still awaiting recovery defers standing updates.
 
 To accept a new uploader, review the account and the held release on the
 canonical port issue, then add `{ "id": <numeric account ID>, "login": "<login>" }`
@@ -2184,14 +2353,14 @@ execution identity. Because the catalog is embedded, acceptance reaches players
 with the next application release. A selected independent definition may keep
 or remove accepted uploaders but cannot add one.
 
-### Generated reviewed package shapes (shadow)
+<a id="generated-reviewed-package-shapes-shadow"></a>
 
-Issue #5359 generalizes the fingerprint into a Core-derived package shape for
-every managed portable route, without per-route authoring. Phase 1 only
-records a verdict; it refuses nothing, and the explicit fingerprint above stays
-the only package-layout refusal. The shape has six parts, each a sorted, bounded
-set of lowercase package-relative paths computed after wrapper look-through and
-declared-executable grants, before any adapter adds content:
+### Generated reviewed package shapes
+
+Core derives a package shape for each managed portable route (#5359). Its six
+parts are sorted, bounded sets of lowercase package-relative paths. Core derives
+them after package normalization and declared-executable grants, before adding
+original game inputs or bundled runtimes:
 
 - `programs`: the fingerprint's program and script classifier, unchanged;
 - `top_directories`;
@@ -2215,6 +2384,24 @@ reported as unknown, never as a pass: an explicit fingerprint knows only
 programs and top-level directories, and an unresolved declared executable, or a
 declared persistent path or pattern that cannot be located relative to the
 package root, leaves the persistent parts unknown.
+
+A known change against a reviewed baseline withholds the candidate before
+publication. A local shape can supply that baseline when its reviewed or
+inherited provenance is retained. Comparisons against an unreviewed local
+shape remain visible as observations.
+The native portable, staged-source, N64 recompilation, libultraship, PSX
+recompilation and generated-cache templates advertise the capability. The
+embedded catalog uses the installed template capability. Indexed definitions
+use the version they negotiate, so a definition capped below the enforcement
+capability still records the comparison without adding the refusal. Unknown
+parts remain visible, and the other acquisition and layout checks still apply.
+If an exact candidate has a retained refusal observation, an update check
+recomputes its verdict with the current applicable baseline before saying the
+release is waiting for review. A fresh installation can select the newest
+applicable reviewed GitHub package when its latest exact candidate is
+withheld. The fallback must match the current selector and a reviewed version
+and digest. A reviewed setup shows that different package before approval.
+Installed, staged, and non-owning routes keep their own update behavior.
 
 The baseline is, in order: the generated table entry for the exact artifact,
 else the route's newest generated entry; the explicit fingerprint; the shape
@@ -2701,6 +2888,21 @@ eligibility. Use `listing.platforms` only for additional platforms where
 independent upstream package evidence applies. Declare each platform once.
 The discovery directory reports both sets. The managed definition and its
 selected release retain their own platform checks.
+
+Use `integration.presentation.manual_setup` when Portcove-managed setup needs
+different steps or warnings from the upstream package in `listing.manual_setup`.
+The managed definition uses its own guide when present and otherwise inherits
+the listing guide. The discovery directory keeps the upstream guide.
+
+For a warning specific to one managed package, author
+`managed_setup_platform_warnings` in the port record by exact managed platform.
+Catalog generation emits Desktop review copy from the authored integration guide
+or the explicit managed preparation in `route_facts_v1`. The managed install and
+managed-copy reviews use a matching managed step and the warnings in the selected
+definition. Explicit platform warnings can also supply the managed review for an
+older definition. Otherwise, legacy inherited guidance gets the standard package
+and ownership summary, with its existing warnings visible. The full guide remains
+available in the game instructions. Keep upstream package warnings in the listing.
 
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's
@@ -3506,9 +3708,10 @@ contract is useful when evidence establishes external storage; describe that
 location and its backup limits, and classify the main saves/settings as
 `external-user-owned`. Inspect emitted writes beyond the save folder, including
 first-run failure instructions, preference exports, registry settings and mod
-state. A self-updater or a setup kit that regenerates
-version-dependent runtime code needs the appropriate existing integration or
-non-owning handoff. Keep the player's installed contract unchanged when adding a
+state. A self-updater without a qualifying upstream switch (see
+[managed native portable packages](#managed-native-portable-packages)), or a setup
+kit that regenerates version-dependent runtime code, needs the appropriate
+existing integration or non-owning handoff. Keep the player's installed contract unchanged when adding a
 new route.
 
 The owned output directory is a resumable preparation checkpoint. Reuse it for

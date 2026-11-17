@@ -1,0 +1,88 @@
+# Signs one online catalog role for catalog-publish.yml. The environment is
+# derived from the role, so this workflow can select only the four catalog
+# environments; each admits only `main`, and its key reaches only the signing step.
+name: Catalog sign role
+
+on:
+  workflow_call:
+    inputs:
+      role:
+        description: official-definitions, official-policy, snapshot or timestamp
+        required: true
+        type: string
+      commit:
+        description: Full SHA of the CI-green main commit being published
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment:
+      name: >-
+        ${{ inputs.role == 'official-definitions' && 'production-catalog-definitions' ||
+        inputs.role == 'official-policy' && 'production-catalog-policy' ||
+        inputs.role == 'snapshot' && 'production-catalog-snapshot' || 'production-catalog-timestamp' }}
+      deployment: false
+    permissions:
+      contents: read
+    env:
+      ROLE: ${{ inputs.role }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.commit }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Refuse a commit that is not on main
+        run: git merge-base --is-ancestor "$(git rev-parse HEAD)" origin/main
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .node-version
+          package-manager-cache: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-work
+          path: ${{ runner.temp }}/catalog-work
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: inputs.role == 'snapshot' || inputs.role == 'timestamp'
+        with:
+          pattern: catalog-role-*
+          path: ${{ runner.temp }}/catalog-work/roles
+          merge-multiple: true
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: catalog-tools
+          path: ${{ runner.temp }}/catalog-tools
+      - name: Sign the role
+        env:
+          PORTCOVE_CATALOG_DEFINITIONS_KEY: ${{ inputs.role == 'official-definitions' && secrets.PORTCOVE_CATALOG_DEFINITIONS_KEY || '' }}
+          PORTCOVE_CATALOG_POLICY_KEY: ${{ inputs.role == 'official-policy' && secrets.PORTCOVE_CATALOG_POLICY_KEY || '' }}
+          PORTCOVE_CATALOG_SNAPSHOT_KEY: ${{ inputs.role == 'snapshot' && secrets.PORTCOVE_CATALOG_SNAPSHOT_KEY || '' }}
+          PORTCOVE_CATALOG_TIMESTAMP_KEY: ${{ inputs.role == 'timestamp' && secrets.PORTCOVE_CATALOG_TIMESTAMP_KEY || '' }}
+        run: |
+          set -euo pipefail
+          case "$ROLE" in
+            official-definitions) name=PORTCOVE_CATALOG_DEFINITIONS_KEY ;;
+            official-policy) name=PORTCOVE_CATALOG_POLICY_KEY ;;
+            snapshot) name=PORTCOVE_CATALOG_SNAPSHOT_KEY ;;
+            timestamp) name=PORTCOVE_CATALOG_TIMESTAMP_KEY ;;
+            *) echo "::error::unknown catalog role $ROLE"; exit 1 ;;
+          esac
+          work="$RUNNER_TEMP/catalog-work"
+          key="$RUNNER_TEMP/role-key/private.pk8"
+          mkdir -m 700 "$RUNNER_TEMP/role-key"
+          trap 'rm -rf "$RUNNER_TEMP/role-key"' EXIT
+          node scripts/catalog-publish.mts write-key --env "$name" --out "$key"
+          node scripts/catalog-publish.mts sign-config --work "$work" --role "$ROLE" --key "$key"
+          chmod +x "$RUNNER_TEMP/catalog-tools/portcove-release-tools"
+          "$RUNNER_TEMP/catalog-tools/portcove-release-tools" sign-definition-role "$ROLE" "$work/sign-$ROLE.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: catalog-role-${{ inputs.role }}
+          path: ${{ runner.temp }}/catalog-work/roles/${{ inputs.role }}.json
+          if-no-files-found: error

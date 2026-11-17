@@ -3,6 +3,16 @@
   "source_catalog": {
     "evidence": [
       {
+        "id": "debian-gdp89-classic-doom3-pk4-identities",
+        "role": "byte_identity",
+        "authority": "Debian game-data-packager 89 maintainers",
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "immutable_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_url": null,
+        "claim": "Debian game-data-packager 89 lists exact byte sizes and SHA-256 for the nine classic Doom 3 1.3.1 base PK4s and the two Resurrection of Evil expansion PK4s. The MD5 cross-check agrees with dhewm3. These are published identity data, without local retail or runtime observations.",
+        "reviewed_at": "2026-11-16"
+      },
+      {
         "id": "the-force-engine-complete-data-archive-2026-10-18",
         "role": "byte_identity",
         "authority_ref": "9dbaf6df4ca8243fff1dbf06532a9b11b663ed5a",
@@ -838,6 +848,16 @@
         "reviewed_at": "2026-11-15",
         "claim": "Exact v0.15.9 Windows x64 package (26746609 bytes, SHA-256 8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82) was computed from the downloaded bytes; the release publishes no SHA256SUMS, SHA256SUMS.txt or per-asset .sha256 file and the provider release digest was not read. At this tag src/main.c keeps CRC B19ED489, SHA-256 0838e531fe22c077528febe14cb3ff7c492f1f5fa8de354192bdff7137c27f5b and the positional ROM argument. SuperMarioWorldSNESRecomp.exe keeps its root path. The pinned snesrecomp 3d73fa26b2b6ac1c6f932916c8229d1e561b6e31 moves the mod root from mods to mods/preloaded, so the mod runtime commits its selection at every start to mods/preloaded/state.toml through a .tmp companion. The definition declares that pair as disposable runtime output rather than player data: neither file is a package member, declaring it persistent would widen the persistence scope recorded by existing ready-archive installations, and runtime-mutable paths are outside that scope. Managed play sets SNESRECOMP_NO_LAUNCHER and never changes the selection from the package default; a selection made by running the game outside Portcove is not carried across update or rollback. Packaged manifests under mods/preloaded/packages stay immutable package files. The package adds smw-falcon-cache.exe, which the player spawns for optional Falcon setup with its cache under LOCALAPPDATA, smw-controller-report.exe and the player-run Collect-Controller-Diagnostics.cmd/.ps1, which write diagnostics/, and drops the MinGW runtime DLLs. Native co-op data stays under saves. Netplay, account sign-in (netplay_secret), moderation.ini and peer mod transfer are reachable only from the pre-boot launcher or the SNES_NETPLAY/SMW_NET_AUTO_ROLE environment, which the positional launch with SNESRECOMP_NO_LAUNCHER skips; diagnostic replay recording under logs is a default-off mod feature. Native execution, gameplay, saves and the absence of runtime network use remain unobserved for this release.",
         "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/8c280aac7ea08456372cd2b42603bb2ad7ab51eb/src/main.c",
+        "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
+      },
+      {
+        "id": "super-mario-world-recomp-0-15-10-source-contract",
+        "role": "upstream_support",
+        "authority": "mstan/SuperMarioWorldRecomp",
+        "authority_ref": "46525ab8da5ed53a061669c7ea4cdd3d96fb9424",
+        "reviewed_at": "2026-11-16",
+        "claim": "Exact Windows x64 v0.15.10 ZIP (26825013 bytes, SHA-256 d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc) matches GitHub release 445852347 asset 750041540 and publisher SHA256SUMS.txt. BUILDINFO binds the same Git tree to build and release and retains the v0.15.9 framework pins. The title diff keeps the stock USA original hash and positional smw.sfc launch, and changes the fresh window default and adaptive renderer. Core shape comparison with v0.15.9 adds only the immutable notices directory; source, executable, configured launch, and player-data ownership are unchanged. Retain earlier applicability and writer-contract evidence. Publisher report covers scoped exact package controls; Portcove native managed execution, retail input, gameplay and installed preservation were not observed for this Windows release.",
+        "immutable_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/46525ab8da5ed53a061669c7ea4cdd3d96fb9424/src/main.c",
         "live_url": "https://github.com/mstan/SuperMarioWorldRecomp/blob/main/src/main.c"
       },
       {
@@ -4084,6 +4104,184 @@
       }
     ],
     "identities": [
+      {
+        "id": "doom-3-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "doom-3-roe-classic-pc-131-pk4",
+        "label": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+        "kind": "file-set",
+        "aliases": [],
+        "tombstones": [],
+        "evidence_gap": null,
+        "variants": [
+          {
+            "id": "classic-131",
+            "title": "Classic Doom 3 1.3.1 with Resurrection of Evil",
+            "region": null,
+            "revision": "1.3.1",
+            "product_codes": [],
+            "evidence_ids": [
+              "debian-gdp89-classic-doom3-pk4-identities"
+            ],
+            "representations": [
+              {
+                "id": "installed-pk4-files",
+                "extensions": [],
+                "kind": "relative-file-set",
+                "members": [
+                  {
+                    "id": "base-pak000",
+                    "path": "base/pak000.pk4",
+                    "size": 353159257,
+                    "sha256": "220513bba8cc51191738b52b4ea320cd3376736e13147e240aa503622aa926ce"
+                  },
+                  {
+                    "id": "base-pak001",
+                    "path": "base/pak001.pk4",
+                    "size": 229649726,
+                    "sha256": "dc85da3d731793f2973ffb7ef31be17057e88dee0b1157531c7f26a7b33c8fc0"
+                  },
+                  {
+                    "id": "base-pak002",
+                    "path": "base/pak002.pk4",
+                    "size": 416937674,
+                    "sha256": "52d50dc300c87c484a0d7bc28c64777cafd7d581a91b5eeb6222991e328b7f1c"
+                  },
+                  {
+                    "id": "base-pak003",
+                    "path": "base/pak003.pk4",
+                    "size": 317590154,
+                    "sha256": "a946bf100ba931edb1d814d78baccc5b8279a52b1351ab00bb049bce993e365a"
+                  },
+                  {
+                    "id": "base-pak004",
+                    "path": "base/pak004.pk4",
+                    "size": 237752384,
+                    "sha256": "eac10316182f06832b7c087dbac4dad98c4e3243e6aecf7d9906ff7ba9514ba3"
+                  },
+                  {
+                    "id": "base-pak005",
+                    "path": "base/pak005.pk4",
+                    "size": 552334,
+                    "sha256": "d50a114eb655cb7f55da38870e1a992a9f4efe5c52910f83eba8fe6dbbe85657"
+                  },
+                  {
+                    "id": "base-pak006",
+                    "path": "base/pak006.pk4",
+                    "size": 218751,
+                    "sha256": "a0d28ebada2697f5a8d4d1f06a705d2335044bab9aee805679a2bd0c3b7d59b1"
+                  },
+                  {
+                    "id": "base-pak007",
+                    "path": "base/pak007.pk4",
+                    "size": 192031,
+                    "sha256": "e5d57ede9def75c7cbb0542ceef6ad56147c9a2162c8517f716410b9092965a0"
+                  },
+                  {
+                    "id": "base-pak008",
+                    "path": "base/pak008.pk4",
+                    "size": 12243,
+                    "sha256": "57be0712bb180943ad51757b48486bc590e9242fd885704771c0a7102953d4b7"
+                  },
+                  {
+                    "id": "d3xp-pak000",
+                    "path": "d3xp/pak000.pk4",
+                    "size": 538385153,
+                    "sha256": "b5236ac25be28e1cb6021e54dfff595ac569eaea350c199f2eb5b6ba0df67f08"
+                  },
+                  {
+                    "id": "d3xp-pak001",
+                    "path": "d3xp/pak001.pk4",
+                    "size": 99336,
+                    "sha256": "2ba245254b8ed3440e252f6e2e24af2c6343d7c312f9a9a7e73509abdaf13e49"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
       {
         "id": "ocarina-of-time",
         "label": "The Legend of Zelda: Ocarina of Time source",
@@ -16405,6 +16603,68 @@
     ],
     "contracts": [
       {
+        "id": "doom-3-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
+        "id": "doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+        "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+        "role": "game",
+        "profile_id": "doom-3-roe-classic-pc-131-pk4",
+        "admission_mode": "enforced",
+        "supported_variant_ids": [
+          "classic-131"
+        ],
+        "validator_contract_id": null,
+        "evidence_ids": [
+          "debian-gdp89-classic-doom3-pk4-identities"
+        ],
+        "authority_ref": "dc963fb0609bd9c3aad572f7c71b27e95510e7721d329592d831ab25a49b3f06",
+        "reviewed_at": "2026-11-16",
+        "immutable_review_url": "https://sources.debian.org/data/contrib/g/game-data-packager/89/data/doom3.yaml",
+        "live_review_url": null,
+        "evidence_gap": null,
+        "applicability": [
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "793f8dbfb523f8e065b99357f438d0f23f8524c85382098264c3278ac8219290"
+          },
+          {
+            "upstream_ref": "1.5.5",
+            "artifact_sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7"
+          }
+        ],
+        "aliases": [],
+        "tombstones": []
+      },
+      {
         "id": "shipwright-game-source",
         "port_id": "shipwright",
         "role": "game",
@@ -19608,7 +19868,8 @@
         "validator_contract_id": null,
         "evidence_ids": [
           "super-mario-world-recomp-0-12-0-source-contract",
-          "super-mario-world-recomp-0-15-9-source-contract"
+          "super-mario-world-recomp-0-15-9-source-contract",
+          "super-mario-world-recomp-0-15-10-source-contract"
         ],
         "authority_ref": "5fc466cd11a3cb1a4bdc529ebf29e35915ef0252",
         "reviewed_at": "2026-10-18",
@@ -19623,6 +19884,10 @@
           {
             "upstream_ref": "v0.15.9",
             "artifact_sha256": "8603cc1097348284215f09c1de644026dafb96ea4da7533bbdf5d3f02fc0ef82"
+          },
+          {
+            "upstream_ref": "v0.15.10",
+            "artifact_sha256": "d85a36e2c59d67685a26cb4fa0835079ff732e11720eb080ec0aa74fe09126dc"
           }
         ],
         "aliases": [],

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "tekken-tag-2-ultimate-edition-petexy-tekken-tag-tournament-2-wii-u-edition",
+    "artwork": {
+      "game_id": 21693,
+      "cover_id": 379427,
+      "image_id": "co84rn",
+      "image_sha256": "baec1856e39ef539e7ce6a401cd80205f321b3aa98482cb22d214269c2dd59dc",
+      "game_slug": "tekken-tag-tournament-2-wii-u-edition",
+      "match_kind": "underlying-game"
+    },
     "name": "Tekken Tag Tournament 2 Wii U Edition — Tekken Tag 2 Ultimate Edition (Petexy)",
     "original_game_title": "Tekken Tag Tournament 2 Wii U Edition",
     "summary": "Experimental project. The project reports boot through arcade mode. GamePad screen and speaker, online play, software keyboard and errors, and unused audio effects remain missing. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

@@ -5,6 +5,14 @@
     "project_url": "https://github.com/sacredbanana/lab3d-sdl",
     "name": "Ken’s Labyrinth / LAB3D/SDL",
     "original_game_title": "Ken’s Labyrinth",
+    "artwork": {
+      "game_id": 8743,
+      "cover_id": 419835,
+      "image_id": "co8zy3",
+      "image_sha256": "f0c00424aed86fefb0064e6f74e05cc449cee311ce294b70caced13af47229b3",
+      "game_slug": "kens-labyrinth",
+      "match_kind": "underlying-game"
+    },
     "summary": "Explore Ken’s Labyrinth in a native player with the original game versions and the Walken prerelease.",
     "issue_number": 6129,
     "listed_at": "2026-11-14",

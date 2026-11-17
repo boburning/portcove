@@ -1,6 +1,17 @@
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  hashPattern,
+  imagePattern,
+  matchesIgdbRegionalCover,
+  matchesString,
+  positiveId,
+  slugPattern,
+  validArtworkMapping,
+  validIgdbRegionalCover,
+  type IgdbRegionalCover,
+} from "./catalog-cover-mapping.mts";
 import type {
   IgdbArtwork,
   IgdbArtworkMatch,
@@ -25,6 +36,8 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
 
+export { validArtworkMapping } from "./catalog-cover-mapping.mts";
+
 export interface ArtworkPort extends Record<string, unknown> {
   id: string;
   name?: unknown;
@@ -32,6 +45,7 @@ export interface ArtworkPort extends Record<string, unknown> {
   source_profile?: unknown;
   /** Reviewed original-title facts supplied by per-record preparation. */
   underlying_game?: unknown;
+  igdb_regional_cover?: IgdbRegionalCover;
   presentation?: ({ artwork?: unknown } & Record<string, unknown>) | null;
 }
 export interface ArtworkCatalog extends Record<string, unknown> {
@@ -44,7 +58,9 @@ interface PreparedArtworkCatalog extends ArtworkCatalog {
   ports: PreparedArtworkPort[];
 }
 
-function assertPreparedArtwork(catalog: ArtworkCatalog): asserts catalog is PreparedArtworkCatalog {
+export function assertPreparedArtwork(
+  catalog: ArtworkCatalog,
+): asserts catalog is PreparedArtworkCatalog {
   for (const port of catalog.ports) {
     const artwork = port.presentation?.artwork;
     if (artwork !== undefined && !validArtworkMapping(artwork))
@@ -61,12 +77,14 @@ interface DeclaredIdentity {
   project_url: string | null;
   platform_ids: number[];
   edition: string | null;
+  localization?: { id: number; region_id: number };
 }
 interface ObservedGame {
   id: number;
   name: string;
   slug: string;
   cover?: unknown;
+  game_localizations?: unknown;
   alternative_names?: { name: string }[] | null;
   websites?: { url: string }[] | null;
   platforms?: number[] | null;
@@ -164,13 +182,6 @@ export type ImageValidator = (bytes: Buffer) => unknown;
 
 const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
-const slugPattern = /^[a-z0-9-]{1,255}$/;
-const imagePattern = /^[a-z0-9]{1,128}$/;
-const hashPattern = /^[a-f0-9]{64}$/;
-const positiveId = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-const matchesString = (pattern: RegExp, value: unknown): value is string =>
-  typeof value === "string" && pattern.test(value);
 // Only this module's fixed image request can establish a Gone observation.
 // Provider metadata, generic errors and caller-supplied status properties cannot.
 const goneImageObservations = new WeakMap<object, string>();
@@ -260,6 +271,16 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
       "Artwork identity needs bounded public names and valid optional fixed references.",
     );
   }
+  const localization = value.localization;
+  if (
+    localization !== undefined &&
+    (kind !== "underlying-game" ||
+      !positiveId(value.game_id) ||
+      !isRecord(localization) ||
+      !positiveId(localization.id) ||
+      !positiveId(localization.region_id))
+  )
+    throw new Error("Artwork localization requires a fixed original game and region.");
   const projectUrl = value.project_url ? evidenceUrl(value.project_url) : null;
   const platforms = value.platform_ids ?? [];
   if (!Array.isArray(platforms) || platforms.length > 16 || !platforms.every(positiveId))
@@ -284,6 +305,11 @@ function declaredIdentity(value: unknown, requestedKind?: IgdbArtworkMatch): Dec
     project_url: projectUrl,
     platform_ids: platforms,
     edition: value.edition ?? null,
+    ...(isRecord(value.localization) &&
+    positiveId(value.localization.id) &&
+    positiveId(value.localization.region_id)
+      ? { localization: { id: value.localization.id, region_id: value.localization.region_id } }
+      : {}),
   };
 }
 
@@ -393,18 +419,6 @@ function identifiedGame(
     : { reason: eligible.length > 1 ? "identity-not-unique" : "identity-mismatch" };
 }
 
-export function validArtworkMapping(value: unknown): value is IgdbArtwork {
-  return (
-    isRecord(value) &&
-    positiveId(value.game_id) &&
-    positiveId(value.cover_id) &&
-    matchesString(imagePattern, value.image_id) &&
-    matchesString(hashPattern, value.image_sha256) &&
-    matchesString(slugPattern, value.game_slug) &&
-    (value.match_kind === "port" || value.match_kind === "underlying-game")
-  );
-}
-
 function reusableMapping(
   port: ArtworkPort,
   accepted: ArtworkPort | undefined,
@@ -421,6 +435,12 @@ function reusableMapping(
   )
     return null;
   const mapping = accepted.presentation.artwork;
+  const regional = port.igdb_regional_cover ?? accepted.igdb_regional_cover;
+  if (regional)
+    return JSON.stringify(regional) === JSON.stringify(accepted.igdb_regional_cover) &&
+      matchesIgdbRegionalCover(mapping, regional)
+      ? structuredClone(mapping)
+      : null;
   const identity = isRecord(declarations)
     ? declarations[mapping.match_kind === "port" ? "port" : "underlying_game"]
     : undefined;
@@ -457,6 +477,7 @@ export function artworkPreparationInput(
     /* The raw declaration remains bound and produces the existing refusal. */
   }
   const mappings = accepted.ports
+    .filter((entry) => !entry.igdb_regional_cover)
     .map((entry) => entry.presentation?.artwork)
     .filter(
       (mapping) =>
@@ -509,6 +530,7 @@ function observedContent(value: unknown): ImageContent {
 
 function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
   const mappings = context.acceptedPorts
+    .filter((port) => !port.igdb_regional_cover)
     .map((port) => port.presentation?.artwork)
     .filter(
       (mapping): mapping is IgdbArtwork =>
@@ -522,11 +544,65 @@ function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
   return unique.size === 1 ? structuredClone([...unique.values()][0]) : null;
 }
 
+async function inspectCoverContent(
+  imageId: string,
+  kind: IgdbArtworkMatch,
+  context: ArtworkContext,
+  exceptions: ArtworkException[],
+) {
+  if (!context.images.has(imageId)) {
+    if (context.metrics.image_queries >= 400 || context.metrics.image_bytes >= maximumBatchBytes) {
+      exceptions.push(exception(kind, "batch-image-budget-exhausted"));
+      return null;
+    }
+    context.metrics.image_queries++;
+    context.images.set(
+      imageId,
+      Promise.resolve()
+        .then(() => {
+          if (!context.inspectImage) throw new Error("Artwork image inspector unavailable.");
+          return context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes);
+        })
+        .then((value) => {
+          const content = observedContent(value);
+          context.metrics.image_bytes += content.bytes;
+          if (context.metrics.image_bytes > maximumBatchBytes)
+            throw new Error("Batch image byte budget exceeded.");
+          return content;
+        }),
+    );
+  }
+  let content;
+  try {
+    content = await context.images.get(imageId);
+    context.signal?.throwIfAborted();
+    if (!content) throw new Error("Image observation disappeared.");
+  } catch (error) {
+    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
+      context.goneImages.add(imageId);
+      exceptions.push(goneImageException(kind, imageId));
+    } else {
+      if (context.signal?.aborted) throw error;
+      exceptions.push(
+        exception(
+          kind,
+          error instanceof ArtworkBatchExhausted
+            ? "batch-provider-budget-exhausted"
+            : "image-unavailable-or-invalid",
+        ),
+      );
+    }
+    return null;
+  }
+  return content;
+}
+
 async function selectCover(
   identity: unknown,
   kind: IgdbArtworkMatch,
   context: ArtworkContext,
   exceptions: ArtworkException[],
+  authoredRegional?: IgdbRegionalCover,
 ): Promise<SelectedCover | null> {
   if (!identity) {
     exceptions.push(exception(kind, "identity-not-declared"));
@@ -535,11 +611,13 @@ async function selectCover(
   let declared;
   try {
     declared = declaredIdentity(identity, kind);
+    if (declared.localization && !authoredRegional)
+      throw new Error("Regional cover selection requires an authored port record.");
   } catch {
     exceptions.push(exception(kind, "identity-declaration-invalid"));
     return null;
   }
-  if (kind === "underlying-game" && !context.refreshing) {
+  if (kind === "underlying-game" && !declared.localization && !context.refreshing) {
     const mapping = acceptedOriginal(declared, context);
     if (mapping)
       return {
@@ -588,56 +666,37 @@ async function selectCover(
     return null;
   }
   const game = identified.game;
-  const cover = isRecord(game.cover) ? game.cover : undefined;
+  let candidate = game.cover;
+  if (declared.localization) {
+    const { id, region_id } = declared.localization;
+    const localizations: unknown[] = Array.isArray(game.game_localizations)
+      ? game.game_localizations
+      : [];
+    const matches = localizations.filter((row) => isRecord(row) && row.id === id);
+    const regional = matches.length === 1 && isRecord(matches[0]) ? matches[0] : undefined;
+    if (
+      localizations.length > 256 ||
+      regional?.game !== game.id ||
+      regional.region !== region_id ||
+      !isRecord(regional.cover) ||
+      regional.cover.game_localization !== id ||
+      !authoredRegional ||
+      regional.cover.id !== authoredRegional.cover_id ||
+      regional.cover.image_id !== authoredRegional.image_id
+    ) {
+      exceptions.push(exception(kind, "regional-cover-unavailable-or-mismatched"));
+      return null;
+    }
+    candidate = regional.cover;
+  }
+  const cover = isRecord(candidate) ? candidate : undefined;
   if (!cover || !positiveId(cover.id) || !matchesString(imagePattern, cover.image_id)) {
     exceptions.push(exception(kind, "no-usable-cover"));
     return null;
   }
   const imageId = cover.image_id;
-  if (!context.images.has(imageId)) {
-    if (context.metrics.image_queries >= 400 || context.metrics.image_bytes >= maximumBatchBytes) {
-      exceptions.push(exception(kind, "batch-image-budget-exhausted"));
-      return null;
-    }
-    context.metrics.image_queries++;
-    context.images.set(
-      imageId,
-      Promise.resolve()
-        .then(() => {
-          if (!context.inspectImage) throw new Error("Artwork image inspector unavailable.");
-          return context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes);
-        })
-        .then((value) => {
-          const content = observedContent(value);
-          context.metrics.image_bytes += content.bytes;
-          if (context.metrics.image_bytes > maximumBatchBytes)
-            throw new Error("Batch image byte budget exceeded.");
-          return content;
-        }),
-    );
-  }
-  let content;
-  try {
-    content = await context.images.get(imageId);
-    context.signal?.throwIfAborted();
-    if (!content) throw new Error("Image observation disappeared.");
-  } catch (error) {
-    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
-      context.goneImages.add(imageId);
-      exceptions.push(goneImageException(kind, imageId));
-    } else {
-      if (context.signal?.aborted) throw error;
-      exceptions.push(
-        exception(
-          kind,
-          error instanceof ArtworkBatchExhausted
-            ? "batch-provider-budget-exhausted"
-            : "image-unavailable-or-invalid",
-        ),
-      );
-    }
-    return null;
-  }
+  const content = await inspectCoverContent(imageId, kind, context, exceptions);
+  if (!content) return null;
   context.goneImages.delete(imageId);
   return {
     mapping: {
@@ -763,7 +822,13 @@ export async function prepareCatalogArtwork(
     options.signal?.throwIfAborted();
     const rawSupplied = isRecord(options.identities) ? options.identities[port.id] : undefined;
     const supplied = isRecord(rawSupplied) ? rawSupplied : undefined;
-    const reused = reusableMapping(port, accepted.get(port.id), supplied);
+    const priorPort = accepted.get(port.id);
+    const regional = port.igdb_regional_cover ?? priorPort?.igdb_regional_cover;
+    if (regional !== undefined && !validIgdbRegionalCover(regional))
+      throw new Error(`Invalid authored regional cover: ${port.id}`);
+    if (priorPort?.igdb_regional_cover && priorPort.project_url !== port.project_url)
+      throw new Error(`Regional cover needs new source review: ${port.id}`);
+    const reused = reusableMapping(port, priorPort, supplied);
     if (!workset.has(port.id)) {
       const prior = accepted.get(port.id)?.presentation?.artwork;
       const mapping = port.presentation?.artwork;
@@ -801,9 +866,41 @@ export async function prepareCatalogArtwork(
     };
     context.refreshing = refresh.has(port.id);
     const exceptions: ArtworkException[] = [];
-    const selected =
-      (await selectCover(declarations?.port, "port", context, exceptions)) ??
-      (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
+    const selected = regional
+      ? await selectCover(
+          {
+            game_id: regional.game_id,
+            slug: regional.slug,
+            names: [regional.name],
+            evidence_url: port.project_url,
+            platform_ids: [regional.platform_id],
+            localization: { id: regional.localization_id, region_id: regional.region_id },
+          },
+          "underlying-game",
+          context,
+          exceptions,
+          regional,
+        )
+      : ((await selectCover(declarations.port, "port", context, exceptions)) ??
+        (await selectCover(declarations.underlying_game, "underlying-game", context, exceptions)));
+    const companion = port.presentation?.companion_cover;
+    if (context.refreshing && validArtworkMapping(companion)) {
+      const content = await inspectCoverContent(
+        companion.image_id,
+        companion.match_kind,
+        context,
+        exceptions,
+      );
+      if (content?.sha256 === companion.image_sha256) context.goneImages.delete(companion.image_id);
+      else if (content)
+        exceptions.push({
+          kind: companion.match_kind,
+          reason: "companion-image-digest-changed",
+          image_id: companion.image_id,
+          resume: "Review the changed cover before replacing its pinned digest.",
+        });
+    }
+
     if (!selected && reused && !context.goneImages.has(reused.image_id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       context.metrics.reused++;
@@ -849,7 +946,7 @@ export async function prepareCatalogArtwork(
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
-  removeWithdrawnCatalogMedia(result, [], context.goneImages);
+  const withdrawnCompanions = removeWithdrawnCatalogMedia(result, [], context.goneImages);
   assertPreparedArtwork(result);
   return {
     catalog: result,
@@ -859,7 +956,7 @@ export async function prepareCatalogArtwork(
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: [...workset],
-      invalidated_port_ids: invalidatedPortIds,
+      invalidated_port_ids: [...new Set([...invalidatedPortIds, ...withdrawnCompanions])],
     },
   };
 }
@@ -885,7 +982,7 @@ export function reconcileCatalogArtworkWithdrawals(
     goneImages,
     metrics: prepared.metrics,
   });
-  removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages);
+  invalidated.push(...removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages));
   prepared.gone_image_ids = [...goneImages].sort();
   prepared.workset.invalidated_port_ids = [
     ...new Set([...prepared.workset.invalidated_port_ids, ...invalidated]),
@@ -1235,7 +1332,7 @@ export function createIgdbInspector(
       const verified = declaredIdentity(identity);
       return inspectMetadata(
         "games",
-        `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id; where ${
+        `fields id,name,slug,alternative_names.name,websites.url,platforms,version_parent,version_title,cover.id,cover.image_id${verified.localization ? ",game_localizations.id,game_localizations.game,game_localizations.region,game_localizations.cover.id,game_localizations.cover.image_id,game_localizations.cover.game_localization" : ""}; where ${
           verified.game_id != null
             ? `id = ${verified.game_id}`
             : verified.names
@@ -1563,6 +1660,14 @@ async function prepareHeroIdentity(
     }
   }
 }
+export function withdrawCompanionCover(port: ArtworkPort, gone: ReadonlySet<string>) {
+  const companion = port.presentation?.companion_cover;
+  if (!port.presentation || !validArtworkMapping(companion) || !gone.has(companion.image_id))
+    return false;
+  delete port.presentation.companion_cover;
+  return true;
+}
+
 function removeWithdrawnCatalogMedia(
   catalog: ArtworkCatalog,
   records: HeroMediaRecord[],
@@ -1570,7 +1675,9 @@ function removeWithdrawnCatalogMedia(
 ) {
   // A withdrawal invalidates every candidate reference, including unselected ports
   // and records completed earlier in this batch.
+  const companions = [];
   for (const port of catalog.ports) {
+    if (withdrawCompanionCover(port, gone)) companions.push(port.id);
     const artwork = port.presentation?.artwork;
     if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)
       delete port.presentation.artwork;
@@ -1587,6 +1694,7 @@ function removeWithdrawnCatalogMedia(
   for (const record of records)
     if (record.image_id && gone.has(record.image_id))
       record.reason = "selected-image-gone-later-in-batch";
+  return companions;
 }
 
 /** Propose descriptive foreground assets through the existing identity/provider

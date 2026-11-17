@@ -330,6 +330,24 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::launch::LAUNCH_JOB_KEEPER_NATIVE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::package_layout::LINUX_PROGRAM_FORMAT_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::endless_sky::NATIVE_CAPABILITY,
+        });
+        supported.extend(AdapterKind::ALL.into_iter().filter_map(|template| {
+            crate::package_shape::enforcement_capability(template).map(|contract_version| Self {
+                template,
+                contract_version,
+            })
+        }));
         supported
     }
 }
@@ -951,7 +969,8 @@ mod tests {
             (1, 3, true, 3),
             (4, 4, true, 4),
             (3, 4, true, 4),
-            (5, 5, false, 4),
+            (5, 5, true, 5),
+            (6, 6, false, 5),
         ] {
             let report =
                 check_definition_capabilities(&request("psx-recomp-managed", minimum, maximum))
@@ -1105,9 +1124,9 @@ mod tests {
         assert_eq!(staged.checks[0].installed_version, Some(3));
         let n64 = check_definition_capabilities(&request("n64-recomp-portable", 99, 99)).unwrap();
         assert!(!n64.compatible);
-        assert_eq!(n64.checks[0].installed_version, Some(6));
+        assert_eq!(n64.checks[0].installed_version, Some(7));
         let future =
-            check_definition_capabilities(&request("staged-source-portable", 37, 37)).unwrap();
+            check_definition_capabilities(&request("staged-source-portable", 38, 38)).unwrap();
         assert!(!future.compatible);
     }
 
@@ -1475,7 +1494,7 @@ mod tests {
                 DefinitionCapabilityOutcome::UnsupportedTemplate
             ]
         );
-        assert_eq!(report.checks[1].installed_version, Some(3));
+        assert_eq!(report.checks[1].installed_version, Some(4));
         assert_eq!(report.checks[2].installed_version, None);
     }
 

@@ -56,6 +56,57 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API 100 extends the exact recipe review with format 3 originals, typed setup
+configuration and reviewed provider acquisitions. Commands advertise support
+for `profile recipe-acquire` and `profile recipe-discard`. Use the advertised
+commands and the new plan digest after a provider check. Recipe formats 1 and 2 remain
+readable. Event schema remains 3.
+
+API 99 changes `games setup-ready` to report the result of the mod pass when the
+game setup queue is unavailable. A successful envelope with
+`data.game_setup_unavailable` means the games could not be assessed, even when
+`data.batches` is empty. The prior API returned an error for this queue failure.
+An independent, optional `profile setups.last_automatic_checks` field reports
+the last bounded check and grants no update permission. Event schema 3 and
+the private library writer protocol are unchanged.
+
+API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
+Inspection records one file and its exact bytes. Preservation requires the
+reviewed plan digest and retains the file outside the game’s mods folder.
+Writer schema 66 coordinates recovery of an interrupted file move. The
+operation-event schema stays 3.
+
+API 97 adds `profile recover-plan` and `profile recover`. The
+`profile_recovery_plan` identifies the exact target revision, holds and policy.
+Applying that plan appends a successor and keeps current progress. `profile
+copy` may copy supported saves after verifying the source digest and the
+destination installation and revision. Writer schema 65 requires clients that
+honor incomplete setup materialization. The operation-event schema stays 3.
+
+The optional `profile create-clean` command returns the existing `Profile`
+result. Use the advertised `profile.create-clean` capability to discover it.
+Creation uses the existing library writer and operation-event contracts.
+
+API96 adds `profile original-instances`, `profile select-original` and
+`profile relink-original`. A customized setup can select a registered
+original's exact content and storage identity in a new revision. Relinking
+rechecks bytes and updates the saved location for that instance. The library
+database moves to writer schema 64 and library exports with additional original
+instances or saved inbox locations use metadata schema 12. Playnite continues
+negotiating its existing command and event requirements.
+
+API95 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
+results and corresponding `provider-apply` inputs. Preserve the whole plan when
+submitting it. Removing the wrapper review or its populated file observations
+invalidates the bound digest. Earlier Thunderstore plans must be reviewed
+again. GameBanana plans omit the Thunderstore fields. Recipe format 2 separately
+carries exact provider requirements, and library writer schema 63 fences older
+projection writers. Event schema remains 3.
+
+API 94 adds `profile package-plan` and `profile package-apply`. Review binds the
+selected setup revision, file bytes, conflicts and exact code permission. Apply
+consumes the freshly checked plan digest under the existing port lock.
+
 Within API93, the read-only `installation runtimes` command and its
 `runtime_prerequisite_report` result are additive and advertised in
 `capabilities`. The optional `runtime_prerequisites` field on `launch show` and

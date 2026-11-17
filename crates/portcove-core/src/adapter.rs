@@ -412,6 +412,8 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                // A portable player's alternate game-folder mode can change where it writes.
+                || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || crate::native_portable_data::directory_name(port, platform).is_some()
@@ -1246,7 +1248,6 @@ pub(crate) fn prepare_runtime_source_set_member(
         return checkpoint();
     }
 
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     let entry = archive
         .by_index(index)
         .map_err(|error| PortcoveError::source(format!("invalid file-set ZIP entry: {error}")))?;
@@ -1983,12 +1984,13 @@ pub(crate) fn runtime_source_marker_path(destination: &Path) -> Result<PathBuf> 
     Ok(destination.with_file_name(format!("{name}.portcove-source.json")))
 }
 
+pub(crate) const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
+
 fn copy_runtime_source(
     source: &Path,
     destination: &Path,
     checkpoint: &dyn Fn() -> Result<()>,
 ) -> Result<()> {
-    const MAX_RUNTIME_SOURCE_BYTES: u64 = 64 * 1024 * 1024 * 1024;
     checkpoint()?;
     let extension = source
         .extension()
@@ -4059,7 +4061,7 @@ pub fn recheck_host_tool(
             tool_id: id.to_owned(),
             path,
             state: crate::HostToolProbeState::Invalid,
-            message: "the resolved executable is missing or changed; locate it again to approve the current bytes".into(),
+            message: "the resolved executable is missing, changed, or incompatible; locate a compatible executable".into(),
             sha256: None,
             persisted: false,
             retry_action: format!("locate the {} executable again", status.display_name),
@@ -5047,6 +5049,13 @@ mod tests {
         let suffix = if cfg!(windows) { ".exe" } else { "" };
         let selected = temporary.path().join(format!("selected-chdman{suffix}"));
         let discovered = temporary.path().join(format!("discovered-chdman{suffix}"));
+        #[cfg(windows)]
+        std::fs::copy(
+            crate::test_fixture::build_probe(temporary.path()),
+            &selected,
+        )
+        .unwrap();
+        #[cfg(not(windows))]
         std::fs::write(&selected, b"selected").unwrap();
         std::fs::write(&discovered, b"discovered").unwrap();
         crate::permissions::normalize_archive_entry(&selected, false, true).unwrap();
@@ -5131,6 +5140,45 @@ mod tests {
         let destination = temporary.path().join("materialized.z64");
         prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
+    }
+
+    #[test]
+    fn native_portable_user_data_environment_keeps_open_surge_data_outside_the_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("opensurge.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("surge-the-rabbit-opensurge").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::NativePortable)
+            .prepare_launch_with_executable(
+                LaunchSpecRequest {
+                    library: &library,
+                    port,
+                    platform: Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: None,
+                    source_record: None,
+                    disc_progress: None,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+
+        let profile = library.user_dir(&port.id);
+        assert!(profile.is_dir());
+        assert_eq!(spec.working_directory, install);
+        assert_eq!(
+            spec.environment.get("OPENSURGE_USER_PATH"),
+            Some(&profile.to_string_lossy().into_owned())
+        );
+        assert!(spec.fixed_arguments_only);
+        assert!(spec.arguments.is_empty());
     }
 
     #[test]

@@ -5,11 +5,12 @@ import { useState } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
-import type { ActivityRecord, InstallPlan } from "../types";
+import type { ActivityRecord, InstallPlan, PortDefinition } from "../types";
 import { StatusLayer } from "./Chrome";
 import { DetailPanel, InstallAction } from "./DetailPanel";
 import { currentCatalogPort } from "../catalog-test-fixtures";
-import { portStatus } from "../test-fixtures";
+import snap64 from "../../../../crates/portcove-core/catalog/ports/snap64-recomp.json";
+import { portDefinition, portStatus } from "../test-fixtures";
 import { actions } from "./rendered-test-fixtures";
 import "../styles/index.css";
 
@@ -246,7 +247,7 @@ it("shows upstream first-run requirements and external backup limits before inst
   expect(install).toHaveBeenCalledOnce();
 });
 
-it("shows the Windows DKC3 setup first in the managed install review", async () => {
+it("shows the managed Windows DKC3 setup without the upstream Mac instructions", async () => {
   const port = currentCatalogPort("dkc3-recomp");
   await root.rerender(
     <DetailPanel
@@ -261,13 +262,335 @@ it("shows the Windows DKC3 setup first in the managed install review", async () 
   const dialog = page.getByRole("dialog");
   const setup = dialog.getByRole("region", { name: "Game setup" });
   await expect.element(setup).toBeVisible();
-  expect(setup.element().textContent).toContain(
-    "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove",
+  expect(setup.element().textContent).toContain("North American English/French DKC3 ROM");
+  await expect
+    .element(
+      dialog.getByText("Choose a short installation folder that uses basic Latin characters."),
+    )
+    .toBeVisible();
+  expect(dialog.element().textContent).not.toContain("Apple Silicon");
+});
+
+it("shows managed Diablo preparation in the Windows review without the upstream Mac guide", async () => {
+  const port = currentCatalogPort("alexbeav-diablo-recomp");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/diablo.chd"
+      biosPath="C:/Player/scph5552.bin"
+      setSourcePath={vi.fn()}
+      setBiosPath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
   );
-  expect(setup.element().textContent).toContain(
-    "On Apple Silicon, use the upstream Mac app and its launcher.",
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain("Portcove checks your own single-track Diablo");
+  expect(dialog.element().textContent).toContain("Make a normal in-game save before updating.");
+  expect(dialog.element().textContent).not.toContain("Choose the official Mac ZIP");
+  expect(dialog.element().textContent).not.toContain("Portcove has not verified Mac setup");
+});
+
+it.each([
+  [
+    "alexbeav-digimon-world-2003-recomp",
+    "windows-x86-64",
+    "Generation, runtime, lifecycle and gameplay are untested.",
+  ],
+  [
+    "alexbeav-colony-wars-recomp",
+    "linux-x86-64",
+    "Keep every disc intact, with both of its tracks",
+  ],
+] as const)("shows the managed PlayStation guide for %s on %s", async (id, platform, expected) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original.chd"
+      biosPath="C:/Player/bios.bin"
+      setSourcePath={vi.fn()}
+      setBiosPath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id, platform }}
+      actions={actions}
+    />,
   );
-  expect(setup.element().textContent).not.toContain("download the official Mac arm64 ZIP");
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain("Portcove checks the files and builds");
+  expect(dialog.element().textContent).toContain(expected);
+  expect(dialog.element().textContent).not.toMatch(/Xcode|Mac setup|Mac ZIP|writable folder/u);
+});
+
+it.each([
+  ["zelda64-recomp", "North American Majora’s Mask", "Zelda64Recompiled.tar.gz"],
+  ["shipwright", "Ocarina of Time", "disk image"],
+  ["2ship2harkinian", "Majora’s Mask", "disk image"],
+  ["banjo-recomp", "Banjo-Kazooie US 1.0", "BanjoRecompiled from the extracted folder"],
+  ["harvest-moon-64-recomp", "Harvest Moon 64 US", "HarvestMoon64Recompiled.tar.gz"],
+  ["donkey-kong-64-recompiled", "Donkey Kong 64 US 1.0", "DK64Recompiled.tar.gz"],
+  ["aerogauge-recompiled", "AeroGauge US", "aerogauge-recomp-linux-arm64.zip"],
+  ["snowboard-kids-2-recomp", "Snowboard Kids 2 US", "SnowboardKids2Recompiled.tar.gz"],
+  [
+    "diddy-kong-racing-golden-balloon",
+    "Diddy Kong Racing US 1.1 or European 1.1",
+    "mark it executable and open it",
+  ],
+  ["duke-nukem-zero-hour-recompiled", "Duke Nukem: Zero Hour USA", "DNZHRecompiled.tar.gz"],
+])("shows the managed guide for %s in the Windows review", async (id, original, upstreamStep) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original.z64"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(original);
+  expect(setup.element().textContent).toContain("Select Play when setup is complete");
+  expect(dialog.element().textContent).not.toContain(upstreamStep);
+});
+
+it.each([
+  ["windows-x86-64", false],
+  ["linux-x86-64", false],
+  ["macos-x86-64", true],
+  ["macos-aarch64", true],
+] as const)(
+  "shows the Apple SDK prerequisite only on managed Mac plans (%s)",
+  async (platform, mac) => {
+    const port = currentCatalogPort("mortal-kombat-4-recompiled");
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/mk4.chd"
+        biosPath="C:/Player/scph1001.bin"
+        setSourcePath={vi.fn()}
+        setBiosPath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+    const dialog = page.getByRole("dialog");
+    const setup = dialog.getByRole("region", { name: "Game setup" });
+    await expect.element(setup).toBeVisible();
+    expect(setup.element().textContent).toContain("Mortal Kombat 4 (USA) CHD");
+    expect(setup.element().textContent).toContain("retail SCPH-1001 BIOS");
+    expect(dialog.element().textContent?.includes("Apple Command Line Tools or Xcode")).toBe(mac);
+  },
+);
+
+it.each([
+  ["windows-x86-64", false, false],
+  ["linux-x86-64", true, false],
+  ["macos-x86-64", false, true],
+  ["macos-aarch64", false, true],
+] as const)(
+  "shows only the managed Snap64 package warnings for %s",
+  async (platform, linuxWarning, macWarning) => {
+    const current = currentCatalogPort("snap64-recomp");
+    // Older definitions inherited the upstream guide. Keep coverage for that
+    // input while a current definition supplies the guide on other platforms.
+    const port =
+      platform === "windows-x86-64" && current.presentation
+        ? {
+            ...current,
+            presentation: { ...current.presentation, manual_setup: snap64.listing.manual_setup },
+          }
+        : current;
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    const setup = dialog.getByRole("region", { name: "Game setup" });
+    await expect.element(setup).toBeVisible();
+    expect(setup.element().textContent).toContain("unmodified USA Pokémon Snap cartridge dump");
+    const copy = dialog.element().textContent ?? "";
+    expect(copy.includes("glibc 2.38")).toBe(linuxWarning);
+    expect(copy.includes("START HERE.txt")).toBe(macWarning);
+    expect(copy.includes("no native Mac execution result")).toBe(macWarning);
+    expect(copy).not.toContain("Flatpak");
+    expect(copy).not.toContain("ARM64 tarball");
+  },
+);
+
+it.each([
+  ["donkey-kong-64-recompiled", "windows-x86-64", false, false],
+  ["donkey-kong-64-recompiled", "linux-x86-64", false, false],
+  ["donkey-kong-64-recompiled", "macos-aarch64", true, true],
+  ["duke-nukem-zero-hour-recompiled", "windows-x86-64", false, false],
+  ["duke-nukem-zero-hour-recompiled", "linux-x86-64", true, false],
+  ["duke-nukem-zero-hour-recompiled", "macos-x86-64", true, true],
+  ["duke-nukem-zero-hour-recompiled", "macos-aarch64", true, true],
+] as const)(
+  "scopes managed qualification notices for %s to %s",
+  async (id, platform, qualificationWarning, macWarning) => {
+    const port = currentCatalogPort(id);
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: id, active: null }}
+        installPlan={{ ...plan, port_id: id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect.element(dialog.getByRole("region", { name: "Game setup" })).toBeVisible();
+    const copy = dialog.element().textContent ?? "";
+    expect(copy.includes("populated saves are still unverified")).toBe(qualificationWarning);
+    expect(copy.includes("Gatekeeper")).toBe(macWarning);
+    expect(copy).not.toContain("Flatpak");
+  },
+);
+
+it.each([
+  ["automobili-lamborghini-recompiled", "windows-x86-64", "US Automobili Lamborghini", "Android"],
+  ["battleship", "windows-x86-64", "Super Smash Bros. 64 USA 1.0", "disk image"],
+  ["kirby-letsgo-oracles-decomp", "windows-x86-64", "Add ROM", "AppImage"],
+  ["lighthouse", "linux-x86-64", "supported Banjo-Kazooie", "disk image"],
+  ["perfect-dark", "windows-x86-64", "US Rev 1 Perfect Dark", "SDL2.framework"],
+  ["resident-evil-gaiden-recomp", "windows-x86-64", "Game Boy Color original", "Android"],
+  ["djultra64-blocksphere", "linux-x86-64", "On first Play", "outside your Portcove library"],
+  [
+    "the-force-engine-dark-forces",
+    "windows-x86-64",
+    "complete installed PC Dark Forces",
+    "Flathub",
+  ],
+  ["vcmi-vcmi", "windows-x86-64", "into the default Windows profile", "DMG"],
+  ["wave-race-64-recomp", "windows-x86-64", "Start Game in the launcher", "leave arguments empty"],
+] as const)("uses the managed setup of %s on %s", async (id, platform, expected, upstream) => {
+  const port = currentCatalogPort(id);
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath="C:/Player/original"
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: id, active: null }}
+      installPlan={{ ...plan, channel: port.channels[0] ?? plan.channel, port_id: id, platform }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  const setup = dialog.getByRole("region", { name: "Game setup" });
+  await expect.element(setup).toBeVisible();
+  expect(setup.element().textContent).toContain(expected);
+  expect(dialog.element().textContent).not.toContain(upstream);
+  expect(dialog.element().textContent?.includes("saves from different major versions")).toBe(
+    id === "vcmi-vcmi",
+  );
+});
+
+it.each(["macos-x86-64", "macos-aarch64"] as const)(
+  "keeps Perfect Dark’s framework requirement visible on %s",
+  async (platform) => {
+    const port = currentCatalogPort("perfect-dark");
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="/Player/perfect-dark.z64"
+        setSourcePath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, channel: "rolling", port_id: port.id, platform }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect
+      .element(dialog.getByText(/install SDL2\.framework in \/Library\/Frameworks/u))
+      .toBeVisible();
+  },
+);
+
+it.each(["sample", "alexbeav-digimon-world-2003-recomp"])(
+  "uses the generic managed review for older unscoped guidance on %s",
+  async (id) => {
+    const base = id === "sample" ? portDefinition() : currentCatalogPort(id);
+    const port: PortDefinition = {
+      ...base,
+      presentation: {
+        installation_method: "portable-package",
+        saves_and_settings: "portcove-managed",
+        source_requirements: [],
+        ...base.presentation,
+        manual_setup: {
+          steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
+          warnings: ["Back up the original save folder."],
+        },
+        manual_preparation: "Legacy technical notes for the full guide.",
+      },
+    };
+    await root.rerender(
+      <DetailPanel
+        port={port}
+        sourcePath="C:/Player/original.chd"
+        setSourcePath={vi.fn()}
+        biosPath="C:/Player/original-bios.bin"
+        setBiosPath={vi.fn()}
+        status={{ ...portStatus(), port_id: port.id, active: null }}
+        installPlan={{ ...plan, port_id: port.id }}
+        actions={actions}
+      />,
+    );
+
+    const dialog = page.getByRole("dialog");
+    await expect
+      .element(dialog.getByText(/See the game instructions for setup and save locations/u))
+      .toBeVisible();
+    await expect.element(dialog.getByText("Back up the original save folder.")).toBeVisible();
+    const copy = dialog.element().textContent;
+    expect(copy).not.toContain("Open the macOS disk image.");
+    expect(copy).not.toContain("Legacy technical notes for the full guide.");
+    expect(copy).not.toContain("Portcove checks the files and builds");
+  },
+);
+
+it("keeps SpaceRanger’s reset warning alongside the managed first-Play step", async () => {
+  const port = currentCatalogPort("toy-story-2-buzz-lightyear-to-the-rescue-n64-spaceranger");
+  await root.rerender(
+    <DetailPanel
+      port={port}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      status={{ ...portStatus(), port_id: port.id, active: null }}
+      installPlan={{ ...plan, port_id: port.id }}
+      actions={actions}
+    />,
+  );
+
+  const dialog = page.getByRole("dialog");
+  await expect
+    .element(dialog.getByText(/Choose Load ROM in the SpaceRanger title screen/u))
+    .toBeVisible();
+  await expect
+    .element(dialog.getByText(/also removes settings and any Controller Pak data/u))
+    .toBeVisible();
 });
 
 it("discloses external saves and managed local settings for the staged MC2 route", async () => {

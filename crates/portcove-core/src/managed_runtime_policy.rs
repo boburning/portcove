@@ -176,6 +176,7 @@ pub(crate) fn require_native_appimage_artifact(
                     | crate::ExternalProfilePolicy::VkquakeLinuxV1
                     | crate::ExternalProfilePolicy::CorsixthLinuxV1
                     | crate::ExternalProfilePolicy::OpenlocoUnixV1
+                    | crate::ExternalProfilePolicy::EndlessSkyDesktopV1
             )
         )
     {

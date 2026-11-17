@@ -71,6 +71,103 @@ afterEach(async () => {
   document.documentElement.style.removeProperty("font-size");
 });
 
+it.for(["paired", "unavailable", "local"] as const)(
+  "renders a combined Discover entry with %s covers",
+  async (mode) => {
+    const mapping = {
+      game_id: 1,
+      cover_id: 1,
+      image_id: "firstcover",
+      image_sha256: "b".repeat(64),
+      game_slug: "first-cover",
+      match_kind: "underlying-game" as const,
+    };
+    const companion = {
+      ...mapping,
+      game_id: 2,
+      cover_id: 2,
+      image_id: "secondcover",
+      image_sha256: "c".repeat(64),
+      game_slug: "second-cover",
+    };
+    const port = {
+      ...ports[0]!,
+      presentation: {
+        ...ports[0]!.presentation,
+        artwork: mapping,
+        companion_cover: companion,
+      },
+    };
+    const primaryId = "a".repeat(64);
+    const choice = artworkState(port.id, "cover", 3, mode === "local");
+    vi.spyOn(desktopApi, "artwork").mockResolvedValue({
+      ...choice,
+      availability: "available",
+      resolved_source:
+        mode === "local"
+          ? choice.resolved_source
+          : {
+              kind: "igdb_cover",
+              cache_id: primaryId,
+              artwork: mapping,
+            },
+    });
+    const thumbnail = (sha256: string) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 160;
+      canvas.height = 200;
+      const ink = canvas.getContext("2d")!;
+      ink.fillStyle = sha256 === primaryId ? "#536a7a" : "#a43232";
+      ink.fillRect(0, 0, 160, 200);
+      return {
+        asset_sha256: sha256,
+        choice_revision: 3,
+        png_base64: canvas.toDataURL("image/png").split(",")[1]!,
+      };
+    };
+    vi.spyOn(desktopApi, "artworkThumbnail").mockResolvedValue(thumbnail(primaryId));
+    const loadCompanion = vi.spyOn(desktopApi, "companionCoverThumbnail");
+    if (mode === "unavailable") loadCompanion.mockRejectedValue(new Error("Offline"));
+    else loadCompanion.mockResolvedValue(thumbnail(companion.image_sha256));
+    await page.viewport(960, 640);
+    await render(
+      <ArtworkProvider generation={1}>
+        <PortBrowser
+          view="catalog"
+          ports={[port]}
+          statuses={new Map()}
+          overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+          filter="all"
+          setFilter={() => {}}
+          onSelect={() => {}}
+          onContinue={() => {}}
+          loading={false}
+        />
+      </ArtworkProvider>,
+    );
+    const frame = document.querySelector<HTMLElement>(".collection-art")!;
+    frame.scrollIntoView();
+    const pictures = () => Array.from(frame.querySelectorAll("img"));
+    await expect
+      .poll(() => pictures().filter((image) => image.naturalWidth > 0).length)
+      .toBe(mode === "paired" ? 2 : 1);
+    await expect
+      .poll(() => loadCompanion.mock.calls)
+      .toEqual(mode === "local" ? [] : [[port.id, primaryId, companion.image_sha256, 3, 1]]);
+    expect(frame.dataset.artworkSource).toBe(mode === "local" ? "local_import" : "igdb_cover");
+    expect(Boolean(frame.querySelector("[data-companion-cover]"))).toBe(mode === "paired");
+    const [left, right] = pictures().map((image) => image.getBoundingClientRect());
+    const staggered = Boolean(
+      left &&
+      right &&
+      left.right < right.left &&
+      left.top < right.top &&
+      Math.abs(left.width - right.width) < 1,
+    );
+    expect(staggered).toBe(mode === "paired");
+  },
+);
+
 // CI40745384613/a1 macOS producer123018113028 reached the15s case
 // deadline while these complete multi-step observations were progressing.
 // Preserve every interaction, assertion, matrix row and cleanup; calibrate only
@@ -516,6 +613,8 @@ async function assertPortraitLayout(
   expect(identitySpacing.filter(({ gap, maximumGap }) => gap < 0 || gap > maximumGap)).toEqual([]);
   const fallback = document.querySelectorAll<HTMLElement>(".collection-art")[4]!;
   expect(fallback.querySelector("img")).toBeNull();
+  const illustration = fallback.querySelector("[data-cover-illustration] svg");
+  expect(illustration?.getBoundingClientRect().width ?? 0).toBeGreaterThan(0);
   const palette = getComputedStyle(fallback).getPropertyValue(
     view === "library" ? "--color-bg-raised" : "--art-color",
   );

@@ -14,9 +14,9 @@ use crate::{Library, PortcoveError, Result};
 #[path = "official_catalog_setup.rs"]
 pub(crate) mod official_catalog;
 pub use official_catalog::{
-    DefinitionDeliveryInspection, DefinitionDeliveryServing, OfficialCatalogReview,
-    OfficialCatalogSetup, OfficialCatalogSource, PublishedDefinition,
-    inspect_official_definition_delivery,
+    DefinitionDeliveryInspection, DefinitionDeliveryServing, OfficialCatalogAutomaticOutcome,
+    OfficialCatalogAutomaticRefresh, OfficialCatalogReview, OfficialCatalogSetup,
+    OfficialCatalogSource, PublishedDefinition, inspect_official_definition_delivery,
 };
 
 const COMPILED_ROOT: &[u8] = include_bytes!("../catalog/official-definition-root.json");

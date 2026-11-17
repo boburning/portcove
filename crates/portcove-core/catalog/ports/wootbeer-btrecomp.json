@@ -5,6 +5,14 @@
     "name": "BattleTanx (BTRecomp)",
     "summary": "Attach an independently permitted, prepared BattleTanx Recompiled Windows player for BattleTanx using your own exact supported ROM. Upstream owns ROM preparation and replacement; preserve the actual btrecomp configuration/save root and component notices.",
     "original_game_title": "BattleTanx",
+    "artwork": {
+      "game_id": 47686,
+      "cover_id": 151603,
+      "image_id": "co38z7",
+      "image_sha256": "c9ab4d766775bf232aecd9fcdf1e476ea9019a8628f650606f50ab2563405021",
+      "game_slug": "battletanx",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/wootbeer/btrecomp",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

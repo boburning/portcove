@@ -527,3 +527,189 @@ async fn a_delivered_format_nine_directory_replaces_its_own_records_over_funded_
         Some(&["https://ko-fi.com/example".to_owned()][..])
     );
 }
+
+/// Owner decision on #534 (2026-11-15): official catalog updates are on by
+/// default, refresh quietly, never overlap and keep prior state on failure.
+/// One test owns the process-wide refresh guard so parallel tests cannot race it.
+#[tokio::test]
+async fn automatic_official_refresh_defaults_on_stays_quiet_and_preserves_state() {
+    use crate::OfficialCatalogAutomaticOutcome as Outcome;
+    use policy::provisioning::official_catalog::{
+        automatic_refresh_fixture, hold_refresh_guard_fixture,
+    };
+    const SOURCE: &[u8] = br#"{"metadata_base_url":"https://catalog.invalid/metadata/","targets_base_url":"https://catalog.invalid/targets/"}"#;
+    let fixture = authority_provisioning::separated_fixture();
+    let key = Key::new(fixture._directory.path());
+    let root = authority_provisioning::single_owner_root(&fixture).await;
+    let (_temp, library) = library();
+    let host = tempfile::tempdir().unwrap();
+    let preferences =
+        crate::HostPreferenceStore::new(host.path().join("preferences.json")).unwrap();
+    let service = PortcoveService::new(library.clone()).unwrap();
+    let repository = DefinitionRepositorySource {
+        metadata_base_url: fixture.metadata_url(),
+        targets_base_url: fixture.targets_url(),
+    };
+    let installed =
+        |library: &Library| policy::provisioning::review_single_owner_fixture(library, &root);
+    let observer = library.connection().unwrap();
+
+    // An explicit off persists and stops the schedule before any trust, I/O or write.
+    preferences
+        .set_official_catalog_automatic_updates(false)
+        .unwrap();
+    let before = authority_provisioning::data_version(&observer);
+    let off = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(off.outcome, Outcome::TurnedOff);
+    assert!(!installed(&library).unwrap().installed);
+    assert_eq!(authority_provisioning::data_version(&observer), before);
+
+    // On (the default once the choice is cleared), nothing published yet: the
+    // compiled anchor is installed from Core's own reviewed plan, and the
+    // absent metadata is a quiet "not served" with no activity or selection.
+    preferences
+        .set_official_catalog_automatic_updates(true)
+        .unwrap();
+    let unpublished = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(unpublished.outcome, Outcome::Unavailable);
+    assert_eq!(
+        unpublished.serving,
+        Some(crate::DefinitionDeliveryServing::NotServed)
+    );
+    assert!(installed(&library).unwrap().installed);
+    assert!(library.activities(10).unwrap().is_empty());
+    assert!(
+        library
+            .listing_delivery_status()
+            .unwrap()
+            .revision
+            .is_none()
+    );
+
+    // Published: the existing authenticated listing delivery selects it.
+    publish(&fixture, &key, 1, &feed(1)).await;
+    let refreshed = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(refreshed.outcome, Outcome::Refreshed);
+    assert_eq!(refreshed.status.unwrap().revision, Some(1));
+    let selected = |library: &Library| {
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing("new-unmanaged-port")
+            .is_ok()
+    };
+    assert!(selected(&library));
+    let activities = library.activities(10).unwrap().len();
+
+    // A refresh already in progress makes the scheduled one skip, not overlap.
+    {
+        let _running = hold_refresh_guard_fixture().await;
+        let skipped = automatic_refresh_fixture(
+            &service,
+            &preferences,
+            &root,
+            SOURCE,
+            &repository,
+            FilesystemTransport,
+        )
+        .await
+        .unwrap();
+        assert_eq!(skipped.outcome, Outcome::AlreadyRunning);
+    }
+
+    // A verified publication this client refuses (here, changed bytes at the
+    // same listing revision) is quiet too: no failed activity, selection kept.
+    let mut equivocation = feed(1);
+    equivocation["directory"]["listings"][0]["name"] = json!("Equivocated title");
+    publish(&fixture, &key, 2, &equivocation).await;
+    let refused = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(refused.outcome, Outcome::Unavailable);
+    assert_eq!(
+        refused.serving,
+        Some(crate::DefinitionDeliveryServing::VerificationFailed)
+    );
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+    assert_eq!(
+        library
+            .load_catalog()
+            .unwrap()
+            .0
+            .listing("new-unmanaged-port")
+            .unwrap()
+            .name,
+        "New unmanaged port"
+    );
+
+    // Tampered metadata and an outage both keep the accepted selection.
+    let timestamp = fixture.metadata.join("timestamp.json");
+    let signed = fs::read(&timestamp).unwrap();
+    fs::write(&timestamp, b"{\"signed\":{}}").unwrap();
+    let tampered = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(tampered.outcome, Outcome::Unavailable);
+    assert_eq!(
+        tampered.serving,
+        Some(crate::DefinitionDeliveryServing::VerificationFailed)
+    );
+    fs::write(&timestamp, signed).unwrap();
+    fs::remove_dir_all(&fixture.metadata).unwrap();
+    let outage = automatic_refresh_fixture(
+        &service,
+        &preferences,
+        &root,
+        SOURCE,
+        &repository,
+        FilesystemTransport,
+    )
+    .await
+    .unwrap();
+    assert_eq!(outage.outcome, Outcome::Unavailable);
+    assert_eq!(library.listing_delivery_status().unwrap().revision, Some(1));
+    assert!(selected(&library));
+    assert_eq!(library.activities(10).unwrap().len(), activities);
+}

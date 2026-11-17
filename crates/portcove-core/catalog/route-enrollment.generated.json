@@ -151,7 +151,7 @@
           "%LOCALAPPDATA%/Rayman2Recompiled by default, or the game folder if it already uses portable.txt; saves/controllerpak_1.mpk and other Controller Pak files under that profile"
         ]
       },
-      "managed_native": false
+      "managed_native": true
     },
     {
       "port_id": "n64hub-super-mario-64-recomp",
@@ -177,7 +177,7 @@
           "%LOCALAPPDATA%/SmashBrosRecompiled by default, or the game folder if it already uses portable.txt"
         ]
       },
-      "managed_native": false
+      "managed_native": true
     },
     {
       "port_id": "nhl-94-genesis-ninety-four",
@@ -261,7 +261,7 @@
           "the existing snprecomp profile or the application folder when portable.txt is present"
         ]
       },
-      "managed_native": false
+      "managed_native": true
     },
     {
       "port_id": "tekrantgaming-muppet-racemania-recompiled",

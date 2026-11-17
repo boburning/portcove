@@ -12,7 +12,7 @@ export function gameTitle(port: PortIdentity): string {
 
 export function gameProjectLabel(port: PortIdentity): string | undefined {
   const variant = port.presentation?.variant_label?.trim();
-  if (!port.presentation?.original_game_title?.trim() && !variant) return undefined;
+  if (gameTitle(port).trim() === port.name.trim()) return variant || undefined;
   return variant ? `${port.name} · ${variant}` : port.name;
 }
 

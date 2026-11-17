@@ -525,6 +525,73 @@ it("presents a required restart separately from another resumable batch", async 
   expect(desktopApi.scanGameFileRoots).toHaveBeenCalledTimes(1);
 });
 
+it("keeps the reported large ISO actionable after finishing a saved scan", async () => {
+  const path = "D:/Games/original.iso";
+  const first = {
+    ...portDefinition(),
+    id: "jak1",
+    name: "Jak and Daxter",
+    source_profile: "opengoal-jak1-disc",
+  };
+  const second = {
+    ...portDefinition(),
+    id: "jak2",
+    name: "Jak II",
+    source_profile: "opengoal-jak2-disc",
+  };
+  const review = vi
+    .spyOn(desktopApi, "planSourceImport")
+    .mockRejectedValue(new Error("Fixture check finished"));
+  const resumed = resumableSnapshot();
+  const retained = {
+    ...resumed,
+    matches: storedMatchesSnapshot().matches!,
+    report: {
+      ...snapshot.report,
+      limits_reached: ["file_size"],
+      issues: [
+        {
+          path,
+          profile_id: null,
+          message: "File exceeds the scan size limit.",
+          direct_check_profiles: [first.source_profile, second.source_profile],
+        },
+      ],
+    },
+  } satisfies GameFileScanSnapshot;
+  const finished = {
+    ...retained,
+    coverage: { ...resumed.coverage!, can_resume: false, frontier_exhausted: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(retained);
+  const scan = vi.mocked(desktopApi.scanGameFileRoots).mockImplementation(async () => {
+    vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(finished);
+    return finished;
+  });
+  await root.rerender(<GameFileLibraries generation={1} ports={[first, second]} profiles={[]} />);
+  await click("Refresh folders");
+  await click("Finish scanning these folders");
+  expect(scan).toHaveBeenCalledExactlyOnceWith(
+    resumed.limits,
+    1,
+    expect.any(Function),
+    retained.matches.scan_id,
+  );
+  expect(button("Scan saved folders")).toBeDefined();
+  const summary = [...document.querySelectorAll("summary")].find(
+    (item) => item.textContent === "Check this file",
+  );
+  await act(async () => summary?.click());
+  await click("Check for Jak II");
+  expect(review).toHaveBeenCalledExactlyOnceWith(
+    second.source_profile,
+    path,
+    "use_current_location",
+  );
+  expect(picker.pickGameFileFolder).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("keeps exhausted coverage distinct from skipped files and gameplay support", async () => {
   const exhausted = resumableSnapshot();
   exhausted.coverage = {
@@ -1739,7 +1806,7 @@ it("does not offer review from a snapshot whose inputs changed", async () => {
   expect(document.body.textContent).toContain("Scan again before using these results");
 });
 
-it("caps saved roots at the core scan limit and explains the recovery", async () => {
+it("keeps Add and Scan available with eight saved folders", async () => {
   const add = vi.spyOn(desktopApi, "addGameFileRoot");
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(
     Array.from({ length: 8 }, (_, index) => ({
@@ -1751,9 +1818,8 @@ it("caps saved roots at the core scan limit and explains the recovery", async ()
   await root.rerender(
     <GameFileLibraries generation={1} key="eight-roots" ports={[]} profiles={[]} />,
   );
-  expect(button("Add folder").disabled).toBe(true);
+  expect(button("Add folder").disabled).toBe(false);
   expect(button("Scan saved folders").disabled).toBe(false);
-  expect(document.body.textContent).toContain("at most eight available folders");
   expect(add).not.toHaveBeenCalled();
 });
 
@@ -1783,7 +1849,7 @@ it.each([
       <GameFileLibraries generation={1} key="mixed-roots" ports={[]} profiles={[]} />,
     );
     expect(button("Scan saved folders").disabled).toBe(false);
-    expect(button("Add folder").disabled).toBe(available === 8);
+    expect(button("Add folder").disabled).toBe(false);
     expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
     await click("Scan saved folders");
     expect(desktopApi.scanGameFileRoots).toHaveBeenCalledOnce();
@@ -1819,7 +1885,7 @@ it("allows another available folder without removing disconnected saved folders"
   expect(add).toHaveBeenCalledWith(added.path, 1);
   expect(remove).not.toHaveBeenCalled();
   expect(document.body.textContent).toContain(fixtureValue(roots[7], "roots[7]").path);
-  expect(button("Add folder").disabled).toBe(true);
+  expect(button("Add folder").disabled).toBe(false);
   expect(button("Scan saved folders").disabled).toBe(false);
   expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
@@ -1829,16 +1895,15 @@ it("rechecks available folders after choosing a folder before adding it", async 
   const initial = rootsWithAvailability(7, 2);
   const reconnected = rootsWithAvailability(8, 1);
   vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
-  const add = vi.spyOn(desktopApi, "addGameFileRoot");
+  const add = vi.spyOn(desktopApi, "addGameFileRoot").mockResolvedValue(saved);
   await root.rerender(
     <GameFileLibraries generation={1} key="reconnected-add" ports={[]} profiles={[]} />,
   );
   expect(button("Add folder").disabled).toBe(false);
   await click("Add folder");
   expect(picker.pickGameFileFolder).toHaveBeenCalledWith("");
-  expect(add).not.toHaveBeenCalled();
-  expect(button("Add folder").disabled).toBe(true);
-  expect(document.body.textContent).toContain("at most eight available folders");
+  expect(add).toHaveBeenCalledWith("E:/More Games", 1);
+  expect(button("Add folder").disabled).toBe(false);
 });
 
 it("uses fresh availability when disconnected folders can now be scanned", async () => {
@@ -1857,26 +1922,67 @@ it("uses fresh availability when disconnected folders can now be scanned", async
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("blocks a scan when refreshed availability exceeds eight and keeps prior evidence stale", async () => {
-  const initial = rootsWithAvailability(8, 1);
-  const reconnected = rootsWithAvailability(9, 0);
-  vi.mocked(desktopApi.gameFileRoots).mockResolvedValueOnce(initial).mockResolvedValue(reconnected);
-  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue({
-    ...snapshot,
-    roots: initial,
-    freshness: "inputs_changed",
-  });
+it("finishes a retained scan of nine folders with the existing Core scan action", async () => {
+  const roots = rootsWithAvailability(9, 0);
+  const continued = { ...resumableSnapshot(), roots };
+  vi.mocked(desktopApi.gameFileRoots).mockResolvedValue(roots);
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(continued);
+  mockCompletedScan(roots);
+  const remove = vi.spyOn(desktopApi, "removeGameFileRoot");
   await root.rerender(
-    <GameFileLibraries generation={1} key="too-many-reconnected" ports={[]} profiles={[]} />,
+    <GameFileLibraries generation={1} key="continued-nine-roots" ports={[]} profiles={[]} />,
   );
-  expect(button("Scan saved folders").disabled).toBe(false);
-  await click("Scan saved folders");
-  expect(desktopApi.scanGameFileRoots).not.toHaveBeenCalled();
-  expect(button("Scan saved folders").disabled).toBe(true);
-  expect(document.body.textContent).toContain("at most eight available folders");
-  expect(document.body.textContent).toContain(savedCandidate.path);
-  expect(button("Review game files").disabled).toBe(true);
+  await click("Continue scan");
+  expect(desktopApi.scanGameFileRoots).toHaveBeenCalledExactlyOnceWith(
+    continued.limits,
+    1,
+    expect.any(Function),
+  );
+  expect(remove).not.toHaveBeenCalled();
   expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
+it("starts one Finish action bound to the displayed saved scan", async () => {
+  const stored = storedMatchesSnapshot();
+  const resumed = { ...resumableSnapshot(), matches: stored.matches! };
+  let resolve!: (snapshot: GameFileScanSnapshot) => void;
+  const pending = new Promise<GameFileScanSnapshot>((done) => {
+    resolve = done;
+  });
+  const scan = vi.mocked(desktopApi.scanGameFileRoots);
+  scan.mockImplementation((_limits, _generation, emit) => {
+    emit?.({
+      schema_version: 3,
+      operation_id: "finish-scan",
+      parent_operation_id: null,
+      sequence: 2,
+      timestamp_ms: 1,
+      operation: "discover_sources",
+      target: null,
+      type: "progress",
+      phase: "saved_folder_scan_checkpoints",
+      phase_id: "saved_folder_scan_checkpoints",
+      unit: "items",
+      completed: 3,
+      total: null,
+    });
+    return pending;
+  });
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(resumed);
+  try {
+    await click("Refresh folders");
+    await click("Finish scanning these folders");
+    await expect.poll(() => document.body.textContent).toContain("3 batches saved.");
+    expect(scan).toHaveBeenCalledExactlyOnceWith(
+      resumed.limits,
+      1,
+      expect.any(Function),
+      stored.matches!.scan_id,
+    );
+    expect(desktopApi.importSource).not.toHaveBeenCalled();
+  } finally {
+    await act(async () => resolve(stored));
+  }
 });
 
 it("explains that all nine saved folders are unavailable without starting a scan", async () => {
@@ -2198,7 +2304,7 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
-it("reviews and adds games whose matches were shown beyond the scan preview", async () => {
+it("adds a game whose registered match is outside the scan preview", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
   const paged: SourceRecord = {
@@ -2207,14 +2313,9 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     path: "D:/Games/paged.z64",
     sha256: "c".repeat(64),
   };
-  vi.spyOn(desktopApi, "gameFileScanMatches").mockResolvedValue({
-    scan_id: stored.matches!.scan_id,
-    kind: "exact",
-    offset: 1,
-    total: 2,
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
     candidates: [paged],
     preliminary_selections: [],
-    next_offset: null,
   });
   vi.spyOn(desktopApi, "addGamesToLibrary").mockResolvedValue([]);
   const port = {
@@ -2247,8 +2348,7 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     </SetupReviewSelectionProvider>,
   );
   await click("Refresh folders");
-  expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(0);
-  await click("Show more matches");
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
   expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1);
   await act(async () =>
     document.querySelector<HTMLInputElement>("[data-setup-review-port]")!.click(),
@@ -2264,6 +2364,88 @@ it("reviews and adds games whose matches were shown beyond the scan preview", as
     ],
     1,
   );
+});
+
+it("reviews more than sixteen eligible games without opening their match pages", async () => {
+  const sources = Array.from({ length: 21 }, (_, index): SourceRecord => ({
+    ...savedCandidate,
+    profile_id: `profile-${index}`,
+    path: `D:/Games/game-${index}.z64`,
+    sha256: index.toString(16).padStart(64, "0"),
+  }));
+  const [ambiguous, ...eligible] = sources;
+  const ports = [
+    ...sources.map((source) => ({
+      ...portDefinition(),
+      id: `port-${source.profile_id}`,
+      name: `Game ${source.profile_id}`,
+      source_profile: source.profile_id,
+    })),
+    {
+      ...portDefinition(),
+      id: "alternative",
+      name: "Alternative version",
+      source_profile: ambiguous!.profile_id,
+    },
+  ];
+  const stored = storedMatchesSnapshot();
+  stored.report.candidates = sources.slice(0, 9);
+  stored.matches!.exact_matches = 79;
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const pages = vi.spyOn(desktopApi, "gameFileScanMatches");
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: sources,
+    preliminary_selections: [],
+  });
+  const selectedIds = eligible.map((source) => `port-${source.profile_id}`);
+  const plan = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: selectedIds.map((port_id) => ({ port_id, hold: "Waiting for setup input" })),
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  const run = vi.spyOn(desktopApi, "runInstallBatch");
+  const add = vi.spyOn(desktopApi, "addGamesToLibrary");
+  const statuses = new Map(
+    ports.map((port) => [
+      port.id,
+      {
+        ...portStatus(),
+        port_id: port.id,
+        port_actions: [
+          {
+            action: "install" as const,
+            availability: "allowed" as const,
+            reason: "available" as const,
+          },
+        ],
+      },
+    ]),
+  );
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={ports}
+        profiles={sources.map((source) => ({ ...sourceProfile(), id: source.profile_id }))}
+        registeredSources={sources}
+        statuses={statuses}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  expect(document.body.textContent).toContain("Showing 9 of 79 matches.");
+  expect(document.body.textContent).toContain(
+    "0 selected · 20 eligible · 1 game needs a version choice",
+  );
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  expect(pages).not.toHaveBeenCalled();
+  await click("Select all 20 eligible");
+  await click("Review installing 20 selected");
+  expect(plan).toHaveBeenCalledExactlyOnceWith(selectedIds, 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(run).not.toHaveBeenCalled();
+  expect(add).not.toHaveBeenCalled();
 });
 
 it("reloads the saved scan instead of mixing pages when a newer scan replaced it", async () => {

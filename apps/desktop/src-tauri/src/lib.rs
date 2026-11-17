@@ -27,6 +27,8 @@ mod host_startup;
 mod library_selection;
 mod library_transfer;
 mod managed_install_review;
+mod mod_file_commands;
+mod mod_original_commands;
 mod mod_setup_commands;
 mod organization_commands;
 mod output_location;
@@ -1440,14 +1442,18 @@ async fn scan_game_file_roots(
     state: tauri::State<'_, DesktopState>,
     generation: u64,
     limits: portcove_core::SourceDiscoveryLimits,
+    finish_scan_id: Option<String>,
     on_event: tauri::ipc::Channel<OperationEvent>,
 ) -> DesktopResult<portcove_core::GameFileScanSnapshot> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
-        service
-            .scan_game_file_roots_with_progress(&limits, |event| {
-                let _ = on_event.send(event);
-            })
-            .map_err(Into::into)
+        let emit = |event| {
+            let _ = on_event.send(event);
+        };
+        match finish_scan_id {
+            Some(id) => service.finish_game_file_scan_with_progress(&id, &limits, emit),
+            None => service.scan_game_file_roots_with_progress(&limits, emit),
+        }
+        .map_err(Into::into)
     })
     .await
 }
@@ -1462,6 +1468,20 @@ async fn get_game_file_scan_matches(
 ) -> DesktopResult<portcove_core::GameFileScanMatchPage> {
     blocking_service_at_generation(state.inner().clone(), generation, move |service| {
         service.game_file_scan_matches(&query).map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+async fn get_game_file_scan_registered_matches(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    expected: portcove_core::GameFileScanMatchSummary,
+) -> DesktopResult<portcove_core::GameFileScanRegisteredMatches> {
+    blocking_service_at_generation(state.inner().clone(), generation, move |service| {
+        service
+            .game_file_scan_registered_matches(&expected)
+            .map_err(Into::into)
     })
     .await
 }
@@ -2118,6 +2138,7 @@ fn request_supervised_launch(
     let executable = std::env::current_exe().map_err(PortcoveError::from)?;
     let mut command =
         ChildProcessPolicy::native_command(ChildProcessClass::HostIntegration, &executable)?;
+    copy_launch_preparation_environment(&mut command, std::env::vars_os());
     command
         .arg("--portcove-supervise")
         .arg(&request_path)
@@ -2153,6 +2174,34 @@ fn request_supervised_launch(
         let _ = fs::remove_file(&request_path);
     }
     result
+}
+
+fn copy_launch_preparation_environment(
+    command: &mut std::process::Command,
+    environment: impl IntoIterator<Item = (std::ffi::OsString, std::ffi::OsString)>,
+) {
+    // This is the trusted Portcove supervisor, which prepares game files
+    // before spawning the game under the separate child-process policy.
+    const PREPARATION_VARIABLES: &[&str] = &[
+        "PORTCOVE_PREFERENCES",
+        "PORTCOVE_CHDMAN",
+        "PORTCOVE_DOLPHIN_TOOL",
+        "PORTCOVE_TEMP_DIR",
+        "DOLPHIN_HOME",
+        "MAME_HOME",
+        "RETROBAT_ROOT",
+    ];
+    command.envs(environment.into_iter().filter(|(name, _)| {
+        name.to_str().is_some_and(|name| {
+            PREPARATION_VARIABLES.iter().any(|variable| {
+                if cfg!(windows) {
+                    name.eq_ignore_ascii_case(variable)
+                } else {
+                    name == *variable
+                }
+            })
+        })
+    }));
 }
 
 fn wait_for_launch_acceptance<R, S, W>(
@@ -2999,17 +3048,40 @@ pub fn run() -> std::process::ExitCode {
             game_settings_commands::get_port_capabilities,
             game_settings_commands::review_game_setting,
             game_settings_commands::apply_game_setting,
+            mod_original_commands::review_mod_setup_original,
+            mod_original_commands::select_mod_setup_original,
+            mod_original_commands::relink_mod_setup_original,
+            mod_file_commands::inspect_mod_file,
+            mod_file_commands::preserve_mod_file,
             mod_setup_commands::get_mod_setups,
             mod_setup_commands::create_default_mod_setup,
             mod_setup_commands::copy_mod_setup,
+            mod_setup_commands::create_clean_mod_setup,
             mod_setup_commands::use_mod_setup,
+            mod_setup_commands::list_mod_setup_revisions,
+            mod_setup_commands::plan_profile_recovery,
+            mod_setup_commands::apply_profile_recovery,
+            mod_setup_commands::list_mod_setup_recovery_builds,
+            mod_setup_commands::preview_mod_setup_retirement,
+            mod_setup_commands::retire_mod_setup_recovery_build,
+            mod_setup_commands::export_mod_recipe,
+            mod_setup_commands::inspect_mod_recipe,
+            mod_setup_commands::acquire_mod_recipe_package,
+            mod_setup_commands::discard_mod_recipe_review,
+            mod_setup_commands::apply_mod_recipe,
             mod_setup_commands::set_mod_package_enabled,
+            mod_setup_commands::remove_mod_package,
+            mod_setup_commands::set_mod_update_policy,
+            mod_setup_commands::check_provider_mod_updates,
             mod_setup_commands::add_mod_package,
             mod_setup_commands::browse_provider_mods,
+            mod_setup_commands::open_provider_mod_project,
             mod_setup_commands::get_provider_project,
             mod_setup_commands::plan_provider_install,
             mod_setup_commands::apply_provider_install,
             mod_setup_commands::discard_provider_install,
+            mod_setup_commands::plan_local_mod_package,
+            mod_setup_commands::apply_local_mod_package,
             mod_setup_commands::review_mod_package_code,
             dat_commands::get_dat_references,
             dat_commands::add_dat_reference,
@@ -3047,7 +3119,9 @@ pub fn run() -> std::process::ExitCode {
             catalog::get_catalog_status,
             catalog::get_listing_delivery_status,
             catalog::get_official_catalog_review,
-            catalog::enable_official_catalog,
+            catalog::get_official_catalog_automatic_updates,
+            catalog::set_official_catalog_automatic_updates,
+            catalog::refresh_official_catalog_automatically,
             catalog::refresh_official_catalog,
             catalog::refresh_official_definition,
             catalog::refresh_catalog_listings,
@@ -3089,6 +3163,7 @@ pub fn run() -> std::process::ExitCode {
             ghostship_recovery::recover_ghostship_legacy_data,
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
+            artwork::get_companion_cover_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,
@@ -3141,6 +3216,7 @@ pub fn run() -> std::process::ExitCode {
             scan_game_file_roots,
             get_game_file_scan_snapshot,
             get_game_file_scan_matches,
+            get_game_file_scan_registered_matches,
             get_game_file_root_match_profiles,
             get_store_game_installs,
             refresh_game_file_query,
@@ -3876,6 +3952,47 @@ mod tests {
     }
 
     #[test]
+    fn launch_supervisor_receives_disc_tool_configuration_without_credentials() {
+        let mut command = std::process::Command::new("portcove-desktop");
+        let session = [
+            ("PORTCOVE_PREFERENCES", "isolated-preferences.json"),
+            ("PORTCOVE_CHDMAN", "chdman"),
+            ("PORTCOVE_DOLPHIN_TOOL", "DolphinTool"),
+            ("PORTCOVE_TEMP_DIR", "isolated-temp"),
+            ("DOLPHIN_HOME", "custom-dolphin"),
+            ("MAME_HOME", "custom-mame"),
+            ("RETROBAT_ROOT", "custom-retrobat"),
+        ];
+        let environment = session
+            .into_iter()
+            .chain([
+                ("GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_GITHUB_TOKEN", "credential"),
+                ("PORTCOVE_APPLICATION_UPDATE_METADATA_URL", "unrelated"),
+                ("SDL_DYNAMIC_API", "unrelated"),
+            ])
+            .map(|(key, value)| (key.into(), value.into()));
+        copy_launch_preparation_environment(&mut command, environment);
+
+        let copied = command
+            .get_envs()
+            .collect::<std::collections::BTreeMap<_, _>>();
+        assert_eq!(copied.len(), session.len());
+        for (key, value) in session {
+            assert_eq!(
+                copied.get(std::ffi::OsStr::new(key)),
+                Some(&Some(std::ffi::OsStr::new(value))),
+            );
+        }
+        let mut lowercase = std::process::Command::new("portcove-desktop");
+        copy_launch_preparation_environment(
+            &mut lowercase,
+            [("portcove_chdman".into(), "lowercase".into())],
+        );
+        assert_eq!(lowercase.get_envs().count(), usize::from(cfg!(windows)));
+    }
+
+    #[test]
     fn launch_acceptance_can_arrive_after_the_former_five_minute_deadline() {
         let elapsed = std::cell::Cell::new(Duration::ZERO);
 
@@ -4332,7 +4449,7 @@ mod tests {
     fn disc_tool_navigation_uses_only_fixed_registry_ids() {
         assert_eq!(
             host_tool_official_url("chdman").unwrap(),
-            "https://docs.mamedev.org/tools/chdman.html"
+            "https://www.mamedev.org/release.html"
         );
         assert_eq!(
             host_tool_official_url("dolphin_tool").unwrap(),

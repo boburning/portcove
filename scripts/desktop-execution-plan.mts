@@ -429,6 +429,7 @@ export function planDesktopExecution(
   const sourceJourney =
     executed.has("native-saved-folder-selected-setup") || preliminaryJourney || hashResumeJourney;
   const completionJourney = executed.has("native-selected-setup-completion");
+  const updateReviewJourney = executed.has("native-game-update-review");
   const roles = [
     ...selection.selected_scenarios.map((id) => ({ id, role: "selected" })),
     ...selection.setup_scenarios.map((id) => ({ id, role: "setup" })),
@@ -526,6 +527,7 @@ export function planDesktopExecution(
       ...(preliminarySetupJourney ? { preliminarySetupJourney: true } : {}),
       completionJourney,
       ...(acquisitionJourney ? { acquisitionJourney: true } : {}),
+      ...(updateReviewJourney ? { updateReviewJourney: true } : {}),
       ...(registeredSourceReuse ? { registeredSourceReuse: true } : {}),
       ...(hashResumeJourney ? { hashResumeJourney: true } : {}),
       holdFirstDownload: completionJourney,
@@ -535,6 +537,7 @@ export function planDesktopExecution(
       cliFeatures:
         sourceJourney ||
         completionJourney ||
+        updateReviewJourney ||
         selection.selected_scenarios.includes("native-host-publication-recovery")
           ? ["portcove-core/qualification-fixtures"]
           : [],

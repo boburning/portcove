@@ -541,7 +541,7 @@ function Scenario({ id }: { id: ScenarioId }) {
           source: null,
           configuration_variable: "PORTCOVE_CHDMAN",
           purpose: "Check CHD game files and prepare disc images",
-          official_url: "https://docs.mamedev.org/tools/chdman.html",
+          official_url: "https://www.mamedev.org/release.html",
         }}
       />
     );

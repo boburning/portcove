@@ -2,7 +2,7 @@
 
 use std::{
     fs,
-    io::Read,
+    io::{Read, Seek, SeekFrom},
     path::{Path, PathBuf},
     sync::{
         Arc,
@@ -90,7 +90,7 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             display_name: "chdman".into(),
             configuration_variable: "PORTCOVE_CHDMAN".into(),
             purpose: "Check CHD game files and prepare disc images".into(),
-            official_url: "https://docs.mamedev.org/tools/chdman.html".into(),
+            official_url: "https://www.mamedev.org/release.html".into(),
             supported_platforms: all.clone(),
             probe: HostToolProbePolicy {
                 arguments: vec!["-help".into()],
@@ -111,9 +111,14 @@ fn fixed_definitions() -> Vec<HostToolDefinition> {
             supported_platforms: all,
             probe: HostToolProbePolicy {
                 arguments: vec!["--help".into()],
-                accepted_exit_codes: vec![0],
-                expected_output: "DolphinTool".into(),
-                required_output_markers: vec!["convert".into(), "verify".into()],
+                // DolphinTool prints its command list and exits 1 for top-level help.
+                accepted_exit_codes: vec![0, 1],
+                expected_output: "usage: dolphin-tool".into(),
+                required_output_markers: vec![
+                    "commands supported:".into(),
+                    "convert".into(),
+                    "verify".into(),
+                ],
                 timeout_millis: 5_000,
                 max_output_bytes: 64 * 1024,
             },
@@ -303,7 +308,7 @@ fn probe_definition_with_cancellation(
             None,
         );
     }
-    let initial = match selected_file_fingerprint(path, platform) {
+    let initial = match selected_file_fingerprint(&definition.id, path, platform) {
         Ok(fingerprint) => fingerprint,
         Err(failure) => {
             return probe_result(definition, path, failure.state, failure.message, None);
@@ -311,7 +316,7 @@ fn probe_definition_with_cancellation(
     };
 
     before_spawn();
-    let pre_spawn = match selected_file_fingerprint(path, platform) {
+    let pre_spawn = match selected_file_fingerprint(&definition.id, path, platform) {
         Ok(fingerprint) => fingerprint,
         Err(failure) => {
             return probe_result(definition, path, failure.state, failure.message, None);
@@ -330,7 +335,7 @@ fn probe_definition_with_cancellation(
     if let Err(failure) = run_fixed_probe(definition, path, cancelled) {
         return probe_result(definition, path, failure.state, failure.message, None);
     }
-    let final_fingerprint = match selected_file_fingerprint(path, platform) {
+    let final_fingerprint = match selected_file_fingerprint(&definition.id, path, platform) {
         Ok(fingerprint) => fingerprint,
         Err(failure) => {
             return probe_result(definition, path, failure.state, failure.message, None);
@@ -538,6 +543,7 @@ struct SelectedFileFingerprint {
 }
 
 fn selected_file_fingerprint(
+    id: &str,
     path: &Path,
     platform: Platform,
 ) -> std::result::Result<SelectedFileFingerprint, ProbeFailure> {
@@ -598,6 +604,18 @@ fn selected_file_fingerprint(
         },
         message: format!("could not read the selected executable: {error}"),
     })?;
+    if requires_amd64_chdman(id, platform) {
+        if !is_amd64_pe(&mut file) {
+            return Err(ProbeFailure {
+                state: HostToolProbeState::IncompatibleVersion,
+                message: "Choose the native 64-bit Windows chdman executable.".into(),
+            });
+        }
+        file.rewind().map_err(|error| ProbeFailure {
+            state: HostToolProbeState::Invalid,
+            message: format!("could not reread the selected executable: {error}"),
+        })?;
+    }
     let mut hasher = Sha256::new();
     let mut read = 0_u64;
     let mut buffer = [0_u8; 64 * 1024];
@@ -626,6 +644,44 @@ fn selected_file_fingerprint(
         size: read,
         sha256: hex::encode(hasher.finalize()),
     })
+}
+
+fn requires_amd64_chdman(id: &str, platform: Platform) -> bool {
+    id == "chdman" && platform == Platform::WindowsX86_64
+}
+
+fn is_amd64_pe(file: &mut fs::File) -> bool {
+    const AMD64: u16 = 0x8664;
+    const PE32_PLUS: u16 = 0x020b;
+    const EXECUTABLE_IMAGE: u16 = 0x0002;
+    const DLL: u16 = 0x2000;
+    let mut dos = [0_u8; 64];
+    if file.read_exact(&mut dos).is_err() || &dos[..2] != b"MZ" {
+        return false;
+    }
+    let offset = u32::from_le_bytes(dos[60..64].try_into().unwrap());
+    if !(64..=65_536).contains(&offset) || file.seek(SeekFrom::Start(u64::from(offset))).is_err() {
+        return false;
+    }
+    let mut pe = [0_u8; 26];
+    if file.read_exact(&mut pe).is_err() || &pe[..4] != b"PE\0\0" {
+        return false;
+    }
+    let machine = u16::from_le_bytes([pe[4], pe[5]]);
+    let optional_header_size = u16::from_le_bytes([pe[20], pe[21]]);
+    let characteristics = u16::from_le_bytes([pe[22], pe[23]]);
+    let magic = u16::from_le_bytes([pe[24], pe[25]]);
+    machine == AMD64
+        && optional_header_size >= 2
+        && characteristics & (EXECUTABLE_IMAGE | DLL) == EXECUTABLE_IMAGE
+        && magic == PE32_PLUS
+}
+
+fn usable_tool_path(id: &str, path: &Path, platform: Platform) -> bool {
+    path.is_file()
+        && (!requires_amd64_chdman(id, platform)
+            || (validate_platform_path(path, platform).is_ok()
+                && fs::File::open(path).is_ok_and(|mut file| is_amd64_pe(&mut file))))
 }
 
 fn validate_platform_path(
@@ -739,7 +795,7 @@ fn resolve_with_environment(
     if let Some(path) = configured {
         return Ok(status(
             &definition,
-            if path.is_file() {
+            if usable_tool_path(&definition.id, &path, platform) {
                 HostToolState::Available
             } else {
                 HostToolState::Misconfigured
@@ -749,7 +805,7 @@ fn resolve_with_environment(
         ));
     }
     if let Some(selection) = preferences.host_tool_preference(&definition.id)? {
-        let valid = selected_file_fingerprint(&selection.path, platform)
+        let valid = selected_file_fingerprint(&definition.id, &selection.path, platform)
             .is_ok_and(|fingerprint| fingerprint.sha256 == selection.sha256);
         return Ok(status(
             &definition,
@@ -762,7 +818,9 @@ fn resolve_with_environment(
             Some(HostToolSource::Saved),
         ));
     }
-    let path = candidates.into_iter().find(|candidate| candidate.is_file());
+    let path = candidates
+        .into_iter()
+        .find(|candidate| usable_tool_path(&definition.id, candidate, platform));
     let source = path.as_ref().map(|_| HostToolSource::Discovery);
     Ok(status(
         &definition,
@@ -780,7 +838,7 @@ pub(crate) fn require_path(status: &HostToolStatus, searched: &[PathBuf]) -> Res
     match status.state {
         HostToolState::Available => Ok(status.path.clone().expect("available tool has a path")),
         HostToolState::Misconfigured => Err(PortcoveError::source(format!(
-            "{} does not point to a file: {}",
+            "{} does not point to a compatible executable: {}",
             status.configuration_variable,
             status
                 .path
@@ -854,9 +912,29 @@ mod tests {
     use super::*;
     use std::{collections::HashSet, fs};
 
+    fn pe_header(machine: u16, magic: u16) -> [u8; 90] {
+        let mut data = [0; 90];
+        data[..2].copy_from_slice(b"MZ");
+        data[60] = 64;
+        data[64..68].copy_from_slice(b"PE\0\0");
+        data[68..70].copy_from_slice(&machine.to_le_bytes());
+        data[84] = 2;
+        data[86] = 2;
+        data[88..90].copy_from_slice(&magic.to_le_bytes());
+        data
+    }
+
+    fn write_tool_path_fixture(path: &Path) {
+        if cfg!(windows) {
+            fs::write(path, pe_header(0x8664, 0x020b)).unwrap();
+        } else {
+            fs::write(path, b"tool").unwrap();
+        }
+    }
+
     fn remember_test_selection(store: &HostPreferenceStore, id: &str, path: &Path) {
         crate::permissions::normalize_archive_entry(path, false, true).unwrap();
-        let sha256 = selected_file_fingerprint(path, Platform::current().unwrap())
+        let sha256 = selected_file_fingerprint(id, path, Platform::current().unwrap())
             .unwrap()
             .sha256;
         assert!(
@@ -952,7 +1030,8 @@ mod tests {
         assert!(validate_definitions(&registry).is_err());
 
         for url in [
-            "http://docs.mamedev.org/tools/chdman.html",
+            "http://www.mamedev.org/release.html",
+            "https://docs.mamedev.org/tools/chdman.html",
             "https://example.invalid/chdman",
         ] {
             let mut registry = definitions();
@@ -1052,6 +1131,22 @@ mod tests {
             probe_definition(&definition("chdman").unwrap(), &helper, || {}).state,
             HostToolProbeState::Success,
             "chdman's complete help is valid even though the tool exits 1"
+        );
+        let dolphin_fixture = temporary.path().join(if cfg!(windows) {
+            "portcove-dolphin-help-fixture.exe"
+        } else {
+            "portcove-dolphin-help-fixture"
+        });
+        fs::copy(&helper, &dolphin_fixture).unwrap();
+        assert_eq!(
+            probe_definition(
+                &definition("dolphin_tool").unwrap(),
+                &dolphin_fixture,
+                || {}
+            )
+            .state,
+            HostToolProbeState::Success,
+            "DolphinTool's complete command list is valid even though the tool exits 1"
         );
         for (argument, expected) in [
             ("--success", HostToolProbeState::Success),
@@ -1261,8 +1356,8 @@ mod tests {
         let suffix = if cfg!(windows) { ".exe" } else { "" };
         let saved = temporary.path().join(format!("saved-tool{suffix}"));
         let discovered = temporary.path().join(format!("discovered-tool{suffix}"));
-        fs::write(&saved, b"saved").unwrap();
-        fs::write(&discovered, b"discovered").unwrap();
+        write_tool_path_fixture(&saved);
+        write_tool_path_fixture(&discovered);
         remember_test_selection(&store, "chdman", &saved);
         let selected = resolve("chdman", vec![discovered.clone()], &store).unwrap();
         assert_eq!(selected.path.as_deref(), Some(saved.as_path()));
@@ -1281,8 +1376,8 @@ mod tests {
         let suffix = if cfg!(windows) { ".exe" } else { "" };
         let saved = temporary.path().join(format!("saved-tool{suffix}"));
         let environment = temporary.path().join(format!("environment-tool{suffix}"));
-        fs::write(&saved, b"saved").unwrap();
-        fs::write(&environment, b"environment").unwrap();
+        write_tool_path_fixture(&saved);
+        write_tool_path_fixture(&environment);
         remember_test_selection(&store, "chdman", &saved);
         let selected = resolve_with_environment(
             definition("chdman").unwrap(),
@@ -1323,6 +1418,52 @@ mod tests {
         .unwrap();
         assert_eq!(missing.state, HostToolState::Missing);
         assert_eq!(missing.source, None);
+    }
+
+    #[test]
+    fn windows_disc_tool_candidates_require_an_amd64_executable_image() {
+        let temporary = tempfile::tempdir().unwrap();
+        let shim = temporary.path().join("shim.exe");
+        let native = temporary.path().join("native.exe");
+        let malformed = temporary.path().join("malformed.exe");
+        let batch = temporary.path().join("native.cmd");
+        fs::write(&shim, pe_header(0x014c, 0x010b)).unwrap();
+        fs::write(&native, pe_header(0x8664, 0x020b)).unwrap();
+        fs::write(&malformed, &pe_header(0x8664, 0x020b)[..64]).unwrap();
+        fs::write(&batch, pe_header(0x8664, 0x020b)).unwrap();
+
+        let platform = Platform::WindowsX86_64;
+        assert!(!usable_tool_path("chdman", &shim, platform));
+        assert!(!usable_tool_path("chdman", &malformed, platform));
+        assert!(!usable_tool_path("chdman", &batch, platform));
+        assert!(usable_tool_path("chdman", &native, platform));
+        assert!(usable_tool_path("dolphin_tool", &shim, platform));
+        assert!(usable_tool_path("chdman", &shim, Platform::LinuxX86_64));
+
+        if cfg!(windows) {
+            let store =
+                HostPreferenceStore::new(temporary.path().join("preferences.json")).unwrap();
+            let candidates = vec![shim.clone(), native.clone()];
+            let definition = definition("chdman").unwrap();
+            let discovered =
+                resolve_with_environment(definition.clone(), candidates.clone(), &store, None)
+                    .unwrap();
+            assert_eq!(discovered.path.as_ref(), Some(&native));
+            let missing =
+                resolve_with_environment(definition.clone(), vec![shim.clone()], &store, None)
+                    .unwrap();
+            assert_eq!(missing.state, HostToolState::Missing);
+            remember_test_selection(&store, "chdman", &native);
+            let explicit =
+                resolve_with_environment(definition, candidates, &store, Some(shim.clone()))
+                    .unwrap();
+            assert_eq!(explicit.state, HostToolState::Misconfigured);
+            assert_eq!(explicit.path.as_ref(), Some(&shim));
+            let refused = configure_host_tool(&store, "chdman", &shim).unwrap();
+            assert_eq!(refused.state, HostToolProbeState::IncompatibleVersion);
+            assert!(!refused.persisted);
+            assert_eq!(store.host_tool_path("chdman").unwrap(), Some(native));
+        }
     }
 
     #[test]

@@ -48,6 +48,11 @@
       ]
     }
   },
+  "managed_setup_platform_warnings": {
+    "macos-aarch64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified on Apple Silicon Mac for this package."
+    ]
+  },
   "integration": {
     "support_tier": "stable",
     "channels": ["stable"],
@@ -99,7 +104,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Donkey Kong 64 US 1.0 cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/Rainchus/Donkey-Kong-64-Recompiled#readme"
+      }
     }
   }
 }

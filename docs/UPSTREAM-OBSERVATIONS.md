@@ -426,6 +426,31 @@ retains the thirty-two-MiB byte bound; there is no growing per-revision cache li
 or new storage service. Cache eviction and unavailable physical storage still
 provide no durability guarantee.
 
+### Scheduled managed package drift
+
+The configured observer’s existing schedule supplies the exact current GitHub
+release and asset selected by Core. A downstream inspection reads only those
+complete source handoffs from the same run and attempt. It compares eligible
+packages for routes with reviewed shape baselines and an owning listing issue.
+An older reviewed fallback stays distinct from the latest candidate. Other
+providers, incomplete scopes and unavailable archives have no current shape
+assessment from this job.
+
+The read-only inspection verifies size and SHA-256 before comparing the archive
+through `portcove catalog inspect-package-drift`, an alias for the verified
+package-shape inspector. Nothing from the archive runs. The inspection retains a
+bounded report and reuses finished comparisons only for matching package,
+definition, reviewed baseline and built inspector bytes. Failed archive checks remain visible
+and can be retried in a later observation. Installed-state eligibility stays
+with Core.
+
+A separate main-branch job has only the issue write permission for the notice.
+It records one bot-owned marker comment per affected canonical issue, with the
+platform, channel, artifact identity, changed components and inspection run.
+Compatible or unknown evidence leaves existing observations in issue history.
+The notice job keeps an unchanged marker and refuses duplicate or concurrently
+changed markers. It does not publish or edit the catalog.
+
 ## Resource bounds and availability evidence
 
 The configured per-batch bounds are 256 API requests and ten newly read pages
@@ -700,6 +725,14 @@ routine metadata conditions remain in JSON and are counted separately in the
 summary; material changes to observed pin identities remain visible as new or
 changed conditions. Metadata assessment recovery is reported separately from
 endpoint recovery and does not establish destination availability.
+
+The health monitor shows the observed operation and the affected artifact
+platforms and variants when the incident matches the active inventory in the
+monitoring session. The JSON report includes the exact declared direct or
+historical identities for that port. Repository-only incidents and conditions
+retained from a prior session without that match show unknown artifact scope.
+Reporting scope leaves observation history, byte verification and operational
+hold decisions with their existing owners.
 
 Optional reviewed source-archive bindings remain a distinct path for literal
 GitHub `/owner/repository/archive/<40-lowercase-hex>.zip` URLs. They bind the exact
@@ -1061,7 +1094,8 @@ Nintendo's boot logo bytes; Nintendo 64 and iNES ROM headers, ISO 9660 (cooked
 or raw sectors), XEX and Xenia shader storage by content; and PlayStation BIOS
 images that are not OpenBIOS. Fonts, icons, launcher art and code are not
 signals. Homebrew ROMs and similar legitimate files can also match; a finding
-is review evidence, so a person confirms it and sets the listing's
+is review evidence, so a person confirms it and, unless the material falls
+under a rights-basis owner exception, sets the listing's
 `download_block_reason` in a reviewed change.
 
 Each scanned asset is remembered in a cached checkpoint by rules version,

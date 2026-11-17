@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 61;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 67;
 
 struct Migration {
     version: i64,
@@ -389,7 +389,84 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_61,
         verify: crate::carry_ledger::verify_schema,
     },
+    Migration {
+        version: 62,
+        name: "atomic Default runtime revision writer protocol",
+        apply: migration_62,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 63,
+        name: "exact provider dependency writer protocol",
+        apply: migration_63,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 64,
+        name: "retained admitted original instances",
+        apply: crate::source_instances::migrate,
+        verify: verify_migration_64,
+    },
+    Migration {
+        version: 65,
+        name: "guarded exact setup recovery writer protocol",
+        apply: migration_65,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 66,
+        name: "journaled mod file preservation writer protocol",
+        apply: migration_66,
+        verify: crate::profile::verify_selection_migration,
+    },
+    Migration {
+        version: 67,
+        name: "managed mod projection restore writer protocol",
+        apply: migration_67,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
+    // Older restore code can publish an unchecked projection or clean up
+    // without the selected setup's bound backup receipt.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_66(transaction: &Transaction<'_>) -> Result<()> {
+    // All live writers must honor the reviewed move journal before changing the
+    // selected projection or its stored package references.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
+    // Older clients can replace the canonical mods projection via backup
+    // restore without reading the revision that owns its provider closure.
+    // The exclusive migration lease and ledger fence those writers without
+    // rewriting existing profile revisions or replacing any player files.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn migration_65(transaction: &Transaction<'_>) -> Result<()> {
+    // Recovery may commit a newer setup revision before projecting it. Every
+    // writer must honor the pending materialization guard before launch.
+    crate::profile::verify_selection_migration(transaction)
+}
+
+fn verify_migration_64(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "source_instances",
+        &["requirement_id", "instance_id", "source_json"],
+    )
+}
+
+fn migration_62(transaction: &Transaction<'_>) -> Result<()> {
+    // The library lease excludes already-open writers during migration. Once
+    // recorded, older clients reject this ledger before opening the library.
+    // Existing profiles with an older resolved runtime can be refreshed by Core.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_61(transaction: &Transaction<'_>) -> Result<()> {
     // Digests of files Portcove didn't install that a version switch carried
@@ -2878,6 +2955,48 @@ mod tests {
     }
 
     #[test]
+    fn provider_dependency_writer_upgrade_requires_exclusive_access() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 62).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&62)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&CURRENT_SCHEMA_VERSION));
+        assert!(versions.contains(&63));
+    }
+
+    #[test]
+    fn managed_restore_writer_upgrade_waits_for_schema_66_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 66).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&66)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&67));
+    }
+
+    #[test]
     fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -3926,6 +4045,12 @@ mod tests {
         schema_58: 58,
         schema_59: 59,
         schema_60: 60,
+        schema_61: 61,
+        schema_62: 62,
+        schema_63: 63,
+        schema_64: 64,
+        schema_65: 65,
+        schema_66: 66,
     }
 
     #[test]

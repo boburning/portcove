@@ -47,16 +47,19 @@ export function ArtworkFrame({
   element,
   display,
   className = "",
+  companion,
   identityArtwork = false,
   quietFallback = false,
 }: {
   element: RefObject<HTMLDivElement | null>;
   display: ReturnType<typeof useArtwork>["display"];
   className?: string;
+  companion?: ReturnType<typeof useArtwork>["display"];
   identityArtwork?: boolean;
   quietFallback?: boolean;
 }) {
   const image = display.image;
+  const paired = image && companion?.image && !display.stale;
   const fallback = display.state?.generated_fallback;
   const notice = artworkDisplayNotice(display);
   const palettes = [
@@ -83,7 +86,16 @@ export function ArtworkFrame({
       data-artwork-source={image ? display.state?.resolved_source.kind : "generated_fallback"}
       aria-hidden="true"
     >
-      {image ? (
+      {paired ? (
+        <span className={styles.pair} data-companion-cover>
+          <span className={styles.half}>
+            <img src={image} alt="" decoding="async" onError={display.onImageError} />
+          </span>
+          <span className={styles.half}>
+            <img src={companion.image} alt="" decoding="async" onError={companion.onImageError} />
+          </span>
+        </span>
+      ) : image ? (
         <img
           className={styles.asset}
           src={image}
@@ -91,17 +103,29 @@ export function ArtworkFrame({
           decoding="async"
           onError={display.onImageError}
         />
-      ) : identityArtwork || quietFallback ? (
+      ) : quietFallback ? (
         <span className="grid max-w-full justify-items-center gap-2 p-2 text-pc-muted-foreground">
           <Gamepad2 aria-hidden="true" className="size-6 max-w-full" />
+        </span>
+      ) : identityArtwork ? (
+        <span className={styles.illustration} data-cover-illustration>
+          <Gamepad2
+            className={cn(styles.illustrationController, "size-[clamp(0.875rem,27cqi,3.25rem)]")}
+          />
         </span>
       ) : (
         <span className={styles.initials}>{fallback?.initials ?? "PC"}</span>
       )}
       {image && (
         <span
-          className={styles.backdrop}
+          className={cn(styles.backdrop, paired && styles.pairBackdropStart)}
           style={{ backgroundImage: `url(${JSON.stringify(image)})` }}
+        />
+      )}
+      {paired && (
+        <span
+          className={cn(styles.backdrop, styles.pairBackdropEnd)}
+          style={{ backgroundImage: `url(${JSON.stringify(companion.image)})` }}
         />
       )}
       {!identityArtwork && notice && (

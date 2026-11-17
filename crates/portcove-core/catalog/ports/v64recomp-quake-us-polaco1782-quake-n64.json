@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "v64recomp-quake-us-polaco1782-quake-n64",
+    "artwork": {
+      "game_id": 209418,
+      "cover_id": 232202,
+      "image_id": "co4z62",
+      "image_sha256": "84ddb07609e2353ff80e1d1067fdf692500e6914fc41c402608b22f6c31fa497",
+      "game_slug": "quake--2",
+      "match_kind": "underlying-game"
+    },
     "name": "Quake (N64) — v64recomp / quake-us (polaco1782)",
     "original_game_title": "Quake (N64)",
     "summary": "Experimental project. The shared README does not confirm gameplay for this game; check the linked game notes. Progress on other games does not establish that this one works. A full playthrough has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

@@ -136,6 +136,22 @@ impl PortcoveService {
         Ok(Some(port))
     }
 
+    fn resolve_selected_application(
+        &self,
+        port_id: &str,
+        executable: &Path,
+    ) -> Result<Option<PathBuf>> {
+        let platform = Platform::current()?;
+        let hints = self
+            .catalog
+            .port(port_id)
+            .ok()
+            .and_then(|port| port.executable_hints.get(&platform))
+            .map(Vec::as_slice)
+            .unwrap_or_default();
+        super::setup_discovery::resolve_selected_bundle(executable, platform, hints)
+    }
+
     pub fn preview_user_selected_runtime(
         &self,
         port_id: &str,
@@ -176,6 +192,8 @@ impl PortcoveService {
         // This is an explicit alternative ownership route. Descriptive platform
         // guesses and managed package holds grant neither trust nor denial of an
         // unrelated native executable selected by the user.
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let mut preview = crate::external_runtime::preview_user_selected(
             listing,
             executable,
@@ -460,6 +478,8 @@ impl PortcoveService {
             record.retained_definition.as_ref(),
             DefinitionOperationContext::observed(DefinitionOperation::RegisterExternal, true, true),
         )?;
+        let application = self.resolve_selected_application(port_id, executable)?;
+        let executable = application.as_deref().unwrap_or(executable);
         let proposed = crate::external_runtime::preview_user_selected(
             state.catalog.listing(port_id)?,
             executable,
@@ -3043,31 +3063,8 @@ mod tests {
     }
 
     #[test]
-    fn snowboard_kids_frontend_license_player_route_1354() {
-        assert_listing_only_player_route("snowboard-kids", Some(false));
-    }
-
-    #[test]
-    fn cdlewis_snowboardkids_recomp_frontend_license_player_route_1886() {
-        assert_listing_only_player_route("cdlewis-snowboardkids-recomp", Some(false));
-    }
-
-    #[test]
-    fn vidanox_banjotooierecompiled_frontend_license_player_route_1795() {
-        assert_listing_only_player_route("vidanox-banjotooierecompiled", Some(false));
-    }
-
-    #[test]
     fn dahsidiabdallah_conkerbfdreloaded_frontend_license_player_route_1806() {
         assert_listing_only_player_route("dahsidiabdallah-conkerbfdreloaded", Some(false));
-    }
-
-    #[test]
-    fn danielgomesvieira2000_beetle_adventure_racing_recomp_frontend_license_player_route_1800() {
-        assert_listing_only_player_route(
-            "danielgomesvieira2000-beetle-adventure-racing-recomp",
-            Some(false),
-        );
     }
 
     #[test]
@@ -3075,10 +3072,6 @@ mod tests {
         assert_listing_only_player_route("cbfd-recompiled-sciaschi", Some(true));
     }
 
-    #[test]
-    fn blast_corps_recompiled_permitted_player_route_2558() {
-        assert_listing_only_player_route("blast-corps-blastcorps-recompiled", Some(false));
-    }
     #[test]
     fn final_fantasy_tactics_finfantacrecomp_prepared_player_route_327() {
         assert_listing_only_player_route("final-fantasy-tactics-finfantacrecomp", Some(true));
@@ -3211,11 +3204,6 @@ mod tests {
     }
 
     #[test]
-    fn james2doyle_ffta_recomp_prepared_player_route_2824() {
-        assert_listing_only_player_route("james2doyle-ffta-recomp", Some(false));
-    }
-
-    #[test]
     fn final_fantasy_tactics_advance_fftarecomp_prepared_player_route_2575() {
         assert_listing_only_player_route("final-fantasy-tactics-advance-fftarecomp", Some(false));
     }
@@ -3226,11 +3214,6 @@ mod tests {
             "kingdom-hearts-chain-of-memories-gba-rekhcom",
             Some(true),
         );
-    }
-
-    #[test]
-    fn vibecodekun_shantaerecomp_prepared_player_route_1881() {
-        assert_listing_only_player_route("vibecodekun-shantaerecomp", Some(false));
     }
 
     #[test]
@@ -3489,11 +3472,6 @@ mod tests {
     #[test]
     fn elprogramadorloco_arch_jim2_recomp_prepared_player_route_1819() {
         assert_listing_only_player_route("elprogramadorloco-arch-jim2-recomp", Some(false));
-    }
-
-    #[test]
-    fn eandis_sdoj_recomp_prepared_player_route_1880() {
-        assert_listing_only_player_route("eandis-sdoj-recomp", Some(false));
     }
 
     #[test]

@@ -692,10 +692,29 @@ async fn embedded_retained_acquisition_holds_refuse_before_network() {
 
 #[tokio::test]
 async fn gitlab_listings_offer_upstream_release_downloads() {
-    assert_embedded_listing_downloads_offered(&[
+    let ids = [
         "mario-kart-64-mariokart64recomp",
         "star-fox-64-starfox64recomp",
-    ]);
+    ];
+    assert_embedded_listing_downloads_offered(&ids);
+    // Both now install their managed Windows route from an exactly pinned GitLab package file.
+    let catalog = Catalog::embedded().unwrap();
+    for id in ids {
+        let port = catalog.port(id).unwrap();
+        assert_eq!(port.adapter, crate::AdapterKind::NativePortable, "{id}");
+        assert_eq!(
+            port.release.provider,
+            crate::ReleaseSource::DirectManifest,
+            "{id}"
+        );
+        assert!(
+            port.release.direct[&Platform::WindowsX86_64]
+                .url
+                .starts_with("https://gitlab.com/api/v4/projects/"),
+            "{id}"
+        );
+        assert_eq!(port.platforms, vec![Platform::WindowsX86_64], "{id}");
+    }
 }
 
 #[tokio::test]
@@ -2002,8 +2021,8 @@ async fn n64hub_super_smash_bros_n64_usa_recomp_upstream_release_download_4337()
         "n64hub-super-smash-bros-n64-usa-recomp",
         "v0.1.12",
         "SmashBrosRecompiled-v0.1.12-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2013,8 +2032,8 @@ async fn n64hub_rayman_2_recomp_n64_usa_upstream_release_download_4335() {
         "n64hub-rayman-2-recomp-n64-usa",
         "v0.1.15",
         "Rayman2Recompiled-v0.1.15-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2195,8 +2214,8 @@ async fn danielgomesvieira2000_beetle_adventure_racing_recomp_resolved_frontend_
         "danielgomesvieira2000-beetle-adventure-racing-recomp",
         "v0.4.2-alpha",
         "beetle-adventure-racing-recomp-v0.4.2-alpha-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2224,8 +2243,8 @@ async fn snowboard_kids_upstream_release_download_1354() {
         "snowboard-kids",
         "v0.9.0-beta.1",
         "SnowboardKidsRecompiled-0.9.0-beta.1-Windows-x86_64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2236,8 +2255,8 @@ async fn cdlewis_snowboardkids_recomp_upstream_release_download_1886() {
         "cdlewis-snowboardkids-recomp",
         "v1.0.9",
         "SnowboardKidsRecompiled-Windows.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2248,8 +2267,8 @@ async fn vidanox_banjotooierecompiled_upstream_release_download_1795() {
         "vidanox-banjotooierecompiled",
         "v1.0.1",
         "BanjoTooieRecompiled-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2260,8 +2279,8 @@ async fn blast_corps_blastcorps_recompiled_upstream_release_download_2558() {
         "blast-corps-blastcorps-recompiled",
         "1.1.1",
         "BlastCorpsRecompiled-1.1.1-Windows-RelWithDebInfo.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2375,8 +2394,8 @@ async fn pilotwings_64_dgv_recomp_upstream_release_download_1275() {
         "pilotwings-64-dgv-recomp",
         "v0.1.1",
         "Pilotwings64Recomp-0.1.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }
@@ -2387,8 +2406,8 @@ async fn darkuni_afterburner_climax_recomp_upstream_release_download_4134() {
         "darkuni-afterburner-climax-recomp",
         "v1.1.0",
         "AfterBurnerClimax-v1.1.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2399,8 +2418,8 @@ async fn darkuni_lode_runner_2009_xbla_rexglue_upstream_release_download_4216() 
         "darkuni-lode-runner-2009-xbla-rexglue",
         "v1.0.1",
         "lode_runner-v1.0.1-win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2411,8 +2430,8 @@ async fn darkuni_outrun_arcade_recomp_upstream_release_download_4133() {
         "darkuni-outrun-arcade-recomp",
         "v1.0.1",
         "outrun_arcade-v1.0.1-win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2423,8 +2442,8 @@ async fn darkuni_poker_smash_recomp_upstream_release_download_4122() {
         "darkuni-poker-smash-recomp",
         "v1.0.0",
         "PokerSmash-v1.0.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2458,8 +2477,8 @@ async fn james2doyle_ffta_recomp_upstream_release_download_2824() {
         "james2doyle-ffta-recomp",
         "v2.1",
         "FFTARecomp-v2.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2475,8 +2494,8 @@ async fn vibecodekun_shantaerecomp_upstream_release_download_1881() {
         "vibecodekun-shantaerecomp",
         "v0.2.0",
         "shantae-recomp-0.2.0-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2565,8 +2584,8 @@ async fn eandis_sdoj_recomp_upstream_release_download_1880() {
         "eandis-sdoj-recomp",
         "v1.51.4",
         "sdoj.recomp.1.51.4.win-amd64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2617,8 +2636,8 @@ async fn darkuni_chocobo_dungeon_recomp_upstream_release_download_4131() {
         "darkuni-chocobo-dungeon-recomp",
         "v1.1",
         "ChocoboDungeon-v1.1-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2628,8 +2647,8 @@ async fn darkuni_mylifedarklord_recomp_upstream_release_download_4121() {
         "darkuni-mylifedarklord-recomp",
         "v0.2",
         "MyLifeAsADarklord-v0.2-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2639,8 +2658,8 @@ async fn darkuni_mylifeking_recomp_upstream_release_download_4120() {
         "darkuni-mylifeking-recomp",
         "v0.5",
         "MyLifeAsAKing-v0.5-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2650,8 +2669,8 @@ async fn darkuni_target_terror_wii_recomp_upstream_release_download_4178() {
         "darkuni-target-terror-wii-recomp",
         "v1.0",
         "TargetTerror-v1.0-win64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64],
     )
     .await;
 }
@@ -2661,8 +2680,8 @@ async fn hybrid_heaven_ogdanimal_upstream_release_download_2546() {
         "hybrid-heaven-ogdanimal",
         "v1.0.1",
         "HybridHeaven-1.0.1-windows-x64.zip",
-        None,
-        &[],
+        Some(crate::AdapterKind::NativePortable),
+        &[Platform::WindowsX86_64, Platform::LinuxX86_64],
     )
     .await;
 }

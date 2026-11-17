@@ -1,10 +1,29 @@
 use std::path::PathBuf;
 
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueEnum};
 use portcove_core::{ReleaseChannel, SourceImportMode, UpdatePolicy};
 use uuid::Uuid;
 
 use crate::{catalog::CatalogCommand, schema::SchemaContract};
+
+pub(crate) fn profile_command_capabilities() -> Vec<String> {
+    let cli = Cli::command();
+    let Some(profile) = cli
+        .find_subcommand("profile")
+        .filter(|command| !command.is_hide_set())
+    else {
+        return Vec::new();
+    };
+    let group = profile.get_name();
+    std::iter::once(group.to_owned())
+        .chain(
+            profile
+                .get_subcommands()
+                .filter(|command| !command.is_hide_set())
+                .map(|command| format!("{group}.{}", command.get_name())),
+        )
+        .collect()
+}
 
 // Derive the descriptions from the same commands used by the parser. The groups
 // are a task index, not a second command or option definition.
@@ -1503,6 +1522,9 @@ pub(crate) struct GameFileRootMatchesArgs {
     /// Only matches inside this saved folder ID from `source roots list`.
     #[arg(long = "root")]
     pub(crate) root_id: Option<String>,
+    /// Only matches for this source profile.
+    #[arg(long = "profile")]
+    pub(crate) profile_id: Option<String>,
     /// Scan ID from an earlier page; a scan replaced since then is refused.
     #[arg(long)]
     pub(crate) scan_id: Option<String>,
@@ -1521,6 +1543,7 @@ impl GameFileRootMatchesArgs {
             offset: self.offset,
             limit: self.limit,
             root_id: self.root_id,
+            profile_id: self.profile_id,
         }
     }
 }

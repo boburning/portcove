@@ -66,13 +66,28 @@ fn curated_record(
 /// Inputs for one asset's acquisition and extraction within the owned operation.
 struct AssetPreparation<'a> {
     asset: &'a ReleaseAsset,
-    download_path: &'a Path,
+    download: DownloadTarget<'a>,
     payload_root: &'a Path,
     acquisition: Option<AssetAcquisition<'a>>,
     acquired: Option<&'a Path>,
     requires_tar_xz: bool,
     tar_xz_allow_file_links: bool,
     unwrap_inner_archive: bool,
+}
+
+#[derive(Clone, Copy)]
+struct DownloadTarget<'a> {
+    path: &'a Path,
+    install_owner: Option<(&'a str, &'a str)>,
+}
+
+impl<'a> DownloadTarget<'a> {
+    fn private(path: &'a Path) -> Self {
+        Self {
+            path,
+            install_owner: None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -705,10 +720,6 @@ fn download_client(
         .map_err(|error| PortcoveError::network(error.to_string()))
 }
 
-pub(crate) fn default_download_client() -> Result<reqwest::Client> {
-    download_client(DOWNLOAD_CONNECT_TIMEOUT, DOWNLOAD_READ_IDLE_TIMEOUT)
-}
-
 impl Installer {
     pub fn new(library: Library) -> Result<Self> {
         Ok(Self {
@@ -1285,7 +1296,7 @@ impl Installer {
         };
         self.acquire_asset_bytes(
             &request.release.asset,
-            &private.join("0.archive"),
+            DownloadTarget::private(&private.join("0.archive")),
             operation,
             emit,
             scope.as_ref().map(|scope| AssetAcquisition {
@@ -1299,7 +1310,7 @@ impl Installer {
         if let Some(runtime) = &request.qualification.runtime {
             self.acquire_asset_bytes(
                 &runtime.asset,
-                &private.join("1.archive"),
+                DownloadTarget::private(&private.join("1.archive")),
                 operation,
                 emit,
                 None,
@@ -1355,7 +1366,10 @@ impl Installer {
             .prepare_asset(
                 AssetPreparation {
                     asset: &request.release.asset,
-                    download_path: &lifecycle.operation_root.join("artifact.download"),
+                    download: self.install_download(
+                        lifecycle,
+                        &lifecycle.operation_root.join("artifact.download"),
+                    )?,
                     payload_root: &payload_root,
                     acquisition,
                     acquired: acquired
@@ -1449,14 +1463,34 @@ impl Installer {
             if port.release.grant_declared_executable && !grant_before_layout {
                 grant_declared_executable(&payload_root, &request.qualification)?;
             }
-            // Shadow drift comparison (#5359 phase 1): derived after every
-            // grant and before any adapter adds content. It refuses nothing.
-            package_shape = Some(self.package_shape_record(
+            // Compare the upstream package before an adapter adds content.
+            let shape = self.package_shape_record(
                 port,
                 &request.qualification,
                 &payload_root,
                 &artifact.sha256,
-            ));
+            );
+            if crate::package_shape::withholds_release(&shape.verdict)
+                && let Some(capability) =
+                    crate::package_shape::selected_enforcement_capability(&catalog, port)?
+            {
+                if let Err(error) = crate::package_shape::withheld::record(
+                    &self.library,
+                    port,
+                    platform,
+                    &request.release,
+                    capability,
+                    &shape,
+                ) {
+                    tracing::warn!(%error, port_id = %port.id, "could not retain package shape refusal");
+                }
+                return Err(crate::package_shape::withheld::refusal(
+                    port,
+                    &request.release,
+                    &shape.verdict,
+                ));
+            }
+            package_shape = Some(shape);
             if port.external_profile_policy == Some(crate::ExternalProfilePolicy::RecompDirectV1) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 let working_directory =
@@ -1541,6 +1575,27 @@ impl Installer {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 crate::native_external_profile::quake_linux::require_payload(&selected, policy)?;
             }
+            if port.external_profile_policy
+                == Some(crate::ExternalProfilePolicy::EndlessSkyDesktopV1)
+            {
+                let platform = request.qualification.platform;
+                if !crate::native_external_profile::endless_sky::matches_asset(
+                    port,
+                    platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "Endless Sky package differs from its reviewed portable release selector",
+                    ));
+                }
+                if platform == Platform::LinuxX86_64 {
+                    let selected =
+                        resolve_declared_executable(&payload_root, &request.qualification)?;
+                    crate::native_external_profile::profile_siblings::require_payload(
+                        &selected, platform,
+                    )?;
+                }
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
@@ -1590,7 +1645,10 @@ impl Installer {
             self.prepare_asset(
                 AssetPreparation {
                     asset: &runtime.asset,
-                    download_path: &lifecycle.operation_root.join("runtime.download"),
+                    download: self.install_download(
+                        lifecycle,
+                        &lifecycle.operation_root.join("runtime.download"),
+                    )?,
                     payload_root: &unpacked,
                     acquisition: None,
                     acquired: acquired
@@ -1717,6 +1775,13 @@ impl Installer {
             },
             &install.path,
         )?;
+        if request.activate {
+            crate::profile::require_default_recovery_capacity(
+                &self.library.connection()?,
+                &install.port_id,
+                &install.id,
+            )?;
+        }
         self.faults
             .check(LifecycleFaultPoint::InstallReadyToPublish)?;
         operation.begin_publication()?;
@@ -1811,7 +1876,7 @@ impl Installer {
     async fn acquire_asset_bytes<F>(
         &self,
         asset: &ReleaseAsset,
-        download_path: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         acquisition: Option<AssetAcquisition<'_>>,
@@ -1820,6 +1885,7 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
+        let download_path = download.path;
         let scope = acquisition.as_ref().map(|acquisition| acquisition.scope);
         let curated = acquisition
             .as_ref()
@@ -1859,7 +1925,7 @@ impl Installer {
             match scope {
                 Some(scope) => {
                     let upstream = self
-                        .download_scoped(asset, download_path, operation, emit, Some(scope))
+                        .download_scoped(asset, download, operation, emit, Some(scope))
                         .await;
                     let record = acquisition
                         .as_ref()
@@ -1872,20 +1938,17 @@ impl Installer {
                                 == crate::failure::UpstreamFailure::Unavailable =>
                         {
                             self.download_preserved(
-                                asset,
-                                record,
-                                download_path,
-                                operation,
-                                emit,
-                                scope,
-                                error,
+                                asset, record, download, operation, emit, scope, error,
                             )
                             .await?;
                         }
                         (Err(error), _) => return Err(error),
                     }
                 }
-                None => self.download(asset, download_path, operation, emit).await?,
+                None => {
+                    self.download_scoped(asset, download, operation, emit, None)
+                        .await?
+                }
             }
         }
         let (actual_hash, actual_size) = if curated.is_some() {
@@ -1927,7 +1990,7 @@ impl Installer {
         &self,
         asset: &ReleaseAsset,
         record: &crate::curated_acquisition::CuratedAcquisitionRecord,
-        download_path: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         scope: &crate::DefinitionAcquisitionScope,
@@ -1939,7 +2002,7 @@ impl Installer {
         let mut attempts = 0_usize;
         for location in &record.preserved_locations {
             operation.checkpoint()?;
-            match std::fs::remove_file(download_path) {
+            match std::fs::remove_file(download.path) {
                 Ok(()) => {}
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
                 Err(error) => return Err(error.into()),
@@ -1964,7 +2027,7 @@ impl Installer {
                 ),
             ));
             match self
-                .download_scoped(&alternate, download_path, operation, emit, Some(scope))
+                .download_scoped(&alternate, download, operation, emit, Some(scope))
                 .await
             {
                 Ok(()) => return Ok(()),
@@ -1988,7 +2051,7 @@ impl Installer {
     {
         let AssetPreparation {
             asset,
-            download_path,
+            download,
             payload_root,
             acquisition,
             acquired,
@@ -1996,8 +2059,9 @@ impl Installer {
             tar_xz_allow_file_links,
             unwrap_inner_archive,
         } = input;
+        let download_path = download.path;
         let (artifact, cache_worker) = self
-            .acquire_asset_bytes(asset, download_path, operation, emit, acquisition, acquired)
+            .acquire_asset_bytes(asset, download, operation, emit, acquisition, acquired)
             .await?;
         let asset_name = asset.name.clone();
         let extraction_path = download_path.to_path_buf();
@@ -2082,14 +2146,44 @@ impl Installer {
     where
         F: FnMut(OperationEvent),
     {
-        self.download_scoped(asset, destination, operation, emit, None)
-            .await
+        self.download_scoped(
+            asset,
+            DownloadTarget::private(destination),
+            operation,
+            emit,
+            None,
+        )
+        .await
+    }
+
+    fn install_download<'a>(
+        &self,
+        lifecycle: &'a InstallLifecycle,
+        path: &'a Path,
+    ) -> Result<DownloadTarget<'a>> {
+        if path.parent() != Some(lifecycle.operation_root.as_path()) {
+            return Err(PortcoveError::state(
+                "release download is outside its private install staging",
+            ));
+        }
+        // The install already checked destination capacity. Revalidate the
+        // owned staging before allowing the library store to publish into it.
+        crate::output_root::validate_staging_path(
+            &self.library,
+            &lifecycle.record.port_id,
+            &lifecycle.record.id,
+            &lifecycle.operation_root,
+        )?;
+        Ok(DownloadTarget {
+            path,
+            install_owner: Some((&lifecycle.record.port_id, &lifecycle.record.id)),
+        })
     }
 
     async fn download_scoped<F>(
         &self,
         asset: &ReleaseAsset,
-        destination: &Path,
+        download: DownloadTarget<'_>,
         operation: &OperationCoordinator,
         emit: &mut F,
         scope: Option<&crate::DefinitionAcquisitionScope>,
@@ -2117,18 +2211,72 @@ impl Installer {
                 }
             },
         };
-        // Release assets with an expected digest may continue after a restart;
-        // the caller verifies the complete file either way. Kept bytes live in
-        // the library, so only a download staged inside the library uses them:
-        // a game output folder on another volume keeps its own capacity check.
+        // The library store checks its own capacity. The caller still verifies
+        // the complete archive after it reaches private install staging.
         let partials = partial_download::PartialDownloads::new(
             self.library.downloads_dir().join("partial-v1"),
         );
-        let inside_library = destination
+        let retained = if let Some((port_id, operation_id)) = download.install_owner {
+            let library = self.library.clone();
+            let (port_id, operation_id) = (port_id.to_owned(), operation_id.to_owned());
+            let staging = download
+                .path
+                .parent()
+                .ok_or_else(|| PortcoveError::state("install download is missing its staging"))?
+                .to_path_buf();
+            Some(transfer::RetainedDownload {
+                store: &partials,
+                validate_publication: Some(Box::new(move || {
+                    crate::output_root::validate_staging_path(
+                        &library,
+                        &port_id,
+                        &operation_id,
+                        &staging,
+                    )
+                })),
+            })
+        } else {
+            self.is_library_staged(download.path)
+                .then_some(transfer::RetainedDownload::private(&partials))
+        };
+        transfer::download_resuming(
+            &client,
+            asset,
+            download.path,
+            operation,
+            emit,
+            transfer::RESUME_POLICY,
+            retained,
+        )
+        .await
+    }
+
+    fn is_library_staged(&self, destination: &Path) -> bool {
+        destination
             .parent()
             .and_then(|parent| fs::canonicalize(parent).ok())
             .zip(fs::canonicalize(self.library.root()).ok())
-            .is_some_and(|(parent, root)| parent.starts_with(root));
+            .is_some_and(|(parent, root)| parent.starts_with(root))
+    }
+
+    /// The PSX acquisition lock serializes access to this store through the
+    /// final move to private staging. Ordinary release downloads cannot sweep it.
+    pub(crate) async fn download_psx_toolchain<F>(
+        &self,
+        asset: &ReleaseAsset,
+        destination: &Path,
+        operation: &OperationCoordinator,
+        emit: &mut F,
+    ) -> Result<()>
+    where
+        F: FnMut(OperationEvent),
+    {
+        let client = download_client(self.network_bounds.0, self.network_bounds.1)?;
+        let partials = partial_download::PartialDownloads::new(
+            self.library
+                .downloads_dir()
+                .join("psx-toolchain-partial-v1"),
+        );
         transfer::download_resuming(
             &client,
             asset,
@@ -2136,7 +2284,8 @@ impl Installer {
             operation,
             emit,
             transfer::RESUME_POLICY,
-            inside_library.then_some(&partials),
+            self.is_library_staged(destination)
+                .then_some(transfer::RetainedDownload::private(&partials)),
         )
         .await
     }
@@ -3735,9 +3884,8 @@ pub(crate) fn portability_catalog_for_install(
 }
 
 impl Installer {
-    /// Derive the shape of a new install's extracted package and its shadow
-    /// verdict. Baseline and observation failures become `unknown`; this
-    /// never refuses the installation.
+    /// Derive the shape and comparison verdict of a new install's extracted package.
+    /// Baseline and observation failures become `unknown`.
     fn package_shape_record(
         &self,
         port: &PortDefinition,
@@ -3746,7 +3894,7 @@ impl Installer {
         sha256: &str,
     ) -> crate::package_shape::PackageShapeRecord {
         let local = self
-            .local_shape_baseline(&port.id, qualification.platform)
+            .local_shape_baseline(port, qualification.platform)
             .ok()
             .flatten();
         crate::package_shape::record_for_install(
@@ -3759,14 +3907,14 @@ impl Installer {
         )
     }
 
-    /// The active installation's recorded shape on the same platform.
-    fn local_shape_baseline(
+    /// The active installation's shape on the same platform and under the same derivation inputs.
+    pub(crate) fn local_shape_baseline(
         &self,
-        port_id: &str,
+        port: &PortDefinition,
         platform: Platform,
     ) -> Result<Option<crate::package_shape::LocalBaseline>> {
         let connection = self.library.connection()?;
-        let active = crate::profile::active_install_id(&connection, port_id)?;
+        let active = crate::profile::active_install_id(&connection, &port.id)?;
         let Some(install) = Library::install_by_id(&connection, active.as_deref())? else {
             return Ok(None);
         };
@@ -3774,19 +3922,30 @@ impl Installer {
         if manifest.platform != Some(platform) {
             return Ok(None);
         }
-        Ok(manifest
+        let Some(record) = manifest
             .package_shape
             .as_ref()
             .and_then(crate::package_shape::stored_record)
-            .map(|record| crate::package_shape::LocalBaseline {
-                install_id: install.id.clone(),
-                version: install.version.clone(),
-                sha256: install.artifact.sha256.clone(),
-                record,
-            }))
+        else {
+            return Ok(None);
+        };
+        let Some(catalog) = catalog_for_verified_manifest(&install, &manifest)? else {
+            return Ok(None);
+        };
+        if crate::package_shape::same_derivation_inputs(catalog.port(&port.id)?, port, platform)
+            != Some(true)
+        {
+            return Ok(None);
+        }
+        Ok(Some(crate::package_shape::LocalBaseline {
+            install_id: install.id,
+            version: install.version,
+            sha256: install.artifact.sha256,
+            record,
+        }))
     }
 
-    /// Recorded package shapes and shadow verdicts of a port's installations,
+    /// Recorded package shapes and comparison verdicts of a port's installations,
     /// for read-only diagnostics.
     pub fn installed_package_shapes(
         &self,
@@ -4186,8 +4345,12 @@ pub(crate) fn check_retained_runtime_paths(install: &InstallRecord, target: &Pat
     };
     let catalog = contract.catalog(&install.port_id)?;
     let port = catalog.port(&install.port_id)?;
+    let checks_immutable_originals = port.windows_runtime_path_policy
+        == Some(crate::WindowsRuntimePathPolicy::PrintableAsciiMaxPath)
+        && crate::preparation::source::native(port);
     if port.windows_runtime_path_policy
         != Some(crate::WindowsRuntimePathPolicy::RelativeFileMaxPath)
+        && !checks_immutable_originals
     {
         return Ok(());
     }

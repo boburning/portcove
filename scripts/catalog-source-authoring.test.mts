@@ -30,6 +30,30 @@ const schema2Fixture = fixtureJson(
 );
 const schema3Fixture = fixtureJson(readFileSync(join(catalogRoot, "catalog.json")));
 
+void test("managed platform warnings are checked and stay outside definition projections", () => {
+  const authored = checkedAuthoredPort(
+    fixtureJson(readFileSync(join(catalogRoot, "ports", "snap64-recomp.json"))),
+  );
+  const warnings = requiredFixture(authored.managed_setup_platform_warnings);
+  assert.equal(warnings["windows-x86-64"], undefined);
+  assert.match(requiredFixture(warnings["macos-aarch64"]?.[0]), /START HERE/u);
+  const withoutWarnings = structuredClone(authored);
+  delete withoutWarnings.managed_setup_platform_warnings;
+  assert.deepEqual(projectAuthoredPort(authored), projectAuthoredPort(withoutWarnings));
+  for (const managed_setup_platform_warnings of [
+    {},
+    { "android-aarch64": ["Wrong route."] },
+    { "linux-x86-64": [] },
+    { "linux-x86-64": ["Padded "] },
+    { "linux-x86-64": ["Line one\nLine two"] },
+  ]) {
+    assert.throws(
+      () => checkedAuthoredPort({ ...authored, managed_setup_platform_warnings }),
+      /managed_setup_platform_warnings/u,
+    );
+  }
+});
+
 void test("current catalog schema accepts numeric 2 without guide references", () => {
   assert.equal(schema2Fixture.schema_version, 2);
   assert.doesNotThrow(() => checkedCurrentCatalog(structuredClone(schema2Fixture)));
@@ -298,6 +322,27 @@ void test("upstream package platforms extend only the descriptive listing", () =
   const duplicate = structuredClone(records.find((record) => record.listing.id === id)!);
   duplicate.listing.platforms = ["windows-x86-64"];
   assert.throws(() => checkedAuthoredPort(duplicate), /platform must be declared once/);
+});
+
+void test("managed setup can use a guide distinct from the upstream listing", () => {
+  const { records, catalog, directory } = readCatalogSource(catalogRoot);
+  const id = "alexbeav-diablo-recomp";
+  const record = records.find((port) => port.listing.id === id)!;
+  const managed = catalog.ports.find((port) => port.id === id)?.presentation;
+  const listing = directory.listings.find((port) => port.id === id);
+  assert.match(JSON.stringify(managed?.manual_setup), /then builds the game on this computer/);
+  assert.match(JSON.stringify(listing?.manual_setup), /Choose the official Mac ZIP/);
+  const integration = { ...record.integration, presentation: {} };
+  const inherited = projectAuthoredPort(checkedAuthoredPort({ ...record, integration }));
+  assert.deepEqual(inherited?.presentation?.manual_setup, record.listing.manual_setup);
+  assert.throws(
+    () =>
+      checkedAuthoredPort({
+        ...record,
+        integration: { ...integration, presentation: { manual_setup: { steps: [] } } },
+      }),
+    /integration\.presentation\.manual_setup requires steps and warnings arrays/,
+  );
 });
 
 void test("authored JSON refuses duplicate decoded keys while retaining nested data and native grammar", () => {
@@ -1040,5 +1085,24 @@ void test("funding links are authored per listing, validated, and select listing
   assert.equal(
     listingDeclarationHash(listing),
     listingDeclarationHash({ ...listing, funding_urls: urls }),
+  );
+});
+
+void test("the reviewed legacy additions fixture must stay in ascending order", async () => {
+  const { reviewCompatibilityFixture } = await import("./catalog-authoring.mts");
+  const legacy = { source_profiles: [{ id: "frozen-profile" }], ports: [{ id: "frozen-port" }] };
+  const catalog = {
+    source_catalog: { identities: [{ id: "frozen-profile" }, { id: "added-profile" }] },
+    ports: [{ id: "frozen-port" }, { id: "alpha-port" }, { id: "beta-port" }],
+  } as unknown as Parameters<typeof reviewCompatibilityFixture>[0];
+  const fixture = (portIds: string[]) =>
+    Buffer.from(JSON.stringify({ source_profile_ids: ["added-profile"], port_ids: portIds }));
+  assert.equal(
+    reviewCompatibilityFixture(catalog, legacy, fixture(["alpha-port", "beta-port"])).status,
+    "matched",
+  );
+  assert.throws(
+    () => reviewCompatibilityFixture(catalog, legacy, fixture(["beta-port", "alpha-port"])),
+    /port_ids: keep IDs in ascending order/,
   );
 });

@@ -1324,27 +1324,41 @@ export async function selectedSetupCompletionScenario({
         "BIOS review alone grants no registration",
       );
       await click(button("Use current location"));
-      await browser.wait(
-        async () => {
-          const statuses = await read("get_statuses");
-          const completed = required(
-            statuses.find((item) => item.port_id === fixture.refreshPort.id),
-          );
-          const allowed = required(completed.port_actions).some(
-            (item) => item.action === "install" && item.availability === "allowed",
-          );
-          const choices = await browser.findElements(
-            By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
-          );
-          return (
-            allowed &&
-            choices.length === 1 &&
-            (await required(choices[0]).getAttribute("aria-disabled")) !== "true"
-          );
-        },
-        15_000,
-        "Explicit BIOS registration must expose the actual Core-eligible selection",
-      );
+      // Calibrated from 15 s (#4879): in hosted run 43707489255 import_source
+      // finished at 23.5 s, but the selection is drawn from the next workspace
+      // snapshot; one already running returned stale at 36.5 s and the fresh
+      // debug-build snapshot takes ~14 s. Each poll's status read is ~5 s, so the
+      // cutoff can overshoot by one poll. Harness only; the last observed state is
+      // reported so a failure separates Core eligibility from UI refresh.
+      let lastSelection = "no poll completed";
+      await browser
+        .wait(
+          async () => {
+            const statuses = await read("get_statuses");
+            const completed = required(
+              statuses.find((item) => item.port_id === fixture.refreshPort.id),
+            );
+            const allowed = required(completed.port_actions).some(
+              (item) => item.action === "install" && item.availability === "allowed",
+            );
+            const choices = await browser.findElements(
+              By.css(`[role="checkbox"][data-setup-review-port="${fixture.refreshPort.id}"]`),
+            );
+            const disabled =
+              choices.length === 1
+                ? await required(choices[0]).getAttribute("aria-disabled")
+                : null;
+            lastSelection = `core_install_allowed=${allowed} choices=${choices.length} aria_disabled=${disabled}`;
+            return allowed && choices.length === 1 && disabled !== "true";
+          },
+          60_000,
+          "Explicit BIOS registration must expose the actual Core-eligible selection",
+        )
+        .catch((error: unknown) => {
+          throw new Error(`${errorMessage(error)}; last observed ${lastSelection}`, {
+            cause: error,
+          });
+        });
       const biosSources = await read("get_sources");
       assert.equal(biosSources.length, 2);
       assertOwnedSelectedSetupPath(

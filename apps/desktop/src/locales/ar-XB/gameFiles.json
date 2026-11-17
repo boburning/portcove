@@ -154,12 +154,14 @@
     "route": "خيار الإعداد أو التشغيل"
   },
   "ready": {
-    "dismiss": "إخفاء إشعار <game/>",
+    "dismiss": "تجاهل",
+    "dismissFailed": "تعذر تأكيد تجاهل الإشعار. اختر تجاهل مرة أخرى.",
+    "dismissing": "جارٍ التجاهل…",
     "heading": "جاهزة لك",
     "installable": "<game/> جاهزة للتثبيت.",
     "label": "ألعاب جاهزة لك",
-    "reviewSetup": "مراجعة إعداد <game/>",
-    "reviewUpdate": "مراجعة تحديث <game/>",
+    "reviewSetup": "مراجعة الإعداد",
+    "reviewUpdate": "مراجعة التحديث",
     "update": "يتوفر تحديث لـ <game/>: <version/>. لم يُنزَّل أو يتغير أي شيء.",
     "updateUnknownVersion": "يتوفر تحديث لـ <game/>: إصدار أحدث. لم يُنزَّل أو يتغير أي شيء."
   },

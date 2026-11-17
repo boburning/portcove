@@ -364,7 +364,9 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario("native-game-update-review", "Game update review is non-mutating and restores focus.", {
     operation_routes: [{ operation: "update", runtime_kind: "managed" }],
-    prerequisites: ["desktop", "owned-fixture"],
+    // Its offered release comes from the owned install fixture's direct manifest,
+    // not the live provider API (#4879).
+    prerequisites: ["desktop", "owned-fixture", "install-fixture"],
     source: "desktop-preparation-test.mts",
   }),
   scenario("native-missing-readiness-recovery", "Missing rendered readiness recovers safely.", {
@@ -1027,6 +1029,11 @@ export function desktopHarnessDeadlineMs(
     selection.selected_scenarios.includes("native-source-intake-and-discovery-dialogs")
       ? 600_000
       : 0,
+    // The standalone game update review (#4879) seeds an adopted installation,
+    // then runs its review, dispositions and three supplied outcome cases, each
+    // bounded at 60 s on the debug build. Within owned-ready it ran under the
+    // 20-minute group watchdog; alone it would get only the 180 s default.
+    selection.selected_scenarios.includes("native-game-update-review") ? 600_000 : 0,
     // Calibrated from 180 s (#4879): on hosted Windows the cancellation journey took
     // 76 s and interrupted recovery was still in its native cleanup confirmations
     // (up to 60 s each) after 87 s when the watchdog stopped it. Harness only.
@@ -1042,7 +1049,12 @@ export function desktopHarnessDeadlineMs(
     // waits calibrated, hosted owned-ready (job 132439346320) completed preparation,
     // Try launch and two later journeys before the 600 s watchdog stopped it.
     // Harness only; individual waits and product deadlines are unchanged.
-    executed > 8 &&
+    // Moving the update review to its own group (#4879) left owned-ready at eight
+    // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
+    // release-channel restart journey keeps the allowance from eight executed.
+    (executed > 8 ||
+      (executed === 8 &&
+        selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
       ? 1_200_000

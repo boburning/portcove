@@ -124,8 +124,12 @@ pub(crate) enum CatalogCommand {
         /// Exclude verified shared libraries from the macOS program inventory.
         #[arg(long)]
         ignore_verified_macos_libraries: bool,
+        /// Count Linux executable-mode files by content, excluding verified ELF shared libraries.
+        #[arg(long)]
+        classify_linux_programs_by_format: bool,
     },
     /// Derive a verified local archive's package shape and its shadow drift verdict.
+    #[command(visible_alias = "inspect-package-drift")]
     InspectPackageShape {
         /// Local ZIP, TAR.GZ, or Linux x86-64 TAR.XZ package archive.
         archive: PathBuf,

@@ -200,6 +200,10 @@
       max-width: 32ch;
     }
   }
+  .game-hero-detail[data-hero-identity="title"] .game-hero-body {
+    min-block-size: 0;
+    padding-block: var(--space-6);
+  }
   @container library-query (width <= 32rem) {
     .game-hero-continue .game-hero-content {
       align-items: flex-start;

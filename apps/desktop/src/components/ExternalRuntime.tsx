@@ -285,6 +285,7 @@ type SelectedLaunch = { executable: string; workingDirectory: string; arguments:
 
 type UserSelectedRuntimeProps = Omit<ExternalRuntimeControlProps, "port"> & {
   port: CatalogEntry;
+  devicePlatform?: PortDefinition["platforms"][number] | undefined;
   listingStatus?: PortListingStatus | undefined;
   initialDirectory?: string | undefined;
 };
@@ -307,6 +308,7 @@ export function UserSelectedRuntimeControl(props: UserSelectedRuntimeProps) {
 
 function useUserSelectedRuntimeEditor({
   port,
+  devicePlatform,
   status,
   generation,
   busy,
@@ -388,7 +390,16 @@ function useUserSelectedRuntimeEditor({
     try {
       const path = await pickHostToolExecutable("game", executable || workingDirectory);
       if (pickerRequests.current.isCurrent(request) && typeof path === "string") {
-        const directory = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const parent = path.slice(0, Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")));
+        const platform = devicePlatform ?? registered?.platform;
+        const bundle = path.slice(parent.length + 1);
+        const reviewedBundle =
+          (platform === "macos-aarch64" || platform === "macos-x86-64") &&
+          path.startsWith("/") &&
+          port.definition?.executable_hints?.[platform]?.some((hint) =>
+            hint.startsWith(`${bundle}/Contents/MacOS/`),
+          );
+        const directory = reviewedBundle ? `${path}/Contents/MacOS` : parent;
         setExecutable(path);
         setWorkingDirectory(directory);
         rememberSetup({ executable: path, workingDirectory: directory });
@@ -584,11 +595,14 @@ function SelectedRuntimeDialog({
           </DialogDescription>
         </>
       )}
-      <dl hidden={inline} className="grid gap-2 [overflow-wrap:anywhere]">
+      <dl
+        hidden={inline && (!preview || preview.executable === selected.executable)}
+        className="grid gap-2 [overflow-wrap:anywhere]"
+      >
         <dt>Game program</dt>
-        <dd>{selected.executable}</dd>
+        <dd>{preview?.executable ?? selected.executable}</dd>
         <dt>Start in folder</dt>
-        <dd>{selected.workingDirectory}</dd>
+        <dd>{preview?.path ?? selected.workingDirectory}</dd>
         <dt>Launch options (advanced)</dt>
         <dd>
           {selected.arguments.length

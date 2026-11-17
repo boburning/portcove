@@ -647,6 +647,21 @@ export function isCancellation(error: unknown) {
   );
 }
 
+/** Core refused a workspace read because the library changed while it was being
+ * assembled. Core keeps refusing inconsistent data; the caller may read again. */
+export function isRetryableStaleSnapshot(error: unknown) {
+  if (typeof error !== "object" || error === null || !("details" in error)) return false;
+  const details = error.details;
+  return (
+    typeof details === "object" &&
+    details !== null &&
+    "workspace_snapshot_stale" in details &&
+    details.workspace_snapshot_stale === "true" &&
+    "retryable" in details &&
+    details.retryable === "true"
+  );
+}
+
 export function formatBytes(bytes: number) {
   if (!Number.isSafeInteger(bytes) || bytes < 0) return "Size unknown";
   if (bytes === 0) return "0 B";

@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "baldur-s-gate-ii-original-gemrb",
+    "artwork": {
+      "game_id": 6,
+      "cover_id": 329139,
+      "image_id": "co71yr",
+      "image_sha256": "43f883b7fc3d81c7edde48abc6be26739f0e4102e5192088d41efd1f25b4780a",
+      "game_slug": "baldurs-gate-ii-shadows-of-amn",
+      "match_kind": "underlying-game"
+    },
     "name": "Baldur's Gate II (original) (GemRB)",
     "summary": "Set up Baldur's Gate II (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Baldur's Gate II (original)",

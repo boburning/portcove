@@ -76,6 +76,8 @@ impl ReportKind {
             Self::Problem => &[
                 ("observed", "Observed behavior"),
                 ("reproduce", "What were you doing when it happened?"),
+                ("expected", "What did you expect to happen?"),
+                ("game", "Game or port, if it was about one"),
                 ("version", "Portcove version or commit"),
                 ("platform", "Platform"),
                 ("evidence", "Logs, screenshots, and diagnostic evidence"),
@@ -419,12 +421,18 @@ pub fn draft_bug_report(inputs: &BugReportInputs, redactions: &ReportRedactions)
                 "Platform",
                 platform_label(inputs.platform).to_owned(),
             ),
+            field(
+                "game",
+                "Game or port, if it was about one",
+                inputs.port_id.clone().unwrap_or_default(),
+            ),
             field("observed", "Observed behavior", observed),
             field(
                 "reproduce",
                 "What were you doing when it happened?",
                 String::new(),
             ),
+            field("expected", "What did you expect to happen?", String::new()),
             field(
                 "evidence",
                 "Logs, screenshots, and diagnostic evidence",
@@ -653,6 +661,8 @@ mod tests {
         let draft = draft_bug_report(&facts, &redactions());
         assert_eq!(value(&draft, "version"), "0.1.0");
         assert_eq!(value(&draft, "platform"), "Windows");
+        assert_eq!(value(&draft, "game"), "zelda64-recomp");
+        assert_eq!(value(&draft, "expected"), "");
         assert!(value(&draft, "observed").contains("outcome: failed (exit code -1073741515)"));
         let evidence = value(&draft, "evidence");
         assert!(evidence.contains("Game: zelda64-recomp, installed version 1.2.3"));
@@ -673,7 +683,7 @@ mod tests {
         assert!(url.starts_with(
             "https://github.com/boburning/portcove/issues/new?template=bug-report.yml&observed=The%20last%20launch"
         ));
-        assert!(url.contains("&version=0.1.0&platform=Windows&evidence="));
+        assert!(url.contains("&game=zelda64-recomp&version=0.1.0&platform=Windows&evidence="));
         assert!(!url.contains("acceptance"));
         assert!(!url.contains(' ') && !url.contains('\n'));
     }

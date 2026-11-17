@@ -202,6 +202,12 @@ starts without inheriting the job handle. Fresh and retained indexed Snap64
 entries that declare the tracked handoff require version 35. Previously
 admitted tracked definitions for other ports retain their original minimum.
 
+Native portable version 36 recognizes `classify_linux_programs_by_format` in
+reviewed Linux x86-64 package layouts. Fresh and retained entries using that
+option require version 36. Core still fingerprints ELF programs, `#!` scripts,
+program and script names, and any library-named file whose header is not a
+verified shared object.
+
 Native portable version 18 binds `reviewed_package_layouts` in new
 independent entries. A reader without version 18 cannot accept a new
 entry that relies on the package-layout gate. Previously admitted
@@ -1119,12 +1125,10 @@ select definitions or install games. Deleting all history or rolling back the
 entire database cannot be detected without an independent witness; this seam
 does not claim that protection.
 
-The CLI operator command retains its explicit reviewed-plan confirmation.
-Normal Desktop setup uses the same Core transaction through its separate official
-catalog review and enablement bridge. API87 binds that confirmation to the existing
-library/Root/history plan and the exact compiled transport-source bytes. The CLI
-plan is unchanged. Neither review nor enablement emits a lifecycle event or selects
-a definition, policy or installation.
+The CLI operator command retains its explicit reviewed-plan confirmation, and
+the CLI plan is unchanged. Desktop uses the same Core transaction without a
+separate confirmation; see normal official-catalog setup below. Installing the
+anchor emits no lifecycle event and selects no definition, policy or installation.
 
 **Normal official-catalog setup.**
 
@@ -1136,22 +1140,56 @@ trust, policy, a key or a publisher grant; unknown fields, unsafe addresses and 
 over 4,096 bytes refuse. There is no runtime, environment or caller override to
 these normal-client defaults. Explicit operator transport commands remain available.
 
-Desktop's ordinary update settings review this fixed pair and request one explicit
-enablement confirmation. Its generation-bound adapter accepts only the reviewed
-plan, never Root or source bytes. Core recomputes the source-bound plan and delegates
-to its existing provisioning transaction. Exact still-unadmitted lost-response
-retries remain idempotent; changed sources/libraries, conflicting anchors, corrupt
-history and advanced initialization preimages refuse without repair or floor reset.
-Opening a library or refreshing a directory never silently installs trust.
+**Official catalog updates are on by default** (owner decision on #534,
+2026-11-15). Desktop asks for no separate enablement confirmation. When a library
+has no installed authority, the official catalog refresh, the scheduled refresh
+and **Check setup availability** first install this release's compiled anchor
+through the existing provisioning transaction, using the plan Core has just
+reviewed for that library; the transaction rechecks that exact plan. A concurrent
+installation of the same anchor is accepted. Changed sources/libraries,
+conflicting anchors, corrupt history and advanced initialization preimages still
+refuse without repair or floor reset. Only the compiled Root and source are used;
+no adapter supplies Root, source bytes or a plan. Desktop therefore installs the
+compiled official anchor automatically at the first scheduled check, shortly
+after a library loads, unless the player turned automatic updates off. Reviewing
+settings alone never installs trust. **Refresh official catalog** and **Check
+setup availability** are explicit player actions, so they install the compiled
+anchor even while automatic updates are off. `Library::enable_official_catalog`
+keeps its exact-plan confirmation for callers that want an explicit step.
 
-Once enabled, the normal refresh action uses those compiled locations through
-the existing authenticated listing-delivery path and cancellation/lifecycle owner.
+Desktop schedules one refresh about 15 seconds after a library has loaded, then
+about every 24 hours while it runs. Checks never overlap: Core allows one official
+catalog refresh at a time per process, a scheduled check skips while another runs
+and a player's refresh waits for it. Desktop also waits while another task holds
+the library. Before recording an activity, the scheduled refresh acquires the
+listing target through the same authenticated TUF path and strict parser as the
+manual refresh and runs every admission check without writing. An outage, an
+absent publication (HTTP 404 or 410), expired metadata, a bad signature, a listing
+format this client cannot read, stale metadata or a replay/equivocation returns a
+quiet `unavailable` result with its serving status. No activity is recorded and
+the directory, replay floors and selection do not change. On a library's first
+check, the compiled anchor may already have been installed as described above
+even when the result is `unavailable`. An admissible candidate is published
+through the ordinary update-catalog activity, cancellation and atomic admission
+owner. A player's manual refresh still reports its failures. Any failure keeps
+the accepted directory, replay floors and bundled fallback.
+Settings shows the latest result, including a player's successful refresh. A failed scheduled check never raises an
+error notice.
+
+The **Update the catalog automatically** choice in Settings is host-wide and
+stored in host preferences as `official_catalog_automatic_updates`. An absent
+value means on, so new installations and existing ones that never changed the
+choice are on. Turning updates off stores an explicit `false`. Core then skips
+each scheduled refresh before any trust, network or library write. Turning
+updates on removes the value and requests a check soon. **Refresh official
+catalog** stays available while updates are off.
+
 The built-in catalog and installed games remain available when this optional
-source is unconfigured or its refresh fails. Enabling the source does not install
-a game, authorize a definition or replace executable/player data. The configured
-Windows/native baseline, authenticated feed and protected progression
-acceptance remain separate obligations after this source appointment. Neither
-compiled input nor a library enablement receipt establishes those outcomes.
+source is unconfigured or its refresh fails. A refresh does not install a game,
+authorize a definition or replace executable/player data. The configured
+Windows/native baseline, authenticated feed and protected progression acceptance
+remain separate obligations after this source appointment. Neither compiled input
+nor an installed anchor establishes those outcomes.
 
 Selected Desktop details expose **Check setup availability** for the selected port.
 The generation-bound private command accepts only its known port ID and operation
@@ -1159,8 +1197,9 @@ channel. Core resolves a retained definition's exact official namespace/stable I
 or the exact known listing/embedded port ID; it refuses unknown IDs and does not
 strip namespace prefixes, infer identities from titles or map related editions.
 It delegates to the existing definition-refresh pipeline using the compiled source
-and explicitly enabled authority. Catalog update settings remain the normal
-enablement route; checking cannot provision trust, install a game or replace files.
+and authority. Like the catalog refresh, it installs only this release's compiled
+anchor when the library has none; checking cannot rotate trust, install a game or
+replace files.
 
 The detail action supplies the maintained propagating mutation-readback callback
 to the existing application-lifetime operation owner. It reloads the current
@@ -1607,6 +1646,11 @@ sole Pages writer. The site's 6,000-file / 256 MiB bound remains independent of
 producer and historical-repository bounds. Protected configuration, admission,
 source/producer binding and the live controller integration remain required.
 
+Since 2026-11-15 the bundle below is published by
+[`catalog-publish.yml`](../.github/workflows/catalog-publish.yml), described in
+[Catalog publication](RELEASING.md#current-release-process). The coordinator,
+review and journal steps described in the rest of this section are retired.
+
 The automatic catalog authoring boundary is the fixed inert source subtree
 `release/catalog-publication/`: strict `request.json` plus `bundle/` containing
 the managed index, checksum-addressed definitions and official policy/launch
@@ -1763,7 +1807,10 @@ corrupt or no-longer-authorized cached data falls back to the bundled directory;
 the retained revision/replay floor is not lowered. Status exposes the actual
 selection, revision, target and authority digests, expiry, counts, withdrawals
 and fallback reason. An expired tombstone is not an indefinite new authority over
-the bundled fallback. There is no startup fetch or unsigned GitHub JSON fallback.
+the bundled fallback. Desktop refreshes the official directory shortly after
+startup and about daily unless the player turned automatic updates off; see
+[normal official-catalog setup](#exact-definition-availability-policy). There is
+no unsigned GitHub JSON fallback.
 
 The existing target can carry listing format8 for supported GitLab descriptive
 observations. Exact native tag identities use the existing project/tag reference; GitHub numeric
@@ -1785,10 +1832,11 @@ without funding links, which format-9 readers accept.
 CLI `catalog listing-refresh --metadata-base-url <https-base>
 --targets-base-url <https-base>` performs an explicit refresh under the installed
 authority. `catalog listing-status` reports its selection. Tauri delegates the
-same operations to Core; settings exposes the manual refresh and existing catalog
-and artwork projections display the resulting data after a workspace reload.
-Authority provisioning still requires the existing exact-plan consent. Automatic
-scheduling and real production configuration remain with their existing owners.
+same operations to Core; settings exposes the automatic-update choice and the
+manual refresh, and existing catalog and artwork projections display the resulting
+data after a workspace reload. The CLI listing refresh still requires an installed
+authority; the CLI does not install the compiled anchor or schedule refreshes.
+Real production configuration remains with its existing owner.
 
 Publication inspection schema 2 includes a separately bound listing summary
 (target, revision, exact digest and listing/withdrawal counts). The

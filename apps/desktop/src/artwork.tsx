@@ -41,6 +41,7 @@ export function ArtworkProvider({
         catalog?.ports.map(({ id, presentation }) => [
           id,
           presentation?.artwork,
+          presentation?.companion_cover,
           presentation?.media,
         ]) ?? [],
         listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
@@ -69,18 +70,59 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
     [cache, portId, slot, visible],
   );
   const read = useCallback(
-    () => (visible ? (cache?.read(portId, slot) ?? unavailable) : unavailable),
-    [cache, portId, slot, visible],
+    // A retained image stays mounted after its card scrolls away, so scrolling back
+    // does not re-decode it. Only loading and live updates need visibility.
+    () => cache?.read(portId, slot) ?? unavailable,
+    [cache, portId, slot],
   );
   const display = useSyncExternalStore(subscribe, read, () => unavailable);
   useEffect(() => {
     let current = true;
-    if (visible) void cache?.load(portId, slot, true, () => current);
+    if (visible) {
+      // A loaded, current image is kept; a missing or stale one is read again.
+      const shown = cache?.read(portId, slot);
+      void cache?.load(portId, slot, !shown?.image || Boolean(shown.stale), () => current);
+    }
     return () => {
       current = false;
     };
   }, [cache, portId, slot, visible]);
   return { cache, display };
+}
+
+export function useCompanionCover(
+  portId: string,
+  sha256: string | undefined,
+  primary: ArtworkDisplay,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const source = primary.state?.resolved_source;
+  const primaryCacheId = source?.kind === "igdb_cover" ? source.cache_id : undefined;
+  const revision = primary.state?.choice.revision;
+  const key =
+    primaryCacheId && sha256 && revision !== undefined
+      ? cache?.companionKey(portId, primaryCacheId, sha256, revision)
+      : undefined;
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      cache && key && visible ? cache.subscribeCompanion(key, listener) : () => {},
+    [cache, key, visible],
+  );
+  const read = useCallback(
+    () => (key ? cache?.readCompanion(key) : undefined) ?? unavailable,
+    [cache, key],
+  );
+  const display = useSyncExternalStore(subscribe, read, () => unavailable);
+  useEffect(() => {
+    let current = true;
+    if (visible && key && sha256 && primaryCacheId && revision !== undefined)
+      cache?.loadCompanion(key, portId, primaryCacheId, sha256, revision, () => current);
+    return () => {
+      current = false;
+    };
+  }, [cache, key, portId, primaryCacheId, revision, sha256, visible]);
+  return display;
 }
 
 export function useArtworkVisibility() {
@@ -91,7 +133,7 @@ export function useArtworkVisibility() {
     if (typeof IntersectionObserver === "undefined") return;
     const observer = new IntersectionObserver(
       (entries) => setVisible(entries.some((entry) => entry.isIntersecting)),
-      { rootMargin: "200px" },
+      { rootMargin: "800px 200px" },
     );
     observer.observe(element.current);
     return () => observer.disconnect();

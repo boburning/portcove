@@ -285,6 +285,27 @@ fn inspect(value: &Value, contract: &[u8]) -> Result<DefinitionCatalogProjection
 }
 
 #[test]
+fn indexed_package_shape_enforcement_uses_the_negotiated_template_version() {
+    let document = generic_projection();
+    let contract = serde_json::to_vec(&document).unwrap();
+    let mut selected = entry(&document, &contract, 0);
+    for (maximum, expected) in [(4, None), (5, Some(5))] {
+        selected["required_capabilities"] = json!([{
+            "template": "libultraship-portable", "minimum_version": 4, "maximum_version": maximum
+        }]);
+        let projection = inspect(&selected, &contract).unwrap();
+        assert_eq!(
+            crate::package_shape::selected_enforcement_capability(
+                projection.catalog(),
+                projection.entry().port(),
+            )
+            .unwrap(),
+            expected
+        );
+    }
+}
+
+#[test]
 fn settings_are_complete_operational_projection_content_not_listing_metadata() {
     let mut document = projection();
     let position = document["catalog"]["ports"]
@@ -347,7 +368,14 @@ fn current_projection_routes_keep_distinct_capability_floors() {
         ("troyedwardsjr-z2rs", 20),
         ("body-harvest-recompiled", 21),
         ("dune-ii-dune-dynasty", 18),
-        ("doom-3-classic-dhewm3", 23),
+        (
+            "doom-3-classic-dhewm3",
+            crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        ),
+        (
+            "doom-3-resurrection-of-evil-classic-dhewm3",
+            crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
+        ),
         ("doom-3-classic-dude-doom-3-unified-development-engine", 23),
     ] {
         let position = document["catalog"]["ports"]

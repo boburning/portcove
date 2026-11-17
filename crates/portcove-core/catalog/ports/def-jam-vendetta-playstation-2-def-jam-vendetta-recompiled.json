@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "def-jam-vendetta-playstation-2-def-jam-vendetta-recompiled",
+    "artwork": {
+      "game_id": 3874,
+      "cover_id": 227964,
+      "image_id": "co4vwc",
+      "image_sha256": "56383651e7531361d38f962b5b7a4fe0ff51ece1a0466676e42e114b1e1964b8",
+      "game_slug": "def-jam-vendetta",
+      "match_kind": "underlying-game"
+    },
     "name": "Def Jam Vendetta (PlayStation 2) (Def Jam Vendetta Recompiled)",
     "summary": "Windows x64 Def Jam Vendetta player prepared upstream from your own USA SLUS-20639 disc. Complete the official settings/setup build before registering files/Def Jam Vendetta Recompiled.exe with its matching game data. Upstream owns updates, rebuilds and saves. Preserve the complete installation, settings and game/mc0 memory-card folders.",
     "original_game_title": "Def Jam Vendetta (PlayStation 2)",

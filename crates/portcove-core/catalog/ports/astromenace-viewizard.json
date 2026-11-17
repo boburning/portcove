@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "astromenace-viewizard",
+    "artwork": {
+      "game_id": 187894,
+      "cover_id": 204660,
+      "image_id": "co4dx0",
+      "image_sha256": "521cbfe7aa4efb6f4a4af73712f66ecff6d0ce7ded2771efd0048307b7dcf4cd",
+      "game_slug": "astromenace",
+      "match_kind": "underlying-game"
+    },
     "name": "AstroMenace",
     "summary": "Fly a customizable fighter through a 3D space shooter from Viewizard.",
     "project_url": "https://github.com/viewizard/astromenace",

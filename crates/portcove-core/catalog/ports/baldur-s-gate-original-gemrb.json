@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "baldur-s-gate-original-gemrb",
+    "artwork": {
+      "game_id": 5,
+      "cover_id": 93899,
+      "image_id": "co20gb",
+      "image_sha256": "fb4d7aecfe6b9aa0159cc286af5be599be7bebd2ccf3a1884d7089b41b16c1d9",
+      "game_slug": "baldur-s-gate",
+      "match_kind": "underlying-game"
+    },
     "name": "Baldur's Gate (original) (GemRB)",
     "summary": "Set up Baldur's Gate (original) through its upstream gemrb player using your own original files. Setup, profiles and updates stay upstream-owned.",
     "original_game_title": "Baldur's Gate (original)",

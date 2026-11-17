@@ -101,6 +101,7 @@ interface FixtureOptions {
   hashResumeJourney?: boolean;
   completionJourney?: boolean;
   acquisitionJourney?: boolean;
+  updateReviewJourney?: boolean;
   preparationTool?: string;
   revision?: string;
 }
@@ -146,6 +147,8 @@ export const INSTALL_REFRESH_FIXTURE_PORT_ID = "portcove-install-refresh-fixture
 const INSTALL_FIXTURE_NAME = "Portcove Install Fixture";
 const INSTALL_REFRESH_FIXTURE_NAME = "Portcove Install Refresh Fixture";
 const artifactName = "portcove-install-fixture.tar.gz";
+export const UPDATE_REVIEW_PORT_ID = "opengoal-jak1";
+export const UPDATE_REVIEW_VERSION = "0.4.0-update-review-fixture";
 
 function platformContract(): { platform: Platform; executable: string } {
   if (process.platform === "win32")
@@ -619,12 +622,14 @@ async function writeFixtureCatalog({
   preliminarySetupJourney,
   completionJourney,
   acquisitionWaitPath,
+  updateReviewJourney,
   revision,
 }: {
   root: string;
   output: string;
   port: number;
   artifact: Buffer;
+  updateReviewJourney: boolean;
   sourceJourney: boolean;
   preliminarySetupJourney: boolean;
   completionJourney: boolean;
@@ -747,6 +752,41 @@ async function writeFixtureCatalog({
       evidence_gap: "Owned inert selection; no upstream validation or preparation proof.",
     });
   }
+  if (updateReviewJourney) {
+    // The game update review needs an offered release without live GitHub: its
+    // check and plan read this owned direct manifest instead of the anonymous
+    // provider API, whose shared-runner rate limit is outside Portcove (#4879).
+    // Only the app and the preparation seed read this catalog. Other owned helpers
+    // in a combined local session keep the maintained definition; hosted runs
+    // isolate the review in its own group, so they never mix the two.
+    const reviewed = baseCatalog.ports.find((item) => item.id === UPDATE_REVIEW_PORT_ID);
+    const platforms = reviewed?.platforms;
+    if (
+      !reviewed ||
+      !Array.isArray(platforms) ||
+      !platforms.every((item) => typeof item === "string")
+    )
+      throw new Error("Update review requires the maintained opengoal-jak1 definition");
+    // Core admits a direct manifest only on the stable channel.
+    if (JSON.stringify(reviewed.channels) !== JSON.stringify(["stable"]))
+      throw new Error("Update review's direct manifest requires a stable-only definition");
+    const sha256 = createHash("sha256").update(artifact).digest("hex");
+    reviewed.release = {
+      provider: "direct-manifest",
+      direct: Object.fromEntries(
+        platforms.map((platform) => [
+          platform,
+          {
+            version: UPDATE_REVIEW_VERSION,
+            url,
+            size: artifact.length,
+            sha256,
+            published_at: "2026-11-01T00:00:00Z",
+          },
+        ]),
+      ),
+    };
+  }
   baseCatalog.ports.push(...portDefinitions);
   artifactPath = path.join(output, artifactName);
   catalogPath = path.join(output, "qualification-catalog.json");
@@ -774,6 +814,7 @@ export async function createInstallFixture({
   hashResumeJourney = false,
   completionJourney = false,
   acquisitionJourney = false,
+  updateReviewJourney = false,
   preparationTool,
   revision,
 }: FixtureOptions) {
@@ -827,6 +868,7 @@ export async function createInstallFixture({
       preliminarySetupJourney,
       completionJourney,
       acquisitionWaitPath,
+      updateReviewJourney,
       revision,
     }));
     if (preliminaryJourney) {

@@ -2,19 +2,27 @@
   "format_version": 1,
   "listing": {
     "id": "darkuni-chocobo-dungeon-recomp",
+    "artwork": {
+      "game_id": 18069,
+      "cover_id": 315284,
+      "image_id": "co6r9w",
+      "image_sha256": "b53f4826c68fcd2d8d13672a78b07a03c1bb0390b61a166bf396327d8b0a88f9",
+      "game_slug": "final-fantasy-fables-chocobos-dungeon",
+      "match_kind": "underlying-game"
+    },
     "name": "Final Fantasy Fables: Chocobo’s Dungeon (darkuni Recomp)",
-    "summary": "Player-managed Wii disc preparation on Windows and a windowed upstream source build on Linux.",
+    "summary": "Play Chocobo's Dungeon with darkuni's Windows recompilation and your own NTSC-U Wii disc image.",
     "project_url": "https://github.com/darkuni/chocobo-dungeon-recomp",
     "original_game_title": "Final Fantasy Fables: Chocobo’s Dungeon",
     "issue_number": 4131,
     "listed_at": "2026-11-08",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "packages",
     "manual_setup": {
       "steps": [
         {
-          "title": "Prepare the Windows player",
-          "instruction": "Keep the Windows x64 package files together, with its DLLs beside chocobo.exe. Place your own NTSC-U R7FEGD ISO or CISO in that folder, or supply the matching extracted sys and files under extracted. Start chocobo.exe and allow the upstream extraction to finish."
+          "title": "Prepare your disc image",
+          "instruction": "Copy a single image of your own NTSC-U Chocobo's Dungeon disc (R7FEGD, .iso or .ciso) beside the program (chocobo.exe on Windows), and keep your original separately. On first start the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. After that the copied image is no longer needed. You can instead put the sys and files folders of an already extracted disc into extracted."
         },
         {
           "title": "Build the windowed Linux player from your original",
@@ -26,16 +34,44 @@
         }
       ],
       "warnings": [
-        "The package includes recompiled game code that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
-        "Keep the upstream folder outside the Portcove library. Close the game and its helpers before backing up or replacing the creating runtime and its data.",
+        "The package includes recompiled game code and a bundled font that the project license does not cover. Portcove downloads it only from the project’s own releases. You need your own original game files.",
+        "Keep the upstream folder outside the Portcove library. Close the game before backing up or replacing the creating runtime and its data.",
         "The Linux instructions cover the windowed source route. The upstream headless EGL test build is a separate target."
       ],
       "help_url": "https://github.com/darkuni/chocobo-dungeon-recomp/blob/e5991f44fac38579c349418eb0dff6028d27ca67/README.md"
     },
     "release_url": "https://github.com/darkuni/chocobo-dungeon-recomp/releases",
+    "recommended_download_channel": "stable",
     "download_asset_hints": {
       "windows-x86-64": ["ChocoboDungeon-", "-win64.zip"]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "darkuni/chocobo-dungeon-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["ChocoboDungeon-", "-win64.zip"]
+      }
     },
-    "recommended_download_channel": "stable"
+    "executable_hints": {
+      "windows-x86-64": ["chocobo.exe"]
+    },
+    "persistent_paths": ["extracted", "nand", "chocobo.ini"],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "portcove-managed",
+      "manual_preparation": "Before first Play, copy your own NTSC-U Chocobo's Dungeon disc image (R7FEGD, .iso or .ciso) into the managed folder beside chocobo.exe, and keep your original separately. On first Play the game extracts it into its extracted folder, which takes up to a minute; leave its console window open while it runs. Without an image it shows Game files not found and closes. Once the game has started, delete the copied image so it is not kept in backups. If the first start was interrupted, failed or used the wrong image, delete the extracted folder and start again with the right image in place. The download is the recompiled program with SDL2 and contains no game data; the project license does not cover the recompiled game code or its bundled DejaVu Sans Mono bitmap font. Portcove preserves extracted, nand (saves) and chocobo.ini across updates and backups, so backups include the extracted game files. If you start chocobo.exe yourself with a path to an extracted folder, that copy runs outside Portcove and keeps its saves beside that folder. The game needs a GPU with OpenGL 3.3. Portcove replaces the program; upstream owns disc import and save formats."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["chocobo.exe"]
+      }
+    }
   }
 }

@@ -1,0 +1,57 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "armagetron-advanced",
+    "name": "Armagetron Advanced",
+    "original_game_title": "Armagetron Advanced",
+    "artwork": {
+      "game_id": 51244,
+      "cover_id": 116293,
+      "image_id": "co2hqd",
+      "image_sha256": "0898a1712b7b725397a3f57269f7df2af0df6a951f29e52687229ce7f3d0a92d",
+      "game_slug": "armagetron-advanced",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Steer a lightcycle, avoid the trails, and outlast the other riders in local or online arenas.",
+    "project_url": "https://gitlab.com/armagetronad/armagetronad",
+    "issue_number": 6458,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],
+    "availability": "packages",
+    "release_url": "https://armagetronad.org/downloads.php",
+    "setup_url": "https://armagetronad.org/downloads.php",
+    "download_block_reason": "Get the game client from the official download page. The project serves these packages through Launchpad.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose the game client for your computer",
+          "instruction": "On Windows, run the official 32-bit client installer. The stable Launchpad release also offers a 32-bit client ZIP. Extract it completely and run armagetronad.exe from that folder. On Linux, choose the x64 or x86 AppImage, make it executable, and start it. If FUSE is unavailable, try starting it with --appimage-extract-and-run. You can also install the Flathub edition through your app manager. On Intel Mac, follow the publisher’s current macOS requirements, mount the official disk image and copy the complete Armagetron Advanced.app into Applications. The download page has a separate section for dedicated servers."
+        },
+        {
+          "title": "Set up your rider and try a local game",
+          "instruction": "On first launch, choose a language, set your name, color and controls, and select Accept. Follow the welcome screen to enter the first local match against a computer rider."
+        },
+        {
+          "title": "Keep your profile before switching packages",
+          "instruction": "Close the game and copy the folder containing your profile, including var/user.cfg and any custom maps or resources. Check %APPDATA%/Armagetron on Windows, ~/.armagetronad for the Linux AppImage, or ~/Library/Application Support/Armagetron Advanced on Mac. If your build uses a different location, keep that profile folder instead. To restore settings for the same release, close the client and copy your backup into the profile location it uses. Keep the backup until you verify the settings."
+        }
+      ],
+      "warnings": [],
+      "references": [
+        {
+          "title": "Check Apple Silicon and Android availability",
+          "instruction": "The publisher lists its Intel Mac client for use on Apple Silicon through Rosetta. Use the complete Intel app as supplied. The stable download page does not offer an Android client."
+        }
+      ],
+      "help_url": "https://armagetronad.org/downloads.php"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "armagetron-advanced",
+    "origin": {
+      "project_url": "https://gitlab.com/armagetronad/armagetronad"
+    },
+    "decisions": []
+  }
+}

@@ -6,6 +6,14 @@
     "original_game_title": "Ratchet & Clank (2016)",
     "summary": "Preview 0.1: every planet loads/plays at 60 FPS preset with cutscenes, sound, controller and saves. No start-to-finish completion. Shadow flicker, first-visit shader stutter and unstable higher frame rates remain. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/btsouth/ratchet-clank-pc",
+    "artwork": {
+      "game_id": 11065,
+      "cover_id": 97220,
+      "image_id": "co230k",
+      "image_sha256": "39608aea09a6dce8b08e6c061193f41fdbd07e7535e769be317b92ac9ecfa640",
+      "game_slug": "ratchet-and-clank",
+      "match_kind": "underlying-game"
+    },
     "listed_at": "2026-10-25",
     "platforms": ["linux-x86-64"],
     "availability": "unknown",

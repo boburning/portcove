@@ -206,6 +206,9 @@ pub struct PortPresentation {
     pub manual_setup: Option<ManualSetupGuide>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub artwork: Option<IgdbArtwork>,
+    /// Cover for the second game in a combined definition's Discover card.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub companion_cover: Option<IgdbArtwork>,
     /// Absent legacy metadata may use the directory; an explicit empty list clears it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub media: Option<Vec<crate::CatalogMediaAsset>>,
@@ -800,6 +803,7 @@ pub enum ExternalProfilePolicy {
     RecompDirectV1,
     Doom3LinuxV1,
     OpenjkUnixV1,
+    EndlessSkyDesktopV1,
     OpenomfLinuxV1,
     VcmiWindowsV1,
 }
@@ -1017,6 +1021,10 @@ pub struct ReviewedPackageLayout {
     /// Exclude verified macOS shared libraries from this fingerprint.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub ignore_verified_macos_libraries: bool,
+    /// Classify Linux executable-mode files by content: only files starting
+    /// with an ELF or `#!` header count, and verified ELF shared libraries do not.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub classify_linux_programs_by_format: bool,
     /// Lowercase top-level directory names of the package root, sorted.
     pub directories: Vec<String>,
     /// Lowercase package-relative paths (with `/`) of every program or script at

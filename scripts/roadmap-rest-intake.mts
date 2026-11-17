@@ -7,6 +7,7 @@ import { readCatalogSource } from "./catalog-authoring.mts";
 import { fileURLToPath } from "node:url";
 export interface RestPortIntakeApi {
   read: RestInventoryReader;
+  issueProjectMemberships: RoadmapClient["issueProjectMemberships"];
   write: (
     method: "POST" | "PATCH",
     endpoint: string,
@@ -35,8 +36,7 @@ interface RestField {
   options: Map<string, string>;
 }
 
-/** REST transport for freshly created canonical ports, not historical normalization
- * or global Project health. Those retain explicit archived-membership validation. */
+/** REST writes and exact item readback for freshly created canonical ports. */
 export class RestPortIntakeClient {
   readonly config: RoadmapConfig;
   readonly api: RestPortIntakeApi;
@@ -46,9 +46,14 @@ export class RestPortIntakeClient {
     this.api = api;
     this.rest = new RestInventoryTransport(api.read);
   }
-  static fromSDK(config: RoadmapConfig, client: Pick<Octokit, "request">) {
+  static fromSDK(
+    config: RoadmapConfig,
+    client: Pick<Octokit, "request">,
+    issueProjectMemberships: RestPortIntakeApi["issueProjectMemberships"],
+  ) {
     return new RestPortIntakeClient(config, {
       read: RestInventoryTransport.fromSDK(client).read,
+      issueProjectMemberships,
       write: async (method, endpoint, body) => {
         const response = await client.request({
           method,
@@ -181,31 +186,19 @@ export class RestPortIntakeClient {
       });
       this.fieldsRevision = project.updated_at;
     }
-    return { root: this.root, project, fields: this.fields };
+    return { root: this.root, project, projectNode: project.node_id, fields: this.fields };
   }
 
-  private async activeItems(target?: string) {
-    const before = await this.context();
-    const result = await this.rest.pages(
-      `${before.root}/items?per_page=100`,
-      this.aliases.map((path) => `${path}/items`),
+  private async createdIssueMembership(contentId: string, projectId: string) {
+    const matches = (await this.api.issueProjectMemberships(contentId)).filter(
+      (membership) => membership.projectId === projectId,
     );
-    const after = await this.context();
-    for (const item of result.rows) {
-      if (item.project_url !== `https://api.github.com/${before.root}` || item.archived_at !== null)
-        throw new Error("REST active membership scope mismatch");
-      positive(item.id);
-      if (typeof object(item.content).node_id !== "string")
-        throw new Error("Redacted REST Project membership");
-    }
-    // Positive membership is re-read by exact item ID before any field update.
-    // A negative result still requires a stable complete traversal before add.
-    if (
-      before.project.updated_at !== after.project.updated_at &&
-      !(target && result.rows.some((item) => object(item.content).node_id === target))
-    )
-      throw new Error("REST Project changed during negative active membership pagination");
-    return result.rows;
+    if (matches.length > 1) throw new Error("Duplicate REST Project membership");
+    const match = matches[0];
+    if (!match) return null;
+    if (match.isArchived)
+      throw new Error("Existing archived membership requires explicit reconciliation");
+    return { id: match.id, databaseId: positive(match.databaseId) };
   }
 
   async ensureIssueItem(contentId: string) {
@@ -214,13 +207,17 @@ export class RestPortIntakeClient {
       throw new Error(
         "REST creation requires a current creation receipt; historical recovery needs archived-membership validation",
       );
-    const matches = (await this.activeItems(contentId)).filter(
-      (item) => object(item.content).node_id === contentId,
-    );
-    if (matches.length > 1) throw new Error("Duplicate active REST Project membership");
-    let item = matches[0];
-    if (!item) {
-      const { root } = await this.context();
+    const before = await this.context();
+    const existing = await this.createdIssueMembership(contentId, before.projectNode);
+    const { root, project } = await this.context();
+    let item: Record<string, unknown>;
+    if (existing) {
+      item = object((await this.rest.get(`${root}/items/${existing.databaseId}`)).body);
+      if (item.node_id !== existing.id || item.id !== existing.databaseId)
+        throw new Error("REST existing Project item identity mismatch");
+    } else {
+      if (before.project.updated_at !== project.updated_at)
+        throw new Error("REST Project changed during negative active membership pagination");
       const [owner, repo] = this.config.repository.split("/");
       // A failed/ambiguous POST is never retried here. The caller retains its
       // already-created issue receipt for explicit membership recovery.
@@ -231,7 +228,7 @@ export class RestPortIntakeClient {
         number,
       });
       if (response.status !== 201) throw new Error("REST Project add was not confirmed");
-      item = object(object(response.body).value);
+      item = object(response.body);
     }
     const content = object(item.content);
     if (
@@ -244,7 +241,15 @@ export class RestPortIntakeClient {
       content.html_url !== `https://github.com/${this.config.repository}/issues/${number}`
     )
       throw new Error("REST Project add returned a different issue or archived membership");
-    this.items.set(item.node_id, { id: positive(item.id), content: contentId });
+    const databaseId = positive(item.id);
+    if (!existing) {
+      let added = await this.createdIssueMembership(contentId, before.projectNode);
+      // REST acknowledged the add. Recheck read visibility once without replaying the write.
+      added ??= await this.createdIssueMembership(contentId, before.projectNode);
+      if (!added || added.id !== item.node_id || added.databaseId !== databaseId)
+        throw new Error("REST Project add membership was not confirmed for the exact issue");
+    }
+    this.items.set(item.node_id, { id: databaseId, content: contentId });
     return { id: item.node_id };
   }
 

@@ -4,6 +4,14 @@
     "id": "wwe-smackdown-vs-raw-2009-native-pc-linux-steam-deck-nefariousjosiah-wwe-smackdown-vs-raw-2009",
     "name": "WWE SmackDown vs. Raw 2009 — WWE SmackDown vs. Raw 2009 — native PC, Linux & Steam Deck (nefariousjosiah)",
     "original_game_title": "WWE SmackDown vs. Raw 2009",
+    "artwork": {
+      "game_id": 5299,
+      "cover_id": 198037,
+      "image_id": "co48t1",
+      "image_sha256": "b4fa0a70a8b1a7a82d730f8cb92f2593b26bce71c0e36dd69c9d92da945912df",
+      "game_slug": "wwe-smackdown-vs-raw-2009",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project describes gameplay. Keyboard and aspect-ratio testing remain limited. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/nefariousjosiah/WWE-SVR2009-RECOMP",
     "listed_at": "2026-10-25",

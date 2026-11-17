@@ -20,7 +20,7 @@ import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
-import { Notice } from "./ui/patterns";
+import { ActionRow, Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import {
   memo,
@@ -994,9 +994,9 @@ function BrowserEmptyState({
           </span>
         }
         title="Your library is empty"
-        description="Portcove helps you find and install community-made versions of games, called ports, and can keep many of them updated. Some ports need files from your own copy of the original game; Portcove checks them on this computer and doesn’t upload them. You can also copy a supported installation without changing its original folder."
+        description="Browse community-made versions of games, called ports, or copy a supported installation without changing its original folder. Some ports need files from your own copy of the original game. When Portcove checks those files, it does so on this computer and doesn’t upload them."
         action={
-          <>
+          <ActionRow className="justify-center">
             {onDiscover && (
               <Button data-focusable variant="primary" size="lg" onClick={onDiscover}>
                 <Icon glyph={Compass} />
@@ -1018,7 +1018,7 @@ function BrowserEmptyState({
                 Connect game-file folder
               </Button>
             )}
-          </>
+          </ActionRow>
         }
       />
     );
@@ -1600,16 +1600,13 @@ function renderConnectPromptPortBrowserView(
     model.onConnectGameFiles && (
       <section
         aria-label="Connect your game files"
-        className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-4"
+        className="mb-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-b border-pc-border pb-3"
         data-focus-group
       >
-        <div className="min-w-0 flex-1">
-          <h2 className="m-0 text-sm font-semibold">Find ports for games you own</h2>
-          <p className="mt-1 mb-0 text-sm text-pc-muted-foreground">
-            Browse below, or connect a folder to find matching games. Your originals stay in place.
-          </p>
-        </div>
-        <Button data-focusable variant="outline" onClick={model.onConnectGameFiles}>
+        <p className="m-0 min-w-0 grow basis-64 text-sm text-pc-muted-foreground">
+          Find matching ports. Your originals stay in place.
+        </p>
+        <Button data-focusable variant="outline" size="sm" onClick={model.onConnectGameFiles}>
           Connect game-file folder
         </Button>
       </section>

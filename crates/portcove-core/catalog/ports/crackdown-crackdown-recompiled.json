@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "crackdown-crackdown-recompiled",
+    "artwork": {
+      "game_id": 2896,
+      "cover_id": 88349,
+      "image_id": "co1w65",
+      "image_sha256": "12112227f54014af4c0298e143088587ee8f20673ce8ae60684b661aad9cb50d",
+      "game_slug": "crackdown",
+      "match_kind": "underlying-game"
+    },
     "name": "Crackdown (Crackdown Recompiled)",
     "summary": "Add a prepared Crackdown copy from the Windows package or Linux AppImage, preserving its exact original-data requirements, upstream-owned updates and separate base/TU6 save generations.",
     "original_game_title": "Crackdown",

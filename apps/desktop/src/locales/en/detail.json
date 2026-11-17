@@ -75,7 +75,8 @@
     "originalSystem": "Original system",
     "originalSystemUnspecified": "Original system not specified",
     "runsOn": "Runs on",
-    "selectedChannel": "Selected update channel"
+    "selectedChannel": "Selected update channel",
+    "upstreamPlatform": "{{platform}} · Upstream"
   },
   "requirements": {
     "fallback": "Review Game files and the upstream instructions for this port’s requirements.",

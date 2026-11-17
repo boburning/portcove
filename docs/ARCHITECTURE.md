@@ -887,8 +887,10 @@ limits also apply; destination pixel allocation is checked explicitly. A separat
 library artwork lock serializes local import/thumbnail decoding, reset, cache
 publication/clearing and unused-original removal without holding a game's operation
 lock. Remote original reads, fetching and conversion use a separate process-wide
-two-worker budget; Core refuses excess work promptly instead of blocking a shared
-worker behind another image. Expected slot revisions reject stale changes, including
+budget of `IGDB_ARTWORK_WORK_LIMIT` (6) workers; Core refuses excess work promptly
+instead of blocking a shared worker behind another image. Each worker may transiently
+hold an original and its decoded pixels, so the worst-case bound is that limit times
+the original and decoded byte limits; real covers are far smaller. Expected slot revisions reject stale changes, including
 reset/reselect cycles. Missing or changed originals retain the selection and report
 unavailability through the artwork API; ordinary lifecycle reads do not read images.
 
@@ -951,15 +953,17 @@ visible viewport plus at most 256 inactive previews (bounded by encoded size) pe
 generation. Local-choice reads run for up to four ports at once while each port's
 slots stay ordered; mutations and local thumbnail decoding run alone because Core
 refuses a contended artwork lock. IGDB thumbnail retrieval uses a separate
-two-request drain. Undispatched requests
+drain of `maximumRemoteRequests` requests, which must equal Core's limit because Core
+refuses rather than queues excess work. Cards prefetch 800px vertically ahead of the
+viewport, and an already-loaded image stays displayed while its card is offscreen. Undispatched requests
 are keyed by port/slot, share the inactive-preview retention bound and recheck
 current state and viewport interest before IPC. A refreshed choice replaces queued
 work, and offscreen queued work is discarded so current covers can proceed.
 The native adapter
 uses Core's resolved source to await remote admission asynchronously before
 dispatching a thumbnail worker; local thumbnails, imports, resets and unrelated
-game work do not wait on that remote gate. Its capacity matches Core's two-worker
-limit. A dispatched worker retains its permit even if its IPC waiter is cancelled.
+game work do not wait on that remote gate. Its capacity matches Core's
+`IGDB_ARTWORK_WORK_LIMIT`. A dispatched worker retains its permit even if its IPC waiter is cancelled.
 Library generation and slot revision are rechecked after admission. Queued renderer
 reads are discarded when their view no longer needs them, and stale completions
 cannot replace a changed choice or generation. Visible cards load asynchronously and preserve
@@ -1423,6 +1427,12 @@ or blocked; those alternative implementations are counted as games needing a
 version choice and are selected individually. A matching observed game or BIOS source
 must already be registered, and current Core action availability must allow
 installation before a selected item can request its existing game-details review.
+For a saved scan with more matches than its preview, Core reads the retained
+rows that match current registrations by profile, path and digest. The read
+checks the expected scan summary, catalog and saved folders in the same
+transaction as the match and registration rows. Desktop can include those
+games in setup review immediately, while the file results stay paged for
+browsing.
 The explicit review request is consumed once after the matching detail is active
 and calls the existing Core installation planner; leaving that detail invalidates
 the request. Applying installation still requires the ordinary review consent.
@@ -1433,12 +1443,17 @@ does not register files or apply installation, or imply completed setup. Choosin
 Review requests a fresh plan for that item; plans are never batched into consent.
 Desktop presents core's optional completed-scan coverage with cumulative batch
 counts and explicit unknown remaining-entry counts. A refreshed, matching
-snapshot with a resumable frontier offers Continue scan; a required restart
-offers Start new scan. Both use the existing bounded scan command. Continuation
-preserves the fresh saved snapshot's limits, including a smaller CLI-created
-batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
+snapshot with a resumable frontier offers Continue scan. A retained scan ID
+also offers Finish scanning these folders. Core binds Finish to that scan ID,
+publishes each bounded batch, and retains those results if the player cancels.
+A required restart offers Start new scan. Continuation preserves the fresh
+saved snapshot's limits, including a smaller CLI-created batch budget. Limits above Desktop's existing caps are refused with CLI/narrower
 folder guidance; a new scan retains Desktop's default budgets. Core revalidates
 the actual input and continuation fingerprints before execution.
+A skipped raw ISO can carry Core's direct-check profile choices for managed
+OpenGOAL. Desktop reuses the reported path and the selected game's ordinary
+source review. That check streams the original within the existing runtime
+source byte limit. The pinned extractor still validates the disc for setup.
 Exhausting the folder frontier does not erase skipped files or imply gameplay
 support. Older snapshots retain the ordinary Scan saved folders action.
 The Playnite reference client negotiates event schemas 2 and 3 independently
@@ -2229,8 +2244,10 @@ React coalesces refresh invalidations, retains stale snapshots explicitly after 
 events as hints: SQLite readback remains authoritative, active work is polled without overlap, and
 idle polling backs off further while the window is hidden. Listener setup and cleanup failures
 degrade to visible manual refresh plus polling rather than an unhandled rejection or a second durable
-state authority. The hook mounts and unmounts its scoped QueryClient and removes its exact
-generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
+state authority. A read that Core refuses as a retryable stale snapshot, because it overlapped a
+write, is read once more before it is reported, so a player's own successful change does not raise a
+refresh warning; a second refusal, or any other failure, is reported as before. The hook mounts and
+unmounts its scoped QueryClient and removes its exact generation query at disposal. Diagnostic, activity and recovery coordinators remain separately
 scoped to each effect lifetime. Strict Mode replay and library changes retire old continuations
 and cannot reuse a disposed coordinator.
 
@@ -2796,6 +2813,12 @@ Only a verified import changes its journal to published and becomes openable. Th
 
 Core owns opt-in discovery requests, traversal and hashing budgets, candidate validation, and explicit acceptance. Search requires selected roots and profiles; it does not infer personal folders. It skips symlinks and entries outside the canonical selected roots, filters extensions and size before hashing, bounds traversal and hashing, and shares original-file/cartridge-ZIP identity validation with manual registration. Equal source contracts share a hashing pass. Schema-2 scans select extensions from current exact file representations rather than their potentially narrower informational schema-1 projection; the shared inspector also accepts those current extensions when reviewing or importing a candidate. Schema-1 catalogs retain their exact-hash lookup. Only a unique exact identity admitted by the shared inspector becomes a candidate. Complete schema-2 directory file sets also participate: the shared inspector matches required member names, digests and coherent variants from scan-local observations. Member enumeration and hash work share the request-wide budgets; incomplete directories cannot establish unique membership. Ordinary-file and directory-set matching reuse byte observations without sharing admission. File-set ZIPs use the same schema-2 matcher with safe root-level member inventories, bounded/cancellable member and container hashing, and scan-local facts shared across file-set profiles. The original container and normalized file-set aggregate retain distinct identities; old snapshots remain readable but stale when scan coverage changes. Exact schema-2 GameCube ISO/GCM representations also use the bounded raw-file observation and the existing disc matcher without conversion. Applicable profiles share one original-byte hashing pass while admission stays independent. Exact schema-2 STFS LIVE compound inputs also participate, including extensionless packages, as do content-identified LIVE and PIRS packages. A four-byte probe (LIVE, or PIRS only when a selected profile declares a content identity) is bounded by the entry limit and does not hash unrelated inputs; matching packages share one bounded raw hash across applicable ordinary-file and compound profiles. Only an exact compound digest match or a declared content identity triggers the bounded structural and hash-tree validator, once per file. Probe, hashing and validation use one open handle, with canonical-path, object, size and modification-time checks before and after inspection. Structural reads are additional bounded I/O, not hash bytes; no persistent cache or universal concurrent-mutation guarantee is implied. Windows and Linux CISO/GCZ/RVZ/WIA and complete PSX CHD sets participate through the bounded normalized observer described below; original-byte processing allowances and normalized logical identity remain distinct. ZIP-contained STFS is not an admitted LIVE representation. Structural-only inputs and pinned upstream validators can yield separate preliminary selections requiring fresh review; they are not exact candidates. Results are candidates, never registrations. Acceptance runs current validation under the existing source/dependent-port locks and compares the reviewed normalized digest before writing the registry. CLI and Tauri expose this core operation; React holds only the selected search scope and transient result list.
 
+One-off discovery accepts at most eight explicit roots. For saved folders, Core
+keeps the deduplicated available scope in one checkpoint and visits up to eight
+root trees per batch. Later batches retain the same match inventory and may
+continue after reopening the library. Checkpoint, match and I/O limits still
+apply. An unavailable saved folder is recorded once for that scan.
+
 Core also provides explicit bounded registered-source observation batches,
 separate from query evaluation. Readers cover ordinary raw files, uncompressed
 GameCube ISO/GCM inputs and schema-2 directory file sets. Directory sets use the
@@ -2933,18 +2956,31 @@ warning.
 8. Atomically claim the vacant version path without replacement, record `payload_published`, commit activation or staging metadata, and record `metadata_committed`. A late destination remains untouched and blocks recovery until the conflict is explicitly resolved. On Windows, a just-exited process, indexer, or scanner can briefly retain a handle that denies renaming its parent directory; publication waits up to two seconds only for the corresponding access, sharing, or lock errors while rechecking that staging still exists and the destination remains vacant. Persistent errors retain private staging and report the exact operation paths and operating-system code for recovery.
 9. Remove only the operation-private staging tree. Failed cleanup remains `cleanup_pending` for retry; completed journals are removed because the activity ledger owns terminal history.
 
-Shadow release-drift verdict (#5359 phase 1). After extraction and the
+Package-shape comparison (#5359). After extraction and the
 retained-contract package checks, at the existing reviewed-layout comparison
 point and before bundled runtimes, PS1 preparation or source materialization
 add content, `package_shape` derives the candidate's package shape and compares
 it with the generated reviewed table, the explicit `reviewed_package_layouts`
 fingerprint or the active installation's recorded shape
-([CATALOG](CATALOG.md#generated-reviewed-package-shapes-shadow)). The verdict is
+([CATALOG](CATALOG.md#generated-reviewed-package-shapes)). The verdict is
 `compatible`, `drifted` with bounded per-part changes, or `unknown` with a
 reason (`no_baseline`, `incomplete_comparison`, `observation_failed`). Every
 observation or baseline failure, including an unverifiable active manifest,
-becomes `unknown`; the shadow verdict never refuses or reorders an install. The
-manifest records it in the optional `package_shape` field with the shape, the
+becomes `unknown`. Core withholds known drift against a reviewed baseline for
+the managed portable templates while the candidate is in its private staging
+directory. Drift against unreviewed local observations remains diagnostic. A bounded local
+observation retains the candidate identity, derivation inputs and observed
+shape. Later checks compare the exact candidate observation with the current
+applicable baseline. Exact reviewed fallback applies only to first installs.
+The provider verifies that the withheld latest package still matches the
+observation, then selects the newest independently reviewed artifact for the
+same channel and platform. It applies normal acquisition and uploader checks,
+and keeps this selection out of the ordinary release cache. A confirmed
+setup plan binds the selected package. If the first confirmed attempt detects
+drift, the next review shows the fallback. A direct install can retry after
+private cleanup under the same port lock. A successful install records its
+verdict in the optional
+`package_shape` field with the shape, the
 derivation version and a provenance (`reviewed` for an exactly listed artifact,
 `inherited` when every compared part equals a reviewed or inherited baseline's,
 which says nothing about content outside those parts, else `unreviewed`). The
@@ -2954,9 +2990,8 @@ record with another derivation version, or with a part, status or reason this
 build does not know, reads as no record and never makes the manifest, its
 verification, launch checks or rollback fail. Manifest rewrites, such as an
 archive-data admission, carry the stored value unchanged. An active
-installation's recorded shape on the same platform is the local fallback
-baseline for the next install; its provenance travels with the verdict so
-enforcement can decline an unreviewed local baseline. Installations recorded
+installation's recorded shape is eligible as a local fallback baseline when the
+platform and retained shape-derivation inputs match. Installations recorded
 before this field have no local shape. `portcove installation package-shape
 PORT` reads the recorded verdicts without a port lock and distinguishes no
 record, an unrecognized record and an unverifiable manifest;
@@ -3109,7 +3144,7 @@ Restore consumes its one-use, action/target-bound authorization under the port l
 
 When an update resolves to an artifact already present in the managed library, Portcove compares the verified digest, asset name, and size rather than the display tag. A republished stable, beta, rolling, or direct-manifest tag therefore remains visibly the same version while becoming a distinct update and content-addressed install. Before active/staged/retained reuse, activation, rollback, recovery, or launch, Portcove validates the manifest identity and rehashes the selected executable plus immutable libraries and bootstrap configuration beside it. The same targeted check enumerates the executable directory and rejects new unmanifested libraries, launchers, scripts, reviewed loader-read configuration names, or symlinks before a child can be created. Catalog-declared mutable paths and exact generated metadata remain explicit exclusions; explicit full verification checks every other immutable file and rejects unexpected immutable additions. Managed operations and launch of full-integrity portable runtimes hold only on hazards and report other additions as [unknown player-side files](#unknown-player-side-files); new loader-read configuration beside the executable stays launch-sensitive.
 
-The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). Such a transfer, when it has an expected SHA-256 and its download location is inside the library (so a game output folder on another volume keeps its own capacity check and runs without it), writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. On success the bytes move to the operation's download location and the entry is removed. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the new asset's full size; an entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog, PSX toolchain and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
+The desktop process shares one release provider across Tauri commands. Successful release and asset selections are cached in memory for five minutes, but every reuse first revalidates current GitHub or GitLab repository metadata; an observed archive rejects the cached selection, and a temporary network failure remains a network failure. Those selector caches retain at most 1,024 entries; a Core test keeps every platform's embedded provider selector slots within half of that bound. Provider JSON is streamed under a 4 MiB per-response limit and parsed before it may replace the library-scoped SQLite conditional cache, which opportunistically retains at most 512 response bodies, 64 MiB, and seven days. `ETag` and `Last-Modified` requests therefore reuse only the last semantically valid body on `304 Not Modified`. Metadata and authentication calls have ten-second connection, fifteen-second read-idle, and sixty-second overall bounds. Provider metadata redirects are rejected; unauthenticated checksum downloads may follow at most five redirects and are streamed under a 1 MiB limit. Checksum and artifact downloads have connection and read-idle protection but no short total deadline, so a progressing large transfer remains possible and cancellable. Within one artifact transfer, Core retries after a dropped response body (a reset or early close, or a partial body that ends cleanly short of its known length), never after a read-idle stall, an error status or a first request that fails before any body. At most five retries run with cancellable back-off from half a second to eight seconds; a reconnect that fails with a transport error other than a timeout consumes one of them. When retries run out, the error is the original body interruption with the retry count and last retry error as details, so that exhaustion path classifies for preserved-location failover exactly as it did before retries existed. A reconnect that instead fails fatally (a read-idle stall, or a status such as 404 or 410) returns that error with its own classification, so an unavailable answer on a reconnect can now trigger preserved-location failover. A status that means the server refused the range itself (400, 403, 405, 412 or 501 in answer to a `Range` request) instead discards the received bytes and retries from the start without a range. A retry continues with `Range` only when bytes were received, the first response carried a strong `ETag` (sent as `If-Range`) and the caller supplied an expected SHA-256; a non-empty expected digest is the caller's promise to verify the complete file against it (the catalog download uses the record digest or the known catalog artifact digest). Core appends only a `206` that echoes the same `ETag` and whose `Content-Range` and `Content-Length` continue from the received offset to the end of the same complete length and declared size. A `200` answer, a `416`, a missing or changed validator, an unusable range or a missing expected digest discards the received bytes, truncates the file, reports zero progress and downloads from the start, so different representations are never spliced. The caller's full-file size and SHA-256 verification remains the acceptance for every resumed file. Partial bytes otherwise live only in the operation's private download location (install lifecycle staging, the catalog `.portcove-download-*` temporary directory or the PSX toolchain operation root) and are discarded with it. A release asset downloaded for installation or update may also continue in a later run (#6222). PSX preparation uses the same bounded transfer mechanism for its exact pinned toolchain archive in downloads/psx-toolchain-partial-v1. A library-scoped acquisition lock excludes concurrent toolchain preparation through transfer and publication, and ordinary release downloads do not sweep its partial store. The staging root can be recreated on retry. The complete archive still passes pinned size and SHA-256 verification before extraction and the existing shared cache publication checks. An eligible transfer with an expected SHA-256 writes straight into its entry under `downloads/partial-v1` while holding an exclusive lock on it, and records the asset URL, declared size, expected digest, strong `ETag` and complete length as soon as the first whole response arrives, so bytes received before a failure, a cancellation, a crash or Portcove closing remain. A later transfer of the same exact asset that can take the lock continues from them under the same `Range`/`If-Range` rules, so any mismatch starts over; a refused range request also starts over without one. A verification failure, a weak or missing validator or a drain failure discards the entry; an entry another transfer holds is not used. Release and bundled-runtime archives can also resume into a verified install staging directory outside the library. The external output root retains its independent ownership, volume and capacity checks. On success the store moves the bytes to private staging, or copies them through the locked file across volumes, and removes the entry. Each use of the store removes expired (seven days), leftover and unpaired files and keeps at most four entries and 16 GiB, reserving the full declared size of each active transfer. When the store bounds or the volume's available space cannot accommodate another transfer after idle entries are evicted, it downloads in private staging without durable resume. An entry is otherwise only removed by its next use, by a later download or by deleting the library's `downloads` folder. The store never publishes, registers or activates anything, and the caller still verifies the complete file. Catalog and definition downloads keep in-transfer resume only. Durable job and queue state beyond that remains #248. GitHub and GitLab release discovery reads at most ten 100-item pages. GitLab package discovery reads the same maximum, then checks at most sixteen packages whose version matches the selected release, with four package-file list requests in flight and at most five 100-file pages per package. Equally scored runnable assets or package links fail as ambiguous, and an aggregate checksum file must name the exact selected asset; only its exact `.sha256` sidecar may contain a bare digest. Core bulk update checking admits at most four provider resolutions at once, returns results in the caller's order, records each activity independently, and never retries a rate-limited item implicitly; CLI and Tauri only translate those outcomes. React generation-gates overlapping refreshes and tracks pending commands independently, so reverse completion cannot replace newer data or clear an unrelated busy state. Gamepad navigation is scoped to the top modal and a single Back stack closes command palette, adoption, then port detail in visual order. A top-level render boundary reports the component failure to Tauri and presents a reload surface without claiming domain failure. Tauri creates the window before opening the library: a startup worker opens and migrates it, recovers pending work, builds the release providers and observes running launches, and only then publishes the library; automatic update checks start after publication. A panic on the worker publishes a failure instead of leaving the placeholder. Until publication, `get_bootstrap_status` waits, so React keeps its loading surface; domain commands return a `library_initializing` state refusal and library switches or transfers are refused. A selection that replaced the placeholder is never overwritten by the worker. If library opening, migration recovery, or release-provider construction fails, Tauri keeps a typed failed bootstrap state: every domain command returns that error and React shows a retry/recovery surface without exposing library actions.
 
 Anonymous update-check request cost (measured November 2026 by
 `release::tests::measure_the_request_cost_of_checking_a_library`, which drives the real
@@ -3164,6 +3199,21 @@ arrival order. This library-workspace-scoped cache is presentation only: a
 workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
+
+### Local setup revision recovery
+
+Core reviews an exact earlier profile revision against the current head and
+materialized selection. A plan verifies the retained runtime and its policy,
+stored package bytes and current code consent. It reports original availability
+separately from the inputs needed to apply a retained runtime. An exact plan
+digest binds the inputs and live effects for the port-locked apply.
+
+Apply appends the earlier setup state as a successor and retains the current
+save group. A selected setup uses its existing materialized-revision checkpoint
+and restore-pending marker to finish deployment after interruption. Launch holds
+before selecting an executable until the selected setup finishes materializing.
+Runtime rollback still owns the active executable for Default. A customized
+setup can recover an offered exact runtime without changing that pointer.
 
 ### Runtime diagnostic writer
 

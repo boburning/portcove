@@ -5,6 +5,14 @@
     "name": "Railroad Tycoon (Open Railroad Tycoon)",
     "summary": "Register a prepared Rails Windows remake of Railroad Tycoon using your own DOS assets and preserve its working-directory saves.",
     "original_game_title": "Railroad Tycoon",
+    "artwork": {
+      "game_id": 962,
+      "cover_id": 395884,
+      "image_id": "co8hgs",
+      "image_sha256": "2f8d9cb19b4120d807d9acf2c9cb937c34cdcfa79f9cd6de70ecc4ad97e43842",
+      "game_slug": "sid-meier-s-railroad-tycoon",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/bluddy/rails",
     "platforms": [],
     "availability": "unknown",

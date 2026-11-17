@@ -393,6 +393,7 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 size,
                 sha256,
                 ignore_verified_macos_libraries,
+                classify_linux_programs_by_format,
             },
     } = &cli.command
     {
@@ -406,7 +407,10 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 platform,
                 *size,
                 sha256,
-                *ignore_verified_macos_libraries,
+                portcove_core::PackageProgramFilter {
+                    ignore_verified_macos_libraries: *ignore_verified_macos_libraries,
+                    classify_linux_programs_by_format: *classify_linux_programs_by_format,
+                },
             )?,
             |layout| {
                 format!(
@@ -579,12 +583,9 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
         return Ok(ExitCode::SUCCESS);
     }
     if matches!(&cli.command, Commands::Capabilities) {
-        render_read_success(
-            mode,
-            "capabilities",
-            CapabilityDocument::current(),
-            human::capabilities,
-        )?;
+        let mut capabilities = CapabilityDocument::current();
+        capabilities.commands.extend(profile_command_capabilities());
+        render_read_success(mode, "capabilities", capabilities, human::capabilities)?;
         return Ok(ExitCode::SUCCESS);
     }
     if let Commands::Schema {

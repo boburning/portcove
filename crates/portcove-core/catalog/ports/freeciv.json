@@ -1,0 +1,59 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "freeciv",
+    "name": "Freeciv",
+    "original_game_title": "Freeciv",
+    "artwork": {
+      "game_id": 73190,
+      "cover_id": 175839,
+      "image_id": "co3rof",
+      "image_sha256": "1eae9fa80c659b4c28cf4bc6d0c24e8610d23735ce3066ed2e506cac687552d8",
+      "game_slug": "freeciv",
+      "match_kind": "underlying-game"
+    },
+    "summary": "Build a civilization and compete against computer or human opponents in turn-based strategy.",
+    "project_url": "https://github.com/freeciv/freeciv",
+    "issue_number": 6502,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://www.freeciv.org/download.html",
+    "setup_url": "https://www.freeciv.org/download.html",
+    "download_block_reason": "Choose the publisher’s installer or AppImage, or use a package manager that offers the current release.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Open the GTK4 client",
+          "instruction": "On Windows 10 or later, choose the x64 GTK4 installer. On Linux x86-64, allow the GTK4 AppImage to run as a program and open it. On Apple Silicon Mac, install freeciv with Homebrew and run freeciv-gtk4."
+        },
+        {
+          "title": "Start or restore a local game",
+          "instruction": "Choose Start New Game and then Start to play locally against the computer. Use Game → Save Game As to name and save your game. From the title screen, choose Load Saved Game, select your save, then choose Start in the lobby."
+        }
+      ],
+      "warnings": [
+        "Back up your save files, settings and custom rulesets before updating or moving the game. Use the current release when opening saves or scenarios from other players."
+      ],
+      "references": [
+        {
+          "title": "Find saves and settings",
+          "instruction": "The default profile is %APPDATA%/.freeciv on Windows and ~/.freeciv on Linux and Mac. Look in its saves folder for saved games. Keep the full profile for settings and custom data, and copy any other save location you configured."
+        },
+        {
+          "title": "Check other desktop builds",
+          "instruction": "Homebrew publishes a Linux ARM64 package. For Intel Mac, see the upstream source build instructions and check your package manager’s current availability."
+        }
+      ],
+      "help_url": "https://github.com/freeciv/freeciv/blob/main/INSTALL"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "freeciv",
+    "origin": {
+      "project_url": "https://github.com/freeciv/freeciv"
+    },
+    "decisions": []
+  }
+}

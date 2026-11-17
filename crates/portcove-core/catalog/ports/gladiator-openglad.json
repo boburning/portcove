@@ -25,6 +25,10 @@
           "instruction": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target."
         },
         {
+          "title": "Prepare Linux x64",
+          "instruction": "Install the upstream player's system libraries before choosing Play. On Ubuntu 26.04 the tested package needs libphysfs1 and libzip5 in addition to its other system libraries, including OpenSSL 3. Keep your ~/.openglad profile separately. It contains your saves, settings and campaigns and is outside Portcove backups."
+        },
+        {
           "title": "Prepare your Apple silicon Mac",
           "instruction": "The inspected ARM64 player needs macOS 26 and the Apple silicon Homebrew libraries libyaml, physfs, libzip and sdl3 under /opt/homebrew. Follow the upstream Mac setup for those libraries before Play. The managed player opens from its own folder and keeps your saves, campaigns and settings under ~/.openglad."
         }
@@ -112,7 +116,7 @@
       "installation_method": "portable-package",
       "source_requirements": [],
       "saves_and_settings": "external-user-owned",
-      "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. The selected binary requires OpenSSL3 and other upstream system libraries. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback. Core extraction, published SHA-256 comparison and ELF/dependency inspection passed on Windows. Linux execution, minimum-environment and gameplay observations remain Not run."
+      "manual_preparation": "The official archive includes the Gladiator campaigns and the native game. Choose Play after installation; no original commercial files or separate setup program are required. openscen.exe is the optional level editor, not this route’s play target. OpenGlad normally stores companies, saves/backups, campaigns, settings, screenshots, replays and downloaded packs in LocalAppData/.openglad, outside Portcove backups. Packaged campaigns and engine assets remain version-owned. No in-folder player data is declared in this default mode. Use external registration for OPENGLAD_CONFIG_DIR overrides or a fallback current-folder profile. Existing external installations keep their files and runtime update owner. Gameplay, platform minimums and packaged Desktop acceptance remain separate observations. Linux normally keeps player data in ~/.openglad, outside Portcove backups. Install the upstream runtime libraries before Play. The tested Linux x64 package needs libphysfs1 and libzip5 on Ubuntu 26.04, in addition to its other system libraries, including OpenSSL 3. The packaged campaigns and engine assets remain version-owned. Use an external copy for custom OPENGLAD_CONFIG_DIR or a current-folder fallback."
     }
   }
 }

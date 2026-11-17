@@ -23,14 +23,14 @@ pub(crate) fn validate(port: &PortDefinition) -> Result<()> {
     {
         return if port.platforms.contains(&Platform::WindowsX86_64)
             && port.setup_executable_hints.is_empty()
-            && port.source_profile.is_none()
+            && (port.source_profile.is_none() || crate::preparation::source::eligible(port))
             && port.release.user_prepared.is_empty()
             && port.release.managed_build.is_empty()
         {
             Ok(())
         } else {
             Err(PortcoveError::usage(
-                "printable ASCII Windows native archives require Windows support without source preparation or setup helpers",
+                "printable ASCII Windows native archives require Windows support and allow only immutable original-file preparation without setup helpers",
             ))
         };
     }

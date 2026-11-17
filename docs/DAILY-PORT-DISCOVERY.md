@@ -29,7 +29,7 @@ dated primary links. Text is inert data, never a command or authority grant.
 <!-- portcove-hosted-intake:v1 -->
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "kind": "proposal",
   "investigator": "actual-hosted-investigator-context",
   "candidates": [{
@@ -38,12 +38,23 @@ dated primary links. Text is inert data, never a command or authority grant.
     "repository_id": 123,
     "game": "Independently catalogable game title",
     "port_key": "durable-game-implementation-key",
+    "intent": { "kind": "create" },
     "evidence": "Dated primary research and explicit unknowns.",
     "resume": "Exact research/watch resume condition."
   }]
 }
 ```
 ````
+
+For a dated observation on an existing owner, use
+`"intent": { "kind": "observe-existing", "issue": 334 }` and put that
+issue's actual canonical implementation or catalog key in `port_key`. A
+conflict in the issue, key, source or game parks that candidate. A declared
+creation that already has an owner also parks. Independent candidates can still
+deliver. The GitHub event marker stays at `v1` to recognize retained requests.
+Once the database-backed executor is configured, new batches require proposal
+schema 2. Schema 1 receipts and their bound reconciliations remain readable and
+resumable.
 
 Actions checks complete open/closed issue and active/archived Project coverage,
 authored catalog lineage and immutable primary identity before publishing a
@@ -141,6 +152,16 @@ and any final full-doctor obligation. Old receipts remain historical incomplete
 evidence, never rewritten to claim success. This route adds no automatic evidence
 rebinding, provider retry, scheduler or model reviewer.
 
+For schema 2 delivery, PostgreSQL retains the exact request hash, ordered
+candidate intents, evidence and rendered-body bindings, verified GitHub
+identities, scoped-doctor proofs and the current batch checkpoint. The existing
+executor commits the checkpoint before projecting it to the bot comment, and
+verifies that comment before a GitHub issue or observation POST. A failed
+publication stops further checkpoint advancement. A subsequent pass may
+republish the saved bytes on a known predecessor comment. Missing or
+contradictory receipt identities require explicit reconciliation. PostgreSQL
+and GitHub retain separate write boundaries.
+
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
 owner dispatch in `process` mode resumes the same queue. The executor records `preflight` before candidate creation checks, then
@@ -153,7 +174,13 @@ ambiguous POST without a confirmed marker remains held; it is never recaptured.
 Confirmed issues recover through `normalize-port`, preserving owner changes by
 refusing mismatched bodies. Exactly one active item, the complete issue body,
 neutral planning fields and applicable scoped doctors must verify for new intake before the
-receipt says `complete`. A logical batch over ten retains its final full doctor.
+receipt says `complete`. After all candidates in a batch over ten have passing
+scoped proofs, Actions records delivery with the full audit pending. A subsequent
+pass runs only the full doctor for that checkpoint. An upstream release published
+in the meantime can be recorded as a separate dated observation. The full audit
+still verifies complete live coverage. Missing catalog links produce an
+`audit-repairs` diagnostic naming matching canonical owners when identifiable.
+The batch becomes complete after a passing full-doctor readback.
 Existing-owner observations retain their original planning rather than applying
 neutral defaults. All candidates, including existing owners, remain in the same
 ordered receipt and its logical-batch full-doctor obligation. Scoped receipts retain `global_health: not_evaluated`.
@@ -175,9 +202,10 @@ stop after three consecutive identical progress observations; continuing deliver
 can use later windows rather than requiring an operator after the third pass.
 Queue collection revision drift gets at most three read-only passes. Missing/inconsistent reports, killed
 workers, provider/auth/identity/owner conflicts, ambiguous writes and failed
-receipt readbacks stop automatic recovery. Independent requests may still finish;
-any held request keeps the overall job incomplete. The job has a finite 100-minute
-outer timeout; no new workflow, timer, credential scope or API retry is introduced.
+receipt readbacks stop automatic recovery. Independent requests retain their own
+outcomes. A comment-triggered run reports its triggering request's outcome.
+An explicit queue dispatch reports the aggregate. The job has a finite
+100-minute outer timeout.
 After the bound, report the exact remaining blocker and resume the same receipt
 through the ordinary process entry point. No bounded mechanism guarantees
 eventual completion during continual upstream/owner changes or unavailable APIs.
@@ -231,10 +259,10 @@ node scripts/hosted-discovery-intake.mts status --all --json
 
 It reports `submitted`, `partial`, `blocked`, `complete` or `complete_with_holds`,
 new `delivered` versus verified `existing` counts, held and pending candidates,
-the last diagnostic and whether the full doctor is required. Each ordered
+the last diagnostic and whether the full doctor is required or pending. Each ordered
 candidate slot reports its port key, repository ID, upstream, delivery status,
-linked issue (the created issue or verified existing owner) and any hold's HTTP
-status and resume condition. It refuses a forged/stale proposal binding or a
+linked issue (the created issue or verified existing owner) and any hold's resume
+condition. A repository hold includes HTTP 404. An identity hold has no HTTP status. It refuses a forged/stale proposal binding or a
 complete claim without the candidate-bound scoped doctors and applicable full
 doctor. `--all` covers every owner-authored #177 request in one complete comment
 read bracketed by #177's unchanged revision. A request is a comment that starts

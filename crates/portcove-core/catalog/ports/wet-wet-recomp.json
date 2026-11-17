@@ -5,6 +5,14 @@
     "name": "WET (WET Recomp)",
     "summary": "Attach an independently permitted, already prepared WET Windows player through wet.exe and its actual imported game directory. Preserve the existing SDK-selected data roots; exact original revision and default persistence placement remain unverified.",
     "original_game_title": "WET",
+    "artwork": {
+      "game_id": 3057,
+      "cover_id": 324769,
+      "image_id": "co6yld",
+      "image_sha256": "a404fdd26bd5c0d04bcc574434cd1fadfaea442cd6b455b163355a777c106cf1",
+      "game_slug": "wet",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/Supermedo/wet-recomp",
     "platforms": [],
     "availability": "unknown",

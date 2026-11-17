@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "wii-play-tanks-rebirth",
+    "artwork": {
+      "game_id": 357342,
+      "cover_id": 475001,
+      "image_id": "coa6ih",
+      "image_sha256": "dfada541d3c86d963393bb91d4ab568b91d83d2e6dbd33cd2737af5c2cd74a89",
+      "game_slug": "tanks-rebirth",
+      "match_kind": "port"
+    },
     "project_url": "https://github.com/RighteousRyan1/TanksRebirth",
     "name": "Tanks Rebirth",
     "summary": "A standalone recreation of Wii Play’s Tanks mode with upstream packages for Windows, Linux and Intel Mac.",

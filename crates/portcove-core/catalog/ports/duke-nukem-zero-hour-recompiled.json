@@ -48,6 +48,17 @@
       ]
     }
   },
+  "managed_setup_platform_warnings": {
+    "linux-x86-64": [
+      "Native Play and populated saves are still unverified for the managed Linux x64 package."
+    ],
+    "macos-x86-64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+    ],
+    "macos-aarch64": [
+      "Native Play, first-launch Gatekeeper behavior and populated saves are still unverified for the managed Mac package."
+    ]
+  },
   "integration": {
     "support_tier": "beta",
     "channels": ["stable"],
@@ -102,7 +113,17 @@
           "verification": "catalog-identity"
         }
       ],
-      "saves_and_settings": "portcove-managed"
+      "saves_and_settings": "portcove-managed",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Add your original in Portcove",
+            "instruction": "Choose your own Duke Nukem: Zero Hour USA cartridge dump. Portcove checks the original and places it in the managed game folder. Select Play when setup is complete."
+          }
+        ],
+        "warnings": [],
+        "help_url": "https://github.com/sonicdcer/DNZHRecomp#readme"
+      }
     }
   }
 }

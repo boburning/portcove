@@ -1,0 +1,63 @@
+{
+  "format_version": 1,
+  "listing": {
+    "id": "freecol",
+    "name": "FreeCol",
+    "original_game_title": "FreeCol",
+    "summary": "Explore, trade, and guide a colony to independence in this open-source turn-based strategy game.",
+    "project_url": "https://github.com/FreeCol/freecol",
+    "artwork": {
+      "game_id": 92716,
+      "cover_id": 78391,
+      "image_id": "co1ohj",
+      "image_sha256": "8ccd904815592b835f0cf0ec0f4fd26465d558256b7f332a4bcd1db18da806a1",
+      "game_slug": "freecol",
+      "match_kind": "port"
+    },
+    "issue_number": 6520,
+    "listed_at": "2026-11-16",
+    "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
+    "availability": "packages",
+    "release_url": "https://www.freecol.org/download.html",
+    "setup_url": "https://www.freecol.org/documentation/",
+    "download_block_reason": "Install and update FreeCol through the publisher or your package manager.",
+    "manual_setup": {
+      "steps": [
+        {
+          "title": "Choose your package",
+          "instruction": "The Windows x64 installer includes Java. On Mac, choose the Intel or Apple Silicon disk image with bundled Java. The Mac apps are unsigned. If macOS blocks one, use the portable ZIP with your installed Java. On Linux, use your distribution's package or the community FreeCol Flatpak for x86-64 or ARM64."
+        },
+        {
+          "title": "Run the portable Java download",
+          "instruction": "The publisher also offers a portable ZIP that uses your desktop Java runtime. Use Java 11 or later. The publisher recommends Java 21. Extract the whole ZIP, open a terminal in the extracted freecol folder and run java -Xmx2G -jar FreeCol.jar."
+        },
+        {
+          "title": "Start and save a game",
+          "instruction": "Choose New, then Single player game. Use Game and Save to keep your progress. Choose Continue Playing to resume the latest game, or Open to choose a saved game."
+        }
+      ],
+      "warnings": [
+        "Close FreeCol before copying your data. Keep your saves, autosaves, maps, mods, and configuration. If you specified a custom user data or config directory, copy that directory too. Keep autosave enabled when using the publisher's Mac packages."
+      ],
+      "references": [
+        {
+          "title": "Find your Windows or Mac data",
+          "instruction": "On Windows, look for the freecol folder in your default Documents folder. On Mac, saves and mods are under ~/Library/Application Support/freecol, and settings are under ~/Library/Preferences/freecol."
+        },
+        {
+          "title": "Find your Linux data",
+          "instruction": "Standalone FreeCol uses $XDG_DATA_HOME/freecol for saves and mods and $XDG_CONFIG_HOME/freecol for settings. The defaults are ~/.local/share/freecol and ~/.config/freecol. Flatpak keeps its data and config folders in ~/.var/app/org.freecol.FreeCol."
+        }
+      ],
+      "help_url": "https://www.freecol.org/download.html"
+    }
+  },
+  "upstream_lineage": {
+    "format_version": 1,
+    "target_key": "freecol",
+    "origin": {
+      "project_url": "https://github.com/FreeCol/freecol"
+    },
+    "decisions": []
+  }
+}

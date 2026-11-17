@@ -250,6 +250,14 @@
       ]
     },
     {
+      "file": "scripts/catalog-publish.test.mts",
+      "memberships": [
+        ["catalog-full-2", 3502],
+        ["release-check", 4302]
+      ],
+      "ordinary_families": ["release-contract-tests"]
+    },
+    {
       "file": "scripts/app-release.test.mts",
       "memberships": [
         ["catalog-full-2", 3501],
@@ -466,6 +474,13 @@
       ]
     },
     {
+      "file": "scripts/promote-listing.test.mts",
+      "memberships": [
+        ["catalog-full-2", 8918],
+        ["repository-tools-2", 3918]
+      ]
+    },
+    {
       "file": "scripts/listing-funding.test.mts",
       "memberships": [
         ["catalog-full-2", 8917],
@@ -507,6 +522,14 @@
       "memberships": [
         ["catalog-full", 1201],
         ["repository-tools", 402]
+      ],
+      "ordinary_families": ["upstream-health-contract-tests"]
+    },
+    {
+      "file": "scripts/scheduled-package-drift.test.mts",
+      "memberships": [
+        ["catalog-full", 1204],
+        ["repository-tools", 417]
       ],
       "ordinary_families": ["upstream-health-contract-tests"]
     },
@@ -747,6 +770,13 @@
       "memberships": [
         ["catalog-full-2", 7900],
         ["repository-tools-2", 3700]
+      ]
+    },
+    {
+      "file": "scripts/cleanup-retired-deployments.test.mts",
+      "memberships": [
+        ["catalog-full-2", 7901],
+        ["repository-tools-2", 3701]
       ]
     },
     {

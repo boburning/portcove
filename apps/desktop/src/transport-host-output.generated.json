@@ -4689,6 +4689,786 @@
     "title": "GameFileScanMatchPage",
     "type": "object"
   },
+  "game_file_scan_registered_matches": {
+    "$defs": {
+      "DigestScope": {
+        "enum": [
+          "original-file",
+          "original-container",
+          "normalized-content",
+          "canonical-n64-big-endian",
+          "snes-headerless-content",
+          "archive-member",
+          "gamecube-normalized-iso",
+          "psx-normalized-track-set",
+          "file-set-member",
+          "disc-set-member"
+        ],
+        "type": "string"
+      },
+      "ObservedSourceComponent": {
+        "properties": {
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceComponentKind"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "track_count": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "volume_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "digests",
+          "size",
+          "track_count",
+          "volume_id"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceDigest": {
+        "properties": {
+          "algorithm": {
+            "$ref": "#/$defs/SourceDigestAlgorithm"
+          },
+          "scope": {
+            "$ref": "#/$defs/DigestScope"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "algorithm",
+          "scope",
+          "value",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceIdentity": {
+        "description": "Durable, catalog-independent facts observed when a source registration is written.\nClassification and admission are intentionally recomputed from the active catalog.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "components": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "schema_version": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "schema_version",
+          "digests"
+        ],
+        "type": "object"
+      },
+      "ObservedSourceValidator": {
+        "properties": {
+          "contract_id": {
+            "type": "string"
+          },
+          "protocol_version": {
+            "type": "string"
+          },
+          "result": {
+            "$ref": "#/$defs/SourceValidatorResult"
+          },
+          "tool_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "contract_id",
+          "tool_id",
+          "protocol_version",
+          "result"
+        ],
+        "type": "object"
+      },
+      "Platform": {
+        "enum": [
+          "windows-x86-64",
+          "linux-x86-64",
+          "macos-x86-64",
+          "macos-aarch64"
+        ],
+        "type": "string"
+      },
+      "SourceAdmission": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "mode": {
+                "$ref": "#/$defs/SourceAdmissionMode"
+              },
+              "state": {
+                "const": "admitted",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "mode"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "reason": {
+                "$ref": "#/$defs/SourceRejectionReason"
+              },
+              "state": {
+                "const": "rejected",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "reason"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceAdmissionMode": {
+        "enum": [
+          "exact_identity",
+          "structural_checks",
+          "informational_consent",
+          "upstream_validator"
+        ],
+        "type": "string"
+      },
+      "SourceAssessment": {
+        "properties": {
+          "admission": {
+            "$ref": "#/$defs/SourceAdmission"
+          },
+          "classification": {
+            "$ref": "#/$defs/SourceClassification"
+          },
+          "contract": {
+            "$ref": "#/$defs/SourceContractResult"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/$defs/SourceEvidence"
+            },
+            "type": "array"
+          },
+          "health": {
+            "$ref": "#/$defs/SourceHealth"
+          }
+        },
+        "required": [
+          "health",
+          "classification",
+          "contract",
+          "admission",
+          "evidence"
+        ],
+        "type": "object"
+      },
+      "SourceClassification": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unrecognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "recognized",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "candidates": {
+                "items": {
+                  "$ref": "#/$defs/SourceIdentity"
+                },
+                "type": "array"
+              },
+              "state": {
+                "const": "ambiguous",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "candidates"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceComponentKind": {
+        "enum": [
+          "file_set_member",
+          "optical_disc"
+        ],
+        "type": "string"
+      },
+      "SourceContractResult": {
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "not_evaluated",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "state": {
+                "const": "unreviewed_for_release",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "supported",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "recognized_not_listed",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "known_incompatible",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "contract_id": {
+                "type": "string"
+              },
+              "state": {
+                "const": "informational",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "contract_id"
+            ],
+            "type": "object"
+          }
+        ]
+      },
+      "SourceDigestAlgorithm": {
+        "enum": [
+          "sha1",
+          "sha256",
+          "crc32"
+        ],
+        "type": "string"
+      },
+      "SourceEvidence": {
+        "properties": {
+          "evidence_ids": {
+            "description": "Reviewed catalog evidence IDs. A renderer must not treat these as URLs.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceEvidenceKind"
+          },
+          "method": {
+            "type": "string"
+          },
+          "observed_at": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "outcome": {
+            "$ref": "#/$defs/SourceEvidenceOutcome"
+          },
+          "portcove_commit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "portcove_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "scope": {
+            "$ref": "#/$defs/SourceEvidenceScope"
+          }
+        },
+        "required": [
+          "scope",
+          "kind",
+          "outcome",
+          "observed_at",
+          "portcove_version",
+          "portcove_commit",
+          "method",
+          "evidence_ids"
+        ],
+        "type": "object"
+      },
+      "SourceEvidenceKind": {
+        "enum": [
+          "structural_check",
+          "automated_lifecycle",
+          "hands_on",
+          "known_failure"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceOutcome": {
+        "enum": [
+          "passed",
+          "failed",
+          "not_run",
+          "unknown"
+        ],
+        "type": "string"
+      },
+      "SourceEvidenceScope": {
+        "properties": {
+          "artifact_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "check_version": {
+            "description": "Version of the tested adapter/tool/check contract, not today's app build.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contract_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "platform": {
+            "$ref": "#/$defs/Platform"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "upstream_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "variant": {
+            "$ref": "#/$defs/SourceVariantScope",
+            "default": {
+              "state": "unspecified"
+            }
+          }
+        },
+        "required": [
+          "port_id",
+          "platform",
+          "artifact_sha256",
+          "upstream_ref",
+          "contract_id",
+          "variant",
+          "check_version"
+        ],
+        "type": "object"
+      },
+      "SourceHealth": {
+        "description": "Current relationship between a registered source path and its saved storage identity.\n`Current` means the bytes are unchanged since registration; it does not strengthen the\ncatalog profile's game-revision evidence.\n`NotBaselined` means readable selected bytes have no saved identity baseline.",
+        "enum": [
+          "unregistered",
+          "current",
+          "missing",
+          "unreadable",
+          "changed",
+          "not_checked",
+          "not_baselined"
+        ],
+        "type": "string"
+      },
+      "SourceIdentity": {
+        "description": "Stable catalog identifiers, never display names or inferred hash-array pairs.",
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "representation_id": {
+            "type": "string"
+          },
+          "variant_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "variant_id",
+          "representation_id"
+        ],
+        "type": "object"
+      },
+      "SourceInspection": {
+        "description": "Facts returned by read-only inspection. A record is present only when the\nadmission state permits existing callers to register or use the source.",
+        "properties": {
+          "archive_member_name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assessment": {
+            "$ref": "#/$defs/SourceAssessment"
+          },
+          "components": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/ObservedSourceComponent"
+            },
+            "type": "array"
+          },
+          "integrity_advisories": {
+            "description": "Integrity checks that did not pass but did not decide admission, such as an STFS\nhash-tree mismatch on a package already proven by its exact whole-file digest.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "message": {
+            "type": "string"
+          },
+          "observed_digests": {
+            "items": {
+              "$ref": "#/$defs/ObservedSourceDigest"
+            },
+            "type": "array"
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "record": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/SourceRecord"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "validator": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceValidator"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "observed_digests",
+          "components",
+          "assessment",
+          "record",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SourceRecord": {
+        "properties": {
+          "observed_identity": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ObservedSourceIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Versioned facts observed when this registration was created. Legacy rows and\nmetadata omit this field rather than guessing a schema-2 variant."
+          },
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "updated_at": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "profile_id",
+          "path",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size",
+          "updated_at"
+        ],
+        "type": "object"
+      },
+      "SourceRejectionReason": {
+        "enum": [
+          "missing",
+          "unreadable",
+          "changed",
+          "known_mismatch",
+          "ambiguous_identity",
+          "missing_tool",
+          "check_failed",
+          "consent_required"
+        ],
+        "type": "string"
+      },
+      "SourceValidatorResult": {
+        "enum": [
+          "not_run",
+          "passed",
+          "failed",
+          "missing_tool"
+        ],
+        "type": "string"
+      },
+      "SourceVariantScope": {
+        "description": "Missing legacy scope is explicit, not a wildcard for a newly selected variant.",
+        "oneOf": [
+          {
+            "properties": {
+              "state": {
+                "const": "unspecified",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state"
+            ],
+            "type": "object"
+          },
+          {
+            "properties": {
+              "identity": {
+                "$ref": "#/$defs/SourceIdentity"
+              },
+              "state": {
+                "const": "exact",
+                "type": "string"
+              }
+            },
+            "required": [
+              "state",
+              "identity"
+            ],
+            "type": "object"
+          }
+        ]
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Retained matches for the current registration of each source profile.",
+    "properties": {
+      "candidates": {
+        "items": {
+          "$ref": "#/$defs/SourceRecord"
+        },
+        "type": "array"
+      },
+      "preliminary_selections": {
+        "items": {
+          "$ref": "#/$defs/SourceInspection"
+        },
+        "type": "array"
+      }
+    },
+    "required": [
+      "candidates",
+      "preliminary_selections"
+    ],
+    "title": "GameFileScanRegisteredMatches",
+    "type": "object"
+  },
   "game_file_scan_snapshot": {
     "$defs": {
       "DigestScope": {
@@ -5331,6 +6111,13 @@
       },
       "SourceDiscoveryIssue": {
         "properties": {
+          "direct_check_profiles": {
+            "description": "Profiles whose bounded direct inspection can check this skipped file.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "message": {
             "type": "string"
           },
@@ -15545,7 +16332,7 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "What one standing-setup pass did for each game it considered.",
+    "description": "What one standing pass did for the games and mods it considered.",
     "properties": {
       "already_running": {
         "description": "Another process is already running a pass; this one did nothing.",
@@ -15570,6 +16357,13 @@
           "$ref": "#/$defs/StandingSetupFailure"
         },
         "type": "array"
+      },
+      "game_setup_unavailable": {
+        "description": "The game setup queue could not be read. Mod updates still ran.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "mod_updates": {
         "description": "Provider updates for mod setups whose policy allows unattended updates.",
@@ -16840,9 +17634,27 @@
       "StoreGameInstall": {
         "description": "One game folder a store installed, as the store's own metadata records it.",
         "properties": {
+          "original_folder": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/StoreOriginalFolder"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Reviewed search hint. The source profile still verifies the actual files."
+          },
           "path": {
             "description": "Canonical existing folder.",
             "type": "string"
+          },
+          "product_id": {
+            "description": "Stable store product identity when the installation metadata supplies one.",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "saved_root_id": {
             "description": "The saved game-file folder at exactly this path, when there is one.",
@@ -16864,6 +17676,21 @@
           "title",
           "path",
           "saved_root_id"
+        ],
+        "type": "object"
+      },
+      "StoreOriginalFolder": {
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "profile_id",
+          "path"
         ],
         "type": "object"
       }
@@ -19237,6 +20064,7 @@
           "recomp-direct-v1",
           "doom3-linux-v1",
           "openjk-unix-v1",
+          "endless-sky-desktop-v1",
           "openomf-linux-v1",
           "vcmi-windows-v1"
         ],
@@ -22115,6 +22943,17 @@
               }
             ]
           },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -23030,6 +23869,10 @@
         "additionalProperties": false,
         "description": "The parts of an extracted package whose change signals changed runtime\nbehavior: its top-level directories and every program or script (`.exe`,\n`.appimage`, `.bat`, `.cmd`, `.ps1`, `.sh`, `.msi`, `.jar`, `.vbs`, `.lnk`, or\nan executable mode bit on non-Windows packages). A single wrapper directory\n(for example a versioned folder name) is looked through. Names and paths are\ncompared case-insensitively. Plain data files, documentation and libraries\n(including DLLs) are not fingerprinted and may change between releases.",
         "properties": {
+          "classify_linux_programs_by_format": {
+            "description": "Classify Linux executable-mode files by content: only files starting\nwith an ELF or `#!` header count, and verified ELF shared libraries do not.",
+            "type": "boolean"
+          },
           "directories": {
             "description": "Lowercase top-level directory names of the package root, sorted.",
             "items": {

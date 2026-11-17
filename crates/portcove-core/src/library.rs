@@ -1013,6 +1013,19 @@ impl Library {
         })
     }
 
+    pub(crate) fn try_lock_psx_toolchain_acquisition(&self) -> Result<PortOperationGuard> {
+        crate::path::refuse_symlink_ancestors(
+            &self.locks_dir().join("psx-toolchain-acquire.lock"),
+        )?;
+        Ok(PortOperationGuard {
+            file: self.acquire_lock(
+                "psx-toolchain-acquire",
+                "PS1 toolchain",
+                "acquire-toolchain",
+            )?,
+        })
+    }
+
     pub(crate) fn try_lock_port_for_launch_recovery(
         &self,
         port_id: &str,
@@ -2109,7 +2122,11 @@ impl Library {
     }
 
     pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
-        Self::write_source(&self.connection()?, source)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        Self::write_source(&transaction, source)?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
@@ -2140,7 +2157,7 @@ impl Library {
                 observed_identity_json
             ],
         )?;
-        Ok(())
+        crate::source_instances::record(connection, source)
     }
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
@@ -2195,10 +2212,15 @@ impl Library {
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(source) = Self::source_from(&transaction, profile_id)? else {
+            return Ok(false);
+        };
+        crate::source_instances::forget(&transaction, &source)?;
+        transaction.execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?;
+        transaction.commit()?;
+        Ok(true)
     }
 
     pub fn ensure_settings(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<()> {
@@ -2442,6 +2464,9 @@ impl Library {
         activate: bool,
         expected_external_row_sha256: Option<&str>,
     ) -> Result<()> {
+        if activate {
+            crate::profile_file_preservation::require_idle(self, &install.port_id)?;
+        }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if let Some(expected) = expected_external_row_sha256 {
@@ -2496,6 +2521,7 @@ impl Library {
             params![install.port_id, install.channel.to_string()],
         )?;
         if activate {
+            crate::profile::follow_active_install(&transaction, install)?;
             transaction.execute(
                 "UPDATE port_settings SET
                    previous_install_id = CASE WHEN active_install_id = ?2 THEN previous_install_id ELSE active_install_id END,
@@ -2561,6 +2587,7 @@ impl Library {
         install: &InstallRecord,
         original_id: &str,
     ) -> Result<()> {
+        crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let current: Option<String> = transaction.query_row(
@@ -2577,6 +2604,7 @@ impl Library {
             ));
         }
         Self::write_install(&transaction, install, false)?;
+        crate::profile::follow_active_install(&transaction, install)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id=CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3413,6 +3441,7 @@ impl Library {
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let (active_id, previous_id): (Option<String>, Option<String>) = transaction
@@ -3426,16 +3455,19 @@ impl Library {
         let previous_id = previous_id.ok_or_else(|| {
             PortcoveError::not_found(format!("{port_id} has no rollback version"))
         })?;
+        let previous = Self::install_by_id(&transaction, Some(&previous_id))?
+            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))?;
+        crate::profile::follow_active_install(&transaction, &previous)?;
         transaction.execute(
             "UPDATE port_settings SET active_install_id=?2, previous_install_id=?3 WHERE port_id=?1",
             params![port_id, previous_id, active_id],
         )?;
         transaction.commit()?;
-        Self::install_by_id(&connection, Some(&previous_id))?
-            .ok_or_else(|| PortcoveError::state("rollback target disappeared"))
+        Ok(previous)
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let staged_id: String = transaction
@@ -3446,6 +3478,9 @@ impl Library {
             )
             .optional()?
             .ok_or_else(|| PortcoveError::not_found(format!("{port_id} has no staged version")))?;
+        let staged = Self::install_by_id(&transaction, Some(&staged_id))?
+            .ok_or_else(|| PortcoveError::state("staged version disappeared during activation"))?;
+        crate::profile::follow_active_install(&transaction, &staged)?;
         transaction.execute(
             "UPDATE port_settings SET
                previous_install_id = CASE WHEN active_install_id=?2 THEN previous_install_id ELSE active_install_id END,
@@ -3460,6 +3495,7 @@ impl Library {
     }
 
     pub fn remove_port(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         crate::retained_build::require_no_references(&transaction, port_id)?;

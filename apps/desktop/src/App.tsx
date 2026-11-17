@@ -1,3 +1,4 @@
+import { LatestRequestGeneration } from "./shared/concurrency-state";
 import { readyToPlayAfter } from "./features/operations/ready-to-play";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { ArrowLeft, Heart } from "lucide-react";
@@ -21,6 +22,7 @@ import {
   useCallback,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -37,6 +39,7 @@ import { useSourceIntakeState } from "./features/source-intake/use-source-intake
 import { usePortBackups } from "./features/backups/use-port-backups";
 import { useUpdateCenter } from "./features/port-updates/use-update-center";
 import { useOperationState } from "./features/operations/use-operation-state";
+import { useOfficialCatalogAutoRefresh } from "./features/catalog-updates/use-official-catalog-auto-refresh";
 import { targetInvocationContext } from "./features/operations/invocation-state";
 import {
   useAdoptionPlanning,
@@ -100,7 +103,7 @@ import {
   type GameFileFilterState,
 } from "./features/browsing/use-game-file-filter-context";
 import { ArtworkProvider } from "./artwork";
-import { SourceIntakeDialog } from "./components/SourceIntake";
+import { SourceIntakeDialog, type SourceIntakeRequest } from "./components/SourceIntake";
 import { OfficialDefinitionUpdates } from "./components/OfficialDefinitionUpdates";
 import { UpdateCenter } from "./components/UpdateCenter";
 import { FailureDetails } from "./components/FailureDetails";
@@ -266,7 +269,6 @@ export function BootstrapRecovery({
   return (
     <main className="bootstrap-state bootstrap-error startup-recovery">
       <header className="startup-recovery-heading">
-        <p className="eyebrow">Startup recovery</p>
         <h1>Portcove couldn’t start</h1>
         <p className="text-pc-muted-foreground" role="alert">
           {errorText(error)}
@@ -300,7 +302,7 @@ export function BootstrapRecovery({
           )}
         </section>
       )}
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+      <p className="text-pc-muted-foreground">
         {recoveryRoot || importRoot
           ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
           : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
@@ -338,11 +340,7 @@ export function BootstrapRecovery({
           Use platform default
         </Button>
       </ActionRow>
-      {actionError && (
-        <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-          {actionError}
-        </p>
-      )}
+      {actionError && <p role="alert">{actionError}</p>}
       <section
         aria-label="Support report"
         className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
@@ -454,11 +452,19 @@ function useWorkspace(props: WorkspaceProps) {
     saveBrowsingPreferences,
   } = useWorkspaceLibrary(props);
   const applicationUpdate = useApplicationUpdate();
+  const setupOriginalRequests = useRef(new LatestRequestGeneration());
   const {
     request: sourceIntake,
-    open: openSourceIntake,
+    open: openIntake,
     close: closeSourceIntake,
   } = useSourceIntakeState(data.catalog, bootstrap.generation);
+  const openSourceIntake = useCallback(
+    (...args: Parameters<typeof openIntake>) => {
+      setupOriginalRequests.current.begin();
+      openIntake(...args);
+    },
+    [openIntake],
+  );
   const nativeSourceDrag = useNativeSourceDrop((drop) =>
     openSourceIntake(drop.portId, drop.profileId, drop.paths),
   );
@@ -507,8 +513,15 @@ function useWorkspace(props: WorkspaceProps) {
       : undefined,
     model.source,
     ui.sourcePath,
+    model.bios,
+    ui.biosPath,
   );
   const setupReviews = useSetupReviewSelection();
+  const setupInputs = {
+    generation: bootstrap.generation,
+    game: model.source,
+    bios: model.bios,
+  };
   usePendingSetupReview(
     setupReviews,
     ui.selectedId,
@@ -518,6 +531,7 @@ function useWorkspace(props: WorkspaceProps) {
     installPlanning.reviewSource,
     ui.sourcePath,
     ui.setSourcePath,
+    setupInputs,
   );
   const backupRefreshIdentity = useMemo(
     () => [data.catalog, model.status, data.activityFeed],
@@ -691,7 +705,7 @@ function useWorkspace(props: WorkspaceProps) {
     (addGamesOpen && ui.view === "library" ? (
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
           Back to Library
         </Button>
         <h1 tabIndex={-1}>Add games</h1>
@@ -817,6 +831,7 @@ function useWorkspace(props: WorkspaceProps) {
                 </summary>
                 <div className="mt-4">
                   <SelfServiceSetup
+                    devicePlatform={model.queryContext.devicePlatform}
                     libraryRoot={bootstrap.library_root ?? undefined}
                     key={`${model.entry.id}:${bootstrap.generation}`}
                     entry={model.entry}
@@ -851,6 +866,7 @@ function useWorkspace(props: WorkspaceProps) {
           }}
           checkAgain={data.refresh}
           openSourceIntake={openSourceIntake}
+          setupOriginalRequests={setupOriginalRequests}
           openHostTool={openHostTool}
           openLibraryStorage={() => {
             ui.setSettingsCategory("library-storage");
@@ -896,12 +912,72 @@ function useWorkspace(props: WorkspaceProps) {
         setSetupSource={setSetupSource}
       />
     );
+  const continueSourceSetup = (request: SourceIntakeRequest, registered: SourceRecord) => {
+    const { setup, portId, generation, purpose, profile } = request;
+    const status = model.status;
+    if (
+      !setup ||
+      ui.selectedId !== portId ||
+      model.port?.id !== portId ||
+      generation !== bootstrap.generation ||
+      status?.channel !== setup.channel ||
+      status.active ||
+      status.external_runtime ||
+      data.refreshFailure
+    )
+      return "This setup has changed. Close this check and review setup on the game page.";
+
+    const current = purpose === "bios" ? model.bios : model.source;
+    const other = purpose === "bios" ? model.source : model.bios;
+    if (
+      registered.profile_id !== profile.id ||
+      JSON.stringify(registered) !== JSON.stringify(current) ||
+      JSON.stringify(setup.other) !== JSON.stringify(other)
+    )
+      return "The saved files have changed. Close this check and check the current files before continuing.";
+
+    const install = status.port_actions?.find((action) => action.action === "install");
+    const next =
+      install?.availability === "waiting"
+        ? install.reason === "missing_bios" && purpose === "game"
+          ? model.biosProfile
+          : install.reason === "missing_source" && purpose === "bios"
+            ? model.sourceProfile
+            : undefined
+        : undefined;
+    if (next) {
+      const draft = purpose === "bios" ? ui.sourcePath : ui.biosPath;
+      if (purpose === "bios") ui.setBiosPath("");
+      else ui.setSourcePath("");
+      openSourceIntake(portId, next.id, draft.trim() ? [draft] : [], {
+        channel: setup.channel,
+        other: registered,
+      });
+      return;
+    }
+    if (
+      install?.availability !== "allowed" ||
+      (purpose === "game" && ui.biosPath && ui.biosPath !== model.bios?.path) ||
+      (purpose === "bios" && ui.sourcePath && ui.sourcePath !== model.source?.path)
+    )
+      return "Review the remaining setup requirements on the game page.";
+
+    ui.setSourcePath("");
+    ui.setBiosPath("");
+    closeSourceIntake();
+    setupReviews.requestReview(portId, setup.channel, undefined, setupInputs);
+  };
   const renderSourceIntake = () =>
     sourceIntake && (
       <SourceIntakeDialog
         request={sourceIntake}
         close={closeSourceIntake}
         onAdded={data.refreshAfterMutation}
+        onContinueSetup={
+          sourceIntake.setup
+            ? (registered) => continueSourceSetup(sourceIntake, registered)
+            : undefined
+        }
         returnFocus={() => workspaceSourceIntakeReturnFocus(sourceIntake.portId)}
         openEvidence={(evidenceId) => {
           void operations.perform(
@@ -1634,6 +1710,7 @@ function CurrentSettingsView({
           {
             refresh: "none",
             invalidateDiagnostics: false,
+            propagateFailure: true,
             cancelledResult: (result) => result === undefined,
           },
         )
@@ -1736,6 +1813,25 @@ function renderSelectedPortFavoriteControl({
   );
 }
 
+async function savedSetupOriginals(profileId: string, generation: number) {
+  const snapshot = await desktopApi.gameFileScanSnapshot(generation);
+  if (!snapshot || snapshot.freshness !== "inputs_match") return undefined;
+  const limit = 32;
+  const scanId = snapshot.matches?.scan_id;
+  if (!scanId) {
+    const paths = snapshot.report.candidates
+      .filter((candidate) => candidate.profile_id === profileId)
+      .map((candidate) => candidate.path);
+    return { paths: paths.slice(0, limit), limited: paths.length > limit };
+  }
+  const matches = await desktopApi.gameFileScanMatches(
+    { scan_id: scanId, kind: "exact", offset: 0, limit, profile_id: profileId },
+    generation,
+  );
+  const paths = matches.candidates.map((candidate) => candidate.path);
+  return { paths, limited: matches.next_offset !== null };
+}
+
 function SelectedPortPanel({
   implementationControl,
   managementSupplement,
@@ -1757,6 +1853,7 @@ function SelectedPortPanel({
   refreshAfterMutation,
   checkAgain,
   openSourceIntake,
+  setupOriginalRequests,
   openHostTool,
   openLibraryStorage,
   close,
@@ -1780,11 +1877,34 @@ function SelectedPortPanel({
   libraryGeneration: number;
   refreshAfterMutation: () => void;
   checkAgain: () => Promise<unknown>;
-  openSourceIntake: (portId: string, profileId: string, paths?: string[]) => void;
+  openSourceIntake: ReturnType<typeof useSourceIntakeState>["open"];
+  setupOriginalRequests: { current: LatestRequestGeneration };
   openHostTool: (toolId: string) => void;
   openLibraryStorage: () => void;
   close: () => void;
 }) {
+  const selectedRoute = model.port?.id;
+  const selectedChannel = model.status?.channel;
+  const installAction = model.status?.port_actions?.find((action) => action.action === "install");
+  useLayoutEffect(() => {
+    const requests = setupOriginalRequests.current;
+    return () => {
+      requests.begin();
+    };
+  }, [
+    libraryGeneration,
+    selectedRoute,
+    selectedChannel,
+    model.sourceProfile?.id,
+    model.biosProfile?.id,
+    installAction?.availability,
+    installAction?.reason,
+    model.status?.active?.id,
+    model.status?.external_runtime?.id,
+    setupOriginalRequests,
+    ui.sourcePath,
+    ui.biosPath,
+  ]);
   if (!model.port) return null;
   const favoritePortId = model.port.id;
   const setSourcePath = (path: string) => {
@@ -1793,6 +1913,7 @@ function SelectedPortPanel({
   };
   const pickSource = model.sourceProfile
     ? () => {
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.sourceProfile!, ui.sourcePath),
           setSourcePath,
@@ -1800,9 +1921,63 @@ function SelectedPortPanel({
         );
       }
     : undefined;
+  const port = model.port;
+  const status = model.status;
+  const managedSetup =
+    status &&
+    !status.active &&
+    !status.external_runtime &&
+    (installAction?.availability === "allowed" || installAction?.availability === "waiting");
+  const inspectSource = (
+    profile: NonNullable<typeof model.sourceProfile>,
+    suggestions?: Pick<
+      NonNullable<Parameters<typeof openSourceIntake>[3]>,
+      "storeOriginals" | "savedOriginals"
+    >,
+  ) => {
+    const isBios = profile.id === port.bios_source_profile;
+    const path = isBios ? ui.biosPath : ui.sourcePath;
+    openSourceIntake(
+      port.id,
+      profile.id,
+      path.trim() ? [path] : [],
+      managedSetup
+        ? { channel: status.channel, other: isBios ? model.source : model.bios, ...suggestions }
+        : undefined,
+    );
+  };
+  const originalProfile = model.sourceProfile;
+  const chooseSetupSource =
+    managedSetup && originalProfile && !ui.sourcePath.trim()
+      ? async () => {
+          const requests = setupOriginalRequests.current;
+          const request = requests.begin();
+          const savedOriginals = await savedSetupOriginals(
+            originalProfile.id,
+            libraryGeneration,
+          ).catch(() => undefined);
+          if (!requests.isCurrent(request)) return;
+          if (savedOriginals?.paths.length) {
+            inspectSource(originalProfile, { savedOriginals });
+            return;
+          }
+          if (originalProfile.kind !== "file-set" && originalProfile.kind !== "relative-file-set") {
+            await pickSource?.();
+            return;
+          }
+          const report = await desktopApi.storeGameInstalls(libraryGeneration).catch(() => null);
+          if (!requests.isCurrent(request)) return;
+          const matches = report?.installs.filter(
+            (install) => install.original_folder?.profile_id === originalProfile.id,
+          );
+          if (matches?.length) inspectSource(originalProfile, { storeOriginals: matches });
+          else await pickSource?.();
+        }
+      : undefined;
   const pickArchive =
     model.sourceProfile?.kind === "file-set" || model.sourceProfile?.kind === "relative-file-set"
       ? () => {
+          setupOriginalRequests.current.begin();
           void applyPathChoice(
             pickSourceArchivePath(ui.sourcePath),
             setSourcePath,
@@ -1812,6 +1987,7 @@ function SelectedPortPanel({
       : undefined;
   const pickBios = model.biosProfile
     ? () => {
+        setupOriginalRequests.current.begin();
         return applyPathChoice(
           pickSourcePath(model.biosProfile!, ui.biosPath, "bios"),
           ui.setBiosPath,
@@ -1921,10 +2097,8 @@ function SelectedPortPanel({
           { refresh: "none", invalidateDiagnostics: false },
         );
       }}
-      inspectSource={(profile) => {
-        const path = profile.id === model.port.bios_source_profile ? ui.biosPath : ui.sourcePath;
-        openSourceIntake(model.port.id, profile.id, path.trim() ? [path] : []);
-      }}
+      inspectSource={inspectSource}
+      chooseSetupSource={chooseSetupSource}
       openHostTool={openHostTool}
       openLibraryStorage={openLibraryStorage}
       actions={detailActions({
@@ -2157,6 +2331,12 @@ function useWorkspaceLibrary({
     invalidateDiagnostics: data.invalidateDiagnostics,
     activities: data.activities,
   });
+  useOfficialCatalogAutoRefresh(
+    bootstrap.generation,
+    Boolean(data.catalog) && !data.recoveryFailure,
+    Boolean(operations.busy),
+    data.refreshAfterMutation,
+  );
   const github = useGithubAuth(operations.perform, operations.setError, bootstrap.generation);
   const updates = useUpdateCenter(operations.perform, data.statuses);
   const {

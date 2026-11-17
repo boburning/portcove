@@ -2,6 +2,14 @@
   "format_version": 1,
   "listing": {
     "id": "the-maw-linux-recompilation-thefixinhixon-the-maw",
+    "artwork": {
+      "game_id": 3976,
+      "cover_id": 115417,
+      "image_id": "co2h21",
+      "image_sha256": "8aae612d8cd3a52325e7f760378888666d7528bf3713597fd333a457bba0d9c6",
+      "game_slug": "the-maw",
+      "match_kind": "underlying-game"
+    },
     "name": "The Maw — The Maw — Linux Recompilation (thefixinhixon)",
     "original_game_title": "The Maw",
     "summary": "The project describes Linux as playable, with cache and shared-memory files left after crashes. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",

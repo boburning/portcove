@@ -16,6 +16,11 @@ import { createHash } from "node:crypto";
 import { lstatSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isRecord } from "./runtime-values.mts";
+import {
+  matchesIgdbRegionalCover,
+  validIgdbRegionalCover,
+  type IgdbRegionalCover,
+} from "./catalog-cover-mapping.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
@@ -64,6 +69,9 @@ export interface AuthoredPort extends Record<string, unknown> {
   format_version: 1;
   listing: AuthoredListing;
   route_facts_v1?: RouteFactsV1;
+  igdb_regional_cover?: IgdbRegionalCover;
+  /** Desktop review copy, outside signed and retained definition schemas. */
+  managed_setup_platform_warnings?: Record<string, string[]>;
   /** Reviewed common staged archive layout; expanded before Core validation. */
   gba_staged_archive_v1?: { game_code: string; versioned_mods: boolean };
   psx_managed_windows_v1?: true | "bundled-openbios" | "split-mods" | "split-mods-openbios";
@@ -208,6 +216,37 @@ function checkSetupGuide(id: string, field: string, value: unknown, allowEmptySt
   return { steps: value.steps, warnings: value.warnings };
 }
 
+const desktopManagedPlatforms = new Set<string>(platforms);
+
+function checkManagedSetupPlatformWarnings(
+  id: string,
+  managedPlatforms: readonly unknown[],
+  value: unknown,
+) {
+  if (value === undefined) return;
+  const field = "managed_setup_platform_warnings";
+  if (!isRecord(value) || Object.keys(value).length === 0)
+    throw new Error(`${id} ${field} requires at least one managed platform.`);
+  for (const [platform, warnings] of Object.entries(value)) {
+    if (
+      !managedPlatforms.includes(platform) ||
+      !desktopManagedPlatforms.has(platform) ||
+      !Array.isArray(warnings) ||
+      warnings.length < 1 ||
+      warnings.length > 8 ||
+      warnings.some(
+        (warning) =>
+          typeof warning !== "string" ||
+          warning.length === 0 ||
+          warning !== warning.trim() ||
+          /\p{Cc}/u.test(warning),
+      )
+    )
+      throw new Error(`${id} ${field} has invalid warnings for ${platform}.`);
+    for (const warning of warnings) checkPlayerCopy(id, `${field}.${platform}`, warning);
+  }
+}
+
 function checkPlayerGuideCopy(
   id: string,
   field: string,
@@ -289,6 +328,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
   if (!isRecord(value) || value.format_version !== 1 || !isRecord(value.listing))
     throw new Error("An authored port requires format_version 1 and a listing.");
   const listing = value.listing;
+  const regional = value.igdb_regional_cover;
+  if (regional !== undefined) {
+    if (!validIgdbRegionalCover(regional))
+      throw new Error("Invalid authored IGDB regional cover selection.");
+    if (listing.artwork != null && !matchesIgdbRegionalCover(listing.artwork, regional))
+      throw new Error("Authored artwork does not match its IGDB regional cover selection.");
+  }
   if (listing.compatibility !== undefined) checkCatalogAdvisories(listing.compatibility, platforms);
   if (Object.keys(listing).some((field) => !listingFields.has(field)))
     throw new Error(
@@ -464,6 +510,10 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
       throw new Error(`Listing ${field} requires bounded nonempty text.`);
   if (value.order !== undefined && (!Number.isSafeInteger(value.order) || Number(value.order) < 0))
     throw new Error("Authored port order must be a nonnegative integer.");
+  if (value.managed_setup_platform_warnings !== undefined && value.integration === undefined)
+    throw new Error(
+      `${listing.id} managed_setup_platform_warnings requires a managed integration.`,
+    );
   if (value.integration !== undefined) {
     if (!isRecord(value.integration)) throw new Error("Integration must be a strict object.");
     const integration = value.integration;
@@ -475,6 +525,13 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "A download restriction cannot coexist with a managed integration; resolve the canonical acquisition condition before authoring that route.",
       );
     const presentation = integration.presentation;
+    if (isRecord(presentation) && presentation.manual_setup !== undefined)
+      checkPlayerGuideCopy(
+        listing.id,
+        "integration.presentation.manual_setup",
+        presentation.manual_setup,
+        false,
+      );
     if (isRecord(presentation) && listing.manual_setup === undefined)
       checkPlayerCopy(
         listing.id,
@@ -486,13 +543,24 @@ export function checkedAuthoredPort(value: unknown, expectedId?: string): Author
         "Common port fields belong to the listing, not a second integration authority.",
       );
     const managedPlatforms = Array.isArray(integration.platforms) ? integration.platforms : [];
+    if (value.managed_setup_platform_warnings !== undefined) {
+      if (!isRecord(presentation) || presentation.manual_setup == null)
+        throw new Error(`${listing.id} managed_setup_platform_warnings requires a managed guide.`);
+      checkManagedSetupPlatformWarnings(
+        listing.id,
+        managedPlatforms,
+        value.managed_setup_platform_warnings,
+      );
+    }
     if (listing.platforms?.some((platform) => managedPlatforms.includes(platform)))
       throw new Error(
         "A platform must be declared once. Listing platforms may add upstream package platforms outside the integration.",
       );
     if (
       isRecord(presentation) &&
-      listingPresentationFields.some((field) => Object.hasOwn(presentation, field))
+      listingPresentationFields.some(
+        (field) => field !== "manual_setup" && Object.hasOwn(presentation, field),
+      )
     )
       throw new Error("Shared presentation fields belong to the listing.");
   }
@@ -543,11 +611,16 @@ export function projectAuthoredPort(input: AuthoredPort): CatalogPort | undefine
   );
   if (!record.integration) return undefined;
   const integration = structuredClone(record.integration);
+  const presentation = isRecord(integration.presentation) ? integration.presentation : {};
+  const managedGuide = presentation.manual_setup;
+  delete presentation.manual_setup;
   const common: Record<string, unknown> = {};
   for (const field of sharedPortFields) common[field] = record.listing[field];
   for (const field of listingPresentationFields) {
-    if (Object.hasOwn(record.listing, field)) {
-      const presentation = isRecord(integration.presentation) ? integration.presentation : {};
+    if (field === "manual_setup" && managedGuide != null) {
+      presentation[field] = managedGuide;
+      integration.presentation = presentation;
+    } else if (Object.hasOwn(record.listing, field)) {
       presentation[field] = structuredClone(record.listing[field]);
       integration.presentation = presentation;
     }
@@ -791,6 +864,12 @@ export function reviewCompatibilityFixture(
   ] as const) {
     checkedIds(baseline, `frozen ${name}`);
     const reviewed = checkedIds(additions[name], name);
+    // Ascending order lets concurrent additions merge instead of colliding at the end.
+    const unordered = reviewed.findIndex((id, index) => index > 0 && reviewed[index - 1]! >= id);
+    if (unordered > 0)
+      throw new Error(
+        `Malformed compatibility fixture ${name}: keep IDs in ascending order; move "${reviewed[unordered]}" before "${reviewed[unordered - 1]}".`,
+      );
     if (reviewed.some((id) => baseline.includes(id)))
       throw new Error(`Malformed compatibility fixture ${name}: overlaps frozen legacy IDs.`);
     const expected = new Set([...baseline, ...reviewed]);

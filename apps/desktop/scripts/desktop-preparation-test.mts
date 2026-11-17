@@ -31,6 +31,8 @@ export interface PreparationContext {
   artifacts: string[];
   cli: string;
   tool: string;
+  /** Owned install-fixture catalog when the update review serves its own release. */
+  catalogPath?: string;
   confirmNative: ReturnType<typeof nativeConfirmation>;
   restartApplication: (
     name: string,
@@ -692,6 +694,10 @@ async function assertReviewedUpdateOutcomes({
 }) {
   const button = (label: string) =>
     By.xpath(`//button[normalize-space(.)="${label}" and not(ancestor::*[@hidden or @inert])]`);
+  // Calibrated from 5 s (#4879): hosted run 43707489255 still showed "Checking
+  // preparation…" 5 s after Prepare for later while the debug build planned the
+  // update (~10 s plans in run 43616138586). The review must still open. Harness only.
+  const preparationReviewOpenMs = 60_000;
   const dialog = By.css("[data-game-update-review]");
   interface CaseObservation extends ReviewObservation, Partial<ProbeCleanup> {
     availability?: string;
@@ -932,7 +938,11 @@ async function assertReviewedUpdateOutcomes({
           artifacts,
         );
         await reviewGameUpdateDisposition(browser, "prepare");
-        await browser.wait(until.elementLocated(dialog), 5_000);
+        await browser.wait(
+          until.elementLocated(dialog),
+          preparationReviewOpenMs,
+          "Prepare for later did not open the game update review",
+        );
         await clickVisible(browser, await browser.findElement(button("Cancel review")));
         await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
         observation.review_cancelled_without_reapply = true;
@@ -965,7 +975,11 @@ async function assertReviewedUpdateOutcomes({
       assert.equal(observation.restored, true);
     }
     await reviewGameUpdateDisposition(browser, "prepare");
-    await browser.wait(until.elementLocated(dialog), 5_000);
+    await browser.wait(
+      until.elementLocated(dialog),
+      preparationReviewOpenMs,
+      "Prepare for later did not open the restored game update review",
+    );
     await clickVisible(browser, await browser.findElement(button("Cancel review")));
     await browser.wait(async () => (await browser.findElements(dialog)).length === 0, 5_000);
     observations.ordinary_review_restored = true;
@@ -1108,6 +1122,7 @@ export async function preparationScenarios({
   artifacts,
   cli,
   tool,
+  catalogPath,
   confirmNative,
   restartApplication,
   interruptApplication,
@@ -1126,7 +1141,12 @@ export async function preparationScenarios({
     assert.equal(response.ok, true);
     return transportValue(contract, response.value);
   };
-  const command = ownedFixtureCommand({ cli, library, output });
+  const command = ownedFixtureCommand({
+    cli,
+    library,
+    output,
+    ...(catalogPath === undefined ? {} : { catalogPath }),
+  });
   const host: Platform =
     process.platform === "win32"
       ? "windows-x86-64"
@@ -3084,9 +3104,13 @@ export async function preparationScenarios({
         15_000,
         "Damaged installation verification did not expose its actual failure",
       );
+      // Calibrated from 5 s (#4879): branch run 43783868461 still showed "Check
+      // installed files" disabled after 5 s while the failed verification's
+      // debug-build workspace refresh settled. The action must still re-enable.
       await browser.wait(
         async () => (await browser.findElement(By.css(".primary-actions button"))).isEnabled(),
-        5_000,
+        60_000,
+        "Damaged installation verification did not re-enable its action",
       );
       assert.deepEqual(required((await status(port.id)).readiness).blockers, [
         "invalid_installation",

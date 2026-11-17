@@ -19,6 +19,8 @@ import {
   createInstallFixture,
   INSTALL_FIXTURE_PORT_ID,
   INSTALL_REFRESH_FIXTURE_PORT_ID,
+  UPDATE_REVIEW_PORT_ID,
+  UPDATE_REVIEW_VERSION,
 } from "./desktop-install-fixture.mts";
 import { installScenarios, selectInstallTheme } from "./desktop-install-test.mts";
 import { runInNewContext } from "node:vm";
@@ -535,6 +537,41 @@ test("fixture failures preserve the original assertion and independent cleanup e
       return true;
     },
   );
+});
+
+test("update review serves its offered release from the owned fixture, not the provider API", async () => {
+  const output = await mkdtemp(path.join(tmpdir(), "portcove-update-review-fixture-"));
+  const ordinaryOutput = await mkdtemp(path.join(tmpdir(), "portcove-update-review-ordinary-"));
+  const fixture = await createInstallFixture({ root, output, updateReviewJourney: true });
+  const ordinary = await createInstallFixture({ root, output: ordinaryOutput });
+  try {
+    const reviewed = (await readFixtureCatalog(fixture.catalogPath)).ports.find(
+      (item) => item.id === UPDATE_REVIEW_PORT_ID,
+    );
+    assert.ok(reviewed);
+    assert.equal(reviewed.release.provider, "direct-manifest");
+    assert.ok(reviewed.platforms.length > 0);
+    const sha256 = createHash("sha256").update(fixture.artifact).digest("hex");
+    const offered = reviewed.release.direct;
+    for (const platform of reviewed.platforms) {
+      const release: { version: string; url: string; sha256: string } = present(offered[platform]);
+      assert.equal(release.version, UPDATE_REVIEW_VERSION);
+      assert.equal(release.url, fixture.url);
+      assert.equal(new URL(release.url).hostname, "127.0.0.1");
+      assert.equal(release.sha256, sha256);
+    }
+    // Without the journey the maintained definition keeps its own provider.
+    const maintained = (await readFixtureCatalog(ordinary.catalogPath)).ports.find(
+      (item) => item.id === UPDATE_REVIEW_PORT_ID,
+    );
+    assert.ok(maintained);
+    assert.notEqual(maintained.release.provider, "direct-manifest");
+  } finally {
+    await fixture.close();
+    await ordinary.close();
+    await rm(output, { recursive: true, force: true });
+    await rm(ordinaryOutput, { recursive: true, force: true });
+  }
 });
 
 test("install fixture is isolated, pinned, interruptible, and retryable", async () => {

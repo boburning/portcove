@@ -4,7 +4,7 @@
 //! here writes, moves or deletes anything inside a store's folder.
 
 use std::{
-    collections::BTreeSet,
+    collections::{BTreeMap, BTreeSet},
     path::{Component, Path, PathBuf},
 };
 
@@ -42,12 +42,24 @@ pub enum GameStore {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StoreGameInstall {
     pub store: GameStore,
+    /// Stable store product identity when the installation metadata supplies one.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub product_id: Option<String>,
     /// The store's title for the game; a label, never an identity.
     pub title: String,
     /// Canonical existing folder.
     pub path: PathBuf,
     /// The saved game-file folder at exactly this path, when there is one.
     pub saved_root_id: Option<String>,
+    /// Reviewed search hint. The source profile still verifies the actual files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub original_folder: Option<StoreOriginalFolder>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct StoreOriginalFolder {
+    pub profile_id: String,
+    pub path: PathBuf,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -68,6 +80,7 @@ pub struct StoreGameInstalls {
 pub struct RegisteredStoreInstall {
     pub title: String,
     pub path: PathBuf,
+    pub product_id: Option<String>,
 }
 
 /// Host facts behind store detection. Production reads the registry and
@@ -127,7 +140,7 @@ pub(crate) fn default_host() -> std::sync::Arc<dyn StoreInstallHost> {
 struct Detection {
     report: StoreGameInstalls,
     protected: Vec<(GameStore, PathBuf)>,
-    seen: BTreeSet<String>,
+    seen: BTreeMap<String, Option<usize>>,
 }
 
 impl Detection {
@@ -135,7 +148,8 @@ impl Detection {
         self.report.skipped_entries = self.report.skipped_entries.saturating_add(1);
     }
 
-    fn add(&mut self, store: GameStore, title: &str, path: &Path) {
+    fn add(&mut self, store: GameStore, title: &str, path: &Path, product_id: Option<String>) {
+        let candidate = original_folder(store, product_id.as_deref(), path);
         let Some(path) = existing_folder(path) else {
             self.skip();
             return;
@@ -144,12 +158,21 @@ impl Detection {
             self.skip();
             return;
         };
-        if !self.seen.insert(path_key(&text)) {
+        let key = path_key(&text);
+        if let Some(index) = self.seen.get(&key) {
+            if let Some(row) = index.and_then(|index| self.report.installs.get_mut(index))
+                && row.store == store
+                && row.product_id != product_id
+            {
+                row.product_id = None;
+                row.original_folder = None;
+            }
             return;
         }
         // Protect the folder from a Move even past the listing bound.
         self.protected.push((store, path.clone()));
         if self.report.installs.len() >= MAX_INSTALLS {
+            self.seen.insert(key, None);
             self.report.limited = true;
             return;
         }
@@ -159,11 +182,14 @@ impl Detection {
                     .and_then(|name| clean_title(&name.to_string_lossy()))
             })
             .unwrap_or_default();
+        self.seen.insert(key, Some(self.report.installs.len()));
         self.report.installs.push(StoreGameInstall {
             store,
+            product_id,
             title,
             path,
             saved_root_id: None,
+            original_folder: candidate,
         });
     }
 }
@@ -173,7 +199,12 @@ fn detect(host: &dyn StoreInstallHost) -> Detection {
     detection.report.checked_stores = host.checked_stores();
     detect_steam(host, &mut detection);
     for install in host.gog_registered_installs() {
-        detection.add(GameStore::Gog, &install.title, &install.path);
+        detection.add(
+            GameStore::Gog,
+            &install.title,
+            &install.path,
+            install.product_id,
+        );
     }
     for directory in host.epic_manifest_dirs() {
         detect_epic(&directory, &mut detection);
@@ -247,7 +278,7 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
                 detection.skip();
                 continue;
             };
-            let Some((title, installdir)) = steam_app_manifest(&text) else {
+            let Some((title, installdir, app_id)) = steam_app_manifest(&text) else {
                 detection.skip();
                 continue;
             };
@@ -259,6 +290,16 @@ fn detect_steam(host: &dyn StoreInstallHost, detection: &mut Detection) {
                 GameStore::Steam,
                 &title,
                 &steamapps.join("common").join(installdir),
+                app_id
+                    .filter(|id| {
+                        manifest
+                            .file_stem()
+                            .and_then(|name| name.to_str())
+                            .and_then(|name| name.strip_prefix("appmanifest_"))
+                            .and_then(product_number)
+                            == Some(*id)
+                    })
+                    .map(|id| id.to_string()),
             );
         }
     }
@@ -288,7 +329,21 @@ fn detect_epic(directory: &Path, detection: &mut Detection) {
             detection.skip();
             continue;
         };
-        detection.add(GameStore::Epic, title, Path::new(location));
+        let token = |field| {
+            item.get(field)
+                .and_then(serde_json::Value::as_str)
+                .filter(|text| {
+                    !text.is_empty()
+                        && text.len() <= 128
+                        && text.bytes().all(|byte| {
+                            byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_' | b'.')
+                        })
+                })
+        };
+        let product_id = token("CatalogNamespace")
+            .zip(token("CatalogItemId"))
+            .map(|(namespace, item)| format!("{namespace}:{item}"));
+        detection.add(GameStore::Epic, title, Path::new(location), product_id);
     }
 }
 
@@ -405,8 +460,7 @@ fn vdf_tokens(text: &str) -> Option<Vec<VdfToken>> {
 }
 
 /// Key/value string pairs with their nesting depth (1 = inside the root block).
-fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
-    let tokens = vdf_tokens(text)?;
+fn vdf_pairs(tokens: &[VdfToken]) -> Option<Vec<(usize, String, String)>> {
     let mut pairs = Vec::new();
     let mut depth = 0_usize;
     let mut index = 0;
@@ -432,7 +486,7 @@ fn vdf_pairs(text: &str) -> Option<Vec<(usize, String, String)>> {
 /// current (`"path"` inside numbered blocks) and the older (numbered string
 /// values) layouts.
 fn steam_library_paths(text: &str) -> Vec<PathBuf> {
-    let Some(pairs) = vdf_pairs(text) else {
+    let Some(pairs) = vdf_tokens(text).and_then(|tokens| vdf_pairs(&tokens)) else {
         return Vec::new();
     };
     pairs
@@ -446,8 +500,16 @@ fn steam_library_paths(text: &str) -> Vec<PathBuf> {
 }
 
 /// `(name, installdir)` from a Steam `appmanifest_*.acf`.
-fn steam_app_manifest(text: &str) -> Option<(String, String)> {
-    let pairs = vdf_pairs(text)?;
+fn product_number(text: &str) -> Option<u64> {
+    if text.is_empty() || text.len() > 20 || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse::<u64>().ok().filter(|id| *id != 0)
+}
+
+fn steam_app_manifest(text: &str) -> Option<(String, String, Option<u64>)> {
+    let tokens = vdf_tokens(text)?;
+    let pairs = vdf_pairs(&tokens)?;
     let field = |name: &str| {
         pairs
             .iter()
@@ -455,7 +517,89 @@ fn steam_app_manifest(text: &str) -> Option<(String, String)> {
             .map(|(_, _, value)| value.clone())
     };
     let installdir = field("installdir").filter(|value| !value.is_empty())?;
-    Some((field("name").unwrap_or_default(), installdir))
+    let mut ids = pairs
+        .iter()
+        .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("appid"));
+    let id = ids.next().and_then(|(_, _, value)| product_number(value));
+    let unique_directory = pairs
+        .iter()
+        .filter(|(depth, key, _)| *depth == 1 && key.eq_ignore_ascii_case("installdir"))
+        .count()
+        == 1;
+    let app_id = if ids.next().is_none() && unique_directory && single_app_state(&tokens) {
+        id
+    } else {
+        None
+    };
+    Some((field("name").unwrap_or_default(), installdir, app_id))
+}
+
+fn single_app_state(tokens: &[VdfToken]) -> bool {
+    let [
+        VdfToken::Text(name),
+        VdfToken::Open,
+        body @ ..,
+        VdfToken::Close,
+    ] = tokens
+    else {
+        return false;
+    };
+    if !name.eq_ignore_ascii_case("AppState") {
+        return false;
+    }
+    let mut depth = 1;
+    for token in body {
+        match token {
+            VdfToken::Open => depth += 1,
+            VdfToken::Close => depth -= 1,
+            VdfToken::Text(_) => {}
+        }
+        if depth == 0 {
+            return false;
+        }
+    }
+    depth == 1
+}
+
+fn original_folder(
+    store: GameStore,
+    product_id: Option<&str>,
+    install_path: &Path,
+) -> Option<StoreOriginalFolder> {
+    // Use the folder coordinates documented by The Force Engine and
+    // dhewm3. Product and layout are hints; source intake verifies identity.
+    let (profile_id, subdirectory, required_directories): (&str, &str, &[&str]) =
+        match (store, product_id) {
+            (GameStore::Steam, Some("32400")) => {
+                ("dark-forces-pc-complete-installed-data", "Game", &[])
+            }
+            (GameStore::Gog, Some("1421404433")) => {
+                ("dark-forces-pc-complete-installed-data", "", &[])
+            }
+            (GameStore::Steam, Some("9050")) => ("doom-3-classic-pc-131-pk4", "", &["base"]),
+            (GameStore::Steam, Some("9070")) => {
+                ("doom-3-roe-classic-pc-131-pk4", "", &["base", "d3xp"])
+            }
+            _ => return None,
+        };
+    let directory = install_path.join(subdirectory);
+    crate::path::refuse_symlink_ancestors(&directory).ok()?;
+    let install = existing_folder(install_path)?;
+    let path = existing_folder(&directory)?;
+    if !inside(&path, &install) {
+        return None;
+    }
+    for name in required_directories {
+        let required = path.join(name);
+        crate::path::refuse_symlink_ancestors(&required).ok()?;
+        if !required.is_dir() {
+            return None;
+        }
+    }
+    Some(StoreOriginalFolder {
+        profile_id: profile_id.into(),
+        path,
+    })
 }
 
 fn inside(path: &Path, folder: &Path) -> bool {
@@ -634,7 +778,7 @@ mod windows {
         },
     };
 
-    use super::RegisteredStoreInstall;
+    use super::{RegisteredStoreInstall, product_number};
 
     const MAX_SUBKEYS: u32 = 4_096;
     const MAX_NAME_UNITS: usize = 256;
@@ -767,6 +911,7 @@ mod windows {
                 installs.push(RegisteredStoreInstall {
                     title: string(&game, "gameName").unwrap_or_default(),
                     path: PathBuf::from(path),
+                    product_id: product_number(&name).map(|id| id.to_string()),
                 });
             }
         }

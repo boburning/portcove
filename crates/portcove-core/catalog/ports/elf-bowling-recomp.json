@@ -2,18 +2,25 @@
   "format_version": 1,
   "listing": {
     "id": "elf-bowling-recomp",
+    "artwork": {
+      "game_id": 51319,
+      "cover_id": 187084,
+      "image_id": "co40cs",
+      "image_sha256": "c2e32fabc42dfecbd3df1c16b759095bb0a448dde224c1586f388aa559f53728",
+      "game_slug": "elf-bowling",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp",
     "name": "Elf Bowling / Elf Bowling Recomp",
     "original_game_title": "Elf Bowling",
     "summary": "Bowl with your own copy of the original 1999 Elf Bowling executable.",
     "issue_number": 6105,
     "listed_at": "2026-11-14",
-    "platforms": ["windows-x86-64", "linux-x86-64"],
+    "platforms": ["linux-x86-64"],
     "availability": "packages",
     "setup_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/README.md#quick-start",
     "release_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/releases",
     "download_asset_hints": {
-      "windows-x86-64": ["elfbowl-windows-x64.zip"],
       "linux-x86-64": ["ElfBowling-x86_64.AppImage"]
     },
     "recommended_download_channel": "stable",
@@ -21,12 +28,12 @@
       "help_url": "https://github.com/AdamLovattDevOps/elfbowling-recomp/blob/v1.1/port/pkg/README.md",
       "steps": [
         {
-          "title": "Choose the upstream player",
-          "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries."
+          "title": "Select the unmodified original",
+          "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release, and keep your original separately. On first start the player asks you to choose it, checks its SHA-256 and keeps a copy in its app profile."
         },
         {
-          "title": "Select the unmodified original",
-          "instruction": "Use your own 1,130,496-byte Elf Bowling.exe from the 1999 release. Pick it on first run, put it next to the player, or point ELFBOWL_EXE to it on desktop. The upstream player checks SHA-256 and keeps a copy in its app profile. Keep your original separately."
+          "title": "Choose the upstream player",
+          "instruction": "On Linux x64 with glibc 2.38 or later, use the v1.1 AppImage. Set PORT_FULLSCREEN=0 to start in a window. For Windows x64, choose v1.0 in the release picker, extract the full ZIP, and run elfbowl.exe with its bundled libraries. In a copy you manage yourself, you can also put the original next to the player or point ELFBOWL_EXE to it."
         },
         {
           "title": "Use the separate Android or Mac setup",
@@ -40,6 +47,34 @@
       "warnings": [
         "The project has not published a license for its engine source. The original game is supplied separately."
       ]
+    }
+  },
+  "integration": {
+    "support_tier": "beta",
+    "channels": ["stable"],
+    "platforms": ["windows-x86-64"],
+    "adapter": "native-portable",
+    "release": {
+      "repository": "AdamLovattDevOps/elfbowling-recomp",
+      "asset_hints": {
+        "windows-x86-64": ["elfbowl-windows-x64.zip"]
+      }
+    },
+    "executable_hints": {
+      "windows-x86-64": ["elfbowl.exe"]
+    },
+    "persistent_paths": [],
+    "presentation": {
+      "installation_method": "portable-package",
+      "source_requirements": [],
+      "saves_and_settings": "external-user-owned",
+      "manual_preparation": "On first Play, the player asks you to choose your own 1,130,496-byte Elf Bowling.exe from the 1999 release. It checks the file's SHA-256, copies it into its NStorm\\Elf Bowling profile under %APPDATA% and uses that copy from then on; keep your original separately and do not put it in Portcove's install folder, where an extra program holds launch and updates. Cancelling the picker shows a message and closes the game. The package is the player with SDL2 libraries; the original game is never included. The project has not published a license for its engine source. The player works from its profile folder, so the copied original and everything the game writes stay in %APPDATA%\\NStorm\\Elf Bowling, outside the managed copy. Portcove neither backs them up nor removes them, and rollback does not rewind them. Portcove replaces the player; you own the original and the profile."
+    },
+    "reviewed_package_layouts": {
+      "windows-x86-64": {
+        "directories": [],
+        "executables": ["elfbowl.exe"]
+      }
     }
   }
 }

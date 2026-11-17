@@ -2615,6 +2615,7 @@ try {
       hashResumeJourney: Boolean(executionPlan.fixtures.hashResumeJourney),
       completionJourney: executionPlan.fixtures.completionJourney,
       acquisitionJourney: Boolean(executionPlan.fixtures.acquisitionJourney),
+      updateReviewJourney: Boolean(executionPlan.fixtures.updateReviewJourney),
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
@@ -4886,6 +4887,9 @@ try {
                     : context.interruptApplication,
                 cli: required(context.cli),
                 tool: required(context.tool),
+                ...(executionPlan.fixtures.updateReviewJourney
+                  ? { catalogPath: required(installFixture).catalogPath }
+                  : {}),
               })
             : Promise.resolve(),
       },

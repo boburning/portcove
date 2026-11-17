@@ -9,6 +9,7 @@ import {
   ArtworkBatchExhausted,
   readArtworkJson,
   validArtworkMapping,
+  withdrawCompanionCover,
 } from "./inspect-igdb-artwork.mts";
 import type {
   ArtworkCatalog,
@@ -293,6 +294,7 @@ export async function prepareArtworkWorkset(
   const tool = createHash("sha256");
   for (const file of [
     "./artwork-preparation-progress.mts",
+    "./catalog-cover-mapping.mts",
     "./inspect-igdb-artwork.mts",
     "./maintainer-config.mts",
     "./runtime-values.mts",
@@ -497,8 +499,14 @@ export async function prepareArtworkWorkset(
   }
   const invalidated: string[] = [];
   for (const port of outputPorts.values()) {
+    const companion = ports.get(port.id)?.presentation?.companion_cover;
+    const companionWithdrawn = validArtworkMapping(companion) && gone.has(companion.image_id);
+    withdrawCompanionCover(port, gone);
     const image = mappingImage(port);
-    if (!image || !gone.has(image)) continue;
+    if (!image || !gone.has(image)) {
+      if (companionWithdrawn) invalidated.push(port.id);
+      continue;
+    }
     if (port.presentation) delete port.presentation.artwork;
     invalidated.push(port.id);
     const record = records.get(port.id);

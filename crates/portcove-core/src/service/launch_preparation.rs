@@ -86,55 +86,60 @@ impl PortcoveService {
             let profile_id = port.source_profile.as_deref().ok_or_else(|| {
                 PortcoveError::usage(format!("{} does not accept a source override", port.name))
             })?;
-            let source = Some(
-                crate::source_inspection::inspect_with_checkpoint(
-                    &catalog,
-                    profile_id,
-                    path,
-                    &checkpoint,
-                )?
-                .require_admitted_record()?,
-            );
+            let source = crate::source_inspection::inspect_with_checkpoint(
+                &catalog,
+                profile_id,
+                path,
+                &checkpoint,
+            )?
+            .require_admitted_record()?;
+            if let Some(binding) = self.pinned_original(&port.id, profile_id, &active.id)? {
+                crate::profile_originals::require_original_bytes(&binding, &source)?;
+            }
             checkpoint()?;
-            source
+            Some(source)
         } else if self_contained {
             // The installed data holds every game input; the original is
             // needed only to repair, rebuild or prepare again.
             None
         } else if let Some(profile) = &port.source_profile {
-            match self.library.source(profile)? {
-                // An optional source whose file has gone is treated as absent: nothing is
-                // unpacked and the runtime and its persistent files stay as they are.
-                Some(record)
-                    if port.optional_game_source && super::source_file_is_gone(&record.path) =>
+            let source = self
+                .pinned_original(&port.id, profile, &active.id)
+                .and_then(|binding| match binding {
+                    Some(binding) => self.registered_profile_original(&binding).map(Some),
+                    None => self.library.source(profile),
+                })
+                .and_then(|source| match source {
+                    Some(record)
+                        if port.optional_game_source
+                            && super::source_file_is_gone(&record.path) =>
+                    {
+                        Ok(None)
+                    }
+                    Some(record) => {
+                        Self::verify_source_record_with_checkpoint(&catalog, &record, &checkpoint)?;
+                        Ok(Some(record))
+                    }
+                    None => Ok(None),
+                });
+            match source {
+                Ok(source) => source,
+                // A missing or changed optional original is not used. The
+                // existing unpacked data stays the only fallback.
+                Err(error)
+                    if port.optional_game_source
+                        && matches!(
+                            error.code,
+                            crate::ErrorCode::NotFound
+                                | crate::ErrorCode::Verification
+                                | crate::ErrorCode::SourceInvalid
+                                | crate::ErrorCode::State
+                        ) =>
                 {
+                    optional_source_skipped = true;
                     None
                 }
-                Some(_) => {
-                    match self.verified_source_record_with_checkpoint(
-                        &catalog,
-                        profile,
-                        &checkpoint,
-                    ) {
-                        Ok(record) => Some(record),
-                        // A changed or unreadable optional source is not used; cancellation
-                        // and conflicts still end the launch (an I/O failure is a state error).
-                        Err(error)
-                            if port.optional_game_source
-                                && matches!(
-                                    error.code,
-                                    crate::ErrorCode::Verification
-                                        | crate::ErrorCode::SourceInvalid
-                                        | crate::ErrorCode::State
-                                ) =>
-                        {
-                            optional_source_skipped = true;
-                            None
-                        }
-                        Err(error) => return Err(error),
-                    }
-                }
-                None => None,
+                Err(error) => return Err(error),
             }
         } else {
             None
@@ -232,6 +237,7 @@ impl PortcoveService {
             optional_source_skipped,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
+        self.require_selected_loader_for_install(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         if active.path.join(LAUNCH_MARKER).is_file()
             || crate::persistence::collect_before_first_launch(port)

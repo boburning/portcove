@@ -75,6 +75,19 @@ function groupedCollectionSnapshot() {
   return snapshot;
 }
 
+it("leaves more room for a long row identity than its status and actions at 960px", async () => {
+  await page.viewport(960, 640);
+  await mount();
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  const row = document.querySelector<HTMLElement>(".collection-row")!;
+  const identity = row.querySelector<HTMLElement>(".collection-main")!;
+  const footer = row.querySelector<HTMLElement>(".library-entry-footer")!;
+
+  expect(identity.getBoundingClientRect().width).toBeGreaterThan(
+    footer.getBoundingClientRect().width,
+  );
+});
+
 it.each([
   ["dark", 390],
   ["light", 390],
@@ -777,6 +790,44 @@ it("keeps a singleton port review readable below its close control at narrow wid
     .element(page.getByRole("button", { name: "Why this port?", exact: true }).first())
     .toHaveFocus();
 });
+
+it.each([false, true])(
+  "keeps the only playable cover in view with long identity text (grouped: %s)",
+  async (grouped) => {
+    await page.viewport(960, 640);
+    const snapshot = grouped ? groupedCollectionSnapshot() : workspace("collection");
+    const port = snapshot.catalog.ports[0]!;
+    port.name = "Harbor Adventure Community Edition";
+    port.presentation!.original_game_title = "Harbor Adventure and the Forgotten Islands";
+    snapshot.statuses = snapshot.statuses.filter(
+      (status) => status.port_id === port.id || status.port_id === "collection-5",
+    );
+    port.channels = ["stable", "beta"];
+    snapshot.statuses[0]!.channel = "beta";
+    snapshot.statuses[0]!.active!.channel = "beta";
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount("dark", "collection", 2);
+
+    const firstCover = document.querySelector<HTMLElement>(".collection-cover .collection-art")!;
+    const gridArtworkWidth = firstCover.getBoundingClientRect().width;
+    const search = page.getByRole("textbox", { name: "Search your library" });
+    await search.fill("Forgotten Islands");
+
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(1);
+    const cover = document.querySelector<HTMLElement>(".collection-cover")!;
+    expect(Boolean(cover.closest("section[data-library-game-id]"))).toBe(grouped);
+    const play = page.getByRole("button", { name: /^Play: Harbor Adventure/ });
+    await expect.element(play).toBeVisible();
+    const action = play.element().getBoundingClientRect();
+    expect(action.top).toBeGreaterThan(0);
+    expect(action.bottom).toBeLessThan(document.documentElement.clientHeight);
+
+    await search.fill("");
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(2);
+    const gridArtwork = document.querySelector<HTMLElement>(".collection-cover .collection-art")!;
+    expect(gridArtwork.getBoundingClientRect().width).toBeCloseTo(gridArtworkWidth, 0);
+  },
+);
 
 it.each([
   [1440, 900, 6, 180.7],

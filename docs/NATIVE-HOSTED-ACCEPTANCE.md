@@ -214,10 +214,23 @@ checkpoint inventory and 7.5 minutes of builds precede the harness allowance and
 the driver-availability wait; run 43513519698 lost `update-acquisition` evidence
 at 60) and unchanged product deadlines.
 
-Six bounded groups retain the entire maintained `owned-lifecycle` selection and
-its dependency closure: ready/return/preferences, preparation recovery,
-backup/removal, singleton and batch Steam, source intake/removal/pickers, and
-adoption/library/CLI handoff. The fresh Steam group requires the retained singleton
+Seven bounded groups retain the entire maintained `owned-lifecycle` selection and
+its dependency closure: ready/return/preferences, game update review, preparation
+recovery, backup/removal, singleton and batch Steam, source intake/removal/pickers,
+and adoption/library/CLI handoff. The game update review has its own group because
+its offered release comes from the owned install fixture's direct manifest on
+127.0.0.1, which needs the qualification-fixtures build; the other ready scenarios
+keep the plain build and maintained catalog. Run 43743277016 showed the live
+anonymous provider API failing that review with HTTP 403 on a shared runner. A combined
+local session sees the fixture definition only in the app and the preparation seed.
+Moving the review left owned-ready at eight executed scenarios, below the count that
+granted its 20-minute harness allowance; branch run 43781898959 stopped it at the
+180 s default, so its release-channel restart journey now keeps that allowance, and
+the standalone review receives 10 minutes for its three 60 s-bounded outcome cases.
+That run also stopped two uncalibrated owned-ready waits behind debug-build workspace
+refreshes: a restored launch hold returning to Try launch (10 s) and a failed
+verification re-enabling its action (5 s). Both are calibrated to 60 s.
+The fresh Steam group requires the retained singleton
 report to show the Settings integration entry and exactly one matching eligible
 installation; the broad-profile Manage fallback cannot qualify this group.
 The workflow contract resolves each group through
@@ -288,7 +301,16 @@ capability reads ran. The update-acquisition journey's wait for an action to sto
 being busy is calibrated from 15 s to 60 s: the same run kept Play busy past 15 s after
 rollback while a 14 s workspace snapshot, a 6 s follow-up and 13-15 s capability reads
 settled. The wait is shared by every click in that journey, and its report records
-`slowest_actionable_ms`. The
+`slowest_actionable_ms`. The waits for Prepare for later to open the game update
+review are calibrated from 5 s to 60 s: run 43707489255 still showed "Checking
+preparation…" after 5 s while the debug build planned the update. The selected-setup
+wait for explicit BIOS registration to expose the Core-eligible selection is calibrated
+from 15 s to 60 s: in the same run the import finished at 23.5 s but the selection
+waits for a fresh ~14 s workspace snapshot. The source-removal wait for the removed
+location's row to leave Game files is calibrated from 15 s to 60 s: in run 43725858503
+the removal write took 6.5 s of the wait, a snapshot started before consent was refused
+as a retryable stale-snapshot conflict after 11 s, and its retry was still running at
+15 s. The
 preparation journey's
 pre-publication catalog copies stay SHA-256 bound but their raw bytes are not
 retained: three ~2.9 MB copies plus the journey's other ~7 MB of evidence exceed

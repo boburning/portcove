@@ -43,6 +43,10 @@ flexible columns with a 12px gap and no artwork cap, while narrower windows use
 one column. Available width and interface size still determine readable text and
 control wrapping. Library covers use 10px artwork corners, a 24px effective art-to-title gap and
 600 title weight; compact rows and Discover keep their own geometry.
+In short or narrow windows, a single visible Library cover uses spare grid width
+to place its identity beside the portrait. Its status and primary action follow
+in a footer spanning the card. A sole multi-port group uses the same layout and keeps
+its other implementations below the selected port or choice prompt.
 Cover cards reserve two readable lines for both title and project (the project reserves one line in desktop windows up to 760px high and expands on hover and keyboard focus), aligning chips and actions across mixed-length identities. Both expand on keyboard focus. Full identity wraps below
 40em. Footer actions stay beside the dominant status without overlapping it. A ready card's Play pairs a triangle with a compact signature-red labeled button, so the primary action is recognizable on arrival; its accessible name adds the game and project ("Play: Title · Project"), as do View task and the setup/review actions. Readiness stays a compact text-and-icon cue, and updates remain secondary while the game is playable. Routine Stable is omitted from Library card chips; a non-Stable channel or a channel that differs from the selected one stays visible. Discover cards likewise omit the chip when Stable is the only offered channel and the selected channel is Stable or unset; Preview, Rolling and mixed channels stay, and the comparison dialog shows every offered channel. With an observed device target, Discover cards omit platform chips and show “Not available for Platform” only when a port lists platforms that exclude this device; without a device target the platforms stay listed. The single-port “Why this port?” view omits setup, file and update rows and the “No platform/update channel is listed” lines when they have no value; several ports keep every row aligned for comparison (#5058 F3, F5). Release-channel and platform chips and filter options are neutral: semantic green means ready to play and blue means selection or a link, so a kept update is a neutral status with its icon; original-system identity colors remain (#5058 V2). “Update saved for later” stays, because a kept version may reuse local bytes without a download. (Supersedes the quiet bordered repeated Play; see #5058 L4–L5.) Setup and review actions include a right arrow. A subtle divider separates the status/action footer from identity chips.
 The quick views read as underlined navigation above the search/filter toolbar.
@@ -55,7 +59,8 @@ playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
-10px block padding, full wrapping identity and a bounded action span. The list
+10px block padding, full wrapping identity and a status/action column bounded
+by both the available width and a maximum. The list
 uses the available workspace width. Below 36em readiness stacks beneath identity with
 thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
@@ -144,7 +149,8 @@ decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
+Home/End move focus; Enter/Space select. Narrow tab lists wrap so every
+section remains visible. The active section uses a labeled, underlined tab.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
@@ -533,7 +539,7 @@ complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
-The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
+The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. The workspace toolbar identifies the destination and, when open, the current game or contextual task. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
 
 When a game-file check identifies a specific host disc tool that needs attention,
 its detail result links to that tool in Settings > Game Files. The route focuses
@@ -835,18 +841,18 @@ roughly 36–40rem surface on large displays or a restrained sticky primary acti
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings uses Appearance,
-Library and storage, Game files, Updates, Integrations, Advanced, and About
-categories. Wide layouts use an 11.875rem category column beside a reading column
-bounded at 47.5rem. Below 65rem, navigation becomes one horizontally scrollable
-category strip above the panel. Settings rows use open surfaces and dividing
+Library and storage, Game files, Updates, Integrations, Keyboard and controller,
+Advanced, and About categories. Wide layouts use a 13rem category column beside
+a reading column bounded at 47.5rem. Below 56.3125rem, navigation becomes one
+horizontally scrollable category strip above the panel. Settings rows use open surfaces and dividing
 rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
 not persist settings or cancel work. Focus the selected heading and reveal its
 outline below any sticky category strip, using the existing workspace scroll owner
 only as far as needed. Direct
 recovery links select the owning category before focusing its relevant control.
-The sidebar About entry opens About directly. Updates explains application/game
-updates and the bundled game catalog; optional custom catalog trust controls
+About links to the support report heading in Advanced. Updates explains
+application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open

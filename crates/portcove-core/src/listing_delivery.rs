@@ -161,7 +161,7 @@ impl Default for ListingDeliveryStatus {
     }
 }
 
-struct AuthenticatedListings {
+pub(crate) struct AuthenticatedListings {
     bytes: Vec<u8>,
     document: ListingDeliveryDocument,
     provenance: PolicyProvenance,
@@ -270,6 +270,20 @@ impl Library {
     }
 
     fn apply_listings(&self, candidate: AuthenticatedListings) -> Result<ListingDeliveryStatus> {
+        self.admit_listings(&candidate, true)
+    }
+
+    /// Every admission check of `apply_listings`, without writing. A scheduled
+    /// refresh uses it so a candidate this client would refuse records nothing.
+    pub(crate) fn check_listings(&self, candidate: &AuthenticatedListings) -> Result<()> {
+        self.admit_listings(candidate, false).map(|_| ())
+    }
+
+    fn admit_listings(
+        &self,
+        candidate: &AuthenticatedListings,
+        publish: bool,
+    ) -> Result<ListingDeliveryStatus> {
         candidate.provenance.require_fresh()?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -297,6 +311,10 @@ impl Library {
         let provenance = serde_json::to_string(&candidate.provenance)?;
         let document = std::str::from_utf8(&candidate.bytes)
             .map_err(|_| PortcoveError::verification("listing target must be UTF-8"))?;
+        if !publish {
+            // Dropping the transaction rolls it back; nothing was written.
+            return Ok(candidate.status());
+        }
         transaction.execute(
             "INSERT INTO listing_delivery(singleton,document_json,provenance_json) VALUES(1,?1,?2)
              ON CONFLICT(singleton) DO UPDATE SET document_json=excluded.document_json,provenance_json=excluded.provenance_json",
@@ -324,7 +342,7 @@ impl PortcoveService {
     }
 }
 
-async fn refresh<T: Transport + Send + Sync + 'static>(
+pub(crate) async fn refresh<T: Transport + Send + Sync + 'static>(
     service: &PortcoveService,
     source: &DefinitionRepositorySource,
     root: &[u8],
@@ -369,6 +387,66 @@ async fn refresh<T: Transport + Send + Sync + 'static>(
             "listing refresh acquisition timed out",
         ))
     });
+    let result = service.finish_activity(activity, result);
+    emit(operation.finished(OperationResult::from_result(&result)));
+    result
+}
+
+/// The scheduled refresh's acquisition: the same authenticated TUF path and
+/// strict parser as `refresh`, followed by every admission check, with no
+/// activity and no write. A candidate this client would refuse (outage, absent
+/// or expired publication, bad signature, newer format, replay) records nothing.
+pub(crate) async fn acquire_admissible<T: Transport + Send + Sync + 'static>(
+    library: &Library,
+    source: &DefinitionRepositorySource,
+    root: &[u8],
+    transport: T,
+) -> Result<AuthenticatedListings> {
+    let candidate = tokio::time::timeout(super::super::ACQUISITION_TIMEOUT, async {
+        let repository = super::super::load_repository(
+            root,
+            source.metadata_base_url.clone(),
+            source.targets_base_url.clone(),
+            transport,
+        )
+        .await?;
+        let (bytes, provenance) =
+            super::acquire_target_with_limit(&repository, root, TARGET, MAX_BYTES as u64).await?;
+        let document = ListingDeliveryDocument::parse(&bytes)?;
+        Ok(AuthenticatedListings {
+            bytes,
+            document,
+            provenance,
+        })
+    })
+    .await
+    .unwrap_or_else(|_| {
+        Err(PortcoveError::network(
+            "listing refresh acquisition timed out",
+        ))
+    })?;
+    library.check_listings(&candidate)?;
+    Ok(candidate)
+}
+
+/// Publishes an already acquired and checked candidate through the ordinary
+/// activity, cancellation and atomic admission owner.
+pub(crate) fn publish_acquired(
+    service: &PortcoveService,
+    candidate: AuthenticatedListings,
+    mut emit: impl FnMut(OperationEvent),
+) -> Result<ListingDeliveryStatus> {
+    let (activity, operation) = service.begin_cancellable_activity(
+        ActivityOperation::UpdateCatalog,
+        ActivityTargetKind::Library,
+        None,
+    )?;
+    emit(operation.started());
+    let result = (|| {
+        operation.checkpoint()?;
+        operation.begin_publication()?;
+        service.library().apply_listings(candidate)
+    })();
     let result = service.finish_activity(activity, result);
     emit(operation.finished(OperationResult::from_result(&result)));
     result

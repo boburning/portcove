@@ -196,6 +196,11 @@ it("shows source and edition attribution, navigates previews and returns focus t
     second = {
       ...image("second"),
       subject: { kind: "original" as const, game_id: "original", source_edition_id: "usa-v1" },
+    },
+    third = {
+      ...image("third"),
+      caption: "Owned third scene",
+      subject: second.subject,
     };
   vi.spyOn(desktopApi, "catalogMediaThumbnail").mockImplementation(async (_port, _id, sha256) => ({
     asset_sha256: sha256,
@@ -203,14 +208,14 @@ it("shows source and edition attribution, navigates previews and returns focus t
     png_base64: png,
   }));
   await render(
-    <ArtworkProvider generation={7} listings={directory([first, second])}>
+    <ArtworkProvider generation={7} listings={directory([first, second, third])}>
       <CatalogMediaGallery
         context={{ originalEditionId: "usa-v1" }}
         port={{
           ...portDefinition(),
           presentation: {
             ...portDefinition().presentation!,
-            media: [first, second],
+            media: [first, second, third],
             original_game: {
               format_version: 1,
               id: "original",
@@ -242,6 +247,17 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned second scene", exact: true }))
     .toBeVisible();
+  const viewer = page.getByRole("dialog");
+  const title = viewer.getByRole("heading", { name: "Owned second scene", exact: true }).element();
+  const description = viewer.getByText(/Screenshot 2 of 3/).element();
+  const close = viewer.getByRole("button", { name: "Close", exact: true }).element();
+  const titleBounds = title.getBoundingClientRect();
+  const outline = getComputedStyle(title);
+  const focusExtent = parseFloat(outline.outlineWidth) + parseFloat(outline.outlineOffset);
+  expect(titleBounds.right + focusExtent).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+  expect(titleBounds.bottom + focusExtent).toBeLessThanOrEqual(
+    description.getBoundingClientRect().top,
+  );
   await expect
     .element(page.getByRole("dialog").getByText(/Original release · usa-v1/))
     .toBeVisible();
@@ -259,6 +275,28 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned first scene", exact: true }))
     .toBeVisible();
+  const root = document.documentElement;
+  const previousDirection = root.getAttribute("dir");
+  root.dir = "rtl";
+  try {
+    for (const name of ["Previous", "Next"]) {
+      const action = viewer.getByRole("button", { name, exact: true }).element();
+      expect(getComputedStyle(action.querySelector("svg")!).rotate).toBe("180deg");
+    }
+    await userEvent.keyboard("{ArrowLeft}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned second scene", exact: true }))
+      .toBeVisible();
+    await firstChoice.click();
+    await expect.element(firstChoice).toHaveAttribute("aria-pressed", "true");
+    await userEvent.keyboard("{ArrowRight}");
+    await expect
+      .element(viewer.getByRole("heading", { name: "Owned third scene", exact: true }))
+      .toBeVisible();
+  } finally {
+    if (previousDirection === null) root.removeAttribute("dir");
+    else root.dir = previousDirection;
+  }
   await userEvent.keyboard("{Escape}");
   await expect.element(origin).toHaveFocus();
 });
