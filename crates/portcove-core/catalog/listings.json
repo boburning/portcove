@@ -16081,7 +16081,7 @@
           },
           {
             "title": "Start Brogue Community Edition",
-            "instruction": "On Windows x64, start brogue.exe in its extracted folder. On Linux x86-64, install SDL2 and SDL2_image through your distribution, then run ./brogue from the extracted folder. Use a Linux folder path without spaces for the supplied script. On Mac, choose the Apple Silicon or Intel archive and open the included Brogue CE app."
+            "instruction": "On Windows x64, start brogue.exe in its extracted folder. On Linux x86-64, install SDL2 and SDL2_image through your distribution, then run ./brogue from the extracted folder. Use a Linux folder path without spaces for the supplied script. On Mac, choose the Apple Silicon or Intel archive and open the included Brogue CE app. If macOS blocks the unsigned app on first launch, follow the publisher’s Mac instructions."
           }
         ],
         "warnings": [
