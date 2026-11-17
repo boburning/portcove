@@ -1710,6 +1710,7 @@ function CurrentSettingsView({
           {
             refresh: "none",
             invalidateDiagnostics: false,
+            propagateFailure: true,
             cancelledResult: (result) => result === undefined,
           },
         )

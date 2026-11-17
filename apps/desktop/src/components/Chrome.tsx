@@ -1869,7 +1869,7 @@ export function SettingsView(props: SettingsViewProps) {
       />
       <AutomaticSnapshotsSetting key={generation} generation={generation} />
       <LibraryRecovery
-        key={generation}
+        key={`recovery-${generation}`}
         libraryRoot={storage?.library_root ?? libraryRoot}
         ports={ports}
         statuses={statuses}
