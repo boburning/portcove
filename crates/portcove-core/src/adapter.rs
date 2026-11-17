@@ -412,6 +412,8 @@ impl Adapter for StandardAdapter {
         }
         Ok(LaunchSpec {
             fixed_arguments_only: port.managed_initialization.is_some()
+                // A portable player's alternate game-folder mode can change where it writes.
+                || (self.0 == AdapterKind::NativePortable && port.user_data_environment.is_some())
                 || port.managed_shared_preferences.is_some()
                 || port.runtime_data_policy.is_some()
                 || crate::native_portable_data::directory_name(port, platform).is_some()
@@ -5138,6 +5140,45 @@ mod tests {
         let destination = temporary.path().join("materialized.z64");
         prepare_n64_source(&record.path, &destination, &|| Ok(())).unwrap();
         assert_eq!(std::fs::read(destination).unwrap(), rom);
+    }
+
+    #[test]
+    fn native_portable_user_data_environment_keeps_open_surge_data_outside_the_runtime() {
+        let temporary = tempfile::tempdir().unwrap();
+        let library = Library::open(temporary.path().join("library")).unwrap();
+        let install = temporary.path().join("version");
+        std::fs::create_dir_all(&install).unwrap();
+        let executable = install.join("opensurge.exe");
+        std::fs::write(&executable, b"player").unwrap();
+        let catalog = Catalog::embedded().unwrap();
+        let port = catalog.port("surge-the-rabbit-opensurge").unwrap();
+
+        let spec = AdapterRegistry
+            .get(AdapterKind::NativePortable)
+            .prepare_launch_with_executable(
+                LaunchSpecRequest {
+                    library: &library,
+                    port,
+                    platform: Platform::WindowsX86_64,
+                    install_root: &install,
+                    selected_executable: &executable,
+                    source: None,
+                    source_record: None,
+                    disc_progress: None,
+                },
+                &|| Ok(()),
+            )
+            .unwrap();
+
+        let profile = library.user_dir(&port.id);
+        assert!(profile.is_dir());
+        assert_eq!(spec.working_directory, install);
+        assert_eq!(
+            spec.environment.get("OPENSURGE_USER_PATH"),
+            Some(&profile.to_string_lossy().into_owned())
+        );
+        assert!(spec.fixed_arguments_only);
+        assert!(spec.arguments.is_empty());
     }
 
     #[test]
