@@ -61,7 +61,7 @@
     "groupLabel_other": "{{title}}. {{count}} proyectos de adaptación independientes; {{matching}} coincidentes.",
     "identity": {
       "matching": "{{title}} {{project}}. Adaptación coincidente: {{port}}. {{state}}. {{action}}",
-      "single": "{{title}} {{project}}. {{state}}. {{action}}"
+      "single": "{{identity}}. {{state}}. {{action}}"
     },
     "label": "Descubrir juegos",
     "matchingPort": "Adaptación coincidente: <port />",

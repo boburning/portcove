@@ -495,14 +495,13 @@ function DiscoverGameCardView({
             : group.ports.length > 1
               ? t("discover.identity.matching", {
                   title: gameTitle(first),
-                  project: projectLabel,
+                  project: projectLabel ?? "",
                   port: firstProject,
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
               : t("discover.identity.single", {
-                  title: gameTitle(first),
-                  project: projectLabel,
+                  identity: projectLabel ? `${gameTitle(first)} ${projectLabel}` : gameTitle(first),
                   state: observation.state.label,
                   action: memberLabel(t, first, status),
                 })
@@ -520,7 +519,9 @@ function DiscoverGameCardView({
           className="collection-art"
         />
         <h2 className="collection-title font-semibold">{gameTitle(first)}</h2>{" "}
-        <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
+        {projectLabel && (
+          <p className="collection-project text-pc-muted-foreground">{projectLabel}</p>
+        )}
       </Button>
       <div className="collection-personal-actions">
         {group.ports.length === 1 && favorite(first, true)}
@@ -622,13 +623,13 @@ function discoverCardIdentity(
     organization?.snapshot ? (organization.snapshot.preferred_port_by_game ?? {}) : undefined,
   ).port;
   const first = chosen ?? group.matchingPorts[0]!;
-  const firstProject = gameProjectLabel(first) || first.name;
+  const firstProject = gameProjectLabel(first);
   return {
     first,
     actionGroup: chosen ? { ...group, matchingPorts: [chosen] } : group,
     status: statuses.get(first.id),
     exact: Boolean(chosen) || group.matchingPorts.length === 1,
-    firstProject,
+    firstProject: firstProject ?? first.name,
     projectLabel:
       group.ports.length === 1
         ? firstProject
