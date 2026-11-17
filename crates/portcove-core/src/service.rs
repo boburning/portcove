@@ -4971,6 +4971,7 @@ impl PortcoveService {
         let mut result: Result<Vec<PathBuf>> = (|| {
             self.catalog.port(port_id)?;
             let _operation = self.library.try_lock_port(port_id, "remove")?;
+            crate::profile_file_preservation::require_idle(&self.library, port_id)?;
             let locked_preview = self.preview_removal(port_id)?;
             self.library.consume_authorization(
                 authorization_token,

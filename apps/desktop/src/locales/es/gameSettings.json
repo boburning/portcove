@@ -107,6 +107,18 @@
     "createFirst": "Crear el primer perfil",
     "defaultRefreshRequired": "El perfil predeterminado aún registra una versión anterior del juego. Actualízalo antes de copiarlo o exportarlo.",
     "empty": "No hay mods. El juego se ejecuta sin cambios en este perfil.",
+    "filePreservation": {
+      "adopt": "Para un mod compatible, usa Añadir archivo de mod y elige este archivo guardado.",
+      "details": "Detalles del archivo",
+      "finish": "Terminar de guardar el archivo",
+      "inspect": "Revisar archivo",
+      "inspectName": "Revisar {{fileName}}",
+      "move": "Mueve este archivo a una ubicación guardada fuera de la carpeta de mods.",
+      "outcome": "Se guardó el archivo fuera de la carpeta de mods.",
+      "pending": "Se interrumpió el traslado de un archivo de mod. Termina de guardarlo antes de cambiar de configuración.",
+      "preserve": "Guardar archivo",
+      "restore": "Guarda esta modificación fuera de la carpeta de mods y restaura el mod original guardado en esta configuración."
+    },
     "fromProvider": "<name /> (de <provider />)",
     "gameChanged": "Este juego cambió. Actualiza sus detalles antes de cambiar los mods.",
     "heading": "Perfiles y mods",

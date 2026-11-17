@@ -56,6 +56,12 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
+Inspection records one file and its exact bytes. Preservation requires the
+reviewed plan digest and retains the file outside the game’s mods folder.
+Writer schema 66 coordinates recovery of an interrupted file move. The
+operation-event schema stays 3.
+
 API 97 adds `profile recover-plan` and `profile recover`. The
 `profile_recovery_plan` identifies the exact target revision, holds and policy.
 Applying that plan appends a successor and keeps current progress. `profile

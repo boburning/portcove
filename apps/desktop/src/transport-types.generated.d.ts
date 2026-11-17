@@ -1278,6 +1278,8 @@ export interface TransportOutputs {
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
+  mod_file_preservation_plan: ModFilePreservationPlan;
+  mod_file_preservation_result: OutputModFilePreservationResult;
   mod_setups_view: OutputModSetupsView;
   official_catalog_automatic_refresh: OutputOfficialCatalogAutomaticRefresh;
   official_catalog_review: OfficialCatalogReview;
@@ -4952,6 +4954,10 @@ export interface LiveMods {
         state: "unreadable";
         [k: string]: unknown;
       };
+  /**
+   * An authorized file move waiting for recovery, even if the live name disappeared.
+   */
+  pending_preservation?: ModFilePreservationPlan | null;
   profile_id: string | null;
   revision: number | null;
   /**
@@ -4959,6 +4965,27 @@ export interface LiveMods {
    */
   unmanaged: string[];
   [k: string]: unknown;
+}
+export interface ModFilePreservationPlan {
+  file_name: string;
+  observed: ModFileIdentity;
+  plan_sha256: string;
+  port_id: string;
+  profile_id: string;
+  /**
+   * For an edited managed file, the exact package that will be restored.
+   */
+  restore: ModFileIdentity | null;
+  revision: number;
+  revision_sha256: string;
+  /**
+   * Distinguishes a rediscovered copy of the same bytes from prior preserved copies.
+   */
+  slot: number;
+}
+export interface ModFileIdentity {
+  sha256: string;
+  size: number;
 }
 /**
  * Exact review of a file chosen for one setup. Paths stay local to the caller.
@@ -5019,6 +5046,15 @@ export interface OutputModCodeReview {
    * The exact bytes any consent covers.
    */
   sha256: string;
+  [k: string]: unknown;
+}
+export interface OutputModFilePreservationResult {
+  plan: ModFilePreservationPlan;
+  /**
+   * Outside the loader's effective mod directories. The regular local package
+   * review may use this path, without granting execution or ownership here.
+   */
+  preserved_path: string;
   [k: string]: unknown;
 }
 /**

@@ -309,6 +309,19 @@ export const desktopApi = {
     invoke<void>("select_mod_setup_original", { ...target, instanceId }),
   relinkModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, path: string) =>
     invoke<void>("relink_mod_setup_original", { ...target, path }),
+  inspectModFile: (portId: string, fileName: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationPlan>("inspect_mod_file", {
+      portId,
+      fileName,
+      generation,
+    }),
+  preserveModFile: (portId: string, fileName: string, expectedPlan: string, generation: number) =>
+    invoke<import("./types").ModFilePreservationResult>("preserve_mod_file", {
+      portId,
+      fileName,
+      expectedPlan,
+      generation,
+    }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
   copyModSetup: (

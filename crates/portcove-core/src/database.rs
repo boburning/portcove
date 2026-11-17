@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 65;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 66;
 
 struct Migration {
     version: i64,
@@ -413,7 +413,19 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_65,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 66,
+        name: "journaled mod file preservation writer protocol",
+        apply: migration_66,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_66(transaction: &Transaction<'_>) -> Result<()> {
+    // All live writers must honor the reviewed move journal before changing the
+    // selected projection or its stored package references.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
     // Older clients can replace the canonical mods projection via backup
@@ -4004,6 +4016,7 @@ mod tests {
         schema_62: 62,
         schema_63: 63,
         schema_64: 64,
+        schema_65: 65,
     }
 
     #[test]
