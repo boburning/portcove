@@ -18214,6 +18214,10 @@
             "instruction": "Use your Linux distribution’s chocolate-doom package for all four players. Debian packages are available on x86-64 and ARM64. On Intel or Apple Silicon Mac, use brew install chocolate-doom on a supported Homebrew host. Run the matching chocolate-doom, chocolate-heretic, chocolate-hexen or chocolate-strife command. Your package manager owns updates."
           },
           {
+            "title": "Register an existing Chocolate Doom player on Linux",
+            "instruction": "Use portcove external select-preview for chocolate-doom-family with the absolute chocolate-doom executable path, --working-directory for its folder, --arg=-iwad and a separate --arg with the absolute path to your Doom or Freedoom IWAD. Repeat those details with portcove external select and pass the preview SHA-256 to --expected-preview. Start the game with portcove exec chocolate-doom-family. Removing the registration keeps the player, IWAD and profile."
+          },
+          {
             "title": "Find settings and saves",
             "instruction": "For a portable Windows copy, start the player in its own folder and keep the configuration and saves it writes there. On Linux the default profile is $XDG_DATA_HOME/chocolate-doom, normally ~/.local/share/chocolate-doom. On Mac it is normally ~/Library/Application Support/chocolate-doom. Preserve the actual paths if you use -config, -extraconfig or -savedir. The default per-game save folders can differ by IWAD."
           }
