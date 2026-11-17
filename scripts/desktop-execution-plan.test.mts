@@ -136,6 +136,38 @@ void test("native interface enlargement retains its exact assertion source witho
   assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform: "linux" }));
 });
 
+void test("actual collection artwork stays standalone with normal builds and native review custody", () => {
+  const id = "native-collection-artwork-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.deepEqual(selection.prerequisites, ["desktop"]);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  assert.equal(plan.session.reviewedWorkflowSession, true);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.fixtures.owned, false);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  for (const file of ["desktop-collection-artwork-test.mts", "desktop-review-controls.mts"])
+    assert.equal(
+      plan.receiptInputs.filter(
+        (input) => input.kind === "file" && input.path === `apps/desktop/scripts/${file}`,
+      ).length,
+      1,
+    );
+  for (const profile of ["smoke", "presentation", "artwork", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/u,
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /standalone/u);
+});
+
 void test("real prepared runtimes use production builds and positive owned closure", () => {
   const id = "native-real-prepared-runtime";
   const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
@@ -390,6 +422,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-collection-artwork-presentation",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -408,6 +441,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(!selection.selected_scenarios.includes("native-collection-artwork-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-collection-artwork-presentation"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =

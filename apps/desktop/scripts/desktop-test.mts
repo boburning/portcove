@@ -94,6 +94,7 @@ import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
 import { interfaceSizeScenario } from "./desktop-interface-size-test.mts";
+import { collectionArtworkScenario } from "./desktop-collection-artwork-test.mts";
 import { reloadScenario } from "./desktop-reload-test.mts";
 import { workspaceRefreshScenario } from "./desktop-workspace-refresh-test.mts";
 import {
@@ -4793,6 +4794,15 @@ try {
       setTheme: selectSettingsTheme,
       capture: captureScenarioScreenshot,
       captureTarget: (name, target) => captureKeyboardTarget(name, target, "native-interface-size"),
+    });
+    await collectionArtworkScenario({
+      browser: driverBrowser(),
+      invoke,
+      scenario,
+      output,
+      artifacts,
+      library,
+      setTheme: selectSettingsTheme,
     });
     await workspaceRefreshScenario({
       browser: driverBrowser(),

@@ -2208,6 +2208,30 @@ unchanged. It is not
 large-collection, gameplay, OS DPI, physical
 controller or assistive-technology acceptance.
 
+`native-collection-artwork-presentation` is a standalone Windows opt-in with a
+ten-minute harness budget and the existing identity-bound native review cleanup.
+It uses the normal app and a fresh source-free library. The actual accepted
+catalog supplies the two-member `andreyvelsk-com-mobilerpgpack-phone` and four-member
+`crownpark-xbox360-native-ports-collection` listings, member credits and digests.
+Public thumbnail IPC is bound to the actual library generation and artwork choice
+revision; retained PNG identities are compared with displayed images. Discover,
+detail and credits use settled, contained captures in both themes at the supported
+960×640 outer window. A four-member compact representative uses that same window
+at 200% through the production Ctrl+0/Ctrl++ native WebView sizing route. Records
+bind the actual outer size, saved percentage, device pixel ratio and effective
+viewport; the compact viewport must be half its measured 100% baseline, within
+two CSS pixels. Full credits are captured at 100%; the compact capture frames
+their opener while still checking every source link and credit. Back must restore
+the exact Discover opener focus. Theme/interface-size preference changes use
+existing controls in the isolated profile and are restored. Catalog and artwork
+choices remain unchanged; no original files, runtime installation, catalog
+replacement or provider credentials are used. Restoration completes before the
+final report is serialized, including any restoration failure.
+Public failures retain concrete member failures and any partial/fallback evidence
+and fail complete-collection acceptance. Browser fixtures for Library/Manage remain
+separate evidence; this listing-only native case does not qualify those installed
+surfaces, gameplay or publication. It is absent from routine profiles.
+
 `just desktop-verify --scenario native-saved-folder-hash-resume --require-clean`
 selects one standalone
 Windows journey outside routine profiles. An isolated first-party CLI seeds a
