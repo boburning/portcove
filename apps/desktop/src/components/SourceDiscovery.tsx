@@ -335,6 +335,7 @@ function DiscoveryResults({
     ...new Set([...(report?.limits_reached ?? []), ...(inbox?.stats.limits_reached ?? [])]),
   ];
   const issues = [...(report?.issues ?? []), ...(inbox?.stats.issues ?? [])];
+  const issuesOmitted = (report?.issues_omitted ?? 0) + (inbox?.stats.issues_omitted ?? 0);
   const limitSource = report ? "folder" : "inbox";
   if (!report && !inbox) return null;
   return (
@@ -419,6 +420,13 @@ function DiscoveryResults({
           )}
         </p>
       ))}
+      {issuesOmitted > 0 && (
+        <p>
+          {issuesOmitted === 1
+            ? "1 more scan issue was omitted."
+            : `${issuesOmitted} more scan issues were omitted.`}
+        </p>
+      )}
     </section>
   );
 }
