@@ -60168,13 +60168,14 @@
     {
       "id": "street-rod-sdl3-port",
       "name": "Street Rod / SDL3 Port",
-      "summary": "Play the original DOS Street Rod with the SDL3 port and your own game data.",
+      "summary": "Play DOS Street Rod with the SDL3 port, using the Windows package or a Linux source build and your own game data.",
       "original_game_title": "Street Rod",
       "project_url": "https://github.com/kylofon/street-rod-sdl3",
       "issue_number": 5855,
       "listed_at": "2026-11-17",
       "platforms": [
-        "windows-x86-64"
+        "windows-x86-64",
+        "linux-x86-64"
       ],
       "availability": "packages",
       "setup_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md",
@@ -60196,8 +60197,12 @@
             "instruction": "Extract the complete Windows x64 ZIP into its own folder and keep both executables and every DLL together. Open Street Rod.exe to choose your data and options. Choose original cars or Street Rod SE cars deliberately. The launcher uses the matching dataset for each."
           },
           {
+            "title": "Build the direct player on Linux",
+            "instruction": "The reviewed release has no Linux package. Use the upstream source with a C11 compiler, CMake 3.24 or newer and SDL3 development files. From the repository root, run cmake -S srport -B build -DCMAKE_BUILD_TYPE=Release -DSR_LAUNCHER=OFF -DCMAKE_C_STANDARD_LIBRARIES=-lm, then cmake --build build --target srport. The extra math-library flag is needed on Linux. Keep the built srport and its SDL3 runtime available. The Windows ZIP and launcher are not used on Linux."
+          },
+          {
             "title": "Register the actual player in Portcove",
-            "instruction": "Choose srport.exe as the existing installation and its containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
+            "instruction": "On Windows, choose srport.exe as the existing installation; on Linux, choose the built srport. Choose the player’s containing directory as the working directory. Add --game-dir and your writable game-data folder as two separate arguments. For Street Rod SE, choose the datadisk folder. Review the selected player, folder and arguments, then choose Play. The separate upstream launcher can stay open or close while its game continues."
           }
         ],
         "warnings": [
@@ -60210,7 +60215,7 @@
           },
           {
             "title": "Other platforms",
-            "instruction": "This release publishes a Windows x64 package. The publisher has no reviewed Linux, Intel Mac, Apple Silicon or Android package for this route."
+            "instruction": "Windows x64 has the reviewed official package. Linux x64 uses the upstream source build described above, with no reviewed Linux package. Intel Mac and Apple Silicon have no reviewed package or native build evidence. Android has no reviewed package or mobile host integration. Those platforms do not inherit the Windows or Linux observations."
           }
         ],
         "help_url": "https://github.com/kylofon/street-rod-sdl3/blob/v0.1.0/README.md"
