@@ -6,6 +6,14 @@
     "original_game_title": "Digger",
     "summary": "Collect emeralds, dig tunnels, and evade monsters in this standalone SDL remake of Digger.",
     "project_url": "https://github.com/sobomax/digger",
+    "artwork": {
+      "game_id": 24425,
+      "cover_id": 368555,
+      "image_id": "co7wdn",
+      "image_sha256": "b65c075bbeab1a3cc7485d6b6de29b82fe645ef9b5c47943919fd2455f442f53",
+      "game_slug": "digger",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6740,
     "listed_at": "2026-11-17",
     "availability": "packages",

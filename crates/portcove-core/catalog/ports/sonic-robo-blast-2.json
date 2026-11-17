@@ -6,6 +6,14 @@
     "original_game_title": "Sonic Robo Blast 2",
     "summary": "Play Sonic Team Junior's 3D fan game with its bundled stages, characters, and music.",
     "project_url": "https://github.com/STJr/SRB2",
+    "artwork": {
+      "game_id": 95508,
+      "cover_id": 297964,
+      "image_id": "co6dws",
+      "image_sha256": "07b6079390ebe07bc2f15bda62bc00146263a9414fcb84aee893335a0c06ac30",
+      "game_slug": "sonic-robo-blast-2",
+      "match_kind": "port"
+    },
     "issue_number": 6738,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

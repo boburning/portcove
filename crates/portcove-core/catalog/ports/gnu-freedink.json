@@ -6,6 +6,14 @@
     "original_game_title": "Dink Smallwood",
     "summary": "Play the original Dink Smallwood adventure with the GNU FreeDink engine and its bundled game data.",
     "project_url": "https://www.gnu.org/software/freedink/",
+    "artwork": {
+      "game_id": 11345,
+      "cover_id": 313144,
+      "image_id": "co6pmg",
+      "image_sha256": "30bd1cb7eb66a98a033cad0810830b1d7635afafd0583930ef100fd1f96a77f9",
+      "game_slug": "dink-smallwood",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6536,
     "listed_at": "2026-11-16",
     "platforms": ["linux-x86-64", "macos-x86-64", "macos-aarch64"],
