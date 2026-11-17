@@ -12,6 +12,7 @@ $game = $null
 $gameHandle = $null
 $rootHandle = $null
 $gameBound = $false
+$profileAbsentVerified = $false
 $window = [IntPtr]::Zero
 $failure = $null
 $stdoutSink = $null
@@ -57,6 +58,7 @@ function Close-OwnedGameWindow {
 }
 try {
   if (Test-Path -LiteralPath $profile) { throw 'Pre-existing CorsixTH profile: preserve it; no native trial started' }
+  $profileAbsentVerified = $true
   $install = Invoke-CliJson 'install' @('install','corsixth-corsixth')
   if ($install.data.artifact.sha256 -ne '751f837e79ada345f60fba9c97b4d0b2ad7cedcc157b5dd3c257ab7047d24ea2') { throw 'Actual selected publisher package differs' }
   $verify = Invoke-CliJson 'verify' @('verify','corsixth-corsixth')
@@ -154,7 +156,7 @@ try {
   $positive = (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
   @{positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
   if (-not $positive -and -not $failure) { $failure='Positive owned exit was not established' }
-  if (Test-Path -LiteralPath (Join-Path $profile 'config.txt')) { Copy-Item -LiteralPath (Join-Path $profile 'config.txt') -Destination (Join-Path $native 'profile-at-cleanup.log') }
+  if ($profileAbsentVerified -and $gameBound -and (Test-Path -LiteralPath (Join-Path $profile 'config.txt'))) { Copy-Item -LiteralPath (Join-Path $profile 'config.txt') -Destination (Join-Path $native 'profile-at-cleanup.log') }
   foreach ($sink in @($stdoutSink,$stderrSink)) { if ($sink) { $sink.Flush() } }
   if ($stdoutSink -and $stdout.IsCompleted) { $stdoutSink.Dispose() }
   if ($stderrSink -and $stderr.IsCompleted) { $stderrSink.Dispose() }
