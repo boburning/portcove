@@ -20,7 +20,7 @@ import { PortSearch } from "./PortSearch";
 import { controlFocus, floatingMotion } from "./ui/control-style";
 import { gameTitle, gameProjectLabel, gameIdentityLabel } from "../port-identity";
 import { cn } from "cn";
-import { Notice } from "./ui/patterns";
+import { ActionRow, Notice } from "./ui/patterns";
 import type { useFavorites } from "../features/favorites/use-favorites";
 import {
   memo,
@@ -994,9 +994,9 @@ function BrowserEmptyState({
           </span>
         }
         title="Your library is empty"
-        description="Portcove helps you find and install community-made versions of games, called ports, and can keep many of them updated. Some ports need files from your own copy of the original game; Portcove checks them on this computer and doesn’t upload them. You can also copy a supported installation without changing its original folder."
+        description="Browse community-made versions of games, called ports, or copy a supported installation without changing its original folder. Some ports need files from your own copy of the original game. When Portcove checks those files, it does so on this computer and doesn’t upload them."
         action={
-          <>
+          <ActionRow className="justify-center">
             {onDiscover && (
               <Button data-focusable variant="primary" size="lg" onClick={onDiscover}>
                 <Icon glyph={Compass} />
@@ -1018,7 +1018,7 @@ function BrowserEmptyState({
                 Connect game-file folder
               </Button>
             )}
-          </>
+          </ActionRow>
         }
       />
     );

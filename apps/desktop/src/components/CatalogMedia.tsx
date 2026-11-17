@@ -233,13 +233,17 @@ export function CatalogMediaGallery({
           onKeyDown={(event) => {
             if (event.key === "ArrowRight" || event.key === "ArrowLeft") {
               event.preventDefault();
-              change(event.key === "ArrowRight" ? 1 : -1);
+              const nextKey =
+                getComputedStyle(event.currentTarget).direction === "rtl"
+                  ? "ArrowLeft"
+                  : "ArrowRight";
+              change(event.key === nextKey ? 1 : -1);
             }
           }}
         >
           {active && (
             <>
-              <DialogTitle ref={heading} tabIndex={-1}>
+              <DialogTitle ref={heading} tabIndex={-1} className="me-12 mb-2">
                 {active.caption}
               </DialogTitle>
               <DialogDescription>
@@ -270,13 +274,13 @@ export function CatalogMediaGallery({
               </p>
               <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(-1)}>
-                  <Icon glyph={ArrowLeft} />
+                  <Icon glyph={ArrowLeft} className="rtl:rotate-180" />
                   {t("media.previous")}
                 </Button>
                 <ExternalLink href={active.url}>{t("media.openOriginal")}</ExternalLink>
                 <Button variant="outline" disabled={shots.length < 2} onClick={() => change(1)}>
                   {t("media.next")}
-                  <Icon glyph={ArrowRight} />
+                  <Icon glyph={ArrowRight} className="rtl:rotate-180" />
                 </Button>
               </div>
             </>

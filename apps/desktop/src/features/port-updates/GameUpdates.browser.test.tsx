@@ -1346,6 +1346,7 @@ it.each(["acquired", "attention_required"] as const)(
 
 it("distinguishes acquired archives from prepared updates in Activity and keeps current Play available", async () => {
   const port = portDefinition();
+  const secondPort = { ...portDefinition(), id: "no-update", name: "Another game" };
   const status = {
     ...portStatus(),
     port_id: port.id,
@@ -1359,8 +1360,20 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
     <UpdateCenter
       section="updates"
       generation={9}
-      ports={[port]}
-      statuses={new Map([[port.id, status]])}
+      ports={[port, secondPort]}
+      statuses={
+        new Map([
+          [port.id, status],
+          [
+            secondPort.id,
+            {
+              ...portStatus(),
+              port_id: secondPort.id,
+              active: { ...status.active, port_id: secondPort.id },
+            },
+          ],
+        ])
+      }
       activities={[]}
       outcomes={[]}
       diagnosticsRefreshing={false}
@@ -1386,18 +1399,23 @@ it("distinguishes acquired archives from prepared updates in Activity and keeps 
   );
   expect(prepared?.querySelector("strong")?.textContent).toBe("0");
   const header = container.querySelector<HTMLElement>(".update-entry > .update-row")!;
-  const actions = container.querySelector<HTMLElement>('.update-entry > [role="group"]')!;
+  const ordinaryHeader = container.querySelector<HTMLElement>(
+    '[data-detail-origin="updates:installed:no-update"]',
+  )!;
+  const actions = container.querySelector<HTMLElement>('.update-entry-tools > [role="group"]')!;
   const title = header.querySelector<HTMLElement>(".update-title")!;
   const archive = actions.querySelector<HTMLElement>('[aria-label="Downloaded update"]')!;
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );
+  expect(header.getBoundingClientRect().width).toBe(ordinaryHeader.getBoundingClientRect().width);
   expect(title.getBoundingClientRect().width).toBeGreaterThan(160);
   expect(archive.getBoundingClientRect().right).toBeLessThanOrEqual(
     container.getBoundingClientRect().right,
   );
   await captureParityState("game-update-archive-not-prepared-fixture");
   await page.viewport(414, 896);
+  expect(header.getBoundingClientRect().width).toBe(ordinaryHeader.getBoundingClientRect().width);
   expect(actions.getBoundingClientRect().top).toBeGreaterThanOrEqual(
     header.getBoundingClientRect().bottom,
   );

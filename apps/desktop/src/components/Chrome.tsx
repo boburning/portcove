@@ -282,7 +282,7 @@ export function Sidebar({
             <span className="sr-only">Portcove</span>
             <strong
               aria-hidden="true"
-              className="block text-[length:var(--text-lg)] tracking-[-0.05em]"
+              className="block text-[length:var(--text-lg)] tracking-[-0.035em]"
             >
               portcove<span className="text-[var(--color-primary)]">.</span>
             </strong>
@@ -444,15 +444,13 @@ export function WorkspaceToolbar({
   return (
     <div className="workspace-toolbar @container/workspace-header flex min-w-0 items-center justify-between gap-3 border-b border-pc-border text-xs text-pc-muted-foreground">
       <div className="flex min-w-0 items-center gap-3" role="group" aria-label="Current location">
-        <span className="max-[42rem]:hidden">Portcove</span>
-        <span className="max-[42rem]:hidden" aria-hidden="true">
-          /
-        </span>
         <span>{label}</span>
         {detailTitle && (
           <>
             <span aria-hidden="true">/</span>
-            <span className="truncate">{detailTitle}</span>
+            <span className="min-w-0 truncate text-pc-foreground" title={detailTitle}>
+              {detailTitle}
+            </span>
           </>
         )}
       </div>
@@ -466,7 +464,7 @@ export function WorkspaceToolbar({
         aria-label={`Search games and pages ${commandShortcut("K")}: open command palette`}
       >
         <Icon glyph={Search} />
-        <span className="max-[65rem]:hidden">Search games and pages</span>{" "}
+        <span className="max-[56rem]:hidden">Search games and pages</span>{" "}
         <Shortcut className="max-[42rem]:hidden">{commandShortcut("K")}</Shortcut>
       </Button>
     </div>
@@ -833,7 +831,7 @@ function GithubConnection({ status }: { status?: GithubAuthStatus | undefined })
       {!status ? (
         <p>Refresh status to check the GitHub connection.</p>
       ) : (
-        !connected && <p>Not signed in. Signing in increases the limit for release checks.</p>
+        !connected && <p>Signing in increases the limit for release checks.</p>
       )}
       <details className="mt-3 text-sm text-pc-muted-foreground">
         <summary className="cursor-pointer font-semibold">Connection details</summary>
@@ -891,11 +889,11 @@ function TokenEntry({
       <label className="block font-semibold" htmlFor="github-personal-access-token">
         Personal access token
       </label>
-      <div className="mt-2 flex gap-2">
+      <div className="mt-2 flex max-w-lg flex-wrap items-center gap-2">
         <Input
           id="github-personal-access-token"
           data-focusable
-          className="flex-1"
+          className="min-w-0 flex-[1_1_12rem]"
           type="password"
           autoComplete="off"
           value={github?.token ?? ""}
@@ -926,7 +924,7 @@ function GithubActions({
 }) {
   const status = github?.status;
   return (
-    <div className="actions compact mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+    <ActionRow className="mt-2">
       {!status?.authenticated &&
         status?.source !== "environment" &&
         status?.device_login_available && (
@@ -966,7 +964,7 @@ function GithubActions({
       >
         Refresh status
       </Button>
-    </div>
+    </ActionRow>
   );
 }
 
@@ -1577,22 +1575,21 @@ function AboutCard({
 }) {
   return (
     <div className="about-card" data-focus-group>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Portcove {desktopPackage.version}</h3>
-          <p>Tauri 2 · Rust · React</p>
           <p>Licensed under MIT or Apache-2.0.</p>
         </div>
         <ExternalLink
-          className="settings-field-control inline-flex min-h-10 items-center rounded-pc-md border border-pc-border px-3 py-2 text-sm no-underline hover:bg-pc-secondary"
+          className="settings-field-control min-h-10 text-sm"
           href="https://github.com/boburning/portcove"
         >
           Open project repository
         </ExternalLink>
       </SettingsRow>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
-          <h3>Report a problem or send feedback</h3>
+          <h3>Feedback</h3>
           <p>
             Tell us when something broke, or when something was hard, confusing or missing. You
             review the pre-filled text, and nothing is sent until you choose how: from your GitHub
@@ -1604,7 +1601,7 @@ function AboutCard({
           <ReportProblem key={generation} generation={generation} />
         </div>
       </SettingsRow>
-      <SettingsRow className="settings-field-row mb-4 gap-5 rounded-[7px] border border-pc-border bg-pc-surface p-6">
+      <SettingsRow className="settings-field-row">
         <div className="settings-field-copy">
           <h3>Support</h3>
           <p>Save logs and system details to help troubleshoot a problem.</p>
@@ -1641,7 +1638,11 @@ function DiagnosticsCard({
 }) {
   return (
     <SettingsRow className="diagnostics-card" data-focus-group>
-      <h2 className="flex items-center gap-2">
+      <h2
+        id="settings-diagnostics-heading"
+        tabIndex={-1}
+        className="settings-target-heading flex items-center gap-2"
+      >
         <Icon glyph={ShieldCheck} />
         Create a support report
       </h2>
@@ -1677,7 +1678,7 @@ function ThemeOption({ option }: { option: ThemePreference }) {
     <Radio.Root
       data-focusable
       value={option}
-      className={`theme-option grid min-w-0 cursor-pointer justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
+      className={`theme-option grid min-w-0 cursor-pointer content-start justify-items-start gap-2 rounded-pc-md border-2 border-pc-border p-2 text-sm font-normal text-pc-muted-foreground hover:bg-pc-surface-muted data-checked:border-pc-interactive data-checked:text-pc-foreground ${controlFocus}`}
     >
       <span className="theme-preview" data-preview={option} aria-hidden="true">
         <i />
@@ -1687,9 +1688,9 @@ function ThemeOption({ option }: { option: ThemePreference }) {
           <b />
         </span>
       </span>
-      <span className="flex w-full min-w-0 items-center gap-2 text-start">
+      <span className="flex w-full min-w-0 items-center gap-1.5 text-start">
         <Icon glyph={option === "dark" ? Moon : option === "light" ? Sun : Monitor} size="sm" />
-        <span className="min-w-0">
+        <span className="min-w-0 wrap-anywhere">
           {option === "system" ? "Follow system" : option.charAt(0).toUpperCase() + option.slice(1)}
         </span>
         <Radio.Indicator className="ms-auto shrink-0">
@@ -1800,11 +1801,7 @@ export function SettingsView(props: SettingsViewProps) {
   const [steamOpen, setSteamOpen] = useState(false);
 
   const renderCategoryNavigation = () => (
-    <nav
-      className="settings-section-index sticky top-0 z-10 flex min-w-0 flex-nowrap items-start gap-1 overflow-x-auto bg-pc-background py-2 min-[56.3125rem]:flex-col min-[56.3125rem]:overflow-visible"
-      aria-label="Settings categories"
-      data-focus-group
-    >
+    <nav className="settings-section-index" aria-label="Settings categories" data-focus-group>
       {settingsCategories.map(({ id, label }) => (
         <Button
           key={id}
@@ -1812,7 +1809,7 @@ export function SettingsView(props: SettingsViewProps) {
           variant={selectedCategory === id ? "selected" : "ghost"}
           size="sm"
           className={cn(
-            "max-w-full shrink-0 justify-start gap-2.5 border-transparent text-start font-normal whitespace-nowrap after:hidden min-[56.3125rem]:w-full min-[56.3125rem]:whitespace-normal",
+            "settings-category justify-start gap-2.5 border-transparent text-start font-normal",
             selectedCategory !== id && "text-pc-muted-foreground",
           )}
           aria-current={selectedCategory === id ? "page" : undefined}
@@ -1823,7 +1820,7 @@ export function SettingsView(props: SettingsViewProps) {
           }}
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)(id);
-            jumpToSettingsSection(id);
+            revealSettingsHeading(`settings-${id}-heading`);
           }}
         >
           <Icon
@@ -1995,7 +1992,7 @@ export function SettingsView(props: SettingsViewProps) {
           variant="link"
           onClick={() => {
             (onCategoryChange ?? setLocalCategory)("advanced");
-            jumpToSettingsSection("advanced");
+            revealSettingsHeading("settings-advanced-heading");
           }}
         >
           Manage custom catalog sources
@@ -2004,7 +2001,7 @@ export function SettingsView(props: SettingsViewProps) {
     </SettingsSection>
   );
   return (
-    <section className="settings-grid grid max-w-[62rem] items-start gap-8 min-[56.3125rem]:grid-cols-[11.875rem_minmax(0,47.5rem)]">
+    <section className="settings-grid">
       {renderCategoryNavigation()}
       <div className="min-w-0">
         <SettingsSection
@@ -2101,16 +2098,15 @@ export function SettingsView(props: SettingsViewProps) {
         <SettingsSection
           id="about"
           active={selectedCategory === "about"}
-          title="Portcove"
-          headingLabel="About Portcove"
-          identity={<BrandMascot className="mb-5 size-14" decorative transparent />}
+          title="About Portcove"
+          identity={<BrandMascot className="size-14 shrink-0" decorative transparent />}
           description="Install, update, and play native game ports."
         >
           <AboutCard
             generation={generation}
             onOpenDiagnostics={() => {
               (onCategoryChange ?? setLocalCategory)("advanced");
-              jumpToSettingsSection("advanced");
+              revealSettingsHeading("settings-diagnostics-heading");
             }}
           />
         </SettingsSection>
@@ -2124,7 +2120,6 @@ function SettingsSection({
   id,
   title,
   description,
-  headingLabel,
   identity,
   action,
   children,
@@ -2133,7 +2128,6 @@ function SettingsSection({
   id: string;
   title: string;
   description: string;
-  headingLabel?: string;
   identity?: ReactNode;
   action?: ReactNode;
   children: ReactNode;
@@ -2143,36 +2137,19 @@ function SettingsSection({
     <section
       id={`settings-${id}`}
       hidden={!active}
-      className={cn(
-        "settings-section @container/section",
-        identity ? "gap-0" : "gap-6",
-        active ? "grid" : "hidden",
-      )}
+      className="settings-section @container/section"
       data-settings-group={id}
       aria-labelledby={headingId}
     >
-      <div className={cn("settings-section-heading", identity ? "about-identity" : "py-2")}>
+      <div className="settings-section-heading">
         {identity}
-        <h2
-          id={headingId}
-          tabIndex={-1}
-          aria-label={headingLabel}
-          className={cn(
-            "scroll-mt-3 focus:outline-3 focus:outline-offset-3 focus:outline-pc-ring focus:outline-solid",
-            identity ? "m-0 text-[2.2rem] tracking-[-0.035em]" : "mb-1 text-[1.25rem]",
-          )}
-        >
-          {title}
-        </h2>
-        <p
-          className={cn(
-            "settings-section-description leading-[var(--leading-relaxed)] text-pc-muted-foreground",
-            identity ? "mt-4 max-w-[24.375rem] text-xs" : "m-0 max-w-[52rem]",
-          )}
-        >
-          {description}
-        </p>
-        {action}
+        <div className="min-w-0">
+          <h2 id={headingId} tabIndex={-1} className="settings-target-heading">
+            {title}
+          </h2>
+          <p className="settings-section-description text-pc-muted-foreground">{description}</p>
+          {action}
+        </div>
       </div>
       <div className="settings-section-content min-w-0">{children}</div>
     </section>
@@ -2390,7 +2367,7 @@ function HostReadiness({
           {(stale || Boolean(failure)) && (
             <p role="status">Showing the last successful host check.</p>
           )}
-          <p className="host-summary mb-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <p className="host-summary mb-3 flex max-w-none flex-wrap items-center justify-between gap-x-3 gap-y-1">
             <code className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground">
               {doctor.platform}
             </code>
@@ -2399,11 +2376,15 @@ function HostReadiness({
               {doctor.registered_source_count} sources
             </span>
           </p>
-          <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
-            {doctor.host_tools.map((tool) => (
-              <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
-            ))}
-          </div>
+          {doctor.host_tools.length > 0 ? (
+            <div className="mb-4 grid grid-cols-1 gap-2 @min-[32rem]/section:grid-cols-2">
+              {doctor.host_tools.map((tool) => (
+                <HostToolRow key={tool.id} tool={tool} busy={Boolean(busy)} actions={actions} />
+              ))}
+            </div>
+          ) : (
+            <p>No disc tools were listed in the host check.</p>
+          )}
         </>
       ) : failure ? (
         <p>Disc-tool status is unavailable until the check succeeds.</p>
@@ -2604,10 +2585,7 @@ export function HostToolRow({
         <summary className="cursor-pointer text-sm text-[var(--color-text-secondary)]">
           Tool details
         </summary>
-        <code
-          className="mt-2 block min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-pc-muted-foreground"
-          title={location}
-        >
+        <code dir="ltr" className="mt-2 block min-w-0 wrap-anywhere text-pc-muted-foreground">
           {location}
         </code>
         <small className="mt-2 block text-[var(--color-text-secondary)]">
@@ -2691,9 +2669,9 @@ function StorageCard({
   );
 }
 
-function jumpToSettingsSection(id: string) {
+function revealSettingsHeading(targetId: string) {
   window.requestAnimationFrame(() => {
-    const heading = document.getElementById(`settings-${id}-heading`);
+    const heading = document.getElementById(targetId);
     if (!heading || heading.closest("[hidden]")) return;
     heading.focus({ preventScroll: true });
     heading.scrollIntoView({ block: "nearest", inline: "nearest" });

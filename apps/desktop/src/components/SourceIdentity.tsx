@@ -116,32 +116,26 @@ export function SourceIdentityPanel({
       {report.dump_identification && (
         <DumpIdentificationNote identification={report.dump_identification} />
       )}
-      <MetadataGrid className="source-identity-summary @max-[30rem]/source:grid-cols-[1fr]">
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Selected
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            <code className="inline [overflow-wrap:anywhere] whitespace-normal">
+      <MetadataGrid className="source-identity-summary border-t border-pc-border pt-3 @max-[30rem]/source:grid-cols-[1fr]">
+        <div className="min-w-0 sm:col-span-full">
+          <dt className="m-0 text-xs">Selected</dt>
+          <dd className="m-0 mt-0.5">
+            <code dir="ltr" className="saved-file-path">
               {inspection?.path ?? report.registered?.path ?? "No file location saved"}
             </code>
           </dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
-            Format
-          </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
-            {identityKindLabel(report.expected_identity?.kind)}
-          </dd>
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">Format</dt>
+          <dd className="m-0 mt-0.5">{identityKindLabel(report.expected_identity?.kind)}</dd>
         </div>
-        <div className="min-w-0 rounded-pc-md bg-[var(--color-bg-inset)] p-2">
-          <dt className="m-0 text-xs tracking-[0.04em] text-[var(--color-text-muted)] uppercase">
+        <div className="min-w-0">
+          <dt className="m-0 text-xs">
             {report.inspection?.assessment.classification.state === "ambiguous"
               ? "Matches"
               : "Edition"}
           </dt>
-          <dd className="m-0 mt-[2px] [overflow-wrap:anywhere]">
+          <dd className="m-0 mt-0.5">
             {variant ? variantLabel(variant) : classificationLabel(report)}
           </dd>
         </div>

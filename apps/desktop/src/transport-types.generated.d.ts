@@ -950,6 +950,8 @@ export type PortableSaveFileEffect = ("add" | "replace" | "unchanged") | "remove
  * How incoming progress relates to this device's progress, by content only.
  */
 export type PortableSaveRelation = ("no-local-progress" | "already-current") | "continues" | "diverged";
+export type RecipeModSettingValue = number | string;
+export type ProfileRecoveryProgress = "keep_current";
 /**
  * How current an observation is. A confirmed empty result is `Fresh`; an outage
  * that falls back to earlier data is `Stale`, never an empty list.
@@ -1327,6 +1329,7 @@ export interface TransportOutputs {
   profile_original_instance: ProfileOriginalInstance;
   profile_original_review: OutputProfileOriginalReview;
   profile_recipe: ProfileRecipe;
+  profile_recovery_plan: OutputProfileRecoveryPlan;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
   provider_install_plan: OutputProviderInstallPlan;
@@ -5079,6 +5082,11 @@ export interface OutputModSetupsView {
   package_types: string[];
   port_id: string;
   /**
+   * This game has a reviewed progress contract. Runtime and save contents
+   * are checked again during an explicit copy.
+   */
+  progress_copy_supported?: boolean;
+  /**
    * The mod provider this game has a reviewed binding for (`gamebanana` or
    * `thunderstore`), if any.
    */
@@ -5677,6 +5685,10 @@ export interface ProfileRecipe {
   port_id: string;
   runtime: RecipeRuntime;
   /**
+   * Portable, exact-package settings. Omitted by format 1.
+   */
+  settings?: RecipeModSetting[];
+  /**
    * Inputs this recipe cannot reproduce; always stated, never implied.
    */
   uncaptured: string[];
@@ -5705,6 +5717,38 @@ export interface RecipeRuntime {
   installed_contract_sha256: string;
   platform: Platform;
   runtime: RuntimeIdentity | null;
+}
+/**
+ * Exactly one reviewed, manifest-declared option in a shareable recipe.
+ */
+export interface RecipeModSetting {
+  native_id: string;
+  option_id: string;
+  package_sha256: string;
+  value: RecipeModSettingValue;
+}
+/**
+ * The exact setup change for review. Applying it preserves the current save group.
+ * Recovery does not restore an old save or claim save compatibility.
+ */
+export interface OutputProfileRecoveryPlan {
+  current: ProfileRevision;
+  holds: RetainedBuildGap[];
+  originals: OriginalStatus[];
+  plan_sha256: string;
+  progress: ProfileRecoveryProgress;
+  selected_revision: number | null;
+  target: ProfileRevision;
+  update_policy: ProfileUpdatePolicy;
+  [k: string]: unknown;
+}
+export interface RetainedBuildGap {
+  code: ErrorCode;
+  details: {
+    [k: string]: string;
+  };
+  message: string;
+  [k: string]: unknown;
 }
 export interface OutputProviderBrowsePage {
   /**
@@ -6039,14 +6083,6 @@ export interface RetainedBuild {
   offered_by: string[];
   previous: boolean;
   retained_by: string[];
-  [k: string]: unknown;
-}
-export interface RetainedBuildGap {
-  code: ErrorCode;
-  details: {
-    [k: string]: string;
-  };
-  message: string;
   [k: string]: unknown;
 }
 /**

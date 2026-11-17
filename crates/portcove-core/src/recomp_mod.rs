@@ -109,15 +109,27 @@ fn bounded_text(value: &str) -> bool {
 /// Upstream `Version::from_string`: three `u16` parts; the last may carry a `+` or
 /// `-` label.
 fn version(value: &str) -> bool {
-    let parts = value.splitn(3, '.').collect::<Vec<_>>();
-    let number = |part: &str| {
-        !part.is_empty() && part.bytes().all(|b| b.is_ascii_digit()) && part.parse::<u16>().is_ok()
-    };
-    if value.len() > 64 || value.chars().any(char::is_control) || parts.len() != 3 {
-        return false;
+    version_parts(value).is_some()
+}
+
+/// The reviewed runtime orders only major, minor and patch. It retains the
+/// suffix for display and compares versions independently of that suffix.
+pub(crate) fn version_parts(value: &str) -> Option<[u16; 3]> {
+    if value.len() > 64 || value.chars().any(char::is_control) {
+        return None;
     }
-    let patch_end = parts[2].find(['+', '-']).unwrap_or(parts[2].len());
-    number(parts[0]) && number(parts[1]) && number(&parts[2][..patch_end])
+    let mut parts = value.splitn(3, '.');
+    let number = |part: &str| {
+        if part.is_empty() || !part.bytes().all(|byte| byte.is_ascii_digit()) {
+            return None;
+        }
+        part.parse::<u16>().ok()
+    };
+    let major = number(parts.next()?)?;
+    let minor = number(parts.next()?)?;
+    let patch = parts.next()?;
+    let patch_end = patch.find(['+', '-']).unwrap_or(patch.len());
+    Some([major, minor, number(&patch[..patch_end])?])
 }
 
 fn text(manifest: &Value, field: &str, required: bool) -> Result<Option<String>> {
@@ -161,6 +173,14 @@ fn dependencies(manifest: &Value, field: &str) -> Result<Vec<RecompDependency>> 
 
 /// Inspects one `.nrm` for `game_id` without extracting or executing it.
 pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspection> {
+    let (inspection, _) = inspect_with_manifest(path, game_id)?;
+    Ok(inspection)
+}
+
+pub(crate) fn inspect_with_manifest(
+    path: &Path,
+    game_id: &str,
+) -> Result<(RecompModInspection, Value)> {
     // Shared bounded checks: plain name, regular file, digest, safe entry paths,
     // no links or encryption, bounded declared size.
     let archive_view = inspect_asset_archive(path)?;
@@ -306,7 +326,7 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
     if !archive_view.executable_entries.is_empty() {
         holds.push(RecompModHold::HostExecutableFiles);
     }
-    Ok(RecompModInspection {
+    let inspection = RecompModInspection {
         file_name: archive_view.file_name,
         sha256: archive_view.sha256,
         size: archive_view.size,
@@ -323,7 +343,8 @@ pub fn inspect_recomp_mod(path: &Path, game_id: &str) -> Result<RecompModInspect
         has_settings,
         execution,
         holds,
-    })
+    };
+    Ok((inspection, manifest))
 }
 
 #[cfg(test)]

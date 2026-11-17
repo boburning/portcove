@@ -32,6 +32,7 @@ import {
 } from "./prepare-port.mts";
 import { checkedAuthoredPort, readCatalogSource } from "./catalog-authoring.mts";
 import { observationHash } from "./upstream-observer.mts";
+import { isRecord } from "./runtime-values.mts";
 import { createIgdbInspector } from "./inspect-igdb-artwork.mts";
 import { coreProposalInspector, type ListingReceipt } from "./catalog-authoring-inspector.mts";
 import type { AuthoredPort } from "./catalog-authoring.mts";
@@ -1350,6 +1351,76 @@ void test("preparation resolves related downloads from stable ID and canonical i
     } finally {
       f.clean();
     }
+  }
+});
+
+void test("refresh keeps the authored regional cover selection through the listing proposal", async () => {
+  const f = fixture();
+  try {
+    const source = copiedCatalog(join(f.root, "source"));
+    const id = "kula-world-recompiled-zap0xfce2-kula-world";
+    const authored = readCatalogSource(source).records.find(({ listing }) => listing.id === id)!;
+    const selection = authored.igdb_regional_cover!;
+    assert.throws(
+      () =>
+        checkedAuthoredPort({
+          ...authored,
+          listing: {
+            ...authored.listing,
+            artwork: { ...(authored.listing.artwork as object), image_id: "maincover" },
+          },
+        }),
+      /does not match its IGDB regional cover selection/,
+    );
+    const inspected: string[] = [];
+    const result = await prepareArtworkBatch({
+      catalogRoot: source,
+      outputDirectory: join(f.root, "regional"),
+      selectedPortIds: [id],
+      refreshPortIds: [id],
+      artwork: {
+        inspectGame: (identity) => {
+          assert.deepEqual(identity.localization, { id: selection.localization_id, region_id: 4 });
+          return [
+            {
+              id: selection.game_id,
+              name: selection.name,
+              slug: selection.slug,
+              platforms: [selection.platform_id],
+              cover: { id: 77, image_id: "maincover" },
+              game_localizations: [
+                {
+                  id: selection.localization_id,
+                  game: selection.game_id,
+                  region: selection.region_id,
+                  cover: {
+                    id: selection.cover_id,
+                    image_id: selection.image_id,
+                    game_localization: selection.localization_id,
+                  },
+                },
+              ],
+            },
+          ];
+        },
+        inspectImage: (id) => {
+          inspected.push(id);
+          return batchImage();
+        },
+      },
+    });
+    assert.deepEqual(inspected, [selection.image_id]);
+    assert.deepEqual(result.report.changed_records, [id]);
+    const proposed = JSON.parse(
+      readFileSync(result.report.files.records[0]!.path, "utf8"),
+    ) as AuthoredPort;
+    assert.deepEqual(proposed.igdb_regional_cover, selection);
+    assert.ok(isRecord(proposed.listing.artwork));
+    assert.equal(proposed.listing.artwork.image_id, selection.image_id);
+    assert.equal(proposed.listing.artwork.cover_id, selection.cover_id);
+    assert.equal(result.report.operational_changed, false);
+  } finally {
+    f.clean();
   }
 });
 

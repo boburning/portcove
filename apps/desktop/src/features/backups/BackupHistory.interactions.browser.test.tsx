@@ -120,6 +120,18 @@ it("keeps current backup history quiet and failed reads explicit without enablin
   expect(container.querySelector(".backup-inventory-notice")).toBeNull();
 });
 
+it("orders backup review actions before the row's technical disclosure", async () => {
+  await root.rerender(<History />);
+  for (const row of container.querySelectorAll("[data-backup-id]")) {
+    const controls = [...row.querySelectorAll<HTMLElement>("button[data-backup-action], summary")];
+    expect(controls.map((control) => control.dataset.backupAction ?? control.tagName)).toEqual([
+      "restore",
+      "delete",
+      "SUMMARY",
+    ]);
+  }
+});
+
 async function openDeletion(id: string) {
   const opener = container.querySelector<HTMLButtonElement>(
     `[data-backup-id="${id}"] button[aria-label^="Delete"]`,

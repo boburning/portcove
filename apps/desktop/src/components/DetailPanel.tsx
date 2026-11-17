@@ -1411,7 +1411,7 @@ function StorageSummary({ status }: { status?: PortStatus | undefined }) {
         {status?.user_data_root ? (
           <p className="mt-1 text-pc-muted-foreground select-text">{status.user_data_root}</p>
         ) : (
-          <p className="mt-1 text-pc-muted-foreground">Folder not available</p>
+          <p className="mt-1 text-pc-muted-foreground">Opening creates the folder if needed.</p>
         )}
       </div>
     </div>
@@ -4061,7 +4061,7 @@ function DetailSavesSection({
   external: boolean;
 }) {
   return (
-    <>
+    <div className="grid gap-5">
       <ProtectionSummary
         portId={model.port.id}
         status={model.status}
@@ -4093,23 +4093,6 @@ function DetailSavesSection({
           </section>
         </CurrentStateSummary>
       )}
-      {!external && model.status?.active && (
-        <GameSettingsControl
-          key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
-          portId={model.port.id}
-          installId={model.status.active.id}
-          generation={model.libraryGeneration}
-          busy={Boolean(model.busy)}
-        />
-      )}
-      {!external && model.status?.active && (
-        <ModSetupsControl
-          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
-          portId={model.port.id}
-          generation={model.libraryGeneration}
-          busy={Boolean(model.busy)}
-        />
-      )}
       <SavesStorageGroup
         port={model.port}
         status={model.status}
@@ -4129,7 +4112,24 @@ function DetailSavesSection({
         outputApplying={model.outputApplying}
         actions={model.actions}
       />
-    </>
+      {!external && model.status?.active && (
+        <GameSettingsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${model.status.active.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
+          installId={model.status.active.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+        />
+      )}
+      {!external && model.status?.active && (
+        <ModSetupsControl
+          key={`${model.libraryGeneration}:${model.port.id}:${Boolean(model.busy)}`}
+          portId={model.port.id}
+          generation={model.libraryGeneration}
+          busy={Boolean(model.busy)}
+        />
+      )}
+    </div>
   );
 }
 

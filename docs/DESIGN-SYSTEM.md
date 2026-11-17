@@ -55,7 +55,8 @@ playable current installation keeps Play when a downloaded candidate is present.
 The candidate has a concise update review link. Healthy update entries omit the redundant green readiness summary while retaining Play. Mandatory setup/repair/unknown states and concurrent blockers remain visible. Acquisition work or attention precedes prepared/available update copy; secondary update/channel facts use an explicit disclosure. Active invocations lead to their existing task destination.
 
 Compact rows keep 32x48px contained thumbnails (up to 40x60px with text enlargement),
-10px block padding, full wrapping identity and a bounded action span. The list
+10px block padding, full wrapping identity and a status/action column bounded
+by both the available width and a maximum. The list
 uses the available workspace width. Below 36em readiness stacks beneath identity with
 thumbnail alignment indentation; its separate column has no indentation. Below
 28em actions follow readiness. Artwork loading, stale/failed notices and user
@@ -144,7 +145,8 @@ decorative backdrop images. Change artwork in Manage retains the existing user
 artwork choices. No title-based identity or edition mapping is inferred.
 
 Five permanent sections use Base UI manual-activation tabs. Arrow keys and
-Home/End move focus; Enter/Space select. Narrow tab lists retain visible labels in one horizontally scrollable row.
+Home/End move focus; Enter/Space select. Narrow tab lists wrap so every
+section remains visible. The active section uses a labeled, underlined tab.
 Panels stay mounted to preserve drafts and reviews; inactive panels are hidden and
 inert, so they cannot receive keyboard, accessibility or controller traversal.
 Overview pairs the actual description with a narrower facts column; project status,
@@ -533,7 +535,7 @@ complete contextual-handoff acceptance.
 
 ## Shell and navigation
 
-The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. Pages do not invent unrelated chrome. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
+The stable desktop shell consists of primary port navigation, a scrollable workspace, contextual port details, and a predictable operation/error layer. The workspace toolbar identifies the destination and, when open, the current game or contextual task. `Ctrl/Cmd+1–4` changes primary views, `Ctrl/Cmd+F` focuses the current searchable view, and `Ctrl/Cmd+K` opens the command palette. Unmodified slash has no application action. Context search does not redirect Settings or capture editable/IME input; explicit palette commands open Library or catalog search. Workspace shortcuts stay inactive behind a dialog.
 
 When a game-file check identifies a specific host disc tool that needs attention,
 its detail result links to that tool in Settings > Game Files. The route focuses
@@ -835,18 +837,18 @@ roughly 36–40rem surface on large displays or a restrained sticky primary acti
 but focus, controller navigation, compact layouts, and safety information must
 remain intact. Infrequent maintenance and technical controls use progressive
 disclosure without becoming hidden safety state. Settings uses Appearance,
-Library and storage, Game files, Updates, Integrations, Advanced, and About
-categories. Wide layouts use an 11.875rem category column beside a reading column
-bounded at 47.5rem. Below 65rem, navigation becomes one horizontally scrollable
-category strip above the panel. Settings rows use open surfaces and dividing
+Library and storage, Game files, Updates, Integrations, Keyboard and controller,
+Advanced, and About categories. Wide layouts use a 13rem category column beside
+a reading column bounded at 47.5rem. Below 56.3125rem, navigation becomes one
+horizontally scrollable category strip above the panel. Settings rows use open surfaces and dividing
 rules rather than a surrounding card for every group. Category changes hide rather
 than unmount panels, preserving unsaved drafts and pending operations; they do
 not persist settings or cancel work. Focus the selected heading and reveal its
 outline below any sticky category strip, using the existing workspace scroll owner
 only as far as needed. Direct
 recovery links select the owning category before focusing its relevant control.
-The sidebar About entry opens About directly. Updates explains application/game
-updates and the bundled game catalog; optional custom catalog trust controls
+About links to the support report heading in Advanced. Updates explains
+application/game updates and the bundled game catalog; optional custom catalog trust controls
 belong under Advanced. Category selection is ephemeral presentation state.
 Recovery items expose read-only navigation beside their collapsed recorded
 locations: setup opens the game, missing installations and backup problems open

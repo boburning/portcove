@@ -75,6 +75,19 @@ function groupedCollectionSnapshot() {
   return snapshot;
 }
 
+it("leaves more room for a long row identity than its status and actions at 960px", async () => {
+  await page.viewport(960, 640);
+  await mount();
+  await page.getByRole("button", { name: "Compact rows", exact: true }).click();
+  const row = document.querySelector<HTMLElement>(".collection-row")!;
+  const identity = row.querySelector<HTMLElement>(".collection-main")!;
+  const footer = row.querySelector<HTMLElement>(".library-entry-footer")!;
+
+  expect(identity.getBoundingClientRect().width).toBeGreaterThan(
+    footer.getBoundingClientRect().width,
+  );
+});
+
 it.each([
   ["dark", 390],
   ["light", 390],

@@ -237,6 +237,7 @@ impl PortcoveService {
             optional_source_skipped,
         } = self.observe_managed_launch_inputs(port, active, source_override, operation)?;
         let port = catalog.port(&active.port_id)?;
+        self.require_selected_loader_for_install(active)?;
         let checkpoint = || operation.map_or(Ok(()), OperationCoordinator::checkpoint);
         if active.path.join(LAUNCH_MARKER).is_file()
             || crate::persistence::collect_before_first_launch(port)

@@ -122,7 +122,7 @@ program/argument objects, not shell command strings:
 Check the envelope's schema, command, `ok`, data/error and exit status. Negotiate
 only the required command names and formats: launch-only needs JSON plus raw
 `exec`, read-only library integration needs JSON, and lifecycle operations add
-JSONL. The reference supports API 42–57, 60–63 or 65–97 and events 2–3. Schema 50 advertises
+JSONL. The reference supports API 42–57, 60–63 or 65–98/events 2–3; schema 50 advertises
 the event authority as `operation_event_schema_version`, while the historical
 42–49 window retains its documented event-2 contract. Schema 51 replaces the
 activity array with a feed whose protected ID sets and completeness fields must
@@ -279,17 +279,27 @@ builds or require clients to acquire compilers. See
 Clients display Core's complete current plan, acquisitions and capacity when
 offered, obtain its required consent and consume its action/readiness decisions.
 They must not execute catalog build instructions or derive eligibility from a
-historical recipe name. The maintained reference accepts API 42–57, 60–63 or
-65–97 and event schemas 2–3. Unknown future APIs,
+historical recipe name. The maintained reference supports API 42–57, 60–63 or
+65–98 and event schemas 2–3. Unknown future APIs,
 unsupported required capabilities and unknown execution/ownership semantics
 remain refused. API or template negotiation alone grants no admission or operation
 authority.
+
+API 97 exposes `profile recover-plan` and `profile recover` with the exact
+review digest, and `profile copy` can copy supported progress when both source
+and destination identities match. Core checks native mod-list holds before
+starting play. Playnite still calls the existing supervised `exec` route and
+consumes Core's readiness and launch observations.
 
 API96 exposes saved original instances, explicit selection and byte-verified
 relinking for customized mod setups. Selection binds a new setup revision.
 Relinking retains the exact original's identity. The Playnite reference uses the
 same status, readiness and launch operations and delegates pinned-input checks
 to Core.
+
+API 95 adds reviewed Thunderstore dependency wrappers to `profile provider-plan`
+and `profile provider-apply`. Carry the whole exact plan forward for review.
+Playnite keeps its existing status, readiness and lifecycle commands.
 
 API 94 adds exact local mod package review and apply. Use Core’s plan digest
 when confirming installation. The Playnite reference keeps its existing commands.
@@ -420,7 +430,7 @@ see [the managed contract and recovery path](reference/managed-regaiden.md).
 
 Current event records have **event schema 3 at the root**; they are not nested in API
 envelopes. A final root record has `type: "result"` and a negotiated API
-schema within the client's supported 42–57, 60–63 or 65–97 membership. Some
+schema within the client's supported 42–57, 60–63 or 65–98 membership. Some
 commands emit only the result. Track sequences per operation ID and parent IDs;
 do not fabricate progress when a phase or event is missing. A valid terminal
 result and matching exit status establish the command response; refresh core

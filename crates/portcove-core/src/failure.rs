@@ -195,6 +195,7 @@ pub(crate) enum KnownFailureCause {
         previous_path: std::path::PathBuf,
         current_confirmed: bool,
     },
+    NativeModListReview,
     RestoreRecovery,
     BackupDeletionRecovery,
     TfePreparationRecovery {
@@ -403,6 +404,10 @@ impl KnownFailureCause {
                     ),
                 );
             }
+            Self::NativeModListReview => (
+                "native_mod_list_review",
+                "Review the enabled mods and their dependencies in Setups and mods before playing again.",
+            ),
             Self::RestoreRecovery => (
                 "restore_recovery_required",
                 "A backup restore is unfinished. Keep the backup and any safety copy. Reopen Portcove and check the recovery result before playing or backing up saves again.",
