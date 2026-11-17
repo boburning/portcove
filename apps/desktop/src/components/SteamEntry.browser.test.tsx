@@ -3,7 +3,7 @@ import { controlledAct as act } from "../../test/controlled-react-act";
 import { render as renderComponent, cleanup, type RenderResult } from "vitest-browser-react";
 
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import { portDefinition } from "../test-fixtures";
 import type { SteamArtworkReview, SteamBatchReview, SteamEntryReview } from "../types";
@@ -321,10 +321,18 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     recovered_shortcut_change: false,
   };
   const preview = vi.spyOn(desktopApi, "previewSteamBatchAdd").mockResolvedValue(batchReview);
-  const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockResolvedValue(null);
+  let declineConsent!: () => void;
+  const consent = new Promise<null>((resolve) => {
+    declineConsent = () => resolve(null);
+  });
+  const apply = vi.spyOn(desktopApi, "applySteamBatchAdd").mockReturnValue(consent);
+  const close = vi.fn();
   await root.rerender(
-    <SteamBatchEntryDialog ports={[port, second]} generation={7} close={vi.fn()} />,
+    <SteamBatchEntryDialog ports={[port, second]} generation={7} close={close} />,
   );
+  await expect
+    .element(page.getByRole("heading", { name: "Add selected games to Steam" }))
+    .toHaveFocus();
   const reviewButton = [...document.body.querySelectorAll("button")].find(
     (candidate) => candidate.textContent === "Review selected shortcuts",
   );
@@ -346,7 +354,16 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
   );
   expect(document.body.textContent).toContain("Selected: Another Port");
   await captureParityState("steam-batch-reviewed-fixture");
-  await click("Add or repair selected shortcuts");
+  const applyButton = page.getByRole("button", { name: "Add or repair selected shortcuts" });
+  await applyButton.click();
+  const updating = page.getByRole("button", { name: "Updating shortcuts…" });
+  await expect.element(updating).toHaveFocus();
+  await expect.element(updating).toBeDisabled();
+  await userEvent.keyboard("{Escape}");
+  await expect
+    .element(page.getByRole("dialog", { name: "Add selected games to Steam" }))
+    .toBeVisible();
+  expect(close).not.toHaveBeenCalled();
   expect(apply).toHaveBeenCalledExactlyOnceWith(
     {
       portIds: [port.id, second.id],
@@ -358,8 +375,19 @@ it("reviews an exact selected batch and applies only its frozen selection", asyn
     null,
     7,
   );
+  await act(async () => declineConsent());
+  await expect.element(applyButton).toHaveFocus();
+  const button = applyButton.element();
+  const popup = button.closest('[role="dialog"]')!;
+  expect(button.getBoundingClientRect().bottom).toBeLessThanOrEqual(
+    popup.getBoundingClientRect().bottom + 1,
+  );
+  await expect
+    .element(page.getByRole("status"))
+    .toHaveTextContent("Steam shortcut changes were cancelled.");
   await page.getByRole("checkbox", { name: second.name }).click();
   expect(document.body.textContent).not.toContain(review.shortcuts_path);
+  expect(document.body.textContent).not.toContain("Steam shortcut changes were cancelled.");
 });
 
 const artworkReview: SteamArtworkReview = {
