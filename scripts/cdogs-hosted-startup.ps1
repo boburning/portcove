@@ -43,6 +43,7 @@ using System.Runtime.InteropServices;
 public static class CdogsWindow {
  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")] static extern uint MapVirtualKey(uint code,uint type);
  [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
  [DllImport("user32.dll",SetLastError=true)] static extern uint SendInput(uint n,Input[] i,int size);
  [StructLayout(LayoutKind.Sequential)] struct Key {public ushort vk,scan;public uint flags,time;public UIntPtr extra;}
@@ -56,8 +57,12 @@ public static class CdogsWindow {
   Rect r;if(!GetWindowRect(h,out r)||!SetCursorPos(r.Right-8,r.Bottom-8))throw new Exception("Owned cursor placement failed");
   if(Marshal.SizeOf(typeof(Input))!=40)throw new Exception("Unsupported native input ABI");
   uint extended = (vk>=0x25 && vk<=0x28) ? 1u : 0u;
-  var down=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=extended}}};
-  var up=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=extended|2u}}};
+  uint scan=MapVirtualKey(vk,0);
+  if(scan==0 || scan>255)throw new Exception("Unmapped physical scan code");
+  // KEYEVENTF_SCANCODE uses physical key identity; virtual-key field is ignored.
+  // https://learn.microsoft.com/en-us/windows/win32/api/winuser/ns-winuser-keybdinput
+  var down=new Input{type=1,data=new Union{key=new Key{scan=(ushort)scan,flags=extended|8u}}};
+  var up=new Input{type=1,data=new Union{key=new Key{scan=(ushort)scan,flags=extended|8u|2u}}};
   InputReleased=false;
   if(SendInput(1,new[]{down},40)!=1)throw new Exception("Owned keydown failed");
   try{System.Threading.Thread.Sleep(120);}finally{if(SendInput(1,new[]{up},40)!=1)throw new Exception("Key release failed");InputReleased=true;}
