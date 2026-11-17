@@ -339,13 +339,14 @@ function immutableJson(directory: string, name: string, value: unknown) {
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration }) => {
+    ports: records.map(({ listing, integration, igdb_regional_cover }) => {
       const presentation = integration?.presentation;
       const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
       return {
         id: listing.id,
         name: listing.name,
         project_url: listing.project_url,
+        ...(igdb_regional_cover ? { igdb_regional_cover } : {}),
         ...(listing.original_game_title
           ? {
               underlying_game: {

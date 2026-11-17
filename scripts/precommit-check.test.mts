@@ -222,6 +222,7 @@ void test("hook fixture runtime dependencies match the independently reviewed mo
       "scripts/bounded-summary.mts",
       "scripts/catalog-advisories.mts",
       "scripts/catalog-authoring.mts",
+      "scripts/catalog-cover-mapping.mts",
       "scripts/catalog-psx-managed-windows.mts",
       "scripts/catalog-route-facts.mts",
       "scripts/catalog-staged-check.mts",
