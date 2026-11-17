@@ -308,7 +308,7 @@ export default interface Resources {
       "groupLabel_other": "{{title}}. {{count}} separate port projects; {{matching}} matching.",
       "identity": {
         "matching": "{{title}} {{project}}. Matching port: {{port}}. {{state}}. {{action}}",
-        "single": "{{title}} {{project}}. {{state}}. {{action}}"
+        "single": "{{identity}}. {{state}}. {{action}}"
       },
       "label": "Discover games",
       "matchingPort": "Matching port: <port />",

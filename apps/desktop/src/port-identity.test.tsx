@@ -36,6 +36,44 @@ it("retains the project fallback for older catalogs and keeps distinct implement
   expect(first.id).not.toBe(second.id);
 });
 
+it("keeps a matching project name from repeating the game title", () => {
+  const selfNamed = {
+    ...first,
+    name: "Endless Sky",
+    presentation: {
+      ...first.presentation!,
+      original_game_title: " Endless Sky ",
+      variant_label: null,
+    },
+  };
+  expect(gameProjectLabel(selfNamed)).toBeUndefined();
+  expect(gameProjectLabel({ name: " Endless Sky " })).toBeUndefined();
+  expect(gameIdentityLabel(selfNamed)).toBe("Endless Sky");
+  expect(
+    gameIdentityLabel({
+      ...selfNamed,
+      presentation: { ...selfNamed.presentation, variant_label: "Portable edition" },
+    }),
+  ).toBe("Endless Sky · Portable edition");
+
+  const html = renderToStaticMarkup(
+    <PortBrowser
+      view="catalog"
+      ports={[selfNamed]}
+      statuses={new Map()}
+      overview={{ installed: 0, ready: 0, needsSetup: 0, staged: 0 }}
+      filter="all"
+      setFilter={vi.fn()}
+      onSelect={vi.fn()}
+      loading={false}
+    />,
+  );
+  expect(html).toContain('aria-label="Endless Sky.');
+  expect(html).not.toContain("Endless Sky Endless Sky");
+  expect(html).not.toContain("Endless Sky · Endless Sky");
+  expect(html).not.toContain("collection-project");
+});
+
 it("finds the known game, port project and variant without grouping results", () => {
   for (const query of ["familiar adventure", "cobalt", "us edition", "project-one"]) {
     const found = filterPorts([first, second], new Map(), "catalog", "all", query);
