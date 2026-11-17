@@ -43956,6 +43956,14 @@
           }
         ],
         "help_url": "https://naev.org/downloads/"
+      },
+      "artwork": {
+        "game_id": 52025,
+        "cover_id": 173643,
+        "image_id": "co3pzf",
+        "image_sha256": "55d491ea767f2758b1974622c94192fc9bf1766e946d7275bf89f80b60091a32",
+        "game_slug": "naev",
+        "match_kind": "underlying-game"
       }
     },
     {
