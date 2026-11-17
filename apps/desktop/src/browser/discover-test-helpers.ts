@@ -1,3 +1,5 @@
+import { act } from "react";
+import { mountCollectionDestination } from "../collection-navigation";
 import { expect } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 
@@ -30,4 +32,63 @@ export async function openDiscoverPort(portId: string) {
     if (!exact) throw new Error(`No comparison action names exact port ${portId}`);
     await userEvent.click(exact);
   }
+}
+
+/** Mount the accepted logical game before inspecting its current DOM. */
+export async function mountDiscoverPort(portId: string) {
+  const workspace = document.querySelector<HTMLElement>("[data-focus-region=workspace], main");
+  if (!workspace) throw new Error("No browsing workspace");
+  let pending!: Promise<boolean>;
+  await act(async () => {
+    pending = mountCollectionDestination(workspace, { portId }, () => true);
+  });
+  let settled = false;
+  void pending.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+  await expect
+    .poll(async () => {
+      await act(async () => {
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      });
+      return settled;
+    })
+    .toBe(true);
+  expect(await pending).toBe(true);
+  return discoverGroupForPort(portId);
+}
+
+/** Inspect every logical game in accepted order without requiring simultaneous DOM. */
+export async function inspectDiscoverGroups(
+  expected: readonly (readonly string[])[],
+  inspect: (card: HTMLElement, position: number) => void | Promise<void> = () => {},
+) {
+  const visited = new Set<number>();
+  for (let next = 0; next < expected.length; next++) {
+    if (visited.has(next)) continue;
+    await mountDiscoverPort(expected[next]![0]!);
+    const cards = [...document.querySelectorAll<HTMLElement>("[data-discover-port-ids]")];
+    expect(cards.length).toBeLessThan(
+      expected.length >= 100 ? expected.length : expected.length + 1,
+    );
+    for (const card of cards) {
+      if (!card.isConnected) continue;
+      const position = Number(card.getAttribute("aria-posinset")) - 1;
+      expect(card.getAttribute("aria-setsize")).toBe(String(expected.length));
+      expect(JSON.parse(card.dataset.discoverPortIds!)).toEqual(expected[position]);
+      if (!visited.has(position)) {
+        await inspect(card, position);
+        visited.add(position);
+      }
+    }
+  }
+  expect([...visited].sort((left, right) => left - right)).toEqual(
+    expected.map((_, index) => index),
+  );
 }

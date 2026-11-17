@@ -288,14 +288,22 @@ it("waits for a returning collection's destination before restoring precise focu
   const mounted = new Promise<boolean>((resolve) => {
     complete = resolve;
   });
-  const mount = vi.fn(() => mounted);
+  const mount = vi.fn(async (destination: { scrollTop?: number | undefined }) => {
+    const accepted = await mounted;
+    if (accepted) workspace.scrollTo({ top: destination.scrollTop ?? 0 });
+    return accepted;
+  });
   const unregister = registerCollectionNavigation(collection, {
     mount,
     prepareMove: () => undefined,
   });
   try {
     await flushFrame();
-    expect(mount).toHaveBeenCalled();
+    expect(mount).toHaveBeenCalledWith(
+      expect.objectContaining({ scrollTop: 96 }),
+      expect.any(Function),
+    );
+    expect(workspace.scrollTop).toBe(0);
     expect(document.activeElement).not.toBe(trigger);
     collection.append(trigger);
     await act(async () => complete(true));

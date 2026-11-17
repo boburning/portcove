@@ -116,6 +116,7 @@ export default defineConfig({
       "aria-labelledby",
       "aria-relevant",
       "data-backup-action",
+      "data-collection-control",
       "data-settings-control",
       "data-slot",
       "decoding",

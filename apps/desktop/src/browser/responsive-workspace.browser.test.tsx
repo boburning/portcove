@@ -65,8 +65,9 @@ function expectWorkspaceFit() {
 }
 
 function columns() {
-  return getComputedStyle(document.querySelector(".port-grid")!).gridTemplateColumns.split(" ")
-    .length;
+  const grid = document.querySelector(".port-grid")!;
+  const row = grid.querySelector<HTMLElement>("[data-collection-row]");
+  return getComputedStyle(row ?? grid).gridTemplateColumns.split(" ").length;
 }
 
 for (const theme of ["dark", "light"] as const) {
@@ -104,11 +105,25 @@ for (const theme of ["dark", "light"] as const) {
       const ordinaryColumns = columns();
       await page.viewport(2560, 800);
       expectWorkspaceFit();
-      expect(columns()).toBeGreaterThan(ordinaryColumns);
+      await expect.poll(() => columns()).toBeGreaterThan(ordinaryColumns);
+      const gameCards = () => [
+        ...document.querySelectorAll<HTMLElement>(
+          view === "catalog" ? ".virtual-discover-row > .discover-game" : ".port-grid > *",
+        ),
+      ];
+      await expect
+        .poll(() => {
+          const current = gameCards();
+          const top = current[0]?.getBoundingClientRect().top;
+          return current.filter(
+            (card) => Math.abs(card.getBoundingClientRect().top - (top ?? 0)) < 1,
+          ).length;
+        })
+        .toBe(Math.min(12, columns()));
       const main = workspace();
       main.scrollTop = 0;
       expect(main.scrollHeight).toBeGreaterThan(main.clientHeight);
-      const cards = [...document.querySelectorAll<HTMLElement>(".port-grid > *")];
+      const cards = gameCards();
       const firstRowTop = cards[0]!.getBoundingClientRect().top;
       const rightmost = cards
         .filter((card) => Math.abs(card.getBoundingClientRect().top - firstRowTop) < 1)

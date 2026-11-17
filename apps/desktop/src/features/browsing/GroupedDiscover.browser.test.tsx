@@ -1,3 +1,5 @@
+import { page } from "vite-plus/test/browser";
+import { resolvedGridColumns } from "./virtual-discover-model";
 import "../../styles/index.css";
 import { desktopApi } from "../../api";
 import { mountCollectionDestination } from "../../collection-navigation";
@@ -21,9 +23,11 @@ vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
 
 let root: Root;
 let host: HTMLDivElement;
+let viewport: { width: number; height: number };
 const i18n = initializeLocalization();
 
 beforeEach(async () => {
+  viewport = { width: innerWidth, height: innerHeight };
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   await i18n.changeLanguage("en");
   host = document.createElement("div");
@@ -34,6 +38,7 @@ beforeEach(async () => {
 afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
+  await page.viewport(viewport.width, viewport.height);
   await i18n.changeLanguage("en");
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -124,6 +129,7 @@ it.each(["control", "origin"] as const)(
   "returns comparison focus to the current deep card after column regrouping: %s identity",
   async (identity) => {
     vi.spyOn(desktopApi, "compareGamePorts").mockRejectedValue(new Error("Unavailable fixture"));
+    await page.viewport(1280, 800);
     host.style.width = "1000px";
     const ports: CatalogEntry[] = Array.from({ length: 1540 }, (_, index) => ({
       ...portDefinition(),
@@ -198,6 +204,12 @@ it.each(["control", "origin"] as const)(
             : '[data-collection-control="compare-evidence"]'
         }`,
       );
+    const columns = () =>
+      resolvedGridColumns(
+        getComputedStyle(host.querySelector(".virtual-discover-probe")!).gridTemplateColumns,
+      );
+    const beforeColumns = columns();
+    expect(beforeColumns).toBeGreaterThan(2);
     const trigger = currentTrigger()!;
     await act(async () => {
       trigger.focus();
@@ -205,6 +217,12 @@ it.each(["control", "origin"] as const)(
     });
     await expect.poll(() => document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
     host.style.width = "420px";
+    await expect
+      .poll(async () => {
+        await frames();
+        return columns();
+      })
+      .toBeLessThan(beforeColumns);
     await expect
       .poll(async () => {
         await frames();

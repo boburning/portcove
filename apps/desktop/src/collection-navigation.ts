@@ -8,6 +8,7 @@ export type CollectionDestination = {
 };
 export type CollectionNavigation = {
   capture?: (() => CollectionDestination | undefined) | undefined;
+  /** Mount, measure and apply requested scroll/anchor before acknowledging. */
   mount: (destination: CollectionDestination, current: () => boolean) => Promise<boolean>;
   prepareMove: (
     origin: HTMLElement,

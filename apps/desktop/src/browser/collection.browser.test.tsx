@@ -1,3 +1,4 @@
+import { inspectDiscoverGroups, mountDiscoverPort } from "./discover-test-helpers";
 import { captureParityState } from "../../test/parity-capture";
 import axe from "axe-core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
@@ -468,9 +469,8 @@ it.each(["dark", "light"])(
     const navigation = page.getByRole("button", { name: "Open navigation", exact: true });
     if (navigation.query()) await navigation.click();
     await page.getByRole("button", { name: "Discover", exact: true }).click();
-    await expect.poll(() => document.querySelectorAll(".discover-game").length).toBe(12);
-    const cards = [...document.querySelectorAll<HTMLElement>(".discover-game")];
-    for (const card of cards) {
+    const order = [2, 6, 10, 4, 8, 5, 9, 0, 1, 3, 7, 11].map((index) => [`collection-${index}`]);
+    await inspectDiscoverGroups(order, (card) => {
       const left = card.getBoundingClientRect().left;
       for (const selector of [
         ".collection-art",
@@ -484,9 +484,9 @@ it.each(["dark", "light"])(
           Math.abs(card.querySelector(selector)!.getBoundingClientRect().left - left),
         ).toBeLessThanOrEqual(1.5);
       expect(card.getBoundingClientRect().right).toBeLessThanOrEqual(innerWidth + 1);
-    }
+    });
     expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(innerWidth + 1);
-    const first = cards[0]!;
+    const first = await mountDiscoverPort("collection-2");
     await userEvent.click(
       first.querySelector<HTMLButtonElement>('[data-detail-origin$=":details"]')!,
     );

@@ -12,7 +12,11 @@ import {
 import { controlledAct as act } from "../../test/controlled-react-act";
 import { desktopApi } from "../api";
 import { PortBrowser } from "../components/PortBrowser";
-import { discoverGroupForPort } from "./discover-test-helpers";
+import {
+  discoverGroupForPort,
+  inspectDiscoverGroups,
+  mountDiscoverPort,
+} from "./discover-test-helpers";
 import { installInteractiveTransport } from "../dev-scenarios/interactive/transport";
 import { workspace } from "../dev-scenarios/interactive/scenarios";
 import { initializeLocalization, LocalizationProvider } from "../localization";
@@ -1084,7 +1088,11 @@ it("keeps a grouped Discover Save unselected while pending and after a rejected 
   vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(groupedCollectionSnapshot());
   await mount("dark", "collection", 11);
   await page.getByRole("button", { name: "Discover", exact: true }).click();
-  await expect.poll(() => document.querySelectorAll(".collection-art").length).toBe(11);
+  const order = [2, 6, 10, 4, 8, 5, 9, 0, 3, 7, 11].map((index) =>
+    index === 0 ? ["collection-0", "collection-1"] : [`collection-${index}`],
+  );
+  await inspectDiscoverGroups(order);
+  await mountDiscoverPort("collection-1");
   let rejectWrite!: (reason: Error) => void;
   const change = vi.spyOn(desktopApi, "changeOrganization").mockReturnValueOnce(
     new Promise((_resolve, reject) => {
