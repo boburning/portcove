@@ -162,10 +162,10 @@ try {
   [uint32]$windowOwner = 0
   [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
-  foreach ($key in @(@{name='start-highlight';vk=38},@{name='continue-menu';vk=13},@{name='players-count';vk=13},@{name='players-select';vk=13},@{name='join-local';vk=88},@{name='accept-local';vk=88})) {
+  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000})) {
     if ($game.HasExited -or [CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
     [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk)
-    Start-Sleep -Milliseconds 900
+    Start-Sleep -Milliseconds $key.wait
     [uint32]$currentOwner=0
     [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$currentOwner)
     if ($currentOwner -ne $game.Id -or $game.HasExited) { throw 'Owned capture target changed after input' }
