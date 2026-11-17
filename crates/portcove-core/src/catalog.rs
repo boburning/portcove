@@ -711,7 +711,6 @@ impl Catalog {
                     || !port.setup_executable_hints.is_empty()
                     || !port.setup_arguments.is_empty()
                     || port.source_environment.is_some()
-                    || port.user_data_environment.is_some()
                     || port.managed_shared_preferences.is_some()
                     || port.managed_initialization.is_some())
             {
