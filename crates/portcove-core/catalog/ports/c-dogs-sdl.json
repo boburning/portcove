@@ -26,6 +26,10 @@
           "instruction": "On Debian or Ubuntu, use your package manager to install cdogs-sdl. It brings in the matching C-Dogs data package and SDL libraries. Debian provides x86-64 and ARM64 packages. Start C-Dogs SDL normally from your applications menu or run cdogs-sdl. Your distribution handles software updates."
         },
         {
+          "title": "Use a permitted Flatpak copy",
+          "instruction": "Flathub provides C-Dogs SDL for x86-64 and ARM64 as io.github.cxong.cdogs-sdl. Open it from your application menu. Flatpak owns its updates. The package includes the Wolfenstein 3D shareware files."
+        },
+        {
           "title": "Use an existing copy you have permission to play",
           "instruction": "Keep the full copy, including bin, graphics, data, missions and libraries. On Windows, the publisher ZIP uses the 32-bit bin/cdogs-sdl.exe player. On Linux x86-64, the publisher tarball needs glibc 2.34 or later, SDL2 and SDL2_mixer. Open a terminal in bin and run ./cdogs-sdl so it finds the data in the parent directory."
         }
@@ -40,8 +44,12 @@
           "instruction": "The publisher disk image contains an Apple Silicon player targeting macOS 11 or later. Keep the complete cdogs-sdl folder and its SDL frameworks together. The executable is bin/cdogs-sdl. Intel Macs need a separately prepared source build."
         },
         {
+          "title": "Register an existing Linux portable copy",
+          "instruction": "Use absolute paths to bin/cdogs-sdl and its bin folder. For c-dogs-sdl, run external select-preview with the executable path and --working-directory for the folder. Repeat both paths with external select and pass the preview SHA-256 to --expected-preview. Start the game with portcove exec c-dogs-sdl."
+        },
+        {
           "title": "Keep your settings, campaigns and progress",
-          "instruction": "On Linux, preserve $XDG_CONFIG_HOME/cdogs-sdl (normally ~/.config/cdogs-sdl), including autosave.json and options.cnf. Keep your actual configured profile, custom campaigns and their files before replacing an external copy. The package manager or your upstream setup owns the copy and updates."
+          "instruction": "Keep autosave.json, options.cnf and your custom campaigns. The standard Windows ZIP uses C-Dogs SDL under %APPDATA%. The Linux and Mac archives normally use ~/.config/cdogs-sdl. Flatpak uses ~/.var/app/io.github.cxong.cdogs-sdl/config/cdogs-sdl. If you set XDG_CONFIG_HOME, use $XDG_CONFIG_HOME/cdogs-sdl. For other profile redirects, keep the actual folder you use."
         }
       ]
     },
