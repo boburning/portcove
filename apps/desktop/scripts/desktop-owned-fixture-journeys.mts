@@ -47,7 +47,7 @@ export interface OwnedFixtureJourneys<Context extends JourneySlots, Confirmation
   ) => Promise<unknown>;
   selectedSetup: (
     context: Shared<Context> &
-      Selected<Context, "cli"> & {
+      Selected<Context, "cli" | "restartApplication"> & {
         fixture: Context["installFixture"];
         confirmNative: Confirmation;
       },
@@ -107,6 +107,7 @@ export async function runOwnedFixtureJourneys<Context extends JourneySlots, Conf
         await journeys.selectedSetup({
           ...shared,
           cli: context.cli,
+          restartApplication: context.restartApplication,
           fixture: context.installFixture,
           confirmNative: runtime.confirmNative(),
         });

@@ -376,6 +376,7 @@ void test("execution planning preserves the independently reviewed pre-change or
         (id) =>
           ![
             "native-controller-api-fallback",
+            "native-reviewed-discovery-setup-batch",
             "native-linux-webview-origin-boundary",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
@@ -1204,6 +1205,40 @@ function receiptFilePath(input: import("./native-helper-dependencies.mts").Recei
   return input.path;
 }
 
+void test("reviewed discovery batch is standalone, fixture-scoped and positively supervised", () => {
+  const id = "native-reviewed-discovery-setup-batch";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.setup_scenarios, []);
+  assert.equal(plan.fixtures.sourceJourney, true);
+  assert.equal(plan.fixtures.completionJourney, false);
+  assert.equal(plan.fixtures.holdFirstDownload, false);
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
+  assert.equal(
+    plan.receiptInputs.filter(
+      (input) => input.kind === "file" && input.path.endsWith("desktop-setup-batch-test.mts"),
+    ).length,
+    1,
+  );
+  assert.deepEqual(
+    plan.fixtureFamilies
+      .filter((entry) => entry.family && entry.members.length)
+      .map((entry) => entry.family),
+    ["selected-setup"],
+  );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+  for (const profile of ["smoke", "full"])
+    assert.ok(
+      !resolveDesktopSelection({ profile, platform: "win32" }).selected_scenarios.includes(id),
+    );
+});
+
 void test("main journey dispatch permits smoke without setup inputs but rejects selected missing inputs", async () => {
   const source = await readFile(
     new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
@@ -1222,6 +1257,7 @@ void test("main journey dispatch permits smoke without setup inputs but rejects 
     await runInNewContext(`(async()=>{${source.slice(start, end)}})()`, {
       runOwnedFixtureJourneys,
       executionPlan,
+      selection,
       driverBrowser: () => ({}),
       invoke: noop,
       scenario: noop,

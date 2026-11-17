@@ -2218,6 +2218,17 @@ The receipt binds the actual executables, source, screenshots and positive
 owned-process closure. This case does not establish native picker, setup
 execution, gameplay, physical storage or Linux acceptance.
 
+`just desktop-verify --scenario native-reviewed-discovery-setup-batch --require-clean`
+selects one standalone Windows journey. The CLI first seeds an isolated saved
+folder and two inert source registrations. Desktop scans the folder and lets the
+operator select two compatible integrations. The scenario cancels one batch
+review before selecting both games again and confirming their installation.
+It checks the installed files and retained installation identities after an
+application restart. Original files, source registrations and saved folders stay
+intact. Launch history stays empty. Reports include screenshots and positive
+owned-process closure. This fixture does not establish native picker, real-game,
+gameplay or physical-storage acceptance.
+
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
 review, actual individual installation cancellation/retry and inert preparation,

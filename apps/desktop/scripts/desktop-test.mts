@@ -90,6 +90,7 @@ import {
 import { preparationScenarios } from "./desktop-preparation-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
+import { setupBatchScenario } from "./desktop-setup-batch-test.mts";
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
@@ -2642,6 +2643,19 @@ try {
         });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
+    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")) {
+      // Owned pre-state, not native source-registration acceptance. The native
+      // scenario exercises only discovery selection, batch consent and lifecycle.
+      const owned = required(installFixture.sourceJourney);
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      command(["source", "add", required(owned.profiles[0]), owned.gamePath]);
+      command(["source", "add", required(owned.profiles[1]), owned.biosPath]);
+    }
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
   if (selection.prerequisites.includes("external-runtime-fixture")) {
@@ -4862,11 +4876,13 @@ try {
         install: installScenarios,
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
-            ? selectedSetupScenario({
-                ...context,
-                fixture: required(context.fixture),
-                cli: required(context.cli),
-              })
+            ? selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
+              ? setupBatchScenario({ ...context, fixture: required(context.fixture) })
+              : selectedSetupScenario({
+                  ...context,
+                  fixture: required(context.fixture),
+                  cli: required(context.cli),
+                })
             : Promise.resolve(),
         selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
           selectedFixtureFamilies.has("selected-setup-completion")
