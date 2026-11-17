@@ -27,7 +27,8 @@ use crate::{
     profile_deploy::sha256_file,
 };
 
-pub const RECIPE_FORMAT: u32 = 1;
+pub const RECIPE_FORMAT: u32 = 2;
+const LEGACY_RECIPE_FORMAT: u32 = 1;
 const MAX_RECIPE_BYTES: usize = 256 * 1024;
 const MAX_PACKAGES: usize = 512;
 const MAX_TEXT: usize = 256;
@@ -62,6 +63,8 @@ pub struct RecipePackage {
     pub size: u64,
     pub enabled: bool,
     pub requires: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_requires: Vec<crate::ProviderRequirement>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -204,7 +207,7 @@ impl ProfileRecipe {
             serde_json::from_slice(bytes)
                 .map_err(|error| invalid(&format!("it is not JSON with unique keys ({error})")))?;
         match value.get("format").and_then(serde_json::Value::as_u64) {
-            Some(1) => {}
+            Some(1 | 2) => {}
             Some(_) => {
                 return Err(PortcoveError::unsupported(
                     "this recipe uses a format this Portcove does not understand",
@@ -225,10 +228,18 @@ impl ProfileRecipe {
     }
 
     fn validate(&self) -> Result<()> {
-        if self.format != RECIPE_FORMAT {
+        if !matches!(self.format, LEGACY_RECIPE_FORMAT | RECIPE_FORMAT) {
             return Err(PortcoveError::unsupported(
                 "this recipe uses a format this Portcove does not understand",
             ));
+        }
+        if self.format == LEGACY_RECIPE_FORMAT
+            && self
+                .packages
+                .iter()
+                .any(|package| !package.provider_requires.is_empty())
+        {
+            return Err(invalid("exact provider requirements need recipe format 2"));
         }
         if !text_ok(&self.runtime.artifact.asset_name)
             || self
@@ -313,6 +324,18 @@ impl ProfileRecipe {
             .filter(|package| package.enabled)
             .map(|package| (package.native_id.as_str(), package))
             .collect::<BTreeMap<_, _>>();
+        for package in &self.packages {
+            crate::profile::validate_provider_requirements(
+                &package.native_id,
+                package.enabled,
+                &package.provider_requires,
+                |required, id, hash| {
+                    enabled.get(id).is_some_and(|member| {
+                        member.sha256 == hash && member.provider.as_ref() == Some(required)
+                    })
+                },
+            )?;
+        }
         for package in enabled.values() {
             if let Some(missing) = package
                 .requires
@@ -403,7 +426,15 @@ impl PortcoveService {
             ));
         }
         let mut recipe = ProfileRecipe {
-            format: RECIPE_FORMAT,
+            format: if revision
+                .packages
+                .iter()
+                .any(|package| !package.provider_requires.is_empty())
+            {
+                RECIPE_FORMAT
+            } else {
+                LEGACY_RECIPE_FORMAT
+            },
             port_id: port_id.into(),
             runtime: RecipeRuntime {
                 artifact: revision.build.artifact.clone(),
@@ -433,6 +464,7 @@ impl PortcoveService {
                     size: package.size,
                     enabled: package.enabled,
                     requires: package.requires.clone(),
+                    provider_requires: package.provider_requires.clone(),
                 })
                 .collect(),
             orderings: revision.orderings.clone(),
@@ -625,21 +657,35 @@ impl PortcoveService {
                 } else {
                     sha256_file(&stored).is_ok_and(|sha| sha == package.sha256)
                 };
-                let unrecorded_label = match &package.provider {
-                    Some(provider) => !profile::provider_label_recorded(
-                        &connection,
-                        &recipe.port_id,
-                        &package.sha256,
-                        &package.native_id,
-                        provider,
-                    )?,
-                    None => false,
-                };
+                let evidence = profile::provider_evidence(
+                    &connection,
+                    &recipe.port_id,
+                    package,
+                    package.provider.as_ref(),
+                )?;
+                let closure_member = !package.provider_requires.is_empty()
+                    || recipe.packages.iter().filter(|member| member.enabled).any(|member| {
+                        member.provider_requires.iter().any(|requirement| {
+                            requirement.members.contains_key(&package.native_id)
+                        })
+                    });
+                let closure_unverified = evidence == profile::ProviderEvidence::RequirementsDiffer
+                    || closure_member && evidence != profile::ProviderEvidence::Matches;
                 let plannable = package
                     .provider
                     .as_ref()
                     .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
-                let (status, detail) = if present && unrecorded_label {
+                let (status, detail) = if present && closure_unverified {
+                    holds.push(format!(
+                        "package {} needs an exact Thunderstore review before import",
+                        package.native_id
+                    ));
+                    (
+                        RecipeInputStatus::Unavailable,
+                        "review the exact Thunderstore wrapper set and match its native members and requirements to this recipe".to_owned(),
+                    )
+                } else if present && package.provider.is_some()
+                    && evidence == profile::ProviderEvidence::Unrecorded {
                     (
                         RecipeInputStatus::Available,
                         "its exact bytes are in the package store; its provider label is not recorded in this library for these bytes, so the new profile does not keep it".to_owned(),
@@ -795,13 +841,12 @@ impl PortcoveService {
         for package in &plan.recipe.packages {
             let kept = match &package.provider {
                 Some(provider)
-                    if profile::provider_label_recorded(
+                    if profile::provider_evidence(
                         &connection,
                         &port_id,
-                        &package.sha256,
-                        &package.native_id,
-                        provider,
-                    )? =>
+                        package,
+                        Some(provider),
+                    )? == profile::ProviderEvidence::Matches =>
                 {
                     Some(provider.clone())
                 }
@@ -822,6 +867,7 @@ impl PortcoveService {
                 size: package.size,
                 enabled: package.enabled,
                 requires: package.requires.clone(),
+                provider_requires: package.provider_requires.clone(),
             })
             .collect::<Vec<_>>();
         let base = crate::ProfileRevision {

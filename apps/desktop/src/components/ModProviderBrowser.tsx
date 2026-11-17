@@ -354,6 +354,29 @@ function ProviderInstallDetails({
           </li>
         ))}
       </ul>
+      {(plan.wrappers?.length ?? 0) > 1 && (
+        <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
+          {plan.wrappers?.map((wrapper) => (
+            <li key={wrapper.provider.project}>
+              <Trans
+                t={t}
+                i18nKey="mods.browse.entryVersion"
+                components={{
+                  name: <bdi>{wrapper.provider.project}</bdi>,
+                  version: <bdi>{wrapper.file.file_id}</bdi>,
+                }}
+              />
+              <ul className="m-0 list-disc ps-5">
+                {Object.keys(wrapper.members).map((member) => (
+                  <li key={member}>
+                    <bdi>{member}</bdi>
+                  </li>
+                ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      )}
       {plan.ignored_entries > 0 && (
         <p>{t("mods.browse.ignored", { count: plan.ignored_entries })}</p>
       )}

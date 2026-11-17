@@ -2523,6 +2523,33 @@ computed SHA-256 of the actual bytes. The provider's MD5 and scan results are sh
 as unverified claims. A displayed version label does not identify bytes; the file ID
 and computed digest do.
 
+For Thunderstore, the selected version and its exact declared provider
+dependencies form one reviewed installation. Each wrapper's bounded root
+manifest must agree with the exact listing. The plan lists each wrapper's
+coordinate, computed digest and complete native member set. It refuses missing
+or ambiguous versions, incompatible version requests, cycles and wrappers with
+no supported packages. A native filename, installed label or bundled mod cannot
+stand in for an exact provider wrapper. The plan bounds the aggregate downloads
+and extraction, and the combined closure receives one confirmation. Any newly
+reviewed mod code in that closure requires explicit permission.
+
+A Thunderstore `provider-plan` now includes the complete `wrappers` review,
+including a single-wrapper plan. Keep the whole plan for `provider-apply`.
+Dropping its wrapper or file-observation fields changes the plan digest. A
+Thunderstore plan prepared without wrapper review needs a fresh review before
+it can install. The encoding of GameBanana plans still omits
+Thunderstore-specific fields.
+
+An enabled dependant requires every recorded member of its exact provider
+dependencies to stay enabled. Disable the dependant before disabling or removing
+a required member. Recipes use format 2 when they include exact provider
+requirements. An automatic update that needs a multi-wrapper review waits
+for the player to confirm the affected content.
+
+Library database schema 63 requires Desktop and CLI versions that preserve exact
+provider dependencies. Close older clients before the first open by a newer
+client. The upgrade preserves existing revisions and player files.
+
 `portcove --library PATH --json profile provider-updates PORT_ID PROFILE_ID` is
 read-only. For each installed provider package it reports `current`, `newer_files`
 (with candidate file IDs in ascending order), `installed_file_removed` or

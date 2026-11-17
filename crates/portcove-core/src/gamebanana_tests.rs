@@ -224,6 +224,7 @@ fn candidate(root: &str, id: u64, size: u64) -> ProviderFileCandidate {
         claimed_md5: None,
         archived: false,
         claimed_scan: None,
+        thunderstore_dependencies: None,
     }
 }
 

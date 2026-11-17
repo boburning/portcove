@@ -140,6 +140,7 @@ pub(crate) struct StagedPackage {
     pub private: PathBuf,
     pub inspection: crate::ModPackageInspection,
     pub provider: Option<crate::ProviderPackageRef>,
+    pub provider_requires: Vec<crate::ProviderRequirement>,
     /// The version the package's own metadata declares, when its loader has one.
     pub native_version: Option<String>,
     /// Native IDs of packages this one needs, from its own metadata.
@@ -344,6 +345,7 @@ pub(crate) fn inspect_for_port(
             private,
             inspection,
             provider,
+            provider_requires: Vec::new(),
             native_version: None,
             requires: Vec::new(),
             code_consent: false,
@@ -395,6 +397,7 @@ pub(crate) fn inspect_for_port(
         private,
         inspection,
         provider,
+        provider_requires: Vec::new(),
         native_version: Some(recomp.native_version),
         code_consent: runs_code,
         requires: recomp
@@ -1333,11 +1336,25 @@ impl PortcoveService {
                 native_id: inspection.file_name.clone(),
                 native_version: item.native_version.clone(),
                 provider: item.provider.clone(),
+                provider_requires: item.provider_requires,
                 sha256: inspection.sha256.clone(),
                 size: inspection.size,
                 enabled: true,
                 requires: item.requires.clone(),
             };
+            // Reinstalling the same native ID and bytes keeps its provider review.
+            if package.provider.is_none()
+                && let Some(installed) = current.packages.iter().find(|installed| {
+                    installed.provider.is_some()
+                        && installed.native_id == package.native_id
+                        && installed.sha256 == package.sha256
+                })
+            {
+                package.provider.clone_from(&installed.provider);
+                package
+                    .provider_requires
+                    .clone_from(&installed.provider_requires);
+            }
             // A package the game loads as the same mod (for example `.otr` replaced
             // by `.o2r`) is replaced and keeps its place in the order.
             let named = native_mod_list::loader_list(port_id).is_some();

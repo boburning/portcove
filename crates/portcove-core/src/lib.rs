@@ -312,6 +312,7 @@ pub use mod_package::{
 };
 pub use mod_provider::{
     Observed, ProviderFileCandidate, ProviderFreshness, ProviderPage, ProviderProject,
+    ThunderstoreDependency,
 };
 pub use operation::{OPERATION_EVENT_SCHEMA_VERSION, OperationCoordinator};
 pub use output_relocation::{
@@ -355,15 +356,15 @@ pub use process::{ChildProcessClass, ChildProcessPolicy, GameProcessSpec, Launch
 pub use profile::{
     LibraryProfile, LoaderContractRef, OriginalAvailability, OriginalBinding, OriginalStatus,
     Profile, ProfileIntent, ProfileInventory, ProfileRevision, ProfileRevisionRequest,
-    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, RequestedPackage, ResolvedPackage,
-    TypedOrdering,
+    ProfileUpdatePolicy, ProfileView, ProviderPackageRef, ProviderRequirement, RequestedPackage,
+    ResolvedPackage, TypedOrdering,
 };
 pub use profile_deploy::{
     LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
 };
 pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
-pub use provider_install::{PlanMember, ProviderInstallPlan};
+pub use provider_install::{PlanMember, ProviderInstallPlan, ProviderWrapper};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
@@ -497,7 +498,7 @@ pub use windows_runtime::{
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
 // Public 94 adds the exact local mod package review contract.
-pub const API_SCHEMA_VERSION: u32 = 94;
+pub const API_SCHEMA_VERSION: u32 = 95;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.
