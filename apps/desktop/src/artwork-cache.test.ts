@@ -951,3 +951,64 @@ describe("disposable artwork display cache", () => {
     expect(cache.read("sample", "cover").error).toContain("preview changed");
   });
 });
+
+it("bounds and coalesces collection requests through the shared remote queue", async () => {
+  const cache = new ArtworkCache(8);
+  const releases: (() => void)[] = [];
+  let active = 0,
+    peak = 0;
+  const load = vi
+    .spyOn(desktopApi, "collectionCoverThumbnail")
+    .mockImplementation(async (_id, sha, revision) => {
+      peak = Math.max(peak, ++active);
+      await new Promise<void>((resolve) => releases.push(resolve));
+      active--;
+      return { asset_sha256: sha, choice_revision: revision, png_base64: "cG5n" };
+    });
+  const members = ["a", "b", "c", "d", "e", "f", "1", "2"].map((value, index) => ({
+    portId: index < 4 ? "project-a" : "project-b",
+    sha: value.repeat(64),
+  }));
+  for (const { portId, sha } of members) {
+    const key = cache.collectionKey(portId, sha, 3);
+    cache.loadCollectionCover(key, portId, sha, 3, () => true);
+    cache.loadCollectionCover(key, portId, sha, 3, () => true);
+  }
+  await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(maximumRemoteRequests));
+  while (releases.length) {
+    releases.shift()!();
+    await new Promise((resolve) => setTimeout(resolve));
+  }
+  await vi.waitFor(() =>
+    expect(
+      members.every(
+        ({ portId, sha }) => cache.readCollection(cache.collectionKey(portId, sha, 3)).image,
+      ),
+    ).toBe(true),
+  );
+  expect(peak).toBe(maximumRemoteRequests);
+  expect(load).toHaveBeenCalledTimes(members.length);
+  for (const { portId, sha } of members) expect(load).toHaveBeenCalledWith(portId, sha, 3, 8);
+});
+
+it("refuses collection thumbnails with a different choice revision", async () => {
+  const cache = new ArtworkCache(1);
+  const sha = "b".repeat(64);
+  const key = cache.collectionKey("project", sha, 4);
+  vi.spyOn(desktopApi, "collectionCoverThumbnail").mockResolvedValue({
+    asset_sha256: sha,
+    choice_revision: 3,
+    png_base64: "cG5n",
+  });
+  cache.loadCollectionCover(key, "project", sha, 4, () => true);
+  await vi.waitFor(() => expect(cache.readCollection(key).error).toBeTruthy());
+  expect(cache.readCollection(key).image).toBeUndefined();
+  vi.mocked(desktopApi.collectionCoverThumbnail).mockResolvedValue({
+    asset_sha256: sha,
+    choice_revision: 4,
+    png_base64: "cG5n",
+  });
+  cache.loadCollectionCover(key, "project", sha, 4, () => true);
+  await vi.waitFor(() => expect(cache.readCollection(key).image).toBeTruthy());
+  expect(cache.readCollection(key).error).toBeUndefined();
+});

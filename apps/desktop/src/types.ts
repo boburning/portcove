@@ -13,6 +13,7 @@ export type DefinitionRefresh = Generated.TransportOutputs["definition_refresh"]
 
 export type { ReleaseChannel } from "./transport-types.generated";
 export type { OriginalGameIdentity } from "./transport-types.generated";
+export type { IgdbArtwork } from "./transport-types.generated";
 export type { CatalogMediaAsset } from "./transport-types.generated";
 
 export type { UpdatePolicy } from "./transport-types.generated";

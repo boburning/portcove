@@ -3169,6 +3169,7 @@ pub fn run() -> std::process::ExitCode {
             artwork::get_artwork,
             artwork::get_artwork_thumbnail,
             artwork::get_companion_cover_thumbnail,
+            artwork::get_collection_cover_thumbnail,
             artwork::get_catalog_media_thumbnail,
             artwork::import_artwork,
             artwork::reset_artwork,

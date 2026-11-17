@@ -18,10 +18,15 @@ import type {
   CatalogDocument,
   CatalogListingDocument,
   CatalogMediaAsset,
+  IgdbArtwork,
 } from "./types";
 
 const ArtworkContext = createContext<ArtworkCache | undefined>(undefined);
 const unavailable: ArtworkDisplay = { loading: false };
+const noCollection: readonly ArtworkDisplay[] = [];
+const CollectionCoversContext = createContext<ReadonlyMap<string, readonly IgdbArtwork[]>>(
+  new Map(),
+);
 
 export function ArtworkProvider({
   generation,
@@ -42,9 +47,15 @@ export function ArtworkProvider({
           id,
           presentation?.artwork,
           presentation?.companion_cover,
+          presentation?.collection_covers,
           presentation?.media,
         ]) ?? [],
-        listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
+        listings?.listings.map(({ id, artwork, media, collection_covers }) => [
+          id,
+          artwork,
+          media,
+          collection_covers,
+        ]) ?? [],
       ]),
     [catalog, listings],
   );
@@ -52,12 +63,80 @@ export function ArtworkProvider({
     () => new ArtworkCache(generation, catalogArtworkKey),
     [generation, catalogArtworkKey],
   );
-  return <ArtworkContext.Provider value={cache}>{children}</ArtworkContext.Provider>;
+  const collections = useMemo(() => {
+    const result = new Map<string, readonly IgdbArtwork[]>();
+    for (const listing of listings?.listings ?? [])
+      if (listing.collection_covers) result.set(listing.id, listing.collection_covers);
+    for (const port of catalog?.ports ?? [])
+      if (port.presentation?.collection_covers)
+        result.set(port.id, port.presentation.collection_covers);
+    return result;
+  }, [catalog, listings]);
+  return (
+    <ArtworkContext.Provider value={cache}>
+      <CollectionCoversContext.Provider value={collections}>
+        {children}
+      </CollectionCoversContext.Provider>
+    </ArtworkContext.Provider>
+  );
+}
+
+/** Collection defaults remain subordinate to every explicit local choice, even an unavailable one. */
+export function useCollectionCovers(
+  portId: string | undefined,
+  primary: ArtworkDisplay,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const collections = useContext(CollectionCoversContext);
+  const covers = portId ? collections.get(portId) : undefined;
+  const revision = primary.state?.choice.revision;
+  const enabled =
+    primary.state !== undefined && !primary.state.choice.asset_sha256 && !primary.stale;
+  const keys = useMemo(
+    () =>
+      cache && portId && enabled && revision !== undefined
+        ? (covers ?? []).slice(0, 4).map((cover) => ({
+            sha256: cover.image_sha256,
+            key: cache.collectionKey(portId, cover.image_sha256, revision),
+          }))
+        : [],
+    [cache, portId, enabled, revision, covers],
+  );
+  const read = useCallback(() => (keys.length ? (cache?.displayVersion ?? 0) : 0), [cache, keys]);
+  const subscribe = useCallback(
+    (listener: () => void) => {
+      const stop =
+        cache && visible ? keys.map(({ key }) => cache.subscribeCollection(key, listener)) : [];
+      return () => {
+        for (const unsubscribe of stop) unsubscribe();
+      };
+    },
+    [cache, keys, visible],
+  );
+  useSyncExternalStore(subscribe, read, () => 0);
+  const displays = keys.length
+    ? keys.map(({ key }) => cache?.readCollection(key) ?? unavailable)
+    : noCollection;
+  useEffect(() => {
+    let current = true;
+    if (visible && !primary.loading && cache && portId && revision !== undefined)
+      for (const { key, sha256 } of keys)
+        cache.loadCollectionCover(key, portId, sha256, revision, () => current);
+    return () => {
+      current = false;
+    };
+  }, [visible, primary.loading, cache, portId, revision, keys]);
+  return displays;
 }
 
 /** The current library's artwork cache, when one is provided. */
 export function useArtworkCache() {
   return useContext(ArtworkContext);
+}
+
+export function useCoverCollection(portId: string) {
+  return useContext(CollectionCoversContext).get(portId);
 }
 
 export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {

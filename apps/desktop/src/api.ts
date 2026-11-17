@@ -233,6 +233,18 @@ export const desktopApi = {
       expectedRevision,
       generation,
     }),
+  collectionCoverThumbnail: (
+    portId: string,
+    expectedSha256: string,
+    expectedRevision: number,
+    generation: number,
+  ) =>
+    invoke<DesktopArtworkThumbnail>("get_collection_cover_thumbnail", {
+      portId,
+      expectedSha256,
+      expectedRevision,
+      generation,
+    }),
   companionCoverThumbnail: (
     portId: string,
     expectedPrimaryCacheId: string,
