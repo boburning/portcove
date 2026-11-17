@@ -5,10 +5,10 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: street-rod-native-startup-${{ github.ref }}
+  group: openttd-native-startup-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  street-rod-windows-startup:
+  openttd-windows-startup:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
@@ -26,7 +26,7 @@ jobs:
           git diff --exit-code
           if ($LASTEXITCODE -ne 0) { throw 'Controller is dirty' }
           New-Item -ItemType Directory -Path evidence | Out-Null
-          $context = @{controller=$env:PORTCOVE_CONTROLLER_SOURCE; product=$env:PORTCOVE_PRODUCT_SOURCE; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT; os=[Environment]::OSVersion.VersionString; image=$env:ImageVersion; session=[Diagnostics.Process]::GetCurrentProcess().SessionId; interactive=[Environment]::UserInteractive}
+          $context = @{controller=$env:PORTCOVE_CONTROLLER_SOURCE; product=$env:PORTCOVE_PRODUCT_SOURCE; run=$env:GITHUB_RUN_ID; attempt=$env:GITHUB_RUN_ATTEMPT; os=[Environment]::OSVersion.VersionString;os_arch=[Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString();process_arch=[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString();powershell=$PSVersionTable.PSVersion.ToString(); image=$env:ImageVersion; session=[Diagnostics.Process]::GetCurrentProcess().SessionId; interactive=[Environment]::UserInteractive}
           $context | ConvertTo-Json | Set-Content evidence/session.json -Encoding utf8
           $context | ConvertTo-Json
           if (-not $context.interactive -or $context.session -le 0) { throw 'Noninteractive hosted session: no native acceptance performed' }
@@ -45,11 +45,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE) { throw 'Product source differs' }
-          pwsh -NoProfile -File scripts/street-rod-hosted-input.ps1
+          pwsh -NoProfile -File scripts/openttd-hosted-input.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Input binding failed' }
       - name: Execute exact candidate with maintained native admission
         shell: pwsh
-        run: node scripts/street-rod-hosted-owner.mjs
+        run: node scripts/openttd-hosted-owner.mjs
       - name: Retain bounded real native evidence in job logs
         if: always()
         shell: pwsh
