@@ -615,6 +615,17 @@ Use a separately prepared copy for OpenGlad's custom profile override or
 a custom Unix library search path. Existing platform contracts keep their
 creating definitions.
 
+NativePortable capability 39 covers the official Endless Sky Windows x64 ZIP and
+Linux x64 standalone AppImage. The release selectors accept the publisher’s
+portable package names and retain the provider artifact identity. Launch uses
+the normal SDL roaming profile on Windows or the Linux data directory from
+`XDG_DATA_HOME` or `HOME/.local/share`. Core checks that player data stays
+outside the library and registered output roots. The Linux AppImage also
+requires an independent temporary mount location and a clean executable
+directory without an adjacent portable profile. Portcove manages the runtime.
+Players retain and back up their pilots, settings and plugins separately.
+The universal Mac disk image remains an upstream package.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

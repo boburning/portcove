@@ -1575,6 +1575,27 @@ impl Installer {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;
                 crate::native_external_profile::quake_linux::require_payload(&selected, policy)?;
             }
+            if port.external_profile_policy
+                == Some(crate::ExternalProfilePolicy::EndlessSkyDesktopV1)
+            {
+                let platform = request.qualification.platform;
+                if !crate::native_external_profile::endless_sky::matches_asset(
+                    port,
+                    platform,
+                    &artifact.asset_name,
+                ) {
+                    return Err(PortcoveError::verification(
+                        "Endless Sky package differs from its reviewed portable release selector",
+                    ));
+                }
+                if platform == Platform::LinuxX86_64 {
+                    let selected =
+                        resolve_declared_executable(&payload_root, &request.qualification)?;
+                    crate::native_external_profile::profile_siblings::require_payload(
+                        &selected, platform,
+                    )?;
+                }
+            }
             crate::preparation::source::require_fresh_canonical_data(port, &self.library)?;
             if crate::preparation::source::native(port) {
                 let selected = resolve_declared_executable(&payload_root, &request.qualification)?;

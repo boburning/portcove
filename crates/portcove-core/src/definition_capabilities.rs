@@ -338,6 +338,10 @@ impl EngineTemplateCapability {
             template: AdapterKind::NativePortable,
             contract_version: crate::preparation::source::NATIVE_RELATIVE_SOURCE_CAPABILITY,
         });
+        supported.push(Self {
+            template: AdapterKind::NativePortable,
+            contract_version: crate::native_external_profile::endless_sky::NATIVE_CAPABILITY,
+        });
         supported.extend(AdapterKind::ALL.into_iter().filter_map(|template| {
             crate::package_shape::enforcement_capability(template).map(|contract_version| Self {
                 template,
