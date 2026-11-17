@@ -900,6 +900,56 @@
   }
 }
 
+/* A lone Library cover can use the spare columns for its identity and actions. */
+@layer utilities {
+  @media (height <= 50rem), (width <= 30rem) {
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child {
+      --collection-art-limit: min(40%, clamp(6rem, 20vw, 10rem));
+      grid-column: 1 / -1;
+      width: min(100%, 26rem);
+    }
+
+    .collection-covers > [data-library-game-id]:only-child > .collection-cover {
+      width: 100%;
+    }
+
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      :is(.collection-identity, .collection-art, .library-entry-footer) {
+      width: 100%;
+    }
+
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      .collection-identity {
+      grid-template-columns: var(--collection-art-limit) minmax(0, 1fr);
+      align-items: center;
+      gap: var(--space-3);
+    }
+
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      .collection-personal-actions {
+      max-inline-size: var(--collection-art-limit);
+      gap: var(--space-1);
+      padding-inline: min(var(--space-2), 1vi);
+    }
+
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      .collection-caption {
+      padding-block-start: 0;
+    }
+
+    .collection-covers
+      > :is(.collection-entry.collection-cover, [data-library-game-id]):only-child
+      :is(.collection-title, .collection-project, .library-entry-chips) {
+      min-block-size: 0;
+    }
+  }
+}
+
 @layer utilities {
   .collection-cover .library-entry-footer .collection-state {
     min-block-size: 30px;
