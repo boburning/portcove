@@ -16062,6 +16062,14 @@
       "summary": "Explore procedurally generated dungeons with Brogue Community Edition.",
       "original_game_title": "Brogue",
       "project_url": "https://github.com/tmewett/BrogueCE",
+      "artwork": {
+        "game_id": 12516,
+        "cover_id": 217851,
+        "image_id": "co4o3f",
+        "image_sha256": "a27394f83e0d0e2ae36f5592e78e9465592c2f2e6eb334b6589867ad32c7ef5d",
+        "game_slug": "brogue",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6047,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -38243,6 +38251,14 @@
       "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
       "original_game_title": "Little Big Adventure 2",
       "project_url": "https://github.com/LBALab/lba2-classic-community",
+      "artwork": {
+        "game_id": 79653,
+        "cover_id": 220733,
+        "image_id": "co4qbh",
+        "image_sha256": "b9d5eb87eedc964c0f98271718d28928abe02ff6c3f1a263171f04f85095c933",
+        "game_slug": "twinsens-little-big-adventure-2-classic",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5431,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -38998,6 +39014,14 @@
       "summary": "Play the original Mage Bros. levels with widescreen, modern controls and local co-op.",
       "original_game_title": "Mage Bros.",
       "project_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative",
+      "artwork": {
+        "game_id": 210408,
+        "cover_id": 291437,
+        "image_id": "co68vh",
+        "image_sha256": "6e29d529a2b447fd0ee0cd662e8aeb7719ea00f08d2bef320955845497a308f1",
+        "game_slug": "mage-bros",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5436,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -51815,6 +51839,14 @@
       "summary": "Play original Quake maps with MiniQuake’s GLQuake and WinQuake engine port.",
       "original_game_title": "Quake",
       "project_url": "https://github.com/MiniLangProject/MiniQuake",
+      "artwork": {
+        "game_id": 333,
+        "cover_id": 434745,
+        "image_id": "co9bg9",
+        "image_sha256": "c91124efedaa065907226a47b1d1454f3af1440170c83cf9a7200cb6190156b2",
+        "game_slug": "quake",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6063,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -56185,6 +56217,14 @@
       "summary": "Build a desktop version of SkiFree from Chris Pirih’s original Windows game.",
       "original_game_title": "SkiFree",
       "project_url": "https://github.com/sp00nznet/skifree",
+      "artwork": {
+        "game_id": 11681,
+        "cover_id": 430544,
+        "image_id": "co987k",
+        "image_sha256": "c7613c1afb825e5b98e1b7b8c5aadda49aa33b56a4adfc7c5929af909b271ca4",
+        "game_slug": "skifree",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6077,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -57861,6 +57901,14 @@
       "summary": "Explore the caves in a community modification of Derek Yu’s Spelunky Classic.",
       "original_game_title": "Spelunky Classic",
       "project_url": "https://github.com/yancharkin/SpelunkyClassicHD",
+      "artwork": {
+        "game_id": 8145,
+        "cover_id": 90941,
+        "image_id": "co1y65",
+        "image_sha256": "34711cd0f5381465e54129e0ca315275d6ba08e01877c2907ff90726b5ec0185",
+        "game_slug": "spelunky-classic",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6056,
       "listed_at": "2026-11-17",
       "platforms": [

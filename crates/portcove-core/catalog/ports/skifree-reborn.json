@@ -6,6 +6,14 @@
     "summary": "Build a desktop version of SkiFree from Chris Pirih’s original Windows game.",
     "original_game_title": "SkiFree",
     "project_url": "https://github.com/sp00nznet/skifree",
+    "artwork": {
+      "game_id": 11681,
+      "cover_id": 430544,
+      "image_id": "co987k",
+      "image_sha256": "c7613c1afb825e5b98e1b7b8c5aadda49aa33b56a4adfc7c5929af909b271ca4",
+      "game_slug": "skifree",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6077,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],

@@ -6,6 +6,14 @@
     "summary": "Explore the caves in a community modification of Derek Yu’s Spelunky Classic.",
     "original_game_title": "Spelunky Classic",
     "project_url": "https://github.com/yancharkin/SpelunkyClassicHD",
+    "artwork": {
+      "game_id": 8145,
+      "cover_id": 90941,
+      "image_id": "co1y65",
+      "image_sha256": "34711cd0f5381465e54129e0ca315275d6ba08e01877c2907ff90726b5ec0185",
+      "game_slug": "spelunky-classic",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6056,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64"],
