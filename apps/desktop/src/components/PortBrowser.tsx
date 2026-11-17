@@ -1310,6 +1310,8 @@ function LibraryEntry({
           <ArtworkFrame
             element={artworkElement}
             display={artwork}
+            portId={port.id}
+            visible={visible}
             identityArtwork
             className="card-art collection-art"
           />
