@@ -16809,8 +16809,12 @@
             "instruction": "The publisher disk image contains an Apple Silicon player targeting macOS 11 or later. Keep the complete cdogs-sdl folder and its SDL frameworks together. The executable is bin/cdogs-sdl. Intel Macs need a separately prepared source build."
           },
           {
+            "title": "Register an existing Linux portable copy",
+            "instruction": "In the Portcove CLI, use external select-preview for c-dogs-sdl with bin/cdogs-sdl as the executable and bin as the working directory. Confirm the preview with external select, then start it with portcove exec c-dogs-sdl. Keep the external package and profile in place."
+          },
+          {
             "title": "Keep your settings, campaigns and progress",
-            "instruction": "Keep autosave.json, options.cnf and your custom campaigns. The standard Windows ZIP uses C-Dogs SDL under %APPDATA%. The Linux and Mac archives normally use ~/.config/cdogs-sdl. Flatpak uses ~/.var/app/io.github.cxong.cdogs-sdl/config/cdogs-sdl. If you redirect your profile, copy the folder you actually use before replacing the game."
+            "instruction": "Keep autosave.json, options.cnf and your custom campaigns. The standard Windows ZIP uses C-Dogs SDL under %APPDATA%. The Linux and Mac archives normally use ~/.config/cdogs-sdl. Flatpak uses ~/.var/app/io.github.cxong.cdogs-sdl/config/cdogs-sdl. If you set XDG_CONFIG_HOME, use $XDG_CONFIG_HOME/cdogs-sdl. For other profile redirects, keep the actual folder you use."
           }
         ]
       },
