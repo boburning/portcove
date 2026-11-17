@@ -171,7 +171,7 @@ try {
   [uint32]$windowOwner = 0
   [void][OmnispeakWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
-  $freshKeys = @(@{name='menu';vk=27;wait=2000},@{name='new-game';vk=13;wait=1500},@{name='difficulty';vk=13;wait=4000},@{name='world-move-up';vk=38;wait=700},@{name='world-move-left';vk=37;wait=900},@{name='game-menu';vk=113;wait=1000},@{name='toward-save-1';vk=38;wait=400},@{name='toward-save-2';vk=38;wait=400},@{name='save-menu';vk=13;wait=1000},@{name='save-slot';vk=13;wait=500},@{name='name-p';vk=80;wait=180},@{name='name-o';vk=79;wait=180},@{name='name-r';vk=82;wait=180},@{name='name-t';vk=84;wait=180},@{name='saved';vk=13;wait=1800})
+  $freshKeys = @(@{name='menu';vk=27;wait=2000},@{name='new-game';vk=13;wait=1500},@{name='difficulty';vk=13;wait=1500},@{name='start-world';vk=13;wait=4000},@{name='world-move-up';vk=38;wait=700},@{name='world-move-left';vk=37;wait=900},@{name='game-menu';vk=113;wait=1000},@{name='toward-save-1';vk=38;wait=400},@{name='toward-save-2';vk=38;wait=400},@{name='save-menu';vk=13;wait=1000},@{name='save-slot';vk=13;wait=500},@{name='name-p';vk=80;wait=180},@{name='name-o';vk=79;wait=180},@{name='name-r';vk=82;wait=180},@{name='name-t';vk=84;wait=180},@{name='saved';vk=13;wait=1800})
   $replayKeys = @(@{name='dismiss-1';vk=27;wait=1200},@{name='menu';vk=27;wait=1200},@{name='select-load';vk=40;wait=500},@{name='load-menu';vk=13;wait=1000},@{name='load-slot';vk=13;wait=3000},@{name='loaded';vk=13;wait=1500})
   $steps = if ($Dataset -eq 'fresh') { $freshKeys } else { $replayKeys }
   foreach ($key in $steps) {
