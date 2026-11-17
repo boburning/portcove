@@ -66,7 +66,7 @@ pub(crate) struct Layout {
 }
 
 impl Layout {
-    fn port_id(&self) -> String {
+    pub(crate) fn port_id(&self) -> String {
         self.user
             .file_name()
             .map(|name| name.to_string_lossy().into_owned())
@@ -102,7 +102,7 @@ impl Layout {
     pub(crate) fn tmp(&self) -> PathBuf {
         self.store().join("tmp")
     }
-    fn mods(&self) -> PathBuf {
+    pub(crate) fn mods(&self) -> PathBuf {
         self.user.join(MODS)
     }
     pub(crate) fn journal(&self) -> PathBuf {
@@ -229,7 +229,7 @@ pub(crate) fn clear_restore_pending(user: &Path) -> Result<()> {
     }
 }
 
-fn mark_restore_pending(layout: &Layout) -> Result<()> {
+pub(crate) fn mark_restore_pending(layout: &Layout) -> Result<()> {
     fs::create_dir_all(layout.store())?;
     crate::durability::write_bytes_atomically(&layout.pending(), b"1", true)
 }
@@ -242,6 +242,7 @@ enum ModPackageEdit {
 /// A private, already-inspected copy ready to enter the package store.
 pub(crate) struct StagedPackage {
     pub private: PathBuf,
+    pub recomp: Option<crate::RecompModInspection>,
     pub inspection: crate::ModPackageInspection,
     pub provider: Option<crate::ProviderPackageRef>,
     pub provider_requires: Vec<crate::ProviderRequirement>,
@@ -447,6 +448,7 @@ pub(crate) fn inspect_for_port(
         let inspection = inspect_asset_archive(&private)?;
         return Ok(StagedPackage {
             private,
+            recomp: None,
             inspection,
             provider,
             provider_requires: Vec::new(),
@@ -489,7 +491,7 @@ pub(crate) fn inspect_for_port(
     // counts are not compared across mods for this loader, so they stay empty.
     let inspection = crate::ModPackageInspection {
         file_name,
-        sha256: recomp.sha256,
+        sha256: recomp.sha256.clone(),
         size: recomp.size,
         entry_count: 0,
         declared_uncompressed_bytes: 0,
@@ -502,7 +504,7 @@ pub(crate) fn inspect_for_port(
         inspection,
         provider,
         provider_requires: Vec::new(),
-        native_version: Some(recomp.native_version),
+        native_version: Some(recomp.native_version.clone()),
         code_consent: runs_code,
         requires: recomp
             .dependencies
@@ -515,6 +517,7 @@ pub(crate) fn inspect_for_port(
             })
             .map(|dependency| format!("{}.nrm", dependency.id))
             .collect(),
+        recomp: Some(recomp),
     })
 }
 
@@ -533,6 +536,15 @@ pub(crate) fn sha256_file(path: &Path) -> Result<String> {
 
 fn enabled(revision: &ProfileRevision) -> impl Iterator<Item = &ResolvedPackage> {
     revision.packages.iter().filter(|package| package.enabled)
+}
+
+pub(crate) fn is_runtime_mod_marker(port_id: &str, file_name: &str, size: u64) -> bool {
+    size == 0
+        && file_name == "custom_mod_files_go_here.txt"
+        && matches!(
+            native_mod_list::loader_list(port_id),
+            Some(LoaderList::Ship(_))
+        )
 }
 
 /// Classifies live mods files against the revisions that may own them. A file is
@@ -554,10 +566,7 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
                 .insert(package.sha256.as_str());
         }
     }
-    let ship_loader = matches!(
-        native_mod_list::loader_list(&layout.port_id()),
-        Some(LoaderList::Ship(_))
-    );
+    let port_id = layout.port_id();
     for entry in fs::read_dir(&mods)? {
         let entry = entry?;
         let name = entry.file_name().to_string_lossy().into_owned();
@@ -570,10 +579,8 @@ fn observe(layout: &Layout, owners: &[&ProfileRevision]) -> Result<ModsObservati
             }
             // Shipwright 9.3.1 creates this empty file when it creates mods/.
             // It is shared runtime scaffolding and deployment leaves it in place.
-            None if ship_loader
-                && name == "custom_mod_files_go_here.txt"
-                && metadata.is_file()
-                && metadata.len() == 0 => {}
+            None if metadata.is_file()
+                && is_runtime_mod_marker(&port_id, &name, metadata.len()) => {}
             _ => observation.unmanaged.push(name),
         }
     }
@@ -1163,7 +1170,7 @@ fn plan_local_mod_package(
     let builtins = native_mod_list::recomp_game(port_id)
         .map(native_mod_list::recomp_builtins)
         .unwrap_or_default();
-    let missing_required_mods = staged
+    let missing_required_mods: Vec<String> = staged
         .requires
         .iter()
         .filter(|id| {
@@ -1190,7 +1197,9 @@ fn plan_local_mod_package(
         replaces_enabled,
         overlapping_mods,
         conflicts_truncated,
-        needs_code_permission: staged.code_consent && !recorded_code.contains(&inspection.sha256),
+        needs_code_permission: missing_required_mods.is_empty()
+            && staged.code_consent
+            && !recorded_code.contains(&inspection.sha256),
         required_mods: staged.requires.clone(),
         missing_required_mods,
         plan_sha256: String::new(),
@@ -1236,7 +1245,16 @@ impl PortcoveService {
         let (_staging, private) = copy_local_package(&layout, source)?;
         let staged = inspect_for_port(port_id, private, None, CodePolicy::Review)?;
         let recorded = consented_code(&layout).unwrap_or_default();
-        plan_local_mod_package(&layout, &current, &staged, &recorded)
+        let plan = plan_local_mod_package(&layout, &current, &staged, &recorded)?;
+        if let Some(recomp) = &staged.recomp {
+            self.review_recomp_changes(
+                &layout,
+                &current,
+                [recomp],
+                Some((&recomp.native_id, &plan.missing_required_mods)),
+            )?;
+        }
+        Ok(plan)
     }
 
     /// Installs the reviewed bytes, with a separate decision for exact code.
@@ -1269,6 +1287,7 @@ impl PortcoveService {
             )
             .detail("requires", plan.missing_required_mods.join(", ")));
         }
+        self.review_recomp_changes(&layout, &current, staged.recomp.as_ref(), None)?;
         if plan.needs_code_permission && !allow_code {
             return Err(PortcoveError::usage(
                 "this exact mod package needs permission to run code",
@@ -1770,6 +1789,7 @@ impl PortcoveService {
     /// records the last completed phase, and each phase is skipped once done, so a
     /// resumed switch never re-parks data that has already arrived.
     pub(crate) fn recover_switch_locked(&self, port_id: &str, layout: &Layout) -> Result<()> {
+        self.recover_mod_file_locked(port_id, layout)?;
         self.finish_interrupted_switch_locked(port_id, layout)?;
         // Keep supported native menu changes before an explicit setup action
         // rewrites the game's list.
@@ -1983,6 +2003,7 @@ impl PortcoveService {
             return Ok(());
         }
         let layout = self.deploy_layout(port_id)?;
+        self.recover_mod_file_locked(port_id, &layout)?;
         if layout.journal().try_exists()? {
             return Err(PortcoveError::state(
                 "a profile switch was interrupted; finish it before playing",
@@ -2123,6 +2144,7 @@ impl PortcoveService {
             revision: Some(revision),
             unmanaged: observation.unmanaged,
             changed_owned: observation.drifted,
+            pending_preservation: crate::profile_file_preservation::pending(&layout)?,
             native_list: native_status(&layout, &owner),
         })
     }
@@ -2222,6 +2244,9 @@ pub struct LiveMods {
     pub unmanaged: Vec<String>,
     /// Installed files whose bytes changed outside Portcove; never overwritten.
     pub changed_owned: Vec<String>,
+    /// An authorized file move waiting for recovery, even if the live name disappeared.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pending_preservation: Option<crate::ModFilePreservationPlan>,
     /// The game's own enabled-mods list compared with the selected revision.
     pub native_list: NativeModListStatus,
 }
@@ -2246,7 +2271,7 @@ fn selected_profile_uses_active_build(
 /// revision changed nothing but mod order (a reorder kept from the game's menu):
 /// enabling, disabling or adding a package does not depend on order, and the
 /// newer order is kept. Any other change since review needs a new review.
-fn require_reviewed_or_reordered(
+pub(crate) fn require_reviewed_or_reordered(
     connection: &rusqlite::Connection,
     current: &ProfileRevision,
     expected: u64,

@@ -23,7 +23,10 @@ use crate::{
     ProviderRequirement, RecompExecution, Result, asset_conflicts, inspect_asset_archive,
     mod_package::{MAX_EXTRACTED_BYTES, MAX_MEMBERS, extract_provider_packages},
     profile,
-    profile_deploy::{CodePolicy, Layout, adapter_extensions, inspect_for_port, sha256_file},
+    profile_deploy::{
+        CodePolicy, Layout, adapter_extensions, inspect_for_port, require_reviewed_or_reordered,
+        sha256_file,
+    },
     provider_client::ProviderClient,
 };
 
@@ -621,7 +624,7 @@ impl PortcoveService {
                 members: BTreeMap::new(),
             });
         }
-        let mut recomp_code = std::collections::BTreeMap::<String, Vec<RecompExecution>>::new();
+        let mut recomp_members = std::collections::BTreeMap::new();
 
         // A loader that names packages by their own manifest (Recomp) is reviewed
         // the way a local install is: named by mod ID, other games refused, and
@@ -631,7 +634,6 @@ impl PortcoveService {
                 let named_dir = staging.path().join("named");
                 fs::create_dir(&named_dir)?;
                 let mut renamed = Vec::new();
-                let mut code = std::collections::BTreeMap::new();
                 for path in &member_paths {
                     let recomp = crate::inspect_recomp_mod(path, game)?;
                     if recomp.holds.contains(&crate::RecompModHold::OtherGame) {
@@ -646,7 +648,7 @@ impl PortcoveService {
                     let name = format!("{}.nrm", recomp.native_id);
                     // Names are compared case-insensitively, as on Windows.
                     if !profile::valid_native_id(&name)
-                        || code
+                        || recomp_members
                             .keys()
                             .any(|used: &String| used.eq_ignore_ascii_case(&name))
                     {
@@ -659,10 +661,9 @@ impl PortcoveService {
                     // so only a true duplicate can collide.
                     let destination = named_dir.join(&name);
                     fs::rename(path, &destination)?;
-                    code.insert(name, recomp.execution);
+                    recomp_members.insert(name, recomp);
                     renamed.push(destination);
                 }
-                recomp_code = code;
                 renamed
             }
             None => member_paths,
@@ -693,9 +694,9 @@ impl PortcoveService {
                 sha256: inspection.sha256.clone(),
                 size: inspection.size,
                 asset_count: inspection.asset_paths.len(),
-                runs_code: recomp_code
+                runs_code: recomp_members
                     .get(&inspection.file_name)
-                    .cloned()
+                    .map(|recomp| recomp.execution.clone())
                     .unwrap_or_default(),
             });
             inspections.push(inspection);
@@ -715,7 +716,7 @@ impl PortcoveService {
             }
         }
         // The checks apply would make, made before anything is authorized.
-        let named = crate::native_mod_list::contract(port_id).is_some();
+        let named = crate::native_mod_list::loader_list(port_id).is_some();
         if named {
             for member in &members {
                 crate::native_mod_list::require_listable(&member.file_name)?;
@@ -875,6 +876,19 @@ impl PortcoveService {
                     },
                 )?;
             }
+        }
+        if !recomp_members.is_empty() {
+            let _guard = self
+                .library
+                .try_read_lock_port(port_id, "plan-provider-recomp")?;
+            let latest =
+                profile::current_revision(&self.library.connection()?, port_id, profile_id)?;
+            if latest.digest != current.digest {
+                return Err(PortcoveError::conflict(
+                    "the setup changed; review the package again",
+                ));
+            }
+            self.review_recomp_changes(&layout, &latest, recomp_members.values(), None)?;
         }
         plan.plan_sha256 = digest(&plan)?;
 
@@ -1076,12 +1090,18 @@ impl PortcoveService {
                 "automatic updates do not grant permission to run mod code",
             ));
         }
-        self.library.consume_authorization(
-            token,
-            if runs_code { ACTION_WITH_CODE } else { ACTION },
-            &target(plan)?,
-            &plan.plan_sha256,
-        )?;
+        let consume = || {
+            self.library.consume_authorization(
+                token,
+                if runs_code { ACTION_WITH_CODE } else { ACTION },
+                &target(plan)?,
+                &plan.plan_sha256,
+            )
+        };
+        let recomp = crate::native_mod_list::recomp_game(&plan.port_id).is_some();
+        if !recomp {
+            consume()?;
+        }
         let recorded = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
         let staged_dir = mode.staging(&layout, &plan.plan_sha256);
         let mut staged = Vec::new();
@@ -1120,6 +1140,18 @@ impl PortcoveService {
                 item.provider_requires.clone_from(&origin.requirements);
             }
             staged.push(item);
+        }
+        if recomp {
+            let connection = self.library.connection()?;
+            let current = profile::current_revision(&connection, &plan.port_id, &plan.profile_id)?;
+            require_reviewed_or_reordered(&connection, &current, plan.expected_revision)?;
+            self.review_recomp_changes(
+                &layout,
+                &current,
+                staged.iter().filter_map(|item| item.recomp.as_ref()),
+                None,
+            )?;
+            consume()?;
         }
         for item in &staged {
             if item.code_consent {
