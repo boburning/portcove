@@ -51,24 +51,31 @@ for source, commit, subdir, target, option in [
     ("street", "0e5598e4fb45735b7c611a41b3595c91f16c3fa8", "srport", "srport", "SR_LAUNCHER"),
     ("jetstrike", "5f3017dd7bd8c054fb010153e2983893bb471c67", "jsport", "jsport", "JS_LAUNCHER"),
 ]:
-    if run("git", "-C", source, "rev-parse", "HEAD") != commit:
-        raise RuntimeError("Source differs")
-    if run("git", "-C", source, "status", "--porcelain"):
-        raise RuntimeError("Upstream source is dirty")
-    build = root / (source + "-build")
-    run("cmake", "-S", str(Path(source).resolve() / subdir), "-B", str(build),
-        "-DCMAKE_BUILD_TYPE=Release", "-D" + option + "=OFF",
-        "-DSDL3_DIR=" + str(sdk / "SDL3.framework/Resources/CMake"),
-        "-DCMAKE_BUILD_RPATH=" + str(sdk))
-    run("cmake", "--build", str(build), "--target", target, "--parallel", "2", timeout=600)
-    binary = build / target
-    machine = run("file", str(binary))
-    archs = run("lipo", "-archs", str(binary)).split()
-    if archs != [platform.machine()]:
-        raise RuntimeError("Output is not native to this host")
-    deps = run("otool", "-L", str(binary))
-    results.append({"source": source, "commit": commit, "binary_sha256": digest(binary),
-                    "machine": machine, "dependencies": deps, "scope": "source build only"})
-    if run("git", "-C", source, "status", "--porcelain"):
-        raise RuntimeError("Build changed upstream source")
+    try:
+        if run("git", "-C", source, "rev-parse", "HEAD") != commit:
+            raise RuntimeError("Source differs")
+        if run("git", "-C", source, "status", "--porcelain"):
+            raise RuntimeError("Upstream source is dirty")
+        build = root / (source + "-build")
+        run("cmake", "-S", str(Path(source).resolve() / subdir), "-B", str(build),
+            "-DCMAKE_BUILD_TYPE=Release", "-D" + option + "=OFF",
+            "-DSDL3_DIR=" + str(sdk / "SDL3.framework/Resources/CMake"),
+            "-DCMAKE_BUILD_RPATH=" + str(sdk))
+        run("cmake", "--build", str(build), "--target", target, "--parallel", "2", timeout=600)
+        binary = build / target
+        machine = run("file", str(binary))
+        archs = run("lipo", "-archs", str(binary)).split()
+        if archs != [platform.machine()]:
+            raise RuntimeError("Output is not native to this host")
+        deps = run("otool", "-L", str(binary))
+        results.append({"source": source, "commit": commit, "binary_sha256": digest(binary),
+                        "machine": machine, "dependencies": deps, "scope": "source build only"})
+        if run("git", "-C", source, "status", "--porcelain"):
+            raise RuntimeError("Build changed upstream source")
+    except Exception as error:
+        results.append({"source": source, "commit": commit, "status": "failed",
+                        "error": str(error), "scope": "source build only"})
+        print("SOURCE_PROBE_FAILURE " + json.dumps(results[-1]), flush=True)
 print("SOURCE_PROBE_RESULT " + json.dumps(results), flush=True)
+if any(r.get("status") == "failed" for r in results):
+    raise SystemExit("At least one source build failed; both were attempted")
