@@ -194,7 +194,7 @@ export function installSecondaryPanelProbe(options: SecondaryPanelProbeOptions) 
   const capture = (): SecondaryPanelProbeObservation => ({
     synthetic: true,
     scope:
-      "Supplied native WebView presentation data. Actual Core observation is limited to the declared DAT and metadata actions.",
+      "Supplied native WebView presentation data. DAT, metadata, Ready and theme preferences use the isolated Core. Unrelated background requests, including standing setup, retain the production transport.",
     trace: trace.map((entry) => ({ ...entry })),
     mismatches: [...mismatches],
     acknowledged,

@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { runInNewContext } from "node:vm";
+import { mkdtemp, mkdir, readdir, readFile, rm } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { secondaryPanelFixtures } from "./desktop-secondary-panels-fixture.mts";
+import { secondaryPanelsScenario } from "./desktop-secondary-panels-test.mts";
+import { isUntrustworthyProbeError } from "./desktop-owned-ipc-probe.mts";
 import { transportValue } from "./transport-values.mts";
 import {
   installSecondaryPanelProbe,
@@ -303,4 +308,205 @@ void test("the finite trace bound refuses further targets and records incomplete
   assert.equal(cleanup.mismatches.length, 1);
   assert.equal(cleanup.trustworthy, false);
   assert.deepEqual(forwarded, []);
+});
+
+void test("secondary panel initialization binds its snapshot to the observed generation", async () => {
+  const boundary = new Error("Observed generation-bound snapshot request");
+  const library = path.resolve(root, "library");
+  const commands: string[] = [];
+  await assert.rejects(
+    secondaryPanelsScenario({
+      browser: {} as Parameters<typeof secondaryPanelsScenario>[0]["browser"],
+      scenario: async (_id, action) => {
+        await action();
+      },
+      output: root,
+      library,
+      artifacts: [],
+      portId: options.fixtures.portId,
+      confirmNative: () => assert.fail("Initialization must not open a native dialog"),
+      invoke: async (command, args) => {
+        commands.push(command);
+        if (command === "get_bootstrap_status")
+          return { ok: true, value: { generation: 7, library_root: library } };
+        assert.equal(command, "get_workspace_snapshot");
+        assert.deepEqual(args, { generation: 7 });
+        throw boundary;
+      },
+    }),
+    (error: unknown) => error === boundary,
+  );
+  assert.deepEqual(commands, ["get_bootstrap_status", "get_workspace_snapshot"]);
+});
+
+async function scenarioBoundary(
+  output: string,
+  {
+    getRectFailure,
+    foreignOwner = false,
+    restoreWindowFailure = false,
+    selectedLibrary = path.join(output, "library"),
+  }: {
+    getRectFailure?: Error;
+    foreignOwner?: boolean;
+    restoreWindowFailure?: boolean;
+    selectedLibrary?: string;
+  } = {},
+) {
+  const primary = new Error("Owned first window resize failure");
+  const windowFailure = new Error("Owned window restoration failure");
+  const original: typeof fetch = () => Promise.resolve(new Response("unrelated"));
+  const foreign: typeof fetch = () => Promise.resolve(new Response("later owner"));
+  const window = {
+    fetch: original,
+    __TAURI_INTERNALS__: {
+      convertFileSrc: (command: string) => `https://owned-ipc.invalid/${command}`,
+    },
+    __portcoveSecondaryPanelProbe: undefined as unknown,
+  };
+  let scriptCalls = 0;
+  let windowCalls = 0;
+  const commands: string[] = [];
+  const driver = {
+    executeScript(script: string | ((...args: unknown[]) => unknown), ...args: unknown[]) {
+      scriptCalls++;
+      const result: unknown = runInNewContext(`(${script.toString()})(...__ownedArguments)`, {
+        window,
+        Response,
+        URL,
+        __ownedArguments: args,
+      });
+      return Promise.resolve(result);
+    },
+    manage: () => ({
+      window: () => ({
+        getRect() {
+          if (getRectFailure) throw getRectFailure;
+          return Promise.resolve({ x: 10, y: 20, width: 1200, height: 800 });
+        },
+        setRect() {
+          windowCalls++;
+          if (windowCalls === 1) {
+            assert.ok(window.__portcoveSecondaryPanelProbe, "Install must precede the action");
+            if (foreignOwner) window.fetch = foreign;
+            throw primary;
+          }
+          if (restoreWindowFailure) throw windowFailure;
+          return Promise.resolve();
+        },
+      }),
+    }),
+  };
+  const context: Parameters<typeof secondaryPanelsScenario>[0] = {
+    browser: driver as unknown as Parameters<typeof secondaryPanelsScenario>[0]["browser"],
+    scenario: async (_id, action) => {
+      await action();
+    },
+    output,
+    library: path.join(output, "library"),
+    artifacts: [],
+    portId: options.fixtures.portId,
+    confirmNative: () => assert.fail("Boundary failure must precede native dialogs"),
+    invoke: async (command, args) => {
+      commands.push(command);
+      if (command === "get_bootstrap_status")
+        return { ok: true, value: { generation: 7, library_root: selectedLibrary } };
+      assert.equal(command, "get_workspace_snapshot");
+      assert.deepEqual(args, { generation: 7 });
+      return {
+        ok: true,
+        value: {
+          statuses: [
+            {
+              port_id: options.fixtures.portId,
+              active: { id: "owned-runtime", path: path.join(output, "library", "owned-runtime") },
+            },
+          ],
+        },
+      };
+    },
+  };
+  return {
+    primary,
+    original,
+    foreign,
+    window,
+    commands,
+    scripts: () => scriptCalls,
+    windowCalls: () => windowCalls,
+    run: () => secondaryPanelsScenario(context),
+  };
+}
+
+void test("an unexpected selected library is refused before fixture files or probe installation", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-library-"));
+  try {
+    const boundary = await scenarioBoundary(output, {
+      selectedLibrary: path.join(output, "another-library"),
+    });
+    await assert.rejects(boundary.run(), /exact owned library/u);
+    assert.deepEqual(await readdir(output), []);
+    assert.deepEqual(boundary.commands, ["get_bootstrap_status"]);
+    assert.equal(boundary.scripts(), 0);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+void test("a window observation failure precedes probe installation", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-rect-"));
+  try {
+    const failure = new Error("Owned getRect failure");
+    const boundary = await scenarioBoundary(output, { getRectFailure: failure });
+    await assert.rejects(boundary.run(), (error: unknown) => error === failure);
+    assert.equal(boundary.scripts(), 0);
+    assert.equal(boundary.window.__portcoveSecondaryPanelProbe, undefined);
+    assert.equal(boundary.window.fetch, boundary.original);
+    assert.equal(isUntrustworthyProbeError(failure), false);
+    assert.equal(boundary.windowCalls(), 0);
+    assert.equal((await readdir(output)).length, 4);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+void test("trustworthy cleanup retains the action failure when window restoration also fails", async (context) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-window-"));
+  context.mock.method(console, "error", () => {});
+  try {
+    const boundary = await scenarioBoundary(output, { restoreWindowFailure: true });
+    await assert.rejects(boundary.run(), (error: unknown) => error === boundary.primary);
+    assert.equal(boundary.window.fetch, boundary.original);
+    assert.equal(boundary.window.__portcoveSecondaryPanelProbe, undefined);
+    assert.equal(boundary.windowCalls(), 2);
+    assert.equal(isUntrustworthyProbeError(boundary.primary), false);
+    const report = object(
+      JSON.parse(await readFile(path.join(output, "secondary-panels-observations.json"), "utf8")),
+    );
+    assert.equal(object(report.probe).trustworthy, true);
+    assert.equal(report.outcome, "failed");
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+void test("foreign probe ownership remains marked despite receipt and window restoration failures", async (context) => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-custody-"));
+  context.mock.method(console, "error", () => {});
+  try {
+    const receipt = path.join(output, "secondary-panels-observations.json");
+    await mkdir(receipt);
+    const boundary = await scenarioBoundary(output, {
+      foreignOwner: true,
+      restoreWindowFailure: true,
+    });
+    await assert.rejects(boundary.run(), (error: unknown) => error === boundary.primary);
+    assert.equal(isUntrustworthyProbeError(boundary.primary), true);
+    assert.equal(boundary.window.fetch, boundary.foreign);
+    assert.ok(boundary.window.__portcoveSecondaryPanelProbe);
+    assert.equal(boundary.windowCalls(), 2);
+    assert.deepEqual(await readdir(receipt), []);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
 });

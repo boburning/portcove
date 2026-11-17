@@ -24,6 +24,8 @@ import {
 
 export interface SecondaryPanelsContext extends ScenarioContext {
   invoke: ScenarioInvoke;
+  /** The isolated library selected by this native run's owned lifecycle. */
+  library: string;
   /** An already installed, disposable runtime owned by this native run. */
   portId: string;
   confirmNative: ReturnType<typeof nativeConfirmation>;
@@ -31,12 +33,28 @@ export interface SecondaryPanelsContext extends ScenarioContext {
 
 /** Production WebView inspection with supplied secondary-panel states and owned files. */
 export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
-  const { browser, scenario, output, artifacts, invoke, portId, confirmNative } = context;
+  const { browser, scenario, library, output, artifacts, invoke, portId, confirmNative } = context;
   await scenario("native-secondary-panel-presentation", async () => {
-    const bootstrap = fixtureObject(fixtureSuccess(await invoke("get_bootstrap_status")));
+    assert.ok(path.isAbsolute(library), "The owned library must be an absolute path");
+    const readOwnedBootstrap = async () => {
+      const value = fixtureObject(fixtureSuccess(await invoke("get_bootstrap_status")));
+      assert.ok(typeof value.library_root === "string" && path.isAbsolute(value.library_root));
+      assert.equal(
+        path.relative(
+          path.toNamespacedPath(path.resolve(library)),
+          path.toNamespacedPath(path.resolve(value.library_root)),
+        ),
+        "",
+        "The selected library must be this native run's exact owned library",
+      );
+      return value;
+    };
+    const bootstrap = await readOwnedBootstrap();
     const generation = bootstrap.generation;
     assert.ok(typeof generation === "number" && Number.isSafeInteger(generation));
-    const workspace = fixtureObject(fixtureSuccess(await invoke("get_workspace_snapshot")));
+    const workspace = fixtureObject(
+      fixtureSuccess(await invoke("get_workspace_snapshot", { generation })),
+    );
     assert.ok(Array.isArray(workspace.statuses));
     const status: unknown = workspace.statuses.find(
       (entry: unknown) => isRecord(entry) && entry.port_id === portId,
@@ -78,6 +96,7 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       flag: "wx",
     });
     artifacts.push(files.dat, files.invalidDat, files.recipe, files.portableInput);
+    const originalWindow = await browser.manage().window().getRect();
     const probe = await beginSecondaryPanelProbe(browser, {
       generation,
       fixtures,
@@ -88,18 +107,18 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       refusedMetadataPath: files.refusedMetadata,
     });
     const { button, click } = reviewControls(browser);
-    const originalWindow = await browser.manage().window().getRect();
     const stages: { name: string; geometry: unknown }[] = [];
     const report: Record<string, unknown> = {
       synthetic: true,
       scope:
-        "Native rendering and interaction with supplied secondary-panel replies. DAT add/remove and the successful library export use the isolated Core and owned output files.",
+        "Native rendering and interaction with supplied secondary-panel replies. DAT add/remove, the successful library export, Ready and theme preferences use the isolated Core and owned files. Ordinary background requests, including standing setup, retain the production transport.",
       port_id: portId,
       generation,
       install_id: installId,
       stages,
     };
     let primaryFailure: unknown;
+    let actionFailed = false;
 
     const findButton = async (name: string) => {
       let result: WebElement | undefined;
@@ -238,6 +257,35 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       );
     };
 
+    const cleanupScenario = async () => {
+      const cleanup = await probe.restore().catch((error: unknown) => ({
+        restored: false,
+        trustworthy: false,
+        error: errorMessage(error),
+      }));
+      report.probe = cleanup;
+      if (!cleanup.trustworthy) report.outcome = "failed";
+      const receipt = path.join(output, "secondary-panels-observations.json");
+      let receiptFailure: unknown;
+      let receiptFailed = false;
+      try {
+        await writeFile(receipt, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
+        artifacts.push(receipt);
+      } catch (error) {
+        receiptFailed = true;
+        receiptFailure = error;
+        console.error("Could not write the secondary-panel observation receipt", error);
+      }
+      requireTrustedProbeCleanup(cleanup, actionFailed ? primaryFailure : receiptFailure);
+      if (receiptFailed && !actionFailed) throw receiptFailure;
+      try {
+        await browser.manage().window().setRect(originalWindow);
+      } catch (error) {
+        if (!actionFailed) throw error;
+        console.error("Could not restore the secondary-panel window after failure", error);
+      }
+    };
+
     try {
       await browser.manage().window().setRect({ width: 960, height: 640 });
       await settings("game-files");
@@ -318,6 +366,11 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await settings("library-storage");
       await click(By.xpath('//summary[normalize-space(.)="Prepare a recovery copy"]'));
       const exportMetadata = await findButton("Export library information");
+      assert.equal(
+        (await readOwnedBootstrap()).generation,
+        generation,
+        "The owned library generation must remain unchanged before metadata export",
+      );
       await clickVisible(browser, exportMetadata);
       await confirmNative(
         "Export library information",
@@ -473,23 +526,13 @@ export async function secondaryPanelsScenario(context: SecondaryPanelsContext) {
       await captureAccessibilityReport(browser, accessibility, artifacts);
       report.outcome = "passed";
     } catch (error) {
+      actionFailed = true;
       primaryFailure = error;
       report.outcome = "failed";
       report.failure = errorMessage(error);
       throw error;
     } finally {
-      const cleanup = await probe.restore().catch((error: unknown) => ({
-        restored: false,
-        trustworthy: false,
-        error: errorMessage(error),
-      }));
-      report.probe = cleanup;
-      if (!cleanup.trustworthy) report.outcome = "failed";
-      const receipt = path.join(output, "secondary-panels-observations.json");
-      await writeFile(receipt, JSON.stringify(report, null, 2) + "\n", { flag: "wx" });
-      artifacts.push(receipt);
-      requireTrustedProbeCleanup(cleanup, primaryFailure);
-      await browser.manage().window().setRect(originalWindow);
+      await cleanupScenario();
     }
   });
 }
