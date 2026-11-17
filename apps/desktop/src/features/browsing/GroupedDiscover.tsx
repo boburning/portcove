@@ -32,19 +32,26 @@ import { availablePlatforms } from "./catalog-entry";
 import type { CatalogEntry } from "./catalog-entry";
 import type { NativeSourceDragState } from "../../native-source-drop";
 import { browsePortPresentation } from "../port-actions/browse-presentation";
-import { BrowsePortObservations } from "../port-actions/BrowsePortObservations";
+import { BrowsePortObservationsContent } from "../port-actions/BrowsePortObservations";
 import { groupCatalog, originalSystems, type GameGroup } from "./original-game";
 import { ImplementationChoice, ownsChoiceFocus } from "./ImplementationChoice";
 import { resolveGameChoice } from "./game-choice";
 
-export function IdentityChips({
-  port,
-  includeUnknown = false,
-}: {
+type IdentityChipsProps = {
   port: CatalogEntry;
   includeUnknown?: boolean;
-}) {
+};
+
+export function IdentityChips(props: IdentityChipsProps) {
   const { t } = useAppTranslation("browsing");
+  return <IdentityChipsContent {...props} t={t} />;
+}
+
+function IdentityChipsContent({
+  port,
+  includeUnknown = false,
+  t,
+}: IdentityChipsProps & { t: TFunction<"browsing"> }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {originalSystems(port)
@@ -273,7 +280,8 @@ export function GroupedDiscover({
                       </div>
                       <div>
                         <h4>{t("discover.compare.status")}</h4>
-                        <BrowsePortObservations
+                        <BrowsePortObservationsContent
+                          t={t}
                           port={port}
                           status={status}
                           observation={observation}
@@ -528,6 +536,7 @@ function DiscoverGameCardView({
         <SaveGameButton card port={first} groupPorts={group.ports} organization={organization} />
       </div>
       <DiscoverGameMetadata
+        t={t}
         port={first}
         status={status}
         exact={exact}
@@ -535,6 +544,7 @@ function DiscoverGameCardView({
         artworkNotice={artworkNotice}
       />
       <DiscoverGameObservation
+        t={t}
         group={actionGroup}
         first={first}
         status={status}
@@ -544,6 +554,7 @@ function DiscoverGameCardView({
         organization={organization}
       />
       <DiscoverGameActions
+        t={t}
         onTask={onTask}
         group={actionGroup}
         statuses={statuses}
@@ -566,19 +577,20 @@ function DiscoverGameCardView({
 }
 
 function DiscoverGameMetadata({
+  t,
   port,
   status,
   exact,
   devicePlatform,
   artworkNotice,
 }: {
+  t: TFunction<"browsing">;
   port: CatalogEntry;
   status: PortStatus | undefined;
   exact: boolean;
   devicePlatform: PortDefinition["platforms"][number] | undefined;
   artworkNotice: ReturnType<typeof artworkDisplayNotice>;
 }) {
-  const { t } = useAppTranslation("browsing");
   return (
     <div className="discover-game-metadata grid content-start gap-2">
       {artworkNotice && <p className="text-xs text-pc-muted-foreground">{artworkNotice}</p>}
@@ -587,7 +599,8 @@ function DiscoverGameMetadata({
       {/* On a known device, platform chips repeat on every card; show only the
           exception. Without a known device, the platforms stay listed. */}
       {exact && (
-        <IdentityChips
+        <IdentityChipsContent
+          t={t}
           port={{
             ...port,
             ...(devicePlatform ? { platforms: [] } : {}),
@@ -638,6 +651,7 @@ function discoverCardIdentity(
 }
 
 function DiscoverGameObservation({
+  t,
   group,
   first,
   status,
@@ -646,6 +660,7 @@ function DiscoverGameObservation({
   firstProject,
   organization,
 }: {
+  t: TFunction<"browsing">;
   group: GameGroup;
   first: CatalogEntry;
   status: PortStatus | undefined;
@@ -654,7 +669,6 @@ function DiscoverGameObservation({
   firstProject: string;
   organization: Organization | undefined;
 }) {
-  const { t } = useAppTranslation("browsing");
   const exact = group.matchingPorts.length === 1;
   return (
     <div className="discover-game-observation grid content-start gap-1">
@@ -669,7 +683,8 @@ function DiscoverGameObservation({
               />
             </p>
           )}
-          <BrowsePortObservations
+          <BrowsePortObservationsContent
+            t={t}
             port={first}
             status={status}
             observation={observation}
@@ -685,6 +700,7 @@ function DiscoverGameObservation({
 }
 
 function DiscoverGameActions({
+  t,
   group,
   onTask,
   statuses,
@@ -697,11 +713,11 @@ function DiscoverGameActions({
   Parameters<typeof DiscoverGameCard>[0],
   "group" | "onTask" | "statuses" | "open" | "compare"
 > & {
+  t: TFunction<"browsing">;
   first: CatalogEntry;
   detailOrigin: string;
   describedBy: string | undefined;
 }) {
-  const { t } = useAppTranslation("browsing");
   const action = presentPortAction(
     useOperationPresentation(),
     first.id,
