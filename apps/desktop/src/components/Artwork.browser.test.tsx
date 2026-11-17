@@ -14,6 +14,11 @@ import type { ArtworkState, PortListing } from "../types";
 import { ArtworkControls, ArtworkImage, listingEvidenceText } from "./Artwork";
 import { ListingDetailPanel } from "./ListingDetailPanel";
 
+// Valid 1×1 PNG also used by artwork-refresh.browser.test.tsx. Decode failures
+// are injected deliberately in the failure case, never by corrupt fixture bytes.
+const thumbnailPng =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGMwnvn/PwAFmQLLFOU//QAAAABJRU5ErkJggg==";
+
 let container: HTMLDivElement, root: RenderResult;
 
 async function render(portId = "sample", generation = 7, imageId = "") {
@@ -74,7 +79,8 @@ async function click(slot: keyof typeof slotLabels, label: string) {
 }
 
 function controlledArtworkVisibility() {
-  let showArtwork!: () => void;
+  let showArtwork: (() => void) | undefined;
+  const observers = new Map<Element, () => void>();
   vi.stubGlobal(
     "IntersectionObserver",
     class {
@@ -85,11 +91,16 @@ function controlledArtworkVisibility() {
             [{ target, isIntersecting: true } as IntersectionObserverEntry],
             this as unknown as IntersectionObserver,
           );
+        observers.set(target, showArtwork);
       }
       disconnect() {}
     },
   );
-  return () => showArtwork();
+  return (target?: Element) => {
+    const show = target ? observers.get(target) : showArtwork;
+    if (!show) throw new Error("Artwork visibility target was not observed");
+    show();
+  };
 }
 
 beforeEach(async () => {
@@ -102,8 +113,7 @@ beforeEach(async () => {
   vi.spyOn(desktopApi, "artworkThumbnail").mockImplementation(async (_port, _slot, revision) => ({
     asset_sha256: "a".repeat(64),
     choice_revision: revision,
-    png_base64:
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+    png_base64: thumbnailPng,
   }));
 });
 
@@ -357,8 +367,7 @@ describe("local artwork controls", () => {
     vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, _slot, revision) => ({
       asset_sha256: (revision === 2 ? "b" : "a").repeat(64),
       choice_revision: revision,
-      png_base64:
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+      png_base64: thumbnailPng,
     }));
     let finish!: (value: ArtworkState) => void;
     vi.spyOn(desktopApi, "resetArtwork").mockReturnValue(
@@ -566,8 +575,7 @@ describe("local artwork controls", () => {
     vi.mocked(desktopApi.artworkThumbnail).mockImplementation(async (_port, _slot, revision) => ({
       asset_sha256: "b".repeat(64),
       choice_revision: revision,
-      png_base64:
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=",
+      png_base64: thumbnailPng,
     }));
     await render();
     await open();
@@ -738,31 +746,61 @@ describe("local artwork controls", () => {
       .toBe("SF");
   });
 
-  it("uses the core fallback if a validated local thumbnail cannot render", async () => {
-    vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
-      artworkState(port, slot, 2, true),
-    );
-    await render();
-    await open();
-    await expect.poll(() => container.querySelector(".artwork-image img")).not.toBeNull();
-    const image = container.querySelector<HTMLImageElement>(".artwork-image img")!;
-    await act(async () => image.dispatchEvent(new Event("error")));
-    expect(
-      getComputedStyle(container.querySelector(".artwork-image")!)
-        .getPropertyValue("--art-color")
-        .trim(),
-    ).toBe(getComputedStyle(document.documentElement).getPropertyValue("--color-art-green").trim());
-    expect(container.querySelector(".artwork-image:not(.wide-artwork) img")).toBeNull();
-    expect(container.querySelector(".artwork-image > span")?.textContent).toBe("SF");
-    expect(container.querySelector<HTMLElement>(".artwork-image")?.dataset.artworkSource).toBe(
-      "generated_fallback",
-    );
-    expect(container.textContent).toContain("Image unavailable");
-    expect(container.textContent).toContain(
-      "Generated fallback; the selected local image is not currently rendered.",
-    );
-    expect(container.textContent).toContain("f".repeat(64));
-  });
+  it.each(["cover-first", "detail-first"] as const)(
+    "uses the core fallback if a validated local thumbnail cannot render (%s)",
+    async (order) => {
+      const showArtwork = controlledArtworkVisibility();
+      vi.mocked(desktopApi.artwork).mockImplementation(async (port, slot) =>
+        artworkState(port, slot, 2, true),
+      );
+      await render();
+      const cover = container.querySelector<HTMLElement>(".artwork-image:not(.wide-artwork)")!;
+      cover.scrollIntoView({ block: "center" });
+      await open();
+      await expect.poll(() => container.querySelector(".wide-artwork")).not.toBeNull();
+      const detail = container.querySelector<HTMLElement>(".wide-artwork")!;
+      const decodedImage = async (frame: HTMLElement) => {
+        await expect
+          .poll(() => {
+            const image = frame.querySelector<HTMLImageElement>("img");
+            return (
+              frame.dataset.artworkSource === "local_import" &&
+              Boolean(image?.complete && image.naturalWidth > 0 && image.naturalHeight > 0)
+            );
+          })
+          .toBe(true);
+        return frame.querySelector<HTMLImageElement>("img")!;
+      };
+      const first = order === "detail-first" ? detail : cover;
+      await act(async () => showArtwork(first));
+      await decodedImage(first);
+      // A ready Detail preview must not satisfy Cover readiness or receive its error.
+      expect(cover.querySelector("img") === null).toBe(order === "detail-first");
+      await act(async () => {
+        showArtwork(cover);
+        showArtwork(detail);
+      });
+      const image = await decodedImage(cover);
+      const detailImage = await decodedImage(detail);
+      await act(async () => image.dispatchEvent(new Event("error")));
+      await expect.poll(() => cover.dataset.artworkSource).toBe("generated_fallback");
+      expect(getComputedStyle(cover).getPropertyValue("--art-color").trim()).toBe(
+        getComputedStyle(document.documentElement).getPropertyValue("--color-art-green").trim(),
+      );
+      expect(cover.querySelector("img")).toBeNull();
+      expect(cover.querySelector("span")?.textContent).toBe("SF");
+      expect(cover.dataset.artworkSource).toBe("generated_fallback");
+      expect(cover.textContent).toContain("Image unavailable");
+      expect(container.textContent).toContain(
+        "Generated fallback; the selected local image is not currently rendered.",
+      );
+      expect(container.textContent).toContain("f".repeat(64));
+      expect(button("cover", "Reset to default").disabled).toBe(false);
+      expect(detail.querySelector("img")).toBe(detailImage);
+      expect(detailImage.complete && detailImage.naturalWidth > 0).toBe(true);
+      expect(detail.dataset.artworkSource).toBe("local_import");
+    },
+  );
 });
 
 vi.mock("../file-picker", { spy: true });
@@ -780,8 +818,7 @@ describe("SteamGridDB picker", () => {
     score: 1,
     author: { name: `Artist ${id}`, steam64: null },
   });
-  const pixel =
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=";
+  const pixel = thumbnailPng;
 
   it("explains setup when no player key is saved and makes no lookup", async () => {
     vi.spyOn(desktopApi, "steamGridDbKeyStatus").mockResolvedValue({ configured: false });
