@@ -1337,6 +1337,7 @@ export default interface Resources {
         "originalNeeded": "Add or relink the matching original game file from your own copy, then review the recipe again.",
         "packages": "Mods in the recipe",
         "platform": "Platform {{platform}}",
+        "providerFile": "Check <provider/> project <project/>, file <file/> against this recipe before importing. Portcove checks which files are in the download and which other mods they require.",
         "providerSetupNeeded": "Create or select a setup to check the exact files with the provider.",
         "ready": "The exact files are available. The new setup starts with fresh progress.",
         "review": "Recipe review",

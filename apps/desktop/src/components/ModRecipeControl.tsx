@@ -1,9 +1,11 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { pickModRecipePath, saveModRecipePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
 import type { OutputRecipeImportPlan } from "../transport-types.generated";
 import { errorText } from "../view-model";
+import { providerName } from "./ModProviderBrowser";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 
@@ -16,6 +18,8 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   onImported: (message: string) => void;
 };
+
+type RecipeAction = "export" | "open" | "import" | "close" | `provider:${string}`;
 
 export function ModRecipeControl({
   portId,
@@ -30,58 +34,63 @@ export function ModRecipeControl({
   const [plan, setPlan] = useState<OutputRecipeImportPlan>();
   const [allowCode, setAllowCode] = useState(false);
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState<RecipeAction>();
   const [notice, setNotice] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const nameId = useId();
   const reviewTitle = useId();
-  const locked = disabled || busy;
+  const locked = disabled || pending !== undefined;
   const openButton = useRef<HTMLButtonElement>(null);
+  const reviewSection = useRef<HTMLElement>(null);
   const focusOpenOnClose = useRef(false);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
-  const lifecycle = useRef({
-    active: true,
-    review: undefined as OutputRecipeImportPlan | undefined,
-  });
+  const focusReviewFrom = useRef<HTMLElement | null>(null);
+  const active = useRef(true);
   useEffect(() => {
-    const view = lifecycle.current;
-    view.active = true;
+    active.current = true;
     return () => {
-      view.active = false;
-      const review = view.review;
-      view.review = undefined;
-      if (review?.acquisitions?.length) {
-        void desktopApi.discardModRecipeReview(portId, review, generation).catch(() => {});
-      }
+      active.current = false;
     };
   }, [portId, generation]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
-  const showReview = (next?: OutputRecipeImportPlan) => {
-    lifecycle.current.review = next;
+  const showReview = (next?: OutputRecipeImportPlan, trigger: HTMLElement | null = null) => {
+    focusReviewFrom.current = document.activeElement === trigger ? trigger : null;
     setPlan(next);
   };
   useEffect(() => {
-    if (plan) reviewHeading.current?.focus();
+    const trigger = focusReviewFrom.current;
+    focusReviewFrom.current = null;
+    const heading = reviewHeading.current;
+    if (!plan || !heading || !trigger) return;
+    const active = document.activeElement;
+    if (active !== trigger && (active !== document.body || trigger.isConnected)) return;
+    heading.focus({ preventScroll: true });
+    heading.scrollIntoView({ block: "start", inline: "nearest" });
   }, [plan]);
   useEffect(() => {
     if (plan || locked || !focusOpenOnClose.current) return;
     focusOpenOnClose.current = false;
-    openButton.current?.focus();
+    if (document.activeElement === document.body) openButton.current?.focus();
   }, [plan, locked]);
 
-  async function run(action: () => Promise<void>) {
-    setBusy(true);
+  function actionState(action: RecipeAction) {
+    const active = pending === action;
+    return { disabled: locked, focusableWhenDisabled: active, "aria-busy": active };
+  }
+
+  async function run(kind: RecipeAction, action: () => Promise<void>) {
+    setPending(kind);
     onBusyChange(true);
     try {
       await action();
     } catch (error) {
-      if (lifecycle.current.active) {
+      if (active.current) {
         setNotice(undefined);
         setFailure(errorText(error));
       }
     } finally {
-      if (lifecycle.current.active) {
-        setBusy(false);
+      if (active.current) {
+        setPending(undefined);
         onBusyChange(false);
       }
     }
@@ -89,39 +98,44 @@ export function ModRecipeControl({
 
   const exportRecipe = () => {
     if (!profileId) return;
-    void run(async () => {
+    void run("export", async () => {
       const path = await saveModRecipePath(t("mods.recipe.savePicker"), t("mods.recipe.fileType"));
-      if (typeof path !== "string" || !lifecycle.current.active) return;
+      if (typeof path !== "string" || !active.current) return;
       setFailure(undefined);
       await desktopApi.exportModRecipe(portId, profileId, path, generation);
       setNotice(t("mods.recipe.saved"));
     });
   };
 
-  const discardReview = async () => {
+  const closeReview = async () => {
     if (plan?.acquisitions?.length) {
       await desktopApi.discardModRecipeReview(portId, plan, generation);
     }
+    if (!active.current) return;
+    focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
     showReview();
     setAllowCode(false);
   };
 
   const inspectRecipe = () =>
-    void run(async () => {
+    void run("open", async () => {
       const path = await pickModRecipePath(t("mods.recipe.openPicker"), t("mods.recipe.fileType"));
-      if (typeof path !== "string" || !lifecycle.current.active) return;
+      if (typeof path !== "string" || !active.current) return;
       setFailure(undefined);
       setNotice(undefined);
-      await discardReview();
+      // Identical recipes can share the same staged files across views. Only
+      // an explicit close discards a review. Core prunes abandoned staging.
+      showReview();
+      setAllowCode(false);
       const review = await desktopApi.inspectModRecipe(portId, path, generation);
-      if (!lifecycle.current.active) return;
-      showReview(review);
+      if (!active.current) return;
+      showReview(review, openButton.current);
       setName("");
     });
 
-  const checkProvider = (nativeId: string) => {
+  const checkProvider = (nativeId: string, trigger: HTMLButtonElement) => {
     if (!plan || !profileId) return;
-    void run(async () => {
+    void run(`provider:${nativeId}`, async () => {
       setFailure(undefined);
       setAllowCode(false);
       const review = await desktopApi.acquireModRecipePackage(
@@ -131,21 +145,23 @@ export function ModRecipeControl({
         plan,
         generation,
       );
-      if (!lifecycle.current.active) {
-        await desktopApi.discardModRecipeReview(portId, review, generation).catch(() => {});
-        return;
-      }
-      showReview(review);
+      if (!active.current) return;
+      showReview(review, trigger);
     });
   };
 
   const needsCode = Boolean(plan?.code_approval?.length);
+  const exactProviderChecks = new Set(plan?.provider_checks);
+  const packageProviders = new Map(
+    plan?.recipe.packages.map((pack) => [pack.native_id, pack.provider]),
+  );
   const importRecipe = () => {
     if (!plan?.can_apply || !name.trim() || (needsCode && !allowCode)) return;
-    void run(async () => {
+    void run("import", async () => {
       setFailure(undefined);
       await desktopApi.applyModRecipe(portId, name.trim(), plan, generation, allowCode);
-      if (!lifecycle.current.active) return;
+      if (!active.current) return;
+      focusOpenOnClose.current = reviewSection.current?.contains(document.activeElement) ?? false;
       showReview();
       setAllowCode(false);
       setName("");
@@ -154,22 +170,31 @@ export function ModRecipeControl({
   };
 
   return (
-    <div className="grid gap-2">
+    <div className="grid min-w-0 gap-2 wrap-anywhere">
       <div className="flex flex-wrap gap-2">
         {profileId && (
-          <Button variant="outline" disabled={locked} onClick={exportRecipe}>
+          <Button variant="outline" {...actionState("export")} onClick={exportRecipe}>
             {t("mods.recipe.export")}
           </Button>
         )}
-        <Button ref={openButton} variant="outline" disabled={locked} onClick={inspectRecipe}>
+        <Button ref={openButton} variant="outline" {...actionState("open")} onClick={inspectRecipe}>
           {t("mods.recipe.openPicker")}
         </Button>
       </div>
       {notice && <p role="status">{notice}</p>}
       {failure && <p role="alert">{failure}</p>}
       {plan && (
-        <section aria-labelledby={reviewTitle} className="grid gap-2 text-sm">
-          <h4 ref={reviewHeading} id={reviewTitle} tabIndex={-1} className="font-semibold">
+        <section
+          ref={reviewSection}
+          aria-labelledby={reviewTitle}
+          className="grid min-w-0 gap-2 text-sm"
+        >
+          <h4
+            ref={reviewHeading}
+            id={reviewTitle}
+            tabIndex={-1}
+            className="scroll-mt-3 font-semibold"
+          >
             {t("mods.recipe.review")}
           </h4>
           <p>{t(plan.can_apply ? "mods.recipe.ready" : "mods.recipe.held")}</p>
@@ -185,7 +210,7 @@ export function ModRecipeControl({
             </div>
           )}
           {plan.recipe.packages.length > 0 && (
-            <ul className="list-disc pl-5" aria-label={t("mods.recipe.packages")}>
+            <ul className="list-disc ps-5" aria-label={t("mods.recipe.packages")}>
               {plan.recipe.packages.map((pack) => (
                 <li key={pack.native_id}>
                   {t(pack.enabled ? "mods.recipe.enabled" : "mods.recipe.disabled", {
@@ -197,12 +222,37 @@ export function ModRecipeControl({
           )}
           <details open={!plan.can_apply}>
             <summary>{t("mods.recipe.details")}</summary>
-            <ul className="list-disc pl-5">
-              {[plan.runtime, ...plan.originals, ...plan.packages].map((input, index) => (
+            <ul className="list-disc ps-5">
+              {[plan.runtime, ...plan.originals].map((input, index) => (
                 <li key={JSON.stringify([input.name, index])}>
                   <strong>{input.name}</strong> {input.detail}
                 </li>
               ))}
+              {plan.packages.map((input) => {
+                const provider = exactProviderChecks.has(input.name)
+                  ? packageProviders.get(input.name)
+                  : undefined;
+                return (
+                  <li key={input.name}>
+                    <strong>
+                      <bdi>{input.name}</bdi>
+                    </strong>{" "}
+                    {provider?.file ? (
+                      <Trans
+                        t={t}
+                        i18nKey="mods.recipe.providerFile"
+                        components={{
+                          provider: <bdi>{providerName(provider.provider)}</bdi>,
+                          project: <bdi>{provider.project}</bdi>,
+                          file: <bdi>{provider.file}</bdi>,
+                        }}
+                      />
+                    ) : (
+                      input.detail
+                    )}
+                  </li>
+                );
+              })}
               {[...new Set([...plan.holds, ...plan.recipe.uncaptured])].map((detail) => (
                 <li key={detail}>{detail}</li>
               ))}
@@ -210,7 +260,7 @@ export function ModRecipeControl({
             {plan.recipe.orderings.map((ordering) => (
               <div key={ordering.domain} className="mt-2">
                 <p>{t("mods.recipe.order", { domain: ordering.domain })}</p>
-                <ol className="list-decimal pl-5">
+                <ol className="list-decimal ps-5">
                   {ordering.native_ids.map((id) => (
                     <li key={id}>{id}</li>
                   ))}
@@ -220,7 +270,7 @@ export function ModRecipeControl({
             {Boolean(plan.recipe.settings?.length) && (
               <div className="mt-2">
                 <p>{t("mods.recipe.settings")}</p>
-                <ul className="list-disc pl-5">
+                <ul className="list-disc ps-5">
                   {plan.recipe.settings?.map((setting) => (
                     <li key={JSON.stringify([setting.native_id, setting.option_id])}>
                       <bdi>
@@ -251,8 +301,8 @@ export function ModRecipeControl({
               <Button
                 key={nativeId}
                 variant="outline"
-                disabled={locked}
-                onClick={() => checkProvider(nativeId)}
+                {...actionState(`provider:${nativeId}`)}
+                onClick={(event) => checkProvider(nativeId, event.currentTarget)}
               >
                 {t("mods.recipe.checkProvider", { name: nativeId })}
               </Button>
@@ -268,7 +318,7 @@ export function ModRecipeControl({
                 />
                 {t("mods.recipe.allowCode")}
               </label>
-              <ul className="list-disc pl-5">
+              <ul className="list-disc ps-5">
                 {plan.code_approval?.map((code) => (
                   <li key={code.native_id}>
                     {code.native_id}{" "}
@@ -296,6 +346,7 @@ export function ModRecipeControl({
           <div className="flex flex-wrap gap-2">
             {plan.can_apply && (
               <Button
+                {...actionState("import")}
                 disabled={locked || !name.trim() || (needsCode && !allowCode)}
                 onClick={importRecipe}
               >
@@ -304,19 +355,8 @@ export function ModRecipeControl({
             )}
             <Button
               variant="outline"
-              disabled={locked}
-              onClick={() => {
-                if (!plan.acquisitions?.length) {
-                  showReview();
-                  setAllowCode(false);
-                  openButton.current?.focus();
-                  return;
-                }
-                void run(async () => {
-                  await discardReview();
-                  focusOpenOnClose.current = true;
-                });
-              }}
+              {...actionState("close")}
+              onClick={() => void run("close", closeReview)}
             >
               {t("mods.recipe.close")}
             </Button>

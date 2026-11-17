@@ -221,6 +221,7 @@
       "originalNeeded": "Añade o vuelve a vincular el archivo original correspondiente de tu propia copia y revisa la receta de nuevo.",
       "packages": "Mods en la receta",
       "platform": "Plataforma {{platform}}",
+      "providerFile": "Comprueba el archivo <file/> del proyecto <project/> en <provider/> antes de importar esta receta. Portcove comprueba qué archivos contiene la descarga y qué otros mods necesitan.",
       "providerSetupNeeded": "Crea o selecciona una configuración para buscar los archivos exactos en el proveedor.",
       "ready": "Los archivos exactos están disponibles. La nueva configuración comienza con progreso nuevo.",
       "review": "Revisión de la receta",
