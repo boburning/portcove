@@ -377,6 +377,7 @@ void test("execution planning preserves the independently reviewed pre-change or
           ![
             "native-controller-api-fallback",
             "native-reviewed-discovery-setup-batch",
+            "native-large-discovery-setup-review",
             "native-linux-webview-origin-boundary",
             "native-preliminary-source-review",
             "native-saved-folder-hash-resume",
@@ -1204,6 +1205,69 @@ function receiptFilePath(input: import("./native-helper-dependencies.mts").Recei
   assert(input.kind === "file");
   return input.path;
 }
+
+void test("native large review retains source/CLI custody on both supported desktop platforms", () => {
+  const id = "native-large-discovery-setup-review";
+  for (const platform of ["win32", "linux"] as const) {
+    const selection = resolveDesktopSelection({ scenarios: [id], platform });
+    const plan = planDesktopExecution(selection, { platform });
+    assert.deepEqual(selection.setup_scenarios, []);
+    assert.equal(plan.fixtures.sourceJourney, true);
+    assert.equal(plan.fixtures.owned, true);
+    assert.equal(plan.session.identityBoundSession, true);
+    assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+    assert.deepEqual(
+      plan.fixtureFamilies
+        .filter((entry) => entry.family && entry.members.length)
+        .map((entry) => entry.family),
+      ["selected-setup"],
+    );
+    for (const name of ["preparation-cli", "preparation-tool"])
+      assert.ok(
+        plan.receiptInputs.some((input) => input.kind === "executable" && input.name === name),
+      );
+    const verification = buildDesktopVerifyPlan({
+      selection,
+      paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+      drivers: null,
+      source: { revision: "a".repeat(40), clean: true },
+      packages: { ready: false },
+    });
+    assert.ok(verification.paths.cli);
+    assert.ok(verification.phases.includes("cli-build"));
+    assert.throws(
+      () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform }),
+      /standalone/,
+    );
+    for (const profile of ["smoke", "full"])
+      assert.ok(!resolveDesktopSelection({ profile, platform }).selected_scenarios.includes(id));
+  }
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id], platform: "darwin" }),
+    /Windows\/Linux/,
+  );
+});
+
+void test("large review enters the actual ordinary Linux session route without an optional binding", async () => {
+  const source = await readFile(
+    new URL("../apps/desktop/scripts/desktop-test.mts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf("const linuxSelectedSession =");
+  const end = source.indexOf("const linuxPublication =", start);
+  assert.ok(start >= 0 && end > start);
+  const selected = (platform: string, scenarios: string[], linuxBinding: unknown = null) =>
+    runInNewContext(`${source.slice(start, end)}; linuxSelectedSession`, {
+      process: { platform },
+      selection: { selected_scenarios: scenarios },
+      linuxBinding,
+    });
+  assert.equal(selected("linux", ["native-large-discovery-setup-review"]), true);
+  assert.equal(selected("win32", ["native-large-discovery-setup-review"]), false);
+  assert.equal(selected("linux", ["empty-library"]), false);
+  assert.equal(selected("linux", ["native-reviewed-discovery-setup-batch"]), false);
+  assert.equal(selected("linux", ["native-saved-folder-selected-setup"]), true);
+});
 
 void test("reviewed discovery batch is standalone, fixture-scoped and positively supervised", () => {
   const id = "native-reviewed-discovery-setup-batch";

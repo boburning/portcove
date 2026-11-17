@@ -2229,6 +2229,19 @@ intact. Launch history stays empty. Reports include screenshots and positive
 owned-process closure. This fixture does not establish native picker, real-game,
 gameplay or physical-storage acceptance.
 
+`just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
+selects one standalone Windows or Linux review journey outside routine profiles.
+An isolated CLI saves one root and registers 21 distinct inert originals, with
+four identical copies of each original. Desktop continues the bounded scan to
+84 retained matches, selects all 20 independent eligible games before loading
+the remaining result page, and leaves one game's two implementations unselected.
+Keyboard activation opens the exact twenty-game review and cancels it. No batch,
+download, installation or launch may occur; original files and registrations stay
+unchanged. The native receipt includes the scan identity, selected plans, counts,
+screenshots and ordinary harness process cleanup. It does not establish native
+picker, retail, gameplay or physical-storage acceptance. Execution of a reviewed
+batch is qualified separately.
+
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
 review, actual individual installation cancellation/retry and inert preparation,

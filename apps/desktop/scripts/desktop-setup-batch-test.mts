@@ -1,11 +1,15 @@
 // Actual Desktop/Core batch flow with inert, CLI-seeded originals. No game qualification.
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { By, until, type WebDriver } from "selenium-webdriver";
+import { By, Key, until, type WebDriver } from "selenium-webdriver";
 import { errorMessage } from "../../../scripts/runtime-values.mts";
-import type { createInstallFixture } from "./desktop-install-fixture.mts";
+import type {
+  createInstallFixture,
+  prepareLargeSetupReviewFixture,
+} from "./desktop-install-fixture.mts";
 import {
   fixtureObject as object,
   fixtureSuccess as success,
@@ -52,6 +56,204 @@ function batchFacts(library: string) {
   } finally {
     database.close();
   }
+}
+
+export async function largeSetupReviewScenario(
+  context: BatchContext & {
+    largeReview: Awaited<ReturnType<typeof prepareLargeSetupReviewFixture>>;
+  },
+) {
+  const { browser, invoke, scenario, library, output, artifacts, fixture, largeReview } = context;
+  await scenario("native-large-discovery-setup-review", async () => {
+    const report: Record<string, unknown> = {
+      scope: "Native Desktop retained-page selection and cancelled twenty-game review",
+      limitations: [
+        "CLI-seeded inert registrations; no native picker, retail or gameplay claim",
+        "Review is cancelled; installation execution is qualified separately",
+        "Owned local paths do not establish physical removable or NAS behavior",
+      ],
+      expected_port_ids: largeReview.eligiblePorts,
+      unresolved_implementation_ids: largeReview.choicePorts,
+    };
+    const evidenceFile = path.join(output, "native-large-setup-review.json");
+    const screenshot = async (name: string) => {
+      const target = path.join(output, `${name}.png`);
+      await writeFile(target, await browser.takeScreenshot(), "base64");
+      artifacts.push(target);
+    };
+    const generation = () => selectedSetupGeneration(invoke);
+    const sources = async () => transportValues("source", success(await invoke("get_sources")));
+    const roots = async () =>
+      transportValue(
+        "game_file_roots",
+        success(await invoke("get_game_file_roots", { generation: await generation() })),
+      );
+    const snapshot = async () => {
+      const value = success(
+        await invoke("get_game_file_scan_snapshot", { generation: await generation() }),
+      );
+      return value === null ? null : transportValue("game_file_scan_snapshot", value);
+    };
+    const facts = () => {
+      const value = batchFacts(library);
+      assert.deepEqual(value.batches, []);
+      assert.equal(value.launches, 0);
+      assert.equal(value.history, 0);
+      assert.equal(fixture.requests.length, 0, "Review must not download a package");
+      return value;
+    };
+    const keyboardActivate = async (locator: ReturnType<typeof By.css>) => {
+      const control = await browser.wait(until.elementLocated(locator), 30_000);
+      await control.sendKeys(Key.SPACE);
+    };
+    try {
+      const initialSources = await sources();
+      assert.equal(initialSources.length, 21);
+      assert.deepEqual(
+        initialSources.map((source) => source.profile_id).sort(),
+        largeReview.originals.map((source) => source.profile).sort(),
+      );
+      const initialRoots = await roots();
+      facts();
+      const { button, click } = reviewControls(browser);
+      await selectPrimaryNavigation(browser, "Settings");
+      await selectGameFilesSettings(browser);
+      await click(button("Refresh folders"));
+      await browser.wait(
+        async () => (await browser.findElement(button("Scan saved folders"))).isEnabled(),
+        15_000,
+      );
+      await keyboardActivate(button("Scan saved folders"));
+      const partial = await browser.wait(async () => {
+        const value = await snapshot();
+        return value?.coverage?.can_resume ? value : false;
+      }, 30_000);
+      assert.ok(partial);
+      assert.equal(partial.report.candidates.length, 64);
+      await keyboardActivate(button("Finish scanning"));
+      const complete = await browser.wait(async () => {
+        const value = await snapshot();
+        return value &&
+          !value.coverage?.can_resume &&
+          value.matches?.exact_matches === largeReview.exactMatches
+          ? value
+          : false;
+      }, 60_000);
+      assert.ok(complete);
+      assert.equal(complete.matches?.scan_id, partial.matches?.scan_id);
+      assert.ok((complete.coverage?.batches ?? 0) > 1);
+      assert.equal(complete.report.candidates.length, 64);
+      const preview = await browser.wait(
+        until.elementLocated(By.css("[data-match-preview-notice]")),
+        30_000,
+      );
+      assert.match(await preview.getText(), /Showing 64 of 84 matches/u);
+      await keyboardActivate(button("Select all 20 eligible"));
+      await browser.wait(until.elementLocated(button("Review installing 20 selected")), 30_000);
+      for (const id of largeReview.choicePorts)
+        assert.equal(
+          await browser
+            .findElement(By.css(`[data-setup-review-port="${id}"]`))
+            .getAttribute("aria-checked"),
+          "false",
+        );
+      assert.equal(
+        await browser.executeScript<boolean>(
+          "return Boolean(document.activeElement?.closest('section')?.querySelector('[data-setup-review-port]'))",
+        ),
+        true,
+      );
+      await screenshot("native-large-selected-before-paging");
+      await keyboardActivate(button("Show more matches"));
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css("[data-match-preview-notice]"))).length === 0,
+        30_000,
+      );
+      assert.ok(
+        (await browser.findElement(By.css("body")).getText()).includes("large-20-copy-3.pcgame"),
+      );
+      assert.equal((await browser.findElements(button("Review installing 20 selected"))).length, 1);
+      await keyboardActivate(button("Review installing 20 selected"));
+      const panel = await browser.wait(
+        until.elementLocated(By.css('[aria-label="Install selected games"]')),
+        30_000,
+      );
+      await browser.wait(
+        async () => /20 ready to install, 0 waiting/u.test(await panel.getText()),
+        30_000,
+      );
+      const plans = transportValue(
+        "desktop_install_batch_review",
+        success(
+          await invoke("plan_install_batch", {
+            portIds: largeReview.eligiblePorts,
+            generation: await generation(),
+          }),
+        ),
+      );
+      assert.deepEqual(
+        plans.items.map((item) => item.port_id).sort(),
+        [...largeReview.eligiblePorts].sort(),
+      );
+      for (const item of plans.items) assert.ok(item.plan && !item.hold);
+      for (const id of largeReview.choicePorts)
+        assert.ok(!plans.items.some((item) => item.port_id === id));
+      const panelText = await panel.getText();
+      for (let index = 0; index < 20; index++)
+        assert.ok(panelText.includes(`Large review game ${String(index).padStart(2, "0")} only`));
+      assert.ok(!panelText.includes("Large review game 20"));
+      facts();
+      await screenshot("native-large-twenty-game-review");
+      const cancel = await panel.findElement(By.xpath('.//button[normalize-space(.)="Cancel"]'));
+      await cancel.sendKeys(Key.SPACE);
+      await browser.wait(
+        async () =>
+          (await browser.findElements(By.css('[aria-label="Install selected games"]'))).length ===
+          0,
+        15_000,
+      );
+      assert.deepEqual(await sources(), initialSources);
+      assert.deepEqual(await roots(), initialRoots);
+      assert.deepEqual(
+        transportValues("status", success(await invoke("get_statuses"))).filter(
+          (status) => status.active,
+        ),
+        [],
+      );
+      for (const original of largeReview.originals)
+        for (const file of original.copies)
+          assert.equal(
+            createHash("sha256")
+              .update(await readFile(file))
+              .digest("hex"),
+            original.sha256,
+          );
+      report.partial_scan = partial;
+      report.completed_scan = complete;
+      report.reviewed_plans = plans;
+      report.initial_sources = initialSources;
+      report.saved_roots = initialRoots;
+      report.final_facts = facts();
+      report.native_actions = [
+        "scan",
+        "finish bounded scan",
+        "select all20 eligible",
+        "show retained match page",
+        "review20",
+        "cancel",
+      ];
+      report.outcome = "passed";
+      await screenshot("native-large-cancelled-preserved");
+    } catch (error) {
+      report.outcome = "failed";
+      report.error = errorMessage(error);
+      throw error;
+    } finally {
+      await writeFile(evidenceFile, `${JSON.stringify(report, null, 2)}\n`);
+      artifacts.push(evidenceFile);
+    }
+  });
 }
 
 export async function setupBatchScenario(context: BatchContext) {
