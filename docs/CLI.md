@@ -2054,6 +2054,22 @@ Before an update installs, a staged version is activated, or a rollback runs, Po
 
 `backup restore` is destructive to current persistent data and therefore requires confirmation, or `--yes` for an unattended caller. It copies the selected snapshot into an operation-private staging directory, recomputes and compares its file count, byte count, and tree SHA-256, then creates an automatic safety backup of current non-empty data before replacing the canonical user root with same-volume renames. Those renames and the lifecycle journal prevent another running process from observing a partial staged tree and allow unambiguous process-crash recovery; they are not a cross-platform sudden-power-loss guarantee. A missing, mismatched, symlinked, or tampered backup fails before live data or the backup list changes. The result includes both `restored_backup` and the new `safety_backup`; the latter is absent only when no current files existed. Restore does not modify application versions or original game sources, and the restored data is synchronized into the active release on its next Portcove launch.
 
+For games with a selected mod setup, a full restore requires the backup's exact
+enabled packages, native load order, and supported mod settings to match that
+setup. A mismatch, missing package, or unrecognized file in the mods folder
+holds the restore and preserves the backup and current data. Choose a matching
+backup or setup. Where supported, save-only import can recover progress. An
+interrupted full restore keeps its verified backup receipt with the operation
+and rechecks the setup before publication or synchronization. After commit, a
+restart can finish removing the private staging files without publishing the
+backup again. Library database schema 67 requires clients that enforce this
+restore and launch contract. Close older clients before opening the library
+again.
+
+Before a game launches, Portcove also checks that the selected setup's exact
+packages remain in the mods folder. Review changed, missing, or unexpected files
+in Setups and mods before playing.
+
 `backup delete` also requires confirmation or `--yes`. Declining an interactive backup restore or deletion is a successful neutral result that says no changes were made; unattended use still requires `--yes`. Deletion validates the selected snapshot and records a core-owned lifecycle operation with the exact original and private quarantine paths before moving that directory out of the visible backup set. The journal advances after quarantine, filesystem removal, and commit. On restart, Portcove completes an unambiguous authorized deletion, including a partially removed quarantine; it never treats both paths, neither pre-publication path, a reappeared visible backup, or out-of-root paths as successful deletion. Such state remains recovery-required in backup inventory and `doctor`. This is process-interruption recovery and visibility isolation, not a cross-platform sudden-power-loss claim. Current persistent data, application versions, original sources, and every other backup remain outside the deletion target.
 
 ### Portable saves
@@ -2539,8 +2555,8 @@ needs version evidence for that runtime. Zelda64Recomp 1.2.2 supplies D-Pad 1.0.
 The native loader handles optional dependencies and their ordering effects.
 
 The runtime keeps enabled mods and their load order in `mods.json`
-(`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
-mods and order there after every change, switch and before each launch, keeping
+(`enabled_mods` and `mod_order`, by mod ID). Portcove projects the profile's
+enabled mods and order when needed, keeping
 other keys and entries the player owns, such as the built-in mod or their own
 mods, in place with their state. `mods.json` is one of the port's persistent
 paths, so each profile keeps its own. `profile live` reports `native_list`.
@@ -2559,8 +2575,14 @@ checks and recovery still need native qualification.
 
 The runtime behavior was reviewed in Zelda64Recomp `54950a10`, N64ModernRuntime
 `df7e820d` and N64Recomp `c1a6dc93`. Portcove reads and writes `mods.json` and
-retains `mods.json.bak` with each setup. Backup fallback remains outside this
-setup contract.
+retains `mods.json.bak` with each setup.
+
+The pinned runtime reads `mods.json` first and tries `mods.json.bak` if it cannot
+open or parse the primary. When the primary is absent, Portcove checks the
+backup's enabled entries and recorded order. A matching backup can stay in use
+as-is. A malformed primary holds for review with both files preserved. If both
+files are absent, the selected setup supplies the initial list. These fallback rules are verified in the pinned source and
+Core fixtures. [Runtime list reader](https://github.com/N64Recomp/N64ModernRuntime/blob/df7e820d8c55e4fcb4616c210cbb2c01b25cd48c/librecomp/src/mods.cpp#L24-L36)
 
 ### Installing from GameBanana and Thunderstore
 

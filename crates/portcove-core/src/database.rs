@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 66;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 67;
 
 struct Migration {
     version: i64,
@@ -419,7 +419,19 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_66,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 67,
+        name: "managed mod projection restore writer protocol",
+        apply: migration_67,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_67(transaction: &Transaction<'_>) -> Result<()> {
+    // Older restore code can publish an unchecked projection or clean up
+    // without the selected setup's bound backup receipt.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_66(transaction: &Transaction<'_>) -> Result<()> {
     // All live writers must honor the reviewed move journal before changing the
@@ -2964,6 +2976,27 @@ mod tests {
     }
 
     #[test]
+    fn managed_restore_writer_upgrade_waits_for_schema_66_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 66).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&66)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&67));
+    }
+
+    #[test]
     fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -4017,6 +4050,7 @@ mod tests {
         schema_63: 63,
         schema_64: 64,
         schema_65: 65,
+        schema_66: 66,
     }
 
     #[test]

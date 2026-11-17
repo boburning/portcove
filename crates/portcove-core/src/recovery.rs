@@ -506,16 +506,33 @@ pub(crate) fn recover_restore(
         ));
     }
     crate::profile_file_preservation::require_idle(&service.library, &operation.port_id)?;
-    let recovery_root = restore.recovery_root.clone();
     let staged = restore.staged_data.clone();
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
+    let port_id = operation.port_id.clone();
+    let require_projection = |root: &std::path::Path| {
+        service
+            .require_restore_profile_projection(&port_id, root)
+            .map_err(|error| {
+                error.detail(
+                    "restore_next_step",
+                    "Keep the verified backup and previous data while this restore is held.",
+                )
+            })
+    };
     if restore.phase == RestorePhase::ReadyToPublish {
         if staged.exists() {
             service.require_restore_snapshot_authority(operation, &staged)?;
             service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+            require_projection(&staged)?;
+            if user_root.try_exists()? {
+                require_projection(&user_root)?;
+            } else if previous.try_exists()? {
+                require_projection(&previous)?;
+            }
         } else if user_root.exists() {
             service.require_restore_snapshot_authority(operation, &user_root)?;
+            require_projection(&user_root)?;
         }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
@@ -546,26 +563,26 @@ pub(crate) fn recover_restore(
     }
     if matches!(
         restore.phase,
-        RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
+        RestorePhase::Published | RestorePhase::Committed
     ) {
         service.require_restore_snapshot_authority(operation, &user_root)?;
+        require_projection(&user_root)?;
+        if restore.phase == RestorePhase::Published {
+            if previous.try_exists()? != restore.replaces_existing_data {
+                return Err(PortcoveError::conflict(
+                    "restore publication paths are ambiguous; keeping the backup for recovery",
+                ));
+            }
+            if restore.replaces_existing_data {
+                require_projection(&previous)?;
+            }
+        }
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
         restore.advance(RestorePhase::Committed, operation, store)?;
     }
-    if matches!(
-        restore.phase,
-        RestorePhase::Committed | RestorePhase::CleanupPending
-    ) {
-        if previous.exists() {
-            fs::remove_dir_all(&previous)?;
-        }
-        if recovery_root.exists() {
-            fs::remove_dir_all(&recovery_root)?;
-        }
-        store.remove(&operation.id)?;
-    }
+    service.finish_restore_cleanup(store, operation)?;
     Ok(())
 }
 

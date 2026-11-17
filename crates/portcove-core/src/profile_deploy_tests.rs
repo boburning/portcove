@@ -190,6 +190,322 @@ fn disabling_removes_only_the_owned_file_and_enabling_restores_stored_bytes() {
 }
 
 #[test]
+fn restoring_backup_cannot_resurrect_a_disabled_package() {
+    let w = world();
+    let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let save = user(&w).join("saves/progress.sav");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"backup progress").unwrap();
+    let old = w.service.create_backup("starship").unwrap();
+    let old_manifest = fs::read(old.path.join("backup.json")).unwrap();
+    let selected = w
+        .service
+        .set_mod_package_enabled("starship", &w.default, "hd-link.o2r", false, 2)
+        .unwrap();
+    let same_setup = w.service.create_backup("starship").unwrap();
+    fs::write(&save, b"current progress").unwrap();
+
+    let restore = |backup_id: &str| {
+        let action = crate::BackupAction::Restore;
+        let preview = w
+            .service
+            .preview_backup_action("starship", backup_id, action)
+            .unwrap();
+        let authorization = w
+            .service
+            .authorize_backup_action("starship", backup_id, action, &preview.preview_sha256)
+            .unwrap();
+        w.service
+            .restore_backup("starship", backup_id, &authorization.token)
+    };
+    let error = restore(&old.id).unwrap_err();
+    assert_eq!(error.details["unknown_package"], "hd-link.o2r");
+    assert_eq!(fs::read(&save).unwrap(), b"current progress");
+    assert!(live_mods(&w).is_empty());
+    assert_eq!(
+        fs::read(old.path.join("backup.json")).unwrap(),
+        old_manifest
+    );
+    assert_eq!(revision(&w, &w.default), selected.revision);
+
+    restore(&same_setup.id).unwrap();
+    assert_eq!(fs::read(&save).unwrap(), b"backup progress");
+    assert!(live_mods(&w).is_empty());
+}
+
+#[test]
+fn backup_projection_requires_live_bytes_and_native_order() {
+    let w = world();
+    let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let snapshot = w.scratch.join("staged-data");
+    fs::create_dir_all(snapshot.join("mods")).unwrap();
+    let path = snapshot.join("mods/hd-link.o2r");
+    let validate = || {
+        w.service
+            .require_restore_profile_projection("starship", &snapshot)
+    };
+    assert_eq!(
+        validate().unwrap_err().details["missing_package"],
+        "hd-link.o2r"
+    );
+    fs::write(&path, b"different bytes").unwrap();
+    assert_eq!(
+        validate().unwrap_err().details["changed_package"],
+        "hd-link.o2r"
+    );
+    fs::copy(package, &path).unwrap();
+    assert_eq!(
+        validate().unwrap_err().details["native_list"],
+        "differs_or_unreadable"
+    );
+    fs::copy(
+        user(&w).join("starship.cfg.json"),
+        snapshot.join("starship.cfg.json"),
+    )
+    .unwrap();
+    validate().unwrap();
+}
+
+#[test]
+fn launch_preflight_preserves_changed_or_resurrected_packages_for_review() {
+    let w = world();
+    let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+    w.service
+        .install_mod_package("starship", &w.default, &package, 1)
+        .unwrap();
+    let live = user(&w).join("mods/hd-link.o2r");
+    let preflight = || {
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port("starship", "launch preflight")
+            .unwrap();
+        w.service.prepare_native_mod_list_locked("starship")
+    };
+
+    fs::write(&live, b"changed bytes").unwrap();
+    let refusal = preflight().unwrap_err();
+    assert_eq!(refusal.details["changed_package"], "hd-link.o2r");
+    assert_eq!(
+        refusal.presentation().presentation_key,
+        "native_mod_list_review"
+    );
+    assert_eq!(fs::read(&live).unwrap(), b"changed bytes");
+    assert_eq!(revision(&w, &w.default), 2);
+
+    fs::remove_file(&live).unwrap();
+    assert_eq!(
+        preflight().unwrap_err().details["missing_package"],
+        "hd-link.o2r"
+    );
+    fs::copy(&package, &live).unwrap();
+    w.service
+        .set_mod_package_enabled("starship", &w.default, "hd-link.o2r", false, 2)
+        .unwrap();
+    fs::copy(&package, &live).unwrap();
+    let refusal = preflight().unwrap_err();
+    assert_eq!(refusal.details["unknown_package"], "hd-link.o2r");
+    assert_eq!(fs::read(&live).unwrap(), fs::read(&package).unwrap());
+    assert_eq!(revision(&w, &w.default), 3);
+}
+
+#[test]
+fn interrupted_full_restore_preserves_the_projection_and_evidence_on_both_sides_of_rename() {
+    use crate::operation::{
+        LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore,
+    };
+
+    for interrupted in 0..=3 {
+        let w = world();
+        let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+        w.service
+            .install_mod_package("starship", &w.default, &package, 1)
+            .unwrap();
+        let canonical = user(&w);
+        let save = canonical.join("saves/progress.sav");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"older progress").unwrap();
+        let backup = w.service.create_backup("starship").unwrap();
+        w.service
+            .set_mod_package_enabled("starship", &w.default, "hd-link.o2r", false, 2)
+            .unwrap();
+        fs::write(&save, b"newer progress").unwrap();
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let root = w.service.library().recovery_dir().join(&id);
+        let staged = root.join("staged-data");
+        let previous = root.join("previous-data");
+        crate::service::copy_tree(&backup.path.join("data"), &staged).unwrap();
+        let manifest = fs::read(backup.path.join("backup.json")).unwrap();
+        let receipt = root.join(format!(
+            "verified-backup-{}.json",
+            crate::signed_catalog::digest(&manifest)
+        ));
+        fs::write(&receipt, &manifest).unwrap();
+        if interrupted >= 1 {
+            fs::rename(&canonical, &previous).unwrap();
+        }
+        if interrupted >= 2 {
+            fs::rename(&staged, &canonical).unwrap();
+        }
+        let mut operation =
+            LifecycleOperation::new(&id, LifecycleOperationKind::Restore, "starship");
+        operation.phase = if interrupted == 3 {
+            LifecyclePhase::PayloadPublished
+        } else {
+            LifecyclePhase::Prepared
+        };
+        operation.activate = true;
+        operation.original_paths = vec![receipt.clone()];
+        operation.paths.staging = Some(root);
+        operation.paths.final_path = Some(canonical.clone());
+        operation.paths.quarantine = Some(previous.clone());
+        let store = OperationStore::new(w.service.library().clone());
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port("starship", "test restore restart")
+            .unwrap();
+        store.put(&mut operation).unwrap();
+        let before = operation.phase;
+        let refusal =
+            crate::recovery::recover_restore(&w.service, &store, &mut operation).unwrap_err();
+        assert_eq!(refusal.details["unknown_package"], "hd-link.o2r");
+        assert_eq!(operation.phase, before);
+        assert_eq!(fs::read(&receipt).unwrap(), manifest);
+        assert_eq!(staged.exists(), interrupted < 2);
+        assert_eq!(canonical.exists(), interrupted != 1);
+        let newer = if interrupted == 0 {
+            &canonical
+        } else {
+            &previous
+        };
+        assert_eq!(
+            fs::read(newer.join("saves/progress.sav")).unwrap(),
+            b"newer progress"
+        );
+    }
+}
+
+#[test]
+fn committed_restore_resumes_partial_cleanup_without_republishing() {
+    use crate::operation::{
+        LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore,
+    };
+
+    for phase in [
+        LifecyclePhase::PayloadPublished,
+        LifecyclePhase::MetadataCommitted,
+        LifecyclePhase::CleanupPending,
+    ] {
+        let w = world();
+        let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+        w.service
+            .install_mod_package("starship", &w.default, &package, 1)
+            .unwrap();
+        let canonical = user(&w);
+        let save = canonical.join("saves/progress.sav");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"restored progress").unwrap();
+        let backup = w.service.create_backup("starship").unwrap();
+        let manifest = fs::read(backup.path.join("backup.json")).unwrap();
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let recovery = w.service.library().recovery_dir().join(&id);
+        let previous = recovery.join("previous-data");
+        let receipt = recovery.join(format!(
+            "verified-backup-{}.json",
+            crate::signed_catalog::digest(&manifest)
+        ));
+        if phase != LifecyclePhase::CleanupPending {
+            crate::service::copy_tree(&backup.path.join("data"), &previous).unwrap();
+            fs::remove_file(previous.join("mods/hd-link.o2r")).unwrap();
+            fs::write(&receipt, &manifest).unwrap();
+        }
+
+        let mut operation =
+            LifecycleOperation::new(&id, LifecycleOperationKind::Restore, "starship");
+        operation.phase = phase;
+        operation.activate = true;
+        operation.original_paths = vec![receipt.clone()];
+        operation.paths.staging = Some(recovery.clone());
+        operation.paths.final_path = Some(canonical.clone());
+        operation.paths.quarantine = Some(previous.clone());
+        let store = OperationStore::new(w.service.library().clone());
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port("starship", "test interrupted restore cleanup")
+            .unwrap();
+        store.put(&mut operation).unwrap();
+
+        let result = crate::recovery::recover_restore(&w.service, &store, &mut operation);
+        if phase == LifecyclePhase::PayloadPublished {
+            assert_eq!(
+                result.unwrap_err().details["missing_package"],
+                "hd-link.o2r"
+            );
+            assert_eq!(store.get(&id).unwrap().unwrap().phase, phase);
+            assert!(previous.is_dir());
+            assert!(receipt.is_file());
+        } else {
+            result.unwrap();
+            assert!(store.get(&id).unwrap().is_none());
+            assert!(!recovery.exists());
+        }
+        assert_eq!(fs::read(&save).unwrap(), b"restored progress");
+        assert_eq!(
+            fs::read(canonical.join("mods/hd-link.o2r")).unwrap(),
+            fs::read(&package).unwrap()
+        );
+        assert_eq!(fs::read(backup.path.join("backup.json")).unwrap(), manifest);
+    }
+}
+
+#[test]
+fn interrupted_unbound_restore_holds_only_when_a_setup_is_selected() {
+    use crate::operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
+
+    let (_temporary, service, _first) = fixture();
+    let id = uuid::Uuid::new_v4().to_string();
+    let root = service.library().recovery_dir().join(&id);
+    let staged = root.join("staged-data");
+    fs::create_dir_all(&staged).unwrap();
+    let mut operation = LifecycleOperation::new(&id, LifecycleOperationKind::Restore, "starship");
+    operation.phase = LifecyclePhase::Prepared;
+    operation.paths.staging = Some(root.clone());
+    operation.paths.final_path = Some(service.library().user_dir("starship"));
+    operation.paths.quarantine = Some(root.join("previous-data"));
+    {
+        let _guard = service
+            .library()
+            .try_lock_port("starship", "legacy restore")
+            .unwrap();
+        service
+            .require_restore_snapshot_authority(&operation, &staged)
+            .unwrap();
+    }
+
+    service.ensure_default_profile("starship").unwrap();
+    let _guard = service
+        .library()
+        .try_lock_port("starship", "managed restore")
+        .unwrap();
+    let refusal = service
+        .require_restore_snapshot_authority(&operation, &staged)
+        .unwrap_err();
+    assert!(refusal.message.contains("no verified backup receipt"));
+    assert!(staged.is_dir());
+    assert_eq!(operation.phase, LifecyclePhase::Prepared);
+}
+
+#[test]
 fn edited_owned_files_are_held_not_overwritten() {
     let w = world();
     let package = archive(&w.scratch, "hd-link.o2r", &[("a.bin", b"hd")]);
@@ -1114,6 +1430,78 @@ impl RecompWorld {
     fn status(&self) -> NativeModListStatus {
         self.service.observe_live_mods(RECOMP).unwrap().native_list
     }
+}
+
+#[test]
+fn recomp_launch_checks_the_native_backup_without_reenabling_a_disabled_package() {
+    let w = recomp_world();
+    w.install("safe.nrm", "safe", &[]).unwrap();
+    let both = w.install("disabled.nrm", "disabled", &[]).unwrap();
+    let selected = w
+        .service
+        .set_mod_package_enabled(RECOMP, &w.default, "disabled.nrm", false, both.revision)
+        .unwrap();
+    let primary = w.user().join("mods.json");
+    let backup = primary.with_extension("json.bak");
+    fs::remove_file(&primary).unwrap();
+    let safe_backup = br#"{"enabled_mods":["safe","mm_recomp_dpad_builtin"],"mod_order":["disabled","mm_recomp_dpad_builtin","safe"],"future":{"v":1}}"#;
+    let unexpected_enabled =
+        br#"{"enabled_mods":["safe","disabled"],"mod_order":["safe","disabled"]}"#;
+    fs::write(&backup, safe_backup).unwrap();
+    let launch_preflight = || {
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port(RECOMP, "fallback launch")
+            .unwrap();
+        w.service.prepare_native_mod_list_locked(RECOMP)
+    };
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+    launch_preflight().unwrap();
+    assert!(!primary.exists());
+    assert_eq!(fs::read(&backup).unwrap(), safe_backup);
+    assert_eq!(w.live(), ["safe.nrm"]);
+
+    fs::write(&backup, unexpected_enabled).unwrap();
+    let refusal = launch_preflight().unwrap_err();
+    assert_eq!(refusal.details["unexpected"], "disabled");
+    assert!(!primary.exists());
+    assert_eq!(fs::read(&backup).unwrap(), unexpected_enabled);
+    assert_eq!(w.live(), ["safe.nrm"]);
+
+    // A broken existing primary might still win under the game's parser. Core
+    // retains both files and holds, even with a separately usable backup.
+    fs::write(&primary, b"{broken").unwrap();
+    fs::write(&backup, safe_backup).unwrap();
+    assert_eq!(
+        launch_preflight()
+            .unwrap_err()
+            .presentation()
+            .presentation_key,
+        "native_mod_list_review"
+    );
+    assert_eq!(fs::read(&primary).unwrap(), b"{broken");
+    assert_eq!(fs::read(&backup).unwrap(), safe_backup);
+
+    // When both exist, a valid primary wins over the stale backup.
+    fs::write(&primary, safe_backup).unwrap();
+    fs::write(&backup, unexpected_enabled).unwrap();
+    launch_preflight().unwrap();
+    assert_eq!(
+        w.list()["enabled_mods"],
+        serde_json::json!(["mm_recomp_dpad_builtin", "safe"])
+    );
+    assert_eq!(w.list()["future"]["v"], 1);
+    assert_eq!(fs::read(&backup).unwrap(), unexpected_enabled);
+
+    fs::remove_file(&primary).unwrap();
+    fs::remove_file(&backup).unwrap();
+    launch_preflight().unwrap();
+    assert_eq!(w.list()["enabled_mods"], serde_json::json!(["safe"]));
+    assert_eq!(w.list()["mod_order"], serde_json::json!(["safe"]));
+    assert!(!backup.exists());
+    assert_eq!(w.live(), ["safe.nrm"]);
+    assert_eq!(w.revision(), selected.revision);
 }
 
 #[test]
@@ -2056,7 +2444,17 @@ fn recomp_captures_typed_settings_and_recovers_them_with_newer_progress() {
             .unwrap()
     };
     let earlier = edit(1024);
+    let snapshot = w.scratch.join("saved-setup");
+    crate::service::copy_tree(&w.user(), &snapshot).unwrap();
+    w.service
+        .require_restore_profile_projection(RECOMP, &snapshot)
+        .unwrap();
     let later = edit(2048);
+    let conflict = w
+        .service
+        .require_restore_profile_projection(RECOMP, &snapshot)
+        .unwrap_err();
+    assert_eq!(conflict.details["mod_settings"], "differs");
     let key = format!(
         "recomp-config/buffer_size/{}/size",
         installed.packages[0].sha256
@@ -2115,6 +2513,27 @@ fn recomp_captures_typed_settings_and_recovers_them_with_newer_progress() {
         w.service.profile_revisions(RECOMP, &imported.id).unwrap()[0].settings,
         earlier.settings,
     );
+
+    // The effective list can remain in its backup while the selected revision
+    // still supplies a missing supported option using the package's default.
+    let primary = w.user().join("mods.json");
+    let fallback = primary.with_extension("json.bak");
+    let list_bytes = fs::read(&primary).unwrap();
+    fs::rename(&primary, &fallback).unwrap();
+    fs::remove_file(&path).unwrap();
+    {
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port(RECOMP, "fallback settings")
+            .unwrap();
+        w.service.prepare_native_mod_list_locked(RECOMP).unwrap();
+    }
+    assert!(!primary.exists());
+    assert_eq!(fs::read(&fallback).unwrap(), list_bytes);
+    let projected: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(projected["storage"]["size"].as_f64(), Some(1024.0));
+    fs::rename(fallback, primary).unwrap();
 
     // An invalid arriving document is held before any switch journal or file
     // movement. The player can still park a setup with an invalid active edit.
