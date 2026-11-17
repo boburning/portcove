@@ -3646,9 +3646,12 @@ try {
       "port-search",
     );
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
-    await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+      15_000,
+    );
     const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
-      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("advanced");
       await browser.wait(
         async () => {
           const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
@@ -3657,6 +3660,7 @@ try {
         15_000,
         "Settings diagnostics did not settle before the library switch",
       );
+      await selectSettingsCategory("integrations");
       await browser.wait(
         async () => {
           const connection = await browser.findElement(
@@ -3671,6 +3675,7 @@ try {
         65_000,
         "GitHub status request retained the outgoing library lease",
       );
+      await selectSettingsCategory("library-storage");
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Choose another library"]'))
         .click();
@@ -3749,6 +3754,7 @@ try {
         }
       }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
+      await selectSettingsCategory("library-storage");
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
         15_000,

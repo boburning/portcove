@@ -165,6 +165,10 @@ import { listenerLifetimeScenario } from "./desktop-listener-lifetime-test.mts";
 // reload on "Opening your Portcove library" past 15 s. The wait returns as soon
 // as primary navigation renders.
 const reloadBootstrapBudgetMs = 60_000;
+// Native run 17 still had a fresh workspace read pending after the former 15s
+// cancellation-row wait; its preceding read took 23.926s. Launch settlement also
+// includes game exit and save collection, as the existing first Play wait does.
+const nativeSettlementBudgetMs = 60_000;
 
 export function assertPreparationReviewSummary(text: string) {
   const normalized = text.replace(/\s+/gu, " ").trim();
@@ -1703,7 +1707,7 @@ export async function preparationScenarios({
     // most of 15 s (job 132417354795 timed out at 24.5 s on "Working: launch").
     await browser.wait(
       async () => (await status(port.id)).successful_launches > 0,
-      60_000,
+      nativeSettlementBudgetMs,
       "Try launch did not record a successful launch",
     );
     assert.equal(await readFile(log, "utf8"), "setup must not run during desktop Play");
@@ -2762,7 +2766,8 @@ export async function preparationScenarios({
       artifacts.push(afterClickPath);
       await browser.wait(
         async () => (await status(port.id)).successful_launches > before.successful_launches,
-        15_000,
+        nativeSettlementBudgetMs,
+        "Game return did not record a completed successful launch",
       );
       await browser.wait(
         () =>
@@ -2778,13 +2783,13 @@ export async function preparationScenarios({
             gameIdentityLabel(port),
             before.successful_launches,
           ),
-        15_000,
-        "Library did not render the completed launch after the game exited",
+        nativeSettlementBudgetMs,
+        "Library Continue card did not reflect the completed launch after game exit",
       );
       await browser.wait(
         async () =>
           (await play.isEnabled()) && (await play.getAttribute("aria-disabled")) !== "true",
-        15_000,
+        nativeSettlementBudgetMs,
         "Launch origin remained excluded after game return and workspace readback",
       );
       const settled = await executeBrowserScript(browser, launchContinuityPoint, play);
@@ -3798,7 +3803,7 @@ export async function preparationScenarios({
         until.elementLocated(
           By.css(`.activity-row.cancelled[data-activity-id="${required(activity).id}"]`),
         ),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away",
       );
       const cancelledText = await cancelledRow.getText();
@@ -3822,7 +3827,7 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
         "Cancelled preparation must remain discoverable after navigating away and returning",
       );
       await browser.navigate().refresh();
@@ -3837,7 +3842,8 @@ export async function preparationScenarios({
       await selectPrimaryNavigation(browser, "Activity");
       await browser.wait(
         until.elementLocated(By.css(".activity-row.cancelled .failure-details")),
-        15_000,
+        nativeSettlementBudgetMs,
+        "Cancelled preparation details must remain discoverable after reload",
       );
       const row = await browser.findElement(By.css(".activity-row.cancelled"));
       assert.match(await row.getText(), /An earlier attempt left unfinished work/);
