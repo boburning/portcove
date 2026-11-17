@@ -50282,8 +50282,8 @@
         ],
         "references": [
           {
-            "title": "Keep your desktop settings",
-            "instruction": "Close the game and copy pre2native_settings.json from the folder you passed to --game-root before replacing that folder. Keep the runtime, your original files, and the writable data copy separate."
+            "title": "Keep your desktop settings and progress",
+            "instruction": "Close the game and copy pre2native_settings.json and pre2native_progress.json from the folder you passed to --game-root before replacing that folder. Keep the runtime, your original files, and the writable data copy separate."
           },
           {
             "title": "Run from source on Linux or Mac",
