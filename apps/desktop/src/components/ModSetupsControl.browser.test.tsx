@@ -576,25 +576,33 @@ it("reviews removal before sending the exact setup revision to Core", async () =
 });
 
 it("shows the exact runtime and offers a direct switch to clean play", async () => {
-  const data = view({
-    inventory: {
-      port_id: "shipwright",
-      profiles: [
-        {
-          ...setup("default", "Default", 3, []),
-          build_version: "9.3.1",
-          build_availability: "verified",
-        },
-        {
-          ...setup("custom", "Customized", 1, [["hd.o2r", true]]),
-          build_version: "9.3.0",
-          build_availability: "held",
-        },
-      ],
+  const data = view();
+  const { inventory, live } = data;
+  const [defaultSetup, customized] = inventory?.profiles ?? [];
+  const mod = defaultSetup?.revision.packages?.find(({ native_id }) => native_id === "hd.o2r");
+  if (!inventory || !live || !defaultSetup || !customized || !mod)
+    throw new Error("The fixture must have a live setup and two setup revisions.");
+  inventory.profiles = [
+    {
+      ...defaultSetup,
+      build_version: "9.3.1",
+      build_availability: "verified",
+      revision: { ...defaultSetup.revision, packages: [], orderings: [] },
     },
-  } as Partial<ModSetupsView>);
-  if (!data.live) throw new Error("The fixture must have a live setup.");
-  data.live.profile_id = "custom";
+    {
+      ...customized,
+      build_version: "9.3.0",
+      build_availability: "held",
+      profile: { ...customized.profile, display_name: "Customized" },
+      revision: {
+        ...customized.revision,
+        packages: [mod],
+        orderings: [{ domain: "asset-override", native_ids: [mod.native_id] }],
+      },
+    },
+  ];
+  live.profile_id = customized.profile.id;
+  live.revision = customized.profile.current_revision;
   vi.spyOn(desktopApi, "modSetups").mockResolvedValue(data);
   const use = vi
     .spyOn(desktopApi, "useModSetup")
