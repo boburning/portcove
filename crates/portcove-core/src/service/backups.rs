@@ -1644,6 +1644,7 @@ impl PortcoveService {
                 ));
             }
             self.preflight_psx_mod_restores(port_id, &staged_data)?;
+            self.require_restore_profile_projection(port_id, &staged_data)?;
             self.require_direct_backup_snapshot(
                 port_id,
                 &staged_data,
@@ -1669,6 +1670,10 @@ impl PortcoveService {
                 require_reviewed_manifest()?;
                 self.require_restore_snapshot_authority(operation, &staged_data)?;
                 self.preflight_psx_mod_restores(port_id, &staged_data)?;
+                self.require_restore_profile_projection(port_id, &staged_data)?;
+                if user_root.try_exists()? {
+                    self.require_restore_profile_projection(port_id, &user_root)?;
+                }
                 if self.collectible_data_review(port_id)? != reviewed_runtime
                     || self.canonical_data_review(port_id)? != collected_canonical
                 {
@@ -1709,6 +1714,7 @@ impl PortcoveService {
             self.faults.check(LifecycleFaultPoint::RestorePublished)?;
             self.validate_restore_operation(&lifecycle)?;
             self.require_restore_snapshot_authority(&lifecycle, &user_root)?;
+            self.require_restore_profile_projection(port_id, &user_root)?;
             self.synchronize_restored_user_data(port_id)?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
             self.validate_restore_operation(&lifecycle)?;

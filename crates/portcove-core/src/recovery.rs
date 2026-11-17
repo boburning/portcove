@@ -509,12 +509,30 @@ pub(crate) fn recover_restore(
     let staged = restore.staged_data.clone();
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
+    let port_id = operation.port_id.clone();
+    let require_projection = |root: &std::path::Path| {
+        service
+            .require_restore_profile_projection(&port_id, root)
+            .map_err(|error| {
+                error.detail(
+                    "restore_next_step",
+                    "Keep the verified backup and previous data while this restore is held.",
+                )
+            })
+    };
     if restore.phase == RestorePhase::ReadyToPublish {
         if staged.exists() {
             service.require_restore_snapshot_authority(operation, &staged)?;
             service.require_psx_restore_preflight(&operation.port_id, &staged)?;
+            require_projection(&staged)?;
+            if user_root.try_exists()? {
+                require_projection(&user_root)?;
+            } else if previous.try_exists()? {
+                require_projection(&previous)?;
+            }
         } else if user_root.exists() {
             service.require_restore_snapshot_authority(operation, &user_root)?;
+            require_projection(&user_root)?;
         }
         if restore.replaces_existing_data {
             match (staged.exists(), user_root.exists(), previous.exists()) {
@@ -548,6 +566,10 @@ pub(crate) fn recover_restore(
         RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
     ) {
         service.require_restore_snapshot_authority(operation, &user_root)?;
+        require_projection(&user_root)?;
+        if previous.try_exists()? {
+            require_projection(&previous)?;
+        }
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {

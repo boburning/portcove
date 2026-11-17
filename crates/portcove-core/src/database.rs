@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 65;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 66;
 
 struct Migration {
     version: i64,
@@ -413,7 +413,19 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_65,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 66,
+        name: "managed mod projection restore writer protocol",
+        apply: migration_66,
+        verify: crate::profile::verify_selection_migration,
+    },
 ];
+
+fn migration_66(transaction: &Transaction<'_>) -> Result<()> {
+    // Older restore code can publish an unchecked projection or clean up
+    // without the selected setup's bound backup receipt.
+    crate::profile::verify_selection_migration(transaction)
+}
 
 fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
     // Older clients can replace the canonical mods projection via backup
@@ -2952,6 +2964,27 @@ mod tests {
     }
 
     #[test]
+    fn managed_restore_writer_upgrade_waits_for_schema_65_clients() {
+        let temporary = tempdir().unwrap();
+        let root = temporary.path();
+        prepare_root(root);
+        migrate_to(root, 65).unwrap();
+        let old_client = crate::library_access::LibraryLease::acquire(root).unwrap();
+
+        let error = crate::Library::open(root).unwrap_err();
+        assert_eq!(error.code, crate::ErrorCode::Conflict);
+        assert_eq!(
+            recorded_versions(&connect(root).unwrap()).unwrap().last(),
+            Some(&65)
+        );
+
+        drop(old_client);
+        let current = crate::Library::open(root).unwrap();
+        let versions = recorded_versions(&current.connection().unwrap()).unwrap();
+        assert_eq!(versions.last(), Some(&66));
+    }
+
+    #[test]
     fn selection_writer_protocol_waits_for_schema_25_clients() {
         let temporary = tempdir().unwrap();
         let root = temporary.path();
@@ -4004,6 +4037,7 @@ mod tests {
         schema_62: 62,
         schema_63: 63,
         schema_64: 64,
+        schema_65: 65,
     }
 
     #[test]

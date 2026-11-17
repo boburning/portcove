@@ -28,6 +28,8 @@ pub(crate) enum RecompList {
         enabled: Vec<String>,
         order: Vec<String>,
         enabled_list_present: bool,
+        from_backup: bool,
+        document: Value,
     },
     Unreadable(String),
 }
@@ -58,15 +60,23 @@ fn parse(bytes: &[u8]) -> Result<Value> {
     document::json_document(text)
 }
 
+fn read_document(user: &Path) -> Result<Option<(Value, bool)>> {
+    let primary = user.join(FILE);
+    if let Some(bytes) = crate::native_mod_list::read_native_file(&primary, MAX_BYTES)? {
+        // Native parsing is less strict than Portcove's ownership parser. A
+        // primary rejected here may still win in the game, so hold it as unreadable.
+        return Ok(Some((parse(&bytes)?, false)));
+    }
+    crate::native_mod_list::read_native_file(&primary.with_extension("json.bak"), MAX_BYTES)?
+        .map(|bytes| parse(&bytes).map(|value| (value, true)))
+        .transpose()
+}
+
 pub(crate) fn read(user: &Path) -> RecompList {
-    let bytes = match fs::read(user.join(FILE)) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return RecompList::Absent,
+    let (parsed, from_backup) = match read_document(user) {
+        Ok(Some(document)) => document,
+        Ok(None) => return RecompList::Absent,
         Err(error) => return RecompList::Unreadable(error.to_string()),
-    };
-    let parsed = match parse(&bytes) {
-        Ok(parsed) => parsed,
-        Err(error) => return RecompList::Unreadable(error.message),
     };
     let object = parsed.as_object().expect("json_document returns an object");
     match (ids(object, "enabled_mods"), ids(object, "mod_order")) {
@@ -74,6 +84,8 @@ pub(crate) fn read(user: &Path) -> RecompList {
             enabled,
             order,
             enabled_list_present: object.contains_key("enabled_mods"),
+            from_backup,
+            document: parsed,
         },
         (Err(reason), _) | (_, Err(reason)) => RecompList::Unreadable(reason),
     }
@@ -115,26 +127,28 @@ pub(crate) fn merged(
     (enabled, order)
 }
 
-/// Writes the lists, keeping every other key. Never rewrites a file it could not
-/// read. Returns whether the file changed.
-pub(crate) fn write(user: &Path, enabled: &[String], order: &[String]) -> Result<bool> {
+/// Applies the lists to the observed document, keeping every other key.
+/// A backup observation grants no replacement authority over the primary.
+pub(crate) fn write(
+    user: &Path,
+    observed: RecompList,
+    enabled: &[String],
+    order: &[String],
+) -> Result<bool> {
     let path = user.join(FILE);
     crate::path::refuse_symlink_ancestors(&path)?;
-    let mut parsed = match fs::read(&path) {
-        Ok(bytes) => parse(&bytes)?,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Value::Object(Map::new()),
-        Err(error) => return Err(error.into()),
+    let (mut parsed, replace_primary) = match observed {
+        RecompList::Listed {
+            document,
+            from_backup,
+            ..
+        } => (document, !from_backup),
+        RecompList::Absent => (Value::Object(Map::new()), false),
+        RecompList::Unreadable(reason) => return Err(PortcoveError::conflict(reason)),
     };
     let object = parsed
         .as_object_mut()
         .expect("json_document returns an object");
-    for key in ["enabled_mods", "mod_order"] {
-        if object.get(key).is_some_and(|value| !value.is_array()) {
-            return Err(PortcoveError::conflict(
-                "the game's mod list has an unexpected shape; it was left unchanged",
-            ));
-        }
-    }
     let as_value =
         |items: &[String]| Value::Array(items.iter().cloned().map(Value::String).collect());
     let next_enabled = as_value(enabled);
@@ -149,7 +163,8 @@ pub(crate) fn write(user: &Path, enabled: &[String], order: &[String]) -> Result
     let mut bytes = serde_json::to_vec_pretty(&parsed)?;
     bytes.push(b'\n');
     fs::create_dir_all(user)?;
-    crate::durability::write_bytes_atomically(&path, &bytes, true)?;
+    // A primary that appears after reading the backup belongs to the player.
+    crate::durability::write_bytes_atomically(&path, &bytes, replace_primary)?;
     Ok(true)
 }
 
@@ -159,6 +174,10 @@ mod tests {
 
     fn strings(items: &[&str]) -> Vec<String> {
         items.iter().map(|item| (*item).to_owned()).collect()
+    }
+
+    fn project(user: &Path, enabled: &[&str], order: &[&str]) -> Result<bool> {
+        write(user, read(user), &strings(enabled), &strings(order))
     }
 
     #[test]
@@ -196,16 +215,18 @@ mod tests {
             br#"{"enabled_mods":["x"],"mod_order":["x"],"future":1}"#,
         )
         .unwrap();
-        assert!(write(directory.path(), &strings(&["y"]), &strings(&["y", "x"])).unwrap());
-        assert!(!write(directory.path(), &strings(&["y"]), &strings(&["y", "x"])).unwrap());
-        assert_eq!(
+        assert!(project(directory.path(), &["y"], &["y", "x"]).unwrap());
+        assert!(!project(directory.path(), &["y"], &["y", "x"]).unwrap());
+        assert!(matches!(
             read(directory.path()),
             RecompList::Listed {
                 enabled_list_present: true,
-                enabled: strings(&["y"]),
-                order: strings(&["y", "x"])
-            }
-        );
+                from_backup: false,
+                enabled,
+                order,
+                ..
+            } if enabled == ["y"] && order == ["y", "x"]
+        ));
         let value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         assert_eq!(value["future"], 1);
         for bytes in [
@@ -215,8 +236,60 @@ mod tests {
         ] {
             fs::write(&path, bytes).unwrap();
             assert!(matches!(read(directory.path()), RecompList::Unreadable(_)));
-            let _ = write(directory.path(), &strings(&["z"]), &strings(&["z"]));
+            assert!(project(directory.path(), &["z"], &["z"]).is_err());
             assert_eq!(fs::read(&path).unwrap(), bytes);
         }
+    }
+
+    #[test]
+    fn writing_from_a_valid_fallback_preserves_its_unknown_fields_and_bytes() {
+        let directory = tempfile::tempdir().unwrap();
+        let primary = directory.path().join(FILE);
+        let backup = primary.with_extension("json.bak");
+        let original = br#"{"enabled_mods":["on"],"mod_order":["off","on"],"future":{"v":1}}"#;
+        fs::write(&backup, original).unwrap();
+        assert!(matches!(
+            read(directory.path()),
+            RecompList::Listed {
+                from_backup: true,
+                ..
+            }
+        ));
+        assert!(!project(directory.path(), &["on"], &["off", "on"]).unwrap());
+        assert!(!primary.exists());
+
+        let observed_backup = read(directory.path());
+        let appearing_primary = br#"{"enabled_mods":[],"mod_order":[],"from_player":true}"#;
+        fs::write(&primary, appearing_primary).unwrap();
+        assert!(
+            write(
+                directory.path(),
+                observed_backup,
+                &strings(&["on"]),
+                &strings(&["on"])
+            )
+            .is_err()
+        );
+        assert_eq!(fs::read(&primary).unwrap(), appearing_primary);
+        assert_eq!(fs::read(&backup).unwrap(), original);
+        fs::remove_file(&primary).unwrap();
+
+        assert!(project(directory.path(), &["on"], &["on"]).unwrap());
+        let document: Value = serde_json::from_slice(&fs::read(&primary).unwrap()).unwrap();
+        assert_eq!(document["future"]["v"], 1);
+        assert_eq!(fs::read(&backup).unwrap(), original);
+        assert!(matches!(
+            read(directory.path()),
+            RecompList::Listed {
+                from_backup: false,
+                ..
+            }
+        ));
+
+        fs::write(&primary, br#"{"broken": []"#).unwrap();
+        assert!(matches!(read(directory.path()), RecompList::Unreadable(_)));
+        assert!(project(directory.path(), &["on"], &["on"]).is_err());
+        assert_eq!(fs::read(primary).unwrap(), br#"{"broken": []"#);
+        assert_eq!(fs::read(backup).unwrap(), original);
     }
 }

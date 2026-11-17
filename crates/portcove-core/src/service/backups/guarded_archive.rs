@@ -135,7 +135,8 @@ impl PortcoveService {
     ) -> Result<()> {
         let restore = self.validate_restore_operation(operation)?;
         let manifest: BackupManifest = serde_json::from_slice(bytes)?;
-        let guarded = manifest.guarded_archive_v1.is_some()
+        let guarded = crate::native_mod_list::loader_list(&operation.port_id).is_some()
+            || manifest.guarded_archive_v1.is_some()
             || manifest.partitioned_data_v1.is_some()
             || self
                 .library
@@ -192,6 +193,14 @@ impl PortcoveService {
             )?;
             (binding, partitioned)
         } else {
+            if crate::native_mod_list::loader_list(&operation.port_id).is_some()
+                && crate::profile::selection(&self.library.connection()?, &operation.port_id)?
+                    .is_some()
+            {
+                return Err(PortcoveError::conflict(
+                    "This interrupted restore has no verified backup receipt. Keep its staged and previous data for recovery.",
+                ));
+            }
             (None, None)
         };
         self.require_direct_backup_snapshot(
