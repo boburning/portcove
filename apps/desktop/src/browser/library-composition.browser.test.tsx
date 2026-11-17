@@ -791,6 +791,64 @@ it("keeps a singleton port review readable below its close control at narrow wid
     .toHaveFocus();
 });
 
+it.each([
+  ["dark", false],
+  ["light", false],
+  ["dark", true],
+  ["light", true],
+] as const)(
+  "keeps short-window %s Covers actionable with several entries (grouped: %s)",
+  async (theme, grouped) => {
+    await page.viewport(960, 640);
+    const snapshot = workspace("collection-large");
+    const first = snapshot.catalog.ports[0]!;
+    first.name = "Harbor Adventure Community Edition";
+    first.presentation!.original_game_title = "Harbor Adventure and the Forgotten Islands";
+    if (grouped) {
+      for (const port of snapshot.catalog.ports.slice(0, 2)) {
+        port.presentation!.original_game = {
+          format_version: 1,
+          id: "fixture-super-mario-64",
+          evidence_urls: ["https://example.com/fixture/super-mario-64"],
+          source_editions: [],
+        };
+      }
+    }
+    snapshot.statuses = snapshot.statuses.slice(0, grouped ? 4 : 3);
+    vi.spyOn(desktopApi, "workspaceSnapshot").mockResolvedValue(snapshot);
+    await mount(theme, "collection-large", 3);
+    const cards = [...document.querySelectorAll<HTMLElement>(".collection-cover")];
+    const firstTop = cards[0]!.getBoundingClientRect().top;
+    const firstRow = cards.filter(
+      (card) => Math.abs(card.getBoundingClientRect().top - firstTop) < 1,
+    );
+    expect(firstRow.length).toBeGreaterThanOrEqual(2);
+    for (const card of firstRow) {
+      const art = card.querySelector<HTMLElement>(".collection-art")!.getBoundingClientRect();
+      const title = card.querySelector<HTMLElement>(".collection-title")!.getBoundingClientRect();
+      const footer = card
+        .querySelector<HTMLElement>(".library-entry-footer")!
+        .getBoundingClientRect();
+      expect(art.width).toBeGreaterThan(100);
+      expect(art.height / art.width).toBeCloseTo(1.5, 2);
+      expect(title.top).toBeLessThan(art.bottom);
+      expect(footer.bottom).toBeLessThan(innerHeight);
+      for (const overlay of card.querySelectorAll<HTMLElement>(".collection-personal-actions")) {
+        expect(overlay.getBoundingClientRect().right).toBeLessThanOrEqual(art.right + 1);
+        expect(overlay.getBoundingClientRect().left).toBeGreaterThanOrEqual(art.left - 1);
+      }
+    }
+    await captureParityState(`library-short-covers-${theme}-${grouped ? "grouped" : "plain"}`);
+    const search = page.getByRole("textbox", { name: "Search your library" });
+    await search.fill("Forgotten Islands");
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(1);
+    await search.fill("");
+    await expect.poll(() => document.querySelectorAll(".collection-cover").length).toBe(3);
+    const main = document.querySelector<HTMLElement>("main[data-focus-region=workspace]")!;
+    expect(main.scrollWidth).toBeLessThanOrEqual(main.clientWidth + 1);
+  },
+);
+
 it.each([false, true])(
   "keeps the only playable cover in view with long identity text (grouped: %s)",
   async (grouped) => {
