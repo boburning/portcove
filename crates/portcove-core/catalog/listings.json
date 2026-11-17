@@ -71842,6 +71842,10 @@
         "warnings": [],
         "references": [
           {
+            "title": "Try the X11 player if the match renders black",
+            "instruction": "From the extracted Xonotic folder on Linux x64, run ./xonotic-linux64-glx +gl_texturecompression 0 with a working X11 and GLX session. This uses the same game data and profile as the SDL player."
+          },
+          {
             "title": "Check Apple Silicon and Android availability",
             "instruction": "The stable ZIP contains an Intel Mac player. Apple Silicon does not have a native player in that ZIP, and Android has no official stable package in this release."
           }
