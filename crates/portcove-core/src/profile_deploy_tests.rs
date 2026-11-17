@@ -2917,3 +2917,71 @@ fn creating_a_clean_setup_preserves_the_source_runtime_and_progress() {
     assert_eq!(live_mods(&w), ["color.o2r"]);
     assert_eq!(fs::read(live_save).unwrap(), b"source progress");
 }
+
+#[test]
+fn mod_inventory_uses_preview_digests_but_profile_copy_verifies_current_bytes() {
+    let (_temporary, service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let executable = install.path.join(&install.selected_executable);
+    let file = fs::File::open(&executable).unwrap();
+    let fingerprint = crate::adapter::preview_digest::Fingerprint::of(&file).unwrap();
+    // An intentionally incorrect cached digest distinguishes preview reuse from
+    // a fresh hash, without timing or filesystem-cache assumptions.
+    crate::adapter::preview_digest::record(
+        &executable,
+        fingerprint,
+        &("0".repeat(64), file.metadata().unwrap().len()),
+    );
+    let preview = service.mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    // The read scope has ended. A real setup mutation must hash the correct
+    // bytes again instead of inheriting the preview's cached failure.
+    let copied = service
+        .copy_profile("starship", &profile.id, "Freshly verified")
+        .unwrap();
+    assert_ne!(copied.id, profile.id);
+    let preview = service.mod_setups("starship").unwrap();
+    assert!(preview.inventory.unwrap().profiles.iter().all(|profile| {
+        profile.build_availability == crate::RetainedBuildAvailability::Verified
+    }));
+}
+
+#[test]
+fn mod_inventory_refuses_same_size_runtime_changes_after_modified_time_is_restored() {
+    let (_temporary, service, install) = fixture();
+    let profile = service.ensure_default_profile("starship").unwrap();
+    let executable = install.path.join(&install.selected_executable);
+    let modified = fs::metadata(&executable).unwrap().modified().unwrap();
+    let mut bytes = fs::read(&executable).unwrap();
+    let preview = service.mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Verified
+    );
+    bytes[0] ^= 1;
+    fs::write(&executable, bytes).unwrap();
+    fs::File::options()
+        .write(true)
+        .open(&executable)
+        .unwrap()
+        .set_times(fs::FileTimes::new().set_modified(modified))
+        .unwrap();
+    let preview = service.mod_setups("starship").unwrap();
+    assert_eq!(
+        preview.inventory.unwrap().profiles[0].build_availability,
+        crate::RetainedBuildAvailability::Changed
+    );
+    assert!(
+        service
+            .copy_profile("starship", &profile.id, "Changed runtime")
+            .is_err()
+    );
+    assert!(
+        service
+            .verified_retained_build("starship", &install.id)
+            .is_err()
+    );
+}

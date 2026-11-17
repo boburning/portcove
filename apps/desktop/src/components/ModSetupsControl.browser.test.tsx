@@ -4,6 +4,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page, userEvent } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
+import * as standingSetup from "../features/game-file-discovery/use-standing-setup";
 import type { ModFilePreservationPlan, ModSetupOriginalReview, ModSetupsView } from "../types";
 import { sourceProfile } from "../test-fixtures";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
@@ -11,6 +12,7 @@ import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
 
 vi.mock("../file-picker", { spy: true });
+vi.mock("../features/game-file-discovery/use-standing-setup", { spy: true });
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
 afterEach(async () => {
@@ -76,7 +78,7 @@ function view(overrides: Partial<ModSetupsView> = {}): ModSetupsView {
   } as unknown as ModSetupsView;
 }
 
-async function render(busy = false, openGameFiles?: () => void) {
+async function render(busy = false, openGameFiles?: () => void, generation = 7) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   const host = document.createElement("div");
   document.body.append(host);
@@ -86,7 +88,7 @@ async function render(busy = false, openGameFiles?: () => void) {
     root.render(
       <ModSetupsControl
         portId="shipwright"
-        generation={7}
+        generation={generation}
         busy={busy}
         openGameFiles={openGameFiles}
       />,
@@ -1613,4 +1615,85 @@ it("keeps exact recipe identifiers, details and provider actions inside a narrow
   expect(check.getBoundingClientRect().right).toBeLessThanOrEqual(
     host.getBoundingClientRect().right,
   );
+});
+
+it("serializes local-change and standing-pass inventory readback without publishing the older read", async () => {
+  let pass!: () => void;
+  vi.spyOn(standingSetup, "onStandingSetupPass").mockImplementation((listener) => {
+    pass = listener;
+    return () => {};
+  });
+  let finishOld!: (next: ModSetupsView) => void;
+  let finishNew!: (next: ModSetupsView) => void;
+  const old = new Promise<ModSetupsView>((resolve) => {
+    finishOld = resolve;
+  });
+  const next = new Promise<ModSetupsView>((resolve) => {
+    finishNew = resolve;
+  });
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(view({ inventory: null, live: null }))
+    .mockReturnValueOnce(old)
+    .mockReturnValueOnce(next);
+  vi.spyOn(desktopApi, "createDefaultModSetup").mockResolvedValue(
+    {} as Awaited<ReturnType<typeof desktopApi.createDefaultModSetup>>,
+  );
+  const host = await render(false, undefined, 701);
+  await act(async () => button(host, "Create first setup").click());
+  expect(read).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    pass();
+    pass();
+  });
+  expect(read).toHaveBeenCalledTimes(2);
+  await act(async () => finishOld(view({ inventory: null, live: null })));
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(button(host, "Create first setup").disabled).toBe(true);
+  await act(async () => finishNew(view()));
+  expect(host.textContent).toContain("Default");
+  expect(host.textContent).not.toContain("Create first setup");
+  expect(button(host, "Use Clean").disabled).toBe(false);
+});
+
+it("waits for a retired component's native read before reading the same port on remount", async () => {
+  let finishRetired!: (next: ModSetupsView) => void;
+  const retired = new Promise<ModSetupsView>((resolve) => {
+    finishRetired = resolve;
+  });
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockReturnValueOnce(retired)
+    .mockResolvedValueOnce(view());
+  await render(false, undefined, 702);
+  const first = mounted.pop()!;
+  await act(async () => first.root.unmount());
+  first.host.remove();
+  const host = await render(false, undefined, 702);
+  expect(read).toHaveBeenCalledTimes(1);
+  await act(async () => finishRetired(view({ inventory: null, live: null })));
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Default");
+  expect(host.textContent).not.toContain("Create first setup");
+});
+
+it("fences an old inventory result when the workspace generation is replaced", async () => {
+  let finishOld!: (next: ModSetupsView) => void;
+  const old = new Promise<ModSetupsView>((resolve) => {
+    finishOld = resolve;
+  });
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockReturnValueOnce(old)
+    .mockResolvedValueOnce(view());
+  const host = await render(false, undefined, 703);
+  const { root } = mounted.at(-1)!;
+  await act(async () =>
+    root.render(<ModSetupsControl portId="shipwright" generation={704} busy={false} />),
+  );
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Default");
+  await act(async () => finishOld(view({ inventory: null, live: null })));
+  expect(host.textContent).toContain("Default");
+  expect(host.textContent).not.toContain("Create first setup");
 });

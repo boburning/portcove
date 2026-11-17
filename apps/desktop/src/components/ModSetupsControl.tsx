@@ -7,6 +7,7 @@ import {
   onStandingSetupPass,
   requestStandingSetup,
 } from "../features/game-file-discovery/use-standing-setup";
+import { readModSetupInventory } from "../features/mod-setups/read-mod-setup-inventory";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
 import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
@@ -80,7 +81,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   useEffect(() => {
     if (busy) return;
     let current = true;
-    void desktopApi.modSetups(portId, generation).then(
+    void readModSetupInventory(portId, generation).then(
       (next) => {
         if (!current) return;
         if (next.port_id !== portId) {

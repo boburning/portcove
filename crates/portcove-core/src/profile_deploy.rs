@@ -2388,7 +2388,13 @@ impl PortcoveService {
         // Reviews abandoned without Cancel (a closed window, a changed setup)
         // leave staging; reading the setups is a regular point to prune it.
         self.prune_staged(&layout.store().join("staged"));
-        let inventory = self.profile_inventory(port_id)?;
+        let inventory = {
+            // Inventory is a preview. Mutations and launch verify current bytes
+            // again; unchanged files may reuse the existing identity-bound digests.
+            // Keep this scope after staging cleanup and before other workers.
+            let _preview = crate::adapter::preview_digest::PreviewScope::enter();
+            self.profile_inventory(port_id)?
+        };
         let has_profiles = !inventory.profiles.is_empty();
         let held_updates = crate::provider_auto_update::held_updates(&layout, &inventory);
         let current_install_id = profile::active_install_id(&self.library.connection()?, port_id)?;
