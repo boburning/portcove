@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "listing": {
-    "id": "jetstrike-sdl3",
+    "id": "jetstrike-sdl3-port",
     "name": "JetStrike / SDL3 Port",
     "summary": "Play the original DOS JetStrike with the SDL3 port and your own game data.",
     "original_game_title": "JetStrike",
@@ -48,7 +48,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "jetstrike-sdl3",
+    "target_key": "jetstrike-sdl3-port",
     "origin": {
       "project_url": "https://github.com/kylofon/jetstrike-sdl3",
       "repository": {

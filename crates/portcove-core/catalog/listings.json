@@ -35577,7 +35577,7 @@
       "recommended_download_channel": "stable"
     },
     {
-      "id": "jetstrike-sdl3",
+      "id": "jetstrike-sdl3-port",
       "name": "JetStrike / SDL3 Port",
       "summary": "Play the original DOS JetStrike with the SDL3 port and your own game data.",
       "original_game_title": "JetStrike",
@@ -59822,7 +59822,7 @@
       "issue_number": 3052
     },
     {
-      "id": "street-rod-sdl3",
+      "id": "street-rod-sdl3-port",
       "name": "Street Rod / SDL3 Port",
       "summary": "Play the original DOS Street Rod with the SDL3 port and your own game data.",
       "original_game_title": "Street Rod",

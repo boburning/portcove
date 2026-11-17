@@ -1,7 +1,7 @@
 {
   "format_version": 1,
   "listing": {
-    "id": "street-rod-sdl3",
+    "id": "street-rod-sdl3-port",
     "name": "Street Rod / SDL3 Port",
     "summary": "Play the original DOS Street Rod with the SDL3 port and your own game data.",
     "original_game_title": "Street Rod",
@@ -48,7 +48,7 @@
   },
   "upstream_lineage": {
     "format_version": 1,
-    "target_key": "street-rod-sdl3",
+    "target_key": "street-rod-sdl3-port",
     "origin": {
       "project_url": "https://github.com/kylofon/street-rod-sdl3",
       "repository": {
