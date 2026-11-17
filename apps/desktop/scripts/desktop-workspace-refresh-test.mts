@@ -40,6 +40,7 @@ interface RefreshObservations {
   failure_text?: string;
   after_cards?: number;
   commands?: string[];
+  retry_commands?: string[];
   failure?: string;
   probe?: { installed: false } | { injected: number; commands: string[]; restored: boolean };
 }
@@ -176,6 +177,15 @@ export const restoreWorkspaceRefreshProbe = (): NonNullable<RefreshObservations[
   delete runtime.__portcoveRefreshProbe;
   return result;
 };
+
+/** Retry must read current state without repeating any operation. */
+export function assertReadOnlyWorkspaceRetry(commands: readonly string[]) {
+  assert.ok(commands.includes("get_workspace_snapshot"), JSON.stringify(commands));
+  assert.ok(
+    commands.every((command) => command.startsWith("get_") || command.startsWith("plugin:")),
+    JSON.stringify(commands),
+  );
+}
 
 export const installExternalReconciliationProbe = () => {
   const runtime = window as RefreshWindow;
@@ -438,11 +448,15 @@ export async function workspaceRefreshScenario({
         30_000,
         "Retry refresh did not become available after the failed refresh settled",
       );
-      // Release the held failure only for the retry itself.
-      await executeBrowserScript(browser, () => {
+      // The probe's library-change event also schedules standing setup, and
+      // startup's catalog check can finish during capture. Keep the full trace,
+      // but attribute only commands after this marker to the player's retry.
+      const retryStart = await executeBrowserScript(browser, () => {
         const runtime = window as RefreshWindow;
         if (!runtime.__portcoveRefreshProbe) throw new Error("Refresh probe unavailable");
+        const start = runtime.__portcoveRefreshProbe.calls.length;
         runtime.__portcoveRefreshProbe.holding = false;
+        return start;
       });
       await currentRetry.click();
       await browser.wait(until.stalenessOf(currentRetry), 10_000);
@@ -473,8 +487,8 @@ export async function workspaceRefreshScenario({
         })) >= 1,
       );
       // The failed read and the retry read, plus any visible-idle poll (every 10 s,
-      // use-workspace-data.ts) or focus refetch in between. Every command stays
-      // read-only below, so a retry still never repeats a mutation.
+      // use-workspace-data.ts) or focus refetch in between. The retry's own
+      // command slice is checked separately from background work during capture.
       assert.ok(
         observations.commands.filter((command) => command === "get_workspace_snapshot").length >= 2,
         JSON.stringify(observations.commands),
@@ -484,15 +498,8 @@ export async function workspaceRefreshScenario({
           .length,
         1,
       );
-      assert.ok(
-        observations.commands.every(
-          (command: string) =>
-            command.startsWith("get_") ||
-            command.startsWith("plugin:") ||
-            command === "discover_orphaned_operations",
-        ),
-        JSON.stringify(observations.commands),
-      );
+      observations.retry_commands = observations.commands.slice(retryStart);
+      assertReadOnlyWorkspaceRetry(observations.retry_commands);
     } catch (error) {
       observations.failure = errorMessage(error);
       throw error;
