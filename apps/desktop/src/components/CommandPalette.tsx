@@ -60,8 +60,9 @@ function OpenCommandPalette({
   const activeId = eligible.some((command) => command.id === selectedId) ? selectedId : fallbackId;
   const activeIndex = filtered.findIndex((command) => command.id === activeId);
   useEffect(() => {
-    activeCommand.current?.scrollIntoView({ block: "nearest" });
-  }, [activeId]);
+    if (activeCommand.current) activeCommand.current.scrollIntoView({ block: "nearest" });
+    else palette.current?.scrollTo({ top: 0 });
+  }, [activeId, query]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       const focused = document.activeElement;

@@ -1455,10 +1455,13 @@ async fn execute_after_qualification_preflight(cli: Cli, mode: OutputMode) -> Re
                 service.game_file_root_match_profiles(&root_id)?,
                 |profiles| human::game_file_root_match_profiles(profiles, service.catalog()),
             )?,
-            GameFileRootCommand::Stores => render_read_success(
+            GameFileRootCommand::Stores { profile_id } => render_read_success(
                 mode,
                 "source.roots.stores",
-                service.store_game_installs()?,
+                match profile_id.as_deref() {
+                    Some(profile_id) => service.store_game_installs_for_profile(profile_id)?,
+                    None => service.store_game_installs()?,
+                },
                 human::store_game_installs,
             )?,
             GameFileRootCommand::Add { path } => render_read_success(
@@ -3919,7 +3922,7 @@ fn command_name(command: &Commands) -> &'static str {
                 GameFileRootCommand::Snapshot => "source.roots.snapshot",
                 GameFileRootCommand::Matches(_) => "source.roots.matches",
                 GameFileRootCommand::Profiles { .. } => "source.roots.profiles",
-                GameFileRootCommand::Stores => "source.roots.stores",
+                GameFileRootCommand::Stores { .. } => "source.roots.stores",
                 GameFileRootCommand::Add { .. } => "source.roots.add",
                 GameFileRootCommand::Relink { .. } => "source.roots.relink",
                 GameFileRootCommand::Remove { .. } => "source.roots.remove",

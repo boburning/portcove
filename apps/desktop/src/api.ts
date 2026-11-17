@@ -1137,8 +1137,11 @@ export const desktopApi = {
     }),
   gameFileRootMatchProfiles: (rootId: string, generation: number) =>
     invoke<string[]>("get_game_file_root_match_profiles", { rootId, generation }),
-  storeGameInstalls: (generation: number) =>
-    invoke<StoreGameInstalls>("get_store_game_installs", { generation }),
+  storeGameInstalls: (generation: number, profileId?: string) =>
+    invoke<StoreGameInstalls>("get_store_game_installs", {
+      generation,
+      ...(profileId !== undefined ? { profileId } : {}),
+    }),
   refreshGameFileQuery: (
     request: GameFileQueryRefreshRequest,
     generation: number,

@@ -1,16 +1,42 @@
-import { fixtureValue } from "../../test-fixtures";
+import { fixtureValue, sourceProfile } from "../../test-fixtures";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { desktopApi } from "../../api";
 import type { OperationEvent } from "../../types";
 import { preparation } from "./scenarios";
+import * as scenarios from "./scenarios";
 import { installInteractiveTransport, recoveryKey } from "./transport";
+
+vi.mock("./scenarios", { spy: true });
 
 let transport: ReturnType<typeof installInteractiveTransport> | undefined;
 afterEach(() => {
   transport?.dispose();
   transport = undefined;
   sessionStorage.removeItem(recoveryKey);
+  vi.mocked(scenarios.workspace).mockReset();
+  vi.restoreAllMocks();
+});
+it("accepts optional known store profile context and refuses malformed context", async () => {
+  const refuse = vi.fn();
+  const snapshot = scenarios.workspace("library");
+  const profile = sourceProfile();
+  snapshot.catalog.source_profiles = [profile];
+  vi.mocked(scenarios.workspace).mockReturnValue(snapshot);
+  transport = installInteractiveTransport("library", refuse);
+  const empty = { checked_stores: [], installs: [], skipped_entries: 0, limited: false };
+  expect(await desktopApi.storeGameInstalls(1)).toEqual(empty);
+  expect(await desktopApi.storeGameInstalls(1, profile.id)).toEqual(empty);
+  expect(refuse).not.toHaveBeenCalled();
+  await expect(desktopApi.storeGameInstalls(1, "unknown")).rejects.toThrow("unknown profile");
+  await expect(desktopApi.storeGameInstalls(2, profile.id)).rejects.toThrow("unexpected arguments");
+  await expect(invoke("get_store_game_installs", { generation: 1, profileId: 42 })).rejects.toThrow(
+    "unknown profile",
+  );
+  await expect(
+    invoke("get_store_game_installs", { generation: 1, profileId: profile.id, extra: true }),
+  ).rejects.toThrow("unexpected arguments");
+  expect(refuse).toHaveBeenCalledTimes(4);
 });
 it("refuses unknown and malformed commands visibly without forwarding IPC", async () => {
   const refuse = vi.fn();

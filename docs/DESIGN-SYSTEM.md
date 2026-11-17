@@ -347,6 +347,7 @@ Finishing is acceptance within the owning journeys, not a separate perpetual pol
 - Command-palette query changes choose the best eligible result predictably, background refresh preserves the active command by stable identity where possible, and Enter during IME composition never executes a command.
 - Typing in the command palette also lists matching games, grouped as Library or Discover entries, and opens their details. Game results appear only for a non-empty query so the empty palette stays a short list of destinations and actions. Matching ignores letter case and accents, as Library and Discover search do. Library-hidden games remain searchable but appear only as Discover results.
 - Command-palette pointer movement, option focus and direct clicks remain usable alongside keyboard selection. A popup appearing beneath a stationary pointer must not replace the command selected with the arrow keys.
+- At effective viewport heights up to 360px, the command palette uses one outer vertical scroll area with sticky search. Results, exact no-match queries and expanded navigation help remain reachable. A no-match query returns the scroll position to the start, and arrow selection reveals its result below search.
 - Artwork remains legible and stable across bright, dark, white, missing, unusual-aspect, and long-title cases. Optional artwork failure does not become launch failure, and essential actions never depend on imagery.
 - Optical review covers icon/label alignment, tabular numerals where values change or align in columns, consistent dialog geometry, subordinate shortcut hints, long-path identification and exact copying, and reduced nested-card emphasis. Essential instructions and warnings never exist only in a tooltip or browser title.
 - Supplemental tooltips stay within their trigger's existing landmark or dialog. Fixed positioning keeps the popup clear of scrollable containers while preserving accessible names, descriptions and dismissal.
@@ -654,6 +655,9 @@ fine pointer and remains visible on touch. Every action retains keyboard access.
 Library's intermediate app-window tier uses a 10.25rem sidebar and 1.5rem
 workspace gutters between 47.5rem and 56.25rem. Retrieval wraps according to
 available workspace; its phone controls retain safe text-enlargement fallbacks.
+Between the compact rail and 65rem, the expanded sidebar uses a smaller mascot,
+wordmark and gap so its complete brand fits beside navigation without horizontal
+scrolling. Long navigation labels wrap within their controls.
 Cover metadata keeps at least 10px before the footer while retaining bottom
 alignment. Narrow rows keep independent personal actions beside short identity
 stacks where space permits, and naturally grow for long titles. A narrow header
