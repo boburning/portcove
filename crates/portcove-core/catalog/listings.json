@@ -16810,7 +16810,7 @@
           },
           {
             "title": "Register an existing Linux portable copy",
-            "instruction": "In the Portcove CLI, use external select-preview for c-dogs-sdl with bin/cdogs-sdl as the executable and bin as the working directory. Confirm the preview with external select, then start it with portcove exec c-dogs-sdl. Keep the external package and profile in place."
+            "instruction": "Use absolute paths to bin/cdogs-sdl and its bin folder. For c-dogs-sdl, run external select-preview with the executable path and --working-directory for the folder. Repeat both paths with external select and pass the preview SHA-256 to --expected-preview. Start the game with portcove exec c-dogs-sdl."
           },
           {
             "title": "Keep your settings, campaigns and progress",
