@@ -185,6 +185,20 @@ try {
   $positive = (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
   @{positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
   if (-not $positive -and -not $failure) { $failure='Positive owned exit was not established' }
+  if ($positive -and $profileAbsentVerified -and $gameBound) {
+    try {
+      $terminal = Invoke-CliJson 'terminal-launch' @('launch','show',$request)
+      $logPath = Join-Path $profile 'neverball.log'
+      if (Test-Path -LiteralPath $logPath -PathType Leaf) {
+        $logItem = Get-Item -LiteralPath $logPath
+        if (($logItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $logItem.Length -gt 262144) { throw 'Task-created game log is linked or oversized' }
+        Copy-Item -LiteralPath $logPath -Destination (Join-Path $native 'owned-game.log')
+      }
+      @{profile_created=(Test-Path -LiteralPath $profile);game_log_present=(Test-Path -LiteralPath $logPath);player_sha256=(Get-FileHash -LiteralPath $expectedPlayer -Algorithm SHA256).Hash.ToLowerInvariant();scope='Only the known log from an initially absent, task-created profile is copied after positive owned exit'} | ConvertTo-Json | Set-Content (Join-Path $native 'profile-observation.json') -Encoding utf8
+      @('procdump.exe','procdump64.exe','cdb.exe') | ForEach-Object { @{name=$_;available=[bool](Get-Command $_ -ErrorAction SilentlyContinue)} } | ConvertTo-Json | Set-Content (Join-Path $native 'diagnostic-tools.json') -Encoding utf8
+    } catch { @{error=$_.Exception.Message} | ConvertTo-Json | Set-Content (Join-Path $native 'owned-log-query.json') -Encoding utf8 }
+  }
+
   foreach ($sink in @($stdoutSink,$stderrSink)) { if ($sink) { $sink.Flush() } }
   if ($stdoutSink -and $stdout.IsCompleted) { $stdoutSink.Dispose() }
   if ($stderrSink -and $stderr.IsCompleted) { $stderrSink.Dispose() }
