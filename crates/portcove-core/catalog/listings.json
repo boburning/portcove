@@ -33132,10 +33132,16 @@
           },
           {
             "title": "Keep your teams, saves and replays",
-            "instruction": "Close the game and preserve the profile you use. The normal profile is %USERPROFILE%\\Hedgewars on Windows, ~/.hedgewars on Linux and Mac, and ~/.var/app/org.hedgewars.Hedgewars/.hedgewars for Flathub. Use the directory you chose if you set --config-dir. Keep the whole profile to include teams, schemes, saves and replays."
+            "instruction": "Close the game before copying its profile. On Windows, copy Hedgewars from your Documents folder. If Windows could not find Documents, check %USERPROFILE%\\.hedgewars. On Mac, copy ~/Library/Application Support/Hedgewars. On Linux, copy ~/.hedgewars or, for Flathub, ~/.var/app/org.hedgewars.Hedgewars/.hedgewars. If you used --config-dir, copy that folder. Keep the whole profile for teams, schemes, saves and replays."
           }
         ],
         "warnings": [],
+        "references": [
+          {
+            "title": "Use an existing Ubuntu installation",
+            "instruction": "When registering the Ubuntu package with the Portcove CLI, select /usr/lib/hedgewars/bin/hedgewars and use /usr/lib/hedgewars/bin as the working directory. The /usr/games/hedgewars shortcut is a symlink. Use the in-match quit prompt when you want to resume an unfinished match."
+          }
+        ],
         "help_url": "https://www.hedgewars.org/faq.html"
       }
     },
