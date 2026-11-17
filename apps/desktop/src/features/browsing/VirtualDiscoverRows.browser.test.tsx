@@ -7,6 +7,7 @@ import {
   captureCollectionDestination,
   prepareCollectionMove,
   collectionMovementCandidates,
+  type CollectionDestination,
 } from "../../collection-navigation";
 import { portDefinition } from "../../test-fixtures";
 import { groupCatalog } from "./original-game";
@@ -24,6 +25,34 @@ const frames = async () => {
     await new Promise(requestAnimationFrame);
   });
 };
+
+// Mount acknowledgment depends on a committed measured row. Flush each scheduled
+// render/frame without holding an act callback open on that acknowledgment.
+async function settleMount(pending: Promise<boolean>) {
+  let settled = false;
+  void pending.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+  await expect
+    .poll(async () => {
+      await frames();
+      return settled;
+    })
+    .toBe(true);
+  return pending;
+}
+async function mountDestination(destination: CollectionDestination) {
+  let pending!: Promise<boolean>;
+  await act(async () => {
+    pending = mountCollectionDestination(workspace, destination, () => true);
+  });
+  return settleMount(pending);
+}
 
 function Fixture({
   layout = "covers",
@@ -108,12 +137,8 @@ it.each(["covers", "rows"] as const)(
   async (layout) => {
     await render(layout);
     expect(host.querySelectorAll("article").length).toBeLessThan(100);
-    await act(async () => {
-      expect(await mountCollectionDestination(workspace, { portId: "game-1200" }, () => true)).toBe(
-        true,
-      );
-      details(1200)!.focus();
-    });
+    expect(await mountDestination({ portId: "game-1200" })).toBe(true);
+    await act(async () => details(1200)!.focus());
     expect(document.activeElement).toBe(details(1200));
     expect(host.querySelectorAll("article").length).toBeLessThan(100);
     expect(host.querySelector("[data-collection-row] [data-focus-group]")).toBeNull();
@@ -159,9 +184,11 @@ it("mounts a logical arrow neighbor and excludes a distant pin from spatial cand
     workspace.dispatchEvent(new Event("scroll"));
   });
   await frames();
+  let pending!: Promise<boolean>;
   await act(async () => {
-    expect(await prepareCollectionMove(details(0)!, "down", () => true)).toBe(true);
+    pending = prepareCollectionMove(details(0)!, "down", () => true)!;
   });
+  expect(await settleMount(pending)).toBe(true);
   expect(card(1)).not.toBeNull();
   const candidates = [...host.querySelectorAll<HTMLButtonElement>("article button")];
   expect(collectionMovementCandidates(candidates, details(0)!)).not.toContain(details(1539));
@@ -174,12 +201,12 @@ it("cancels delayed mounting after explicit user intent or accepted query replac
     pending = mountCollectionDestination(workspace, { portId: "game-1200" }, () => true);
     workspace.dispatchEvent(new WheelEvent("wheel", { bubbles: true }));
   });
-  expect(await pending).toBe(false);
+  expect(await settleMount(pending)).toBe(false);
   await act(async () => {
     pending = mountCollectionDestination(workspace, { portId: "game-900" }, () => true);
     root.render(<Fixture layout="rows" matching={groups.slice(0, 2)} />);
   });
-  expect(await pending).toBe(false);
+  expect(await settleMount(pending)).toBe(false);
   expect(card(900)).toBeNull();
 });
 
@@ -198,9 +225,7 @@ it("keeps independent focus and comparison pins while mounting a third destinati
   workspace = host.querySelector("main")!;
   await frames();
   await act(async () => details(0)!.focus());
-  await act(async () => {
-    await mountCollectionDestination(workspace, { portId: "game-1200" }, () => true);
-  });
+  await mountDestination({ portId: "game-1200" });
   expect(card(0)).not.toBeNull();
   expect(card(300)).not.toBeNull();
   expect(card(1200)).not.toBeNull();
@@ -215,9 +240,7 @@ it("uses document scrolling when the workspace is in narrow flow", async () => {
   await act(async () => root.render(<Fixture layout="rows" documentFlow />));
   workspace = host.querySelector("main")!;
   await frames();
-  await act(async () => {
-    await mountCollectionDestination(workspace, { portId: "game-1200" }, () => true);
-  });
+  await mountDestination({ portId: "game-1200" });
   expect(window.scrollY).toBeGreaterThan(0);
   expect(card(1200)).not.toBeNull();
   expect(host.querySelectorAll("article").length).toBeLessThan(100);
@@ -226,19 +249,15 @@ it("uses document scrolling when the workspace is in narrow flow", async () => {
 
 it("restores a reading game's viewport offset across a fresh measurement cache", async () => {
   await render("rows");
-  await act(async () => {
-    await mountCollectionDestination(workspace, { portId: "game-1200" }, () => true);
-    details(1200)!.focus();
-  });
+  await mountDestination({ portId: "game-1200" });
+  await act(async () => details(1200)!.focus());
   const anchor = captureCollectionDestination(workspace)!;
   const top = card(1200)!.getBoundingClientRect().top;
   const scrollTop = workspace.scrollTop;
   await act(async () => root.render(<Fixture key="new-measurements" layout="rows" />));
   workspace = host.querySelector("main")!;
   await frames();
-  await act(async () => {
-    await mountCollectionDestination(workspace, { ...anchor, scrollTop }, () => true);
-  });
+  await mountDestination({ ...anchor, scrollTop });
   expect(Math.abs(card(1200)!.getBoundingClientRect().top - top)).toBeLessThan(1);
 });
 
@@ -261,9 +280,7 @@ it("waits for the accepted deferred query before mounting a restored destination
       />,
     );
   });
-  await act(async () => {
-    expect(await pending).toBe(true);
-  });
+  expect(await settleMount(pending)).toBe(true);
   expect(card(900)).not.toBeNull();
   expect(host.querySelectorAll("article")).toHaveLength(2);
 });

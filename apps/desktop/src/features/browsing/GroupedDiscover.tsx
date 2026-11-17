@@ -1,3 +1,4 @@
+import { focusableControls } from "../../focus";
 import { VirtualDiscoverRows } from "./VirtualDiscoverRows";
 import { useGameComparison } from "../recommendations/use-game-comparison";
 import {
@@ -133,7 +134,16 @@ export function GroupedDiscover({
     generation: owner?.generation,
     observationKey: comparisonObservationKey,
   });
-  const origin = useRef<HTMLButtonElement | null>(null);
+  const origin = useRef<
+    | {
+        collection: HTMLElement | null;
+        groupKey: string;
+        originKey: string | undefined;
+        controlKey: string | undefined;
+        controlIndex: number;
+      }
+    | undefined
+  >(undefined);
   const dialogRoot = useRef<HTMLDivElement>(null);
   const comparisonIntent = useRef({ active: false });
   const currentIntent = comparisonIntent.current;
@@ -142,7 +152,14 @@ export function GroupedDiscover({
   // Cards are memoized, so these handlers keep their identity until something a
   // card shows changes; otherwise every search or filter change re-renders every card.
   const compare = useCallback((group: GameGroup, trigger: HTMLButtonElement) => {
-    origin.current = trigger;
+    const card = trigger.closest<HTMLElement>("[data-detail-return-group]");
+    origin.current = {
+      collection: trigger.closest<HTMLElement>("[data-virtual-collection]"),
+      groupKey: group.id,
+      originKey: trigger.dataset.detailOrigin,
+      controlKey: trigger.dataset.collectionControl,
+      controlIndex: card ? focusableControls(card).indexOf(trigger) : -1,
+    };
     comparisonIntent.current = { active: true };
     leaving.current = false;
     setComparisonPin(group.id);
@@ -229,7 +246,38 @@ export function GroupedDiscover({
           reviewSize="large"
           className="port-comparison-dialog"
           initialFocus={heading}
-          finalFocus={() => (leaving.current ? false : origin.current)}
+          finalFocus={() => {
+            if (leaving.current) return false;
+            const saved = origin.current;
+            const card = saved?.collection?.isConnected
+              ? saved.collection.querySelector<HTMLElement>(
+                  `[data-detail-return-group="${CSS.escape(saved.groupKey)}"]`,
+                )
+              : null;
+            // Base UI resolves finalFocus in layout cleanup before its passive
+            // aria-hidden cleanup. The dialog's temporary outside masking must
+            // not hide this exact return target from the resolver.
+            const controls = card
+              ? [...card.querySelectorAll<HTMLButtonElement>("button")].filter(
+                  (control) =>
+                    !control.matches(":disabled, [aria-disabled=true], [aria-hidden=true]") &&
+                    !control.closest("[hidden], [inert]") &&
+                    control.getClientRects().length > 0 &&
+                    getComputedStyle(control).visibility !== "hidden",
+                )
+              : [];
+            return (
+              controls.find((control, index) =>
+                saved?.originKey
+                  ? control.dataset.detailOrigin === saved.originKey
+                  : saved?.controlKey
+                    ? control.dataset.collectionControl === saved.controlKey
+                    : index === saved?.controlIndex,
+              ) ??
+              controls[0] ??
+              null
+            );
+          }}
         >
           {comparison && (
             <>

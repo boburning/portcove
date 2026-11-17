@@ -1,3 +1,6 @@
+import "../../styles/index.css";
+import { desktopApi } from "../../api";
+import { mountCollectionDestination } from "../../collection-navigation";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vite-plus/test";
@@ -8,6 +11,7 @@ import { InvocationOwnerProvider } from "../operations/invocation-owner";
 import { OperationPresentationProvider } from "../operations/operation-presentation";
 import { useOperationState } from "../operations/use-operation-state";
 import { targetInvocationContext } from "../operations/invocation-state";
+import type { CatalogEntry } from "./catalog-entry";
 import { GroupedDiscover } from "./GroupedDiscover";
 
 vi.mock("@tauri-apps/api/event", async (importOriginal) => ({
@@ -115,3 +119,111 @@ it("updates shared card translations and pending actions without remounting the 
   expect(host.querySelector("article")).toBe(card);
   expect(action.textContent).toBe(idleLabel);
 });
+
+it.each(["control", "origin"] as const)(
+  "returns comparison focus to the current deep card after column regrouping: %s identity",
+  async (identity) => {
+    vi.spyOn(desktopApi, "compareGamePorts").mockRejectedValue(new Error("Unavailable fixture"));
+    host.style.width = "1000px";
+    const ports: CatalogEntry[] = Array.from({ length: 1540 }, (_, index) => ({
+      ...portDefinition(),
+      id: `comparison-game-${index}`,
+    }));
+    const target = ports[1200]!;
+    if (identity === "origin") {
+      const grouped = {
+        ...target,
+        presentation: {
+          ...target.presentation,
+          original_game: {
+            format_version: 1,
+            id: "comparison-group",
+            evidence_urls: [],
+            source_editions: [],
+          },
+        },
+      };
+      ports[1200] = grouped;
+      ports.push({ ...grouped, id: "comparison-alternative" });
+    }
+    await act(async () =>
+      root.render(
+        <OperationPresentationProvider generation={7} pending={new Map()}>
+          <main data-focus-region="workspace" style={{ height: 500, overflow: "auto" }}>
+            <GroupedDiscover
+              all={ports}
+              matching={ports}
+              statuses={new Map()}
+              onSelect={vi.fn()}
+              onFavoriteToggle={vi.fn()}
+            />
+          </main>
+        </OperationPresentationProvider>,
+      ),
+    );
+    const frames = async () => {
+      await act(async () => {
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+      });
+    };
+    await frames();
+    const workspace = host.querySelector("main")!;
+    let pending!: Promise<boolean>;
+    await act(async () => {
+      pending = mountCollectionDestination(workspace, { portId: target.id }, () => true);
+    });
+    let mounted = false;
+    void pending.then(
+      () => {
+        mounted = true;
+      },
+      () => {
+        mounted = true;
+      },
+    );
+    await expect
+      .poll(async () => {
+        await frames();
+        return mounted;
+      })
+      .toBe(true);
+    expect(await pending).toBe(true);
+    const groupKey = identity === "origin" ? "game:comparison-group" : `port:${target.id}`;
+    const currentTrigger = () =>
+      host.querySelector<HTMLButtonElement>(
+        `[data-detail-return-group="${groupKey}"] ${
+          identity === "origin"
+            ? `[data-detail-origin="catalog:card:${target.id}:details"]`
+            : '[data-collection-control="compare-evidence"]'
+        }`,
+      );
+    const trigger = currentTrigger()!;
+    await act(async () => {
+      trigger.focus();
+      trigger.click();
+    });
+    await expect.poll(() => document.activeElement?.closest('[role="dialog"]')).not.toBeNull();
+    host.style.width = "420px";
+    await expect
+      .poll(async () => {
+        await frames();
+        return trigger.isConnected;
+      })
+      .toBe(false);
+    const replacement = currentTrigger()!;
+    expect(replacement).not.toBeNull();
+    expect(replacement).not.toBe(trigger);
+    const close = document.querySelector<HTMLButtonElement>(
+      '[role="dialog"] [data-slot="dialog-close"]',
+    )!;
+    await act(async () => close.click());
+    await expect
+      .poll(async () => {
+        await frames();
+        return document.activeElement;
+      })
+      .toBe(replacement);
+    expect(replacement.isConnected).toBe(true);
+  },
+);
