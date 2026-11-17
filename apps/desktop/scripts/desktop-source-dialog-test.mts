@@ -1990,7 +1990,9 @@ async function hashResumeScenario(context: SelectedSetupContext) {
       assert.ok(report.observations.review_text.includes("Use current location"));
       assert.ok(report.observations.review_text.includes("File check: Edition identified"));
       const displayedPath = await review
-        .findElement(By.xpath('.//p[contains(.,"Selected location:")]/code'))
+        .findElement(
+          By.xpath('.//dt[normalize-space(.)="Selected location"]/following-sibling::dd/code'),
+        )
         .getText();
       assertOwnedSelectedSetupPath(displayedPath, plan.source.path);
       report.observations.fresh_plan = plan;
