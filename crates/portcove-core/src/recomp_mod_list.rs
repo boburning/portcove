@@ -15,6 +15,7 @@
 use std::{collections::BTreeSet, fs, path::Path};
 
 use serde_json::{Map, Value};
+use sha2::{Digest, Sha256};
 
 use crate::{PortcoveError, Result, game_settings::document};
 
@@ -30,6 +31,7 @@ pub(crate) enum RecompList {
         enabled_list_present: bool,
         from_backup: bool,
         document: Value,
+        source_sha256: [u8; 32],
     },
     Unreadable(String),
 }
@@ -60,22 +62,27 @@ fn parse(bytes: &[u8]) -> Result<Value> {
     document::json_document(text)
 }
 
-fn read_document(user: &Path) -> Result<Option<(Value, bool)>> {
+fn read_source_bytes(user: &Path) -> Result<Option<(Vec<u8>, bool)>> {
     let primary = user.join(FILE);
     if let Some(bytes) = crate::native_mod_list::read_native_file(&primary, MAX_BYTES)? {
-        // Native parsing is less strict than Portcove's ownership parser. A
-        // primary rejected here may still win in the game, so hold it as unreadable.
-        return Ok(Some((parse(&bytes)?, false)));
+        return Ok(Some((bytes, false)));
     }
-    crate::native_mod_list::read_native_file(&primary.with_extension("json.bak"), MAX_BYTES)?
-        .map(|bytes| parse(&bytes).map(|value| (value, true)))
-        .transpose()
+    Ok(
+        crate::native_mod_list::read_native_file(&primary.with_extension("json.bak"), MAX_BYTES)?
+            .map(|bytes| (bytes, true)),
+    )
 }
 
 pub(crate) fn read(user: &Path) -> RecompList {
-    let (parsed, from_backup) = match read_document(user) {
-        Ok(Some(document)) => document,
+    let (bytes, from_backup) = match read_source_bytes(user) {
+        Ok(Some(source)) => source,
         Ok(None) => return RecompList::Absent,
+        Err(error) => return RecompList::Unreadable(error.to_string()),
+    };
+    // The runtime accepts some inputs Portcove cannot safely edit. A primary
+    // rejected here may still win in the game, so hold it as unreadable.
+    let parsed = match parse(&bytes) {
+        Ok(parsed) => parsed,
         Err(error) => return RecompList::Unreadable(error.to_string()),
     };
     let object = parsed.as_object().expect("json_document returns an object");
@@ -86,6 +93,7 @@ pub(crate) fn read(user: &Path) -> RecompList {
             enabled_list_present: object.contains_key("enabled_mods"),
             from_backup,
             document: parsed,
+            source_sha256: Sha256::digest(&bytes).into(),
         },
         (Err(reason), _) | (_, Err(reason)) => RecompList::Unreadable(reason),
     }
@@ -137,13 +145,14 @@ pub(crate) fn write(
 ) -> Result<bool> {
     let path = user.join(FILE);
     crate::path::refuse_symlink_ancestors(&path)?;
-    let (mut parsed, replace_primary) = match observed {
+    let (mut parsed, observed_source, replace_primary) = match observed {
         RecompList::Listed {
             document,
             from_backup,
+            source_sha256,
             ..
-        } => (document, !from_backup),
-        RecompList::Absent => (Value::Object(Map::new()), false),
+        } => (document, Some((source_sha256, from_backup)), !from_backup),
+        RecompList::Absent => (Value::Object(Map::new()), None, false),
         RecompList::Unreadable(reason) => return Err(PortcoveError::conflict(reason)),
     };
     let object = parsed
@@ -163,8 +172,22 @@ pub(crate) fn write(
     let mut bytes = serde_json::to_vec_pretty(&parsed)?;
     bytes.push(b'\n');
     fs::create_dir_all(user)?;
-    // A primary that appears after reading the backup belongs to the player.
-    crate::durability::write_bytes_atomically(&path, &bytes, replace_primary)?;
+    crate::durability::write_bytes_atomically_checked(
+        &path,
+        &bytes,
+        replace_primary,
+        None,
+        || {
+            let current_source = read_source_bytes(user)?
+                .map(|(bytes, from_backup)| (Sha256::digest(&bytes).into(), from_backup));
+            if current_source != observed_source {
+                return Err(PortcoveError::conflict(
+                    "The game's mod list changed during projection. Keep the current file and review the selected setup.",
+                ));
+            }
+            Ok(())
+        },
+    )?;
     Ok(true)
 }
 
@@ -238,6 +261,36 @@ mod tests {
             assert!(matches!(read(directory.path()), RecompList::Unreadable(_)));
             assert!(project(directory.path(), &["z"], &["z"]).is_err());
             assert_eq!(fs::read(&path).unwrap(), bytes);
+        }
+    }
+
+    #[test]
+    fn writing_refuses_changed_primary_or_fallback_bytes() {
+        for from_backup in [false, true] {
+            let directory = tempfile::tempdir().unwrap();
+            let primary = directory.path().join(FILE);
+            let source = if from_backup {
+                primary.with_extension("json.bak")
+            } else {
+                primary.clone()
+            };
+            fs::write(&source, br#"{"enabled_mods":["on"],"mod_order":["on"]}"#).unwrap();
+            let observed = read(directory.path());
+            let changed = br#"{"enabled_mods":["on"],"mod_order":["on"],"from_player":true}"#;
+            fs::write(&source, changed).unwrap();
+
+            let refusal = write(
+                directory.path(),
+                observed,
+                &strings(&["new"]),
+                &strings(&["new"]),
+            )
+            .unwrap_err();
+            assert_eq!(refusal.code, crate::ErrorCode::Conflict);
+            assert_eq!(fs::read(&source).unwrap(), changed);
+            if from_backup {
+                assert!(!primary.exists());
+            }
         }
     }
 
