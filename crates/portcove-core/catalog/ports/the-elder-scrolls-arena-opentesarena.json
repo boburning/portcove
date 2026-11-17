@@ -6,6 +6,14 @@
     "summary": "Create a character and explore Arena’s opening dungeon with OpenTESArena and the original game files.",
     "original_game_title": "The Elder Scrolls: Arena",
     "project_url": "https://github.com/afritz1/OpenTESArena",
+    "artwork": {
+      "game_id": 52,
+      "cover_id": 120072,
+      "image_id": "co2knc",
+      "image_sha256": "0cf10df2b3d12f6ffc4088a7d1aac2c2a30c7d3bd67deaf65ac004b5bcb35d3a",
+      "game_slug": "the-elder-scrolls-arena",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5688,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-aarch64"],

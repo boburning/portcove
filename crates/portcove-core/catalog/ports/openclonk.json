@@ -6,6 +6,14 @@
     "original_game_title": "OpenClonk",
     "summary": "Explore caves, build settlements, and play strategy and action scenarios in this free successor to Clonk.",
     "project_url": "https://github.com/openclonk/openclonk",
+    "artwork": {
+      "game_id": 60297,
+      "cover_id": 40006,
+      "image_id": "srsunbryijx7oaoqxilx",
+      "image_sha256": "d8028fa01f18c54dadf72b2b1f74519e109910e8a60c57b9bd4027c8c36bc9b4",
+      "game_slug": "openclonk",
+      "match_kind": "port"
+    },
     "issue_number": 6529,
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64"],

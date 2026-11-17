@@ -23339,6 +23339,14 @@
       "original_game_title": "Digger",
       "summary": "Collect emeralds, dig tunnels, and evade monsters in this standalone SDL remake of Digger.",
       "project_url": "https://github.com/sobomax/digger",
+      "artwork": {
+        "game_id": 24425,
+        "cover_id": 368555,
+        "image_id": "co7wdn",
+        "image_sha256": "b65c075bbeab1a3cc7485d6b6de29b82fe645ef9b5c47943919fd2455f442f53",
+        "game_slug": "digger",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6740,
       "listed_at": "2026-11-17",
       "availability": "packages",
@@ -30611,6 +30619,14 @@
       "original_game_title": "Dink Smallwood",
       "summary": "Play the original Dink Smallwood adventure with the GNU FreeDink engine and its bundled game data.",
       "project_url": "https://www.gnu.org/software/freedink/",
+      "artwork": {
+        "game_id": 11345,
+        "cover_id": 313144,
+        "image_id": "co6pmg",
+        "image_sha256": "30bd1cb7eb66a98a033cad0810830b1d7635afafd0583930ef100fd1f96a77f9",
+        "game_slug": "dink-smallwood",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6536,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -45772,6 +45788,14 @@
       "original_game_title": "OpenClonk",
       "summary": "Explore caves, build settlements, and play strategy and action scenarios in this free successor to Clonk.",
       "project_url": "https://github.com/openclonk/openclonk",
+      "artwork": {
+        "game_id": 60297,
+        "cover_id": 40006,
+        "image_id": "srsunbryijx7oaoqxilx",
+        "image_sha256": "d8028fa01f18c54dadf72b2b1f74519e109910e8a60c57b9bd4027c8c36bc9b4",
+        "game_slug": "openclonk",
+        "match_kind": "port"
+      },
       "issue_number": 6529,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -56663,6 +56687,14 @@
       "original_game_title": "Sonic Robo Blast 2",
       "summary": "Play Sonic Team Junior's 3D fan game with its bundled stages, characters, and music.",
       "project_url": "https://github.com/STJr/SRB2",
+      "artwork": {
+        "game_id": 95508,
+        "cover_id": 297964,
+        "image_id": "co6dws",
+        "image_sha256": "07b6079390ebe07bc2f15bda62bc00146263a9414fcb84aee893335a0c06ac30",
+        "game_slug": "sonic-robo-blast-2",
+        "match_kind": "port"
+      },
       "issue_number": 6738,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -62790,6 +62822,14 @@
       "summary": "Create a character and explore Arena’s opening dungeon with OpenTESArena and the original game files.",
       "original_game_title": "The Elder Scrolls: Arena",
       "project_url": "https://github.com/afritz1/OpenTESArena",
+      "artwork": {
+        "game_id": 52,
+        "cover_id": 120072,
+        "image_id": "co2knc",
+        "image_sha256": "0cf10df2b3d12f6ffc4088a7d1aac2c2a30c7d3bd67deaf65ac004b5bcb35d3a",
+        "game_slug": "the-elder-scrolls-arena",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5688,
       "listed_at": "2026-11-17",
       "platforms": [
