@@ -116,7 +116,10 @@ import {
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
-import { createInstallFixture } from "./desktop-install-fixture.mts";
+import {
+  createInstallFixture,
+  prepareReviewedSetupBatchFixture,
+} from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -2620,6 +2623,8 @@ try {
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
+    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch"))
+      await prepareReviewedSetupBatchFixture(installFixture);
     if (installFixture.sourceJourney) {
       if (installFixture.preliminaryJourney)
         for (const name of ["path", "before"] as const)

@@ -60,8 +60,13 @@ export async function setupBatchScenario(context: BatchContext) {
   await scenario("native-reviewed-discovery-setup-batch", async () => {
     const owned = required(fixture.sourceJourney);
     const ports = [fixture.port.id, fixture.refreshPort.id];
+    assert.equal(fixture.port.adapter, "libultraship-portable");
+    assert.equal(fixture.refreshPort.adapter, "libultraship-portable");
+    assert.equal(fixture.refreshPort.source_profile, fixture.port.source_profile);
+    assert.equal(fixture.refreshPort.bios_source_profile, undefined);
     const report: Record<string, unknown> = {
-      scope: "Native Desktop reviewed two-game batch with real Core lifecycle and inert inputs",
+      scope:
+        "Native Desktop reviewed two portable integrations with real Core lifecycle and inert inputs",
       limitations: [
         "First-party CLI seeded the saved folder and original registrations; no picker claim",
         "Loopback artifacts and inert originals; no retail, upstream runtime or gameplay claim",

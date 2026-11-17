@@ -2223,6 +2223,9 @@ selects one standalone Windows journey. The CLI first seeds an isolated saved
 folder and two inert source registrations. Desktop scans the folder and lets the
 operator select two compatible integrations. The scenario cancels one batch
 review before selecting both games again and confirming their installation.
+Both portable-package fixtures share the admitted game source. The other source
+registration remains an unchanged custody control; this case does not execute
+the separate PS1 preparation fixture.
 It checks the installed files and retained installation identities after an
 application restart. Original files, source registrations and saved folders stay
 intact. Launch history stays empty. Reports include screenshots and positive
