@@ -832,6 +832,40 @@ void test("owned-ready keeps its 20-minute allowance without the update review",
   );
 });
 
+void test("combined ordinary owned workflows allow settlement and cleanup after the retained 20-minute timeout", () => {
+  const selection = resolveDesktopSelection({
+    scenarios: [
+      "native-library-browsing-context",
+      "native-ready-detail-composition",
+      "native-game-return-continuity",
+      "native-missing-readiness-recovery",
+      "native-retained-contract-repair-state",
+      "native-preparation-cancellation",
+      "native-interrupted-preparation-recovery",
+      "native-update-settings-save-without-execution",
+      "native-release-channel-selection-and-restart",
+      "native-reviewed-backup-restore-and-delete",
+      "native-source-intake-and-discovery-dialogs",
+      "native-reviewed-installed-game-removal",
+      "native-reviewed-source-reference-removal",
+      "native-reviewed-existing-install-copy",
+      "native-library-move-invalidates-prior-reviews",
+      "native-contextual-cli-handoff",
+    ],
+    platform: "win32",
+  });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.equal(selection.selected_scenarios.length + selection.setup_scenarios.length, 17);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 2_400_000);
+  for (const id of ["native-preparation-cancellation", "native-game-return-continuity"]) {
+    const isolated = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+    assert.equal(desktopHarnessDeadlineMs(isolated), 180_000);
+  }
+});
+
 void test("game-update review binds Windows cleanup and its own finite deadline", () => {
   for (const platform of ["win32", "linux"] as const) {
     const selection = resolveDesktopSelection({

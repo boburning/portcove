@@ -1071,12 +1071,17 @@ export function desktopHarnessDeadlineMs(
     // Moving the update review to its own group (#4879) left owned-ready at eight
     // executed scenarios, and run 43781898959 stopped it at the 180 s default. Its
     // release-channel restart journey keeps the allowance from eight executed.
+    // Native run 17 combined 17 executed ordinary workflows and reached backup
+    // restore at 20 minutes before the watchdog stopped its live driver. Larger owned
+    // combinations get 40 minutes; the established eight-case and standalone budgets stay.
     (executed > 8 ||
       (executed === 8 &&
         selection.selected_scenarios.includes("native-release-channel-selection-and-restart"))) &&
       (selection.selected_scenarios.includes("native-preparation-review-and-play") ||
         selection.setup_scenarios.includes("native-preparation-review-and-play"))
-      ? 1_200_000
+      ? executed > 8
+        ? 2_400_000
+        : 1_200_000
       : 0,
   );
   const cacheConditions = selection.selected_scenarios.includes(

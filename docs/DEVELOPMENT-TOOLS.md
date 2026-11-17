@@ -2802,6 +2802,19 @@ Focused and small-profile runs retain the three-minute whole-harness watchdog,
 except where `desktopHarnessDeadlineMs` records a measured allowance: library move
 (300 s), interrupted preparation recovery (420 s) and the Steam entry/batch
 journeys (600 s).
+The November 17 combined ordinary owned-workflow run at `eb33f3b` reached backup
+restore before its 20-minute watchdog stopped the driver. Combinations executing
+more than eight scenarios, including the preparation prerequisite, now allow
+40 minutes. The established eight-case owned-ready group keeps 20 minutes;
+standalone allowances, product deadlines and zero automatic retries stay unchanged.
+The same run's workspace read took 23.926 seconds while cancellation became
+durable. Post-navigation cancellation and game-return settlement now use the
+existing 60-second native refresh/launch allowance with distinct failure labels.
+Held-assessment refresh also uses its existing 60-second readiness allowance;
+strict injection/restoration failures are recorded without replacing the primary
+wait error. The original timeout and downstream connection failures remain failed
+evidence; only a fresh exact-source run can establish completion.
+
 The opt-in Windows `native-library-switch-recovery` scenario uses only owned
 libraries and saved preferences. Real folder selection and review first commit a
 recognizable SQLite library with a future schema; refusal retains the Core-owned

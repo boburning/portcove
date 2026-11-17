@@ -3510,14 +3510,50 @@ try {
         ...(workspace.pending_setups?.map((setup) => setup.port_id) ?? []),
       ]),
     ].sort();
-    const channelButton = async (channel: string) => {
+    const channelChoice = async (channel: string) => {
       const panel = await openCatalogFilters(browser);
       const label = channel === "beta" ? "Preview" : channel === "stable" ? "Stable" : "Rolling";
-      return panel.findElement(
-        By.xpath(
-          `.//fieldset[legend[normalize-space(.)="Update channels"]]//button[contains(normalize-space(.),"${label}")]`,
+      const trigger = await panel.findElement(By.css('button[aria-label^="Update channels:"]'));
+      if ((await trigger.getAttribute("aria-expanded")) !== "true")
+        await clickVisible(browser, trigger);
+      return browser.wait(
+        until.elementLocated(
+          By.css(
+            `fieldset[aria-label="Update channels"] [role="checkbox"][aria-label^="${label} ("]`,
+          ),
         ),
+        5_000,
       );
+    };
+    const closeChannelChoices = async () => {
+      await browser.actions().sendKeys(Key.ESCAPE).perform();
+      await browser.wait(
+        async () =>
+          (await browser
+            .findElement(By.css('button[aria-label^="Update channels:"]'))
+            .getAttribute("aria-expanded")) === "false",
+        5_000,
+        "Channel choices did not close before the next filter action",
+      );
+    };
+    const toggleChannel = async (channel: string) => {
+      const choice = await channelChoice(channel);
+      const previous = await choice.getAttribute("aria-checked");
+      await clickVisible(browser, choice);
+      await browser.wait(
+        async () => (await choice.getAttribute("aria-checked")) !== previous,
+        5_000,
+        `${channel} channel did not toggle`,
+      );
+      await closeChannelChoices();
+    };
+    const expectSelectedChannels = async (channels: string[]) => {
+      for (const channel of ["stable", "beta", "rolling"])
+        assert.equal(
+          await (await channelChoice(channel)).getAttribute("aria-checked"),
+          String(channels.includes(channel)),
+        );
+      await closeChannelChoices();
     };
     const expectChannels = async (channels: string[]) => {
       const expected =
@@ -3534,27 +3570,23 @@ try {
         5_000,
         `Discover did not display the exact ${channels.join("+") || "All"} matching-port union once`,
       );
-      for (const channel of ["stable", "beta", "rolling"])
-        assert.equal(
-          await (await channelButton(channel)).getAttribute("aria-pressed"),
-          String(channels.includes(channel)),
-        );
+      await expectSelectedChannels(channels);
     };
     await clearCatalogFilters(browser);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["stable"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
-    await (await channelButton("stable")).click();
+    await toggleChannel("stable");
     await expectChannels(["beta"]);
-    await (await channelButton("beta")).click();
+    await toggleChannel("beta");
     await expectChannels([]);
-    await (await channelButton("rolling")).click();
+    await toggleChannel("rolling");
     await expectChannels(["rolling"]);
     await clearCatalogFilters(browser);
     await expectChannels([]);
-    await (await channelButton("stable")).click();
-    await (await channelButton("beta")).click();
+    await toggleChannel("stable");
+    await toggleChannel("beta");
     await expectChannels(["stable", "beta"]);
     await search.sendKeys("zelda");
     await reviewControls(browser).click(
@@ -3564,7 +3596,7 @@ try {
     const sort = By.xpath('//button[@role="combobox"][contains(., "Sort")]');
     await browser.findElement(sort).click();
     await browser
-      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Name A–Z")]')), 5_000)
+      .wait(until.elementLocated(By.xpath('//*[@role="option"][contains(., "Title A–Z")]')), 5_000)
       .click();
     const card = await browser.findElement(By.css(".discover-game-identity"));
     await executeBrowserScript(browser, "arguments[0].scrollIntoView({block:'center'});", card);
@@ -3600,7 +3632,7 @@ try {
     );
     search = await browser.findElement(By.id("port-search"));
     assert.equal(await search.getAttribute("value"), "zelda");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.ok(
       Math.abs(
         required(
@@ -3615,9 +3647,12 @@ try {
       "port-search",
     );
     await browser.actions().keyDown(Key.CONTROL).sendKeys("4").keyUp(Key.CONTROL).perform();
-    await browser.wait(until.elementLocated(By.css(".diagnostics-card")), 15_000);
+    await browser.wait(
+      until.elementLocated(By.xpath('//h1[normalize-space(.)="Settings"]')),
+      15_000,
+    );
     const switchTo = async (target: string, artifactName: string, previousGeneration: number) => {
-      await selectPrimaryNavigation(browser, "Settings");
+      await selectSettingsCategory("advanced");
       await browser.wait(
         async () => {
           const diagnostics = await browser.findElement(By.css(".diagnostics-card"));
@@ -3626,6 +3661,7 @@ try {
         15_000,
         "Settings diagnostics did not settle before the library switch",
       );
+      await selectSettingsCategory("integrations");
       await browser.wait(
         async () => {
           const connection = await browser.findElement(
@@ -3640,6 +3676,7 @@ try {
         65_000,
         "GitHub status request retained the outgoing library lease",
       );
+      await selectSettingsCategory("library-storage");
       await browser
         .findElement(By.xpath('//button[normalize-space(.)="Choose another library"]'))
         .click();
@@ -3718,6 +3755,7 @@ try {
         }
       }
       assert.equal(outcome, "switched", `Library switch failed: ${JSON.stringify(outcome)}`);
+      await selectSettingsCategory("library-storage");
       await browser.wait(
         until.elementLocated(By.xpath('//button[normalize-space(.)="Choose another library"]')),
         15_000,
@@ -3727,9 +3765,7 @@ try {
     await selectPrimaryNavigation(browser, "Discover");
     const alternateSearch = await browser.wait(until.elementLocated(By.id("port-search")), 15_000);
     assert.equal(await alternateSearch.getAttribute("value"), "");
-    const alternateBeta = await channelButton("beta");
-    assert.equal(await alternateBeta.getAttribute("aria-pressed"), "false");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "false");
+    await expectSelectedChannels([]);
     const alternateStatus = success(await invoke("get_bootstrap_status"));
     await switchTo(library, "library-picker-select-original", alternateStatus.generation);
     await selectPrimaryNavigation(browser, "Discover");
@@ -3740,10 +3776,8 @@ try {
       5_000,
       "Saved catalog focus did not return after library data loaded",
     );
-    const restoredBeta = await channelButton("beta");
-    assert.equal(await restoredBeta.getAttribute("aria-pressed"), "true");
-    assert.equal(await (await channelButton("stable")).getAttribute("aria-pressed"), "true");
-    assert.ok((await browser.findElement(sort).getText()).includes("Name A–Z"));
+    await expectSelectedChannels(["stable", "beta"]);
+    assert.ok((await browser.findElement(sort).getText()).includes("Title A–Z"));
     assert.equal((await browser.findElements(By.css('[role="dialog"]'))).length, 0);
     await browser.wait(
       async () => (await browser.findElements(By.css(".loading-state"))).length === 0,
