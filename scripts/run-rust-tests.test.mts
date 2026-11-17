@@ -481,6 +481,84 @@ void test("Linux runner monitors its reaper and registers the separate gated Nod
   }
 });
 
+for (const scenario of [
+  { name: "delayed successful publication", platform: "linux", outcome: "success" },
+  { name: "delayed failed reaper", platform: "linux", outcome: "reaper-failure" },
+  { name: "delayed failed receipt", platform: "linux", outcome: "receipt-failure" },
+  { name: "live reaper", platform: "linux", outcome: "live" },
+  { name: "explicit five-second override", platform: "linux", outcome: "short-budget" },
+  { name: "unchanged macOS default", platform: "darwin", outcome: "short-budget" },
+] as const)
+  void test(`parent exit budget preserves custody for ${scenario.name}`, async (context) => {
+    const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-reaper-budget-"));
+    const child = childProcess(832, null);
+    const events: string[] = [];
+    let settled = false;
+    context.mock.timers.enable({ apis: ["setTimeout", "Date"] });
+    try {
+      const result = runRustTests(["--guard-command", "owned-fixture"], {
+        ...supportCacheDoubles(),
+        tempRoot,
+        platform: scenario.platform,
+        spawnSync: () => ({ status: 0 }),
+        spawn: () => child,
+        writeGate: () => {
+          if (scenario.outcome !== "live")
+            setTimeout(() => {
+              events.push("reaper-exit");
+              child.emit("close", scenario.outcome === "reaper-failure" ? 1 : 0);
+            }, 6_000);
+        },
+        closeLinuxControl: () => {},
+        readUnixSupervisorStatus: () => 7,
+        readCleanupReceipt: () => {
+          events.push("receipt");
+          return {
+            outcome: scenario.outcome === "receipt-failure" ? "failed:linux-reaper" : "quiescent",
+          };
+        },
+        ...(scenario.platform === "linux" && scenario.outcome === "short-budget"
+          ? { treeWaitMilliseconds: 5_000 }
+          : {}),
+        acquireLock: async () => ({
+          childEnvironment: {},
+          registerChild: async () => ({ pid: 833 }),
+          release: async () => {
+            events.push("release");
+          },
+        }),
+      });
+      void result.finally(() => (settled = true)).catch(() => {});
+      await new Promise((resolve) => setImmediate(resolve));
+      context.mock.timers.tick(5_000);
+      await new Promise((resolve) => setImmediate(resolve));
+      if (scenario.outcome === "short-budget") {
+        await assert.rejects(result, { code: "PORTCOVE_HEAVY_RUST_TREE_ACTIVE" });
+        assert.deepEqual(events, [], "The shorter budget must retain ownership before exit");
+        return;
+      }
+      assert.equal(settled, false, "Linux must allow publication beyond the former five seconds");
+      assert.deepEqual(events, [], "Payload status alone must not release ownership");
+      context.mock.timers.tick(1_000);
+      await new Promise((resolve) => setImmediate(resolve));
+      if (scenario.outcome === "success") {
+        assert.equal(await result, 7, "Preserve the payload status after successful cleanup");
+        assert.deepEqual(events, ["reaper-exit", "receipt", "release"]);
+      } else if (scenario.outcome === "live") {
+        assert.equal(settled, false);
+        context.mock.timers.tick(24_000);
+        await assert.rejects(result, { code: "PORTCOVE_HEAVY_RUST_TREE_ACTIVE" });
+        assert.deepEqual(events, [], "A live reaper must retain ownership at the finite deadline");
+      } else {
+        await assert.rejects(result, /reaper failed after cleanup|cleanup evidence is invalid/u);
+        assert.deepEqual(events, ["reaper-exit", "receipt"]);
+      }
+    } finally {
+      context.mock.timers.reset();
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
 void test("inert non-Linux Unix route preserves the original watchdog invocation", async () => {
   const tempRoot = await mkdtemp(path.join(os.tmpdir(), "portcove-rust-runner-"));
   let launched: { command: string; args: readonly string[]; options: SpawnOptions } | undefined;
