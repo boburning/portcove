@@ -43,6 +43,7 @@ function commandList(first: () => void, second: () => void): PaletteCommand[] {
 it.each([
   [240, 160],
   [320, 213],
+  [960, 320],
 ])("keeps one scroll owner and keyboard access at %s by %s", async (width, height) => {
   await page.viewport(width, height);
   const action = vi.fn<(index: number) => void>();
