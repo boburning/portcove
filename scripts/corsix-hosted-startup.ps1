@@ -57,7 +57,12 @@ try {
   if ($install.data.artifact.sha256 -ne '751f837e79ada345f60fba9c97b4d0b2ad7cedcc157b5dd3c257ab7047d24ea2') { throw 'Actual selected publisher package differs' }
   $verify = Invoke-CliJson 'verify' @('verify','corsixth-corsixth')
   if (-not $verify.data.valid) { throw 'Installed runtime did not verify' }
-  $expectedPlayer = [IO.Path]::GetFullPath((Join-Path $install.data.path $install.data.selected_executable))
+  # CLI report paths are escaped presentation strings. Bind the actual private files instead.
+  $versions = @(Get-ChildItem -LiteralPath (Join-Path $library 'versions/corsixth-corsixth') -Directory)
+  if ($versions.Count -ne 1 -or $versions[0].Name -ne $install.data.artifact.sha256 -or ($versions[0].Attributes -band [IO.FileAttributes]::ReparsePoint) -or $install.data.selected_executable -ne 'CorsixTH.exe' -or $verify.data.install_id -ne $install.data.id) { throw 'Actual private installation identity differs' }
+  $expectedPlayer = [IO.Path]::GetFullPath((Join-Path $versions[0].FullName 'CorsixTH.exe'))
+  if ((Get-Item -LiteralPath $expectedPlayer).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Expected player is linked' }
+
   $request = [Guid]::NewGuid().ToString()
   $start = [Diagnostics.ProcessStartInfo]::new($cli)
   $start.UseShellExecute = $false
@@ -85,7 +90,9 @@ try {
       $created = [CorsixWindow]::Created($gameHandle)
       if ($record.supervisor_pid -ne $process.Id -or $record.supervisor_identity -ne "windows-filetime:$rootCreated" -or $record.child_identity -ne "windows-filetime:$created" -or $created -lt $rootCreated) { throw 'Owned root/child chronology or identity differs' }
       $actualPlayer = [IO.Path]::GetFullPath($game.MainModule.FileName)
-      if ($actualPlayer -ne $expectedPlayer -or $game.SessionId -ne $process.SessionId) { throw 'Actual child image or session differs' }
+      @{expected_player=$expectedPlayer; actual_player=$actualPlayer; reported_install_path=$install.data.path; actual_session=$game.SessionId; expected_session=$process.SessionId; child_pid=$game.Id; child_identity=$record.child_identity} | ConvertTo-Json | Set-Content (Join-Path $native 'child-binding.json') -Encoding utf8
+      if ($actualPlayer -ne $expectedPlayer) { throw 'Actual child image differs from private installed file' }
+      if ($game.SessionId -ne $process.SessionId) { throw 'Actual child session differs' }
       $parent = Get-CimInstance Win32_Process -Filter "ProcessId = $($game.Id)"
       if (-not $parent -or $parent.ParentProcessId -ne $process.Id) { throw 'Actual child parent differs from retained root' }
       $boundCreated = $created
