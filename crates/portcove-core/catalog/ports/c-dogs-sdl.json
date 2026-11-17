@@ -40,6 +40,10 @@
       "help_url": "https://cxong.github.io/cdogs-sdl/downloads.html",
       "references": [
         {
+          "title": "Resume a backed-up campaign",
+          "instruction": "With C-Dogs SDL closed, restore autosave.json to the profile folder for the copy you use. Leave the saved campaign available in the game. Open Start, choose Continue, and after selecting your players choose Continue with the saved mission number. Start campaign begins from the first mission."
+        },
+        {
           "title": "Use a permitted Apple Silicon copy",
           "instruction": "The publisher disk image contains an Apple Silicon player targeting macOS 11 or later. Keep the complete cdogs-sdl folder and its SDL frameworks together. The executable is bin/cdogs-sdl. Intel Macs need a separately prepared source build."
         },
