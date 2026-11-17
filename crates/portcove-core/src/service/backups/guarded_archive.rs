@@ -84,6 +84,14 @@ pub(super) fn manifest_input(
     match operation.original_paths.as_slice() {
         [] => Ok(None),
         [path] if path.parent() == Some(recovery) && manifest_filename(path) => {
+            if operation.phase == LifecyclePhase::CleanupPending {
+                refuse_symlink_ancestors(path)?;
+                if !path.try_exists()? {
+                    // After the cleanup transition the operation-owned directory
+                    // may already have been deleted, including its receipt.
+                    return Ok(Some(path.clone()));
+                }
+            }
             let manifest = read_input(path)?;
             if manifest.port_id != operation.port_id {
                 return Err(PortcoveError::verification(

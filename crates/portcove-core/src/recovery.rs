@@ -505,7 +505,6 @@ pub(crate) fn recover_restore(
             "restore preparation was interrupted before backup verification",
         ));
     }
-    let recovery_root = restore.recovery_root.clone();
     let staged = restore.staged_data.clone();
     let user_root = restore.user_root.clone();
     let previous = restore.previous_data.clone();
@@ -563,30 +562,26 @@ pub(crate) fn recover_restore(
     }
     if matches!(
         restore.phase,
-        RestorePhase::Published | RestorePhase::Committed | RestorePhase::CleanupPending
+        RestorePhase::Published | RestorePhase::Committed
     ) {
         service.require_restore_snapshot_authority(operation, &user_root)?;
         require_projection(&user_root)?;
-        if previous.try_exists()? {
-            require_projection(&previous)?;
+        if restore.phase == RestorePhase::Published {
+            if previous.try_exists()? != restore.replaces_existing_data {
+                return Err(PortcoveError::conflict(
+                    "restore publication paths are ambiguous; keeping the backup for recovery",
+                ));
+            }
+            if restore.replaces_existing_data {
+                require_projection(&previous)?;
+            }
         }
         service.synchronize_restored_user_data(&operation.port_id)?;
     }
     if restore.phase == RestorePhase::Published {
         restore.advance(RestorePhase::Committed, operation, store)?;
     }
-    if matches!(
-        restore.phase,
-        RestorePhase::Committed | RestorePhase::CleanupPending
-    ) {
-        if previous.exists() {
-            fs::remove_dir_all(&previous)?;
-        }
-        if recovery_root.exists() {
-            fs::remove_dir_all(&recovery_root)?;
-        }
-        store.remove(&operation.id)?;
-    }
+    service.finish_restore_cleanup(store, operation)?;
     Ok(())
 }
 

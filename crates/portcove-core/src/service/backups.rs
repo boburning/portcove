@@ -290,6 +290,7 @@ impl RestoreOperation {
                 (RestorePhase::Unverified, RestorePhase::ReadyToPublish)
                     | (RestorePhase::ReadyToPublish, RestorePhase::Published)
                     | (RestorePhase::Published, RestorePhase::Committed)
+                    | (RestorePhase::Committed, RestorePhase::CleanupPending)
             )
         {
             return Err(PortcoveError::state(
@@ -1530,6 +1531,52 @@ impl PortcoveService {
         })
     }
 
+    /// Finishes only operation-owned cleanup after the published snapshot and
+    /// setup have been checked and synchronized.
+    pub(crate) fn finish_restore_cleanup(
+        &self,
+        store: &OperationStore,
+        operation: &mut LifecycleOperation,
+    ) -> Result<()> {
+        let mut restore = self.validate_restore_operation(operation)?;
+        let previous_exists = restore.previous_data.try_exists()?;
+        if !matches!(
+            restore.phase,
+            RestorePhase::Committed | RestorePhase::CleanupPending
+        ) || !restore.user_root.try_exists()?
+            || restore.staged_data.try_exists()?
+            || (previous_exists
+                && (!restore.replaces_existing_data
+                    || restore.phase == RestorePhase::CleanupPending))
+        {
+            return Err(PortcoveError::conflict(
+                "restore cleanup paths do not match the committed operation",
+            ));
+        }
+
+        if restore.phase == RestorePhase::Committed {
+            if previous_exists {
+                fs::remove_dir_all(&restore.previous_data)?;
+                crate::durability::sync_publication(&restore.recovery_root)?;
+            }
+            restore.advance(RestorePhase::CleanupPending, operation, store)?;
+        } else {
+            // Cleanup could already have removed the receipt. The durable phase
+            // authorizes finishing private cleanup, never another publication.
+            if let Some(input) = &restore.input_manifest
+                && input.try_exists()?
+            {
+                self.require_restore_snapshot_authority(operation, &restore.user_root)?;
+            }
+            self.require_restore_profile_projection(&operation.port_id, &restore.user_root)?;
+        }
+        if restore.recovery_root.try_exists()? {
+            fs::remove_dir_all(&restore.recovery_root)?;
+        }
+        store.remove(&operation.id)?;
+        Ok(())
+    }
+
     pub fn restore_backup(
         &self,
         port_id: &str,
@@ -1715,16 +1762,12 @@ impl PortcoveService {
             self.validate_restore_operation(&lifecycle)?;
             self.require_restore_snapshot_authority(&lifecycle, &user_root)?;
             self.require_restore_profile_projection(port_id, &user_root)?;
+            if previous_data.try_exists()? {
+                self.require_restore_profile_projection(port_id, &previous_data)?;
+            }
             self.synchronize_restored_user_data(port_id)?;
             restore.advance(RestorePhase::Committed, &mut lifecycle, &store)?;
-            self.validate_restore_operation(&lifecycle)?;
-            if previous_data.exists() {
-                fs::remove_dir_all(&previous_data)?;
-            }
-            if recovery_root.exists() {
-                fs::remove_dir_all(&recovery_root)?;
-            }
-            store.remove(&lifecycle.id)?;
+            self.finish_restore_cleanup(&store, &mut lifecycle)?;
             Ok(RestoreResult {
                 restored_backup,
                 safety_backup,

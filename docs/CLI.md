@@ -2060,9 +2060,11 @@ setup. A mismatch, missing package, or unrecognized file in the mods folder
 holds the restore and preserves the backup and current data. Choose a matching
 backup or setup. Where supported, save-only import can recover progress. An
 interrupted full restore keeps its verified backup receipt with the operation
-and rechecks the setup before publication or synchronization. Library database
-schema 66 requires clients that enforce this restore and launch contract. Close
-older clients before opening the library again.
+and rechecks the setup before publication or synchronization. After commit, a
+restart can finish removing the private staging files without publishing the
+backup again. Library database schema 66 requires clients that enforce this
+restore and launch contract. Close older clients before opening the library
+again.
 
 Before a game launches, Portcove also checks that the selected setup's exact
 packages remain in the mods folder. Review changed, missing, or unexpected files

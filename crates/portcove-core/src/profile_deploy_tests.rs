@@ -394,6 +394,81 @@ fn interrupted_full_restore_preserves_the_projection_and_evidence_on_both_sides_
 }
 
 #[test]
+fn committed_restore_resumes_partial_cleanup_without_republishing() {
+    use crate::operation::{
+        LifecycleOperation, LifecycleOperationKind, LifecyclePhase, OperationStore,
+    };
+
+    for phase in [
+        LifecyclePhase::PayloadPublished,
+        LifecyclePhase::MetadataCommitted,
+        LifecyclePhase::CleanupPending,
+    ] {
+        let w = world();
+        let package = archive(&w.scratch, "hd-link.o2r", &[("objects/link.bin", b"hd")]);
+        w.service
+            .install_mod_package("starship", &w.default, &package, 1)
+            .unwrap();
+        let canonical = user(&w);
+        let save = canonical.join("saves/progress.sav");
+        fs::create_dir_all(save.parent().unwrap()).unwrap();
+        fs::write(&save, b"restored progress").unwrap();
+        let backup = w.service.create_backup("starship").unwrap();
+        let manifest = fs::read(backup.path.join("backup.json")).unwrap();
+
+        let id = uuid::Uuid::new_v4().to_string();
+        let recovery = w.service.library().recovery_dir().join(&id);
+        let previous = recovery.join("previous-data");
+        let receipt = recovery.join(format!(
+            "verified-backup-{}.json",
+            crate::signed_catalog::digest(&manifest)
+        ));
+        if phase != LifecyclePhase::CleanupPending {
+            crate::service::copy_tree(&backup.path.join("data"), &previous).unwrap();
+            fs::remove_file(previous.join("mods/hd-link.o2r")).unwrap();
+            fs::write(&receipt, &manifest).unwrap();
+        }
+
+        let mut operation =
+            LifecycleOperation::new(&id, LifecycleOperationKind::Restore, "starship");
+        operation.phase = phase;
+        operation.activate = true;
+        operation.original_paths = vec![receipt.clone()];
+        operation.paths.staging = Some(recovery.clone());
+        operation.paths.final_path = Some(canonical.clone());
+        operation.paths.quarantine = Some(previous.clone());
+        let store = OperationStore::new(w.service.library().clone());
+        let _guard = w
+            .service
+            .library()
+            .try_lock_port("starship", "test interrupted restore cleanup")
+            .unwrap();
+        store.put(&mut operation).unwrap();
+
+        let result = crate::recovery::recover_restore(&w.service, &store, &mut operation);
+        if phase == LifecyclePhase::PayloadPublished {
+            assert_eq!(
+                result.unwrap_err().details["missing_package"],
+                "hd-link.o2r"
+            );
+            assert_eq!(store.get(&id).unwrap().unwrap().phase, phase);
+            assert!(previous.is_dir());
+            assert!(receipt.is_file());
+        } else {
+            result.unwrap();
+            assert!(store.get(&id).unwrap().is_none());
+            assert!(!recovery.exists());
+        }
+        assert_eq!(fs::read(&save).unwrap(), b"restored progress");
+        assert_eq!(
+            fs::read(canonical.join("mods/hd-link.o2r")).unwrap(),
+            fs::read(&package).unwrap()
+        );
+        assert_eq!(fs::read(backup.path.join("backup.json")).unwrap(), manifest);
+    }
+}
+
+#[test]
 fn interrupted_unbound_restore_holds_only_when_a_setup_is_selected() {
     use crate::operation::{LifecycleOperation, LifecycleOperationKind, LifecyclePhase};
 
