@@ -33,7 +33,7 @@ import {
   AccountDriverView,
 } from "./desktop-native-account-session.mts";
 import { writeFileSync } from "node:fs";
-import { mkdir, readFile, readdir, writeFile, lstat } from "node:fs/promises";
+import { mkdir, readFile, readdir, writeFile, lstat, rename } from "node:fs/promises";
 import path from "node:path";
 import net from "node:net";
 import { fileURLToPath } from "node:url";
@@ -90,7 +90,8 @@ import {
 import { preparationScenarios } from "./desktop-preparation-test.mts";
 import { seedSelectedSetup, selectedSetupScenario } from "./desktop-source-dialog-test.mts";
 import { selectedSetupCompletionScenario } from "./desktop-selected-setup-completion-test.mts";
-import { setupBatchScenario } from "./desktop-setup-batch-test.mts";
+import { setupBatchScenario, largeSetupReviewScenario } from "./desktop-setup-batch-test.mts";
+import { standingSetupScenario } from "./desktop-standing-setup-test.mts";
 import { nativeConfirmation } from "./desktop-native-confirmation.mts";
 import { controllerScenario } from "./desktop-controller-test.mts";
 import { accessibleNavigationScenario } from "./desktop-accessibility-test.mts";
@@ -116,7 +117,10 @@ import {
   clearCatalogFilters,
   catalogResultPortIds,
 } from "./desktop-review-controls.mts";
-import { createInstallFixture } from "./desktop-install-fixture.mts";
+import {
+  createInstallFixture,
+  prepareLargeSetupReviewFixture,
+} from "./desktop-install-fixture.mts";
 import {
   createExternalRuntimeFixture,
   externalFixtureTreeDigest,
@@ -354,6 +358,7 @@ const { inputs, runnerMetadata, metadataPhases } = await observeDesktopHarnessIn
 let acceptancePreflight: Awaited<ReturnType<typeof writeAcceptancePreflight>> | undefined;
 const packetFixtureIdentities: (FileIdentity & { role: string })[] = [];
 type InstallFixture = Awaited<ReturnType<typeof createInstallFixture>>;
+let largeSetupReviewFixture: Awaited<ReturnType<typeof prepareLargeSetupReviewFixture>> | undefined;
 let installFixture:
   | (Omit<InstallFixture, "sourceJourney"> & {
       sourceJourney:
@@ -401,6 +406,7 @@ const linuxSelectedSession =
         [
           "native-selected-setup-completion",
           "native-saved-folder-selected-setup",
+          "native-large-discovery-setup-review",
           "native-linux-packaged-webview-boundary",
           "native-linux-webview-origin-boundary",
           "native-linux-interrupted-preparation",
@@ -1722,6 +1728,12 @@ function requiresReadOnlyRestart(name: string, acquisitionRestart: boolean) {
     !hostPublicationSession &&
     !acquisitionRestart &&
     !(
+      process.platform === "win32" &&
+      selection.selected_scenarios.length === 1 &&
+      selection.selected_scenarios[0] === "native-standing-setup-source-return" &&
+      name === "standing-original-return"
+    ) &&
+    !(
       reviewedWorkflowSession &&
       selection.selected_scenarios.includes("native-staged-update-composition") &&
       name === "native-staged-update-composition"
@@ -2620,6 +2632,11 @@ try {
       holdFirstDownload: executionPlan.fixtures.holdFirstDownload,
       ...(values["preparation-tool"] ? { preparationTool: values["preparation-tool"] } : {}),
     });
+    if (selection.selected_scenarios.includes("native-large-discovery-setup-review")) {
+      largeSetupReviewFixture = await prepareLargeSetupReviewFixture(installFixture, revision);
+      for (const original of largeSetupReviewFixture.originals)
+        for (const copy of original.copies) inputs.push(await fileIdentity(copy));
+    }
     if (installFixture.sourceJourney) {
       if (installFixture.preliminaryJourney)
         for (const name of ["path", "before"] as const)
@@ -2643,7 +2660,13 @@ try {
         });
     }
     inputs.push(await fileIdentity(installFixture.artifactPath));
-    if (selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")) {
+    if (
+      selection.selected_scenarios.some((id) =>
+        ["native-reviewed-discovery-setup-batch", "native-standing-setup-source-return"].includes(
+          id,
+        ),
+      )
+    ) {
       // Owned pre-state, not native source-registration acceptance. The native
       // scenario exercises only discovery selection, batch consent and lifecycle.
       const owned = required(installFixture.sourceJourney);
@@ -2655,6 +2678,23 @@ try {
       });
       command(["source", "add", required(owned.profiles[0]), owned.gamePath]);
       command(["source", "add", required(owned.profiles[1]), owned.biosPath]);
+      if (selection.selected_scenarios.includes("native-standing-setup-source-return")) {
+        const unavailable = `${owned.directory}-unavailable`;
+        assert.ok((await lstat(owned.directory)).isDirectory());
+        assert.equal(path.dirname(owned.directory), path.resolve(output));
+        await assert.rejects(lstat(unavailable), { code: "ENOENT" });
+        await rename(owned.directory, unavailable);
+      }
+    }
+    if (largeSetupReviewFixture) {
+      const command = ownedFixtureCommand({
+        cli: required(values["preparation-cli"]),
+        library,
+        output,
+        catalogPath: installFixture.catalogPath,
+      });
+      for (const original of largeSetupReviewFixture.originals)
+        command(["source", "add", original.profile, original.path]);
     }
     inputs.push(await fileIdentity(installFixture.catalogPath));
   }
@@ -4876,13 +4916,21 @@ try {
         install: installScenarios,
         selectedSetup: (context) =>
           selectedFixtureFamilies.has("selected-setup")
-            ? selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
-              ? setupBatchScenario({ ...context, fixture: required(context.fixture) })
-              : selectedSetupScenario({
-                  ...context,
-                  fixture: required(context.fixture),
-                  cli: required(context.cli),
-                })
+            ? selection.selected_scenarios.includes("native-standing-setup-source-return")
+              ? standingSetupScenario({ ...context, fixture: required(context.fixture) })
+              : selection.selected_scenarios.includes("native-reviewed-discovery-setup-batch")
+                ? setupBatchScenario({ ...context, fixture: required(context.fixture) })
+                : selection.selected_scenarios.includes("native-large-discovery-setup-review")
+                  ? largeSetupReviewScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      largeReview: required(largeSetupReviewFixture),
+                    })
+                  : selectedSetupScenario({
+                      ...context,
+                      fixture: required(context.fixture),
+                      cli: required(context.cli),
+                    })
             : Promise.resolve(),
         selectedSetupCompletion: ({ chooseGameFileFolder, ...context }) =>
           selectedFixtureFamilies.has("selected-setup-completion")

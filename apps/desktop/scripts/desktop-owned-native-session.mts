@@ -455,6 +455,7 @@ export class OwnedNativeSession {
             "native-update-acquisition-lifecycle",
             "native-selected-setup-completion",
             "native-reviewed-discovery-setup-batch",
+            "native-standing-setup-source-return",
             "native-preliminary-source-review",
             "native-retained-contract-repair-state",
             "native-backup-delete-focus",

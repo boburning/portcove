@@ -2229,6 +2229,32 @@ intact. Launch history stays empty. Reports include screenshots and positive
 owned-process closure. This fixture does not establish native picker, real-game,
 gameplay or physical-storage acceptance.
 
+`just desktop-verify --scenario native-standing-setup-source-return --require-clean`
+selects one standalone Windows journey. The CLI seeds an isolated saved folder
+and inert originals before their owned directory becomes unavailable. Desktop
+saves one Set up when ready choice. An observer records the actual automatic
+pass without changing its request or response. The pass must name the missing
+saved folder and leave attempts, batches and downloads unchanged.
+After positive process exit, the restart owner restores the same directory.
+Normal startup then installs only the selected integration. The scenario checks
+the files, consent and retained identities after another restart. No game starts.
+This fixture does not establish SMB reconnect, physical storage, real-game or
+gameplay acceptance. A failed run retains the unavailable original directory
+rather than restoring it while the consented app is still live.
+
+`just desktop-verify --scenario native-large-discovery-setup-review --require-clean`
+selects one standalone Windows or Linux review journey outside routine profiles.
+An isolated CLI saves one root and registers 21 distinct inert originals, with
+four identical copies of each original. Desktop continues the bounded scan to
+84 retained matches, selects all 20 independent eligible games before loading
+the remaining result page, and leaves one game's two implementations unselected.
+Keyboard activation opens the exact twenty-game review and cancels it. No batch,
+download, installation or launch may occur; original files and registrations stay
+unchanged. The native receipt includes the scan identity, selected plans, counts,
+screenshots and ordinary harness process cleanup. It does not establish native
+picker, retail, gameplay or physical-storage acceptance. Execution of a reviewed
+batch is qualified separately.
+
 `just desktop-verify --scenario native-selected-setup-completion --require-clean`
 selects the standalone owned-input journey on Windows: bounded two-port
 review, actual individual installation cancellation/retry and inert preparation,
