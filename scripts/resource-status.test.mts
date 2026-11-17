@@ -52,7 +52,10 @@ void test("Windows passive resource identities share one creation-time snapshot"
   assert.equal(calls, 0);
   assert.equal(inspect(12), "win32:12:638983830665234567");
   assert.notEqual(inspect(13), "win32:13:638983830665234569");
-  assert.throws(() => inspect(14), /no observed creation identity/u);
+  assert.throws(() => inspect(14), {
+    code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    message: /no observed creation identity/u,
+  });
   for (let pid = 100; pid < 205; pid++) assert.equal(inspect(pid), null);
   assert.equal(calls, 1);
 });
@@ -62,11 +65,14 @@ void test("Windows resource identity probe failures are observable", () => {
     const inspect = passiveProcessIdentityReader("win32", () => raw);
     assert.throws(() => inspect(123), /Invalid Windows process identity snapshot/u);
   }
-  const error = new Error("timed out reading identities");
+  const error = Object.assign(new Error("timed out reading identities"), { code: "ETIMEDOUT" });
   const inspect = passiveProcessIdentityReader("win32", () => {
     throw error;
   });
-  assert.throws(() => inspect(123), error);
+  assert.throws(() => inspect(123), {
+    code: "PORTCOVE_PROCESS_IDENTITY_UNAVAILABLE",
+    cause: error,
+  });
 });
 
 void test("host I/O observations preserve counters and reject malformed or incomplete data", async () => {

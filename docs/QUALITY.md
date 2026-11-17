@@ -453,6 +453,19 @@ This authority does not change application cancellation, shutdown, locking,
 network, security or other behavioral deadlines, acceptance or release authority.
 A pass under a larger budget proves completion under that budget.
 
+The November 17 Linux Heavy Rust calibration raises the parent's adopting-reaper
+exit wait from 5 to 30 seconds. A guarded desktop build at `95f11af1` returned
+payload status 0 and eventually published a positive quiescence receipt, but its
+wrapper retained the lock after the former five-second wait expired. The receipt's
+write and final inode-change timestamps were 5.784 seconds apart, consistent with
+delayed durable publication. The finite 30-second parent wait leaves room for the
+reaper's unchanged five-second descendant drain, receipt flush/publication and
+scheduling. Explicit wait overrides, non-Linux five-second waits, receipt checks,
+successful reaper exit and lock retention on unproved cleanup remain unchanged.
+Controlled-clock runner tests cover delayed success, failure and the finite
+deadline; they do not turn the retained original wrapper failure into a pass or
+establish a new native build observation.
+
 The strict default nextest profile, used by local runs and qualification,
 allows zero automatic test retries. By explicit owner decision (November 2026),
 the ordinary hosted Windows partition profile `hosted-windows` allows one
