@@ -2297,9 +2297,38 @@ it("uses descriptive display metadata only in the shared detail shell", () => {
   expect(detailSection(html, "files")).not.toContain('id="source-display-only-source"');
 });
 
+it("shows separately scoped definition and upstream-only targets in a mixed detail", () => {
+  const html = renderToStaticMarkup(
+    <DetailPanel
+      port={port}
+      displayPort={{
+        ...port,
+        listing: {
+          id: port.id,
+          name: port.name,
+          summary: port.summary,
+          project_url: port.project_url,
+          platforms: ["windows-x86-64", "macos-x86-64", "macos-aarch64"],
+          availability: "packages",
+        },
+      }}
+      sourcePath=""
+      setSourcePath={vi.fn()}
+      actions={actions}
+    />,
+  );
+  const overview = detailSection(html, "overview");
+  expect(overview).toContain("<dt>Portcove setup platforms</dt><dd>Windows</dd>");
+  expect(overview).toContain(
+    "<dt>Upstream project platforms</dt><dd>macOS Intel · Apple silicon</dd>",
+  );
+  expect(html).toContain("macOS · Upstream");
+});
+
 it("explains the retained setup and saved-data contract after current metadata changes", () => {
   const current = {
     ...port,
+    platforms: ["linux-x86-64"] as PortDefinition["platforms"],
     persistent_paths: ["new-catalog-only"],
     presentation: { ...port.presentation!, manual_preparation: "New catalog guidance" },
   };
@@ -2340,6 +2369,12 @@ it("explains the retained setup and saved-data contract after current metadata c
     />,
   );
   expect(html).toContain("Original retained guidance");
+  expect(detailSection(html, "overview")).toContain(
+    "<dt>Recorded installation platforms</dt><dd>Windows</dd>",
+  );
+  const hero = html.slice(html.indexOf("data-hero-identity="), html.indexOf('class="detail-tabs'));
+  expect(hero).toContain(">Windows</span>");
+  expect(hero).not.toContain(">Linux</span>");
   expect(html).toContain("Retained original requirement");
   const coverage =
     html.match(/<section aria-label="Saved-data coverage">([\s\S]*?)<\/section>/u)?.[1] ?? "";

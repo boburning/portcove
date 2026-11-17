@@ -75,7 +75,8 @@
     "originalSystem": "Sistema original",
     "originalSystemUnspecified": "Sistema original no especificado",
     "runsOn": "Funciona en",
-    "selectedChannel": "Canal de actualización seleccionado"
+    "selectedChannel": "Canal de actualización seleccionado",
+    "upstreamPlatform": "{{platform}} · Proyecto original"
   },
   "requirements": {
     "fallback": "Revisa Archivos del juego y las instrucciones del proyecto original para conocer los requisitos de esta adaptación.",

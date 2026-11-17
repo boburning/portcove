@@ -75,7 +75,8 @@
     "originalSystem": "النظام الأصلي",
     "originalSystemUnspecified": "النظام الأصلي غير محدد",
     "runsOn": "يعمل على",
-    "selectedChannel": "قناة التحديث المحددة"
+    "selectedChannel": "قناة التحديث المحددة",
+    "upstreamPlatform": "{{platform}} · من المشروع الأصلي"
   },
   "requirements": {
     "fallback": "راجع ملفات اللعبة وتعليمات المشروع الأصلي لمعرفة متطلبات هذا المنفذ.",
