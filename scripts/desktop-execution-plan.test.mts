@@ -1836,3 +1836,31 @@ void test("MM selection binds only its normal CLI and exact private inputs", () 
     /exact standalone/u,
   );
 });
+
+void test("secondary panel presentation keeps isolated Windows custody and complete inputs", () => {
+  const id = "native-secondary-panel-presentation";
+  const selection = resolveDesktopSelection({ scenarios: [id], platform: "win32" });
+  const plan = planDesktopExecution(selection, { platform: "win32" });
+  assert.deepEqual(selection.selected_scenarios, [id]);
+  assert.deepEqual(selection.setup_scenarios, ["native-preparation-review-and-play"]);
+  assert.ok(selection.prerequisites.includes("native-dialog"));
+  assert.ok(selection.host_resources.includes("native-dialog"));
+  assert.equal(plan.session.identityBoundSession, true);
+  assert.equal(plan.session.cleanupName, "native-review");
+  assert.equal(plan.fixtures.owned, true);
+  assert.deepEqual(plan.build.cliFeatures, []);
+  assert.deepEqual(plan.build.qualificationFeatures, []);
+  assert.equal(desktopHarnessDeadlineMs(selection), 600_000);
+  const preparation = plan.fixtureFamilies.find((family) => family.family === "preparation");
+  assert.ok(preparation?.members?.some((member) => member.id === id && member.role === "selected"));
+  for (const file of [
+    "desktop-secondary-panels-test.mts",
+    "desktop-secondary-panels-probe.mts",
+    "desktop-secondary-panels-fixture.mts",
+  ])
+    assert.ok(plan.receiptInputs.some((input) => input.path === `apps/desktop/scripts/${file}`));
+  assert.throws(
+    () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
+    /standalone/,
+  );
+});

@@ -154,6 +154,7 @@ import {
   setupReviewButton,
 } from "./desktop-review-controls.mts";
 import { readinessScenario } from "./desktop-readiness-test.mts";
+import { secondaryPanelsScenario } from "./desktop-secondary-panels-test.mts";
 import { steamEntryScenario } from "./desktop-steam-entry-test.mts";
 import { sourceDialogScenario } from "./desktop-source-dialog-test.mts";
 import { primaryFilePickerScenario } from "./desktop-primary-file-picker-test.mts";
@@ -1972,6 +1973,16 @@ export async function preparationScenarios({
       5000,
       "Returning from overflow details must focus the originating card menu",
     );
+  });
+  await secondaryPanelsScenario({
+    browser,
+    scenario,
+    library,
+    output,
+    artifacts,
+    invoke: invokeRaw,
+    portId: "opengoal-jak1",
+    confirmNative,
   });
   await scenario("native-library-layout", async () => {
     const first = await seed("opengoal-jak1", "success");

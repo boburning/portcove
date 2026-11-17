@@ -345,6 +345,18 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     },
   ),
   scenario(
+    "native-secondary-panel-presentation",
+    "Secondary reviews render supplied states in the native WebView with owned DAT and metadata actions.",
+    {
+      prerequisites: ["desktop", "owned-fixture", "native-dialog"],
+      dependencies: ["native-preparation-review-and-play"],
+      host_resources: [...nativeResources, "native-dialog"],
+      source: "desktop-secondary-panels-test.mts",
+      qualification_only: true,
+      platforms: ["win32"],
+    },
+  ),
+  scenario(
     "native-ready-detail-composition",
     "Ready game details keep Play and the information hierarchy visible in both themes at supported window sizes.",
     {
@@ -765,6 +777,9 @@ export function resolveDesktopSelection({
   platform?: NodeJS.Platform;
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
+  // Supplied panel projections remain cached until the disposable session closes.
+  if (scenarios.includes("native-secondary-panel-presentation") && scenarios.length !== 1)
+    throw new Error("Native secondary-panel presentation requires one standalone scenario");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
   const profileScenarios = selectedProfile
     ? Object.entries(DESKTOP_PROFILES).find(([name]) => name === selectedProfile)?.[1]
@@ -968,6 +983,8 @@ export type DesktopSelection = ReturnType<typeof resolveDesktopSelection>;
 export function desktopHarnessDeadlineMs(
   selection: Pick<DesktopSelection, "selected_scenarios" | "setup_scenarios">,
 ) {
+  // Preparation, two-theme secondary reviews, native file dialogs and owned exit joins.
+  if (selection.selected_scenarios.includes("native-secondary-panel-presentation")) return 600_000;
   // Real saved-folder checks plus three bounded input pickers, two library
   // handoffs and positive custody. Product/cancellation deadlines are unchanged.
   if (selection.selected_scenarios.includes("native-saved-folder-selected-setup")) return 600_000;
