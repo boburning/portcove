@@ -2,7 +2,12 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { By, Key, until } from "selenium-webdriver";
+import { By, Key, until, type IRectangle, type WebDriver } from "selenium-webdriver";
+import {
+  INTERFACE_SIZES,
+  INTERFACE_SIZE_KEY,
+  type InterfaceSize,
+} from "../src/interface-size-controller.ts";
 import type {
   OutputDesktopWorkspaceSnapshot,
   IgdbArtwork,
@@ -137,17 +142,129 @@ interface Context extends ScenarioContext {
   setTheme: (theme: "dark" | "light") => Promise<unknown>;
 }
 
+/** Actual WebView dimensions and the preference confirmed by its native sizing owner. */
+export function observeCollectionViewport(preference: string) {
+  return {
+    width: innerWidth,
+    height: innerHeight,
+    device_pixel_ratio: devicePixelRatio,
+    interface_size: localStorage.getItem(preference),
+    theme: document.documentElement.dataset.theme,
+  };
+}
+
+/** Same production Ctrl+0/Ctrl++ route used by native Library/interface-size qualification. */
+export async function selectCollectionInterfaceSize(browser: WebDriver, size: InterfaceSize) {
+  assert.ok(INTERFACE_SIZES.includes(size));
+  const measure = () =>
+    executeBrowserScript(browser, observeCollectionViewport, INTERFACE_SIZE_KEY);
+  const shortcut = (key: string) =>
+    browser.actions().keyDown(Key.CONTROL).sendKeys(key).keyUp(Key.CONTROL).perform();
+  await shortcut("0");
+  await browser.wait(async () => (await measure()).interface_size === "100", 10_000);
+  const baseline = await measure();
+  for (const step of INTERFACE_SIZES.slice(1, INTERFACE_SIZES.indexOf(size) + 1)) {
+    await shortcut("+");
+    await browser.wait(
+      async () => {
+        const state = await measure();
+        return (
+          state.interface_size === String(step) &&
+          Math.abs(state.width - (baseline.width * 100) / step) <= 2 &&
+          Math.abs(state.height - (baseline.height * 100) / step) <= 2
+        );
+      },
+      10_000,
+      `Native collection interface size ${step}% did not settle`,
+    );
+  }
+  return { requested: size, baseline, applied: await measure() };
+}
+
+/** Join every owned presentation restoration before publishing the final failure. */
+export async function finishCollectionArtworkObservation(
+  context: Pick<Context, "browser" | "output" | "artifacts" | "setTheme">,
+  state: {
+    originalWindow: IRectangle;
+    originalTheme: string | undefined;
+    originalSize?: InterfaceSize | undefined;
+    restoreSize: boolean;
+    observations: readonly unknown[];
+    failures: readonly unknown[];
+    failure?: Error | undefined;
+  },
+) {
+  let failure = state.failure;
+  const cleanup: unknown[] = [];
+  const cleanupFailures: string[] = [];
+  const retainFailure = (error: unknown) => {
+    cleanupFailures.push(errorMessage(error));
+    failure ??= error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
+  };
+  await Promise.resolve()
+    .then(async () => {
+      await context.browser.manage().window().setRect(state.originalWindow);
+      const outer = await context.browser.manage().window().getRect();
+      assert.equal(outer.width, state.originalWindow.width);
+      assert.equal(outer.height, state.originalWindow.height);
+      cleanup.push({ phase: "restored-window", outer });
+    })
+    .catch(retainFailure);
+  if (state.restoreSize && state.originalSize !== undefined)
+    await selectCollectionInterfaceSize(context.browser, state.originalSize)
+      .then((geometry) => cleanup.push({ phase: "restored-interface-size", geometry }))
+      .catch(retainFailure);
+  const originalTheme = state.originalTheme;
+  if (originalTheme === "dark" || originalTheme === "light")
+    await Promise.resolve()
+      .then(() => context.setTheme(originalTheme))
+      .catch(retainFailure);
+  const report = path.join(context.output, "native-collection-artwork-observations.json");
+  await writeFile(
+    report,
+    JSON.stringify(
+      {
+        format_version: 1,
+        scenario: scenarioId,
+        observations: state.observations,
+        failures: state.failures,
+        cleanup,
+        cleanup_failures: cleanupFailures,
+        failure: failure ? errorMessage(failure) : null,
+        scope:
+          "Actual catalog, public native thumbnails, Discover/detail/credits only; isolated theme/interface-size preference writes; Library/Manage and installations are not covered",
+      },
+      null,
+      2,
+    ) + "\n",
+    { flag: "wx" },
+  )
+    .then(() => context.artifacts.push(report))
+    .catch(retainFailure);
+  return failure;
+}
+
 /** Real listing/thumbnail IPC only; no original files, installs, credentials or catalog writes. */
 export async function collectionArtworkScenario(context: Context) {
   await context.scenario(scenarioId, async () => {
-    const { browser, invoke, output, artifacts, library } = context;
+    const { browser, invoke, library } = context;
     const observations: unknown[] = [];
     const failures: unknown[] = [];
     const originalWindow = await browser.manage().window().getRect();
-    const originalTheme = await executeBrowserScript(
+    const originalViewport = await executeBrowserScript(
       browser,
-      () => document.documentElement.dataset.theme,
+      observeCollectionViewport,
+      INTERFACE_SIZE_KEY,
     );
+    const originalSize = INTERFACE_SIZES.find(
+      (size) => String(size) === originalViewport.interface_size,
+    );
+    observations.push({
+      phase: "original-window-and-zoom",
+      outer: originalWindow,
+      ...originalViewport,
+    });
+    let restoreSize = false;
     let primary: Error | undefined;
     const retainFailure = (error: unknown) => {
       primary ??= error instanceof Error ? error : new Error(errorMessage(error), { cause: error });
@@ -165,6 +282,10 @@ export async function collectionArtworkScenario(context: Context) {
         fixtureSuccess(await invoke("get_workspace_snapshot", { generation })),
       );
       const collections = collectionArtworkSubjects(snapshot);
+      assert.ok(
+        originalSize !== undefined,
+        "The native interface size must be confirmed before changing it",
+      );
       observations.push({
         phase: "catalog",
         generation,
@@ -228,18 +349,21 @@ export async function collectionArtworkScenario(context: Context) {
         );
       };
       for (const variant of [
-        { theme: "dark", width: 960, height: 640, compact: false },
-        { theme: "light", width: 960, height: 640, compact: false },
-        { theme: "dark", width: 430, height: 780, compact: true },
+        { theme: "dark", width: 960, height: 640, size: 100, compact: false },
+        { theme: "light", width: 960, height: 640, size: 100, compact: false },
+        { theme: "dark", width: 960, height: 640, size: 200, compact: true },
       ] as const) {
         await browser.manage().window().setRect({ width: variant.width, height: variant.height });
         const outer = await browser.manage().window().getRect();
         assert.equal(outer.width, variant.width);
         assert.equal(outer.height, variant.height);
         await context.setTheme(variant.theme);
+        restoreSize = true;
+        const geometry = await selectCollectionInterfaceSize(browser, variant.size);
+        observations.push({ phase: "native-window-and-zoom", outer, ...geometry });
         for (const collection of variant.compact ? collections.slice(1) : collections) {
           const { id, name, members } = collection;
-          const label = `collection-${variant.theme}-${variant.width}-${members.length}`;
+          const label = `collection-${variant.theme}-${variant.width}-${variant.size}-${members.length}`;
           await selectPrimaryNavigation(browser, "Discover");
           const search = await browser.wait(until.elementLocated(By.id("port-search")), 10_000);
           await search.sendKeys(Key.chord(Key.CONTROL, "a"), Key.BACK_SPACE, name);
@@ -362,7 +486,12 @@ export async function collectionArtworkScenario(context: Context) {
               `https://www.igdb.com/games/${member.game_slug}`,
             );
           }
-          await captureKeyboardTarget(context, `${label}-credits`, creditRegion, scenarioId);
+          await captureKeyboardTarget(
+            context,
+            `${label}-credits`,
+            variant.compact ? credits : creditRegion,
+            scenarioId,
+          );
           await clickVisible(
             browser,
             await browser.findElement(By.css(".detail-panel [data-detail-back]")),
@@ -413,33 +542,15 @@ export async function collectionArtworkScenario(context: Context) {
     } catch (error) {
       retainFailure(error);
     } finally {
-      const report = path.join(output, "native-collection-artwork-observations.json");
-      await writeFile(
-        report,
-        JSON.stringify(
-          {
-            format_version: 1,
-            scenario: scenarioId,
-            observations,
-            failures,
-            failure: primary ? errorMessage(primary) : null,
-            scope:
-              "Actual catalog, public native thumbnails, Discover/detail/credits only; Library/Manage and installations are not covered",
-          },
-          null,
-          2,
-        ) + "\n",
-        { flag: "wx" },
-      )
-        .then(() => artifacts.push(report))
-        .catch(retainFailure);
-      await Promise.resolve()
-        .then(() => browser.manage().window().setRect(originalWindow))
-        .catch(retainFailure);
-      if (originalTheme === "dark" || originalTheme === "light")
-        await Promise.resolve()
-          .then(() => context.setTheme(originalTheme))
-          .catch(retainFailure);
+      primary = await finishCollectionArtworkObservation(context, {
+        originalWindow,
+        originalTheme: originalViewport.theme,
+        originalSize,
+        restoreSize,
+        observations,
+        failures,
+        failure: primary,
+      });
     }
     if (primary) throw primary;
   });

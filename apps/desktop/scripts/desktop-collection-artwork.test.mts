@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "vite-plus/test";
 import { portDefinition, installedLaunchStatus } from "../src/test-fixtures.ts";
-import { mkdtemp, mkdir, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import type { OutputDesktopWorkspaceSnapshot } from "../src/transport-types.generated.d.ts";
 import { transportValue } from "./transport-values.mts";
 import {
   collectionArtworkScenario,
+  finishCollectionArtworkObservation,
+  selectCollectionInterfaceSize,
   collectionArtworkSubjects,
   collectionThumbnailIdentity,
   verifiedCollectionSurface,
@@ -80,7 +82,14 @@ test("native collection failure survives receipt and restoration failures withou
   try {
     await mkdir(path.join(output, "native-collection-artwork-observations.json"));
     const browser = {
-      executeScript: () => Promise.resolve("dark"),
+      executeScript: () =>
+        Promise.resolve({
+          width: 960,
+          height: 640,
+          device_pixel_ratio: 1,
+          interface_size: "100",
+          theme: "dark",
+        }),
       manage: () => ({
         window: () => ({
           getRect: () => Promise.resolve({ x: 0, y: 0, width: 960, height: 640 }),
@@ -115,6 +124,100 @@ test("native collection failure survives receipt and restoration failures withou
     assert.deepEqual(restored, ["window", "theme"]);
   } finally {
     await rm(output, { recursive: true, force: true });
+  }
+});
+
+test("a cleanup-only failure is retained in the final collection report", async () => {
+  const output = await mkdtemp(path.join(os.tmpdir(), "collection-cleanup-"));
+  const failure = new Error("owned theme restoration failure");
+  const order: string[] = [];
+  try {
+    const browser = {
+      manage: () => ({
+        window: () => ({
+          getRect: () => Promise.resolve({ x: 0, y: 0, width: 960, height: 640 }),
+          setRect: () => {
+            order.push("window");
+            return Promise.resolve();
+          },
+        }),
+      }),
+    } as unknown as Parameters<typeof collectionArtworkScenario>[0]["browser"];
+    const result = await finishCollectionArtworkObservation(
+      {
+        browser,
+        output,
+        artifacts: [],
+        setTheme: () => {
+          order.push("theme");
+          return Promise.reject(failure);
+        },
+      },
+      {
+        originalWindow: { x: 0, y: 0, width: 960, height: 640 },
+        originalTheme: "dark",
+        restoreSize: false,
+        observations: [],
+        failures: [],
+      },
+    );
+    assert.equal(result, failure);
+    assert.deepEqual(order, ["window", "theme"]);
+    const report: unknown = JSON.parse(
+      await readFile(path.join(output, "native-collection-artwork-observations.json"), "utf8"),
+    );
+    assert.ok(typeof report === "object" && report !== null && "failure" in report);
+    assert.equal(report.failure, failure.message);
+  } finally {
+    await rm(output, { recursive: true, force: true });
+  }
+});
+
+test("compact collection capture requires confirmed production zoom and changed native geometry", async () => {
+  for (const nativeChanges of [true, false]) {
+    const sizes = [100, 125, 150, 175, 200];
+    let position = 0;
+    let key = "";
+    const keys: string[] = [];
+    const actions = {
+      keyDown: () => actions,
+      sendKeys: (value: string) => {
+        key = value;
+        return actions;
+      },
+      keyUp: () => actions,
+      perform: () => {
+        keys.push(key);
+        position = key === "0" ? 0 : position + 1;
+        return Promise.resolve();
+      },
+    };
+    const browser = {
+      actions: () => actions,
+      executeScript: () =>
+        Promise.resolve({
+          width: nativeChanges ? (960 * 100) / sizes[position]! : 960,
+          height: nativeChanges ? (640 * 100) / sizes[position]! : 640,
+          device_pixel_ratio: sizes[position]! / 100,
+          interface_size: String(sizes[position]),
+          theme: "dark",
+        }),
+      wait: async (condition: () => Promise<boolean>) => {
+        assert.equal(await condition(), true, "Native geometry must confirm the preference");
+      },
+    } as unknown as Parameters<typeof collectionArtworkScenario>[0]["browser"];
+    if (nativeChanges) {
+      const result = await selectCollectionInterfaceSize(browser, 200);
+      assert.equal(result.applied.width, 480);
+      assert.equal(result.applied.height, 320);
+      assert.equal(result.applied.interface_size, "200");
+      assert.deepEqual(keys, ["0", "+", "+", "+", "+"]);
+    } else {
+      await assert.rejects(
+        selectCollectionInterfaceSize(browser, 200),
+        /Native geometry must confirm/u,
+      );
+    }
   }
 });
 
