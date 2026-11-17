@@ -61,7 +61,7 @@ import {
 
 const initialActivityNowSeconds = Date.now() / 1000;
 const activityTargetButton =
-  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start px-1 py-0 text-start text-sm font-semibold whitespace-normal wrap-anywhere text-pc-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
+  "-mx-1 h-auto min-h-6 min-w-0 max-w-full shrink justify-start [scroll-margin-block:var(--space-2)] px-1 py-0 text-start text-sm font-semibold whitespace-normal wrap-anywhere text-pc-foreground no-underline hover:text-pc-interactive-foreground hover:no-underline";
 const activityDetailsClass = "activity-details min-w-0 text-xs wrap-anywhere";
 const activityTones: Record<string, { indicator: string; status: string }> = {
   succeeded: {
