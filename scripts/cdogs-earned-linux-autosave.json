@@ -1,0 +1,57 @@
+{
+	"Version": 3,
+	"LastCampaignIndex": 0,
+	"Missions": [{
+		"Campaign": {
+			"Path": "missions\/most_classified_enemy.cdogscpn"
+		},
+		"NextMission": 1,
+		"MissionsCompleted": [0],
+		"Players": [{
+			"Guns": ["Paralyzing Venom Spit",
+			"Psychokinetic Beam",
+			"Fists",
+			""],
+			"Ammo": [60,
+			4,
+			100,
+			10,
+			20,
+			4,
+			6,
+			4,
+			6,
+			10,
+			10,
+			80,
+			10,
+			4],
+			"Lives": 1,
+			"HP": 400,
+			"Score": 793
+		},
+		{
+			"Guns": ["Paralyzing Venom Spit",
+			"Psychokinetic Beam",
+			"Fire Breath",
+			""],
+			"Ammo": [60,
+			4,
+			100,
+			10,
+			20,
+			4,
+			6,
+			4,
+			6,
+			10,
+			10,
+			80,
+			10,
+			4],
+			"Lives": 1,
+			"HP": 400,
+			"Score": 1088
+		}]
+	}]
+}

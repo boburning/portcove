@@ -1,4 +1,4 @@
-$Dataset = 'startup'
+$Dataset = 'restore'
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $cli = (Get-Content -Raw input-cli.txt).Trim()
@@ -41,6 +41,25 @@ using System;
 using System.Text;
 using System.Runtime.InteropServices;
 public static class CdogsWindow {
+ [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
+ [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
+ [DllImport("user32.dll")] static extern bool SetCursorPos(int x,int y);
+ [DllImport("user32.dll",SetLastError=true)] static extern uint SendInput(uint n,Input[] i,int size);
+ [StructLayout(LayoutKind.Sequential)] struct Key {public ushort vk,scan;public uint flags,time;public UIntPtr extra;}
+ [StructLayout(LayoutKind.Explicit,Size=32)] struct Union {[FieldOffset(0)]public Key key;}
+ [StructLayout(LayoutKind.Sequential)] struct Input {public uint type;public Union data;}
+ public static void KeyOwned(IntPtr h,uint pid,ushort vk){
+  uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid)throw new Exception("Key target owner differs");
+  if(!SetForegroundWindow(h) && GetForegroundWindow()!=h)throw new Exception("Owned window could not become foreground");
+  if(GetForegroundWindow()!=h)throw new Exception("Owned key target is not foreground");
+  Rect r;if(!GetWindowRect(h,out r)||!SetCursorPos(r.Right-8,r.Bottom-8))throw new Exception("Owned cursor placement failed");
+  if(Marshal.SizeOf(typeof(Input))!=40)throw new Exception("Unsupported native input ABI");
+  var down=new Input{type=1,data=new Union{key=new Key{vk=vk}}};
+  var up=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=2}}};
+  if(SendInput(1,new[]{down},40)!=1)throw new Exception("Owned keydown failed");
+  try{System.Threading.Thread.Sleep(120);}finally{if(SendInput(1,new[]{up},40)!=1)throw new Exception("Key release failed");}
+  if(GetForegroundWindow()!=h)throw new Exception("Foreground changed during owned key");
+ }
  public delegate bool EnumProc(IntPtr h, IntPtr p);
  [DllImport("kernel32.dll",SetLastError=true)] static extern bool GetProcessTimes(Microsoft.Win32.SafeHandles.SafeProcessHandle h,out long created,out long exited,out long kernel,out long user);
  public static long Created(Microsoft.Win32.SafeHandles.SafeProcessHandle h){long c,e,k,u;if(!GetProcessTimes(h,out c,out e,out k,out u))throw new Exception("Retained process creation identity unavailable");return c;}
@@ -64,10 +83,18 @@ function Close-OwnedGameWindow {
 try {
   if (-not [IO.Path]::IsPathFullyQualified($defaultProfile) -or (Test-Path -LiteralPath $defaultProfile)) { throw 'Existing or unavailable default C-Dogs profile: preserve it; no trial' }
   New-Item -ItemType Directory -Path $profile | Out-Null
+  $seed = Join-Path $PWD 'scripts/cdogs-earned-linux-autosave.json'
+  $seedSha = '01d49050445e0dc85ea3031267926871de87ddc857d4f248d9d5d61fbdca9cc6'
+  if (((Get-Item -LiteralPath $seed).Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Earned Linux save fixture identity differs' }
+  $dataProfile = Join-Path $profile 'cdogs-sdl'
+  New-Item -ItemType Directory -Path $dataProfile | Out-Null
+  $activeSave = Join-Path $dataProfile 'autosave.json'
+  Copy-Item -LiteralPath $seed -Destination $activeSave
+  if ((Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Copied Linux save differs' }
   $env:XDG_CONFIG_HOME = $profile
   $env:SDL_RENDER_DRIVER = 'software'
   $env:SDL_AUDIODRIVER = 'dummy'
-  @{dataset=$Dataset; profile_parent=$profile; renderer='upstream SDL software'; audio='dummy'; claim='fresh-profile startup and normal exit only; no campaign progress or audio claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-scenario.json")) -Encoding utf8
+  @{dataset=$Dataset; profile_parent=$profile; renderer='upstream SDL software'; audio='dummy'; input_save_sha256=$seedSha; claim='Linux-earned save seeded unchanged; observe Windows Continue menu recognition only, not resumed mission or earned Windows progress'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-scenario.json")) -Encoding utf8
   if ((Get-FileHash -LiteralPath $expectedPlayer -Algorithm SHA256).Hash.ToLowerInvariant() -ne '3d766f2f36c533bbd08f2e198eda70c4f973b49287525d210cc4756f6dad56c6') { throw 'Selected publisher executable bytes differ before launch' }
   $selectArgs = @('c-dogs-sdl',$expectedPlayer,'--working-directory',(Split-Path $expectedPlayer))
 
@@ -127,6 +154,21 @@ try {
   [uint32]$windowOwner = 0
   [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
+  foreach ($key in @(@{name='start-highlight';vk=38},@{name='continue-menu';vk=13})) {
+    if ($game.HasExited -or [CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
+    [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk)
+    Start-Sleep -Milliseconds 900
+    [uint32]$currentOwner=0
+    [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$currentOwner)
+    if ($currentOwner -ne $game.Id -or $game.HasExited) { throw 'Owned capture target changed after input' }
+    $stepRect = [CdogsWindow+Rect]::new()
+    if (-not [CdogsWindow]::GetWindowRect($window,[ref]$stepRect)) { throw 'Step window geometry unavailable' }
+    $sw=$stepRect.Right-$stepRect.Left; $sh=$stepRect.Bottom-$stepRect.Top
+    if ($sw -lt 100 -or $sh -lt 80 -or $sw -gt 2560 -or $sh -gt 1600) { throw 'Step capture outside bounds' }
+    $stepBitmap=[Drawing.Bitmap]::new($sw,$sh);$stepGraphics=[Drawing.Graphics]::FromImage($stepBitmap)
+    try {$stepGraphics.CopyFromScreen($stepRect.Left,$stepRect.Top,0,0,$stepBitmap.Size);$stepBitmap.Save((Join-Path $native ("$Dataset-"+$key.name+'.png')),[Drawing.Imaging.ImageFormat]::Png)}
+    finally {$stepGraphics.Dispose();$stepBitmap.Dispose()}
+  }
   $rect = [CdogsWindow+Rect]::new()
   if (-not [CdogsWindow]::GetWindowRect($window,[ref]$rect)) { throw 'Owned window geometry unavailable' }
   $width=$rect.Right-$rect.Left; $height=$rect.Bottom-$rect.Top
@@ -143,9 +185,13 @@ try {
   if ($process.ExitCode -ne 0 -or $final.data.outcome -ne 'succeeded' -or $final.data.exit_code -ne 0) { throw 'Actual external launch did not exit successfully' }
   if (-not $game.WaitForExit(5000)) { throw 'Owned child exit unproven before external removal' }
   if (Test-Path -LiteralPath $defaultProfile) { throw 'Unexpected writer outside the selected private profile; retain evidence' }
+  if ((Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Original earned-save fixture changed' }
+  $state = Get-Content -Raw -LiteralPath $activeSave | ConvertFrom-Json
+  if ($state.Version -ne 3 -or $state.Missions.Count -ne 1 -or $state.Missions[0].NextMission -ne 1 -or ($state.Missions[0].MissionsCompleted -join ',') -ne '0' -or $state.Missions[0].Campaign.Path -ne 'missions/most_classified_enemy.cdogscpn') { throw 'Restored progress was lost or changed' }
+  @{source_sha256=$seedSha;output_sha256=(Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant();source_preserved=$true;next_mission=1;missions_completed=@(0);scope='upstream Windows profile retained Linux-earned progress; visual menu recognition still requires image inspection; no resumed-level claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-save-result.json")) -Encoding utf8
   $profileFiles = @(Get-ChildItem -LiteralPath $profile -Recurse -Force -File)
   if (-not $profileFiles.Count) { throw 'Native player produced no private profile evidence' }
-  @{file_count=$profileFiles.Count; scope='fresh native profile writes; no completed campaign/save claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-profile-result.json")) -Encoding utf8
+  @{file_count=$profileFiles.Count; scope='Windows profile retained Linux-earned campaign progress; no Windows completion or resumed-level claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-profile-result.json")) -Encoding utf8
   function Snapshot-External {
     $map = [ordered]@{}
     foreach ($folder in @((Join-Path $inputs 'player'),$profile)) {
@@ -166,7 +212,7 @@ try {
   $afterRemoval = Snapshot-External
   $afterRemoval | Set-Content (Join-Path $native ("$Dataset-external-after-removal.json")) -Encoding utf8
   if ($after.data.external_runtime -or $beforeRemoval -ne $afterRemoval) { throw 'Registration removal altered external files or retained registration' }
-  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows C-Dogs player with SDL software renderer and private XDG profile; normal exit and registration-only removal preserve external bytes; screenshot requires inspection; no campaign, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
+  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows C-Dogs player with SDL software renderer and private XDG profile; normal exit and registration-only removal preserve external bytes; screenshot requires inspection; save-menu recognition requires image inspection; no resumed level, Windows-earned progress, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
 
 } catch {
   $failure = $_
