@@ -215,6 +215,23 @@ pub(crate) enum ProfileCommand {
         /// Catalog port ID.
         port_id: String,
     },
+    /// Inspect one unmanaged or edited mod file from profile live.
+    InspectModFile {
+        /// Catalog port ID.
+        port_id: String,
+        /// Exact file name in the mods folder, as reported by profile live.
+        file_name: String,
+    },
+    /// Move a reviewed mod file out of the live folder.
+    PreserveModFile {
+        /// Catalog port ID.
+        port_id: String,
+        /// Exact file name named by the inspection.
+        file_name: String,
+        /// Plan SHA-256 reported by profile inspect-mod-file.
+        #[arg(long)]
+        expected_plan: String,
+    },
     /// Show whether a game supports mod setups, its setups and what is live now.
     Setups {
         /// Catalog port ID.
@@ -362,6 +379,8 @@ impl ProfileCommand {
             Self::RemovePackage { .. } => "profile.remove-package",
             Self::Activate { .. } => "profile.activate",
             Self::Live { .. } => "profile.live",
+            Self::InspectModFile { .. } => "profile.inspect-mod-file",
+            Self::PreserveModFile { .. } => "profile.preserve-mod-file",
             Self::Setups { .. } => "profile.setups",
             Self::RecipeExport { .. } => "profile.recipe-export",
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
@@ -382,6 +401,7 @@ impl ProfileCommand {
                 | Self::Revisions { .. }
                 | Self::OriginalInstances { .. }
                 | Self::Live { .. }
+                | Self::InspectModFile { .. }
                 | Self::Setups { .. }
                 | Self::PackagePlan { .. }
                 | Self::RecipeExport { .. }
@@ -432,7 +452,12 @@ fn live_text(live: &portcove_core::LiveMods) -> String {
         )),
     };
     let mut lines = Vec::new();
-    if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
+    if let Some(plan) = &live.pending_preservation {
+        lines.push(format!(
+            "File preservation is pending for {}. Finish it with profile preserve-mod-file and review SHA-256 {}.",
+            clean(&plan.file_name), plan.plan_sha256,
+        ));
+    } else if live.unmanaged.is_empty() && live.changed_owned.is_empty() {
         lines.push("Live mods match the selected profile.".to_owned());
     } else {
         lines.push(format!(
@@ -1173,6 +1198,43 @@ pub(crate) async fn execute(
         ProfileCommand::Live { port_id } => {
             render_read_success(mode, name, service.observe_live_mods(&port_id)?, live_text)
         }
+        ProfileCommand::InspectModFile { port_id, file_name } => render_read_success(
+            mode,
+            name,
+            service.inspect_mod_file(&port_id, &file_name)?,
+            |plan| {
+                let effect = if let Some(restore) = &plan.restore {
+                    format!(
+                        "Preserve this edit outside the mods folder and restore the recorded package (SHA-256 {}).",
+                        restore.sha256
+                    )
+                } else {
+                    "Preserve this file outside the mods folder.".into()
+                };
+                format!(
+                    "Review mod file {}\nSHA-256: {}\nBytes: {}\n{effect}\nReview SHA-256: {}\nTo apply, use profile preserve-mod-file with this name and --expected-plan.",
+                    clean(&plan.file_name),
+                    plan.observed.sha256,
+                    plan.observed.size,
+                    plan.plan_sha256
+                )
+            },
+        ),
+        ProfileCommand::PreserveModFile {
+            port_id,
+            file_name,
+            expected_plan,
+        } => render_read_success(
+            mode,
+            name,
+            service.preserve_mod_file(&port_id, &file_name, &expected_plan)?,
+            |result| {
+                format!(
+                    "Preserved mod file at {}. To try it as a package, use the ordinary local mod review.",
+                    clean(&result.preserved_path.display().to_string())
+                )
+            },
+        ),
         ProfileCommand::Setups { port_id } => {
             render_read_success(mode, name, service.mod_setups(&port_id)?, |view| {
                 if !view.supported {

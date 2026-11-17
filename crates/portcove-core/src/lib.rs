@@ -103,6 +103,7 @@ mod mod_provider;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
+mod profile_file_preservation;
 mod profile_loader;
 mod profile_originals;
 mod provider_auto_update;
@@ -367,6 +368,9 @@ pub use profile_deploy::{
     LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
     ProfileRecoveryPlan, ProfileRecoveryProgress,
 };
+pub use profile_file_preservation::{
+    ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
+};
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
 pub use provider_auto_update::{
     HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
@@ -510,8 +514,9 @@ pub use windows_runtime::{
 // Public 95 adds exact reviewed Thunderstore dependencies and wrapper evidence.
 // Public 96 adds saved original-instance selection and byte-verified relinking.
 // Public 97 exposes exact setup recovery and isolated progress copying.
-// Public 98 reports partial results when the game setup queue is unavailable.
-pub const API_SCHEMA_VERSION: u32 = 98;
+// Public 98 adds reviewed mod-file inspection and preservation receipts.
+// Public 99 reports partial results when the game setup queue is unavailable.
+pub const API_SCHEMA_VERSION: u32 = 99;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

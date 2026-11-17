@@ -29669,6 +29669,81 @@
   },
   "live_mods": {
     "$defs": {
+      "ModFileIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ModFilePreservationPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "observed": {
+            "$ref": "#/$defs/ModFileIdentity"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModFileIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an edited managed file, the exact package that will be restored."
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision_sha256": {
+            "type": "string"
+          },
+          "slot": {
+            "description": "Distinguishes a rediscovered copy of the same bytes from prior preserved copies.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_sha256",
+          "port_id",
+          "profile_id",
+          "revision",
+          "revision_sha256",
+          "file_name",
+          "slot",
+          "observed",
+          "restore"
+        ],
+        "type": "object"
+      },
       "NativeModListStatus": {
         "description": "How the game's own mod list relates to the selected revision.",
         "oneOf": [
@@ -29790,6 +29865,17 @@
       "native_list": {
         "$ref": "#/$defs/NativeModListStatus",
         "description": "The game's own enabled-mods list compared with the selected revision."
+      },
+      "pending_preservation": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModFilePreservationPlan"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "An authorized file move waiting for recovery, even if the live name disappeared."
       },
       "profile_id": {
         "type": [
@@ -31069,6 +31155,180 @@
     "title": "ModCodeReview",
     "type": "object"
   },
+  "mod_file_preservation_plan": {
+    "$defs": {
+      "ModFileIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "file_name": {
+        "type": "string"
+      },
+      "observed": {
+        "$ref": "#/$defs/ModFileIdentity"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "port_id": {
+        "type": "string"
+      },
+      "profile_id": {
+        "type": "string"
+      },
+      "restore": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/ModFileIdentity"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "description": "For an edited managed file, the exact package that will be restored."
+      },
+      "revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "revision_sha256": {
+        "type": "string"
+      },
+      "slot": {
+        "description": "Distinguishes a rediscovered copy of the same bytes from prior preserved copies.",
+        "format": "uint32",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "plan_sha256",
+      "port_id",
+      "profile_id",
+      "revision",
+      "revision_sha256",
+      "file_name",
+      "slot",
+      "observed",
+      "restore"
+    ],
+    "title": "ModFilePreservationPlan",
+    "type": "object"
+  },
+  "mod_file_preservation_result": {
+    "$defs": {
+      "ModFileIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ModFilePreservationPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "observed": {
+            "$ref": "#/$defs/ModFileIdentity"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModFileIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an edited managed file, the exact package that will be restored."
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision_sha256": {
+            "type": "string"
+          },
+          "slot": {
+            "description": "Distinguishes a rediscovered copy of the same bytes from prior preserved copies.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_sha256",
+          "port_id",
+          "profile_id",
+          "revision",
+          "revision_sha256",
+          "file_name",
+          "slot",
+          "observed",
+          "restore"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "plan": {
+        "$ref": "#/$defs/ModFilePreservationPlan"
+      },
+      "preserved_path": {
+        "description": "Outside the loader's effective mod directories. The regular local package\nreview may use this path, without granting execution or ownership here.",
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan",
+      "preserved_path"
+    ],
+    "title": "ModFilePreservationResult",
+    "type": "object"
+  },
   "mod_setups_view": {
     "$defs": {
       "ArtifactIdentity": {
@@ -31244,6 +31504,17 @@
             "$ref": "#/$defs/NativeModListStatus",
             "description": "The game's own enabled-mods list compared with the selected revision."
           },
+          "pending_preservation": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModFilePreservationPlan"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "An authorized file move waiting for recovery, even if the live name disappeared."
+          },
           "profile_id": {
             "type": [
               "string",
@@ -31288,6 +31559,81 @@
         "required": [
           "id",
           "version"
+        ],
+        "type": "object"
+      },
+      "ModFileIdentity": {
+        "additionalProperties": false,
+        "properties": {
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sha256",
+          "size"
+        ],
+        "type": "object"
+      },
+      "ModFilePreservationPlan": {
+        "additionalProperties": false,
+        "properties": {
+          "file_name": {
+            "type": "string"
+          },
+          "observed": {
+            "$ref": "#/$defs/ModFileIdentity"
+          },
+          "plan_sha256": {
+            "type": "string"
+          },
+          "port_id": {
+            "type": "string"
+          },
+          "profile_id": {
+            "type": "string"
+          },
+          "restore": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/ModFileIdentity"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "For an edited managed file, the exact package that will be restored."
+          },
+          "revision": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "revision_sha256": {
+            "type": "string"
+          },
+          "slot": {
+            "description": "Distinguishes a rediscovered copy of the same bytes from prior preserved copies.",
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "plan_sha256",
+          "port_id",
+          "profile_id",
+          "revision",
+          "revision_sha256",
+          "file_name",
+          "slot",
+          "observed",
+          "restore"
         ],
         "type": "object"
       },

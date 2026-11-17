@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { ModSetupOriginalReview, ModSetupsView } from "../types";
+import type { ModFilePreservationPlan, ModSetupOriginalReview, ModSetupsView } from "../types";
 import { sourceProfile } from "../test-fixtures";
 import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
@@ -1032,4 +1032,63 @@ it("retires an exact recovery offer only after review and refreshes the retained
   await expect.element(page.getByText("Recovery offer retired.")).toBeVisible();
   await expect.element(review).not.toBeInTheDocument();
   expect(read).toHaveBeenCalledTimes(2);
+});
+
+it("moves a reviewed unmanaged file and gives its preserved location for ordinary package review", async () => {
+  const fileName = "hand-added.o2r";
+  const plan: ModFilePreservationPlan = {
+    port_id: "shipwright",
+    profile_id: "default",
+    revision: 3,
+    revision_sha256: "a".repeat(64),
+    file_name: fileName,
+    slot: 0,
+    plan_sha256: "b".repeat(64),
+    observed: { sha256: "c".repeat(64), size: 8 },
+    restore: null,
+  };
+  const read = vi
+    .spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(view())
+    .mockResolvedValueOnce(
+      view({
+        live: {
+          profile_id: "default",
+          revision: 3,
+          unmanaged: [fileName],
+          changed_owned: [],
+          native_list: { state: "in-sync" },
+        },
+      }),
+    )
+    .mockResolvedValue(view());
+  const inspect = vi.spyOn(desktopApi, "inspectModFile").mockResolvedValue(plan);
+  const preserve = vi.spyOn(desktopApi, "preserveModFile").mockResolvedValue({
+    plan,
+    preserved_path: "D:/Library/preserved/hand-added.o2r",
+  });
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.o2r");
+  vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
+  const host = await render();
+  await act(async () => button(host, "Add mod file…").click());
+
+  const root = mounted.at(-1)?.root;
+  if (!root) throw new Error("setup control did not mount");
+  await act(async () => root.render(<ModSetupsControl portId="shipwright" generation={7} busy />));
+  await act(async () =>
+    root.render(<ModSetupsControl portId="shipwright" generation={7} busy={false} />),
+  );
+  const review = button(host, "Review file");
+  expect(review.disabled).toBe(true);
+  await act(async () => button(host, "Don’t add").click());
+  expect(review.disabled).toBe(false);
+  expect(button(host, "Add mod file…").disabled).toBe(true);
+  await act(async () => review.click());
+  expect(inspect).toHaveBeenCalledWith("shipwright", fileName, 7);
+  expect(preserve).not.toHaveBeenCalled();
+  await act(async () => button(host, "Preserve file").click());
+  expect(preserve).toHaveBeenCalledWith("shipwright", fileName, plan.plan_sha256, 7);
+  expect(read).toHaveBeenCalledTimes(3);
+  expect(host.textContent).toContain("D:/Library/preserved/hand-added.o2r");
+  expect(button(host, "Add mod file…").disabled).toBe(false);
 });

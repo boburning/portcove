@@ -47,7 +47,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     symlinks_skipped: 0,
     limits_reached: ["entries", "depth", "file_size", "hash_bytes", "candidates"],
     issues: [],
-    issues_omitted: 0,
+    issues_omitted: 3,
   };
   const plan: SourceImportPlan = {
     schema_version: 1,
@@ -126,7 +126,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
           symlinks_skipped: 0,
           limits_reached: ["candidates", "file_size", "depth"],
           issues: [],
-          issues_omitted: 0,
+          issues_omitted: 1,
         },
       };
     });
@@ -241,6 +241,7 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).toContain("temporarily move some files outside it");
     expect(document.body.textContent).not.toContain("Result count");
     expect(document.body.textContent).not.toContain("not-a-match.iso");
+    expect(document.body.textContent).toContain("1 more scan issue was omitted.");
     await captureParityState("source-discovery-incomplete-scan-fixture");
     await click("Search this folder");
     expect(search).toHaveBeenCalledWith(
@@ -273,6 +274,8 @@ it("opens and scans the Inbox, then applies the exact reviewed import", async ()
     expect(document.body.textContent).not.toContain("Possible matches checked");
     expect(document.body.textContent).not.toContain("file_size");
     expect(document.body.textContent).not.toContain("hash_bytes");
+    expect(document.body.textContent).toContain("3 more scan issues were omitted.");
+    expect(document.body.textContent).not.toContain("1 more scan issue was omitted.");
     await click("Review copy");
     expect(review).toHaveBeenCalledWith(profile.id, candidate.path, "copy");
     expect(document.body.textContent).toContain("Source changed after discovery");

@@ -2317,6 +2317,8 @@ portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE -
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
 portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
+portcove --library PATH --json profile inspect-mod-file PORT_ID FILE_NAME
+portcove --library PATH --json profile preserve-mod-file PORT_ID FILE_NAME --expected-plan SHA256
 portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 portcove --library PATH --json profile recover-plan PORT_ID PROFILE_ID REVISION
@@ -2439,6 +2441,26 @@ packages in one provider file, and names containing `|<>"?*`, are refused before
 anything is authorized. A revision the game could not load unambiguously is refused
 when it is created, including a new profile from a recipe (whose plan holds it), and
 a switch to an older revision with such packages refuses before anything is parked.
+
+An unmanaged or edited file in the live mods folder can hold a setup change.
+Use `profile inspect-mod-file` to review a single regular file and its exact
+bytes. Then use `profile preserve-mod-file` with the reviewed digest. The
+file stays under `user/.portcove-profiles/<port>/preserved` in the library,
+outside the game's mods folder. For an edited managed file, Portcove also
+restores the exact recorded package that belongs to the selected setup. The
+review relates to one file. A changed file or an
+occupied destination stops the move. An interrupted move is reported by
+`profile live` and finishes through the normal setup lifecycle when its
+recorded locations still agree.
+
+Library schema 66 coordinates writers while a mod file move is pending.
+Use a compatible Desktop or CLI to resume the operation before changing
+the selected setup or restoring a backup.
+
+Use the returned location with ordinary local package review to adopt an
+eligible archive. Preservation by itself grants no execution consent. For
+directories, linked files or names the loader contract cannot manage, close
+the game and review the entry in the mods folder before moving it manually.
 
 `profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
 `differs` (with `missing` and `unexpected` names) or `unreadable`. Portcove

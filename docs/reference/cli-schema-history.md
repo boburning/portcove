@@ -56,13 +56,19 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
-API98 changes `games setup-ready` to report the result of the mod pass when the
+API 99 changes `games setup-ready` to report the result of the mod pass when the
 game setup queue is unavailable. A successful envelope with
 `data.game_setup_unavailable` means the games could not be assessed, even when
 `data.batches` is empty. The prior API returned an error for this queue failure.
 An independent, optional `profile setups.last_automatic_checks` field reports
 the last bounded check and grants no update permission. Event schema 3 and
 the private library writer protocol are unchanged.
+
+API 98 adds `profile inspect-mod-file` and `profile preserve-mod-file`.
+Inspection records one file and its exact bytes. Preservation requires the
+reviewed plan digest and retains the file outside the game’s mods folder.
+Writer schema 66 coordinates recovery of an interrupted file move. The
+operation-event schema stays 3.
 
 API 97 adds `profile recover-plan` and `profile recover`. The
 `profile_recovery_plan` identifies the exact target revision, holds and policy.

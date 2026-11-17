@@ -15,6 +15,7 @@ import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
+import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
 import { ModSetupRecovery } from "./ModSetupRecovery";
@@ -247,9 +248,17 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         </ActionRow>
       ) : (
         <>
+          {view.live && (
+            <ModFilePreservationControl
+              portId={portId}
+              generation={generation}
+              live={view.live}
+              disabled={changing}
+              setWorking={setWorking}
+              perform={perform}
+            />
+          )}
           <ModSetupNotices
-            blocked={blocked}
-            live={view.live}
             nativeMessage={nativeMessage}
             browserBusy={browserBusy}
             provider={view.provider}
@@ -699,15 +708,11 @@ async function reviewSelectedModPackage({
 }
 
 function ModSetupNotices({
-  blocked,
-  live,
   nativeMessage,
   browserBusy,
   provider,
   heldUpdates,
 }: {
-  blocked: boolean;
-  live: ModSetupsView["live"];
   nativeMessage: ReactNode;
   browserBusy: boolean;
   provider: ModSetupsView["provider"];
@@ -716,18 +721,6 @@ function ModSetupNotices({
   const { t } = useAppTranslation("gameSettings");
   return (
     <>
-      {blocked && live && (
-        <Notice intent="warning">
-          <div data-slot="notice-body">
-            <p>{t("mods.blocked")}</p>
-            <ul className="m-0 list-disc ps-5 [overflow-wrap:anywhere]">
-              {[...live.unmanaged, ...live.changed_owned].map((name) => (
-                <li key={name}>{name}</li>
-              ))}
-            </ul>
-          </div>
-        </Notice>
-      )}
       {nativeMessage && <p className="text-sm">{nativeMessage}</p>}
       {browserBusy && (
         <p className="text-sm">
@@ -849,7 +842,10 @@ function currentModSetup(view: ModSetupsView) {
     selected.revision.build.install_id !== view.current_install_id,
   );
   const blocked = Boolean(
-    view.live && (view.live.unmanaged.length > 0 || view.live.changed_owned.length > 0),
+    view.live &&
+    (view.live.pending_preservation ||
+      view.live.unmanaged.length > 0 ||
+      view.live.changed_owned.length > 0),
   );
 
   return { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked };

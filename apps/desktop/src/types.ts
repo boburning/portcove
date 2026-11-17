@@ -88,6 +88,8 @@ export type ModSetupRecoveryBuild =
 export type ModSetupRetirementPreview =
   Generated.TransportOutputs["retained_build_retirement_preview"];
 export type ModSetupRecoveryPlan = Generated.TransportOutputs["profile_recovery_plan"];
+export type ModFilePreservationPlan = Generated.TransportOutputs["mod_file_preservation_plan"];
+export type ModFilePreservationResult = Generated.TransportOutputs["mod_file_preservation_result"];
 export type LiveMods = Generated.TransportOutputs["live_mods"];
 export type ProviderBrowsePage = Generated.TransportOutputs["provider_browse_page"];
 export type ProviderProjectView = Generated.TransportOutputs["provider_project_view"];

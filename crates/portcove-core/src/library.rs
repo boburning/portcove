@@ -2464,6 +2464,9 @@ impl Library {
         activate: bool,
         expected_external_row_sha256: Option<&str>,
     ) -> Result<()> {
+        if activate {
+            crate::profile_file_preservation::require_idle(self, &install.port_id)?;
+        }
         let mut connection = self.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         if let Some(expected) = expected_external_row_sha256 {
@@ -2584,6 +2587,7 @@ impl Library {
         install: &InstallRecord,
         original_id: &str,
     ) -> Result<()> {
+        crate::profile_file_preservation::require_idle(self, &install.port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let current: Option<String> = transaction.query_row(
@@ -3437,6 +3441,7 @@ impl Library {
     }
 
     pub fn rollback(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let (active_id, previous_id): (Option<String>, Option<String>) = transaction
@@ -3462,6 +3467,7 @@ impl Library {
     }
 
     pub fn activate_staged(&self, port_id: &str) -> Result<InstallRecord> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         let staged_id: String = transaction
@@ -3489,6 +3495,7 @@ impl Library {
     }
 
     pub fn remove_port(&self, port_id: &str) -> Result<Vec<PathBuf>> {
+        crate::profile_file_preservation::require_idle(self, port_id)?;
         let mut connection = self.connection()?;
         let transaction = connection.transaction()?;
         crate::retained_build::require_no_references(&transaction, port_id)?;
