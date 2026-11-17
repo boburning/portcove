@@ -69205,7 +69205,7 @@
         "references": [
           {
             "title": "Register the publisher Linux player with Portcove CLI",
-            "instruction": "For the publisher's extracted Ubuntu x64 DEB, review the absolute usr/bin/warzone2100 path with external select-preview and use its usr/bin directory as --working-directory. Pass --datadir for the extracted usr/share/warzone2100 and --configdir for your profile as literal --arg values with absolute paths. Repeat the details with external select and pass the preview SHA-256 to --expected-preview. Start with portcove exec warzone-2100-official-maintained-source-port."
+            "instruction": "Use warzone-2100-official-maintained-source-port as the port ID in external select-preview and external select. For the extracted publisher Ubuntu x64 DEB, select the absolute usr/bin/warzone2100 path and set --working-directory to its usr/bin folder. Pass the absolute usr/share/warzone2100 directory as --arg=--datadir=<path> and your absolute profile path as --arg=--configdir=<path>. Quote each full argument if it contains spaces. Repeat the details with external select and pass the preview SHA-256 to --expected-preview. Start with portcove exec and the same port ID."
           },
           {
             "title": "Keep the Ubuntu package’s campaign files",
