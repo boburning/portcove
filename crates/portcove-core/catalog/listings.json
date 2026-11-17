@@ -44591,7 +44591,7 @@
         "steps": [
           {
             "title": "Run the stable Windows player",
-            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe with Windows support for 32-bit applications."
+            "instruction": "Download and extract the complete neverball-1.6.0.zip from Neverball’s Downloads page. Keep data and the included DLLs beside neverball.exe in the neverball-1.6.0 folder. Start neverball.exe on Windows with support for 32-bit applications and a working OpenGL graphics driver. For Portcove registration, choose neverball.exe and its containing working directory. Add --data and the full path to that package’s data folder as two separate arguments. Review the selection, then choose Play."
           },
           {
             "title": "Install the Linux game through your package manager",
