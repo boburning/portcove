@@ -2516,6 +2516,8 @@ ID, not its file name: the package is stored and placed in `mods` as
 package with an installed mod's ID replaces it. An ID that some supported system
 cannot use as a file name (a device name such as `NUL`, or one too long) is refused
 before anything is stored. The manifest's version is recorded with the package.
+The top-level `description` may contain LF or CRLF line breaks within the
+4 KiB text limit. Display names and short descriptions remain single-line.
 
 A package that names another game is refused with nothing recorded. A package
 that carries recompiled game code (`mod_binary.bin`/`mod_syms.bin`, which the

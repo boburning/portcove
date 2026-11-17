@@ -242,7 +242,21 @@ pub(crate) fn inspect_with_manifest(
         _ => return Err(invalid("`authors` must be a list")),
     };
     // Optional text fields the runtime type-checks.
-    text(&manifest, "description", false)?;
+    if let Some(description) = manifest.get("description") {
+        let valid = description.as_str().is_some_and(|value| {
+            value.len() <= MAX_LONG_TEXT
+                && value.split_inclusive('\n').all(|line| {
+                    let text = line
+                        .strip_suffix("\r\n")
+                        .or_else(|| line.strip_suffix('\n'))
+                        .unwrap_or(line);
+                    bounded_text(text)
+                })
+        });
+        if !valid {
+            return Err(invalid("`description` must be text"));
+        }
+    }
     text(&manifest, "short_description", false)?;
     let mut native_libraries = BTreeMap::new();
     if let Some(value) = manifest.get("native_libraries") {
@@ -515,6 +529,48 @@ mod grammar_tests {
     }
 
     const BASE: &str = r#""game_id":"mm","id":"x","display_name":"X","version":"1.0.0","authors":[],"minimum_recomp_version":"1.0.0""#;
+
+    #[test]
+    fn only_the_root_description_accepts_multiline_text() {
+        let directory = tempfile::tempdir().unwrap();
+        let base: Value = serde_json::from_str(&format!("{{{BASE}}}")).unwrap();
+        for (field, value, accepted) in [
+            ("description", "First line\nSecond line".to_owned(), true),
+            ("description", "First line\r\nSecond line".to_owned(), true),
+            ("description", "Before\rAfter".to_owned(), false),
+            ("description", "Before\u{1b}After".to_owned(), false),
+            ("description", "Before\0After".to_owned(), false),
+            ("description", "\n".repeat(MAX_LONG_TEXT), true),
+            ("description", "\n".repeat(MAX_LONG_TEXT + 1), false),
+            ("display_name", "First line\nSecond line".to_owned(), false),
+            (
+                "short_description",
+                "First line\nSecond line".to_owned(),
+                false,
+            ),
+            ("game_id", "mm\n".to_owned(), false),
+        ] {
+            let mut manifest = base.clone();
+            manifest[field] = Value::String(value);
+            let path = write(
+                directory.path(),
+                "description.nrm",
+                &serde_json::to_vec(&manifest).unwrap(),
+            );
+            let inspection = inspect_recomp_mod(&path, "mm");
+            if accepted {
+                assert!(inspection.unwrap().holds.is_empty());
+            } else {
+                assert!(
+                    inspection
+                        .unwrap_err()
+                        .message
+                        .contains(&format!("`{field}` must be text")),
+                    "{field}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn manifests_the_runtime_accepts_are_accepted_and_ones_it_refuses_are_refused() {
