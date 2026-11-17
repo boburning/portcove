@@ -255,7 +255,10 @@ void test("a separate batch recovers accepted provider pages and fair turns afte
   h.states.clear();
   await publishObserverSnapshot(root, recovered);
   for (const [name, value] of Object.entries(recovered.files)) {
-    assert.deepEqual(JSON.parse(await readFile(path.join(sourceTree, name), "utf8")), value);
+    assert.deepEqual(
+      JSON.parse(await readFile(path.join(sourceTree, name), "utf8")),
+      name === "catalog/checkpoint.json" ? before : value,
+    );
     assert.deepEqual(decodeStoredObserverCheckpoint(value), snapshot.files[name]);
     if (name !== "catalog/checkpoint.json") h.states.set(name.split("/")[0]!, value);
   }
@@ -500,7 +503,10 @@ void test("production-shaped retained provider pages fit the fixed artifact rese
     Date.now(),
     Date.now() + 60000,
   );
-  assert.deepEqual(unpacked, compact);
+  assert.deepEqual(unpacked, {
+    ...compact,
+    files: { ...compact.files, "catalog/checkpoint.json": result.checkpoint },
+  });
   for (const [name, bytes] of originals)
     assert.equal(
       await readFile(path.join(sourceTree, name), "utf8"),
@@ -680,7 +686,9 @@ void test("419 source records stream globally when nested compressed snapshots e
       yield { name: "$snapshot", bytes: Buffer.from(JSON.stringify(scope)) };
       yield {
         name: "catalog/checkpoint.json",
-        bytes: Buffer.from(JSON.stringify(compactFiles["catalog/checkpoint.json"])),
+        bytes: Buffer.from(
+          JSON.stringify(decodeStoredObserverCheckpoint(compactFiles["catalog/checkpoint.json"])),
+        ),
       };
     })(),
     {
@@ -711,7 +719,7 @@ void test("419 source records stream globally when nested compressed snapshots e
     );
   const continued = await advanceCatalogObservations(
     h.input,
-    restored.files["catalog/checkpoint.json"],
+    JSON.parse(await readFile(path.join(sourceTree, "catalog/checkpoint.json"), "utf8")),
     h.options,
   );
   assert.deepEqual(continued.checkpoint.sources, result.checkpoint.sources);
@@ -837,7 +845,12 @@ void test(factGrowthTest, { timeout: 120_000 }, async (t) => {
       Date.now(),
       Date.now() + 60000,
     );
-    assert.deepEqual(restored.files["catalog/checkpoint.json"], controller);
+    const storedController = restored.files["catalog/checkpoint.json"];
+    assert.ok(
+      Buffer.byteLength(JSON.stringify(storedController)) < metrics.controller_bytes!,
+      "controller compaction leaves room in the stored graph",
+    );
+    assert.deepEqual(decodeStoredObserverCheckpoint(storedController), controller);
     for (const [name, expected] of retained) {
       const source = objectRecord(decodeStoredObserverCheckpoint(restored.files[name]));
       const { pages, ...position } = objectRecord(source.continuation);
