@@ -864,7 +864,9 @@ it("keeps the exact original and action focus through a transient refusal and re
   await expect
     .element(page.getByRole("alert"))
     .toHaveTextContent("The selected original is temporarily unavailable.");
-  await expect.element(choose).toHaveTextContent("D:/Other/original.z64");
+  await expect
+    .element(choose)
+    .toHaveAccessibleName("Other registered originals D:/Other/original.z64");
   await expect.element(use).toHaveFocus();
   await expect.element(use).toBeEnabled();
   await act(async () => use.click());
