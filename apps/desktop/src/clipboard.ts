@@ -17,13 +17,19 @@ export async function copyText(text: string): Promise<void> {
         }
       : null;
   const selection = document.getSelection();
+  const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
   const selectedText =
-    selection?.anchorNode && selection.focusNode
+    selection?.anchorNode && selection.focusNode && range
       ? {
           anchor: selection.anchorNode,
           anchorOffset: selection.anchorOffset,
           focus: selection.focusNode,
           focusOffset: selection.focusOffset,
+          start: range.startContainer,
+          startOffset: range.startOffset,
+          end: range.endContainer,
+          endOffset: range.endOffset,
+          text: selection.toString(),
         }
       : null;
   const field = document.createElement("textarea");
@@ -51,13 +57,19 @@ export async function copyText(text: string): Promise<void> {
               inputSelection.direction ?? undefined,
             );
         }
-        if (!inputSelection && selectedText?.anchor.isConnected && selectedText.focus.isConnected)
-          selection?.setBaseAndExtent(
-            selectedText.anchor,
-            selectedText.anchorOffset,
-            selectedText.focus,
-            selectedText.focusOffset,
-          );
+        if (!inputSelection && selectedText?.anchor.isConnected && selectedText.focus.isConnected) {
+          // Rebuild from the original boundaries; live Range clones can retarget after edits.
+          const unchanged = document.createRange();
+          unchanged.setStart(selectedText.start, selectedText.startOffset);
+          unchanged.setEnd(selectedText.end, selectedText.endOffset);
+          if (unchanged.toString() === selectedText.text)
+            selection?.setBaseAndExtent(
+              selectedText.anchor,
+              selectedText.anchorOffset,
+              selectedText.focus,
+              selectedText.focusOffset,
+            );
+        }
       } catch {
         // A changed selection or control cannot change the original copy outcome.
       }

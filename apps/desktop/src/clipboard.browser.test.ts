@@ -105,6 +105,22 @@ it("does not revive an original control removed by a copy handler", async () => 
   expect(document.querySelector("textarea")).toBeNull();
 });
 
+it("does not select replacement DOM text with the previous selection offsets", async () => {
+  const original = host.appendChild(document.createElement("button"));
+  const text = host.appendChild(document.createTextNode("Keep this selected text"));
+  original.focus();
+  const selection = document.getSelection()!;
+  selection.setBaseAndExtent(text, 9, text, 5);
+  legacy(() => {
+    text.textContent = "Different replacement text";
+    return true;
+  });
+  await copyText(payload);
+  expect(document.activeElement).toBe(original);
+  expect(text.textContent).toBe("Different replacement text");
+  expect(selection.toString()).toBe("");
+});
+
 it("retains a new focus target chosen by a copy handler", async () => {
   const original = host.appendChild(document.createElement("button"));
   const next = host.appendChild(document.createElement("button"));
