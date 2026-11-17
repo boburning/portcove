@@ -1688,6 +1688,7 @@ export default interface Resources {
     "failure": {
       "copied": "Copied",
       "copyExitCode": "Copy exit code",
+      "copyFailed": "The exit code could not be copied. Select and copy the code above, or try again.",
       "exitCode": "Exit code <code/>",
       "label": "Last launch",
       "openActivity": "Open Activity",
@@ -2030,6 +2031,7 @@ export default interface Resources {
       "button": "Copy text",
       "copied": "The text was copied. Paste it into a new GitHub issue, or send it to the Portcove team another way.",
       "failed": "The text could not be copied automatically. Select and copy it below.",
+      "manualCopy": "Text for manual copy",
       "openFailed": "The form could not be opened. Your text is still here; try again or copy it."
     },
     "feedback": {
