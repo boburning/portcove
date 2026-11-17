@@ -626,6 +626,15 @@ directory without an adjacent portable profile. Portcove manages the runtime.
 Players retain and back up their pilots, settings and plugins separately.
 The universal Mac disk image remains an upstream package.
 
+Surge the Rabbit uses the publisher’s Windows portable ZIP. The selected
+32-bit player runs on the Windows x64 host route with the bundled game data.
+Portcove sets `OPENSURGE_USER_PATH` to the existing per-title data directory.
+The normal launch uses the bundled game and its separate writable data directory.
+Native portable definitions with a managed userdata environment use their
+declared arguments, since an alternate game-folder argument can change the
+runtime’s write destination. The engine can reopen a project in the same process.
+Separately opened project folders retain their own files and backup ownership.
+
 The `external_profile_policy` declaration requires NativePortable capability 9 or
 the higher version specified for the selected layout.
 It checks the effective profile selected by the final managed game environment

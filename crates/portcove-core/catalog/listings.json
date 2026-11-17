@@ -60822,11 +60822,14 @@
       "availability": "packages",
       "release_url": "https://github.com/alemart/opensurge/releases/latest",
       "setup_url": "https://opensurge2d.org/",
-      "download_block_reason": "Download and update the game through the publisher or your Linux package source.",
       "manual_setup": {
         "steps": [
           {
-            "title": "Install and open the game",
+            "title": "Install through Portcove on Windows",
+            "instruction": "Install the publisher’s portable game and choose Play on a 64-bit Windows PC. Portcove backs up the bundled game’s preferences, captures and levels stored in its managed data folder. Keep separate backups for custom projects you open from other folders."
+          },
+          {
+            "title": "Install an upstream copy",
             "instruction": "On Windows, extract the entire publisher ZIP into a folder you can write to and open opensurge.exe. The package includes the game and uses a 32-bit Windows executable. On Linux, install Open Surge from your distribution or install Surge Engine from Flathub for x86-64 or ARM64."
           },
           {
@@ -60835,7 +60838,7 @@
           },
           {
             "title": "Keep your settings and creations",
-            "instruction": "Close the game before copying your files. On Windows, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
+            "instruction": "Close the game before copying your files. For a manually extracted Windows copy, back up the extracted game folder. On Linux, copy the Surge the Rabbit folder under ~/.local/share/opensurge, or use the matching path under XDG_DATA_HOME if you set it. For Flatpak, look under ~/.var/app/org.opensurge2d.OpenSurge/data/opensurge. If you set OPENSURGE_USER_PATH, copy the folder it points to for your player data. Also keep any separate folders you use for your own games or levels."
           }
         ],
         "warnings": [],
