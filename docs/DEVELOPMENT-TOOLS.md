@@ -2589,8 +2589,10 @@ an owned setup child reaches its live checkpoint, the identified harness tree
 is forcibly terminated without first deleting the WebDriver session, and a new
 native host performs recovery. The run checks source, original executable,
 active-install and save preservation, retained staging, recovered activity and
-cleanup refusal when durable process quiescence is unknown. It does not rewrite
-the recovery journal. The existing `native-interrupted-preparation-recovery`
+cleanup refusal when durable process quiescence is unknown. It then reviews and
+confirms a fresh preparation through Desktop, checks a distinct operation reaches
+ready, and verifies the interrupted activity and checkpoint remain intact along
+with the original source and save. It does not rewrite the recovery journal. The existing `native-interrupted-preparation-recovery`
 remains a separate synthetic durable-state and reviewed-cleanup test. Neither
 scenario proves OS shutdown, another operation family, installed packages or
 another platform.

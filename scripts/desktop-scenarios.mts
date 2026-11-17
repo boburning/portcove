@@ -432,7 +432,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
   ),
   scenario(
     "native-host-interrupted-preparation",
-    "Forced Windows host termination during live preparation preserves originals and requires recovery.",
+    "Forced Windows host termination preserves originals and a reviewed fresh preparation can finish.",
     {
       prerequisites: ["desktop", "owned-fixture"],
       source: "desktop-preparation-recovery-test.mts",
