@@ -130,7 +130,7 @@ export async function largeSetupReviewScenario(
       }, 30_000);
       assert.ok(partial);
       assert.equal(partial.report.candidates.length, 64);
-      await keyboardActivate(button("Finish scanning"));
+      await keyboardActivate(button("Finish scanning these folders"));
       const complete = await browser.wait(async () => {
         const value = await snapshot();
         return value &&
