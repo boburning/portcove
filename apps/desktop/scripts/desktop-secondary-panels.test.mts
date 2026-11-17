@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { test } from "node:test";
+import { afterEach, test, vi } from "vite-plus/test";
 import { runInNewContext } from "node:vm";
 import { mkdtemp, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -14,6 +14,10 @@ import {
   type SecondaryPanelProbeObservation,
   type SecondaryPanelProbeOptions,
 } from "./desktop-secondary-panels-probe.mts";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const root = "C:/owned-native-output";
 const options: SecondaryPanelProbeOptions = {
@@ -35,35 +39,36 @@ async function responseObject(response: Response) {
   return object(value);
 }
 
-void test("supplied panel replies satisfy their existing Rust transport schemas", async (context) => {
-  const fixtures = options.fixtures;
-  for (const [contract, value] of [
-    ["mod_setups_view", fixtures.mods],
-    ["profile_original_review", fixtures.original],
-    ["retained_build_retirement_preview", fixtures.retirement],
-    [
-      "retained_build_resolution",
-      {
-        availability: "verified",
-        gap: null,
-        install: null,
-        reference: fixtures.retirement.reference,
-        history: fixtures.recovery,
-      },
-    ],
-    ["mod_file_preservation_plan", fixtures.preservation],
-    ["recipe_import_plan", fixtures.recipe],
-    ["provider_browse_page", fixtures.providerPage],
-    ["provider_project_view", fixtures.providerProject],
-    ["provider_install_plan", fixtures.providerPlan],
-    ["portable_save_export_preview", fixtures.portableExport],
-    ["portable_save_import_preview", fixtures.portableImport],
-    ["desktop_port_intent_assessments", fixtures.ready],
-  ] as const)
-    await context.test(contract, () => {
-      transportValue(contract, value);
-    });
-});
+const fixtures = options.fixtures;
+const schemaCases = [
+  ["mod_setups_view", fixtures.mods],
+  ["profile_original_review", fixtures.original],
+  ["retained_build_retirement_preview", fixtures.retirement],
+  [
+    "retained_build_resolution",
+    {
+      availability: "verified",
+      gap: null,
+      install: null,
+      reference: fixtures.retirement.reference,
+      history: fixtures.recovery,
+    },
+  ],
+  ["mod_file_preservation_plan", fixtures.preservation],
+  ["recipe_import_plan", fixtures.recipe],
+  ["provider_browse_page", fixtures.providerPage],
+  ["provider_project_view", fixtures.providerProject],
+  ["provider_install_plan", fixtures.providerPlan],
+  ["portable_save_export_preview", fixtures.portableExport],
+  ["portable_save_import_preview", fixtures.portableImport],
+  ["desktop_port_intent_assessments", fixtures.ready],
+] as const;
+test.each(schemaCases)(
+  "supplied %s replies satisfy their Rust transport schema",
+  (contract, value) => {
+    assert.doesNotThrow(() => transportValue(contract, value));
+  },
+);
 
 function installed() {
   const forwarded: { input: unknown; init: unknown }[] = [];
@@ -106,7 +111,7 @@ function installed() {
   return { window, original, forwarded, probe, call, install };
 }
 
-void test("serialized native panel probe supplies fixed views and preserves unrelated transport", async () => {
+test("serialized native panel probe supplies fixed views and preserves unrelated transport", async () => {
   const { window, original, forwarded, probe, call } = installed();
   const view = await responseObject(await call("get_mod_setups"));
   assert.equal(view.port_id, options.fixtures.portId);
@@ -130,7 +135,7 @@ void test("serialized native panel probe supplies fixed views and preserves unre
   assert.equal(window.__portcoveSecondaryPanelProbe, undefined);
 });
 
-void test("every declared secondary mutation is refused without reaching Core", async () => {
+test("every declared secondary mutation is refused without reaching Core", async () => {
   const { call, forwarded, probe } = installed();
   const originalTarget = {
     profileId: options.fixtures.setupId,
@@ -202,7 +207,7 @@ void test("every declared secondary mutation is refused without reaching Core", 
   assert.equal(probe.restore().trustworthy, true);
 });
 
-void test("unplanned controls in a supplied mod panel fail the observation before Core", async () => {
+test("unplanned controls in a supplied mod panel fail the observation before Core", async () => {
   const { call, forwarded, probe } = installed();
   for (const command of [
     "create_default_mod_setup",
@@ -228,7 +233,7 @@ void test("unplanned controls in a supplied mod panel fail the observation befor
   assert.equal(cleanup.trustworthy, false);
 });
 
-void test("acknowledgement refusal and success stay in the supplied notice fixture", async () => {
+test("acknowledgement refusal and success stay in the supplied notice fixture", async () => {
   const { call, forwarded, probe } = installed();
   const args = {
     acknowledgements: [{ port_id: options.fixtures.portId, plan_sha256: options.fixtures.sha }],
@@ -248,7 +253,7 @@ void test("acknowledgement refusal and success stay in the supplied notice fixtu
   assert.equal(probe.restore().trustworthy, true);
 });
 
-void test("only the exact owned successful metadata path reaches Core", async () => {
+test("only the exact owned successful metadata path reaches Core", async () => {
   const { call, forwarded, probe } = installed();
   const accepted = await call("export_library_metadata", { path: options.metadataPath });
   assert.deepEqual(await accepted.json(), { core: "owned original transport" });
@@ -261,7 +266,7 @@ void test("only the exact owned successful metadata path reaches Core", async ()
   assert.equal(probe.restore().trustworthy, false);
 });
 
-void test("changed identity and malformed targeted requests fail visibly and preserve bounded trace fields", async () => {
+test("changed identity and malformed targeted requests fail visibly and preserve bounded trace fields", async () => {
   const { window, call, forwarded, probe } = installed();
   for (const args of [
     { portId: "another-port" },
@@ -287,7 +292,7 @@ void test("changed identity and malformed targeted requests fail visibly and pre
   assert.doesNotMatch(JSON.stringify(cleanup), /must-not-enter-evidence/u);
 });
 
-void test("restoration preserves a later fetch owner and rejects duplicate installation", () => {
+test("restoration preserves a later fetch owner and rejects duplicate installation", () => {
   const { window, original, probe, install } = installed();
   assert.throws(() => install(structuredClone(options)), /already installed/u);
   const foreign: typeof fetch = () => Promise.resolve(new Response("foreign"));
@@ -299,7 +304,7 @@ void test("restoration preserves a later fetch owner and rejects duplicate insta
   assert.notEqual(window.fetch, original);
 });
 
-void test("the finite trace bound refuses further targets and records incomplete observation", async () => {
+test("the finite trace bound refuses further targets and records incomplete observation", async () => {
   const { call, forwarded, probe } = installed();
   for (let index = 0; index < 512; index++) await call("get_mod_setups");
   assert.equal((await call("get_mod_setups")).headers.get("Tauri-Response"), "error");
@@ -310,7 +315,7 @@ void test("the finite trace bound refuses further targets and records incomplete
   assert.deepEqual(forwarded, []);
 });
 
-void test("secondary panel initialization binds its snapshot to the observed generation", async () => {
+test("secondary panel initialization binds its snapshot to the observed generation", async () => {
   const boundary = new Error("Observed generation-bound snapshot request");
   const library = path.resolve(root, "library");
   const commands: string[] = [];
@@ -438,7 +443,7 @@ async function scenarioBoundary(
   };
 }
 
-void test("an unexpected selected library is refused before fixture files or probe installation", async () => {
+test("an unexpected selected library is refused before fixture files or probe installation", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-library-"));
   try {
     const boundary = await scenarioBoundary(output, {
@@ -453,7 +458,7 @@ void test("an unexpected selected library is refused before fixture files or pro
   }
 });
 
-void test("a window observation failure precedes probe installation", async () => {
+test("a window observation failure precedes probe installation", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-rect-"));
   try {
     const failure = new Error("Owned getRect failure");
@@ -470,9 +475,9 @@ void test("a window observation failure precedes probe installation", async () =
   }
 });
 
-void test("trustworthy cleanup retains the action failure when window restoration also fails", async (context) => {
+test("trustworthy cleanup retains the action failure when window restoration also fails", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-window-"));
-  context.mock.method(console, "error", () => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
   try {
     const boundary = await scenarioBoundary(output, { restoreWindowFailure: true });
     await assert.rejects(boundary.run(), (error: unknown) => error === boundary.primary);
@@ -490,9 +495,9 @@ void test("trustworthy cleanup retains the action failure when window restoratio
   }
 });
 
-void test("foreign probe ownership remains marked despite receipt and window restoration failures", async (context) => {
+test("foreign probe ownership remains marked despite receipt and window restoration failures", async () => {
   const output = await mkdtemp(path.join(os.tmpdir(), "portcove-panel-custody-"));
-  context.mock.method(console, "error", () => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
   try {
     const receipt = path.join(output, "secondary-panels-observations.json");
     await mkdir(receipt);

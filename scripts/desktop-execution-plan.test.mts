@@ -390,6 +390,7 @@ void test("execution planning preserves the independently reviewed pre-change or
             "native-rejected-listener-registration",
             "native-interface-size",
             "native-library-layout",
+            "native-secondary-panel-presentation",
             "native-update-acquisition-lifecycle",
             "native-library-organization-restart",
             "native-game-first-choice-and-restart",
@@ -408,6 +409,8 @@ void test("execution planning preserves the independently reviewed pre-change or
     assert.ok(selection.excluded_scenarios.includes("native-registered-source-reuse"));
     assert.ok(!selection.selected_scenarios.includes("native-game-first-choice-and-restart"));
     assert.ok(selection.excluded_scenarios.includes("native-game-first-choice-and-restart"));
+    assert.ok(!selection.selected_scenarios.includes("native-secondary-panel-presentation"));
+    assert.ok(selection.excluded_scenarios.includes("native-secondary-panel-presentation"));
     // Keep the frozen oracle bytes. Local artwork now explicitly receives the
     // private fixture its running-app catalog lookup has always required.
     const artworkFixtureAdded =
@@ -464,6 +467,12 @@ void test("execution planning preserves the independently reviewed pre-change or
           added === "scripts/native-readiness.mts" ||
           added === "scripts/acceptance-packet.mts" ||
           added === "apps/desktop/scripts/desktop-listener-lifetime-test.mts" ||
+          (selection.prerequisites.includes("owned-fixture") &&
+            [
+              "apps/desktop/scripts/desktop-secondary-panels-test.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-probe.mts",
+              "apps/desktop/scripts/desktop-secondary-panels-fixture.mts",
+            ].includes(added)) ||
           (added === "apps/desktop/scripts/desktop-listener-lifetime-probe.mts" &&
             actualInputs.includes("apps/desktop/scripts/desktop-listener-lifetime-test.mts")) ||
           (installFixtureAdded &&
