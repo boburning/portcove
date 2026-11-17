@@ -210,8 +210,11 @@ Generic GitHub/GitLab downloaded setup can optionally extract ZIP, tar.gz/tgz,
 tar.xz and bounded 7z packages. TAR.XZ uses the pinned in-process LZMA decoder
 with a single verified worker. The reader bounds the raw index to 32 KiB before
 allocation and requires one unpadded stream with CRC32 or CRC64. It preflights
-up to 1,024 plain LZMA2 block headers, at most 64 MiB of decoded bytes per
-block and a 96 MiB decoder budget. It applies the compression ratio to the
+up to 1,024 plain LZMA2 block headers, at most 128 MiB of decoded bytes per
+block and a 160 MiB decoder budget for the verified worker's packed input,
+decoded output and decoder state. The official JGR Patch Pack 0.73.5 Linux
+archive uses one block of 43,738,084 packed and 121,032,704 decoded bytes.
+The reader applies the compression ratio to the
 entire indexed output before decoding, including headers and padding. The
 existing archive size and TAR metadata limits also apply. It verifies every
 indexed block and consumes the TAR terminator and up to one 10 KiB record of
