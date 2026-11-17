@@ -30,7 +30,10 @@ export function ModSetupRuntimeRetirement({
   const request = useRef({ id: 0 });
   const [open, setOpen] = useState(false);
   const [history, setHistory] = useState<ModSetupRecoveryBuild[]>();
-  const [target, setTarget] = useState<ModSetupRecoveryBuild>();
+  const [target, setTarget] = useState<{
+    entry: ModSetupRecoveryBuild;
+    opener: HTMLButtonElement;
+  }>();
   const [error, setError] = useState<string>();
   const [retired, setRetired] = useState(false);
 
@@ -105,7 +108,7 @@ export function ModSetupRuntimeRetirement({
                           name: entry.revision.build.artifact.asset_name,
                           revision: entry.revision.revision,
                         })}
-                        onClick={() => setTarget(entry)}
+                        onClick={(event) => setTarget({ entry, opener: event.currentTarget })}
                       >
                         {t("mods.retirement.review")}
                       </Button>
@@ -123,7 +126,8 @@ export function ModSetupRuntimeRetirement({
           profileId={profileId}
           generation={generation}
           locked={locked}
-          target={target}
+          target={target.entry}
+          opener={target.opener}
           toggle={toggle}
           close={() => setTarget(undefined)}
           onRetired={() => {
@@ -143,17 +147,20 @@ function RuntimeRetirementReview({
   generation,
   locked,
   target,
+  opener,
   toggle,
   close,
   onRetired,
 }: Props & {
   target: ModSetupRecoveryBuild;
+  opener: HTMLButtonElement;
   toggle: React.RefObject<HTMLButtonElement | null>;
   close: () => void;
   onRetired: () => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
-  const cancel = useRef<HTMLButtonElement>(null);
+  const title = useRef<HTMLHeadingElement>(null);
+  const retired = useRef(false);
   const descriptionId = useId();
   const revision = target.revision.revision;
   const { preview, pending, error, review, execute, dismiss } = useActionReview({
@@ -186,6 +193,7 @@ function RuntimeRetirementReview({
         confirmed.preview_sha256,
         generation,
       );
+      retired.current = true;
       onRetired();
       return true;
     },
@@ -201,12 +209,16 @@ function RuntimeRetirementReview({
       }}
     >
       <DialogContent
-        initialFocus={cancel}
-        finalFocus={toggle}
+        initialFocus={title}
+        finalFocus={() =>
+          !retired.current && opener.isConnected && !opener.disabled ? opener : toggle.current
+        }
         showCloseButton={false}
         aria-describedby={descriptionId}
       >
-        <DialogTitle>{t("mods.retirement.title", { revision })}</DialogTitle>
+        <DialogTitle ref={title} tabIndex={-1} className="pe-0">
+          {t("mods.retirement.title", { revision })}
+        </DialogTitle>
         <DialogDescription id={descriptionId}>{t("mods.retirement.description")}</DialogDescription>
         {pending === "review" && <p role="status">{t("mods.retirement.loading")}</p>}
         {preview && (
@@ -226,7 +238,6 @@ function RuntimeRetirementReview({
           applyLabel={t("mods.retirement.apply")}
           applyingLabel={t("mods.retirement.applying")}
           canApply={!locked}
-          cancelRef={cancel}
         />
       </DialogContent>
     </Dialog>

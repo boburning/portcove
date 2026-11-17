@@ -342,6 +342,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     disabled={changing}
                     perform={perform}
                     setWorking={setWorking}
+                    focusReturn={setupHeading}
                   />
                 ))}
               <ModSetupPackages
