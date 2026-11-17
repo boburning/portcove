@@ -45403,6 +45403,45 @@
       }
     },
     {
+      "id": "openclonk",
+      "name": "OpenClonk",
+      "original_game_title": "OpenClonk",
+      "summary": "Explore caves, build settlements, and play strategy and action scenarios in this free successor to Clonk.",
+      "project_url": "https://github.com/openclonk/openclonk",
+      "issue_number": 6529,
+      "listed_at": "2026-11-16",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64"
+      ],
+      "availability": "packages",
+      "release_url": "https://www.openclonk.org/download/",
+      "setup_url": "https://www.openclonk.org/download/",
+      "download_block_reason": "Install and update OpenClonk through the publisher or your package manager.",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Install OpenClonk",
+            "instruction": "On Windows x64, use the Windows 64-bit installer. On Linux, use your distribution’s openclonk package or the community OpenClonk Flatpak for x86-64. Debian also packages OpenClonk for ARM64. The publisher’s Linux archives were built with Ubuntu 16.04, so try your distribution’s package first on a newer system."
+          },
+          {
+            "title": "Choose a player and scenario",
+            "instruction": "Create a player, or select an existing one under Player Selection and choose Activate. Open Start Game, open Tutorials, and start Wandering Wipf to learn the controls. The packages include the game data."
+          }
+        ],
+        "warnings": [
+          "Close OpenClonk before copying players, scenarios, or saves. Keep any custom user data directory or separate configuration file you selected."
+        ],
+        "references": [
+          {
+            "title": "Find your player data",
+            "instruction": "On Windows, look under %APPDATA%\\OpenClonk. Windows stores default settings in HKEY_CURRENT_USER\\Software\\OpenClonk Project\\OpenClonk. Keep that key if you want to transfer these settings. On Linux, keep ~/.clonk/openclonk, including its config file. The Flatpak profile is ~/.var/app/org.openclonk.OpenClonk/.clonk/openclonk."
+          }
+        ],
+        "help_url": "https://www.openclonk.org/download/"
+      }
+    },
+    {
       "id": "opencommunityedition-opence",
       "name": "Halo: Combat Evolved / OpenCE (OpenCommunityEdition)",
       "summary": "Play Halo: Combat Evolved through OpenCE with your own Xbox disc image.",
