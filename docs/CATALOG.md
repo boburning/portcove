@@ -598,6 +598,9 @@ OpenLoco Mac route keeps the whole bundle and checks its account profile.
 The guarded profiles stay outside the managed library. CorsixTH uses
 its defined XDG_CONFIG_HOME or inherited HOME. OpenLoco uses a nonempty
 XDG_CONFIG_HOME on Linux, with the account home as the ordinary fallback.
+Managed CorsixTH gives its Windows and Linux player the neutral name
+`PLAYER` for the upstream blank-name fallback. It leaves the name already
+stored in the player's external profile to CorsixTH.
 
 The managed offer covers the normal external profiles. Custom save,
 landscape, campaign and other locations stay with separately prepared
