@@ -2323,14 +2323,14 @@ execution identity. Because the catalog is embedded, acceptance reaches players
 with the next application release. A selected independent definition may keep
 or remove accepted uploaders but cannot add one.
 
-### Generated reviewed package shapes (shadow)
+<a id="generated-reviewed-package-shapes-shadow"></a>
 
-Issue #5359 generalizes the fingerprint into a Core-derived package shape for
-every managed portable route, without per-route authoring. Phase 1 only
-records a verdict; it refuses nothing, and the explicit fingerprint above stays
-the only package-layout refusal. The shape has six parts, each a sorted, bounded
-set of lowercase package-relative paths computed after wrapper look-through and
-declared-executable grants, before any adapter adds content:
+### Generated reviewed package shapes
+
+Core derives a package shape for each managed portable route (#5359). Its six
+parts are sorted, bounded sets of lowercase package-relative paths. Core derives
+them after package normalization and declared-executable grants, before adding
+original game inputs or bundled runtimes:
 
 - `programs`: the fingerprint's program and script classifier, unchanged;
 - `top_directories`;
@@ -2354,6 +2354,20 @@ reported as unknown, never as a pass: an explicit fingerprint knows only
 programs and top-level directories, and an unresolved declared executable, or a
 declared persistent path or pattern that cannot be located relative to the
 package root, leaves the persistent parts unknown.
+
+A known change against a reviewed baseline withholds the candidate before
+publication. A local shape can supply that baseline when its reviewed or
+inherited provenance is retained. Comparisons against an unreviewed local
+shape remain visible as observations.
+The native portable, staged-source, N64 recompilation, libultraship, PSX
+recompilation and generated-cache templates advertise the capability. The
+embedded catalog uses the installed template capability. Indexed definitions
+use the version they negotiate, so a definition capped below the enforcement
+capability still records the comparison without adding the refusal. Unknown
+parts remain visible, and the other acquisition and layout checks still apply.
+If an exact candidate has a retained refusal observation, an update check
+recomputes its verdict with the current applicable baseline before saying the
+release is waiting for review.
 
 The baseline is, in order: the generated table entry for the exact artifact,
 else the route's newest generated entry; the explicit fingerprint; the shape

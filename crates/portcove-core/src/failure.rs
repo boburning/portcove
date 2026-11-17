@@ -158,6 +158,7 @@ pub(crate) enum KnownFailureCause {
         path: std::path::PathBuf,
     },
     RecordedUploaderHold,
+    PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
     NewerLibrary,
@@ -270,6 +271,10 @@ impl KnownFailureCause {
             Self::RecordedUploaderHold => (
                 "recorded_uploader_hold",
                 "Portcove couldn't confirm the uploader for this version. Check for updates to find a version Portcove can confirm.",
+            ),
+            Self::PackageShapeDrift => (
+                "package_shape_drift",
+                "This release changed some of the files or folders Portcove checks before installing. It is waiting for review. You can still use an installed version.",
             ),
             Self::CatalogValidity => (
                 "catalog_validity_rejected",
