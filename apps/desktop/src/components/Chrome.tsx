@@ -85,6 +85,7 @@ import {
   formatBytes,
   navigationActivityState,
   progressPresentation,
+  type DetailDestination,
   type NavigationActivityState,
   type SourceRequirement,
   type View,
@@ -1733,7 +1734,9 @@ type SettingsViewProps = {
   exportMetadata?: (() => Promise<LibraryMetadataFile | undefined>) | undefined;
   sourceProfiles?: SourceProfile[];
   onSourceAdded?: () => Promise<unknown>;
-  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  onOpenPort?:
+    | ((portId: string, originKey: string, destination?: DetailDestination) => void)
+    | undefined;
   setupSource?: SourceRecord | undefined;
   setSetupSource?: (source?: SourceRecord) => void;
   onCatalogChanged?: () => Promise<unknown>;

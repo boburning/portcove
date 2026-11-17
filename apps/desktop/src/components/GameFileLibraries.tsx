@@ -23,7 +23,8 @@ import type {
   SourceProfile,
   SourceRecord,
 } from "../types";
-import { errorText, formatBytes, isCancellation } from "../view-model";
+import { errorText, formatBytes, isCancellation, type DetailDestination } from "../view-model";
+import { focusableControls } from "../focus";
 import { OperationCancellation } from "./OperationCancellation";
 import { PreliminarySourceSelections } from "./PreliminarySourceSelections";
 import {
@@ -1012,7 +1013,9 @@ export function GameFileLibraries({
   statuses?: ReadonlyMap<string, PortStatus>;
   workspaceRefreshFailed?: boolean;
   onAdded?: (() => Promise<unknown>) | undefined;
-  onOpenPort?: ((portId: string, originKey: string) => void) | undefined;
+  onOpenPort?:
+    | ((portId: string, originKey: string, destination?: DetailDestination) => void)
+    | undefined;
   setupSource?: SourceRecord | undefined;
   setSetupSource?: ((source?: SourceRecord) => void) | undefined;
   /** One intention: choosing a folder also scans the saved folders. */
@@ -1021,6 +1024,7 @@ export function GameFileLibraries({
   const headingId = `${instanceId}-heading`;
   const returnOrigin = `${instanceId}-setup`;
   const openPort = onOpenPort ? (id: string) => onOpenPort(id, returnOrigin) : undefined;
+  const readyNoticeSettings = useRef<HTMLDivElement>(null);
   const [busy, setBusy] = useState("");
   const scanState = useGameFileScanObserver(generation);
   const { scanning, operationId, completedBatches, candidates: liveCandidates } = scanState;
@@ -1501,10 +1505,18 @@ export function GameFileLibraries({
       {error && <p role="alert">{error}</p>}
       {notice && <p role="status">{notice}</p>}
       {renderCompletedScan()}
-      <div className="border-t border-pc-border pt-4">
+      <div ref={readyNoticeSettings} className="border-t border-pc-border pt-4">
         <ReadyNoticesSetting generation={generation} />
       </div>
-      <ReadyGameNotices generation={generation} ports={ports} onOpenPort={openPort} />
+      <ReadyGameNotices
+        generation={generation}
+        ports={ports}
+        onOpenPort={onOpenPort}
+        fallbackFocus={() => {
+          const setting = readyNoticeSettings.current;
+          return (setting && focusableControls(setting)[0]) || heading.current;
+        }}
+      />
       {renderSetupReviews()}
       {renderInstallBatch()}
       {renderSourceReview()}
