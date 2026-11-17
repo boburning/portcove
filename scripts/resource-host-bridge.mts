@@ -27,6 +27,8 @@ import {
 
 const delegationName = "PORTCOVE_HOST_RESOURCE";
 const wireLimit = 32 * 1024;
+// Passive status carries a queue inventory and counters in one response.
+const statusResponseLimit = 256 * 1024;
 // This small launcher validates every staged module before evaluating any of it.
 // Host and appointed Linux recovery use the same content-bound module closure.
 const verifiedLauncher = [
@@ -444,7 +446,7 @@ async function oneShot(config: WindowsHostBridge, action: string, value: unknown
     {
       encoding: "utf8",
       timeout: 30_000,
-      maxBuffer: wireLimit,
+      maxBuffer: action === "--status" ? statusResponseLimit : wireLimit,
       windowsHide: true,
     },
   );
