@@ -56,14 +56,13 @@ export function AddGames({
           data-focusable
           variant={mode === "choose" ? "ghost" : "outline"}
           className="add-route-choice"
-          aria-label="Browse games"
           aria-describedby="add-game-description"
           onClick={onBrowseCatalog}
         >
           <Icon glyph={Gamepad2} />
           <span>
             <strong className="block">Browse games</strong>
-            <span id="add-game-description" className="add-route-description">
+            <span id="add-game-description" className="add-route-description" aria-hidden="true">
               Pick a game in Discover, then see what you need to play it.
             </span>
           </span>
@@ -73,7 +72,6 @@ export function AddGames({
           data-focusable
           variant={mode === "folders" ? "selected" : mode === "choose" ? "ghost" : "outline"}
           className="add-route-choice"
-          aria-label="Scan a folder"
           aria-describedby="add-folder-description"
           aria-pressed={mode === "folders"}
           aria-controls={foldersVisited ? "add-games-scan" : undefined}
@@ -85,7 +83,7 @@ export function AddGames({
           <Icon glyph={FolderSearch} />
           <span>
             <strong className="block">Scan a folder</strong>
-            <span id="add-folder-description" className="add-route-description">
+            <span id="add-folder-description" className="add-route-description" aria-hidden="true">
               Choose a folder of your game files; Portcove finds the supported ones.
             </span>
           </span>
@@ -97,14 +95,17 @@ export function AddGames({
           aria-pressed={mode === "existing"}
           aria-controls="add-games-existing"
           className="add-route-choice"
-          aria-label="Use an existing installation"
           aria-describedby="add-existing-description"
           onClick={() => setMode("existing")}
         >
           <Icon glyph={FolderInput} />
           <span>
             <strong className="block">Use an existing installation</strong>
-            <span id="add-existing-description" className="add-route-description">
+            <span
+              id="add-existing-description"
+              className="add-route-description"
+              aria-hidden="true"
+            >
               Copy a supported installation or keep using its current folder.
             </span>
           </span>

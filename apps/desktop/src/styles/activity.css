@@ -27,7 +27,7 @@
     border: 1px solid var(--color-border-subtle);
     border-radius: var(--radius-sm);
     background: var(--color-bg-subtle-hover);
-    color: var(--color-text-muted);
+    color: inherit;
     font-size: var(--text-2xs);
     font-weight: 400;
     font-variant-numeric: tabular-nums;

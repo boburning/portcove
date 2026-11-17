@@ -39,14 +39,6 @@ function route(name: string) {
     .getByRole("group", { name: "Ways to add games" })
     .getByRole("button", { name, exact: true });
 }
-function routeNames() {
-  const group = document.querySelector<HTMLElement>(
-    '[role="group"][aria-label="Ways to add games"]',
-  );
-  return [...(group?.querySelectorAll("button") ?? [])].map((button) =>
-    button.getAttribute("aria-label"),
-  );
-}
 async function expectDiscover() {
   await expect.element(page.getByRole("heading", { name: "Discover", level: 1 })).toBeVisible();
   expect(
@@ -55,7 +47,16 @@ async function expectDiscover() {
 }
 it("offers exactly three routes and sends game choice to Discover without a second chooser", async () => {
   await mount();
-  expect(routeNames()).toEqual(["Browse games", "Scan a folder", "Use an existing installation"]);
+  const group = page.getByRole("group", { name: "Ways to add games", exact: true });
+  const buttons = [...group.element().querySelectorAll("button")];
+  expect(buttons).toHaveLength(3);
+  for (const [index, name] of [
+    "Browse games",
+    "Scan a folder",
+    "Use an existing installation",
+  ].entries()) {
+    await expect.element(buttons[index]!).toHaveAccessibleName(name);
+  }
   expect(document.querySelector('[role="combobox"]')).toBeNull();
   expect(document.getElementById("add-games-check-files")).toBeNull();
   expect(document.body.textContent).not.toContain("You can leave this workspace");
