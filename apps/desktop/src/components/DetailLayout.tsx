@@ -191,7 +191,7 @@ export function DetailLayout({
         aria-label={backLabel ?? "Back to previous workspace"}
         onClick={close}
       >
-        <Icon glyph={ArrowLeft} /> {backLabel ?? "Back"}
+        <Icon glyph={ArrowLeft} className="rtl:-scale-x-100" /> {backLabel ?? "Back"}
       </Button>
       <GameHero port={port} variant="detail" className="detail-hero">
         <div className="detail-identity min-w-0 [overflow-wrap:anywhere]">

@@ -705,7 +705,7 @@ function useWorkspace(props: WorkspaceProps) {
     (addGamesOpen && ui.view === "library" ? (
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
           Back to Library
         </Button>
         <h1 tabIndex={-1}>Add games</h1>

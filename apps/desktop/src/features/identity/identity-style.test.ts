@@ -19,6 +19,9 @@ it("keeps the 54 supplied identity colors separate from release and readiness", 
 it("uses canonical system aliases without guessing an unknown system", () => {
   expect(canonicalIdentityId("snes")).toBe("super-nintendo");
   expect(identityLabel("ps1")).toBe("PlayStation");
+  expect(identityLabel("nintendo-gamecube")).toBe("GameCube");
+  expect(identityStyle("nintendo-gamecube")).toEqual(identityStyle("gamecube"));
+  expect(canonicalIdentityId("nintendo-gamecube")).toBe("nintendo-gamecube");
   expect(identityStyle("windows-x86-64")).toEqual(identityStyle("windows"));
   expect(identityStyle("unknown-system")).toBeUndefined();
 });

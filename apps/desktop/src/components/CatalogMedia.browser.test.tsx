@@ -242,6 +242,17 @@ it("shows source and edition attribution, navigates previews and returns focus t
   await expect
     .element(page.getByRole("heading", { name: "Owned second scene", exact: true }))
     .toBeVisible();
+  const viewer = page.getByRole("dialog");
+  const title = viewer.getByRole("heading", { name: "Owned second scene", exact: true }).element();
+  const description = viewer.getByText(/Screenshot 2 of 2/).element();
+  const close = viewer.getByRole("button", { name: "Close", exact: true }).element();
+  const titleBounds = title.getBoundingClientRect();
+  const outline = getComputedStyle(title);
+  const focusExtent = parseFloat(outline.outlineWidth) + parseFloat(outline.outlineOffset);
+  expect(titleBounds.right + focusExtent).toBeLessThanOrEqual(close.getBoundingClientRect().left);
+  expect(titleBounds.bottom + focusExtent).toBeLessThanOrEqual(
+    description.getBoundingClientRect().top,
+  );
   await expect
     .element(page.getByRole("dialog").getByText(/Original release · usa-v1/))
     .toBeVisible();

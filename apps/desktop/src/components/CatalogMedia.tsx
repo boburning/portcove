@@ -239,7 +239,7 @@ export function CatalogMediaGallery({
         >
           {active && (
             <>
-              <DialogTitle ref={heading} tabIndex={-1}>
+              <DialogTitle ref={heading} tabIndex={-1} className="me-12 mb-2">
                 {active.caption}
               </DialogTitle>
               <DialogDescription>
