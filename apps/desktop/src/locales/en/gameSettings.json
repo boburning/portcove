@@ -138,6 +138,25 @@
     "noneOn": "no mods on",
     "on_one": "{{count}} mod on",
     "on_other": "{{count}} mods on",
+    "original": {
+      "choose": "Choose an original",
+      "embedded": "This installation uses game data it already prepared. To use a different original, prepare another installation with it.",
+      "heading": "Original game files",
+      "identity": "File details",
+      "noAlternatives": "No other registered original is available for this setup.",
+      "registered": "Other registered originals",
+      "relink": "Find the same original",
+      "relinked": "Updated the saved location for this original.",
+      "review": "Review original game files",
+      "sameLocation": "{{path}} ({{identity}})",
+      "selected": "Saved the original game files for this setup.",
+      "status": {
+        "changed": "The saved original differs from the file this setup recorded.",
+        "missing": "The file this setup recorded is missing.",
+        "verified": "The original matches the file this setup recorded."
+      },
+      "use": "Use this original"
+    },
     "otherBuild": "This setup stays on the game version it was made with, so game updates don’t change it. To try these mods with the game’s current version, copy the setup onto it. This setup and its saves stay as they are.",
     "outcome": {
       "added": "Added a mod to {{name}}.",

@@ -161,6 +161,7 @@ pub(crate) enum KnownFailureCause {
     PackageShapeDrift,
     CatalogValidity,
     CatalogReplay,
+    OriginalEmbeddedInRuntime,
     NewerLibrary,
     IncompleteLibrary,
     Busy,
@@ -283,6 +284,10 @@ impl KnownFailureCause {
             Self::CatalogReplay => (
                 "catalog_replay_rejected",
                 "This catalog revision has already been seen or is older than the recorded revision. Check for a newer catalog; do not reset the library's trust history.",
+            ),
+            Self::OriginalEmbeddedInRuntime => (
+                "original_embedded_in_runtime",
+                "This runtime already contains prepared game data. Prepare another runtime to use a different original.",
             ),
             Self::NewerLibrary => (
                 "library_version_newer",

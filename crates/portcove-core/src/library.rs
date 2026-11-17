@@ -2122,7 +2122,11 @@ impl Library {
     }
 
     pub(crate) fn register_source(&self, source: &SourceRecord) -> Result<()> {
-        Self::write_source(&self.connection()?, source)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        Self::write_source(&transaction, source)?;
+        transaction.commit()?;
+        Ok(())
     }
 
     pub(crate) fn write_source(connection: &Connection, source: &SourceRecord) -> Result<()> {
@@ -2153,7 +2157,7 @@ impl Library {
                 observed_identity_json
             ],
         )?;
-        Ok(())
+        crate::source_instances::record(connection, source)
     }
 
     pub fn source(&self, profile_id: &str) -> Result<Option<SourceRecord>> {
@@ -2208,10 +2212,15 @@ impl Library {
     }
 
     pub(crate) fn remove_source(&self, profile_id: &str) -> Result<bool> {
-        Ok(self
-            .connection()?
-            .execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?
-            > 0)
+        let mut connection = self.connection()?;
+        let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let Some(source) = Self::source_from(&transaction, profile_id)? else {
+            return Ok(false);
+        };
+        crate::source_instances::forget(&transaction, &source)?;
+        transaction.execute("DELETE FROM sources WHERE profile_id=?1", [profile_id])?;
+        transaction.commit()?;
+        Ok(true)
     }
 
     pub fn ensure_settings(&self, port_id: &str, default_channel: ReleaseChannel) -> Result<()> {

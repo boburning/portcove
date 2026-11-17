@@ -14,6 +14,7 @@ import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
+import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
 import { ActionRow, Notice } from "./ui/patterns";
@@ -274,6 +275,27 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   components={{ name: <bdi>{selected.profile.display_name}</bdi> }}
                 />
               </h4>
+              {!selected.profile.is_default &&
+                selected.originals.map((original) => (
+                  <ModSetupOriginalControl
+                    key={JSON.stringify([
+                      selected.profile.id,
+                      selected.profile.current_revision,
+                      original.binding.requirement_id,
+                    ])}
+                    target={{
+                      portId,
+                      generation,
+                      profileId: selected.profile.id,
+                      expectedRevision: selected.profile.current_revision,
+                      requirementId: original.binding.requirement_id,
+                    }}
+                    original={original}
+                    disabled={changing}
+                    perform={perform}
+                    setWorking={setWorking}
+                  />
+                ))}
               <ModSetupPackages
                 key={selected.profile.id}
                 selected={selected}

@@ -13,7 +13,7 @@ use crate::{PortcoveError, Result};
 #[path = "database_concurrency_tests.rs"]
 mod concurrency_tests;
 
-pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 63;
+pub(crate) const CURRENT_SCHEMA_VERSION: i64 = 64;
 
 struct Migration {
     version: i64,
@@ -401,6 +401,12 @@ const MIGRATIONS: &[Migration] = &[
         apply: migration_63,
         verify: crate::profile::verify_selection_migration,
     },
+    Migration {
+        version: 64,
+        name: "retained admitted original instances",
+        apply: crate::source_instances::migrate,
+        verify: verify_migration_64,
+    },
 ];
 
 fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
@@ -409,6 +415,14 @@ fn migration_63(transaction: &Transaction<'_>) -> Result<()> {
     // The exclusive migration lease and ledger fence those writers without
     // rewriting existing profile revisions or replacing any player files.
     crate::profile::verify_selection_migration(transaction)
+}
+
+fn verify_migration_64(connection: &Connection) -> Result<()> {
+    require_columns(
+        connection,
+        "source_instances",
+        &["requirement_id", "instance_id", "source_json"],
+    )
 }
 
 fn migration_62(transaction: &Transaction<'_>) -> Result<()> {
@@ -3976,6 +3990,7 @@ mod tests {
         schema_60: 60,
         schema_61: 61,
         schema_62: 62,
+        schema_63: 63,
     }
 
     #[test]

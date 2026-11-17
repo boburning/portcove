@@ -303,6 +303,12 @@ export const desktopApi = {
     }),
   modSetups: (portId: string, generation: number) =>
     invoke<import("./types").ModSetupsView>("get_mod_setups", { portId, generation }),
+  reviewModSetupOriginal: (target: import("./types").ModSetupOriginalTarget) =>
+    invoke<import("./types").ModSetupOriginalReview>("review_mod_setup_original", target),
+  selectModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, instanceId: string) =>
+    invoke<void>("select_mod_setup_original", { ...target, instanceId }),
+  relinkModSetupOriginal: (target: import("./types").ModSetupOriginalTarget, path: string) =>
+    invoke<void>("relink_mod_setup_original", { ...target, path }),
   createDefaultModSetup: (portId: string, generation: number) =>
     invoke<import("./types").ModSetup>("create_default_mod_setup", { portId, generation }),
   copyModSetup: (

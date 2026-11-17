@@ -380,9 +380,8 @@ legacy/unknown-value handling; this planning contract adds no command or field.
 The CLI API schema version is independent of the Portcove release version.
 
 `port-capabilities PORT_ID` returns a format-1 read-only feature report for a
-current or retained listing. Read the active CLI API from
-`capabilities.schema_version`. The same response advertises the operation event
-schema, port capability schema and listing formats in their own fields.
+current or retained listing. `capabilities` advertises `port_capability_schema`
+and `listing_formats` independently from the API and event schemas.
 Clients may ignore these additive descriptive fields; missing reports never
 override operation assessments. Cheap reports on workspace `PortListingStatus` use
 already loaded status/action facts. The focused command additionally reads the
@@ -2310,6 +2309,9 @@ portcove --library PATH --json profile list PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
+portcove --library PATH --json profile original-instances PORT_ID PROFILE_ID REQUIREMENT_ID
+portcove --library PATH --json profile select-original PORT_ID PROFILE_ID REQUIREMENT_ID INSTANCE_ID --expected-revision N
+portcove --library PATH --json profile relink-original PORT_ID PROFILE_ID REQUIREMENT_ID SOURCE_PATH --expected-revision N
 portcove --library PATH --json profile policy PORT_ID PROFILE_ID keep-current|review-updates|automatic-eligible
 portcove --library PATH --json profile install-package PORT_ID PROFILE_ID FILE --expected-revision N [--allow-mod-code SHA256]
 portcove --library PATH --json profile set-package PORT_ID PROFILE_ID NATIVE_ID on|off --expected-revision N
@@ -2318,6 +2320,30 @@ portcove --library PATH --json profile live PORT_ID
 portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
 ```
+
+Register each original through the existing source command. A customized setup
+can choose an admitted saved instance by ID, which stores a new revision. Default
+uses the game's current saved source. Relinking checks the original's content
+and storage representation before changing its saved location. All setups
+bound to that exact instance use the new location, including retained
+revisions. A runtime with prepared game data already holds its original input.
+Prepare another runtime to use a different original. The prepared runtime can
+still play when its saved input is missing. In Desktop, open **Review original
+game files** in the customized setup. Choose a registered original when the
+installation consumes that input, or use **Find the same original** to update
+the saved location. Portcove checks the file before saving either choice.
+
+Library schema 63 keeps admitted instances in addition to the existing source
+default. Re-registering another original changes the default and preserves the
+instances that customized setups already select. Removing the game's default
+source registration forgets that exact instance's saved path, including for
+customized setups that use it. Their saved identity can still be relinked.
+Other admitted original instances remain available.
+Use a Desktop or CLI version that supports schema 63 to open that library.
+A whole-library export with additional original instances or saved sources in
+the library inbox uses metadata schema 12. When copying that library, saved
+paths within its source inbox move with the inbox. Paths to external originals
+stay as saved.
 
 `profile remove-package PORT_ID PROFILE_ID NATIVE_ID --expected-revision REVISION`
 removes the mod from this setup and the live mod folder when the setup is selected.

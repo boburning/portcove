@@ -56,6 +56,14 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API96 adds `profile original-instances`, `profile select-original` and
+`profile relink-original`. A customized setup can select a registered
+original's exact content and storage identity in a new revision. Relinking
+rechecks bytes and updates the saved location for that instance. The library
+database moves to writer schema 64 and library exports with additional original
+instances or saved inbox locations use metadata schema 12. Playnite continues
+negotiating its existing command and event requirements.
+
 API95 adds the reviewed `wrappers` collection to Thunderstore `provider-plan`
 results and corresponding `provider-apply` inputs. Preserve the whole plan when
 submitting it. Removing the wrapper review or its populated file observations
@@ -63,6 +71,10 @@ invalidates the bound digest. Earlier Thunderstore plans must be reviewed
 again. GameBanana plans omit the Thunderstore fields. Recipe format 2 separately
 carries exact provider requirements, and library writer schema 63 fences older
 projection writers. Event schema remains 3.
+
+API 94 adds `profile package-plan` and `profile package-apply`. Review binds the
+selected setup revision, file bytes, conflicts and exact code permission. Apply
+consumes the freshly checked plan digest under the existing port lock.
 
 Within API93, the read-only `installation runtimes` command and its
 `runtime_prerequisite_report` result are additive and advertised in

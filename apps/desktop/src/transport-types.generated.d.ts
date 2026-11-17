@@ -1299,6 +1299,8 @@ export interface TransportOutputs {
   preparation_options: PreparationOptions;
   preparation_plan: OutputPreparationPlan;
   profile_inventory: ProfileInventory;
+  profile_original_instance: ProfileOriginalInstance;
+  profile_original_review: OutputProfileOriginalReview;
   profile_recipe: ProfileRecipe;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
@@ -4521,6 +4523,10 @@ export interface LibraryMetadata {
   profiles?: LibraryProfile[];
   retained_build_references?: RetainedBuildReference[];
   schema_version: number;
+  /**
+   * Other admitted original locations in metadata schema 12.
+   */
+  source_instances?: SourceRecord[];
   source_references: SourceRecord[];
   [k: string]: unknown;
 }
@@ -5595,6 +5601,23 @@ export interface SourceInspectionProblem {
    * matching shared readiness controls. Other error details remain private.
    */
   tool_id?: string | null;
+  [k: string]: unknown;
+}
+export interface ProfileOriginalInstance {
+  binding: OriginalBinding;
+  instance_id: string;
+  path: string;
+  [k: string]: unknown;
+}
+export interface OutputProfileOriginalReview {
+  current_instance_id: string;
+  current_path: string | null;
+  embedded: boolean;
+  /**
+   * Other saved instances whose current bytes the retained contract admits.
+   */
+  instances: ProfileOriginalInstance[];
+  source_profile: SourceProfile;
   [k: string]: unknown;
 }
 export interface ProfileRecipe {
