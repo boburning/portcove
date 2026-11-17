@@ -327,6 +327,8 @@ const identityHoldResume =
 class CandidateIdentityConflict extends Error {}
 
 const researchHoldResumes = {
+  "owner-research":
+    "Resume through a new owner amendment after the candidate's research condition is satisfied.",
   "repository-location":
     "Resume after the declared location and immutable repository ID verify; preserve any unfinished write.",
   "evidence-changed":
@@ -1742,6 +1744,7 @@ export class HostedIntakeBridge {
       let candidate = original;
       let amendment = previous?.amendment;
       let amended = false;
+      let ownerHold = false;
       const selected = amendments.filter(
         ({ comment, value }) =>
           comment.id !== previous?.amendment?.comment &&
@@ -1775,6 +1778,7 @@ export class HostedIntakeBridge {
           request,
         );
         candidate = { ...original, ...value.replacement };
+        ownerHold = value.hold === true;
       }
       if (previous && ((d.hold && !resumeHolds && !amended) || (!lineage && isDelivered(d)))) {
         if (isDelivered(d)) {
@@ -1790,6 +1794,11 @@ export class HostedIntakeBridge {
         continue;
       }
       try {
+        if (ownerHold)
+          throw new CandidateResearchHold(
+            "owner-research",
+            "Owner retained this candidate for research",
+          );
         const fresh = await this.primary(candidate, bodyRequest);
         if (previous && !canHold(d) && previous.body_sha256 !== fresh.body_sha256)
           throw new Error(
@@ -1912,6 +1921,7 @@ export class HostedIntakeBridge {
     receipt.plan_sha256 = hostedPlanHash(receipt.request_sha256, plan);
     if (delivery.some((d) => d.hold)) receipt.plan_encoding = "proposal-bound-v2";
     if (found.length) receipt.delivery = delivery;
+    assertReceiptCapacity(receipt);
     await freshLineage();
     receipt.head = this.head;
     receipt.run = process.env.GITHUB_RUN_ID ?? "local";

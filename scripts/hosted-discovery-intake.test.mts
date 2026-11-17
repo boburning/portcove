@@ -2222,7 +2222,12 @@ void test("an audit interruption preserves delivered candidates across upstream 
   );
 });
 
-function amendmentFor(f: Awaited<ReturnType<typeof fixture>>, index: number, replacement = {}) {
+function amendmentFor(
+  f: Awaited<ReturnType<typeof fixture>>,
+  index: number,
+  replacement = {},
+  hold = false,
+) {
   const receipt = f
     .all()
     .find((c) => c.body.startsWith(`<!-- portcove-hosted-intake-receipt:${f.request.id} -->`))!;
@@ -2232,6 +2237,7 @@ function amendmentFor(f: Awaited<ReturnType<typeof fixture>>, index: number, rep
   const original = parseHostedRequest(f.request.body).candidates[index]!;
   const value = {
     schema_version: 1,
+    ...(hold ? { hold: true } : {}),
     request_comment: f.request.id,
     request_sha256: observationHash(f.request.body),
     receipt_comment: receipt.id,
@@ -2460,5 +2466,55 @@ void test("an amended checkpoint survives receipt response loss and resumes from
   assert.equal(
     checkpoint.receipt_body,
     f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+  );
+});
+
+void test("an owner research amendment holds one fork while eligible candidates finish", async () => {
+  const f = await partialFixture(3, 1);
+  const first = amendmentFor(f, 1, {}, true);
+  const held = await f.bridge.process(f.request, f.all());
+  assert.equal(held.status, "complete_with_holds");
+  assert.equal(held.delivery[1]?.hold?.reason, "owner-research");
+  assert.equal(held.delivery[2]?.status, "delivered");
+  assert.equal(f.creations, 2);
+  assert.equal(
+    (await f.bridge.process(f.request, f.all(), { resumeHolds: true })).delivery[1]?.hold?.reason,
+    "owner-research",
+  );
+  const next = amendmentFor(f, 1);
+  next.comment.id = 20001;
+  f.comments.set(first.comment.id, first.comment);
+  f.comments.set(next.comment.id, next.comment);
+  assert.equal((await f.bridge.process(f.request, f.all())).status, "complete");
+  assert.equal(f.creations, 3);
+});
+
+void test("retained plans re-admit receipt growth before relocated candidate creation", async () => {
+  const candidates = Array.from({ length: 29 }, (_, index) => ({
+    ...candidate,
+    game: `Capacity game ${index}`,
+    title: `Capacity game ${index}`,
+    port_key: `capacity-game-${index}`,
+    upstream: `https://github.com/example/game-${index}`,
+    repository_id: candidate.repository_id + index,
+  }));
+  const f = await fixture(candidates);
+  await f.prepare();
+  const before = f
+    .all()
+    .find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))!.body;
+  for (const c of candidates) {
+    const name = new URL(c.upstream).pathname.slice(1);
+    f.repositoryAliases.set(name, `renamed/${"a".repeat(600)}-${c.port_key}`);
+  }
+  f.bridge.durable.resolveRepository = async (name) => f.repositoryAliases.get(name) ?? name;
+  await assert.rejects(
+    f.bridge.process(f.request, f.all()),
+    /Logical batch cannot retain complete delivery receipts/u,
+  );
+  assert.equal(f.creations, 0);
+  assert.equal(
+    f.all().find((c) => c.body.startsWith("<!-- portcove-hosted-intake-receipt:"))?.body,
+    before,
   );
 });

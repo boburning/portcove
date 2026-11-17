@@ -168,7 +168,9 @@ An owner can amend one unattempted candidate on #177 with
 `receipt_sha256`, `candidate_index`, `port_key`, `previous_body_sha256`,
 `previous_evidence_sha256`, `replacement` and `reason`. Hashes bind the exact
 original proposal, current bot receipt and candidate slot. `replacement` contains
-only `upstream`, `evidence` and `resume`. Repository ID, game, key, title and intent
+only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+the amended candidate for research. A later exact-receipt amendment without that
+flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
 retain their original identities. Competing amendments or completed/uncertain
 writes refuse revision. The retained receipt references the exact owner amendment.
 An amendment event drains the existing queue and reports its original proposal.

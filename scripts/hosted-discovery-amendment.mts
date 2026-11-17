@@ -14,6 +14,7 @@ export interface HostedAmendment {
   previous_evidence_sha256: string | null;
   replacement: { upstream: string; evidence: string; resume: string };
   reason: string;
+  hold?: true;
 }
 export interface AmendmentComment {
   id: number;
@@ -35,7 +36,10 @@ export function parseHostedAmendment(body: unknown): HostedAmendment {
   const value: unknown = match ? JSON.parse(match[1]!) : null;
   if (
     !isRecord(value) ||
-    Object.keys(value).sort().join("|") !==
+    Object.keys(value)
+      .filter((key) => key !== "hold")
+      .sort()
+      .join("|") !==
       [
         "schema_version",
         "request_comment",
@@ -52,6 +56,7 @@ export function parseHostedAmendment(body: unknown): HostedAmendment {
         .sort()
         .join("|") ||
     value.schema_version !== 1 ||
+    (value.hold !== undefined && value.hold !== true) ||
     ![value.request_comment, value.receipt_comment].every(
       (id) => Number.isSafeInteger(id) && Number(id) > 0,
     ) ||
