@@ -5,14 +5,14 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: corsix-native-startup-${{ github.ref }}
+  group: street-rod-native-startup-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  corsix-windows-startup:
+  street-rod-windows-startup:
     runs-on: windows-2022
     timeout-minutes: 20
     env:
-      PORTCOVE_PRODUCT_SOURCE: e9c773e32c31702dc740be814fd3ef95c9d40db0
+      PORTCOVE_PRODUCT_SOURCE: 37951517f1dd3a8e63a205e2ca81529b39943670
       PORTCOVE_CONTROLLER_SOURCE: ${{ github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -32,7 +32,7 @@ jobs:
           if (-not $context.interactive -or $context.session -le 0) { throw 'Noninteractive hosted session: no native acceptance performed' }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          ref: e9c773e32c31702dc740be814fd3ef95c9d40db0
+          ref: 37951517f1dd3a8e63a205e2ca81529b39943670
           path: product
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -45,11 +45,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           if ((git -C product rev-parse HEAD) -ne $env:PORTCOVE_PRODUCT_SOURCE) { throw 'Product source differs' }
-          pwsh -NoProfile -File scripts/corsix-hosted-input.ps1
+          pwsh -NoProfile -File scripts/street-rod-hosted-input.ps1
           if ($LASTEXITCODE -ne 0) { throw 'Input binding failed' }
       - name: Execute exact candidate with maintained native admission
         shell: pwsh
-        run: node scripts/corsix-hosted-owner.mjs
+        run: node scripts/street-rod-hosted-owner.mjs
       - name: Retain bounded real native evidence in job logs
         if: always()
         shell: pwsh
