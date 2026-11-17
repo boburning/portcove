@@ -965,12 +965,14 @@ export default interface Resources {
       "route": "Setup or launch option"
     },
     "ready": {
-      "dismiss": "Dismiss <game/>",
+      "dismiss": "Dismiss",
+      "dismissFailed": "Couldn’t confirm dismissal. Try Dismiss again.",
+      "dismissing": "Dismissing…",
       "heading": "Ready for you",
       "installable": "<game/> is ready to install.",
       "label": "Games ready for you",
-      "reviewSetup": "Review <game/> setup",
-      "reviewUpdate": "Review <game/> update",
+      "reviewSetup": "Review setup",
+      "reviewUpdate": "Review update",
       "update": "<game/> has an update available: <version/>. Nothing was downloaded or changed.",
       "updateUnknownVersion": "<game/> has an update available: a newer version. Nothing was downloaded or changed."
     },
