@@ -1533,8 +1533,14 @@ export async function preparationScenarios({
         );
       };
       await visibleAction(confirm);
-      await browser.actions().sendKeys(Key.TAB).perform();
       const cancel = await browser.findElement(button("Cancel review"));
+      // The two disclosure summaries precede the footer in the real tab order.
+      // Forward Tab wraps through them before returning to the action buttons.
+      for (const control of [recoveryGuidance, windowGuidance, cancel, confirm]) {
+        await browser.actions().sendKeys(Key.TAB).perform();
+        await visibleAction(control);
+      }
+      await browser.actions().keyDown(Key.SHIFT).sendKeys(Key.TAB).keyUp(Key.SHIFT).perform();
       await visibleAction(cancel);
       const enlarged = path.join(output, "preparation-native-400-observation.json");
       await writeFile(
@@ -1554,6 +1560,12 @@ export async function preparationScenarios({
         { flag: "wx" },
       );
       artifacts.push(enlarged);
+      const enlargedImage = path.join(output, "preparation-native-400.png");
+      await writeFile(enlargedImage, await browser.takeScreenshot(), {
+        encoding: "base64",
+        flag: "wx",
+      });
+      artifacts.push(enlargedImage);
       // Exercise the real dismissal at enlargement; focus and geometry alone
       // do not establish that the action can actually be used.
       await cancel.click();
@@ -1566,6 +1578,18 @@ export async function preparationScenarios({
         install.id,
         "Enlarged dismissal must not prepare",
       );
+    } catch (error) {
+      try {
+        const failureImage = path.join(output, "preparation-native-400-failure.png");
+        await writeFile(failureImage, await browser.takeScreenshot(), {
+          encoding: "base64",
+          flag: "wx",
+        });
+        artifacts.push(failureImage);
+      } catch (captureError) {
+        console.error("Could not capture the enlarged preparation failure", captureError);
+      }
+      throw error;
     } finally {
       await shortcut("0");
       await browser.wait(
