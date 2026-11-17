@@ -162,6 +162,62 @@
       }
     },
     {
+      "port_id": "doom-3-classic-dhewm3",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "derivation_inputs_sha256": "fd011225b1f3ad894c6fed83f7ce95566974276bad2d5f3e7f79fe6e1be1d6ff",
+      "size": 11382039,
+      "asset_name": "dhewm3-1.5.5_win32.zip",
+      "reviewed_by": "applicability:doom-3-classic-dhewm3-pk4-originals",
+      "shape": {
+        "programs": [
+          "dhewm3.exe",
+          "dhewm3_notools.exe",
+          "dhewm3ded.exe"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
+      "port_id": "doom-3-resurrection-of-evil-classic-dhewm3",
+      "platform": "windows-x86-64",
+      "version": "1.5.5",
+      "sha256": "7fb23ced41b902c2ca14fa0da37f30f7656a7087310bc70b367f3257ddb0a7f7",
+      "derivation_inputs_sha256": "fd011225b1f3ad894c6fed83f7ce95566974276bad2d5f3e7f79fe6e1be1d6ff",
+      "size": 11382039,
+      "asset_name": "dhewm3-1.5.5_win32.zip",
+      "reviewed_by": "applicability:doom-3-resurrection-of-evil-classic-dhewm3-pk4-originals",
+      "shape": {
+        "programs": [
+          "dhewm3.exe",
+          "dhewm3_notools.exe",
+          "dhewm3ded.exe"
+        ],
+        "top_directories": [
+          "base",
+          "d3xp"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [
+          "base/gamepad.cfg",
+          "d3xp/gamepad-d3xp.cfg"
+        ],
+        "missing_persistent_parents": []
+      }
+    },
+    {
       "port_id": "sonic-the-hedgehog-2-recomp",
       "platform": "windows-x86-64",
       "version": "v0.8.3",
@@ -423,5 +479,5 @@
       }
     }
   ],
-  "entries_sha256": "7ff745f2681de11dc6260bafcebb3d8fa5894997365afff3991ad026cf545785"
+  "entries_sha256": "5f0516e0eb7011a2e408acc5eb1c4872d5e1c01bfb99e23a72846c5210891b09"
 }
