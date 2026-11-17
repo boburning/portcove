@@ -116,6 +116,44 @@ export async function setupBatchScenario(context: BatchContext) {
         15_000,
       );
       await click(button("Scan saved folders"));
+      const scanned = await browser.wait(async () => {
+        const value = success(
+          await invoke("get_game_file_scan_snapshot", {
+            generation: await selectedSetupGeneration(invoke),
+          }),
+        );
+        if (value === null) return false;
+        const snapshot = transportValue("game_file_scan_snapshot", value);
+        return snapshot?.matches?.exact_matches === 2 ? snapshot : false;
+      }, 30_000);
+      assert.ok(scanned);
+      report.scanned = scanned;
+      report.statuses_before_selection = (await statuses()).filter((status) =>
+        ports.includes(status.port_id),
+      );
+      const registeredMatches = transportValue(
+        "desktop_game_file_scan_registered_matches",
+        success(
+          await invoke("get_game_file_scan_registered_matches", {
+            expected: required(scanned.matches),
+            generation: await selectedSetupGeneration(invoke),
+          }),
+        ),
+      );
+      report.registered_matches = registeredMatches;
+      const selectedIdentities = (records: typeof initialSources) =>
+        records
+          .map((source) => ({
+            profile_id: source.profile_id,
+            path: source.path,
+            sha256: source.sha256,
+          }))
+          .sort((a, b) => a.profile_id.localeCompare(b.profile_id));
+      assert.deepEqual(
+        selectedIdentities(registeredMatches.candidates),
+        selectedIdentities(initialSources),
+      );
+      assert.deepEqual(await sources(), initialSources);
       const choosePorts = async () => {
         for (const port of ports) {
           const choice = await browser.wait(

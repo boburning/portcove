@@ -2304,6 +2304,65 @@ it("counts every stored match and shows more of them a page at a time", async ()
   expect(desktopApi.importSource).not.toHaveBeenCalled();
 });
 
+it("uses Core's registered path spelling even when the complete scan fits its preview", async () => {
+  const stored: GameFileScanSnapshot = {
+    ...storedMatchesSnapshot(),
+    report: {
+      ...snapshot.report,
+      candidates: [{ ...savedCandidate, path: "\\\\?\\D:\\Games\\game.z64" }],
+    },
+    matches: { ...storedMatchesSnapshot().matches!, exact_matches: 1, preview_complete: true },
+  };
+  vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);
+  const projection = vi.spyOn(desktopApi, "gameFileScanRegisteredMatches").mockResolvedValue({
+    candidates: [savedCandidate],
+    preliminary_selections: [],
+  });
+  const port = {
+    ...portDefinition(),
+    id: "registered-port",
+    source_profile: savedCandidate.profile_id,
+  };
+  const status = {
+    ...portStatus(),
+    port_id: port.id,
+    port_actions: [
+      {
+        action: "install" as const,
+        availability: "allowed" as const,
+        reason: "available" as const,
+      },
+    ],
+  };
+  const review = vi.spyOn(desktopApi, "planInstallBatch").mockResolvedValue({
+    items: [{ port_id: port.id, hold: "Waiting for setup input" }],
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const start = vi.spyOn(desktopApi, "startInstallBatch");
+  await root.rerender(
+    <SetupReviewSelectionProvider>
+      <GameFileLibraries
+        generation={1}
+        ports={[port]}
+        profiles={[{ ...sourceProfile(), id: savedCandidate.profile_id }]}
+        registeredSources={[savedCandidate]}
+        statuses={new Map([[port.id, status]])}
+        onOpenPort={vi.fn()}
+      />
+    </SetupReviewSelectionProvider>,
+  );
+  await click("Refresh folders");
+  await vi.waitFor(() =>
+    expect(document.querySelectorAll("[data-setup-review-port]")).toHaveLength(1),
+  );
+  expect(projection).toHaveBeenLastCalledWith(stored.matches, 1);
+  await act(async () => document.querySelector<HTMLElement>("[data-setup-review-port]")!.click());
+  await click("Review installing 1 selected");
+  expect(review).toHaveBeenCalledExactlyOnceWith([port.id], 1);
+  expect(start).not.toHaveBeenCalled();
+  expect(desktopApi.importSource).not.toHaveBeenCalled();
+});
+
 it("adds a game whose registered match is outside the scan preview", async () => {
   const stored = storedMatchesSnapshot();
   vi.mocked(desktopApi.gameFileScanSnapshot).mockResolvedValue(stored);

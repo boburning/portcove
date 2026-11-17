@@ -1042,7 +1042,6 @@ export function GameFileLibraries({
     readConfirmed &&
     snapshot?.freshness === "inputs_match" &&
     snapshot.matches &&
-    !snapshot.matches.preview_complete &&
     registeredSources.length
       ? snapshot.matches
       : undefined;
