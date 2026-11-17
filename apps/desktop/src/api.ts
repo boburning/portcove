@@ -428,14 +428,32 @@ export const desktopApi = {
       path,
       generation,
     }),
+  acquireModRecipePackage: (
+    portId: string,
+    profileId: string,
+    nativeId: string,
+    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    generation: number,
+  ) =>
+    invoke<import("./transport-types.generated").OutputRecipeImportPlan>(
+      "acquire_mod_recipe_package",
+      { portId, profileId, nativeId, plan, generation },
+    ),
+  discardModRecipeReview: (
+    portId: string,
+    plan: import("./transport-types.generated").OutputRecipeImportPlan,
+    generation: number,
+  ) => invoke<void>("discard_mod_recipe_review", { portId, plan, generation }),
   applyModRecipe: (
     portId: string,
     displayName: string,
     plan: import("./transport-types.generated").OutputRecipeImportPlan,
     generation: number,
+    allowCode: boolean,
   ) =>
     invoke<import("./types").ModSetup>("apply_mod_recipe", {
       portId,
+      allowCode,
       displayName,
       plan,
       generation,

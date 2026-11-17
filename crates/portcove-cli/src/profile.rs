@@ -264,12 +264,32 @@ pub(crate) enum ProfileCommand {
         /// Recipe JSON file (`profile recipe-export` output).
         recipe_file: PathBuf,
     },
-    /// Review whether the exact inputs required by a recipe are available.
+    /// Review one exact provider file required by a recipe in private staging.
+    RecipeAcquire {
+        /// Recipe JSON file.
+        recipe_file: PathBuf,
+        /// Existing setup used for the provider review.
+        review_profile_id: String,
+        /// Exact native package ID named by the recipe.
+        native_id: String,
+        /// Earlier JSON results from profile recipe-acquire, repeatable.
+        #[arg(long = "acquisition")]
+        acquisitions: Vec<PathBuf>,
+    },
+    /// Discard one exact private provider review.
+    RecipeDiscard {
+        /// JSON result from profile recipe-acquire.
+        acquisition: PathBuf,
+    },
+    /// Check the exact local or privately reviewed inputs of a recipe.
     RecipePlan {
         /// Recipe JSON file.
         recipe_file: PathBuf,
+        /// JSON result from profile recipe-acquire, repeatable.
+        #[arg(long = "acquisition")]
+        acquisitions: Vec<PathBuf>,
     },
-    /// Create a new profile from a recipe when every input is already present.
+    /// Create a new profile from the exact reviewed recipe inputs.
     RecipeApply {
         /// Recipe JSON file.
         recipe_file: PathBuf,
@@ -279,6 +299,12 @@ pub(crate) enum ProfileCommand {
         /// `plan_sha256` from `profile recipe-plan`; changed inputs refuse.
         #[arg(long)]
         expected_plan: String,
+        /// JSON result from profile recipe-acquire, repeatable.
+        #[arg(long = "acquisition")]
+        acquisitions: Vec<PathBuf>,
+        /// Allow the exact mod code listed in the reviewed plan.
+        #[arg(long)]
+        allow_mod_code: bool,
         /// Confirm without a prompt; the digest check still applies.
         #[arg(long)]
         yes: bool,
@@ -397,6 +423,8 @@ impl ProfileCommand {
             Self::Setups { .. } => "profile.setups",
             Self::RecipeExport { .. } => "profile.recipe-export",
             Self::RecipeInspect { .. } => "profile.recipe-inspect",
+            Self::RecipeAcquire { .. } => "profile.recipe-acquire",
+            Self::RecipeDiscard { .. } => "profile.recipe-discard",
             Self::RecipePlan { .. } => "profile.recipe-plan",
             Self::RecipeApply { .. } => "profile.recipe-apply",
             Self::ProviderBrowse { .. } => "profile.provider-browse",
@@ -523,6 +551,13 @@ fn recipe_plan_text(plan: &portcove_core::RecipeImportPlan) -> String {
     for hold in &plan.holds {
         lines.push(format!("  held: {}", clean(hold)));
     }
+    for approval in &plan.code_approval {
+        lines.push(format!(
+            "Code permission needed for {} (SHA-256 {})",
+            clean(&approval.native_id),
+            clean(&approval.sha256),
+        ));
+    }
     lines.push(format!(
         "{} · plan SHA-256 {}",
         if plan.can_apply {
@@ -535,7 +570,7 @@ fn recipe_plan_text(plan: &portcove_core::RecipeImportPlan) -> String {
     lines.join("\n")
 }
 
-fn read_plan(path: &PathBuf) -> Result<portcove_core::ProviderInstallPlan> {
+fn read_plan<T: serde::de::DeserializeOwned>(path: &PathBuf) -> Result<T> {
     let mut bytes = Vec::new();
     std::fs::File::open(path)?
         .take(MAX_REQUEST_BYTES + 1)
@@ -884,7 +919,7 @@ pub(crate) async fn execute(
             allow_mod_code,
             yes,
         } => {
-            let plan = read_plan(&plan_file)?;
+            let plan = read_plan::<portcove_core::ProviderInstallPlan>(&plan_file)?;
             if plan.port_id != port_id || plan.profile_id != profile_id {
                 return Err(PortcoveError::usage(
                     "the plan was reviewed for a different port or profile",
@@ -1353,19 +1388,61 @@ pub(crate) async fn execute(
                 recipe_text("Valid recipe", recipe)
             })
         }
-        ProfileCommand::RecipePlan { recipe_file } => render_read_success(
+        ProfileCommand::RecipeAcquire {
+            recipe_file,
+            review_profile_id,
+            native_id,
+            acquisitions,
+        } => {
+            let plan = service
+                .plan_recipe_acquisition(
+                    &read_recipe(&recipe_file)?,
+                    &review_profile_id,
+                    &native_id,
+                    &acquisitions
+                        .iter()
+                        .map(read_plan)
+                        .collect::<Result<Vec<_>>>()?,
+                )
+                .await?;
+            render_read_success(mode, name, plan, |plan| {
+                format!("Exact recipe package reviewed: {}", clean(&plan.native_id))
+            })
+        }
+        ProfileCommand::RecipeDiscard { acquisition } => {
+            service.discard_recipe_acquisition(&read_plan(&acquisition)?)?;
+            render_read_success(mode, name, (), |_| "Recipe staging discarded.".to_owned())
+        }
+        ProfileCommand::RecipePlan {
+            recipe_file,
+            acquisitions,
+        } => render_read_success(
             mode,
             name,
-            service.plan_recipe_import(&read_recipe(&recipe_file)?)?,
+            service.plan_recipe_import_with_acquisitions(
+                &read_recipe(&recipe_file)?,
+                &acquisitions
+                    .iter()
+                    .map(read_plan)
+                    .collect::<Result<Vec<_>>>()?,
+            )?,
             recipe_plan_text,
         ),
         ProfileCommand::RecipeApply {
             recipe_file,
             name: display_name,
             expected_plan,
+            acquisitions,
+            allow_mod_code,
             yes,
         } => {
-            let plan = service.plan_recipe_import(&read_recipe(&recipe_file)?)?;
+            let plan = service.plan_recipe_import_with_acquisitions(
+                &read_recipe(&recipe_file)?,
+                &acquisitions
+                    .iter()
+                    .map(read_plan)
+                    .collect::<Result<Vec<_>>>()?,
+            )?;
             if plan.plan_sha256 != expected_plan {
                 return Err(PortcoveError::conflict(
                     "the local inputs differ from the plan you reviewed; plan again",
@@ -1374,12 +1451,21 @@ pub(crate) async fn execute(
             if mode == OutputMode::Human {
                 println!("{}", recipe_plan_text(&plan));
             }
+            if !plan.code_approval.is_empty() && !allow_mod_code {
+                return Err(PortcoveError::usage(
+                    "review the exact mod code and use --allow-mod-code if you want to allow it",
+                ));
+            }
             crate::require_confirmation(
                 "Create a new profile from exactly these reviewed inputs?",
                 yes,
                 non_interactive,
             )?;
-            let authorization = service.authorize_recipe_import(&plan, &display_name)?;
+            let authorization = if allow_mod_code {
+                service.authorize_recipe_import_allowing_code(&plan, &display_name)?
+            } else {
+                service.authorize_recipe_import(&plan, &display_name)?
+            };
             render_read_success(
                 mode,
                 name,

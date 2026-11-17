@@ -381,8 +381,9 @@ pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
 pub use providers::CompositeReleaseProvider;
 pub use psx::PsxManagedPreparation;
 pub use recipe::{
-    ProfileRecipe, RECIPE_FORMAT, RecipeImportPlan, RecipeInputPlan, RecipeInputStatus,
-    RecipeOriginal, RecipePackage, RecipeRuntime,
+    ProfileRecipe, RECIPE_FORMAT, RecipeAcquisitionPlan, RecipeCodeApproval, RecipeImportPlan,
+    RecipeInputPlan, RecipeInputStatus, RecipeOriginal, RecipeOriginalStorage, RecipePackage,
+    RecipeRuntime,
 };
 pub use recomp_mod::{
     RecompDependency, RecompExecution, RecompModHold, RecompModInspection, inspect_recomp_mod,
@@ -516,7 +517,8 @@ pub use windows_runtime::{
 // Public 97 exposes exact setup recovery and isolated progress copying.
 // Public 98 adds reviewed mod-file inspection and preservation receipts.
 // Public 99 reports partial results when the game setup queue is unavailable.
-pub const API_SCHEMA_VERSION: u32 = 99;
+// Public 100 adds exact original, settings and acquisition data to recipe reviews.
+pub const API_SCHEMA_VERSION: u32 = 100;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

@@ -91,6 +91,21 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     let empty = result(root, &["--json", "profile", "list", PORT], "profile.list");
     assert_eq!(empty["profiles"], serde_json::json!([]));
 
+    let original_requirement = port.source_profile.as_deref().unwrap();
+    let disc = root.join("original.iso");
+    fs::write(&disc, b"synthetic profile recipe original").unwrap();
+    let registered = result(
+        root,
+        &[
+            "--json",
+            "source",
+            "add",
+            original_requirement,
+            disc.to_str().unwrap(),
+        ],
+        "source.add",
+    );
+
     let default = result(
         root,
         &["--json", "profile", "ensure-default", PORT],
@@ -296,7 +311,17 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
         &["--json", "profile", "recipe-export", PORT, profile_id],
         "profile.recipe-export",
     );
-    assert_eq!(exported["format"], 1);
+    assert_eq!(exported["format"], 3);
+    assert_eq!(exported["originals"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        exported["originals"][0]["requirement_id"],
+        original_requirement
+    );
+    assert_eq!(exported["originals"][0]["sha256"], registered["sha256"]);
+    assert_eq!(
+        exported["originals"][0]["storage"]["sha256"],
+        registered["storage_sha256"]
+    );
     let recipe_file = root.join("recipe.json");
     fs::write(&recipe_file, serde_json::to_vec_pretty(&exported).unwrap()).unwrap();
     let text = fs::read_to_string(&recipe_file).unwrap();
@@ -396,4 +421,30 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
         ],
     );
     assert!(!refused.status.success());
+}
+
+#[test]
+fn capabilities_advertise_reviewed_recipe_commands() {
+    let temporary = tempfile::tempdir().unwrap();
+    let capabilities = result(
+        temporary.path(),
+        &["--json", "capabilities"],
+        "capabilities",
+    );
+    let commands = capabilities["commands"].as_array().unwrap();
+    for name in [
+        "profile",
+        "profile.recipe-export",
+        "profile.recipe-inspect",
+        "profile.recipe-acquire",
+        "profile.recipe-discard",
+        "profile.recipe-plan",
+        "profile.recipe-apply",
+    ] {
+        assert_eq!(
+            commands.iter().filter(|command| *command == name).count(),
+            1,
+            "capabilities must advertise {name} once"
+        );
+    }
 }

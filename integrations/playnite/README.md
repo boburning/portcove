@@ -113,7 +113,7 @@ repository's dependency age, grouping, PR-limit and protected review rules.
 
 ## Compatibility and use
 
-This revision supports **Portcove API schemas 42–57, 60–63 or 65–99 and event schemas 2–3**. Schema
+This revision supports **Portcove API schemas 42–57, 60–63 or 65–100 and event schemas 2–3**. Schema
 50 advertises the independently versioned operation-event contract through
 `operation_event_schema_version`; the client consumes and rejects an unsupported
 value before lifecycle management. Launch-only and read-only library negotiation
@@ -148,6 +148,9 @@ Schema 95 binds reviewed Thunderstore installs to an exact set of dependency wra
 
 Schema 94 adds a byte-bound local mod package review. Playnite continues to use its existing status, readiness and lifecycle commands.
 
+Schema 100 adds exact local and privately reviewed recipe inputs. Playnite keeps
+its current supervised Play and readiness scopes.
+
 Schema 89 adds artwork provider attribution to `artwork_state` and moves the optional artwork handoff to schema 3. This client consumes neither and keeps Core's status, readiness and lifecycle decisions.
 
 API 88 also permits additive descriptive feature reports. This client ignores
@@ -174,7 +177,7 @@ client does not use. Schema 53 adds optional saved-root scan and snapshot comman
 that this client also does not use. It accepts both additive schemas while
 continuing to negotiate only its required capabilities. Use an exactly identified schema-42,
 schema-43, schema-44, schema-45, schema-46, schema-47, schema-48, schema-49,
-schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-99 candidate until a matching public
+schema-50, schema-51, schema-52, schema-53, schema-54, schema-55, schema-56, schema-57, schema-60, schema-61, schema-62, schema-63 or schema-65 through schema-100 candidate until a matching public
 standalone release exists; the older published technical previews must not be
 described as supporting these new commands.
 See the [author guide](../../docs/INTEGRATION-AUTHOR.md).

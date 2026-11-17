@@ -2079,21 +2079,25 @@ fn a_recipe_reports_missing_local_code_consent_even_when_exact_bytes_are_availab
     std::fs::remove_file(layout.code_consent()).unwrap();
     let held = w.service.plan_recipe_import(&recipe).unwrap();
     assert_eq!(held.packages[0].status, crate::RecipeInputStatus::Available);
-    assert!(!held.can_apply);
+    assert_eq!(held.code_approval.len(), 1);
+    assert_eq!(
+        held.code_approval[0].native_id,
+        recipe.packages[0].native_id
+    );
+    assert_eq!(held.code_approval[0].sha256, sha);
+    let refused = w
+        .service
+        .authorize_recipe_import(&held, "Shared")
+        .unwrap_err();
     assert!(
-        held.holds
-            .iter()
-            .any(|hold| hold.contains("permission in this library"))
+        refused
+            .message
+            .contains("permission to run the exact mod code")
     );
 
     record_code_consent(&layout, &sha).unwrap();
     let reviewed = w.service.plan_recipe_import(&recipe).unwrap();
-    assert!(
-        !reviewed
-            .holds
-            .iter()
-            .any(|hold| hold.contains("permission in this library"))
-    );
+    assert!(reviewed.code_approval.is_empty());
     assert_ne!(held.plan_sha256, reviewed.plan_sha256);
 }
 
@@ -2500,19 +2504,75 @@ fn recomp_captures_typed_settings_and_recovers_them_with_newer_progress() {
     assert_eq!(recipe.format, 2);
     assert_eq!(recipe.settings[0].option_id, "size");
     let review = w.service.plan_recipe_import(&recipe).unwrap();
-    assert!(review.can_apply, "{:?}", review.holds);
+    assert!(!review.can_apply, "this fixture has no admitted original");
+    assert!(
+        review
+            .holds
+            .iter()
+            .any(|hold| hold.contains("does not identify the original"))
+    );
+    assert!(
+        !review
+            .holds
+            .iter()
+            .any(|hold| hold.contains("mod settings need review"))
+    );
+    assert_eq!(
+        crate::recomp_mod_settings::import(&recipe.settings).unwrap(),
+        earlier.settings,
+    );
+
+    let fixture_original = w.scratch.join("synthetic.z64");
+    fs::write(
+        &fixture_original,
+        [0x80, 0x37, 0x12, 0x40, 1, 2, 3, 4, 5, 6, 7, 8],
+    )
+    .unwrap();
+    let requirement = "majoras-mask";
+    let original = w
+        .service
+        .register_source(requirement, &fixture_original)
+        .unwrap();
+    let instance =
+        crate::source_instances::identity(&crate::profile::bind_original(requirement, &original))
+            .unwrap();
+    let selected = w
+        .service
+        .select_profile_original(
+            RECOMP,
+            &custom.id,
+            restored.revision,
+            requirement,
+            &instance,
+        )
+        .unwrap();
+    let exact = w
+        .service
+        .export_profile_recipe(RECOMP, &custom.id, Some(selected.revision))
+        .unwrap();
+    let reviewed = w.service.plan_recipe_import(&exact).unwrap();
+    assert!(reviewed.can_apply, "{:?}", reviewed.holds);
     let approval = w
         .service
-        .authorize_recipe_import(&review, "Shared options")
+        .authorize_recipe_import(&reviewed, "Shared settings")
         .unwrap();
     let imported = w
         .service
-        .apply_recipe_import(&review, "Shared options", &approval.token)
+        .apply_recipe_import(&reviewed, "Shared settings", &approval.token)
         .unwrap();
-    assert_eq!(
-        w.service.profile_revisions(RECOMP, &imported.id).unwrap()[0].settings,
-        earlier.settings,
-    );
+    let imported_revision = w
+        .service
+        .profile_revisions(RECOMP, &imported.id)
+        .unwrap()
+        .remove(0);
+    assert_eq!(imported_revision.settings, selected.settings);
+    assert_ne!(imported_revision.save_group, selected.save_group);
+    let round_trip = w
+        .service
+        .export_profile_recipe(RECOMP, &imported.id, None)
+        .unwrap();
+    assert_eq!(round_trip, exact);
+    assert_eq!(fs::read(&save).unwrap(), b"newer progress");
 
     // The effective list can remain in its backup while the selected revision
     // still supplies a missing supported option using the package's default.

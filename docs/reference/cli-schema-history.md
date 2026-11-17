@@ -56,6 +56,12 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API 100 extends the exact recipe review with format 3 originals, typed setup
+configuration and reviewed provider acquisitions. Commands advertise support
+for `profile recipe-acquire` and `profile recipe-discard`. Use the advertised
+commands and the new plan digest after a provider check. Recipe formats 1 and 2 remain
+readable. Event schema remains 3.
+
 API 99 changes `games setup-ready` to report the result of the mod pass when the
 game setup queue is unavailable. A successful envelope with
 `data.game_setup_unavailable` means the games could not be assessed, even when

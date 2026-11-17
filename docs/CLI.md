@@ -2653,8 +2653,7 @@ Thunderstore-specific fields.
 
 An enabled dependant requires every recorded member of its exact provider
 dependencies to stay enabled. Disable the dependant before disabling or removing
-a required member. Recipes use format 2 when they include exact provider
-requirements. An automatic update reuses an unchanged dependency set only
+a required member. An automatic update reuses an unchanged dependency set only
 when every previously reviewed member is still exact and enabled. It stages the
 new root file privately. A changed dependency graph, missing member, or new
 code waits for review.
@@ -2685,16 +2684,25 @@ when the game's setups are read, and Desktop discards a review it leaves.
 portcove --library PATH --json profile recipe-export PORT_ID PROFILE_ID [--revision N] > recipe.json
 portcove --library PATH --json profile recipe-inspect recipe.json
 portcove --library PATH --json profile recipe-plan recipe.json
-portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
+portcove --library PATH --json profile recipe-acquire recipe.json REVIEW_PROFILE NATIVE_ID > acquisition.json
+portcove --library PATH --json profile recipe-plan recipe.json --acquisition acquisition.json
+portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --acquisition acquisition.json --yes
+portcove --library PATH --json profile recipe-discard acquisition.json
 ```
 
-A recipe (format 1, or format 2 when sharing typed mod settings) records a profile revision's identity: runtime artifact,
-runtime and definition identities, original inputs by content digest, packages with
+A recipe records a profile revision's runtime artifact, runtime and definition
+identities, original inputs, and packages with
 their provider coordinates, enabled state, dependency requirements and typed
 orderings. It never contains original game files, credentials, private machine
 paths, local profile or install IDs, saves or arbitrary settings, and always lists what it
 cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
-acquisition or execution authority.
+acquisition or execution authority. Format 2 carries exact provider dependencies and supported settings. Format 3
+also records each original's content and
+stored representation by SHA-256 and size, including its observed identity
+when the setup recorded one. Formats 1 and 2 remain readable and identify
+originals by content. When multiple saved instances match a recipe without
+enough identity to distinguish them, ask for a new recipe that names the exact
+original.
 
 On reviewed Zelda64Recomp builds, supervised play captures exact declared numeric
 ranges and choices for enabled, managed packages. Profile recovery restores
@@ -2713,22 +2721,31 @@ refusal names the reason.
 `recipe-plan` checks local inputs offline. Exact verified inputs are `available`.
 A missing runtime or package is `unavailable` in this local review. When a
 missing package names a complete file reference for a reviewed provider, the
-detail gives the exact project and file to review with `provider-plan`. Compare
-the acquired package digests against the recipe before trying the import again.
+detail gives the exact project and file. Choose Check provider in Desktop or run
+`recipe-acquire` against the named package and an existing setup for the same game.
+The private review checks the exact downloaded package name, size, digest and
+loader identity. Supply the resulting JSON to `recipe-plan` and `recipe-apply` using
+a repeatable `--acquisition`. Earlier results can also be supplied to
+`recipe-acquire` to reuse a previously checked wrapper. Close the Desktop review
+or run `recipe-discard` to release private staging. For originals, register the
+lawful local input in the game's existing setup workflow and inspect again.
 The plan also holds for a different platform, an original requirement the game
-does not use, or an unregistered or different original.
-In Desktop, go to Setups and mods to export a recipe or open a recipe file.
-The review identifies exact inputs that are present and those still needed.
-When the review is ready, name the new setup and choose Create setup from
-recipe. The new setup has its own fresh progress.
-`recipe-apply` works only when every input is already present, requires the reviewed
-`plan_sha256`, asks for confirmation, recomputes the plan under the port lock and
-creates a new profile with its own save group. A recipe's provider labels are
-unverified claims: the new profile keeps a label only when this library recorded
-exactly that label for the same bytes and file name, so update checks never follow
-a label the recipe supplied. The plan says when a label is not kept; dropping one
-changes the identity of a later export. Otherwise a round trip reproduces the
-recipe's identity exactly; that is not evidence of gameplay or save compatibility.
+does not use, or an unregistered, unreadable or changed original. The plan
+checks registered originals against the matched installation's retained rules.
+In Desktop, open Setups and mods to export or open a recipe. The review lists
+the exact inputs already present and those still needed. A ready review creates
+a named setup with its own fresh progress.
+The imported setup starts with Review updates. Enable automatic updates
+separately in the destination library.
+
+`recipe-apply` checks every exact input in local storage or private staging, asks
+for confirmation, and recomputes the reviewed plan under the source and port
+locks. For the exact packages shown as needing permission, use the separate
+Desktop choice or `--allow-mod-code`. Portcove keeps provider provenance backed
+by a matching acquisition or prior evidence for the same file name and bytes.
+Re-exporting an earlier recipe with an original adds verified storage identity in
+format 3. Same-format round trips with all exact, supported inputs preserve
+resolved identity. Gameplay and save compatibility require separate evidence.
 
 #### Review a local mod file
 

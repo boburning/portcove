@@ -802,6 +802,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 )),
             ),
             (
+                "recipe_acquisition_plan",
+                serde_json::json!(schema_for_contract::<portcove_core::RecipeAcquisitionPlan>(
+                    contract
+                )),
+            ),
+            (
                 "recipe_import_plan",
                 serde_json::json!(schema_for_contract::<portcove_core::RecipeImportPlan>(
                     contract

@@ -6,14 +6,14 @@
 //! credentials, private machine paths, saves or arbitrary settings. A recipe is untrusted
 //! data: it grants no URL, path, script, acquisition or execution authority.
 //! Inspection is local and needs no provider account. Applying one goes through
-//! ordinary Core state: the exact runtime must already be installed, every original
-//! registered and every package's bytes in the store; otherwise the plan holds and
-//! nothing changes. An identity round trip does not establish gameplay or save
-//! compatibility.
+//! ordinary Core state: the exact runtime must be installed, every required
+//! original registered and each package present locally or in reviewed private
+//! staging. An identity round trip does not establish gameplay or save compatibility.
 use std::{
     collections::{BTreeMap, BTreeSet},
-    io::Read,
-    path::Path,
+    fs,
+    io::{Read, Write},
+    path::{Path, PathBuf},
 };
 
 use schemars::JsonSchema;
@@ -21,20 +21,27 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
 use crate::{
-    ArtifactIdentity, DefinitionSelectionIdentity, LoaderContractRef, Platform, PortcoveError,
-    PortcoveService, Profile, ProviderPackageRef, Result, RuntimeIdentity, TypedOrdering,
+    ArtifactIdentity, DefinitionSelectionIdentity, Library, LoaderContractRef, OriginalBinding,
+    Platform, PortcoveError, PortcoveService, Profile, ProviderPackageRef, Result, RuntimeIdentity,
+    TypedOrdering,
     profile::{self, valid_native_id},
-    profile_deploy::sha256_file,
     recomp_mod_settings::{self, RecipeModSetting},
 };
 
-pub const RECIPE_FORMAT: u32 = 2;
+#[path = "recipe_originals.rs"]
+mod original_inputs;
+
+pub const RECIPE_FORMAT: u32 = 3;
 const LEGACY_RECIPE_FORMAT: u32 = 1;
+const RECIPE_FORMAT_WITH_MOD_STATE: u32 = 2;
 const MAX_RECIPE_SETTINGS: usize = 64;
 const MAX_RECIPE_BYTES: usize = 256 * 1024;
 const MAX_PACKAGES: usize = 512;
 const MAX_TEXT: usize = 256;
 const ACTION: &str = "import_profile_recipe";
+const ACTION_WITH_CODE: &str = "apply_mod_recipe_with_code";
+const MAX_ACQUISITIONS: usize = 32;
+const MAX_ACQUISITION_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -46,13 +53,40 @@ pub struct RecipeRuntime {
     pub platform: Platform,
 }
 
-/// A reference to an original, by content identity only. No path, no payload.
+/// Local original identity, without its path or payload.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct RecipeOriginal {
     pub requirement_id: String,
     pub sha256: String,
     pub size: u64,
+    /// Earlier recipes identified content only. Format 3 also binds its saved representation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub storage: Option<RecipeOriginalStorage>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RecipeOriginalStorage {
+    pub sha256: String,
+    pub size: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_identity_sha256: Option<String>,
+}
+
+impl From<&OriginalBinding> for RecipeOriginal {
+    fn from(binding: &OriginalBinding) -> Self {
+        Self {
+            requirement_id: binding.requirement_id.clone(),
+            sha256: binding.sha256.clone(),
+            size: binding.size,
+            storage: Some(RecipeOriginalStorage {
+                sha256: binding.storage_sha256.clone(),
+                size: binding.storage_size,
+                observed_identity_sha256: binding.observed_identity_sha256.clone(),
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -106,6 +140,21 @@ pub struct RecipeInputPlan {
     pub detail: String,
 }
 
+/// Private provider staging bound to one exact recipe and expected package.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RecipeAcquisitionPlan {
+    pub recipe_identity_sha256: String,
+    pub native_id: String,
+    pub provider_plan: crate::ProviderInstallPlan,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct RecipeCodeApproval {
+    pub native_id: String,
+    pub sha256: String,
+    pub runs: Vec<crate::RecompExecution>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct RecipeImportPlan {
     pub recipe: ProfileRecipe,
@@ -113,7 +162,17 @@ pub struct RecipeImportPlan {
     /// The exact installation the new profile would bind, when one matches.
     pub install_id: Option<String>,
     pub originals: Vec<RecipeInputPlan>,
+    /// Exact, path-free local resolutions consumed by the reviewed import.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub verified_originals: Vec<OriginalBinding>,
     pub packages: Vec<RecipeInputPlan>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub acquisitions: Vec<RecipeAcquisitionPlan>,
+    /// Missing packages with an exact coordinate that the player can check.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub provider_checks: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub code_approval: Vec<RecipeCodeApproval>,
     /// Why applying is not possible yet; empty when every input is present.
     pub holds: Vec<String>,
     pub can_apply: bool,
@@ -212,7 +271,10 @@ impl ProfileRecipe {
             serde_json::from_slice(bytes)
                 .map_err(|error| invalid(&format!("it is not JSON with unique keys ({error})")))?;
         match value.get("format").and_then(serde_json::Value::as_u64) {
-            Some(1 | 2) => {}
+            Some(format)
+                if format == u64::from(LEGACY_RECIPE_FORMAT)
+                    || format == u64::from(RECIPE_FORMAT_WITH_MOD_STATE)
+                    || format == u64::from(RECIPE_FORMAT) => {}
             Some(_) => {
                 return Err(PortcoveError::unsupported(
                     "this recipe uses a format this Portcove does not understand",
@@ -233,7 +295,10 @@ impl ProfileRecipe {
     }
 
     fn validate(&self) -> Result<()> {
-        if !matches!(self.format, LEGACY_RECIPE_FORMAT | RECIPE_FORMAT) {
+        if !matches!(
+            self.format,
+            LEGACY_RECIPE_FORMAT | RECIPE_FORMAT_WITH_MOD_STATE | RECIPE_FORMAT
+        ) {
             return Err(PortcoveError::unsupported(
                 "this recipe uses a format this Portcove does not understand",
             ));
@@ -328,6 +393,20 @@ impl ProfileRecipe {
             {
                 return Err(invalid("originals need distinct requirements and digests"));
             }
+            match (self.format, &original.storage) {
+                (LEGACY_RECIPE_FORMAT | RECIPE_FORMAT_WITH_MOD_STATE, None) => {}
+                (RECIPE_FORMAT, Some(storage))
+                    if hash_ok(&storage.sha256)
+                        && storage
+                            .observed_identity_sha256
+                            .as_deref()
+                            .is_none_or(hash_ok) => {}
+                _ => {
+                    return Err(invalid(
+                        "original storage identity does not match the recipe format",
+                    ));
+                }
+            }
         }
         let mut domains = BTreeSet::new();
         for ordering in &self.orderings {
@@ -417,9 +496,14 @@ impl ProfileRecipe {
     }
 }
 
-fn default_uncaptured() -> Vec<String> {
+fn default_uncaptured(format: u32) -> Vec<String> {
+    let original_note = if format < RECIPE_FORMAT {
+        "original game files are never included; originals are referenced by content identity only"
+    } else {
+        "original game files are never included"
+    };
     [
-        "original game files are never included; originals are referenced by content identity only",
+        original_note,
         "player saves and progress are not included",
         "settings are not exported",
         "packages without provider identity cannot be fetched from this recipe",
@@ -465,22 +549,29 @@ impl PortcoveService {
             }
             None => Vec::new(),
         };
-        let mut uncaptured = default_uncaptured();
+        let originals = revision
+            .originals
+            .iter()
+            .map(RecipeOriginal::from)
+            .collect::<Vec<_>>();
+        let needs_provider_closure = revision
+            .packages
+            .iter()
+            .any(|package| !package.provider_requires.is_empty());
+        let format = if !originals.is_empty() {
+            RECIPE_FORMAT
+        } else if !settings.is_empty() || needs_provider_closure {
+            RECIPE_FORMAT_WITH_MOD_STATE
+        } else {
+            LEGACY_RECIPE_FORMAT
+        };
+        let mut uncaptured = default_uncaptured(format);
         if !settings.is_empty() {
             uncaptured.retain(|line| line != "settings are not exported");
             uncaptured.push("ordinary settings, free-form text and settings of disabled or unmanaged mods are not exported".into());
         }
         let mut recipe = ProfileRecipe {
-            format: if !settings.is_empty()
-                || revision
-                    .packages
-                    .iter()
-                    .any(|package| !package.provider_requires.is_empty())
-            {
-                RECIPE_FORMAT
-            } else {
-                LEGACY_RECIPE_FORMAT
-            },
+            format,
             port_id: port_id.into(),
             runtime: RecipeRuntime {
                 artifact: revision.build.artifact.clone(),
@@ -490,15 +581,7 @@ impl PortcoveService {
                 platform: revision.build.platform,
             },
             loader,
-            originals: revision
-                .originals
-                .iter()
-                .map(|original| RecipeOriginal {
-                    requirement_id: original.requirement_id.clone(),
-                    sha256: original.sha256.clone(),
-                    size: original.size,
-                })
-                .collect(),
+            originals,
             packages: revision
                 .packages
                 .iter()
@@ -530,6 +613,128 @@ impl PortcoveService {
         Ok(recipe)
     }
 
+    /// Privately obtains an exact provider file explicitly selected from a recipe.
+    /// The ordinary provider plan checks origin, bounds and executable content.
+    pub async fn plan_recipe_acquisition(
+        &self,
+        recipe: &ProfileRecipe,
+        review_profile_id: &str,
+        native_id: &str,
+        prior: &[RecipeAcquisitionPlan],
+    ) -> Result<RecipeAcquisitionPlan> {
+        use crate::provider_install::ProviderInstallMode;
+        recipe.validate()?;
+        let package = recipe
+            .packages
+            .iter()
+            .find(|package| package.native_id == native_id)
+            .ok_or_else(|| PortcoveError::not_found("the recipe has no such package"))?;
+        let (_, project, file) = package
+            .provider
+            .as_ref()
+            .and_then(|provider| plannable_provider_file(&recipe.port_id, provider))
+            .ok_or_else(|| {
+                PortcoveError::unsupported("this recipe package needs its exact local file")
+            })?;
+        let layout = self.deploy_layout(&recipe.port_id)?;
+        let (_, used_bytes) = verified_acquisitions(recipe, &layout, prior)?;
+        if prior.len() >= MAX_ACQUISITIONS
+            || prior
+                .iter()
+                .any(|acquisition| acquisition.native_id == native_id)
+            || prior
+                .iter()
+                .filter_map(|acquisition| {
+                    recipe
+                        .packages
+                        .iter()
+                        .find(|package| package.native_id == acquisition.native_id)
+                })
+                .fold(package.size, |sum, package| {
+                    sum.saturating_add(package.size)
+                })
+                > MAX_ACQUISITION_BYTES
+        {
+            return Err(PortcoveError::usage(
+                "the recipe package is already reviewed or would exceed the review limits",
+            ));
+        }
+        if let Some(acquisition) = prior.iter().find(|item| {
+            reviewed_origin(&item.provider_plan, native_id).is_ok_and(|(origin, _)| {
+                origin.project == project
+                    && origin.file.as_deref() == Some(file.as_str())
+                    && item
+                        .provider_plan
+                        .members
+                        .iter()
+                        .any(|member| member.file_name == native_id)
+            })
+        }) {
+            let reused = RecipeAcquisitionPlan {
+                recipe_identity_sha256: recipe.identity_sha256.clone(),
+                native_id: native_id.to_owned(),
+                provider_plan: acquisition.provider_plan.clone(),
+            };
+            verified_acquisitions(recipe, &layout, std::slice::from_ref(&reused))?;
+            return Ok(reused);
+        }
+        let client =
+            crate::provider_client::ProviderClient::for_port(&self.library, &recipe.port_id)?;
+        let mode = ProviderInstallMode::Recipe {
+            identity: &recipe.identity_sha256,
+            byte_budget: MAX_ACQUISITION_BYTES - used_bytes,
+        };
+        let provider_plan = self
+            .plan_provider_install_in_mode(
+                &client,
+                &recipe.port_id,
+                review_profile_id,
+                &project,
+                &file,
+                mode,
+            )
+            .await?;
+        let acquisition = RecipeAcquisitionPlan {
+            recipe_identity_sha256: recipe.identity_sha256.clone(),
+            native_id: native_id.to_owned(),
+            provider_plan,
+        };
+        let acquisitions = prior
+            .iter()
+            .cloned()
+            .chain(std::iter::once(acquisition.clone()))
+            .collect::<Vec<_>>();
+        if let Err(error) = verified_acquisitions(recipe, &layout, &acquisitions) {
+            let _ = self.discard_recipe_acquisition(&acquisition);
+            return Err(error);
+        }
+        Ok(acquisition)
+    }
+
+    /// Releases the private staging for a cancelled recipe review.
+    pub fn discard_recipe_acquisition(&self, acquisition: &RecipeAcquisitionPlan) -> Result<()> {
+        let _guard = self.library.try_lock_port(
+            &acquisition.provider_plan.port_id,
+            "discard-recipe-acquisition",
+        )?;
+        self.discard_recipe_acquisition_locked(acquisition)
+    }
+
+    fn discard_recipe_acquisition_locked(&self, acquisition: &RecipeAcquisitionPlan) -> Result<()> {
+        if !hash_ok(&acquisition.recipe_identity_sha256) {
+            return Err(invalid(
+                "the provider review has an invalid recipe identity",
+            ));
+        }
+        self.discard_provider_install_in_mode(
+            &acquisition.provider_plan,
+            crate::provider_install::ProviderInstallMode::Recipe {
+                identity: &acquisition.recipe_identity_sha256,
+                byte_budget: 0,
+            },
+        )
+    }
+
     /// Exports the current resolved setup into the player-selected file.
     pub fn write_profile_recipe(
         &self,
@@ -547,6 +752,14 @@ impl PortcoveService {
 
     /// Plans an import without changing anything.
     pub fn plan_recipe_import(&self, recipe: &ProfileRecipe) -> Result<RecipeImportPlan> {
+        self.plan_recipe_import_with_acquisitions(recipe, &[])
+    }
+
+    pub fn plan_recipe_import_with_acquisitions(
+        &self,
+        recipe: &ProfileRecipe,
+        acquisitions: &[RecipeAcquisitionPlan],
+    ) -> Result<RecipeImportPlan> {
         recipe.validate()?;
         self.catalog().port(&recipe.port_id)?;
         let mut holds = Vec::new();
@@ -568,6 +781,7 @@ impl PortcoveService {
             let mut exact = None;
             for install in &installs {
                 if let Ok(build) = self.verified_retained_build(&recipe.port_id, &install.id)
+                    && build.runtime == recipe.runtime.runtime
                     && build.artifact == recipe.runtime.artifact
                     && build.definition == recipe.runtime.definition
                     && build.installed_contract_sha256 == recipe.runtime.installed_contract_sha256
@@ -603,82 +817,42 @@ impl PortcoveService {
                 }
             }
         };
-        let sources = self.library.sources()?;
-        let port = self.catalog().port(&recipe.port_id)?;
-        let requirements = [
-            port.source_profile.as_deref(),
-            port.bios_source_profile.as_deref(),
-        ]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>();
-        let originals = recipe
-            .originals
-            .iter()
-            .map(|original| {
-                if !requirements.contains(&original.requirement_id.as_str()) {
-                    holds.push(format!(
-                        "original {} is not an input this game uses",
-                        original.requirement_id
-                    ));
-                    return RecipeInputPlan {
-                        name: original.requirement_id.clone(),
-                        status: RecipeInputStatus::Unavailable,
-                        detail: "this game does not use this original".into(),
-                    };
-                }
-                let registered = sources
-                    .iter()
-                    .filter(|source| source.profile_id == original.requirement_id)
-                    .collect::<Vec<_>>();
-                let (status, detail) = if registered
-                    .iter()
-                    .any(|source| source.sha256 == original.sha256 && source.size == original.size)
-                {
-                    (
-                        RecipeInputStatus::Available,
-                        "a registered original matches",
-                    )
-                } else if registered.is_empty() {
-                    holds.push(format!(
-                        "original {} is not registered",
-                        original.requirement_id
-                    ));
-                    (
-                        RecipeInputStatus::Unavailable,
-                        "no original is registered for this requirement",
-                    )
-                } else {
-                    holds.push(format!("original {} differs", original.requirement_id));
-                    (
-                        RecipeInputStatus::Unavailable,
-                        "a different original is registered",
-                    )
-                };
-                RecipeInputPlan {
-                    name: original.requirement_id.clone(),
-                    status,
-                    detail: detail.into(),
-                }
-            })
-            .collect::<Vec<_>>();
+        let install = install_id
+            .as_deref()
+            .and_then(|id| installs.iter().find(|install| install.id == id));
+        let retained_catalog = install
+            .map(|install| self.installed_catalog(install))
+            .transpose()?;
+        let catalog = retained_catalog.as_ref().unwrap_or(self.catalog());
+        let connection = self.library.connection()?;
+        let (originals, verified_originals) = original_inputs::plan(
+            &self.library,
+            &connection,
+            catalog,
+            install,
+            recipe,
+            &mut holds,
+        )?;
         let user = self.library.user_dir(&recipe.port_id);
         let layout = crate::profile_deploy::Layout::for_user(&user);
+        let (acquisition_bytes, _) = verified_acquisitions(recipe, &layout, acquisitions)?;
+        let recorded_code = crate::profile_deploy::consented_code(&layout).unwrap_or_default();
+        let mut code_approval = Vec::new();
+        let mut provider_checks = Vec::new();
         let recomp_game = crate::native_mod_list::recomp_game(&recipe.port_id);
-        let code_consents = if recomp_game.is_some() {
-            crate::profile_deploy::consented_code(&layout).unwrap_or_default()
-        } else {
-            BTreeSet::new()
-        };
         let connection = self.library.connection()?;
         let packages = recipe
             .packages
             .iter()
             .map(|package| {
                 let stored = layout.package(&package.sha256, &package.native_id);
-                let exact_size = std::fs::symlink_metadata(&stored)
-                    .is_ok_and(|entry| entry.is_file() && entry.len() == package.size);
-                let present = if !exact_size {
+                let staged = acquisition_bytes.get(&package.native_id);
+                let exact_size = crate::path::refuse_symlink_ancestors(&stored).is_ok()
+                    && fs::symlink_metadata(&stored)
+                        .is_ok_and(|entry| entry.is_file() && entry.len() == package.size);
+                let present = if staged.is_some() {
+                    true
+                } else if !exact_size {
                     false
                 } else if let Some(game) = recomp_game {
                     match crate::inspect_recomp_mod(&stored, game) {
@@ -697,20 +871,32 @@ impl PortcoveService {
                                 holds.push(format!("Portcove held {}. {}", package.native_id, error.message));
                             } else if package.enabled
                                 && !recomp.execution.is_empty()
-                                && !code_consents.contains(&package.sha256)
+                                && !recorded_code.contains(&package.sha256)
                             {
-                                holds.push(format!(
-                                    "{} needs permission in this library to run its exact code. Review the exact package locally before importing",
-                                    package.native_id
-                                ));
+                                code_approval.push(RecipeCodeApproval {
+                                    native_id: package.native_id.clone(),
+                                    sha256: package.sha256.clone(),
+                                    runs: recomp.execution,
+                                });
                             }
                             true
                         }
                         _ => false,
                     }
                 } else {
-                    sha256_file(&stored).is_ok_and(|sha| sha == package.sha256)
+                    matches_exact_package(&stored, package)
                 };
+                if let Some(staged) = staged
+                    && package.enabled
+                    && !staged.runs_code.is_empty()
+                    && !recorded_code.contains(&package.sha256)
+                {
+                    code_approval.push(RecipeCodeApproval {
+                        native_id: package.native_id.clone(),
+                        sha256: package.sha256.clone(),
+                        runs: staged.runs_code.clone(),
+                    });
+                }
                 let evidence = profile::provider_evidence(
                     &connection,
                     &recipe.port_id,
@@ -729,7 +915,15 @@ impl PortcoveService {
                     .provider
                     .as_ref()
                     .and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
-                let (status, detail) = if present && closure_unverified {
+                let (status, detail) = if staged.is_some() {
+                    (
+                        RecipeInputStatus::Available,
+                        "the exact package is ready in private review staging".to_owned(),
+                    )
+                } else if present && closure_unverified {
+                    if plannable.is_some() {
+                        provider_checks.push(package.native_id.clone());
+                    }
                     holds.push(format!(
                         "package {} needs an exact Thunderstore review before import",
                         package.native_id
@@ -740,6 +934,7 @@ impl PortcoveService {
                     )
                 } else if present && package.provider.is_some()
                     && evidence == profile::ProviderEvidence::Unrecorded {
+
                     (
                         RecipeInputStatus::Available,
                         "its exact bytes are in the package store; its provider label is not recorded in this library for these bytes, so the new profile does not keep it".to_owned(),
@@ -750,6 +945,7 @@ impl PortcoveService {
                         "its exact bytes are in the package store".to_owned(),
                     )
                 } else if let Some((label, project, file)) = plannable {
+                    provider_checks.push(package.native_id.clone());
                     holds.push(format!(
                         "package {} needs its exact bytes before import",
                         package.native_id
@@ -816,26 +1012,55 @@ impl PortcoveService {
                 .all(|package| package.status == RecipeInputStatus::Available)
             && let Some(game) = crate::native_mod_list::recomp_game(&recipe.port_id)
             && let Err(error) =
-                recomp_mod_settings::validate_portable(&layout, game, recipe, |_| None)
+                recomp_mod_settings::validate_portable(&layout, game, recipe, |native_id| {
+                    acquisition_bytes
+                        .get(native_id)
+                        .map(|package| package.path.as_path())
+                })
         {
             holds.push(format!(
                 "The recipe's mod settings need review. {}",
                 error.message
             ));
         }
+        if let (Some(game), Some(install)) = (recomp_game, install)
+            && packages
+                .iter()
+                .all(|package| package.status == RecipeInputStatus::Available)
+            && let Err(error) = review_native_requirements(
+                recipe,
+                &layout,
+                game,
+                &install.version,
+                &acquisition_bytes,
+            )
+        {
+            let details = error
+                .details
+                .iter()
+                .map(|(name, value)| format!("{name} {value}"))
+                .collect::<Vec<_>>();
+            holds.push(
+                format!("{} {}", error.message, details.join(", "))
+                    .trim_end()
+                    .to_owned(),
+            );
+        }
         let mut plan = RecipeImportPlan {
             recipe: recipe.clone(),
             runtime,
             install_id,
             originals,
+            verified_originals,
             packages,
+            acquisitions: acquisitions.to_vec(),
+            provider_checks,
+            code_approval,
             can_apply: holds.is_empty(),
             holds,
             plan_sha256: String::new(),
         };
-        let mut copy = plan.clone();
-        copy.plan_sha256.clear();
-        plan.plan_sha256 = hex::encode(Sha256::digest(serde_json::to_vec(&copy)?));
+        plan.plan_sha256 = import_plan_digest(&plan)?;
         Ok(plan)
     }
 
@@ -844,23 +1069,77 @@ impl PortcoveService {
         plan: &RecipeImportPlan,
         display_name: &str,
     ) -> Result<crate::DestructiveAuthorization> {
+        require_import_plan_digest(plan)?;
+        if !plan.code_approval.is_empty() {
+            return Err(PortcoveError::usage(
+                "this recipe needs permission to run the exact mod code shown in its review",
+            ));
+        }
         self.library
             .issue_authorization(ACTION, &target(plan, display_name)?, &plan.plan_sha256)
     }
 
-    /// Creates a new profile from the recipe only when every input is already
-    /// present. The plan is recomputed under the port lock; any difference refuses.
+    pub fn authorize_recipe_import_allowing_code(
+        &self,
+        plan: &RecipeImportPlan,
+        display_name: &str,
+    ) -> Result<crate::DestructiveAuthorization> {
+        if plan.code_approval.is_empty() {
+            return self.authorize_recipe_import(plan, display_name);
+        }
+        require_import_plan_digest(plan)?;
+        self.library.issue_authorization(
+            ACTION_WITH_CODE,
+            &target(plan, display_name)?,
+            &plan.plan_sha256,
+        )
+    }
+
+    /// Creates a new profile from exact local or privately staged inputs.
+    /// Recomputes the review under the source and port locks before applying.
     pub fn apply_recipe_import(
         &self,
         plan: &RecipeImportPlan,
         display_name: &str,
         token: &str,
     ) -> Result<Profile> {
+        plan.recipe.validate()?;
+        require_import_plan_digest(plan)?;
         let port_id = plan.recipe.port_id.clone();
+        let plan_install =
+            Library::install_by_id(&self.library.connection()?, plan.install_id.as_deref())?
+                .filter(|install| install.port_id == port_id)
+                .ok_or_else(|| {
+                    PortcoveError::conflict(
+                        "the recipe's exact installation is unavailable; review it again",
+                    )
+                })?;
+        let catalog = self.installed_catalog(&plan_install)?;
+        let port = catalog.port(&port_id)?;
+        if plan.recipe.originals.iter().any(|original| {
+            port.source_profile.as_deref() != Some(original.requirement_id.as_str())
+                && port.bios_source_profile.as_deref() != Some(original.requirement_id.as_str())
+        }) {
+            return Err(PortcoveError::conflict(
+                "the recipe names an original outside this installation's rules",
+            ));
+        }
+        let mut requirements = plan
+            .recipe
+            .originals
+            .iter()
+            .map(|original| original.requirement_id.as_str())
+            .collect::<Vec<_>>();
+        requirements.sort_unstable();
+        let _source_guards = requirements
+            .into_iter()
+            .map(|requirement| self.library.try_lock_source(requirement))
+            .collect::<Result<Vec<_>>>()?;
         let _guard = self
             .library
             .try_lock_port(&port_id, "apply-recipe-import")?;
-        let current = self.plan_recipe_import(&plan.recipe)?;
+        let current =
+            self.plan_recipe_import_with_acquisitions(&plan.recipe, &plan.acquisitions)?;
         if current.plan_sha256 != plan.plan_sha256 {
             return Err(PortcoveError::conflict(
                 "the local inputs changed after review; plan the import again",
@@ -868,7 +1147,11 @@ impl PortcoveService {
         }
         self.library.consume_authorization(
             token,
-            ACTION,
+            if current.code_approval.is_empty() {
+                ACTION
+            } else {
+                ACTION_WITH_CODE
+            },
             &target(plan, display_name)?,
             &plan.plan_sha256,
         )?;
@@ -883,22 +1166,18 @@ impl PortcoveService {
             .clone()
             .ok_or_else(|| PortcoveError::state("a ready plan has no matching installation"))?;
         let build = self.verified_retained_build(&port_id, &install_id)?;
-        let sources = self.library.sources()?;
-        let originals = plan
-            .recipe
-            .originals
-            .iter()
-            .filter_map(|original| {
-                sources
-                    .iter()
-                    .find(|source| {
-                        source.profile_id == original.requirement_id
-                            && source.sha256 == original.sha256
-                            && source.size == original.size
-                    })
-                    .map(|source| profile::bind_original(&original.requirement_id, source))
-            })
-            .collect::<Vec<_>>();
+        let originals = current.verified_originals;
+        let layout = crate::profile_deploy::Layout::for_user(&self.library.user_dir(&port_id));
+        let (acquisition_bytes, _) =
+            verified_acquisitions(&current.recipe, &layout, &current.acquisitions)?;
+        for package in &current.recipe.packages {
+            if let Some(acquired) = acquisition_bytes.get(&package.native_id) {
+                publish_acquired_package(&layout, package, &acquired.path)?;
+            }
+        }
+        for approved in &current.code_approval {
+            crate::profile_deploy::record_code_consent(&layout, &approved.sha256)?;
+        }
         // A recipe's provider label is an unverified claim. The new profile keeps it
         // only when this port already recorded exactly that label for the same
         // bytes and file name, so update checks never follow a label the recipe
@@ -919,7 +1198,12 @@ impl PortcoveService {
                 }
                 _ => None,
             };
-            providers.push(kept);
+            providers.push(
+                acquisition_bytes
+                    .get(&package.native_id)
+                    .map(|acquired| acquired.provider.clone())
+                    .or(kept),
+            );
         }
         let packages = plan
             .recipe
@@ -959,15 +1243,282 @@ impl PortcoveService {
             ));
         }
         let profile = profile::new_profile(&port_id, display_name, false);
-        self.publish_new_profile(
+        let created = self.publish_new_profile(
             &profile,
             &install_id,
             build,
             originals,
             Some(&base),
             base.loader.clone(),
-        )
+        )?;
+        for acquisition in &current.acquisitions {
+            let _ = self.discard_recipe_acquisition_locked(acquisition);
+        }
+        Ok(created)
     }
+}
+
+struct AcquiredPackage {
+    path: PathBuf,
+    provider: ProviderPackageRef,
+    runs_code: Vec<crate::RecompExecution>,
+}
+
+fn review_native_requirements(
+    recipe: &ProfileRecipe,
+    layout: &crate::profile_deploy::Layout,
+    game: &str,
+    runtime: &str,
+    acquired: &BTreeMap<String, AcquiredPackage>,
+) -> Result<()> {
+    let builtin = crate::native_mod_list::recomp_builtins(game);
+    let mut enabled = BTreeMap::new();
+    for package in &recipe.packages {
+        let retained = layout.package(&package.sha256, &package.native_id);
+        let path = acquired
+            .get(&package.native_id)
+            .map(|package| package.path.as_path())
+            .unwrap_or(&retained);
+        let exact = crate::inspect_recomp_mod(path, game)?;
+        if exact.sha256 != package.sha256
+            || exact.size != package.size
+            || package.native_id != format!("{}.nrm", exact.native_id)
+            || exact.game_id != game
+        {
+            return Err(PortcoveError::verification(
+                "the recipe package changed during native review",
+            )
+            .detail("package", &package.native_id));
+        }
+        let declared = exact
+            .dependencies
+            .iter()
+            .filter(|item| {
+                !matches!(item.id.as_str(), "." | "*") && !builtin.contains(&item.id.as_str())
+            })
+            .map(|item| format!("{}.nrm", item.id))
+            .collect::<BTreeSet<_>>();
+        if package.requires.iter().cloned().collect::<BTreeSet<_>>() != declared {
+            return Err(PortcoveError::conflict("the exact package declares different native requirements; export the complete setup again")
+                .detail("package", &package.native_id));
+        }
+        if package.enabled {
+            enabled.insert(exact.native_id.clone(), exact);
+        }
+    }
+    crate::profile_loader::validate_recomp_versions(
+        &enabled,
+        runtime.strip_prefix('v').unwrap_or(runtime),
+        game,
+    )
+}
+
+fn reviewed_origin<'a>(
+    plan: &'a crate::ProviderInstallPlan,
+    native_id: &str,
+) -> Result<(&'a ProviderPackageRef, Vec<crate::ProviderRequirement>)> {
+    let mut reviewed = crate::provider_install::wrapper_members(plan, &[])?;
+    if plan.provider.provider == crate::thunderstore::PROVIDER {
+        let origin = reviewed.remove(native_id).ok_or_else(|| {
+            PortcoveError::verification("the exact provider closure has no such native package")
+                .detail("package", native_id)
+        })?;
+        Ok((origin.provider, origin.requirements))
+    } else {
+        Ok((&plan.provider, Vec::new()))
+    }
+}
+
+fn verified_acquisitions(
+    recipe: &ProfileRecipe,
+    layout: &crate::profile_deploy::Layout,
+    acquisitions: &[RecipeAcquisitionPlan],
+) -> Result<(BTreeMap<String, AcquiredPackage>, u64)> {
+    use crate::provider_install::{ProviderInstallMode, digest};
+    if acquisitions.len() > MAX_ACQUISITIONS {
+        return Err(PortcoveError::usage(
+            "too many provider files for one recipe review",
+        ));
+    }
+    let mut verified = BTreeMap::new();
+    let mut total_bytes = 0u64;
+    let mut counted = BTreeSet::new();
+    for acquisition in acquisitions {
+        let plan = &acquisition.provider_plan;
+        let package = recipe
+            .packages
+            .iter()
+            .find(|item| item.native_id == acquisition.native_id);
+        let (origin, exact_requirements) = reviewed_origin(plan, &acquisition.native_id)?;
+        let reference = package.and_then(|package| package.provider.as_ref());
+        let identity =
+            reference.and_then(|provider| plannable_provider_file(&recipe.port_id, provider));
+        let agrees = reference
+            .zip(identity)
+            .is_some_and(|(reference, (_, project, file))| {
+                origin.provider == reference.provider
+                    && origin.project == project
+                    && origin.file.as_deref() == Some(file.as_str())
+                    && reference
+                        .version
+                        .as_ref()
+                        .is_none_or(|version| origin.version.as_ref() == Some(version))
+            });
+        if !agrees
+            || recipe.identity_sha256 != acquisition.recipe_identity_sha256
+            || plan.port_id != recipe.port_id
+            || digest(plan)? != plan.plan_sha256
+            || verified.contains_key(&acquisition.native_id)
+        {
+            return Err(PortcoveError::conflict(
+                "the provider review does not match this exact recipe",
+            ));
+        }
+        let package =
+            package.ok_or_else(|| PortcoveError::conflict("the recipe package changed"))?;
+        if exact_requirements != package.provider_requires {
+            return Err(PortcoveError::conflict(
+                "the provider file declares different exact requirements. Use a recipe exported with the complete provider closure.",
+            )
+            .detail("package", &package.native_id));
+        }
+        if counted.insert(plan.plan_sha256.as_str()) {
+            let wrapper_bytes = if plan.wrappers.is_empty() {
+                plan.download_size
+            } else {
+                plan.wrappers.iter().fold(0u64, |sum, wrapper| {
+                    sum.saturating_add(wrapper.download_size)
+                })
+            };
+            let staged_bytes = plan
+                .members
+                .iter()
+                .fold(0u64, |sum, member| sum.saturating_add(member.size));
+            total_bytes = total_bytes
+                .saturating_add(wrapper_bytes)
+                .saturating_add(staged_bytes);
+        }
+        if total_bytes > MAX_ACQUISITION_BYTES {
+            return Err(PortcoveError::unsupported(
+                "the recipe exceeds the combined provider download and staging limit",
+            ));
+        }
+        let member = plan
+            .members
+            .iter()
+            .find(|member| {
+                member.file_name == package.native_id
+                    && member.sha256 == package.sha256
+                    && member.size == package.size
+            })
+            .ok_or_else(|| {
+                PortcoveError::verification(
+                    "the provider file does not contain the exact recipe package",
+                )
+                .detail("package", &package.native_id)
+            })?;
+        let path = ProviderInstallMode::Recipe {
+            identity: &recipe.identity_sha256,
+            byte_budget: 0,
+        }
+        .staging(layout, &plan.plan_sha256)
+        .join(&package.native_id);
+        if !matches_exact_package(&path, package) {
+            return Err(PortcoveError::conflict(
+                "the private package changed or was discarded; review it again",
+            ));
+        }
+        // The plan is input. Recheck actual code facts from its exact staged bytes.
+        let runs_code = if let Some(game) = crate::native_mod_list::recomp_game(&recipe.port_id) {
+            let observed = crate::inspect_recomp_mod(&path, game)?;
+            if observed.sha256 != package.sha256
+                || package.native_id != format!("{}.nrm", observed.native_id)
+                || package
+                    .native_version
+                    .as_ref()
+                    .is_some_and(|version| version != &observed.native_version)
+                || observed.holds.contains(&crate::RecompModHold::OtherGame)
+                || observed.execution != member.runs_code
+            {
+                return Err(PortcoveError::verification(
+                    "the package no longer matches its reviewed native identity or code",
+                ));
+            }
+            crate::profile_deploy::require_admissible_code(&observed)?;
+            observed.execution
+        } else {
+            let observed = crate::inspect_asset_archive(&path)?;
+            if observed.sha256 != package.sha256
+                || !observed.holds.is_empty()
+                || !member.runs_code.is_empty()
+            {
+                return Err(PortcoveError::verification(
+                    "the package no longer matches its reviewed asset content",
+                ));
+            }
+            Vec::new()
+        };
+        verified.insert(
+            package.native_id.clone(),
+            AcquiredPackage {
+                path,
+                provider: origin.clone(),
+                runs_code,
+            },
+        );
+    }
+    Ok((verified, total_bytes))
+}
+
+fn matches_exact_package(path: &Path, package: &RecipePackage) -> bool {
+    crate::external_runtime::hash_stable_regular(path, package.size, &|| Ok(()))
+        .is_ok_and(|(digest, size)| size == package.size && digest == package.sha256)
+}
+
+fn publish_acquired_package(
+    layout: &crate::profile_deploy::Layout,
+    package: &RecipePackage,
+    private: &Path,
+) -> Result<()> {
+    let destination = layout.package(&package.sha256, &package.native_id);
+    crate::path::refuse_symlink_ancestors(&destination)?;
+    let parent = destination
+        .parent()
+        .ok_or_else(|| PortcoveError::state("package store path has no parent"))?;
+    if destination.try_exists()? {
+        if !matches_exact_package(&destination, package) {
+            return Err(PortcoveError::verification(
+                "the package store contains changed bytes at the exact identity",
+            ));
+        }
+    } else {
+        fs::create_dir_all(parent)?;
+        crate::path::refuse_symlink_ancestors(&destination)?;
+        let target = crate::durability::tempfile_destination(&destination)?;
+        let mut temp = tempfile::NamedTempFile::new_in(
+            target
+                .parent()
+                .ok_or_else(|| PortcoveError::state("package store path has no parent"))?,
+        )?;
+        crate::external_runtime::stream_single_link_metadata(
+            private,
+            package.size,
+            &|| Ok(()),
+            &mut |bytes| temp.as_file_mut().write_all(bytes).map_err(Into::into),
+        )?;
+        temp.as_file().sync_all()?;
+        if !matches_exact_package(temp.path(), package) {
+            return Err(PortcoveError::verification(
+                "the acquired bytes changed while being stored",
+            ));
+        }
+        temp.persist_noclobber(&target)
+            .map_err(|error| error.error)?;
+    }
+    // A prior attempt may have stored the file before its directory flush failed.
+    crate::durability::sync_publication(parent)?;
+    crate::durability::sync_publication(&layout.store().join("packages"))?;
+    crate::durability::sync_publication(&layout.store())
 }
 
 /// The provider project and file a recipe package names, when this game has a
@@ -999,6 +1550,21 @@ fn plannable_provider_file(
         return None;
     }
     Some((label, provider.project.clone(), file.to_owned()))
+}
+
+fn import_plan_digest(plan: &RecipeImportPlan) -> Result<String> {
+    let mut copy = plan.clone();
+    copy.plan_sha256.clear();
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&copy)?)))
+}
+
+fn require_import_plan_digest(plan: &RecipeImportPlan) -> Result<()> {
+    if import_plan_digest(plan)? != plan.plan_sha256 {
+        return Err(PortcoveError::conflict(
+            "the import review changed; review the recipe again before approving it",
+        ));
+    }
+    Ok(())
 }
 
 fn target(plan: &RecipeImportPlan, display_name: &str) -> Result<String> {

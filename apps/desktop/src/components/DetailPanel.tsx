@@ -626,7 +626,7 @@ function DetailBody(model: {
       {(reveal) => ({
         overview: <DetailOverviewSection model={model} />,
         files: <DetailFilesSection {...{ model, managedPreparation }} />,
-        saves: <DetailSavesSection {...{ model, external }} />,
+        saves: <DetailSavesSection {...{ model, external, reveal }} />,
         versions: <DetailVersionsSection {...{ model, external }} />,
         manage: <DetailManageSection {...{ model, external, reveal }} />,
       })}
@@ -4056,9 +4056,11 @@ function DetailManageSection({
 function DetailSavesSection({
   model,
   external,
+  reveal,
 }: {
   model: Parameters<typeof DetailBody>[0];
   external: boolean;
+  reveal: import("./DetailLayout").RevealDetailSection;
 }) {
   return (
     <div className="grid gap-5">
@@ -4127,6 +4129,7 @@ function DetailSavesSection({
           portId={model.port.id}
           generation={model.libraryGeneration}
           busy={Boolean(model.busy)}
+          openGameFiles={() => reveal("files")}
         />
       )}
     </div>

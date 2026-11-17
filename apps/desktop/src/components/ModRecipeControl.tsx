@@ -12,6 +12,7 @@ type Props = {
   profileId: string | undefined;
   generation: number;
   disabled: boolean;
+  openGameFiles: (() => void) | undefined;
   onBusyChange: (busy: boolean) => void;
   onImported: (message: string) => void;
 };
@@ -21,11 +22,13 @@ export function ModRecipeControl({
   profileId,
   generation,
   disabled,
+  openGameFiles,
   onBusyChange,
   onImported,
 }: Props) {
   const { t } = useAppTranslation("gameSettings");
   const [plan, setPlan] = useState<OutputRecipeImportPlan>();
+  const [allowCode, setAllowCode] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string>();
@@ -34,10 +37,37 @@ export function ModRecipeControl({
   const reviewTitle = useId();
   const locked = disabled || busy;
   const openButton = useRef<HTMLButtonElement>(null);
+  const focusOpenOnClose = useRef(false);
   const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const lifecycle = useRef({
+    active: true,
+    review: undefined as OutputRecipeImportPlan | undefined,
+  });
+  useEffect(() => {
+    const view = lifecycle.current;
+    view.active = true;
+    return () => {
+      view.active = false;
+      const review = view.review;
+      view.review = undefined;
+      if (review?.acquisitions?.length) {
+        void desktopApi.discardModRecipeReview(portId, review, generation).catch(() => {});
+      }
+    };
+  }, [portId, generation]);
+  useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  const showReview = (next?: OutputRecipeImportPlan) => {
+    lifecycle.current.review = next;
+    setPlan(next);
+  };
   useEffect(() => {
     if (plan) reviewHeading.current?.focus();
   }, [plan]);
+  useEffect(() => {
+    if (plan || locked || !focusOpenOnClose.current) return;
+    focusOpenOnClose.current = false;
+    openButton.current?.focus();
+  }, [plan, locked]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true);
@@ -45,11 +75,15 @@ export function ModRecipeControl({
     try {
       await action();
     } catch (error) {
-      setNotice(undefined);
-      setFailure(errorText(error));
+      if (lifecycle.current.active) {
+        setNotice(undefined);
+        setFailure(errorText(error));
+      }
     } finally {
-      setBusy(false);
-      onBusyChange(false);
+      if (lifecycle.current.active) {
+        setBusy(false);
+        onBusyChange(false);
+      }
     }
   }
 
@@ -57,31 +91,63 @@ export function ModRecipeControl({
     if (!profileId) return;
     void run(async () => {
       const path = await saveModRecipePath(t("mods.recipe.savePicker"), t("mods.recipe.fileType"));
-      if (typeof path !== "string") return;
+      if (typeof path !== "string" || !lifecycle.current.active) return;
       setFailure(undefined);
       await desktopApi.exportModRecipe(portId, profileId, path, generation);
       setNotice(t("mods.recipe.saved"));
     });
   };
 
+  const discardReview = async () => {
+    if (plan?.acquisitions?.length) {
+      await desktopApi.discardModRecipeReview(portId, plan, generation);
+    }
+    showReview();
+    setAllowCode(false);
+  };
+
   const inspectRecipe = () =>
     void run(async () => {
       const path = await pickModRecipePath(t("mods.recipe.openPicker"), t("mods.recipe.fileType"));
-      if (typeof path !== "string") return;
+      if (typeof path !== "string" || !lifecycle.current.active) return;
       setFailure(undefined);
       setNotice(undefined);
-      setPlan(undefined);
+      await discardReview();
       const review = await desktopApi.inspectModRecipe(portId, path, generation);
-      setPlan(review);
+      if (!lifecycle.current.active) return;
+      showReview(review);
       setName("");
     });
 
-  const importRecipe = () => {
-    if (!plan?.can_apply || !name.trim()) return;
+  const checkProvider = (nativeId: string) => {
+    if (!plan || !profileId) return;
     void run(async () => {
       setFailure(undefined);
-      await desktopApi.applyModRecipe(portId, name.trim(), plan, generation);
-      setPlan(undefined);
+      setAllowCode(false);
+      const review = await desktopApi.acquireModRecipePackage(
+        portId,
+        profileId,
+        nativeId,
+        plan,
+        generation,
+      );
+      if (!lifecycle.current.active) {
+        await desktopApi.discardModRecipeReview(portId, review, generation).catch(() => {});
+        return;
+      }
+      showReview(review);
+    });
+  };
+
+  const needsCode = Boolean(plan?.code_approval?.length);
+  const importRecipe = () => {
+    if (!plan?.can_apply || !name.trim() || (needsCode && !allowCode)) return;
+    void run(async () => {
+      setFailure(undefined);
+      await desktopApi.applyModRecipe(portId, name.trim(), plan, generation, allowCode);
+      if (!lifecycle.current.active) return;
+      showReview();
+      setAllowCode(false);
       setName("");
       onImported(t("mods.recipe.imported", { name: name.trim() }));
     });
@@ -108,6 +174,16 @@ export function ModRecipeControl({
           </h4>
           <p>{t(plan.can_apply ? "mods.recipe.ready" : "mods.recipe.held")}</p>
           <p>{t("mods.recipe.platform", { platform: plan.recipe.runtime.platform })}</p>
+          {plan.originals.some((original) => original.status !== "available") && (
+            <div className="grid gap-1">
+              <p>{t("mods.recipe.originalNeeded")}</p>
+              {openGameFiles && (
+                <Button variant="outline" disabled={locked} onClick={openGameFiles}>
+                  {t("mods.recipe.gameFiles")}
+                </Button>
+              )}
+            </div>
+          )}
           {plan.recipe.packages.length > 0 && (
             <ul className="list-disc pl-5" aria-label={t("mods.recipe.packages")}>
               {plan.recipe.packages.map((pack) => (
@@ -141,6 +217,25 @@ export function ModRecipeControl({
                 </ol>
               </div>
             ))}
+            {Boolean(plan.recipe.settings?.length) && (
+              <div className="mt-2">
+                <p>{t("mods.recipe.settings")}</p>
+                <ul className="list-disc pl-5">
+                  {plan.recipe.settings?.map((setting) => (
+                    <li key={JSON.stringify([setting.native_id, setting.option_id])}>
+                      <bdi>
+                        {t("mods.recipe.setting", {
+                          mod: setting.native_id,
+                          option: setting.option_id,
+                        })}
+                      </bdi>
+                      {" · "}
+                      <bdi>{String(setting.value)}</bdi>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <p className="mt-2">
               {t("mods.recipe.identity")}{" "}
               <code className="break-all" dir="ltr">
@@ -148,6 +243,43 @@ export function ModRecipeControl({
               </code>
             </p>
           </details>
+          {!profileId && Boolean(plan.provider_checks?.length) && (
+            <p>{t("mods.recipe.providerSetupNeeded")}</p>
+          )}
+          {profileId &&
+            plan.provider_checks?.map((nativeId) => (
+              <Button
+                key={nativeId}
+                variant="outline"
+                disabled={locked}
+                onClick={() => checkProvider(nativeId)}
+              >
+                {t("mods.recipe.checkProvider", { name: nativeId })}
+              </Button>
+            ))}
+          {plan.can_apply && needsCode && (
+            <div className="grid gap-1">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  checked={allowCode}
+                  disabled={locked}
+                  onChange={(event) => setAllowCode(event.currentTarget.checked)}
+                />
+                {t("mods.recipe.allowCode")}
+              </label>
+              <ul className="list-disc pl-5">
+                {plan.code_approval?.map((code) => (
+                  <li key={code.native_id}>
+                    {code.native_id}{" "}
+                    <code className="break-all" dir="ltr">
+                      {code.sha256}
+                    </code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
           {plan.can_apply && (
             <div className="grid gap-1">
               <label htmlFor={nameId}>{t("mods.recipe.name")}</label>
@@ -163,7 +295,10 @@ export function ModRecipeControl({
           )}
           <div className="flex flex-wrap gap-2">
             {plan.can_apply && (
-              <Button disabled={locked || !name.trim()} onClick={importRecipe}>
+              <Button
+                disabled={locked || !name.trim() || (needsCode && !allowCode)}
+                onClick={importRecipe}
+              >
                 {t("mods.recipe.import")}
               </Button>
             )}
@@ -171,8 +306,16 @@ export function ModRecipeControl({
               variant="outline"
               disabled={locked}
               onClick={() => {
-                setPlan(undefined);
-                openButton.current?.focus();
+                if (!plan.acquisitions?.length) {
+                  showReview();
+                  setAllowCode(false);
+                  openButton.current?.focus();
+                  return;
+                }
+                void run(async () => {
+                  await discardReview();
+                  focusOpenOnClose.current = true;
+                });
               }}
             >
               {t("mods.recipe.close")}

@@ -1334,9 +1334,10 @@ export interface TransportOutputs {
   profile_recovery_plan: OutputProfileRecoveryPlan;
   profile_revision: ProfileRevision;
   provider_browse_page: OutputProviderBrowsePage;
-  provider_install_plan: OutputProviderInstallPlan;
+  provider_install_plan: ProviderInstallPlan;
   provider_project_view: OutputProviderProjectView;
   provider_update_observation: OutputProviderUpdateObservation;
+  recipe_acquisition_plan: RecipeAcquisitionPlan;
   recipe_import_plan: OutputRecipeImportPlan;
   recommendation_metadata: OutputRecommendationMetadata;
   reconcile_batch_outcome: OutputReconcileBatchOutcome;
@@ -5730,10 +5731,19 @@ export interface ProfileRecipe {
   uncaptured: string[];
 }
 /**
- * A reference to an original, by content identity only. No path, no payload.
+ * Local original identity, without its path or payload.
  */
 export interface RecipeOriginal {
   requirement_id: string;
+  sha256: string;
+  size: number;
+  /**
+   * Earlier recipes identified content only. Format 3 also binds its saved representation.
+   */
+  storage?: RecipeOriginalStorage | null;
+}
+export interface RecipeOriginalStorage {
+  observed_identity_sha256?: string | null;
   sha256: string;
   size: number;
 }
@@ -5888,7 +5898,7 @@ export interface ThunderstoreDependency {
   version: string;
   [k: string]: unknown;
 }
-export interface OutputProviderInstallPlan {
+export interface ProviderInstallPlan {
   conflicts: AssetConflict[];
   conflicts_truncated: boolean;
   /**
@@ -6022,8 +6032,19 @@ export interface OutputProviderUpdateObservation {
   version_changed: boolean;
   [k: string]: unknown;
 }
+/**
+ * Private provider staging bound to one exact recipe and expected package.
+ */
+export interface RecipeAcquisitionPlan {
+  native_id: string;
+  provider_plan: ProviderInstallPlan;
+  recipe_identity_sha256: string;
+  [k: string]: unknown;
+}
 export interface OutputRecipeImportPlan {
+  acquisitions?: RecipeAcquisitionPlan[];
   can_apply: boolean;
+  code_approval?: RecipeCodeApproval[];
   /**
    * Why applying is not possible yet; empty when every input is present.
    */
@@ -6035,8 +6056,22 @@ export interface OutputRecipeImportPlan {
   originals: RecipeInputPlan[];
   packages: RecipeInputPlan[];
   plan_sha256: string;
+  /**
+   * Missing packages with an exact coordinate that the player can check.
+   */
+  provider_checks?: string[];
   recipe: ProfileRecipe;
   runtime: RecipeInputPlan;
+  /**
+   * Exact, path-free local resolutions consumed by the reviewed import.
+   */
+  verified_originals?: OriginalBinding[];
+  [k: string]: unknown;
+}
+export interface RecipeCodeApproval {
+  native_id: string;
+  runs: RecompExecution[];
+  sha256: string;
   [k: string]: unknown;
 }
 export interface RecipeInputPlan {

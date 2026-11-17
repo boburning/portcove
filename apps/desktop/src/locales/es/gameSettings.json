@@ -202,12 +202,15 @@
       "using": "Ahora se usa {{name}}."
     },
     "recipe": {
+      "allowCode": "Permito que los paquetes indicados a continuación ejecuten código de mods.",
+      "checkProvider": "Buscar {{name}} en el proveedor",
       "close": "Cerrar revisión",
       "details": "Archivos y detalles de la receta",
       "disabled": "{{name}} está desactivado",
       "enabled": "{{name}} está activo",
       "export": "Exportar receta de configuración…",
       "fileType": "Receta de configuración de Portcove",
+      "gameFiles": "Abrir Archivos del juego",
       "held": "Para importar esta receta, primero necesitas los archivos indicados abajo.",
       "identity": "SHA-256 de la receta",
       "import": "Crear configuración con la receta",
@@ -215,12 +218,16 @@
       "name": "Nombre de la nueva configuración",
       "openPicker": "Abrir receta de configuración…",
       "order": "Orden de carga para {{domain}}",
+      "originalNeeded": "Añade o vuelve a vincular el archivo original correspondiente de tu propia copia y revisa la receta de nuevo.",
       "packages": "Mods en la receta",
       "platform": "Plataforma {{platform}}",
+      "providerSetupNeeded": "Crea o selecciona una configuración para buscar los archivos exactos en el proveedor.",
       "ready": "Los archivos exactos están disponibles. La nueva configuración comienza con progreso nuevo.",
       "review": "Revisión de la receta",
       "saved": "Receta de configuración guardada.",
-      "savePicker": "Guardar receta de configuración"
+      "savePicker": "Guardar receta de configuración",
+      "setting": "{{option}} en {{mod}}",
+      "settings": "Ajustes de los mods"
     },
     "recovery": {
       "applied": "Se recuperó la configuración y se conservó el progreso actual.",
