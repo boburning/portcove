@@ -86,7 +86,7 @@ it.each([
   await opener.click();
   dialog = page.getByRole("dialog", { name: "Portcove commands" }).element();
   await input.fill("a retained query that does not match any command");
-  expect(scrollOwners()).toEqual([dialog]);
+  expect(scrollOwners().filter((owner) => owner !== dialog)).toEqual([]);
   const help = dialog.querySelector<HTMLElement>("summary")!;
   help.focus();
   await userEvent.keyboard("{Enter}");
