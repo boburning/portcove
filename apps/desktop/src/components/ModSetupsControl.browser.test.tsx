@@ -861,7 +861,9 @@ it("keeps the exact original and action focus through a transient refusal and re
   await act(async () =>
     rejectSelect(new Error("The selected original is temporarily unavailable.")),
   );
-  await expect.element(page.getByRole("alert")).toHaveTextContent("temporarily unavailable");
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("The selected original is temporarily unavailable.");
   await expect.element(choose).toHaveTextContent("D:/Other/original.z64");
   await expect.element(use).toHaveFocus();
   await expect.element(use).toBeEnabled();
@@ -924,7 +926,9 @@ it("offers verified relinking for the recorded original of an already prepared i
   expect(host.textContent).toContain("This installation uses game data it already prepared.");
   expect(host.querySelector('[role="combobox"]')).toBeNull();
   await act(async () => find.click());
-  await expect.element(page.getByRole("alert")).toHaveTextContent("temporarily unavailable");
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("That location is temporarily unavailable.");
   await expect.element(find).toHaveFocus();
   expect(host.textContent).toContain("D:/Old/recorded.z64");
   await act(async () => find.click());
