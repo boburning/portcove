@@ -628,11 +628,23 @@ it("keeps memoized action consumers stable while input changes and updates them 
       </OperationPresentationProvider>
     );
   }
-  await act(async () => root.render(<SearchFixture query="" />));
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="" />
+      </InvocationOwnerProvider>,
+    ),
+  );
   const button = host.querySelector<HTMLButtonElement>("button")!;
   expect(button.disabled).toBe(false);
   const idleRenders = rendered.mock.calls.length;
-  await act(async () => root.render(<SearchFixture query="Zelda" />));
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda" />
+      </InvocationOwnerProvider>,
+    ),
+  );
   expect(host.querySelector<HTMLInputElement>("input")?.value).toBe("Zelda");
   expect(rendered).toHaveBeenCalledTimes(idleRenders);
 
@@ -644,7 +656,13 @@ it("keeps memoized action consumers stable while input changes and updates them 
   expect(button.disabled).toBe(true);
   expect(rendered.mock.calls.length).toBeGreaterThan(idleRenders);
   const pendingRenders = rendered.mock.calls.length;
-  await act(async () => root.render(<SearchFixture query="Zelda II" />));
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" />
+      </InvocationOwnerProvider>,
+    ),
+  );
   expect(rendered).toHaveBeenCalledTimes(pendingRenders);
   expect(button.disabled).toBe(true);
 
@@ -654,6 +672,12 @@ it("keeps memoized action consumers stable while input changes and updates them 
   });
   expect(button.disabled).toBe(false);
   expect(rendered.mock.calls.length).toBeGreaterThan(pendingRenders);
-  await act(async () => root.render(<SearchFixture query="Zelda II" generation={8} />));
+  await act(async () =>
+    root.render(
+      <InvocationOwnerProvider>
+        <SearchFixture query="Zelda II" generation={8} />
+      </InvocationOwnerProvider>,
+    ),
+  );
   expect(button.dataset.generation).toBe("8");
 });
