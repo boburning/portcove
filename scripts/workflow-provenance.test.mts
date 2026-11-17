@@ -104,6 +104,14 @@ void test("slice3 Windows recovery binds fixed sources and scenarios without bil
   assert.ok(isRecord(checkout) && isRecord(checkout.with));
   assert.equal(checkout.with.ref, "${{ matrix.source }}");
   assert.equal(checkout.with["persist-credentials"], false);
+  const runtimeProvision = job.steps.findIndex(
+    (step: unknown) => isRecord(step) && step.uses === "./.github/actions/prepare-hosted-webview",
+  );
+  const driverBootstrap = job.steps.findIndex(
+    (step: unknown) =>
+      isRecord(step) && step.name === "Provision source-pinned packages and native prerequisites",
+  );
+  assert.ok(runtimeProvision >= 0 && driverBootstrap > runtimeProvision);
   const block = nativeDesignCompatibilityWorkflow
     .split("\n  slice3_windows_recovery:")[1]
     ?.split("\n  hosted_selected:")[0];

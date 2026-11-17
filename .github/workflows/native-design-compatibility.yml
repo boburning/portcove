@@ -984,6 +984,7 @@ jobs:
         with:
           package_json_file: package.json
       - uses: ./.github/actions/setup-rust
+      - uses: ./.github/actions/prepare-hosted-webview
       - name: Provision source-pinned packages and native prerequisites
         shell: pwsh
         run: |
