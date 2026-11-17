@@ -6,6 +6,14 @@
     "summary": "Guide Rollie McFly through the original Bugdom campaign.",
     "original_game_title": "Bugdom",
     "project_url": "https://github.com/jorio/Bugdom",
+    "artwork": {
+      "game_id": 50343,
+      "cover_id": 309747,
+      "image_id": "co6n03",
+      "image_sha256": "1a361515deeefb028d4b6dfe5444ba4a27952b99f8bf482a8e5ae56839908717",
+      "game_slug": "bugdom",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5642,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],

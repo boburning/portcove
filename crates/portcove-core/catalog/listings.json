@@ -16288,6 +16288,14 @@
       "summary": "Guide Rollie McFly through the original Bugdom campaign.",
       "original_game_title": "Bugdom",
       "project_url": "https://github.com/jorio/Bugdom",
+      "artwork": {
+        "game_id": 50343,
+        "cover_id": 309747,
+        "image_id": "co6n03",
+        "image_sha256": "1a361515deeefb028d4b6dfe5444ba4a27952b99f8bf482a8e5ae56839908717",
+        "game_slug": "bugdom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5642,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -43807,6 +43815,14 @@
       "summary": "Recover dinosaur eggs in Pangea Software’s original Nanosaur campaign.",
       "original_game_title": "Nanosaur",
       "project_url": "https://github.com/jorio/Nanosaur",
+      "artwork": {
+        "game_id": 70818,
+        "cover_id": 140859,
+        "image_id": "co30or",
+        "image_sha256": "6e2d7fd4a287eeefcc5625077a0793a3454636de81b7f4ab0ee7bb02ed5dd328",
+        "game_slug": "nanosaur",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5647,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -50435,6 +50451,14 @@
       "summary": "Play Prehistorik 2 with missingno7’s native engine and your original DOS game data.",
       "original_game_title": "Prehistorik 2",
       "project_url": "https://github.com/missingno7/pre2_port",
+      "artwork": {
+        "game_id": 10718,
+        "cover_id": 101179,
+        "image_id": "co262j",
+        "image_sha256": "e11855426e499c00b7377fa294af67fca9976cca983db10571ee7187bf54054d",
+        "game_slug": "prehistorik-2",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5673,
       "listed_at": "2026-11-17",
       "platforms": [

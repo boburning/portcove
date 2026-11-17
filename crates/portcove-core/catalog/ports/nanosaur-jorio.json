@@ -6,6 +6,14 @@
     "summary": "Recover dinosaur eggs in Pangea Software’s original Nanosaur campaign.",
     "original_game_title": "Nanosaur",
     "project_url": "https://github.com/jorio/Nanosaur",
+    "artwork": {
+      "game_id": 70818,
+      "cover_id": 140859,
+      "image_id": "co30or",
+      "image_sha256": "6e2d7fd4a287eeefcc5625077a0793a3454636de81b7f4ab0ee7bb02ed5dd328",
+      "game_slug": "nanosaur",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5647,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
