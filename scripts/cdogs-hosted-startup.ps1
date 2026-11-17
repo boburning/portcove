@@ -48,16 +48,19 @@ public static class CdogsWindow {
  [StructLayout(LayoutKind.Sequential)] struct Key {public ushort vk,scan;public uint flags,time;public UIntPtr extra;}
  [StructLayout(LayoutKind.Explicit,Size=32)] struct Union {[FieldOffset(0)]public Key key;}
  [StructLayout(LayoutKind.Sequential)] struct Input {public uint type;public Union data;}
+ public static bool InputReleased = true;
  public static void KeyOwned(IntPtr h,uint pid,ushort vk){
   uint owner;GetWindowThreadProcessId(h,out owner);if(owner!=pid)throw new Exception("Key target owner differs");
   if(!SetForegroundWindow(h) && GetForegroundWindow()!=h)throw new Exception("Owned window could not become foreground");
   if(GetForegroundWindow()!=h)throw new Exception("Owned key target is not foreground");
   Rect r;if(!GetWindowRect(h,out r)||!SetCursorPos(r.Right-8,r.Bottom-8))throw new Exception("Owned cursor placement failed");
   if(Marshal.SizeOf(typeof(Input))!=40)throw new Exception("Unsupported native input ABI");
-  var down=new Input{type=1,data=new Union{key=new Key{vk=vk}}};
-  var up=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=2}}};
+  uint extended = (vk>=0x25 && vk<=0x28) ? 1u : 0u;
+  var down=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=extended}}};
+  var up=new Input{type=1,data=new Union{key=new Key{vk=vk,flags=extended|2u}}};
+  InputReleased=false;
   if(SendInput(1,new[]{down},40)!=1)throw new Exception("Owned keydown failed");
-  try{System.Threading.Thread.Sleep(120);}finally{if(SendInput(1,new[]{up},40)!=1)throw new Exception("Key release failed");}
+  try{System.Threading.Thread.Sleep(120);}finally{if(SendInput(1,new[]{up},40)!=1)throw new Exception("Key release failed");InputReleased=true;}
   if(GetForegroundWindow()!=h)throw new Exception("Foreground changed during owned key");
  }
  public delegate bool EnumProc(IntPtr h, IntPtr p);
@@ -230,8 +233,8 @@ try {
     }
   }
   if ($game -and -not $game.HasExited) { [void]$game.WaitForExit(5000) }
-  $positive = (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
-  @{positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
+  $positive = [CdogsWindow]::InputReleased -and (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
+  @{input_released=[CdogsWindow]::InputReleased; positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
   if (-not $positive -and -not $failure) { $failure='Positive owned exit was not established' }
   foreach ($sink in @($stdoutSink,$stderrSink)) { if ($sink) { $sink.Flush() } }
   if ($stdoutSink -and $stdout.IsCompleted) { $stdoutSink.Dispose() }
