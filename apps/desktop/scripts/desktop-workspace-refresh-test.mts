@@ -94,6 +94,9 @@ import path from "node:path";
 import { copyFile, mkdir, writeFile } from "node:fs/promises";
 import { By, until, type WebElement } from "selenium-webdriver";
 import { revealDetailSection, captureAccessibilityReport } from "./desktop-review-controls.mts";
+import { observeVisibleTarget } from "./browser-readiness.mts";
+import { prepareCaptureTarget, requireUnchangedCaptureTarget } from "../test/capture-target.ts";
+import { captureSettledVisual } from "../../../scripts/native-readiness.mts";
 
 export const installWorkspaceRefreshProbe = (done: (value: unknown) => void) => {
   const runtime = window as RefreshWindow;
@@ -754,12 +757,68 @@ export async function workspaceRefreshScenario({
           return probe.formatInjections;
         });
         assert.ok(sourceFormat.injections > 0);
-        const screenshot = path.join(output, "native-source-format-guidance.png");
-        await writeFile(screenshot, await browser.takeScreenshot(), {
-          encoding: "base64",
-          flag: "wx",
+        const selector = ".detail-panel #detail-game-actions";
+        const actions = await browser.findElement(By.css(selector));
+        const preparedTarget = await prepareCaptureTarget({
+          target: selector,
+          label: "Incompatible source guidance and game-file recovery",
+          scroll: () =>
+            executeBrowserScript(
+              browser,
+              (element) =>
+                element.scrollIntoView({
+                  block: "center",
+                  inline: "nearest",
+                  behavior: "instant",
+                }),
+              actions,
+            ),
+          observe: () =>
+            executeBrowserScript(browser, observeVisibleTarget, selector, "visual" as const),
         });
-        artifacts.push(screenshot);
+        const capture = await captureSettledVisual({
+          browser,
+          output,
+          name: "native-source-format-guidance",
+          scenario: "native-external-cli-reconciliation",
+          target: selector,
+          observeTarget: async () => {
+            const state = await executeBrowserScript(
+              browser,
+              observeVisibleTarget,
+              selector,
+              "visual" as const,
+            );
+            requireUnchangedCaptureTarget(preparedTarget.observation, state);
+            return { ...state, capture_target_preflight: preparedTarget };
+          },
+          readiness: () =>
+            executeBrowserScript(
+              browser,
+              (target, guidance) => {
+                const region = document.querySelector(target);
+                const recovery = [
+                  ...(region?.querySelectorAll(".primary-actions button") ?? []),
+                ].find((button) => button.textContent?.trim() === "Select game files");
+                return {
+                  ready: Boolean(
+                    document.fonts.status === "loaded" &&
+                    [...(region?.querySelectorAll('[role="status"]') ?? [])].some(
+                      (status) => status.textContent?.trim() === guidance,
+                    ) &&
+                    recovery instanceof HTMLButtonElement &&
+                    !recovery.matches(":disabled") &&
+                    recovery.getAttribute("aria-disabled") !== "true",
+                  ),
+                  guidance,
+                  recovery_action: "Select game files",
+                };
+              },
+              selector,
+              expected,
+            ),
+        });
+        artifacts.push(capture.image.path, capture.receipt);
         await captureAccessibilityReport(
           browser,
           path.join(output, "source-format-accessibility.json"),
