@@ -2484,12 +2484,12 @@ is refused as `conflict` with nothing changed, and installing the same file agai
 with `--allow-mod-code` lets it continue. Portcove therefore never records,
 enables or places mod code without consent. Files a player puts in `mods`
 themselves are not Portcove's: they are reported as files the setup did not add,
-never adopted into a setup that would run them. Provider installs refuse mods that
-run code. Consent records the
-player's choice; it does not establish that the code is safe, who wrote it, or
-that it works with the installed build. Packages that load code from outside
-themselves (`native_libraries` host libraries, `*.offline.nrm`) or contain files an
-operating system runs directly stay refused, even with consent.
+never adopted into a setup that would run them. A reviewed provider install can
+add an eligible RecompiledCode mod with explicit permission for its exact bytes.
+An automatic update waits for review when the new package runs code. Permission
+covers execution of the reviewed bytes. Packages that load code from outside themselves
+(`native_libraries` host libraries, `*.offline.nrm`) or contain files an operating
+system runs directly stay refused, even with consent.
 
 Desktop asks the same question: after a package is chosen it reads what the
 package would run, and a package whose code was not allowed before shows the mod's
@@ -2501,28 +2501,35 @@ Required dependencies become package requirements. A mod needing a mod that is n
 installed is refused until that mod is installed, and a mod that is on cannot be
 left on while a mod it needs is turned off; turn the dependent mod off first.
 Dependencies on mods built into the runtime (`mm_recomp_dpad_builtin`) and the
-special `.` (the mod itself) and `*` (the runtime) entries need no package. Minimum
-dependency and runtime versions are left to the runtime, which reports them when
-the game starts; Portcove does not check them yet.
+special `.` (the mod itself) and `*` (the runtime) entries need no separate package.
+Portcove checks the installed runtime and the minimum versions of required mods
+before applying or launching the setup. A positive minimum for a built-in mod
+needs version evidence for that runtime. Zelda64Recomp 1.2.2 supplies D-Pad 1.0.0.
+The native loader handles optional dependencies and their ordering effects.
 
 The runtime keeps enabled mods and their load order in `mods.json`
 (`enabled_mods` and `mod_order`, by mod ID). Portcove writes the profile's enabled
 mods and order there after every change, switch and before each launch, keeping
 other keys and entries the player owns, such as the built-in mod or their own
 mods, in place with their state. `mods.json` is one of the port's persistent
-paths, so each profile keeps its own. `profile live` reports `native_list` as for
-Ship of Harkinian: a reorder in the runtime's menu is kept as the profile's next
-revision, and a profile mod turned off in the menu is reported and turned on again
-before the next launch. Turning a mod off in Portcove removes its file. The order
-is kept, but which of two mods changing the same asset wins is not established, so
+paths, so each profile keeps its own. `profile live` reports `native_list`.
+Portcove records supported menu reorders and disables as the next setup revision
+after supervised play. Disabled packages remain in the setup, but their
+deployed files stay out of the next launch. An unrecognized enable or a change
+that would break a required dependency stays visible for review. The order is
+kept, but which of two mods changing the same asset wins is not established, so
 `profile setups` reports `later_mods_take_priority: false` and Desktop says only
 that mods load in this order.
 
-These behaviors come from Zelda64Recomp `54950a10`, N64ModernRuntime `df7e820d`
-and N64Recomp `c1a6dc93` source; they have not been observed in a running game.
-Whether the runtime falls back to `mods.json.bak` when `mods.json` is missing or
-unreadable is not established; Portcove reads and writes only `mods.json`, and both
-files are kept with each profile.
+A Windows run of Zelda64Recomp 1.2.2 exercised exact code consent, native menus,
+configuration changes, setup switching and restart. The newer minimum-version
+checks and recovery still need native qualification.
+[Windows trial evidence](https://github.com/boburning/portcove/issues/1457#issuecomment-6890575275)
+
+The runtime behavior was reviewed in Zelda64Recomp `54950a10`, N64ModernRuntime
+`df7e820d` and N64Recomp `c1a6dc93`. Portcove reads and writes `mods.json` and
+retains `mods.json.bak` with each setup. Backup fallback remains outside this
+setup contract.
 
 ### Installing from GameBanana and Thunderstore
 
