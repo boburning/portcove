@@ -203,6 +203,7 @@ export async function setupBatchScenario(context: BatchContext) {
         120_000,
         "The reviewed batch must reach a retained terminal outcome",
       );
+      assert.ok(completed, "The native wait must return a terminal batch");
       assert.equal(completed.items.length, 2);
       assert.deepEqual(completed.items.map((item) => item.port_id).sort(), [...ports].sort());
       for (const item of completed.items) {
