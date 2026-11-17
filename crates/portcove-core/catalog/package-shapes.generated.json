@@ -303,6 +303,30 @@
       }
     },
     {
+      "port_id": "sonic-the-hedgehog-2-recomp",
+      "platform": "windows-x86-64",
+      "version": "v0.9.23",
+      "sha256": "d6c19d29efa7578afd3468b61495f164358e5bf828ed09fb3e990c10518fd5dc",
+      "derivation_inputs_sha256": "67b6573af06584d14c1c493f3da41375e45946020e039fff4b4a79d62a3b2bfc",
+      "size": 8126526,
+      "asset_name": "SonicTheHedgehog2Recomp-windows-x64-v0.9.23.zip",
+      "reviewed_by": "applicability:sonic-the-hedgehog-2-recomp-game-source",
+      "shape": {
+        "programs": [
+          "sonicthehedgehog2recomp.exe"
+        ],
+        "top_directories": [
+          "assets",
+          "docs",
+          "tools"
+        ],
+        "persistent_parent_children": [],
+        "persistent_overlap": [],
+        "config_files": [],
+        "missing_persistent_parents": []
+      }
+    },
+    {
       "port_id": "sonic-the-hedgehog-recomp",
       "platform": "windows-x86-64",
       "version": "v1.2.0",
@@ -773,5 +797,5 @@
       }
     }
   ],
-  "entries_sha256": "f096d28f9da61bf9f7588bc8e97cce254d475df27f10c6e6f6e04e77bf7bbc6a"
+  "entries_sha256": "92cf1dcf6bca8d42e31f70ab58ab9e8e1d8eba2d72c35716301f107d2debf81a"
 }
