@@ -971,7 +971,7 @@ function assertSettingsRowGeometry(rows: SettingsRows, size: { width: number; he
   const expectedRows: Record<string, number> = {
     appearance: 3,
     "library-storage": 4,
-    "game-files": 3,
+    "game-files": 4,
     updates: 3,
     integrations: 3,
     controls: 2,
@@ -1097,14 +1097,16 @@ async function refreshSettings(category?: string) {
   if (category) await selectSettingsCategory(category);
 }
 
-async function selectSettingsCategory(id: string) {
+async function selectSettingsCategory(id: string, activation: "pointer" | "keyboard" = "pointer") {
   const browser = driverBrowser();
   await selectPrimaryNavigation(browser, "Settings");
   const category = By.css(
     `nav[aria-label="Settings categories"] button[aria-controls="settings-${id}"]`,
   );
   await browser.wait(until.elementLocated(category), 15_000);
-  await clickVisible(browser, await browser.findElement(category));
+  const control = await browser.findElement(category);
+  if (activation === "keyboard") await control.sendKeys(Key.ENTER);
+  else await clickVisible(browser, control);
   await browser.wait(
     () =>
       executeBrowserScript(
@@ -2418,7 +2420,7 @@ async function verifyCompactSettingsJumps() {
     index,
   );
   await captureScenarioScreenshot("settings-section-index-compact");
-  await selectSettingsCategory("game-files");
+  await selectSettingsCategory("game-files", "keyboard");
   const jump = await executeBrowserScript(browser, () => {
     const active = document.activeElement;
     if (!(active instanceof HTMLElement)) return null;
@@ -3336,11 +3338,17 @@ try {
       3,
       "Add games must offer exactly three routes",
     );
-    for (const name of ["Browse games", "Scan a folder", "Use an existing installation"])
+    const routes = await browser.findElements(By.css('[aria-label="Ways to add games"] button'));
+    assert.deepEqual(await Promise.all(routes.map((route) => route.getAccessibleName())), [
+      "Browse games",
+      "Scan a folder",
+      "Use an existing installation",
+    ]);
+    for (const route of routes)
       assert.equal(
-        await browser.findElement(By.css(`button[aria-label="${name}"]`)).isDisplayed(),
+        await route.isDisplayed(),
         true,
-        `Add games route is missing: ${name}`,
+        `Add games route is hidden: ${await route.getAccessibleName()}`,
       );
     await browser.findElement(By.xpath('//button[normalize-space(.)="Back to Library"]')).click();
     await browser
