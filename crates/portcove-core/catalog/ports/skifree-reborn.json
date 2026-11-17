@@ -20,13 +20,17 @@
         },
         {
           "title": "Prepare and play a desktop build",
-          "instruction": "Open the installer for Windows x64, Linux x86-64 or Apple Silicon with macOS 15 or later. Choose the folder containing ski32.exe, select This computer, then choose Build and Play. Keep the generated launch script with its build folder so it can find the game files."
+          "instruction": "Open the installer for Windows x64, Linux x86-64 or Apple Silicon with macOS 15 or later. Choose the folder containing ski32.exe. Open Choose what to build, select This computer and start the build. Select Play when the build finishes. Keep the generated launch script with its build folder so it can find the game files."
         }
       ],
       "warnings": [
         "The Linux v0.4.0 build can create skifree_save.json, but File > Load crashed when opening that saved run. Keep a backup of the file for a later version with working load."
       ],
       "references": [
+        {
+          "title": "Open the installer for the first time",
+          "instruction": "The upstream Windows and Mac installers can prompt on first launch because they lack a trusted publisher signature. If your system blocks the installer, see the publisher’s first-launch instructions."
+        },
         {
           "title": "Install build dependencies",
           "instruction": "On Windows the upstream installer may install Python, CMake, Visual Studio Build Tools and SDL2. On Linux install a C and C++ compiler, CMake, Python 3, pkg-config, SDL2 and SDL2_ttf development files. The Linux installer needs glibc 2.34 or later and uses zenity or kdialog to select folders. On Mac use Homebrew and Xcode’s command line tools."
