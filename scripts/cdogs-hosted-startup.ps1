@@ -162,9 +162,9 @@ try {
   [uint32]$windowOwner = 0
   [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
-  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000})) {
+  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000},@{name='level-menu';vk=0;wait=3500},@{name='continue-up-one';vk=38;wait=900},@{name='continue-mission-two';vk=38;wait=900},@{name='mission-options';vk=13;wait=2500})) {
     if ($game.HasExited -or [CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
-    [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk)
+    if ($key.vk -ne 0) { [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk) }
     Start-Sleep -Milliseconds $key.wait
     [uint32]$currentOwner=0
     [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$currentOwner)
