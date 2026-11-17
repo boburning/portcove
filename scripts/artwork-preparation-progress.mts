@@ -294,6 +294,7 @@ export async function prepareArtworkWorkset(
   const tool = createHash("sha256");
   for (const file of [
     "./artwork-preparation-progress.mts",
+    "./catalog-cover-mapping.mts",
     "./inspect-igdb-artwork.mts",
     "./maintainer-config.mts",
     "./runtime-values.mts",

@@ -410,6 +410,7 @@ for (const [file, tests] of [
     ["scripts/capture-target.test.mts", "scripts/native-helper-dependencies.test.mts"],
   ],
   ["scripts/prepare-port.mts", catalogPreparationContractTests],
+  ["scripts/catalog-cover-mapping.mts", catalogPreparationContractTests],
   ["scripts/catalog-capacity.mts", ["scripts/sign-catalog.test.mts"]],
   [
     "scripts/artwork-preparation-progress.mts",
@@ -2466,6 +2467,7 @@ const workflowTests = new Map([
 
 for (const file of [
   "scripts/generate-catalog.mts",
+  "scripts/catalog-cover-mapping.mts",
   "scripts/inspect-igdb-artwork.mts",
   "scripts/upstream-lineage.mts",
   "scripts/maintainer-config.mts",
