@@ -6,6 +6,14 @@
     "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
     "original_game_title": "Jet Moto 2: Championship Edition",
     "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+    "artwork": {
+      "game_id": 45214,
+      "cover_id": 127597,
+      "image_id": "co2qgd",
+      "image_sha256": "c474a5bfd714a0447928ec5254cce8bb03cd941e503b3f466941ec6467c2af1b",
+      "game_slug": "jet-moto-2",
+      "match_kind": "underlying-game"
+    },
     "platforms": [],
     "availability": "unknown",
     "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",

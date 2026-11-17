@@ -49562,6 +49562,14 @@
             "The source check uses first data-track identity and track count. Keep the full original disc intact."
           ],
           "help_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp#readme"
+        },
+        "artwork": {
+          "game_id": 19536,
+          "cover_id": 139080,
+          "image_id": "co2zbc",
+          "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+          "game_slug": "the-lost-world-jurassic-park--1",
+          "match_kind": "underlying-game"
         }
       },
       "bios_source_profile": "psx-scph-1001-bios"
@@ -73849,6 +73857,14 @@
             }
           ],
           "help_url": "https://github.com/labbej27/tuxracer/blob/main/README.md"
+        },
+        "artwork": {
+          "game_id": 93306,
+          "cover_id": 371181,
+          "image_id": "co7yel",
+          "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+          "game_slug": "tux-racer",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {

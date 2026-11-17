@@ -6,6 +6,14 @@
     "summary": "Play Prehistorik 2 with missingno7’s native engine and your original DOS game data.",
     "original_game_title": "Prehistorik 2",
     "project_url": "https://github.com/missingno7/pre2_port",
+    "artwork": {
+      "game_id": 10718,
+      "cover_id": 101179,
+      "image_id": "co262j",
+      "image_sha256": "e11855426e499c00b7377fa294af67fca9976cca983db10571ee7187bf54054d",
+      "game_slug": "prehistorik-2",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 5673,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64"],

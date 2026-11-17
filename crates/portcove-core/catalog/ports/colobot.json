@@ -6,6 +6,14 @@
     "original_game_title": "Colobot",
     "summary": "Explore planets, build a base, and program robots in this open-source strategy game.",
     "project_url": "https://github.com/colobot/colobot",
+    "artwork": {
+      "game_id": 80574,
+      "cover_id": 155577,
+      "image_id": "co3c1l",
+      "image_sha256": "41311baab29115872543f8871c5b3db12af4c02ae822fe318edf6af2acc97ae1",
+      "game_slug": "colobot",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6526,
     "listed_at": "2026-11-16",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64"],

@@ -5411,6 +5411,14 @@
       "original_game_title": "Action Man: Mission Xtreme",
       "summary": "Research project. Upstream preview boots/plays tested parts; full playthrough not verified. Linux virtual-display-only and Windows cross-compile evidence must not become physical/native host gameplay qualification. Original files and setup are described below. Portcove has not verified setup or gameplay.",
       "project_url": "https://github.com/GnomeChimpsky/ActionManRecomp",
+      "artwork": {
+        "game_id": 28090,
+        "cover_id": 104988,
+        "image_id": "co290c",
+        "image_sha256": "ad8a31130aa9ab6c63dd55d82a0f35bc4a7c4d4583d847b81f2ff7bb079f0946",
+        "game_slug": "action-man-operation-extreme",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "linux-x86-64"
@@ -11174,6 +11182,14 @@
       "name": "The Lost World: Jurassic Park Special Edition / Alexbeav PSXRecomp",
       "summary": "Play The Lost World: Jurassic Park Special Edition with a native player built from your matching original disc and BIOS.",
       "project_url": "https://github.com/alexbeavs-ps1-ports/the-lost-world-jurassic-park-special-edition-recomp",
+      "artwork": {
+        "game_id": 19536,
+        "cover_id": 139080,
+        "image_id": "co2zbc",
+        "image_sha256": "14d38899ee8ceb666c85362dd055a4ad70216d7a67e66d287a8958504a0e46ea",
+        "game_slug": "the-lost-world-jurassic-park--1",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 483,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -14537,6 +14553,14 @@
       "original_game_title": "Bips, Bips Gold, and Bips Platinum",
       "summary": "Play box-pushing puzzles from three Bips games and create your own levels in the bundled editor.",
       "project_url": "https://github.com/joyrider3774/blips",
+      "artwork": {
+        "game_id": 320157,
+        "cover_id": 417823,
+        "image_id": "co8ye7",
+        "image_sha256": "2a1a04c544b979bca4cafda2910b0f3b92ed6ef5148a71216ee659d18844d973",
+        "game_slug": "blips",
+        "match_kind": "port"
+      },
       "issue_number": 6132,
       "listed_at": "2026-11-15",
       "platforms": [
@@ -16288,6 +16312,14 @@
       "summary": "Guide Rollie McFly through the original Bugdom campaign.",
       "original_game_title": "Bugdom",
       "project_url": "https://github.com/jorio/Bugdom",
+      "artwork": {
+        "game_id": 50343,
+        "cover_id": 309747,
+        "image_id": "co6n03",
+        "image_sha256": "1a361515deeefb028d4b6dfe5444ba4a27952b99f8bf482a8e5ae56839908717",
+        "game_slug": "bugdom",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5642,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -18705,6 +18737,14 @@
       "original_game_title": "Colobot",
       "summary": "Explore planets, build a base, and program robots in this open-source strategy game.",
       "project_url": "https://github.com/colobot/colobot",
+      "artwork": {
+        "game_id": 80574,
+        "cover_id": 155577,
+        "image_id": "co3c1l",
+        "image_sha256": "41311baab29115872543f8871c5b3db12af4c02ae822fe318edf6af2acc97ae1",
+        "game_slug": "colobot",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 6526,
       "listed_at": "2026-11-16",
       "platforms": [
@@ -23884,6 +23924,14 @@
       "summary": "Windows x64 ClayFighter 64 fused product: 63⅓ gameplay with Sculptor's Cut donor characters, requiring both exact USA ROMs. Complete upstream asset installation first, then register clayfighter64.exe with its documented ROM and fused-asset arguments. Keep local/, probe-output/ and complete runtime dependencies. The title announcement’s source is unknown; use a complete copy you already have.",
       "original_game_title": "ClayFighter63andOneThird: ClayFighter64 fusion edition",
       "project_url": "https://github.com/djultra64/ClayFighter64",
+      "artwork": {
+        "game_id": 44043,
+        "cover_id": 154660,
+        "image_id": "co3bc4",
+        "image_sha256": "e3c0d3634333972c31180c20cde17074d57a66503f6e329dd156f4eaa4817475",
+        "game_slug": "clayfighter-63-1-slash-3",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/djultra64/ClayFighter64",
@@ -29407,6 +29455,14 @@
       "summary": "Attach an independently permitted, prepared Forza Motorsport3 Ultimate Collection USA Windows installation. Upstream’s native player reads its saved launcher profile and data paths; preserve the actual XUID-separated saves, content and retained deleted profiles.",
       "original_game_title": "Forza Motorsport 3: Ultimate Collection (USA, Xbox 360)",
       "project_url": "https://github.com/0herculabs/hl360-forza3",
+      "artwork": {
+        "game_id": 3069,
+        "cover_id": 422151,
+        "image_id": "co91qf",
+        "image_sha256": "24faaeeebf6bbea70c90c91f3f2e6445be1e8a028d2157860e592636f738959d",
+        "game_slug": "forza-motorsport-3",
+        "match_kind": "underlying-game"
+      },
       "platforms": [
         "windows-x86-64"
       ],
@@ -31321,6 +31377,14 @@
       "summary": "Windows x64 upstream-prepared native player for Jet Moto 2: Championship Edition USA (SCUS-94167). Complete upstream .NET 10 generation/build first, then register build/JetMoto2Recomp.exe; the root JetMoto2.exe setup launcher starts a separate player and exits. Preserve the creating build directory, disc, settings and memory cards. Upstream reports bounded racing progress; sound/CD music, saving and wider gameplay remain untested.",
       "original_game_title": "Jet Moto 2: Championship Edition",
       "project_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
+      "artwork": {
+        "game_id": 45214,
+        "cover_id": 127597,
+        "image_id": "co2qgd",
+        "image_sha256": "c474a5bfd714a0447928ec5254cce8bb03cd941e503b3f466941ec6467c2af1b",
+        "game_slug": "jet-moto-2",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/goodshepherd23/JetMoto2-Recomp",
@@ -33756,6 +33820,14 @@
       "summary": "Windows x64 native player for Frontschweine / Hogs of War German PAL (SLES-02767), prepared locally from your own disc using upstream tools. Finish generation and rebuild first, then select build/Frontschweine_Recompiled.exe with its complete runtime. Preserve saves, mods, extracted data and overlay caches. Upstream owns preparation and replacement; other regions and Portcove-managed builds are not offered.",
       "original_game_title": "Hogs of War / Frontschweine (PlayStation German PAL)",
       "project_url": "https://github.com/Nero2611/FrontschweineRecomp",
+      "artwork": {
+        "game_id": 8877,
+        "cover_id": 256413,
+        "image_id": "co5hul",
+        "image_sha256": "d540fd15fde75ce18bf79074deb2a0a837defac72fb2638ce45c7fc4cbdb503e",
+        "game_slug": "hogs-of-war",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/Nero2611/FrontschweineRecomp",
@@ -38719,6 +38791,14 @@
       "name": "Tomb Raider I-III / TRX (LostArtefacts)",
       "summary": "Set up Tomb Raider I–III with TRX and the original files for the games you own.",
       "project_url": "https://github.com/LostArtefacts/TRX",
+      "artwork": {
+        "game_id": 154439,
+        "cover_id": 163597,
+        "image_id": "co3i8d",
+        "image_sha256": "8953c916fdd82cf8b5f0049f31f22571ffd938762ff69b18a3b2f2ffc95d47e4",
+        "game_slug": "tomb-raider-1-plus-2-plus-3",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 1898,
       "listed_at": "2026-10-23",
       "platforms": [
@@ -39171,6 +39251,14 @@
       "summary": "Play Magic Ball 2 and Smash Frenzy 2 with widescreen and controller support.",
       "original_game_title": "Magic Ball 2",
       "project_url": "https://github.com/Kippykip/OpenMB2",
+      "artwork": {
+        "game_id": 54374,
+        "cover_id": 73020,
+        "image_id": "co1kcc",
+        "image_sha256": "e983cefb72e574cf0b5577f8675d2c937b54bd80069f67fe01c0ca03d7267cb3",
+        "game_slug": "smash-frenzy-2",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5434,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -41453,6 +41541,14 @@
       "summary": "Use a prepared Open1560 Windows x86 copy with your own Midtown Madness Sneak Preview Beta/build 1560 data. This partial native rewrite targets that preview, not the retail game. Preserve the complete game folder before playing: the game can remove replays and diagnostic files at exit.",
       "original_game_title": "Midtown Madness Sneak Preview Beta / Build 1560",
       "project_url": "https://github.com/0x1F9F1/Open1560",
+      "artwork": {
+        "game_id": 2348,
+        "cover_id": 433387,
+        "image_id": "co9aej",
+        "image_sha256": "0ed3580a93fd2114e56763429fc2c6289f30e0172306bc50e57ca23d21a7da76",
+        "game_slug": "midtown-madness",
+        "match_kind": "underlying-game"
+      },
       "platforms": [],
       "availability": "unknown",
       "setup_url": "https://github.com/0x1F9F1/Open1560",
@@ -43858,6 +43954,14 @@
       "summary": "Recover dinosaur eggs in Pangea Software’s original Nanosaur campaign.",
       "original_game_title": "Nanosaur",
       "project_url": "https://github.com/jorio/Nanosaur",
+      "artwork": {
+        "game_id": 70818,
+        "cover_id": 140859,
+        "image_id": "co30or",
+        "image_sha256": "6e2d7fd4a287eeefcc5625077a0793a3454636de81b7f4ab0ee7bb02ed5dd328",
+        "game_slug": "nanosaur",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5647,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -46052,6 +46156,14 @@
       "original_game_title": "Halo 3 Mythic (ODST multiplayer disc)",
       "summary": "Custom Games/Forge/1–4-player split-screen work; Theater recording/playback incompletely validated. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/GTTeancum/OpenH3M",
+      "artwork": {
+        "game_id": 987,
+        "cover_id": 90048,
+        "image_id": "co1xhc",
+        "image_sha256": "026e609d82d4877a549ff5c1f3de5600e77561d47de3be86e047e1fa26363cbc",
+        "game_slug": "halo-3",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [
         "windows-x86-64"
@@ -47623,6 +47735,14 @@
       "original_game_title": "4D Driving (FM Towns Marty rerelease)",
       "summary": "Experimental project. Races/replay/editor/music/audio comparisons; no completed full-game checks; the distinct Marty edition preserved. These are the project’s reports; See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/vs-sr-dev/pc-4ddriving",
+      "artwork": {
+        "game_id": 11630,
+        "cover_id": 100218,
+        "image_id": "co25bu",
+        "image_sha256": "40957c6438e7f6979f6ddf943d3be24beea35badb7d88d751236eb2537cc4446",
+        "game_slug": "stunts",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -50486,6 +50606,14 @@
       "summary": "Play Prehistorik 2 with missingno7’s native engine and your original DOS game data.",
       "original_game_title": "Prehistorik 2",
       "project_url": "https://github.com/missingno7/pre2_port",
+      "artwork": {
+        "game_id": 10718,
+        "cover_id": 101179,
+        "image_id": "co262j",
+        "image_sha256": "e11855426e499c00b7377fa294af67fca9976cca983db10571ee7187bf54054d",
+        "game_slug": "prehistorik-2",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5673,
       "listed_at": "2026-11-17",
       "platforms": [
@@ -62239,6 +62367,14 @@
       "original_game_title": "Taiko no Tatsujin (System 357 Green)",
       "summary": "Experimental project. The project claims native initialization, original-data access, gameplay and cabinet security/I/O support. USB camera NG and card support are unimplemented. Windows and Linux source targets are documented; Portcove has not tested a cabinet or physical controller. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/R19988088/TaikoGreenRecomp",
+      "artwork": {
+        "game_id": 412075,
+        "cover_id": 588337,
+        "image_id": "coclyp",
+        "image_sha256": "48a92d7c19ff47ec19d631ac189fe9a13881bdb0cde669e4ab37ccc6376dce61",
+        "game_slug": "taiko-no-tatsujin",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "platforms": [],
       "availability": "unknown",
@@ -66643,6 +66779,14 @@
       "original_game_title": "Tux Racer",
       "summary": "Race down the original Tux Racer courses in this modern desktop port.",
       "project_url": "https://github.com/labbej27/tuxracer",
+      "artwork": {
+        "game_id": 93306,
+        "cover_id": 371181,
+        "image_id": "co7yel",
+        "image_sha256": "d3a35d78b7b00f267c64f7e1ae00538b302d7b418fe5e5defc45eb13991fd431",
+        "game_slug": "tux-racer",
+        "match_kind": "underlying-game"
+      },
       "issue_number": 5797,
       "listed_at": "2026-11-16",
       "availability": "packages",
@@ -70463,6 +70607,14 @@
       "original_game_title": "White Knight Chronicles I (included in II edition)",
       "summary": "The project reports WKC I’s starting town at 30 FPS, short movement, pause, saving, Continue and a short transition to Balastor Plain. Sustained combat has not been confirmed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
       "project_url": "https://github.com/WK2D/White-Knight-Chronicles-2-Recomp",
+      "artwork": {
+        "game_id": 7482,
+        "cover_id": 400463,
+        "image_id": "co8kzz",
+        "image_sha256": "fd3175fcd6d81ed7b6dda57f7a4496080fb445268bcff6b565120acbd499ae1d",
+        "game_slug": "white-knight-chronicles",
+        "match_kind": "underlying-game"
+      },
       "listed_at": "2026-10-25",
       "funding_urls": [
         "https://ko-fi.com/wk2d"

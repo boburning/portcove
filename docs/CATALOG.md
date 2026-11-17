@@ -1531,6 +1531,13 @@ Prefer a usable port cover, then the exact original game, then generated fallbac
 Record ambiguous, coverless or unavailable candidates as finite exceptions.
 Explicit local selections remain preferred; artwork never grants game support.
 
+An original-game cover represents the identified game. It does not certify a
+source pressing, package, language, or gameplay variant. A matching main-game
+cover may represent a reissue, preview, or expanded collection when the same
+original game and source platform have been established. Preserve the listing's
+exact original-file requirements. An explicit reviewed regional selection keeps
+its pinned localization. A different game, remake, or sequel is still a mismatch.
+
 `presentation.artwork` contains the selected IGDB game/cover/image identities,
 fixed CDN image digest and match kind. Maintainer preparation uses private Twitch
 credentials; clients need no key and only fetch the bounded mapped image through
