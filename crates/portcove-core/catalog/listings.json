@@ -53470,6 +53470,10 @@
           {
             "title": "Keep the actual profile before replacing the game",
             "instruction": "Close the game and preserve the folder that contains ringdata.dat, ringprofiles.prf and ringconfig.cfg. Keep Grand Prix saves, replays and add-ons you want to retain as well. The Flatpak profile lives at ~/.var/app/org.kartkrew.RingRacers/.ringracers. A separate native installation may use a different profile or your chosen -home location."
+          },
+          {
+            "title": "Save and reopen a race replay",
+            "instruction": "Use Save replay on the round result screen and confirm the title. Keep media/replay inside the profile when copying it. After Egg TV unlocks, open Extras, then Egg TV. Select the game version and replay. Standings shows the saved result, and Watch Replay plays the recorded round. If playback reports a desync, use Standings to read the saved result."
           }
         ],
         "warnings": [],
