@@ -479,7 +479,6 @@ export function filterPorts(
 ) {
   const selectedStatuses =
     typeof filter !== "string" && context.library ? context.library.statuses : statuses;
-  const normalizedQuery = normalizeGameSearchText(query.trim());
   const legacyFilter = typeof filter === "string" ? filter : "all";
   const structuredQuery =
     typeof filter !== "string"
@@ -493,10 +492,13 @@ export function filterPorts(
       visibleInView(port, selectedStatuses, view) &&
       matchesFilter(selectedStatuses.get(port.id), legacyFilter, Boolean(port.pendingSetup)),
   );
-  const visible = evaluateCatalogQuery(candidates, structuredQuery, {
-    ...context,
-    catalogUniverse: context.catalogUniverse ?? ports,
-  }).ports.filter((port) => searchableText(port).includes(normalizedQuery));
+  const { ports: matching } = evaluateCatalogQuery(
+    candidates,
+    structuredQuery,
+    { ...context, catalogUniverse: context.catalogUniverse ?? ports },
+    { includeFacetCounts: false },
+  );
+  const visible = searchCatalogPorts(matching, query);
   if (
     (view !== "catalog" && view !== "library") ||
     (catalogSort === "catalog" && !context.devicePlatform)
@@ -569,6 +571,13 @@ function matchesFilter(status: PortStatus | undefined, filter: Filter, pendingSe
   if (filter === "ready") return readiness === "ready" || readiness === "staged";
   if (filter === "setup") return needsAttention(readiness);
   return true;
+}
+
+export function searchCatalogPorts(ports: CatalogEntry[], query: string) {
+  const normalizedQuery = normalizeGameSearchText(query.trim());
+  return normalizedQuery
+    ? ports.filter((port) => searchableText(port).includes(normalizedQuery))
+    : ports;
 }
 
 function searchableText(port: CatalogEntry) {

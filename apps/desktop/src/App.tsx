@@ -140,6 +140,7 @@ import {
   indexStatuses,
   mostRecentPort,
   preparationRecoveryPort,
+  searchCatalogPorts,
   requiredSourceNeeds,
   summarizeLibrary,
   type DetailDestination,
@@ -1281,7 +1282,7 @@ function useAppModel(
         : {},
     [catalog, libraryRoot, statusMap, gameFileQuery?.context, browsing, entries],
   );
-  const visible = useMemo(
+  const filteredPorts = useMemo(
     () =>
       filterPorts(
         ui.view === "library"
@@ -1298,7 +1299,7 @@ function useAppModel(
         statusMap,
         ui.view,
         ui.filter,
-        query,
+        "",
         ui.view === "library" ? ui.librarySort : ui.catalogSort,
         queryContext,
       ),
@@ -1308,12 +1309,12 @@ function useAppModel(
       ui.view,
       ui.filter,
       ui.libraryReadiness,
-      query,
       ui.catalogSort,
       ui.librarySort,
       queryContext,
     ],
   );
+  const visible = useMemo(() => searchCatalogPorts(filteredPorts, query), [filteredPorts, query]);
   const catalogFilterCandidates = useMemo(
     () => (ui.view === "catalog" && data.catalog ? entries : undefined),
     [data.catalog, entries, ui.view],

@@ -1543,7 +1543,7 @@ function resolveLibraryFilters({
         ? candidates.filter((port) => favorites.ids?.has(port.id))
         : candidates;
   const declaredMatches =
-    countCandidates === undefined
+    !composedLibrary || countCandidates === undefined
       ? undefined
       : evaluateCatalogQuery(
           countCandidates,
@@ -1553,6 +1553,7 @@ function resolveLibraryFilters({
               ? { version: 1, channels: [filter] }
               : filter,
           queryContext,
+          { includeFacetCounts: false },
         );
   const readinessCount = (readiness: "all" | "ready" | "setup") =>
     declaredMatches?.state === "matched"
