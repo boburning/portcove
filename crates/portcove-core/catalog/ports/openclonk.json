@@ -30,7 +30,7 @@
       "references": [
         {
           "title": "Find your player data",
-          "instruction": "On Windows, look under %APPDATA%\\OpenClonk. Windows stores default settings in the current user’s registry. On Linux, keep ~/.clonk/openclonk, including its config file. The community Flatpak keeps this directory under ~/.var/app/org.openclonk.OpenClonk."
+          "instruction": "On Windows, look under %APPDATA%\\OpenClonk. Windows stores default settings in HKEY_CURRENT_USER\\Software\\OpenClonk Project\\OpenClonk. Keep that key if you want to transfer these settings. On Linux, keep ~/.clonk/openclonk, including its config file. The Flatpak profile is ~/.var/app/org.openclonk.OpenClonk/.clonk/openclonk."
         }
       ],
       "help_url": "https://www.openclonk.org/download/"
