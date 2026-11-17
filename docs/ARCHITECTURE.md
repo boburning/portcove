@@ -2935,6 +2935,12 @@ readable store metadata otherwise, and the CLI guide documents that limit. CLI `
 `get_store_game_installs` command expose the same Core result, and Desktop **Find
 required files** loads it only when the player asks and uses a chosen folder as
 the ordinary search folder.
+Selected setup may pass an optional known source-profile identity through the
+same adapters to Core. Core filters reviewed original-folder hints before
+canonicalization; this does not change the store-report shape or file admission.
+In particular, the Steam Blake Stone anthology needs that context to choose
+one game's child folder. Generic store discovery leaves its hint absent.
+Linked or conflicting store locations cannot acquire a hint through this context.
 
 ## Install transaction
 
