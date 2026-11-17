@@ -71827,6 +71827,10 @@
             "instruction": "Extract the full official ZIP and keep data beside the player in the Xonotic folder. On Windows start xonotic.exe for x64 or xonotic-x86.exe for 32-bit Windows. On Linux x64 run ./xonotic-linux-sdl.sh with glibc 2.29 or newer, SDL2, libvorbisfile, libcurl, libpng and a working OpenGL 2.1 driver. On Intel Mac open Xonotic.app from the Xonotic folder. The dedicated server binaries cannot open the player."
           },
           {
+            "title": "Play your extracted Linux x64 copy from Portcove CLI",
+            "instruction": "Run portcove external select-preview xonotic /path/to/Xonotic/xonotic-linux64-sdl --working-directory /path/to/Xonotic using your actual absolute paths. Use portcove external select with the same inputs, plus --expected-preview with the displayed SHA-256 and --yes. Start the registered copy with portcove exec xonotic. Keep the package and your ~/.xonotic profile outside the Portcove library. Removing the registration leaves both in place."
+          },
+          {
             "title": "Use the package manager if you installed the Flatpak",
             "instruction": "On Linux you can install org.xonotic.Xonotic through Flathub. Use your Flatpak app manager to update or remove that copy. Its profile lives at ~/.var/app/org.xonotic.Xonotic/.xonotic."
           },
