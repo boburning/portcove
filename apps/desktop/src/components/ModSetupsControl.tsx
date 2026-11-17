@@ -1,6 +1,6 @@
 import type { OutputLocalModPackagePlan } from "../transport-types.generated";
 import type { TFunction } from "i18next";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import {
@@ -65,7 +65,9 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   const { t } = useAppTranslation("gameSettings");
   const [view, setView] = useState<ModSetupsView>();
   // The app-owned mismatch is a code translated at render; Core failure text stays verbatim.
-  const [failure, setFailure] = useState<"gameChanged" | { text: string }>();
+  const [failure, setFailure] = useState<
+    "gameChanged" | { text: string; cleanSetupKey?: string | undefined }
+  >();
   const error =
     failure === "gameChanged" ? t("mods.gameChanged") : failure ? failure.text : undefined;
   const [outcome, setOutcome] = useState<string>();
@@ -107,7 +109,11 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   };
   // Each change is checked again by Core under its lock; the result is re-read
   // rather than assumed.
-  const perform = async (action: () => Promise<unknown>, success: string) => {
+  const perform = async (
+    action: () => Promise<unknown>,
+    success: string,
+    cleanSetupKey?: string,
+  ) => {
     setWorking(true);
     setOutcome(undefined);
     setFailure(undefined);
@@ -118,7 +124,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
       succeeded = true;
       requestStandingSetup();
     } catch (failure) {
-      setFailure({ text: errorText(failure) });
+      setFailure({ text: errorText(failure), cleanSetupKey });
     } finally {
       setWorking(false);
       setFresh(false);
@@ -136,6 +142,7 @@ function useModSetupInventory(portId: string, generation: number, busy: boolean)
   return {
     view,
     error,
+    failedCleanSetupKey: typeof failure === "object" ? failure.cleanSetupKey : undefined,
     outcome,
     working,
     fresh,
@@ -153,6 +160,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const {
     view,
     error,
+    failedCleanSetupKey,
     outcome,
     working,
     fresh,
@@ -172,6 +180,9 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
     review: OutputLocalModPackagePlan;
   }>();
   const setupHeading = useRef<HTMLHeadingElement>(null);
+  const focusDisplacedCleanSetupError = useCallback((notice: HTMLElement | null) => {
+    if (notice && document.activeElement === document.body) notice.focus();
+  }, []);
   const addFile = useRef<HTMLButtonElement>(null);
   const copyId = useId();
   const headingId = useId();
@@ -216,6 +227,10 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       entry.build_availability === "verified" &&
       (entry.revision.packages ?? []).every((item) => !item.enabled),
   );
+  const cleanSetupKey =
+    !hasVerifiedCleanSetup && selected?.build_availability === "verified"
+      ? JSON.stringify(["clean", selected.profile.id, selected.profile.current_revision])
+      : undefined;
   const nativeMessage = nativeListMessage(t, view.live);
   const defaultInstallId = setups.find((entry) => entry.profile.is_default)?.revision.build
     ?.install_id;
@@ -230,12 +245,23 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       </h3>
       <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
       <ModSetupFeedback
-        error={error}
+        error={failedCleanSetupKey ? undefined : error}
         fresh={fresh}
         working={working}
         outcome={outcome}
         reread={reread}
       />
+      {failedCleanSetupKey && failedCleanSetupKey !== cleanSetupKey && (
+        <Notice
+          ref={focusDisplacedCleanSetupError}
+          role="alert"
+          dir="auto"
+          tabIndex={-1}
+          className="[overflow-wrap:anywhere]"
+        >
+          {error}
+        </Notice>
+      )}
       {setups.length === 0 ? (
         <ActionRow>
           <p className="text-sm">{t("mods.none")}</p>
@@ -511,15 +537,16 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   </div>
                 </Notice>
               )}
-              {!hasVerifiedCleanSetup && selected.build_availability === "verified" && (
+              {cleanSetupKey && (
                 <CreateCleanModSetup
-                  key={JSON.stringify([
-                    "clean",
-                    selected.profile.id,
-                    selected.profile.current_revision,
-                  ])}
+                  key={cleanSetupKey}
                   runtime={selected.revision.build.artifact.asset_name}
                   locked={locked}
+                  working={working}
+                  error={failedCleanSetupKey === cleanSetupKey ? error : undefined}
+                  onDismiss={() => {
+                    if (failedCleanSetupKey === cleanSetupKey) setFailure(undefined);
+                  }}
                   create={(name) =>
                     perform(
                       () =>
@@ -531,6 +558,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                           generation,
                         ),
                       t("mods.clean.created", { name }),
+                      cleanSetupKey,
                     )
                   }
                   onCreated={() => setupHeading.current?.focus()}

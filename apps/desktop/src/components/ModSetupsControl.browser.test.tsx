@@ -1209,12 +1209,23 @@ it("creates a named clean setup when the current runtime is verified and none is
   const clean = withBuild(setup("fresh", "Weekend clean", 1, []));
   const withProfiles = (profiles: (typeof source)[]) =>
     view({ inventory: { port_id: "shipwright", profiles } } as unknown as Partial<ModSetupsView>);
-  vi.spyOn(desktopApi, "modSetups")
-    .mockResolvedValueOnce(withProfiles([source]))
-    .mockResolvedValue(withProfiles([source, clean]));
+  const revised = withBuild(setup("default", "Default", 4, [["hd.o2r", true]]));
+  let current = source;
+  let created = false;
+  vi.spyOn(desktopApi, "modSetups").mockImplementation(async () =>
+    withProfiles(created ? [current, clean] : [current]),
+  );
   const create = vi
     .spyOn(desktopApi, "createCleanModSetup")
-    .mockResolvedValue(clean.profile as Awaited<ReturnType<typeof desktopApi.createCleanModSetup>>);
+    .mockRejectedValueOnce(new Error("The library is temporarily unavailable. Try again."))
+    .mockImplementationOnce(async () => {
+      current = revised;
+      throw new Error("The source setup changed. Review it before trying again.");
+    })
+    .mockImplementation(async () => {
+      created = true;
+      return clean.profile as Awaited<ReturnType<typeof desktopApi.createCleanModSetup>>;
+    });
   const activate = vi.spyOn(desktopApi, "useModSetup");
   await render();
 
@@ -1229,8 +1240,31 @@ it("creates a named clean setup when the current runtime is verified and none is
 
   await open.click();
   await name.fill("  Weekend clean  ");
-  await page.getByRole("button", { name: "Create setup", exact: true }).click();
-  expect(create).toHaveBeenCalledExactlyOnceWith("shipwright", "default", "Weekend clean", 3, 7);
+  const submit = page.getByRole("button", { name: "Create setup", exact: true });
+  await submit.click();
+  const error = page.getByRole("alert");
+  await expect
+    .element(error)
+    .toHaveTextContent("The library is temporarily unavailable. Try again.");
+  expect(error.element().closest("form")).toBe(name.element().closest("form"));
+  await expect.element(name).toHaveValue("  Weekend clean  ");
+  await expect.element(submit).toHaveFocus();
+  await submit.click();
+  await expect.element(name).not.toBeInTheDocument();
+  await expect
+    .element(error)
+    .toHaveTextContent("The source setup changed. Review it before trying again.");
+  expect(error.element().closest("form")).toBeNull();
+  await expect.element(error).toHaveFocus();
+
+  await open.click();
+  await name.fill("  Weekend clean  ");
+  await submit.click();
+  expect(create.mock.calls).toEqual([
+    ["shipwright", "default", "Weekend clean", 3, 7],
+    ["shipwright", "default", "Weekend clean", 3, 7],
+    ["shipwright", "default", "Weekend clean", 4, 7],
+  ]);
   expect(activate).not.toHaveBeenCalled();
   await expect
     .element(page.getByText("Created clean setup Weekend clean with fresh progress."))
