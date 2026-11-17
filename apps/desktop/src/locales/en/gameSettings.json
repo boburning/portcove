@@ -87,6 +87,14 @@
       "unverifiedHeading": "Portcove doesn’t verify"
     },
     "busy": "Finish the current operation before changing mods.",
+    "clean": {
+      "cancel": "Cancel",
+      "create": "Create setup",
+      "created": "Created clean setup {{name}} with fresh progress.",
+      "description": "This setup uses the same game version and original files, with fresh progress and no added mods.",
+      "name": "Clean setup name",
+      "open": "Create clean setup…"
+    },
     "code": {
       "allow": "Allow its code and add",
       "cancel": "Don’t add",

@@ -2395,3 +2395,46 @@ fn mod_file_preservation_holds_case_only_alias_of_an_enabled_package() {
             .is_none()
     );
 }
+
+#[test]
+fn creating_a_clean_setup_preserves_the_source_runtime_and_progress() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let package = archive(&w.scratch, "color.o2r", &[("asset.bin", b"changed colors")]);
+    let source = service
+        .install_mod_package(port, &w.default, &package, 1)
+        .unwrap();
+    let live_save = user(&w).join("saves/file1.sav");
+    fs::create_dir_all(live_save.parent().unwrap()).unwrap();
+    fs::write(&live_save, b"source progress").unwrap();
+
+    assert_eq!(
+        service
+            .create_clean_profile(port, &w.default, "Stale", 1)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    assert_eq!(service.profile_inventory(port).unwrap().profiles.len(), 1);
+    let clean = service
+        .create_clean_profile(port, &w.default, "Fresh", source.revision)
+        .unwrap();
+    let initial = service
+        .profile_revisions(port, &clean.id)
+        .unwrap()
+        .remove(0);
+    assert_eq!(initial.build, source.build);
+    assert_eq!(initial.originals, source.originals);
+    assert_ne!(initial.save_group, source.save_group);
+    assert!(initial.packages.is_empty() && initial.settings.is_empty());
+    assert_eq!(live_mods(&w), ["color.o2r"]);
+    assert_eq!(fs::read(&live_save).unwrap(), b"source progress");
+
+    service.activate_profile(port, &clean.id).unwrap();
+    assert!(live_mods(&w).is_empty());
+    assert!(!live_save.exists());
+    service.activate_profile(port, &w.default).unwrap();
+    assert_eq!(live_mods(&w), ["color.o2r"]);
+    assert_eq!(fs::read(live_save).unwrap(), b"source progress");
+}

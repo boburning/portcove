@@ -18,6 +18,7 @@ import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModFilePreservationControl } from "./ModFilePreservationControl";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
+import { CreateCleanModSetup } from "./CreateCleanModSetup";
 import { ModSetupRecovery } from "./ModSetupRecovery";
 import { ModSetupRuntimeRetirement } from "./ModSetupRuntimeRetirement";
 import { ActionRow, Notice } from "./ui/patterns";
@@ -210,6 +211,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
       : undefined;
   if (localReview && !applicableReview) setLocalReview(undefined);
   const changing = locked || Boolean(applicableReview);
+  const hasVerifiedCleanSetup = setups.some(
+    (entry) =>
+      entry.build_availability === "verified" &&
+      (entry.revision.packages ?? []).every((item) => !item.enabled),
+  );
   const nativeMessage = nativeListMessage(t, view.live);
   const defaultInstallId = setups.find((entry) => entry.profile.is_default)?.revision.build
     ?.install_id;
@@ -486,6 +492,31 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                     <p>{t("mods.otherBuild")}</p>
                   </div>
                 </Notice>
+              )}
+              {!hasVerifiedCleanSetup && selected.build_availability === "verified" && (
+                <CreateCleanModSetup
+                  key={JSON.stringify([
+                    "clean",
+                    selected.profile.id,
+                    selected.profile.current_revision,
+                  ])}
+                  runtime={selected.revision.build.artifact.asset_name}
+                  locked={locked}
+                  create={(name) =>
+                    perform(
+                      () =>
+                        desktopApi.createCleanModSetup(
+                          portId,
+                          selected.profile.id,
+                          name,
+                          selected.profile.current_revision,
+                          generation,
+                        ),
+                      t("mods.clean.created", { name }),
+                    )
+                  }
+                  onCreated={() => setupHeading.current?.focus()}
+                />
               )}
               <CopyModSetup
                 key={selected.revision.digest}

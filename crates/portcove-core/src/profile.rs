@@ -231,6 +231,16 @@ pub struct ProfileProgressCopy {
     pub target_revision_sha256: String,
 }
 
+enum ProfileCopyMode<'a> {
+    Setup {
+        onto_current_build: bool,
+        progress: Option<&'a ProfileProgressCopy>,
+    },
+    Clean {
+        expected_source_revision: u64,
+    },
+}
+
 impl PortcoveService {
     /// Gives a port with an active installation its equivalent default profile.
     /// Idempotent: a player with one setup needs no further profile ceremony.
@@ -285,7 +295,15 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
     ) -> Result<Profile> {
-        self.copy_profile_with(port_id, source_profile_id, display_name, false, None)
+        self.copy_profile_with(
+            port_id,
+            source_profile_id,
+            display_name,
+            ProfileCopyMode::Setup {
+                onto_current_build: false,
+                progress: None,
+            },
+        )
     }
 
     fn copy_profile_with(
@@ -293,14 +311,27 @@ impl PortcoveService {
         port_id: &str,
         source_profile_id: &str,
         display_name: &str,
-        onto_current_build: bool,
-        progress: Option<&ProfileProgressCopy>,
+        mode: ProfileCopyMode<'_>,
     ) -> Result<Profile> {
+        let (onto_current_build, progress, clean_revision) = match mode {
+            ProfileCopyMode::Setup {
+                onto_current_build,
+                progress,
+            } => (onto_current_build, progress, None),
+            ProfileCopyMode::Clean {
+                expected_source_revision,
+            } => (false, None, Some(expected_source_revision)),
+        };
         let _guard = self.library.try_lock_port(port_id, "copy-profile")?;
         let connection = self.library.connection()?;
         let source = profile_from(&connection, port_id, source_profile_id)?;
         let revision = revision_from(&connection, &source.id, source.current_revision)?;
         require_active_default_revision(&connection, &source, &revision)?;
+        if clean_revision.is_some_and(|expected| expected != revision.revision) {
+            return Err(PortcoveError::conflict(
+                "the source setup changed; review the clean setup again",
+            ));
+        }
         if profiles_from(&connection, port_id)?.len() >= MAX_PROFILES_PER_PORT {
             return Err(PortcoveError::state(
                 "this port has the maximum number of profiles",
@@ -314,8 +345,18 @@ impl PortcoveService {
             revision.build.install_id.clone()
         };
         let mut profile = new_profile(port_id, display_name, false);
-        profile.intent = source.intent.clone();
+        let base = if clean_revision.is_some() {
+            None
+        } else {
+            profile.intent = source.intent.clone();
+            Some(&revision)
+        };
         let build = self.verified_retained_build(port_id, &install_id)?;
+        if clean_revision.is_some() && build != revision.build {
+            return Err(PortcoveError::conflict(
+                "the source setup's exact runtime changed; review the clean setup again",
+            ));
+        }
         let parked = if let Some(progress) = progress {
             let target_revision = if onto_current_build {
                 let current = default_profile(&connection, port_id)?.ok_or_else(|| {
@@ -352,7 +393,7 @@ impl PortcoveService {
             &install_id,
             build,
             revision.originals.clone(),
-            Some(&revision),
+            base,
             None,
         );
         if let Some(parked) = parked
@@ -376,7 +417,15 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
     ) -> Result<Profile> {
-        self.copy_profile_with(port_id, source_profile_id, display_name, true, None)
+        self.copy_profile_with(
+            port_id,
+            source_profile_id,
+            display_name,
+            ProfileCopyMode::Setup {
+                onto_current_build: true,
+                progress: None,
+            },
+        )
     }
 
     /// Copy the source setup and its reviewed progress into a distinct save group.
@@ -392,8 +441,29 @@ impl PortcoveService {
             port_id,
             source_profile_id,
             display_name,
-            onto_current_build,
-            Some(progress),
+            ProfileCopyMode::Setup {
+                onto_current_build,
+                progress: Some(progress),
+            },
+        )
+    }
+
+    /// Creates a mod-free setup with the same exact runtime, original bindings
+    /// and its own fresh save group. The current live setup is left selected.
+    pub fn create_clean_profile(
+        &self,
+        port_id: &str,
+        source_profile_id: &str,
+        display_name: &str,
+        expected_source_revision: u64,
+    ) -> Result<Profile> {
+        self.copy_profile_with(
+            port_id,
+            source_profile_id,
+            display_name,
+            ProfileCopyMode::Clean {
+                expected_source_revision,
+            },
         )
     }
 

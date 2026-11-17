@@ -71,6 +71,18 @@ pub(crate) enum ProfileCommand {
         #[arg(long, requires = "progress_from_revision")]
         progress_target_revision: Option<String>,
     },
+    /// Create a named setup on the source runtime with fresh progress and no added mods.
+    CreateClean {
+        /// Catalog port ID owning the source setup.
+        port_id: String,
+        /// Source setup ID from `profile list`.
+        source_profile_id: String,
+        /// Display name for the new clean setup.
+        name: String,
+        /// Exact source revision shown when you reviewed the setup's runtime.
+        #[arg(long)]
+        expected_revision: u64,
+    },
     /// Show every immutable revision of one profile, oldest first.
     Revisions {
         /// Catalog port ID owning the profile.
@@ -360,6 +372,7 @@ impl ProfileCommand {
             Self::List { .. } => "profile.list",
             Self::EnsureDefault { .. } => "profile.ensure-default",
             Self::Copy { .. } => "profile.copy",
+            Self::CreateClean { .. } => "profile.create-clean",
             Self::Revisions { .. } => "profile.revisions",
             Self::OriginalInstances { .. } => "profile.original-instances",
             Self::SelectOriginal { .. } => "profile.select-original",
@@ -940,6 +953,22 @@ pub(crate) async fn execute(
                 service.copy_profile(&port_id, &source_profile_id, &display)?
             },
             |profile| summary("Profile created with its own progress", profile),
+        ),
+        ProfileCommand::CreateClean {
+            port_id,
+            source_profile_id,
+            name: display,
+            expected_revision,
+        } => render_read_success(
+            mode,
+            name,
+            service.create_clean_profile(
+                &port_id,
+                &source_profile_id,
+                &display,
+                expected_revision,
+            )?,
+            |profile| summary("Clean setup created with fresh progress", profile),
         ),
         ProfileCommand::Revisions {
             port_id,

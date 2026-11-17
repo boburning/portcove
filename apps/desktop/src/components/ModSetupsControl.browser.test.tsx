@@ -1048,3 +1048,49 @@ it("moves a reviewed unmanaged file and gives its preserved location for ordinar
   expect(host.textContent).toContain("D:/Library/preserved/hand-added.o2r");
   expect(button(host, "Add mod file…").disabled).toBe(false);
 });
+
+it("creates a named clean setup when the current runtime is verified and none is ready", async () => {
+  const withBuild = (entry: ReturnType<typeof setup>) => ({
+    ...entry,
+    build_availability: "verified",
+    revision: {
+      ...entry.revision,
+      build: {
+        port_id: "shipwright",
+        install_id: "exact",
+        artifact: { asset_name: "ship-exact.zip" },
+      },
+    },
+  });
+  const source = withBuild(setup("default", "Default", 3, [["hd.o2r", true]]));
+  const clean = withBuild(setup("fresh", "Weekend clean", 1, []));
+  const withProfiles = (profiles: (typeof source)[]) =>
+    view({ inventory: { port_id: "shipwright", profiles } } as unknown as Partial<ModSetupsView>);
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(withProfiles([source]))
+    .mockResolvedValue(withProfiles([source, clean]));
+  const create = vi
+    .spyOn(desktopApi, "createCleanModSetup")
+    .mockResolvedValue(clean.profile as Awaited<ReturnType<typeof desktopApi.createCleanModSetup>>);
+  const activate = vi.spyOn(desktopApi, "useModSetup");
+  await render();
+
+  const open = page.getByRole("button", { name: "Create clean setup…" });
+  await open.click();
+  const name = page.getByRole("textbox", { name: "Clean setup name" });
+  await expect.element(name).toHaveFocus();
+  await expect.element(page.getByText("ship-exact.zip")).toBeVisible();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(create).not.toHaveBeenCalled();
+  await expect.element(open).toHaveFocus();
+
+  await open.click();
+  await name.fill("  Weekend clean  ");
+  await page.getByRole("button", { name: "Create setup", exact: true }).click();
+  expect(create).toHaveBeenCalledExactlyOnceWith("shipwright", "default", "Weekend clean", 3, 7);
+  expect(activate).not.toHaveBeenCalled();
+  await expect
+    .element(page.getByText("Created clean setup Weekend clean with fresh progress."))
+    .toBeVisible();
+  await expect.element(open).not.toBeInTheDocument();
+});

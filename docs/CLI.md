@@ -2308,6 +2308,7 @@ build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)
 portcove --library PATH --json profile list PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
 portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build] [--progress-from-revision SHA256 --progress-target-install INSTALL_ID --progress-target-revision SHA256]
+portcove --library PATH --json profile create-clean PORT_ID SOURCE_PROFILE_ID NAME --expected-revision REVISION
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile original-instances PORT_ID PROFILE_ID REQUIREMENT_ID
 portcove --library PATH --json profile select-original PORT_ID PROFILE_ID REQUIREMENT_ID INSTANCE_ID --expected-revision N
@@ -2384,6 +2385,14 @@ When Default reaches its recovery-build limit, `installation reference-retire`
 can retire a superseded offer after review. Retirement keeps the recorded setup
 revision and progress. A build still used by the selected setup must stay retained.
 Stale `--expected-revision` values fail as `conflict`.
+
+Clients can offer `profile create-clean` when `capabilities.commands` includes
+`profile.create-clean`. It creates a named setup on the reviewed source
+revision's exact verified runtime and original bindings. It starts with fresh progress and
+the runtime's built-in features. It omits added mod packages and their saved
+options. The source remains selected and keeps its own
+mods and progress. In Desktop, Create clean setup appears when the selected
+runtime is verified and no verified setup is ready for clean play.
 
 `recover-plan` reviews an earlier revision from `profile revisions`. It lists
 the retained runtime, packages, enabled state, native order, settings,
