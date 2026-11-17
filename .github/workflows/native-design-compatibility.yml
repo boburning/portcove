@@ -937,9 +937,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: saved-folder-hash-resume
-            source: a76ff9f7535c2b627bf513ee6dadb730b9d335f5
-            scenario: native-saved-folder-hash-resume
+          - name: preparation-interruption-retry
+            source: bccdd9fd4bc39a66e2759694df7d6d8ea540503b
+            scenario: native-host-interrupted-preparation
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/slice3-native-temp
