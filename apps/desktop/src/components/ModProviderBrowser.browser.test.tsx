@@ -3,8 +3,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
-import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } from "../types";
+import type {
+  ProviderBrowsePage,
+  ProviderInstallPlan,
+  ProviderProjectView,
+  ProviderUpdateObservation,
+} from "../types";
 import { ModProviderBrowser } from "./ModProviderBrowser";
+import type { ModUpdateControlProps } from "./ModUpdateControl";
 import "../styles/index.css";
 
 const mounted: { root: Root; host: HTMLElement }[] = [];
@@ -95,6 +101,7 @@ async function render(
     onBusyChange?: (busy: boolean) => void;
     provider?: string;
     portId?: string;
+    updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
   } = {},
 ) {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -114,11 +121,107 @@ async function render(
         disabled={options.disabled ?? false}
         onBusyChange={options.onBusyChange ?? (() => {})}
         onInstalled={onInstalled}
+        {...(options.updates ? { updates: options.updates } : {})}
       />,
     ),
   );
   return { host, root };
 }
+
+it("keeps the update check focused and announces results that fit a compact panel", async () => {
+  let resolveCheck!: (observations: ProviderUpdateObservation[]) => void;
+  const pending = new Promise<ProviderUpdateObservation[]>((resolve) => {
+    resolveCheck = resolve;
+  });
+  const check = vi.spyOn(desktopApi, "checkProviderModUpdates").mockReturnValue(pending);
+  const { host } = await render(vi.fn(), {
+    updates: { policy: "review_updates", setPolicy: vi.fn(), automaticChecks: [] },
+  });
+  host.style.inlineSize = "430px";
+  const trigger = page.getByRole("button", { name: "Check for mod updates" });
+  const checking = page.getByRole("button", { name: "Checking for mod updates…" });
+  await act(async () => trigger.click());
+  await expect.element(checking).toHaveFocus();
+  await expect.element(checking).toHaveAttribute("aria-busy", "true");
+  await act(async () =>
+    resolveCheck([
+      {
+        freshness: "fresh",
+        installed_version: "1.0",
+        native_id: "LongRegisteredModName".repeat(10) + ".o2r",
+        newer_files: [],
+        observed_version: "1.0",
+        provider: { provider: "gamebanana", project: "42" },
+        reason: null,
+        state: "current",
+        version_changed: false,
+      },
+    ]),
+  );
+  await expect.element(page.getByRole("status")).toHaveTextContent("Mod update check results");
+  await expect.element(page.getByRole("list", { name: "Mod update check results" })).toBeVisible();
+  expect(host.scrollWidth).toBe(host.clientWidth);
+  await expect.element(trigger).toHaveFocus();
+  expect(check).toHaveBeenCalledExactlyOnceWith("shipwright", "default", 7);
+});
+
+it("recovers a failed update review by reopening the exact provider project", async () => {
+  const previous = {
+    ...project(),
+    project: {
+      ...project().project,
+      project_id: "41",
+      name: "Previous project",
+      files: project().project.files.map((file) => ({ ...file, file_name: "previous.zip" })),
+    },
+  };
+  const listing = browse();
+  const browsePage = vi.spyOn(desktopApi, "browseProviderMods").mockResolvedValue({
+    ...listing,
+    page: { ...listing.page, projects: [previous.project] },
+  });
+  const read = vi
+    .spyOn(desktopApi, "providerProject")
+    .mockResolvedValueOnce(previous)
+    .mockRejectedValueOnce(new Error("Provider unavailable."))
+    .mockResolvedValueOnce(project());
+  await render(vi.fn(), {
+    updates: {
+      policy: "automatic_eligible",
+      setPolicy: vi.fn(),
+      automaticChecks: [
+        {
+          profile_id: "default",
+          native_ids: ["hd.o2r"],
+          project_id: "42",
+          candidate_file_id: "10",
+          checked_at: 1_700_000_000,
+          result: { outcome: "held", reason: "Review this update." },
+        },
+      ],
+    },
+  });
+  await act(async () => page.getByRole("button", { name: "Find mods on GameBanana…" }).click());
+  await act(async () =>
+    page.getByRole("button", { name: "Show files of Previous project" }).click(),
+  );
+  const previousReview = page.getByRole("button", { name: "Review previous.zip" });
+  await expect.element(previousReview).toBeVisible();
+  await act(async () => page.getByRole("button", { name: "Review update files" }).click());
+  const heading = page.getByRole("heading", { name: "Mods on GameBanana for Default" });
+  await expect.element(heading).toHaveFocus();
+  await expect.element(page.getByRole("alert")).toHaveTextContent("Provider unavailable.");
+  await expect.element(previousReview).not.toBeInTheDocument();
+  await act(async () => page.getByRole("button", { name: "Check GameBanana again" }).click());
+  await expect.element(heading).toHaveFocus();
+  await expect.element(page.getByRole("button", { name: "Review pack.zip" })).toBeVisible();
+  expect(read.mock.calls).toEqual([
+    ["shipwright", "41", 7],
+    ["shipwright", "42", 7],
+    ["shipwright", "42", 7],
+  ]);
+  expect(browsePage).toHaveBeenCalledExactlyOnceWith("shipwright", 1, 7);
+});
 
 function button(host: HTMLElement, label: string) {
   const found = [...host.querySelectorAll("button")].find(
