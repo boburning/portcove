@@ -65,7 +65,7 @@ try {
   if (-not [IO.Path]::IsPathFullyQualified($profile)) { throw 'Absolute known-folder profile required' }
   if (Test-Path -LiteralPath $profile) { throw 'Pre-existing Neverball profile: no trial started' }
   $profileAbsentVerified = $true
-  $selectArgs = @('neverball',$expectedPlayer,'--working-directory',(Split-Path $expectedPlayer))
+  $selectArgs = @('neverball',$expectedPlayer,'--working-directory',(Split-Path $expectedPlayer),'--arg=--data','--arg',(Join-Path (Split-Path $expectedPlayer) 'data'))
   $preview = Invoke-CliJson 'select-preview' (@('external','select-preview')+$selectArgs)
   $selected = Invoke-CliJson 'select' (@('external','select')+$selectArgs+@('--expected-preview',$preview.data.preview_sha256,'--yes'))
   $status = Invoke-CliJson 'status' @('status','neverball')
