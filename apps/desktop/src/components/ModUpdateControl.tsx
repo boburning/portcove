@@ -81,13 +81,16 @@ export function ModUpdateControl({
   }
 
   return (
-    <section className="grid gap-2" aria-label={t("mods.updates.heading")}>
+    <section
+      className="grid min-w-0 gap-2 [overflow-wrap:anywhere]"
+      aria-label={t("mods.updates.heading")}
+    >
       <label htmlFor={policyId} className="text-sm font-semibold">
         {t("mods.updates.heading")}
       </label>
       <select
         id={policyId}
-        className="rounded-md border border-pc-border bg-pc-background p-2 text-sm"
+        className="min-w-0 rounded-pc-sm border border-pc-border bg-pc-background p-2 text-sm"
         value={policy}
         disabled={disabled || busy}
         aria-describedby={helpId}
@@ -107,19 +110,35 @@ export function ModUpdateControl({
       </p>
       {policy === "automatic_eligible" &&
         (automaticChecks.length > 0 ? (
-          <ul className="grid gap-2 text-sm" aria-label={t("mods.updates.lastAutomatic")}>
+          <ul
+            className="grid min-w-0 list-none divide-y divide-pc-border p-0 text-sm"
+            aria-label={t("mods.updates.lastAutomatic")}
+          >
             {automaticChecks.map(({ checked_at, profile_id, native_ids, project_id, result }) => (
-              <li key={JSON.stringify([profile_id, native_ids])}>
+              <li
+                className="grid min-w-0 gap-1 py-2"
+                key={JSON.stringify([profile_id, native_ids])}
+              >
                 <p>
-                  <bdi>{native_ids.join(t("mods.separator")) || t("mods.updates.setup")}</bdi>{" "}
+                  <bdi className="font-medium">
+                    {native_ids.join(t("mods.separator")) || t("mods.updates.setup")}
+                  </bdi>{" "}
                   {labels.automatic[result?.outcome ?? "current"]}
                 </p>
-                <time dateTime={new Date(checked_at * 1000).toISOString()}>
+                <time
+                  className="text-xs text-pc-muted-foreground"
+                  dateTime={new Date(checked_at * 1000).toISOString()}
+                >
                   {new Date(checked_at * 1000).toLocaleString(i18n.resolvedLanguage)}
                 </time>
-                {result && result.outcome !== "applied" && <p>{result.reason}</p>}
+                {result && result.outcome !== "applied" && (
+                  <p>
+                    <bdi>{result.reason}</bdi>
+                  </p>
+                )}
                 {result?.outcome === "held" && project_id && (
                   <Button
+                    className="justify-self-start"
                     variant="outline"
                     disabled={disabled || busy}
                     onClick={() => showProject(project_id)}
@@ -136,25 +155,47 @@ export function ModUpdateControl({
       <Button
         className="justify-self-start"
         variant="outline"
-        disabled={disabled || busy}
+        disabled={disabled}
+        aria-busy={busy}
+        focusableWhenDisabled={busy}
         onClick={() => void check()}
       >
         {busy ? t("mods.updates.checking") : t("mods.updates.check")}
       </Button>
-      {failure && <p role="alert">{failure}</p>}
+      <p role="status" className="sr-only">
+        {busy
+          ? t("mods.updates.checking")
+          : checked
+            ? t(checked.length ? "mods.updates.manualResults" : "mods.updates.noProviderMods")
+            : ""}
+      </p>
+      {failure && (
+        <p role="alert">
+          <bdi>{failure}</bdi>
+        </p>
+      )}
       {checked &&
         (checked.length === 0 ? (
-          <p role="status">{t("mods.updates.noProviderMods")}</p>
+          <p className="text-sm">{t("mods.updates.noProviderMods")}</p>
         ) : (
-          <ul className="grid gap-2 text-sm" aria-label={t("mods.updates.manualResults")}>
+          <ul
+            className="grid min-w-0 list-none divide-y divide-pc-border p-0 text-sm"
+            aria-label={t("mods.updates.manualResults")}
+          >
             {checked.map((observation) => (
-              <li key={observation.native_id}>
+              <li className="grid min-w-0 gap-1 py-2" key={observation.native_id}>
                 <p>
-                  <bdi>{observation.native_id}</bdi> {labels.manual[observation.state]}
+                  <bdi className="font-medium">{observation.native_id}</bdi>{" "}
+                  {labels.manual[observation.state]}
                 </p>
-                {observation.reason && <p>{observation.reason}</p>}
+                {observation.reason && (
+                  <p>
+                    <bdi>{observation.reason}</bdi>
+                  </p>
+                )}
                 {observation.state === "newer_files" && (
                   <Button
+                    className="justify-self-start"
                     variant="outline"
                     disabled={disabled || busy}
                     onClick={() => showProject(observation.provider.project)}

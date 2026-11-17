@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Trans } from "react-i18next";
 import { desktopApi } from "../api";
 import { requestStandingSetup } from "../features/game-file-discovery/use-standing-setup";
@@ -77,7 +77,9 @@ export function ModProviderBrowser(props: Props) {
   const [plan, setPlan] = useState<ProviderInstallPlan>();
   const [working, setWorking] = useState<string>();
   // Core failure text stays verbatim; the app's own follow-up is rendered live.
-  const [error, setError] = useState<{ text: string; reviewAgain?: boolean }>();
+  const [error, setError] = useState<{ text: string; reviewAgain?: boolean; projectId?: string }>();
+  const heading = useRef<HTMLHeadingElement>(null);
+  const focusOnOpen = useRef(false);
   const headingId = useId();
   const reviewId = useId();
   const alive = useRef(true);
@@ -103,13 +105,24 @@ export function ModProviderBrowser(props: Props) {
     onBusyChange(busy);
   }, [busy, onBusyChange]);
   useEffect(() => () => onBusyChange(false), [onBusyChange]);
+  useLayoutEffect(() => {
+    if (open && focusOnOpen.current) {
+      focusOnOpen.current = false;
+      heading.current?.focus();
+    }
+  }, [open]);
 
   const showPlan = (next: ProviderInstallPlan | undefined) => {
     openPlan.current = next;
     setPlan(next);
   };
 
-  const run = async <T,>(status: string, action: () => Promise<T>, apply: (value: T) => void) => {
+  const run = async <T,>(
+    status: string,
+    action: () => Promise<T>,
+    apply: (value: T) => void,
+    projectId?: string,
+  ) => {
     setWorking(status);
     setError(undefined);
     try {
@@ -117,7 +130,8 @@ export function ModProviderBrowser(props: Props) {
       if (alive.current) apply(value);
       return value;
     } catch (failure) {
-      if (alive.current) setError({ text: errorText(failure) });
+      if (alive.current)
+        setError({ text: errorText(failure), ...(projectId ? { projectId } : {}) });
       return undefined;
     } finally {
       if (alive.current) setWorking(undefined);
@@ -134,7 +148,8 @@ export function ModProviderBrowser(props: Props) {
       },
     );
 
-  const showProject = (projectId: string) =>
+  const showProject = (projectId: string) => {
+    if (project && project.project.project_id !== projectId) setProject(undefined);
     void run(
       t("mods.browse.checking", { provider }),
       () => desktopApi.providerProject(portId, projectId, generation),
@@ -142,7 +157,19 @@ export function ModProviderBrowser(props: Props) {
         setProject(next);
         if (next.freshness !== "stale") requestStandingSetup();
       },
+      projectId,
     );
+  };
+
+  const reviewProject = (projectId: string) => {
+    if (open) {
+      heading.current?.focus();
+    } else {
+      focusOnOpen.current = true;
+      setOpen(true);
+    }
+    showProject(projectId);
+  };
 
   const cancelPlan = () => {
     discard(plan);
@@ -156,10 +183,7 @@ export function ModProviderBrowser(props: Props) {
       generation={generation}
       disabled={disabled || busy}
       {...updates}
-      showProject={(projectId) => {
-        setOpen(true);
-        showProject(projectId);
-      }}
+      showProject={reviewProject}
     />
   );
 
@@ -191,17 +215,29 @@ export function ModProviderBrowser(props: Props) {
     : undefined;
   const pageStale = page ? staleNote(t, provider, page.freshness, page.observed_at) : undefined;
   const name = <bdi>{profileName}</bdi>;
+  const failedProjectId = error?.projectId;
   const browser = (
-    <section aria-labelledby={headingId} className="grid gap-2">
-      <h4 id={headingId} className="text-sm font-semibold">
+    <section aria-labelledby={headingId} className="grid min-w-0 gap-2 [overflow-wrap:anywhere]">
+      <h4 ref={heading} id={headingId} tabIndex={-1} className="text-sm font-semibold">
         <Trans t={t} i18nKey="mods.browse.heading" values={{ provider }} components={{ name }} />
       </h4>
       <p className="text-sm text-pc-muted-foreground">{t("mods.browse.intro", { provider })}</p>
       {error && (
         <p role="alert">
-          {error.text}
+          <bdi>{error.text}</bdi>
           {error.reviewAgain ? ` ${t("mods.browse.reviewAgain")}` : ""}
         </p>
+      )}
+      {failedProjectId && (
+        <ActionRow>
+          <Button
+            variant="outline"
+            disabled={locked}
+            onClick={() => reviewProject(failedProjectId)}
+          >
+            {t("mods.browse.checkAgain", { provider })}
+          </Button>
+        </ActionRow>
       )}
       {working && <p role="status">{working}</p>}
 
@@ -331,9 +367,11 @@ export function ModProviderBrowser(props: Props) {
         />
       ) : working ? null : (
         <ActionRow>
-          <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
-            {t("mods.browse.checkAgain", { provider })}
-          </Button>
+          {!failedProjectId && (
+            <Button variant="outline" disabled={disabled} onClick={() => showPage(1)}>
+              {t("mods.browse.checkAgain", { provider })}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setOpen(false)}>
             {t("mods.browse.close")}
           </Button>
