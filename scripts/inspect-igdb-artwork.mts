@@ -1,6 +1,17 @@
 import { readIgdbCredentials, resolveIgdbCredentialsFile } from "./maintainer-config.mts";
 import type { ReadableStreamReadResult } from "node:stream/web";
 import { isRecord, errorCode } from "./runtime-values.mts";
+import {
+  hashPattern,
+  imagePattern,
+  matchesIgdbRegionalCover,
+  matchesString,
+  positiveId,
+  slugPattern,
+  validArtworkMapping,
+  validIgdbRegionalCover,
+  type IgdbRegionalCover,
+} from "./catalog-cover-mapping.mts";
 import type {
   IgdbArtwork,
   IgdbArtworkMatch,
@@ -25,44 +36,7 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import timers from "node:timers/promises";
 
-export interface IgdbRegionalCover {
-  game_id: number;
-  slug: string;
-  name: string;
-  platform_id: number;
-  localization_id: number;
-  region_id: number;
-  cover_id: number;
-  image_id: string;
-}
-
-export function validIgdbRegionalCover(value: unknown): value is IgdbRegionalCover {
-  return (
-    isRecord(value) &&
-    Object.keys(value).length === 8 &&
-    positiveId(value.game_id) &&
-    matchesString(slugPattern, value.slug) &&
-    typeof value.name === "string" &&
-    Boolean(value.name.trim()) &&
-    value.name.length <= 255 &&
-    positiveId(value.platform_id) &&
-    positiveId(value.localization_id) &&
-    positiveId(value.region_id) &&
-    positiveId(value.cover_id) &&
-    matchesString(imagePattern, value.image_id)
-  );
-}
-
-export function matchesIgdbRegionalCover(value: unknown, selection: IgdbRegionalCover) {
-  return (
-    validArtworkMapping(value) &&
-    value.match_kind === "underlying-game" &&
-    value.game_id === selection.game_id &&
-    value.game_slug === selection.slug &&
-    value.cover_id === selection.cover_id &&
-    value.image_id === selection.image_id
-  );
-}
+export { validArtworkMapping } from "./catalog-cover-mapping.mts";
 
 export interface ArtworkPort extends Record<string, unknown> {
   id: string;
@@ -208,13 +182,6 @@ export type ImageValidator = (bytes: Buffer) => unknown;
 
 const maximumImageBytes = 16 * 1024 * 1024;
 const maximumBatchBytes = 512 * 1024 * 1024;
-const slugPattern = /^[a-z0-9-]{1,255}$/;
-const imagePattern = /^[a-z0-9]{1,128}$/;
-const hashPattern = /^[a-f0-9]{64}$/;
-const positiveId = (value: unknown): value is number =>
-  typeof value === "number" && Number.isSafeInteger(value) && value > 0;
-const matchesString = (pattern: RegExp, value: unknown): value is string =>
-  typeof value === "string" && pattern.test(value);
 // Only this module's fixed image request can establish a Gone observation.
 // Provider metadata, generic errors and caller-supplied status properties cannot.
 const goneImageObservations = new WeakMap<object, string>();
@@ -450,18 +417,6 @@ function identifiedGame(
   return game
     ? { game }
     : { reason: eligible.length > 1 ? "identity-not-unique" : "identity-mismatch" };
-}
-
-export function validArtworkMapping(value: unknown): value is IgdbArtwork {
-  return (
-    isRecord(value) &&
-    positiveId(value.game_id) &&
-    positiveId(value.cover_id) &&
-    matchesString(imagePattern, value.image_id) &&
-    matchesString(hashPattern, value.image_sha256) &&
-    matchesString(slugPattern, value.game_slug) &&
-    (value.match_kind === "port" || value.match_kind === "underlying-game")
-  );
 }
 
 function reusableMapping(

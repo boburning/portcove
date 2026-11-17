@@ -20,7 +20,7 @@ import {
   matchesIgdbRegionalCover,
   validIgdbRegionalCover,
   type IgdbRegionalCover,
-} from "./inspect-igdb-artwork.mts";
+} from "./catalog-cover-mapping.mts";
 import { checkCatalogAdvisories } from "./catalog-advisories.mts";
 import { assessUpstreamLineage, checkLineageIdentities } from "./upstream-lineage.mts";
 import type { UpstreamLineage } from "./upstream-lineage.mts";
