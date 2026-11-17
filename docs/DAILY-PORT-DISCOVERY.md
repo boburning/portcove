@@ -162,6 +162,31 @@ republish the saved bytes on a known predecessor comment. Missing or
 contradictory receipt identities require explicit reconciliation. PostgreSQL
 and GitHub retain separate write boundaries.
 
+An owner can amend one unattempted candidate on #177 with
+`<!-- portcove-hosted-intake-amendment:v1 -->` and a JSON object containing
+`schema_version: 1`, `request_comment`, `request_sha256`, `receipt_comment`,
+`receipt_sha256`, `candidate_index`, `port_key`, `previous_body_sha256`,
+`previous_evidence_sha256`, `replacement` and `reason`. Hashes bind the exact
+original proposal, current bot receipt and candidate slot. `replacement` contains
+only `upstream`, `evidence` and `resume`. Optional top-level `hold: true` retains
+the amended candidate for research. A later exact-receipt amendment without that
+flag resumes it after its research condition is satisfied. Repository ID, game, key, title and intent
+retain their original identities. Competing amendments or completed/uncertain
+writes refuse revision. The retained receipt references the exact owner amendment.
+An amendment event drains the existing queue and reports its original proposal.
+For a historical schema 1 batch, an exact-receipt amendment authorizes importing
+that receipt and its candidate proofs into the existing PostgreSQL checkpoint
+store. The original proposal and stable creation markers stay authoritative.
+
+Unfinished candidates verify repository location with bounded metadata reads. A
+GitHub 301 must name the retained numeric repository ID. Numeric metadata and the
+current named endpoint must agree before research uses the new location. Receipts
+retain both locations. Name reuse, missing metadata and conflicting IDs hold the
+affected candidate. New primary evidence also holds its unfinished candidate until
+an owner amendment verifies. Other candidates continue. Delivered candidates use
+their saved scoped proofs during ordinary resumption. Further releases become
+separate observations.
+
 The executor serializes repository-wide and drains retained proposal comments,
 so GitHub's replaceable pending workflow slot cannot erase a request. Explicit
 owner dispatch in `process` mode resumes the same queue. The executor records `preflight` before candidate creation checks, then

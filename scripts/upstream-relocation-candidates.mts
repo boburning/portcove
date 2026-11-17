@@ -196,6 +196,58 @@ export function relocationRepositoriesFromReport(
   return [...repositories].sort().slice(0, 64);
 }
 
+/** Intake can use a new location only after the declared name and numeric
+ * identity both verify. This does not authorize a catalog location change. */
+export async function resolveDiscoveryRepository(
+  repository: string,
+  repositoryId: number,
+  read: MetadataRead,
+) {
+  const result = await relocationCandidate(repository, repositoryId, read);
+  if (result.status === "not-moved") return repository;
+  if (result.status !== "same-repository-renamed" || !result.current_full_name)
+    throw new DiscoveryLocationUnavailable(result.status);
+  const current = await read(`/repos/${result.current_full_name}`);
+  if (
+    current.status !== 200 ||
+    !isRecord(current.data) ||
+    current.data.id !== repositoryId ||
+    current.data.full_name !== result.current_full_name
+  )
+    throw new DiscoveryLocationUnavailable("unknown");
+  return result.current_full_name;
+}
+
+export class DiscoveryLocationUnavailable extends Error {
+  readonly disposition: RelocationStatus;
+  constructor(disposition: RelocationStatus) {
+    super(`Repository location requires reconciliation: ${disposition}`);
+    this.disposition = disposition;
+  }
+}
+
+/** Use an SDK configured to observe redirect metadata and scoped to GET metadata.
+ * Every read retains the caller's existing accounting and zero retry allowance. */
+export function relocationMetadataReader(
+  sdk: Awaited<ReturnType<typeof createGitHubClient>>,
+): MetadataRead {
+  return async (endpoint) => {
+    const policy: GitHubRequestPolicy = { replay: "once", attempts: 0, readRedirectBodyFor: [301] };
+    try {
+      const response = await sdk.request({
+        method: "GET",
+        url: endpoint,
+        request: { portcove: policy },
+      });
+      return { status: response.status, data: response.data as unknown };
+    } catch (error) {
+      if (error instanceof GitHubApiError && error.status === 404)
+        return { status: 404, data: null };
+      throw error;
+    }
+  };
+}
+
 export function renderRelocationSummary(result: Awaited<ReturnType<typeof relocationCandidates>>) {
   const rows = result.candidates.map(
     (c) =>
@@ -301,25 +353,7 @@ async function main(args: string[]) {
       (/^\/repos\/[^/]+\/[^/]+$/u.test(url.pathname) ||
         /^\/repositories\/[1-9]\d*$/u.test(url.pathname)),
   });
-  const read: MetadataRead = async (endpoint) => {
-    const policy: GitHubRequestPolicy = {
-      replay: "once",
-      attempts: 0,
-      readRedirectBodyFor: [301],
-    };
-    try {
-      const response = await sdk.request({
-        method: "GET",
-        url: endpoint,
-        request: { portcove: policy },
-      });
-      return { status: response.status, data: response.data as unknown };
-    } catch (error) {
-      if (error instanceof GitHubApiError && error.status === 404)
-        return { status: 404, data: null };
-      throw error;
-    }
-  };
+  const read = relocationMetadataReader(sdk);
   const result = await relocationCandidates(
     [...new Set(repositories)].slice(0, 64),
     retained,
