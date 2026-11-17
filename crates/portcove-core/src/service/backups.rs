@@ -1540,14 +1540,15 @@ impl PortcoveService {
     ) -> Result<()> {
         let mut restore = self.validate_restore_operation(operation)?;
         let previous_exists = restore.previous_data.try_exists()?;
+        // Legacy unbound committed journals can omit the replacement flag.
+        let can_remove_previous = restore.phase == RestorePhase::Committed
+            && (restore.replaces_existing_data || restore.input_manifest.is_none());
         if !matches!(
             restore.phase,
             RestorePhase::Committed | RestorePhase::CleanupPending
         ) || !restore.user_root.try_exists()?
             || restore.staged_data.try_exists()?
-            || (previous_exists
-                && (!restore.replaces_existing_data
-                    || restore.phase == RestorePhase::CleanupPending))
+            || (previous_exists && !can_remove_previous)
         {
             return Err(PortcoveError::conflict(
                 "restore cleanup paths do not match the committed operation",
