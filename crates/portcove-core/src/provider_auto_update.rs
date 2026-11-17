@@ -603,8 +603,15 @@ impl PortcoveService {
             .await
         {
             Ok(plan) => plan,
-            // Refusals here are not remembered: one may be a passing download
-            // fault, and the provider's flags are checked before any download.
+            Err(error)
+                if error.details.get("review_stage").is_some_and(|stage| {
+                    stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
+                }) =>
+            {
+                remember_hold(layout, key, &error.message);
+                return held(&error.message);
+            }
+            // Transport and inspection errors may be transient.
             Err(error) => return Some(classify(error)),
         };
         if plan.expected_revision != revision.revision {

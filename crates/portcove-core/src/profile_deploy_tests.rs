@@ -1198,6 +1198,58 @@ fn recomp_mods_that_run_code_or_belong_to_another_game_are_refused() {
 }
 
 #[test]
+fn recomp_local_review_checks_versions_before_offering_code_consent() {
+    let w = recomp_world();
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    let revision = w.revision();
+    let incompatible = w.nrm(
+        "incompatible.nrm",
+        "extra",
+        &["base_pack:2.0.0"],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let error = w
+        .service
+        .plan_local_mod_package(RECOMP, &w.default, &incompatible, revision)
+        .unwrap_err();
+    assert_eq!(error.code, crate::ErrorCode::Unsupported);
+    assert_eq!(error.details["requires"], "base_pack");
+    assert_eq!(error.details["minimum_version"], "2.0.0");
+    assert_eq!(w.revision(), revision);
+    assert_eq!(w.live(), ["base_pack.nrm"]);
+    let layout = Layout::for_user(&w.user());
+    assert!(!layout.code_consent().exists());
+    assert!(
+        !layout
+            .package(&sha256_file(&incompatible).unwrap(), "extra.nrm")
+            .exists()
+    );
+
+    let missing = w.nrm(
+        "missing.nrm",
+        "extra",
+        &["missing_library:1.0.0"],
+        &[("mod_binary.bin", b"\0"), ("mod_syms.bin", b"\0")],
+    );
+    let review = w
+        .service
+        .plan_local_mod_package(RECOMP, &w.default, &missing, revision)
+        .unwrap();
+    assert_eq!(review.missing_required_mods, ["missing_library.nrm"]);
+    assert!(!review.needs_code_permission);
+
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, revision)
+        .unwrap();
+    let disabled_replacement = w.nrm("new-base.nrm", "base_pack", &["*:2.0.0"], &[]);
+    let review = w
+        .service
+        .plan_local_mod_package(RECOMP, &w.default, &disabled_replacement, w.revision())
+        .unwrap();
+    assert!(!review.replaces_enabled);
+}
+
+#[test]
 fn recomp_dependencies_must_be_installed_and_stay_on() {
     let w = recomp_world();
     let missing = w
