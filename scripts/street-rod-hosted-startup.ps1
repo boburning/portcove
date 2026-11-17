@@ -111,9 +111,10 @@ try {
   }
   if (-not $gameBound -or $window -eq [IntPtr]::Zero) { throw 'No visible exact owned game window before finite deadline' }
   $startupCpu = $game.TotalProcessorTime.TotalSeconds
-  Start-Sleep -Seconds 20
+  $settleSeconds = if ($Dataset -eq 'se') { 60 } else { 20 }
+  Start-Sleep -Seconds $settleSeconds
   if ($game.HasExited) { throw 'Owned player exited before capture' }
-  @{settle_seconds=20; cpu_before=$startupCpu; cpu_after=$game.TotalProcessorTime.TotalSeconds; working_set=$game.WorkingSet64} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-startup-observation.json")) -Encoding utf8
+  @{settle_seconds=$settleSeconds; cpu_before=$startupCpu; cpu_after=$game.TotalProcessorTime.TotalSeconds; working_set=$game.WorkingSet64} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-startup-observation.json")) -Encoding utf8
   [uint32]$windowOwner = 0
   [void][StreetWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
