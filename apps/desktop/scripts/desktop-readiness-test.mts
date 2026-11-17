@@ -427,17 +427,29 @@ async function observeActionHolds({ browser, output, artifacts, command, port }:
     injection: "replace one assessed action in actual native workspace snapshots only",
     launch_before: readinessCommand(command)(["status", port.id]),
   };
+  let primaryFailure: { error: unknown } | undefined;
   try {
     await observeHeldLaunch({ browser, output, artifacts, command, port, held });
     await observeHeldInstall({ browser, output, artifacts, command, port, held });
   } catch (error) {
+    primaryFailure = { error };
     held.failure = errorMessage(error);
-    throw error;
-  } finally {
-    const report = path.join(output, "native-action-hold-observations.json");
+  }
+  let receiptFailure: { error: unknown } | undefined;
+  const report = path.join(output, "native-action-hold-observations.json");
+  try {
     await writeFile(report, JSON.stringify(held, null, 2), { flag: "wx" });
     artifacts.push(report);
+  } catch (error) {
+    receiptFailure = { error };
+    console.error("Could not retain held-assessment observations", errorMessage(error), {
+      failure: held.failure,
+      launch_cleanup_failure: held.launch_cleanup_failure,
+      install_cleanup_failure: held.install_cleanup_failure,
+    });
   }
+  if (primaryFailure) throw primaryFailure.error;
+  if (receiptFailure) throw receiptFailure.error;
 }
 
 async function detailLayout(browser: WebDriver, summary: string) {
