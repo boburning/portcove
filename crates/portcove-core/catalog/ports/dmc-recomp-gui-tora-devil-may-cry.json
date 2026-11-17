@@ -4,6 +4,14 @@
     "id": "dmc-recomp-gui-tora-devil-may-cry",
     "name": "Devil May Cry — dmc-recomp (Gui-Tora)",
     "original_game_title": "Devil May Cry",
+    "artwork": {
+      "game_id": 134,
+      "cover_id": 436183,
+      "image_id": "co9ck7",
+      "image_sha256": "9d36a30485711695159e534666c5866311270b75024cfb629bddcd6eac11e560",
+      "game_slug": "devil-may-cry",
+      "match_kind": "underlying-game"
+    },
     "summary": "Research project. Source-only prereleases; explicitly not playable; late-stream MPEG/rendering blockers. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/Gui-Tora/dmc-recomp",
     "listed_at": "2026-10-25",

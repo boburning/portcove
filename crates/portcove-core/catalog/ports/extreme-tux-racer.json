@@ -4,6 +4,14 @@
     "id": "extreme-tux-racer",
     "name": "Extreme Tux Racer",
     "original_game_title": "Extreme Tux Racer",
+    "artwork": {
+      "game_id": 51248,
+      "cover_id": 306404,
+      "image_id": "co6kf8",
+      "image_sha256": "ab725fc9b94b567a50d17512d0aad6ab303d21e9a7cc3cb1a1e7204466df95aa",
+      "game_slug": "extreme-tux-racer",
+      "match_kind": "port"
+    },
     "summary": "Race Tux down snowy slopes, collect herring, and try to beat your best time.",
     "project_url": "https://sourceforge.net/projects/extremetuxracer/",
     "issue_number": 6474,

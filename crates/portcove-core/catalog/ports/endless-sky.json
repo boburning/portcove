@@ -4,6 +4,14 @@
     "id": "endless-sky",
     "name": "Endless Sky",
     "original_game_title": "Endless Sky",
+    "artwork": {
+      "game_id": 34409,
+      "cover_id": 116295,
+      "image_id": "co2hqf",
+      "image_sha256": "7787ad2d0821574f248759b0e278ac23219dc86b4b2f800029668670f864b7bc",
+      "game_slug": "endless-sky",
+      "match_kind": "underlying-game"
+    },
     "summary": "Captain a ship, trade cargo, and explore a galaxy of stories in an open-source space adventure.",
     "project_url": "https://github.com/endless-sky/endless-sky",
     "issue_number": 6495,

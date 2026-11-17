@@ -5,6 +5,14 @@
     "name": "Tony Hawk's Pro Skater (Tony Was A Pro Skater)",
     "summary": "Attach an independently permitted, prepared Tony Hawk’s Pro Skater Windows installation using the LANCommander port. Keep its extracted game data and separate Saved Games tree; upstream owns preparation, restarts and runtime replacement.",
     "original_game_title": "Tony Hawk's Pro Skater",
+    "artwork": {
+      "game_id": 6692,
+      "cover_id": 90981,
+      "image_id": "co1y79",
+      "image_sha256": "6c678c082ed9c612ddaa3f469ef647caaef097a78d1cc0405fc568af4f7ee870",
+      "game_slug": "tony-hawk-s-pro-skater",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/LANCommander/TonyWasAProSkater",
     "platforms": ["windows-x86-64"],
     "availability": "unknown",

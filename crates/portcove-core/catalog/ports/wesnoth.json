@@ -4,6 +4,14 @@
     "id": "wesnoth",
     "name": "The Battle for Wesnoth",
     "original_game_title": "The Battle for Wesnoth",
+    "artwork": {
+      "game_id": 2365,
+      "cover_id": 157394,
+      "image_id": "co3dg2",
+      "image_sha256": "900b1dd924665f160c4617f7e97651d3822384e32f99b7bce7962e4e880969f8",
+      "game_slug": "battle-for-wesnoth",
+      "match_kind": "underlying-game"
+    },
     "summary": "Play turn-based fantasy campaigns, skirmishes, and multiplayer scenarios.",
     "project_url": "https://github.com/wesnoth/wesnoth",
     "issue_number": 6447,

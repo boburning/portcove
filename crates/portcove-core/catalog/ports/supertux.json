@@ -4,6 +4,14 @@
     "id": "supertux",
     "name": "SuperTux",
     "original_game_title": "SuperTux",
+    "artwork": {
+      "game_id": 51231,
+      "cover_id": 201619,
+      "image_id": "co4bkj",
+      "image_sha256": "d5c999ea193a6ad6a79e7d4d1f7d82d84be0a3303e48e608e1244b4da1e5ba45",
+      "game_slug": "supertux",
+      "match_kind": "underlying-game"
+    },
     "summary": "Play the story worlds, bonus levels, and community platforming maps.",
     "project_url": "https://github.com/SuperTux/supertux",
     "issue_number": 6455,

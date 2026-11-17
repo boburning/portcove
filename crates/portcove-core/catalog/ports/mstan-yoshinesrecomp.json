@@ -5,6 +5,14 @@
     "name": "Yoshi (YoshiNESRecomp)",
     "summary": "Register a permitted noncommercial completed Yoshi Windows cycle player, preserving your original, actual configuration and creating-backend state.",
     "original_game_title": "Yoshi",
+    "artwork": {
+      "game_id": 86264,
+      "cover_id": 300604,
+      "image_id": "co6fy4",
+      "image_sha256": "ce2adc04b8d3c4443c03bdcb54b03f3c883f1bb6cc8544354a48960fc237374e",
+      "game_slug": "yoshi",
+      "match_kind": "underlying-game"
+    },
     "project_url": "https://github.com/mstan/YoshiNESRecomp",
     "platforms": [],
     "availability": "unknown",

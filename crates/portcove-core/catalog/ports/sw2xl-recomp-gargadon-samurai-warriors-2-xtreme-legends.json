@@ -4,6 +4,14 @@
     "id": "sw2xl-recomp-gargadon-samurai-warriors-2-xtreme-legends",
     "name": "Samurai Warriors 2: Xtreme Legends — sw2xl-recomp (Gargadon)",
     "original_game_title": "Samurai Warriors 2: Xtreme Legends",
+    "artwork": {
+      "game_id": 7175,
+      "cover_id": 434743,
+      "image_id": "co9bg7",
+      "image_sha256": "39f43780ba8f7e9b1dcfa009ff3996600abe206498049598e277537f06315d63",
+      "game_slug": "samurai-warriors-2-xtreme-legends",
+      "match_kind": "underlying-game"
+    },
     "summary": "The XL boot and module procedure exists. Complete XL campaign coverage is unknown. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/Gargadon/sw2xl-recomp",
     "listed_at": "2026-10-25",

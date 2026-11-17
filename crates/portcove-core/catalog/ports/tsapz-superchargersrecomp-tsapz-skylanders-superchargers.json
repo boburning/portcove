@@ -4,6 +4,14 @@
     "id": "tsapz-superchargersrecomp-tsapz-skylanders-superchargers",
     "name": "Skylanders: SuperChargers — tsapZ SuperChargersRecomp (tsapZ)",
     "original_game_title": "Skylanders: SuperChargers",
+    "artwork": {
+      "game_id": 11058,
+      "cover_id": 94969,
+      "image_id": "co21a1",
+      "image_sha256": "663b1696be7f4333a0f2eaf9eff53b056a7079c96ff34227ca9e0820d1569be4",
+      "game_slug": "skylanders-superchargers",
+      "match_kind": "underlying-game"
+    },
     "summary": "Firstlevelplays; later parts of the game have not been played;installation on a clean machine has not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/SuperChargersRecomp",
     "listed_at": "2026-10-25",

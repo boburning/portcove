@@ -4,6 +4,14 @@
     "id": "ddnet",
     "name": "DDNet (DDraceNetwork)",
     "original_game_title": "DDNet",
+    "artwork": {
+      "game_id": 136770,
+      "cover_id": 112926,
+      "image_id": "co2f4u",
+      "image_sha256": "24dd1afda4d0dad2b35c4b92c448bdef115a14bf238a2528b0488e99ba5daf18",
+      "game_slug": "ddracenetwork",
+      "match_kind": "underlying-game"
+    },
     "summary": "Play cooperative platforming maps or practice locally with the bundled server.",
     "project_url": "https://github.com/ddnet/ddnet",
     "issue_number": 6435,

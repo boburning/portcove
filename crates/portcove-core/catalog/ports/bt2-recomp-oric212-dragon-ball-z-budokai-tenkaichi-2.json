@@ -4,6 +4,14 @@
     "id": "bt2-recomp-oric212-dragon-ball-z-budokai-tenkaichi-2",
     "name": "Dragon Ball Z: Budokai Tenkaichi 2 — BT2 Recomp (oric212)",
     "original_game_title": "Dragon Ball Z: Budokai Tenkaichi 2",
+    "artwork": {
+      "game_id": 2252,
+      "cover_id": 85800,
+      "image_id": "co1u7c",
+      "image_sha256": "de7b0fe1e4a083e0a22b6fdfc7349aa2e1c6c0c0d56f1d07bb1bcf6f389abb1e",
+      "game_slug": "dragon-ball-z-budokai-tenkaichi-2",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports versus, other modes and training working. Saving and 60 FPS remain in progress; a full playthrough is unconfirmed. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/oric212/BT2-Recomp",
     "listed_at": "2026-10-25",
