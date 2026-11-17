@@ -938,8 +938,11 @@ jobs:
       matrix:
         include:
           - name: standing-setup-source-return
-            source: 345c6a8dac8d173eab63f7f678ed23acec66a8ad
+            source: e6146c65cc0dfdede1b503244165ca007f97692f
             scenario: native-standing-setup-source-return
+          - name: large-discovery-setup-review
+            source: e6146c65cc0dfdede1b503244165ca007f97692f
+            scenario: native-large-discovery-setup-review
     env:
       PORTCOVE_OUTPUT_DIR: ${{ github.workspace }}/work/slice3-native-evidence
       PORTCOVE_TEMP_DIR: ${{ github.workspace }}/work/slice3-native-temp
