@@ -2354,6 +2354,7 @@ pub(crate) fn native_appimage(
                 | crate::ExternalProfilePolicy::CorsixthLinuxV1
                 | crate::ExternalProfilePolicy::OpenlocoUnixV1
                 | crate::ExternalProfilePolicy::OpenomfLinuxV1
+                | crate::ExternalProfilePolicy::EndlessSkyDesktopV1
         )
     ) {
         let [prefix, suffix] = port.release.asset_hints.get(&platform)?.as_slice() else {
@@ -2415,6 +2416,9 @@ fn choose_asset<'a>(
                 )
                 || !crate::native_portable_data::matches_archive(port, platform, &name)
                 || !crate::native_external_profile::vcmi::matches_asset(port, platform, &name)
+                || !crate::native_external_profile::endless_sky::matches_asset(
+                    port, platform, &name,
+                )
             {
                 return None;
             }

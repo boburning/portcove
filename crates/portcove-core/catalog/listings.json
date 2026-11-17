@@ -27381,9 +27381,12 @@
       "availability": "packages",
       "release_url": "https://github.com/endless-sky/endless-sky/releases/latest",
       "setup_url": "https://github.com/endless-sky/endless-sky/wiki/PlayersManual",
-      "download_block_reason": "Choose the package for your system from the publisher or use your package manager.",
       "manual_setup": {
         "steps": [
+          {
+            "title": "Install and play on Windows or Linux",
+            "instruction": "Portcove installs the publisher’s Windows x64 ZIP or Linux x64 AppImage. On Linux, the AppImage needs FUSE support. Select Play to use your normal Endless Sky profile."
+          },
           {
             "title": "Choose a desktop package",
             "instruction": "On Windows, extract the whole ZIP for your system and open Endless Sky.exe. On Linux x86-64, allow the publisher AppImage to run as a program and open it, or use your distribution’s package. Flathub also offers Linux x86-64 and ARM64. On Mac, open the publisher disk image and copy Endless Sky.app to Applications."
