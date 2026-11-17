@@ -1,16 +1,18 @@
-$Dataset = 'restore'
+$Dataset = $env:PORTCOVE_OMNISPEAK_DATASET
+if ($Dataset -notin @('fresh','replay')) { throw 'Unknown fixed scenario' }
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
 $cli = (Get-Content -Raw input-cli.txt).Trim()
-$root = Join-Path $env:RUNNER_TEMP ('cdogs-native-owned-'+$Dataset)
+$root = Join-Path $env:RUNNER_TEMP ('omnispeak-native-owned-'+$Dataset)
 New-Item -ItemType Directory -Path $root | Out-Null
 $library = Join-Path $root 'library'
-$native = Join-Path $PWD 'evidence/desktop-verify/cdogs/native'
+$native = Join-Path $PWD 'evidence/desktop-verify/omnispeak/native'
 New-Item -ItemType Directory -Force -Path $native | Out-Null
 $inputs = (Get-Content -Raw input-root.txt).Trim()
-$expectedPlayer = Join-Path $inputs 'player/bin/cdogs-sdl.exe'
-$profile = Join-Path $root 'profile'
-$defaultProfile = Join-Path ([Environment]::GetFolderPath('ApplicationData')) 'C-Dogs SDL'
+$expectedPlayer = Join-Path $inputs 'player/omnispeak.exe'
+$profile = Join-Path $root 'profile with spaces'
+$seed = Join-Path $inputs 'earned-SAVEGAM0.CK4'
+$activeSave = Join-Path $profile 'SAVEGAM0.CK4'
 
 $process = $null
 $game = $null
@@ -40,7 +42,7 @@ Add-Type @'
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
-public static class CdogsWindow {
+public static class OmnispeakWindow {
  [DllImport("user32.dll")] static extern IntPtr GetForegroundWindow();
  [DllImport("user32.dll")] static extern bool SetForegroundWindow(IntPtr h);
  [DllImport("user32.dll",EntryPoint="MapVirtualKeyW",ExactSpelling=true)] static extern uint MapVirtualKey(uint code,uint type);
@@ -85,30 +87,37 @@ public static class CdogsWindow {
 '@
 function Close-OwnedGameWindow {
   if (-not $gameBound -or $game.HasExited -or $window -eq [IntPtr]::Zero) { throw 'Bound live game window unavailable for close' }
-  if ([CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Retained child creation identity differs before close' }
-  [CdogsWindow]::CloseOwned($window,[uint32]$game.Id)
+  if ([OmnispeakWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Retained child creation identity differs before close' }
+  [OmnispeakWindow]::CloseOwned($window,[uint32]$game.Id)
+}
+function Snapshot-Package {
+  $map=[ordered]@{}
+  $folder=Join-Path $inputs 'player'
+  if ((Get-Item -LiteralPath $folder -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Package root linked' }
+  foreach($f in Get-ChildItem -LiteralPath $folder -Recurse -Force | Sort-Object FullName) {
+    if($f.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Package entry linked' }
+    if(-not $f.PSIsContainer) {$map[$f.FullName]=(Get-FileHash -LiteralPath $f.FullName -Algorithm SHA256).Hash.ToLowerInvariant()}
+  }
+  return ($map | ConvertTo-Json -Compress)
 }
 try {
-  if (-not [IO.Path]::IsPathFullyQualified($defaultProfile) -or (Test-Path -LiteralPath $defaultProfile)) { throw 'Existing or unavailable default C-Dogs profile: preserve it; no trial' }
+  $packageBefore=Snapshot-Package
+  $packageBefore | Set-Content (Join-Path $native ("$Dataset-package-before.json")) -Encoding utf8
   New-Item -ItemType Directory -Path $profile | Out-Null
-  $seed = Join-Path $PWD 'scripts/cdogs-earned-linux-autosave.json'
-  $seedSha = '01d49050445e0dc85ea3031267926871de87ddc857d4f248d9d5d61fbdca9cc6'
-  if (((Get-Item -LiteralPath $seed).Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Earned Linux save fixture identity differs' }
-  $dataProfile = Join-Path $profile 'cdogs-sdl'
-  New-Item -ItemType Directory -Path $dataProfile | Out-Null
-  $activeSave = Join-Path $dataProfile 'autosave.json'
-  Copy-Item -LiteralPath $seed -Destination $activeSave
-  if ((Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Copied Linux save differs' }
-  $env:XDG_CONFIG_HOME = $profile
+  if ($Dataset -eq 'replay') {
+    $seedSha = (Get-Content -Raw (Join-Path $inputs 'earned-save-sha256.txt')).Trim()
+    if ($seedSha -notmatch '^[a-f0-9]{64}$' -or ((Get-Item -LiteralPath $seed).Attributes -band [IO.FileAttributes]::ReparsePoint) -or (Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Same-job earned save identity differs' }
+    Copy-Item -LiteralPath $seed -Destination $activeSave
+    if ((Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Replay copy differs' }
+  }
   $env:SDL_RENDER_DRIVER = 'software'
   $env:SDL_AUDIODRIVER = 'dummy'
-  @{dataset=$Dataset; profile_parent=$profile; renderer='upstream SDL software'; audio='dummy'; input_save_sha256=$seedSha; claim='Linux-earned save seeded unchanged; observe Windows Continue menu recognition only, not resumed mission or earned Windows progress'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-scenario.json")) -Encoding utf8
-  if ((Get-FileHash -LiteralPath $expectedPlayer -Algorithm SHA256).Hash.ToLowerInvariant() -ne '3d766f2f36c533bbd08f2e198eda70c4f973b49287525d210cc4756f6dad56c6') { throw 'Selected publisher executable bytes differ before launch' }
-  $selectArgs = @('c-dogs-sdl',$expectedPlayer,'--working-directory',(Split-Path $expectedPlayer))
-
+  @{dataset=$Dataset; profile=$profile; renderer='requested SDL software'; audio='dummy'; scope='named Windows world-map save and fresh-profile replay; each visual outcome requires image inspection; no binary saves emitted'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-scenario.json")) -Encoding utf8
+  if ((Get-FileHash -LiteralPath $expectedPlayer -Algorithm SHA256).Hash.ToLowerInvariant() -ne '6fdb9379ea358ca05d81a674364d90d7186cb26f5a3d397f22868be7542c8d97') { throw 'Selected publisher executable bytes differ before launch' }
+  $selectArgs = @('commander-keen-4-omnispeak',$expectedPlayer,'--working-directory',(Split-Path $expectedPlayer),'--arg','/EPISODE','--arg','4','--arg','/GAMEPATH','--arg',(Split-Path $expectedPlayer),'--arg','/USERPATH','--arg',$profile)
   $preview = Invoke-CliJson 'select-preview' (@('external','select-preview')+$selectArgs)
   $selected = Invoke-CliJson 'select' (@('external','select')+$selectArgs+@('--expected-preview',$preview.data.preview_sha256,'--yes'))
-  $status = Invoke-CliJson 'status' @('status','c-dogs-sdl')
+  $status = Invoke-CliJson 'status' @('status','commander-keen-4-omnispeak')
   if (-not $status.data.readiness.launchable -or $status.data.successful_launches -ne 0) { throw 'External selection not fresh and launchable' }
   $expectedPlayer = [IO.Path]::GetFullPath($expectedPlayer)
   if ((Get-Item -LiteralPath $expectedPlayer).Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Expected player is linked' }
@@ -118,12 +127,12 @@ try {
   $start.UseShellExecute = $false
   $start.RedirectStandardOutput = $true
   $start.RedirectStandardError = $true
-  foreach ($a in @('--library',$library,'exec','--request-id',$request,'c-dogs-sdl')) { $start.ArgumentList.Add($a) }
+  foreach ($a in @('--library',$library,'exec','--request-id',$request,'commander-keen-4-omnispeak')) { $start.ArgumentList.Add($a) }
   $process = [Diagnostics.Process]::new()
   $process.StartInfo = $start
   if (-not $process.Start()) { throw 'Owned CLI did not start' }
   $rootHandle = $process.SafeHandle
-  $rootCreated = [CdogsWindow]::Created($rootHandle)
+  $rootCreated = [OmnispeakWindow]::Created($rootHandle)
   $stdoutSink = [IO.FileStream]::new((Join-Path $native ("$Dataset-player.stdout.log")),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read,1,[IO.FileOptions]::WriteThrough)
   $stderrSink = [IO.FileStream]::new((Join-Path $native ("$Dataset-player.stderr.log")),[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read,1,[IO.FileOptions]::WriteThrough)
   $stdout = $process.StandardOutput.BaseStream.CopyToAsync($stdoutSink)
@@ -139,7 +148,7 @@ try {
         $gameHandle = $game.SafeHandle
       }
       if ($record.child_pid -ne $game.Id) { throw 'Retained child changed during observation' }
-      $created = [CdogsWindow]::Created($gameHandle)
+      $created = [OmnispeakWindow]::Created($gameHandle)
       if ($record.supervisor_pid -ne $process.Id -or $record.supervisor_identity -ne "windows-filetime:$rootCreated" -or $record.child_identity -ne "windows-filetime:$created" -or $created -lt $rootCreated) { throw 'Owned root/child chronology or identity differs' }
       $actualPlayer = [IO.Path]::GetFullPath($game.MainModule.FileName)
       @{expected_player=$expectedPlayer; actual_player=$actualPlayer; actual_session=$game.SessionId; expected_session=$process.SessionId; child_pid=$game.Id; child_identity=$record.child_identity} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-child-binding.json")) -Encoding utf8
@@ -149,7 +158,7 @@ try {
       if (-not $parent -or $parent.ParentProcessId -ne $process.Id) { throw 'Actual child parent differs from retained root' }
       $boundCreated = $created
       $gameBound = $true
-      $window = [CdogsWindow]::Find([uint32]$game.Id)
+      $window = [OmnispeakWindow]::Find([uint32]$game.Id)
       if ($window -ne [IntPtr]::Zero) { break }
     }
     Start-Sleep -Milliseconds 400
@@ -160,46 +169,52 @@ try {
   if ($game.HasExited) { throw 'Owned player exited before capture' }
   @{settle_seconds=20; cpu_before=$startupCpu; cpu_after=$game.TotalProcessorTime.TotalSeconds; working_set=$game.WorkingSet64} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-startup-observation.json")) -Encoding utf8
   [uint32]$windowOwner = 0
-  [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
+  [void][OmnispeakWindow]::GetWindowThreadProcessId($window,[ref]$windowOwner)
   if ($windowOwner -ne $game.Id) { throw 'Window ownership changed' }
-  foreach ($key in @(@{name='start-highlight';vk=38;wait=900},@{name='continue-menu';vk=13;wait=900},@{name='campaign-intro';vk=13;wait=5000},@{name='players-count';vk=13;wait=3000},@{name='two-players';vk=40;wait=900},@{name='players-select';vk=13;wait=2000},@{name='join-local';vk=88;wait=1500},@{name='accept-local';vk=88;wait=2000},@{name='level-menu';vk=0;wait=3500},@{name='mission-options';vk=13;wait=3500},@{name='loadout';vk=13;wait=2500},@{name='mission-briefing';vk=88;wait=3000},@{name='mission-start';vk=13;wait=2500},@{name='mission-visible';vk=0;wait=3000},@{name='dismiss-briefing';vk=88;wait=3500},@{name='ready-loadout';vk=88;wait=3500},@{name='active-final';vk=0;wait=4000})) {
-    if ($game.HasExited -or [CdogsWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
-    if ($key.vk -ne 0) { [CdogsWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk) }
+  $freshKeys = @(@{name='menu';vk=27;wait=2000},@{name='new-game';vk=13;wait=1500},@{name='difficulty';vk=13;wait=4000},@{name='world-move-up';vk=38;wait=700},@{name='world-move-left';vk=37;wait=900},@{name='game-menu';vk=113;wait=1000},@{name='toward-save-1';vk=38;wait=400},@{name='toward-save-2';vk=38;wait=400},@{name='save-menu';vk=13;wait=1000},@{name='save-slot';vk=13;wait=500},@{name='name-p';vk=80;wait=180},@{name='name-o';vk=79;wait=180},@{name='name-r';vk=82;wait=180},@{name='name-t';vk=84;wait=180},@{name='saved';vk=13;wait=1800})
+  $replayKeys = @(@{name='dismiss-1';vk=27;wait=1200},@{name='menu';vk=27;wait=1200},@{name='select-load';vk=40;wait=500},@{name='load-menu';vk=13;wait=1000},@{name='load-slot';vk=13;wait=3000},@{name='loaded';vk=13;wait=1500})
+  $steps = if ($Dataset -eq 'fresh') { $freshKeys } else { $replayKeys }
+  foreach ($key in $steps) {
+    if ($game.HasExited -or [OmnispeakWindow]::Created($gameHandle) -ne $boundCreated) { throw 'Owned child identity lost before input' }
+    if ($key.vk -ne 0) { [OmnispeakWindow]::KeyOwned($window,[uint32]$game.Id,[ushort]$key.vk) }
     Start-Sleep -Milliseconds $key.wait
     [uint32]$currentOwner=0
-    [void][CdogsWindow]::GetWindowThreadProcessId($window,[ref]$currentOwner)
+    [void][OmnispeakWindow]::GetWindowThreadProcessId($window,[ref]$currentOwner)
     if ($currentOwner -ne $game.Id -or $game.HasExited) { throw 'Owned capture target changed after input' }
-    $stepRect = [CdogsWindow+Rect]::new()
-    if (-not [CdogsWindow]::GetWindowRect($window,[ref]$stepRect)) { throw 'Step window geometry unavailable' }
+    $stepRect = [OmnispeakWindow+Rect]::new()
+    if (-not [OmnispeakWindow]::GetWindowRect($window,[ref]$stepRect)) { throw 'Step window geometry unavailable' }
     $sw=$stepRect.Right-$stepRect.Left; $sh=$stepRect.Bottom-$stepRect.Top
     if ($sw -lt 100 -or $sh -lt 80 -or $sw -gt 2560 -or $sh -gt 1600) { throw 'Step capture outside bounds' }
     $stepBitmap=[Drawing.Bitmap]::new($sw,$sh);$stepGraphics=[Drawing.Graphics]::FromImage($stepBitmap)
     try {$stepGraphics.CopyFromScreen($stepRect.Left,$stepRect.Top,0,0,$stepBitmap.Size);$stepBitmap.Save((Join-Path $native ("$Dataset-"+$key.name+'.png')),[Drawing.Imaging.ImageFormat]::Png)}
     finally {$stepGraphics.Dispose();$stepBitmap.Dispose()}
   }
-  $rect = [CdogsWindow+Rect]::new()
-  if (-not [CdogsWindow]::GetWindowRect($window,[ref]$rect)) { throw 'Owned window geometry unavailable' }
+  $rect = [OmnispeakWindow+Rect]::new()
+  if (-not [OmnispeakWindow]::GetWindowRect($window,[ref]$rect)) { throw 'Owned window geometry unavailable' }
   $width=$rect.Right-$rect.Left; $height=$rect.Bottom-$rect.Top
   if ($width -lt 100 -or $height -lt 80 -or $width -gt 2560 -or $height -gt 1600) { throw 'Owned window exceeds capture bounds' }
   $bitmap = [Drawing.Bitmap]::new($width,$height)
   $graphics = [Drawing.Graphics]::FromImage($bitmap)
   try { $graphics.CopyFromScreen($rect.Left,$rect.Top,0,0,$bitmap.Size); $bitmap.Save((Join-Path $native ("$Dataset-player.png")),[Drawing.Imaging.ImageFormat]::Png) }
   finally { $graphics.Dispose(); $bitmap.Dispose() }
-  @{request=$request; root_pid=$process.Id; root_identity="windows-filetime:$rootCreated"; child_pid=$game.Id; child_identity=$record.child_identity; child_path=$actualPlayer; child_sha256=(Get-FileHash -LiteralPath $actualPlayer -Algorithm SHA256).Hash.ToLowerInvariant(); session=$game.SessionId; window=$window.ToInt64(); title=[CdogsWindow]::Title($window); width=$width; height=$height} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-observed.json")) -Encoding utf8
+  @{request=$request; root_pid=$process.Id; root_identity="windows-filetime:$rootCreated"; child_pid=$game.Id; child_identity=$record.child_identity; child_path=$actualPlayer; child_sha256=(Get-FileHash -LiteralPath $actualPlayer -Algorithm SHA256).Hash.ToLowerInvariant(); session=$game.SessionId; window=$window.ToInt64(); title=[OmnispeakWindow]::Title($window); width=$width; height=$height} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-observed.json")) -Encoding utf8
   Close-OwnedGameWindow
   if (-not $process.WaitForExit(20000)) { throw 'Owned CLI did not complete after normal close' }
   if (-not $stdout.Wait(5000) -or -not $stderr.Wait(5000)) { throw 'Game stream capture did not complete after normal exit' }
   $final = Invoke-CliJson 'launch' @('launch','show',$request)
   if ($process.ExitCode -ne 0 -or $final.data.outcome -ne 'succeeded' -or $final.data.exit_code -ne 0) { throw 'Actual external launch did not exit successfully' }
   if (-not $game.WaitForExit(5000)) { throw 'Owned child exit unproven before external removal' }
-  if (Test-Path -LiteralPath $defaultProfile) { throw 'Unexpected writer outside the selected private profile; retain evidence' }
-  if ((Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Original earned-save fixture changed' }
-  $state = Get-Content -Raw -LiteralPath $activeSave | ConvertFrom-Json
-  if ($state.Version -ne 3 -or $state.Missions.Count -ne 1 -or $state.Missions[0].NextMission -ne 1 -or ($state.Missions[0].MissionsCompleted -join ',') -ne '0' -or $state.Missions[0].Campaign.Path -ne 'missions/most_classified_enemy.cdogscpn') { throw 'Restored progress was lost or changed' }
-  @{source_sha256=$seedSha;output_sha256=(Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant();source_preserved=$true;next_mission=1;missions_completed=@(0);scope='upstream Windows profile retained Linux-earned progress; captured menu/mission sequence still requires image inspection; no Windows-earned completion'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-save-result.json")) -Encoding utf8
-  $profileFiles = @(Get-ChildItem -LiteralPath $profile -Recurse -Force -File)
-  if (-not $profileFiles.Count) { throw 'Native player produced no private profile evidence' }
-  @{file_count=$profileFiles.Count; scope='Windows profile retained Linux-earned campaign progress; no Windows completion or resumed-level claim'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-profile-result.json")) -Encoding utf8
+  if ((Snapshot-Package) -ne $packageBefore) { throw 'Runtime or bundled input files changed during play' }
+  if (-not (Test-Path -LiteralPath $activeSave -PathType Leaf) -or ((Get-Item -LiteralPath $activeSave).Attributes -band [IO.FileAttributes]::ReparsePoint)) { throw 'No regular save created or retained' }
+  $saveInfo = Get-Item -LiteralPath $activeSave
+  if ($saveInfo.Length -lt 1000 -or $saveInfo.Length -gt 65536) { throw 'Unexpected bounded save size' }
+  $outputSha = (Get-FileHash -LiteralPath $activeSave -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($Dataset -eq 'fresh') {
+    if (Test-Path -LiteralPath $seed) { throw 'Fresh earned-save destination exists' }
+    Copy-Item -LiteralPath $activeSave -Destination $seed
+    $outputSha | Set-Content (Join-Path $inputs 'earned-save-sha256.txt') -Encoding utf8
+  } elseif ((Get-FileHash -LiteralPath $seed -Algorithm SHA256).Hash.ToLowerInvariant() -ne $seedSha) { throw 'Original same-job earned save changed' }
+  @{bytes=$saveInfo.Length;output_sha256=$outputSha;source_sha256=$(if($Dataset -eq 'replay'){$seedSha}else{$null}); scope='only identities emitted; actual slot/load state requires image inspection; no binary saves published'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-save-result.json")) -Encoding utf8
   function Snapshot-External {
     $map = [ordered]@{}
     foreach ($folder in @((Join-Path $inputs 'player'),$profile)) {
@@ -214,13 +229,13 @@ try {
   }
   $beforeRemoval = Snapshot-External
   $beforeRemoval | Set-Content (Join-Path $native ("$Dataset-external-before-removal.json")) -Encoding utf8
-  $removal = Invoke-CliJson 'remove-preview' @('external','removal-preview','c-dogs-sdl')
-  $removed = Invoke-CliJson 'remove' @('external','remove','c-dogs-sdl','--expected-preview',$removal.data.preview_sha256,'--yes')
-  $after = Invoke-CliJson 'removed-status' @('status','c-dogs-sdl')
+  $removal = Invoke-CliJson 'remove-preview' @('external','removal-preview','commander-keen-4-omnispeak')
+  $removed = Invoke-CliJson 'remove' @('external','remove','commander-keen-4-omnispeak','--expected-preview',$removal.data.preview_sha256,'--yes')
+  $after = Invoke-CliJson 'removed-status' @('status','commander-keen-4-omnispeak')
   $afterRemoval = Snapshot-External
   $afterRemoval | Set-Content (Join-Path $native ("$Dataset-external-after-removal.json")) -Encoding utf8
   if ($after.data.external_runtime -or $beforeRemoval -ne $afterRemoval) { throw 'Registration removal altered external files or retained registration' }
-  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows C-Dogs player with SDL software renderer and private XDG profile; normal exit and registration-only removal preserve external bytes; screenshot requires inspection; candidate saved-mission resumption requires inspected briefing and active-frame evidence; no Windows-earned mission completion, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
+  @{phase='probe-complete-pending-image-inspection'; dataset=$Dataset; exit_code=0; product=$env:PORTCOVE_PRODUCT_SOURCE; controller=$env:PORTCOVE_CONTROLLER_SOURCE; claim='ordinary external Windows Omnispeak v1.1 with explicit profile path containing spaces; normal exit and registration-only removal preserve external bytes; named save/load requires inspected images; no level completion, audio, retail, physical input or managed maintenance qualification'} | ConvertTo-Json | Set-Content (Join-Path $native ("$Dataset-result.json")) -Encoding utf8
 
 } catch {
   $failure = $_
@@ -228,7 +243,7 @@ try {
 } finally {
   if ($process -and -not $process.HasExited) {
     if ($gameBound -and -not $game.HasExited -and $window -ne [IntPtr]::Zero) { try { Close-OwnedGameWindow; [void]$process.WaitForExit(5000) } catch {} }
-    if (-not $process.HasExited -and [CdogsWindow]::Created($rootHandle) -eq $rootCreated) {
+    if (-not $process.HasExited -and [OmnispeakWindow]::Created($rootHandle) -eq $rootCreated) {
       # Kill only the exact retained root handle; this does not prove descendant exit.
       # Core's keeper can retain the job. Forced cleanup retains native admission and fails.
       # No recursive process kill, name matching or PID-only cleanup is used.
@@ -238,8 +253,8 @@ try {
     }
   }
   if ($game -and -not $game.HasExited) { [void]$game.WaitForExit(5000) }
-  $positive = [CdogsWindow]::InputReleased -and (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
-  @{input_released=[CdogsWindow]::InputReleased; positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
+  $positive = [OmnispeakWindow]::InputReleased -and (-not $forcedCleanup) -and ((-not $process) -or ($process.HasExited -and $gameBound -and $game.HasExited))
+  @{input_released=[OmnispeakWindow]::InputReleased; positive_exit=$positive; root_exited=(-not $process -or $process.HasExited); observed_child_exited=(-not $game -or $game.HasExited); forced_cleanup=$forcedCleanup} | ConvertTo-Json | Set-Content evidence/cleanup.json -Encoding utf8
   if (-not $positive -and -not $failure) { $failure='Positive owned exit was not established' }
   foreach ($sink in @($stdoutSink,$stderrSink)) { if ($sink) { $sink.Flush() } }
   if ($stdoutSink -and $stdout.IsCompleted) { $stdoutSink.Dispose() }

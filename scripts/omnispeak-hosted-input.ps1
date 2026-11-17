@@ -1,6 +1,6 @@
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
-$inputs = Join-Path $env:RUNNER_TEMP 'cdogs-exact-input'
+$inputs = Join-Path $env:RUNNER_TEMP 'omnispeak-exact-input'
 New-Item -ItemType Directory -Path $inputs | Out-Null
 $headers = @{Authorization="Bearer $env:GH_TOKEN"; Accept='application/vnd.github+json'; 'X-GitHub-Api-Version'='2022-11-28'}
 $api = 'https://api.github.com/repos/boburning/portcove'
@@ -9,11 +9,11 @@ if ($artifact.id -ne 14347807526 -or $artifact.expired -or $artifact.workflow_ru
 $zip = Join-Path $inputs 'producer.zip'
 Invoke-WebRequest -Headers $headers -Uri "$api/actions/artifacts/14347807526/zip" -OutFile $zip
 if ((Get-Item $zip).Length -ne 185051047 -or (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant() -ne $artifact.digest.Substring(7)) { throw 'Producer artifact bytes differ' }
-$env:PORTCOVE_CDOGS_INPUTS = $inputs
+$env:PORTCOVE_OMNISPEAK_INPUTS = $inputs
 @'
 import os,zipfile,json,hashlib
 from pathlib import Path
-p=Path(os.environ['PORTCOVE_CDOGS_INPUTS'])
+p=Path(os.environ['PORTCOVE_OMNISPEAK_INPUTS'])
 with zipfile.ZipFile(p/'producer.zip') as z:
  assert set(z.namelist())=={'tests.tar.zst','manifest.json'}
  for i in z.infolist():
@@ -45,32 +45,32 @@ $cli | Set-Content input-cli.txt -Encoding utf8
 if ($summary.cli_sha256 -ne '138b488b2c623ccd1d566a0f89129093eb83de69dfca5f12b2e7a7c63b575587') { throw 'Ordinary candidate CLI identity differs' }
 
 $playerZip = Join-Path $inputs 'player.zip'
-& curl.exe --fail --location --silent --show-error --max-time 120 --max-filesize 36000000 --output $playerZip 'https://github.com/cxong/cdogs-sdl/releases/download/2.5.0/C-Dogs.SDL-2.5.0-win32.zip'
+& curl.exe --fail --location --silent --show-error --max-time 120 --max-filesize 2000000 --output $playerZip 'https://github.com/sulix/omnispeak/releases/download/v1.1/omnispeak-win64-1.1.zip'
 if ($LASTEXITCODE -ne 0) { throw 'Explicit qualification input download failed' }
-$env:PORTCOVE_CDOGS_INPUTS = $inputs
+$env:PORTCOVE_OMNISPEAK_INPUTS = $inputs
 @'
 import os,hashlib,zipfile,stat,json,struct,shutil
 from pathlib import Path,PurePosixPath
-p=Path(os.environ['PORTCOVE_CDOGS_INPUTS']);zpath=p/'player.zip'
-assert zpath.stat().st_size==34071179
-with zpath.open('rb') as f: assert hashlib.file_digest(f,'sha256').hexdigest()=='448409739c4409cc188f5342fdcb95aa1beea10c9cb87d3021fc471a47e8e5fc'
-out=p/'player';out.mkdir()
+p=Path(os.environ['PORTCOVE_OMNISPEAK_INPUTS']);zpath=p/'player.zip'
+assert zpath.stat().st_size==1485979
+with zpath.open('rb') as f: assert hashlib.file_digest(f,'sha256').hexdigest()=='8882b9b0081482c195dff98636db7a2c3bff3b3521f684f3e39c36e9fae84efd'
+out=p/'player';out.mkdir();seen=set()
 with zipfile.ZipFile(zpath) as z:
- es=z.infolist();assert len(es)==3805 and sum(i.file_size for i in es)==40968785
+ es=z.infolist();assert len(es)==57 and sum(i.file_size for i in es)==3701483
  for i in es:
   n=PurePosixPath(i.filename)
   assert not n.is_absolute() and '..' not in n.parts and chr(92) not in i.filename and ':' not in i.filename
-  assert not stat.S_ISLNK(i.external_attr>>16) and i.file_size<64000000
-  assert n.parts[0]=='C-Dogs.SDL-2.5.0-win32'
+  assert not stat.S_ISLNK(i.external_attr>>16) and i.file_size<4000000
+  assert n.parts[0]=='omnispeak-win64-1.1'
   if i.is_dir():continue
   assert len(n.parts)>1
+  key='/'.join(n.parts[1:]).casefold();assert key not in seen;seen.add(key)
   dest=out.joinpath(*n.parts[1:]);dest.parent.mkdir(parents=True,exist_ok=True);assert not dest.exists()
   with z.open(i) as src,dest.open('xb') as dst:shutil.copyfileobj(src,dst)
-b=(out/'bin/cdogs-sdl.exe').read_bytes();off=struct.unpack_from('<I',b,0x3c)[0]
-assert b[:2]==b'MZ' and b[off:off+4]==b'PE\0\0' and struct.unpack_from('<H',b,off+4)[0]==0x14c
-assert hashlib.sha256(b).hexdigest()=='3d766f2f36c533bbd08f2e198eda70c4f973b49287525d210cc4756f6dad56c6'
-assert b'XDG_CONFIG_HOME' in b and b'CDOGS_CONFIG_DIR' in b
-(p/'title-inputs.json').write_text(json.dumps({'release':'2.5.0','asset_id':646854937,'zip_bytes':34071179,'publisher_sha256':'448409739c4409cc188f5342fdcb95aa1beea10c9cb87d3021fc471a47e8e5fc','player_sha256':hashlib.sha256(b).hexdigest(),'machine':'Win32 i386','scope':'explicit qualification of non-owning existing-player route; publisher bundle acquisition hold remains unchanged; no Wolfenstein campaign selected'},indent=2))
+b=(out/'omnispeak.exe').read_bytes();off=struct.unpack_from('<I',b,0x3c)[0]
+assert b[:2]==b'MZ' and b[off:off+4]==b'PE\0\0' and struct.unpack_from('<H',b,off+4)[0]==0x8664
+assert hashlib.sha256(b).hexdigest()=='6fdb9379ea358ca05d81a674364d90d7186cb26f5a3d397f22868be7542c8d97'
+(p/'title-inputs.json').write_text(json.dumps({'release':'v1.1','asset_id':51898006,'zip_bytes':1485979,'observed_sha256':'8882b9b0081482c195dff98636db7a2c3bff3b3521f684f3e39c36e9fae84efd','expected_publisher_digest':None,'player_sha256':hashlib.sha256(b).hexdigest(),'machine':'AMD64','scope':'explicit qualification of non-owning permitted-player route; observed hashes are identity only; publisher bundle acquisition hold unchanged; no binary saves emitted'},indent=2))
 '@ | python -
 if ($LASTEXITCODE -ne 0) { throw 'Title input verification failed' }
 Copy-Item -LiteralPath (Join-Path $inputs 'title-inputs.json') -Destination evidence/title-inputs.json
