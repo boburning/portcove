@@ -4,7 +4,8 @@ import { afterEach, expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { desktopApi } from "../api";
 import * as picker from "../file-picker";
-import type { ModSetupsView } from "../types";
+import type { ModSetupOriginalReview, ModSetupsView } from "../types";
+import { sourceProfile } from "../test-fixtures";
 import { ModSetupsControl } from "./ModSetupsControl";
 import "../styles/index.css";
 
@@ -22,6 +23,7 @@ afterEach(async () => {
 
 function setup(id: string, name: string, revision: number, packages: [string, boolean][]) {
   return {
+    originals: [],
     profile: {
       id,
       port_id: "shipwright",
@@ -698,4 +700,105 @@ it("shows exact missing recipe inputs before any import is offered", async () =>
     .not.toBeInTheDocument();
   await page.getByRole("button", { name: "Close review" }).click();
   await expect.element(open).toHaveFocus();
+});
+
+const originalBinding = {
+  requirement_id: "sample-rom",
+  sha256: "a".repeat(64),
+  size: 64,
+  storage_sha256: "b".repeat(64),
+  storage_size: 64,
+};
+const originalTarget = {
+  portId: "shipwright",
+  profileId: "clean",
+  expectedRevision: 1,
+  requirementId: "sample-rom",
+  generation: 7,
+};
+const originalReview: ModSetupOriginalReview = {
+  source_profile: { ...sourceProfile(), id: "sample-rom" },
+  current_instance_id: "current",
+  current_path: "D:/Old/recorded.z64",
+  embedded: false,
+  instances: [
+    {
+      instance_id: "alternative",
+      binding: { ...originalBinding, sha256: "c".repeat(64) },
+      path: "D:/Other/original.z64",
+    },
+  ],
+};
+
+function selectedOriginalView() {
+  const inventory = view().inventory;
+  const clean = inventory?.profiles.find(({ profile }) => profile.id === "clean");
+  if (!inventory || !clean) throw new Error("missing customized setup fixture");
+  clean.originals = [{ binding: originalBinding, availability: "missing" }];
+  return view({
+    inventory,
+    live: {
+      profile_id: "clean",
+      revision: 1,
+      unmanaged: [],
+      changed_owned: [],
+      native_list: { state: "in-sync" },
+    },
+  });
+}
+
+it("shows the saved original hold and selects an exact registered alternative", async () => {
+  const reread = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(selectedOriginalView());
+  const review = vi.spyOn(desktopApi, "reviewModSetupOriginal").mockResolvedValue(originalReview);
+  const select = vi.spyOn(desktopApi, "selectModSetupOriginal").mockResolvedValue(undefined);
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.o2r");
+  vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue({
+    ...localPlan,
+    profile_id: "clean",
+    expected_revision: 1,
+  });
+  const host = await render();
+  expect(host.textContent).toContain("The file this setup recorded is missing.");
+
+  const reviewOriginal = button(host, "Review original game files");
+  await act(async () => button(host, "Add mod file…").click());
+  expect(reviewOriginal.disabled).toBe(true);
+  await act(async () => button(host, "Don’t add").click());
+  expect(reviewOriginal.disabled).toBe(false);
+  await act(async () => reviewOriginal.click());
+  expect(review).toHaveBeenCalledWith(originalTarget);
+  expect(host.textContent).toContain("D:/Old/recorded.z64");
+  expect(button(host, "Use this original").disabled).toBe(true);
+  await act(async () =>
+    page.getByRole("combobox", { name: /^Other registered originals/ }).click(),
+  );
+  await act(async () => page.getByRole("option", { name: "D:/Other/original.z64" }).click());
+  await act(async () => button(host, "Use this original").click());
+
+  expect(select).toHaveBeenCalledWith(originalTarget, "alternative");
+  expect(reread).toHaveBeenCalledTimes(2);
+});
+
+it("offers verified relinking for the recorded original of an already prepared installation", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(selectedOriginalView());
+  vi.spyOn(desktopApi, "reviewModSetupOriginal").mockResolvedValue({
+    ...originalReview,
+    embedded: true,
+    instances: [],
+  });
+  const pick = vi.spyOn(picker, "pickSourcePath").mockResolvedValue("D:/Moved/recorded.z64");
+  const relink = vi.spyOn(desktopApi, "relinkModSetupOriginal").mockResolvedValue(undefined);
+  const host = await render();
+
+  await act(async () => button(host, "Review original game files").click());
+  expect(host.textContent).toContain("This installation uses game data it already prepared.");
+  expect(host.querySelector('[role="combobox"]')).toBeNull();
+  await act(async () => button(host, "Find the same original").click());
+
+  expect(pick).toHaveBeenCalledWith(
+    originalReview.source_profile,
+    originalReview.current_path,
+    "game",
+  );
+  expect(relink).toHaveBeenCalledWith(originalTarget, "D:/Moved/recorded.z64");
 });

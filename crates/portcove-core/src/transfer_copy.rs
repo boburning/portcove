@@ -178,6 +178,13 @@ pub(crate) fn copy_database(library: &Library, plan: &LibraryMovePlan) -> Result
                 ));
             }
         }
+        if plan.metadata.schema_version >= 12 {
+            crate::portability::restore_saved_originals(
+                &transaction,
+                &plan.metadata,
+                &plan.destination_root,
+            )?;
+        }
         transaction.commit()?;
     }
     temporary.as_file().sync_all()?;
@@ -271,6 +278,13 @@ pub(crate) fn verify_metadata(
 ) -> Result<()> {
     let mut metadata = library.metadata_for_root(&fs::canonicalize(library.root())?)?;
     let mut expected = expected_metadata.clone();
+    for source in expected
+        .source_references
+        .iter_mut()
+        .chain(&mut expected.source_instances)
+    {
+        *source = crate::portability::source_for_import(expected_metadata, source, library.root())?;
+    }
     metadata.original_root = expected.original_root.clone();
     metadata.exported_at = 0;
     expected.exported_at = 0;

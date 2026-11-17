@@ -424,7 +424,7 @@ pub(crate) fn validate_metadata(
     metadata: &LibraryMetadata,
     catalogs: &PortabilityCatalogs,
 ) -> Result<()> {
-    if !matches!(metadata.schema_version, 1..=11) {
+    if !matches!(metadata.schema_version, 1..=12) {
         return Err(PortcoveError::unsupported(
             "unsupported library metadata schema",
         ));
@@ -456,7 +456,7 @@ pub(crate) fn validate_metadata(
         _ => artwork_expected.as_slice(),
     };
     match (&metadata.artwork, metadata.schema_version) {
-        (Some(artwork), 3..=11) => {
+        (Some(artwork), 3..=12) => {
             if metadata.schema_version < 10
                 && (!artwork.withdrawals.is_empty() || !artwork.evicted_assets.is_empty())
             {
@@ -516,6 +516,40 @@ pub(crate) fn validate_metadata(
         {
             return Err(PortcoveError::verification(
                 "metadata has an invalid or repeated source reference",
+            ));
+        }
+    }
+    if !metadata.source_instances.is_empty() && metadata.schema_version < 12 {
+        return Err(PortcoveError::verification(
+            "original instances require library metadata schema 12",
+        ));
+    }
+    let mut identities = metadata
+        .source_references
+        .iter()
+        .map(|source| {
+            crate::source_instances::identity(&crate::profile::bind_original(
+                &source.profile_id,
+                source,
+            ))
+        })
+        .collect::<Result<BTreeSet<_>>>()?;
+    for source in &metadata.source_instances {
+        catalogs.require_source_profile(&source.profile_id)?;
+        if let Some(identity) = &source.observed_identity {
+            identity.validate_for_record(source)?;
+        }
+        let identity = crate::source_instances::identity(&crate::profile::bind_original(
+            &source.profile_id,
+            source,
+        ))?;
+        if !identities.insert(identity)
+            || source.path.as_os_str().is_empty()
+            || !sha256(&source.sha256)
+            || !sha256(&source.storage_sha256)
+        {
+            return Err(PortcoveError::verification(
+                "metadata has an invalid or repeated original instance",
             ));
         }
     }
@@ -600,12 +634,12 @@ pub(crate) fn validate_metadata(
 fn retained_references_by_install(
     metadata: &LibraryMetadata,
 ) -> Result<BTreeMap<&str, Vec<&crate::RetainedBuildReference>>> {
-    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=11) {
+    if !metadata.profiles.is_empty() && !matches!(metadata.schema_version, 6..=12) {
         return Err(PortcoveError::verification(
             "profiles require library metadata schema 6",
         ));
     }
-    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=11) {
+    if !metadata.library_memberships.is_empty() && !matches!(metadata.schema_version, 7..=12) {
         return Err(PortcoveError::verification(
             "library memberships require library metadata schema 7",
         ));
@@ -616,7 +650,7 @@ fn retained_references_by_install(
         &metadata.retained_build_references,
         metadata.schema_version >= 11,
     )?;
-    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=11)
+    if !metadata.retained_build_references.is_empty() && !matches!(metadata.schema_version, 5..=12)
     {
         return Err(PortcoveError::verification(
             "retained build references require library metadata schema 5",

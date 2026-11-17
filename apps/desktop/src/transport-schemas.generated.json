@@ -22138,6 +22138,13 @@
             "minimum": 0,
             "type": "integer"
           },
+          "source_instances": {
+            "description": "Other admitted original locations in metadata schema 12.",
+            "items": {
+              "$ref": "#/$defs/SourceRecord"
+            },
+            "type": "array"
+          },
           "source_references": {
             "items": {
               "$ref": "#/$defs/SourceRecord"
@@ -24807,6 +24814,13 @@
         "minimum": 0,
         "type": "integer"
       },
+      "source_instances": {
+        "description": "Other admitted original locations in metadata schema 12.",
+        "items": {
+          "$ref": "#/$defs/SourceRecord"
+        },
+        "type": "array"
+      },
       "source_references": {
         "items": {
           "$ref": "#/$defs/SourceRecord"
@@ -25574,6 +25588,13 @@
             "format": "uint32",
             "minimum": 0,
             "type": "integer"
+          },
+          "source_instances": {
+            "description": "Other admitted original locations in metadata schema 12.",
+            "items": {
+              "$ref": "#/$defs/SourceRecord"
+            },
+            "type": "array"
           },
           "source_references": {
             "items": {
@@ -42879,6 +42900,354 @@
       "profiles"
     ],
     "title": "ProfileInventory",
+    "type": "object"
+  },
+  "profile_original_instance": {
+    "$defs": {
+      "OriginalBinding": {
+        "additionalProperties": false,
+        "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement_id": {
+            "description": "The catalog source requirement this original satisfies.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "binding": {
+        "$ref": "#/$defs/OriginalBinding"
+      },
+      "instance_id": {
+        "type": "string"
+      },
+      "path": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "instance_id",
+      "binding",
+      "path"
+    ],
+    "title": "ProfileOriginalInstance",
+    "type": "object"
+  },
+  "profile_original_review": {
+    "$defs": {
+      "DiscIdentityProfile": {
+        "properties": {
+          "accepted_sha1": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_sha256": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_volume_ids": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "label": {
+            "type": "string"
+          },
+          "track_counts": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "label",
+          "accepted_sha1",
+          "accepted_sha256",
+          "accepted_volume_ids",
+          "track_counts"
+        ],
+        "type": "object"
+      },
+      "DiscSourceProfile": {
+        "properties": {
+          "discs": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/DiscIdentityProfile"
+            },
+            "type": "array"
+          },
+          "track_counts": {
+            "items": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "track_counts",
+          "discs"
+        ],
+        "type": "object"
+      },
+      "OriginalBinding": {
+        "additionalProperties": false,
+        "description": "One required original, bound by observed content and storage identity rather\nthan by path, so relocation and rescans cannot silently change which original\na profile means.",
+        "properties": {
+          "observed_identity_sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "requirement_id": {
+            "description": "The catalog source requirement this original satisfies.",
+            "type": "string"
+          },
+          "sha256": {
+            "type": "string"
+          },
+          "size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "storage_sha256": {
+            "type": "string"
+          },
+          "storage_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          }
+        },
+        "required": [
+          "requirement_id",
+          "sha256",
+          "size",
+          "storage_sha256",
+          "storage_size"
+        ],
+        "type": "object"
+      },
+      "ProfileOriginalInstance": {
+        "properties": {
+          "binding": {
+            "$ref": "#/$defs/OriginalBinding"
+          },
+          "instance_id": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "instance_id",
+          "binding",
+          "path"
+        ],
+        "type": "object"
+      },
+      "SourceKind": {
+        "enum": [
+          "file",
+          "file-set",
+          "relative-file-set",
+          "gamecube-disc",
+          "psx-disc",
+          "upstream-validated-disc"
+        ],
+        "type": "string"
+      },
+      "SourceMemberProfile": {
+        "properties": {
+          "accepted_crc32": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_filenames": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_sha1": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_sha256": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "accepted_filenames",
+          "accepted_sha1",
+          "accepted_sha256",
+          "accepted_crc32"
+        ],
+        "type": "object"
+      },
+      "SourceProfile": {
+        "properties": {
+          "accepted_extensions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_sha1": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "accepted_sha256": {
+            "default": [],
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "disc": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/DiscSourceProfile"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/$defs/SourceKind",
+            "default": "file"
+          },
+          "label": {
+            "type": "string"
+          },
+          "members": {
+            "default": [],
+            "items": {
+              "$ref": "#/$defs/SourceMemberProfile"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "label",
+          "accepted_extensions",
+          "accepted_sha1",
+          "accepted_sha256",
+          "kind",
+          "disc",
+          "members"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "current_instance_id": {
+        "type": "string"
+      },
+      "current_path": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "embedded": {
+        "type": "boolean"
+      },
+      "instances": {
+        "description": "Other saved instances whose current bytes the retained contract admits.",
+        "items": {
+          "$ref": "#/$defs/ProfileOriginalInstance"
+        },
+        "type": "array"
+      },
+      "source_profile": {
+        "$ref": "#/$defs/SourceProfile"
+      }
+    },
+    "required": [
+      "source_profile",
+      "current_instance_id",
+      "current_path",
+      "embedded",
+      "instances"
+    ],
+    "title": "ProfileOriginalReview",
     "type": "object"
   },
   "profile_recipe": {

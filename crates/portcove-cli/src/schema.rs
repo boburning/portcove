@@ -784,6 +784,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
                 >(contract)),
             ),
             (
+                "profile_original_instance",
+                serde_json::json!(
+                    schema_for_contract::<portcove_core::ProfileOriginalInstance>(contract)
+                ),
+            ),
+            (
                 "profile_inventory",
                 serde_json::json!(schema_for_contract::<portcove_core::ProfileInventory>(
                     contract
@@ -844,6 +850,12 @@ pub(crate) fn document(contract: SchemaContract) -> serde_json::Value {
             (
                 "mod_code_review",
                 serde_json::json!(schema_for_contract::<portcove_core::ModCodeReview>(
+                    contract
+                )),
+            ),
+            (
+                "profile_original_review",
+                serde_json::json!(schema_for_contract::<portcove_core::ProfileOriginalReview>(
                     contract
                 )),
             ),

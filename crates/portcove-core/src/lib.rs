@@ -103,6 +103,7 @@ mod mod_provider;
 mod native_mod_list;
 mod profile;
 mod profile_deploy;
+mod profile_originals;
 mod provider_auto_update;
 mod provider_browse;
 mod provider_client;
@@ -137,6 +138,7 @@ mod source_file;
 mod source_import;
 mod source_inbox;
 mod source_inspection;
+mod source_instances;
 mod source_report;
 mod source_reuse;
 mod source_zip;
@@ -362,6 +364,7 @@ pub use profile::{
 pub use profile_deploy::{
     LiveMods, LocalModPackagePlan, ModCodeReview, ModSetupsView, NativeModListStatus,
 };
+pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
 pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan, ProviderWrapper};
@@ -497,8 +500,10 @@ pub use windows_runtime::{
 // library schema versions are independent and unchanged.
 // Public87 adds explicit compiled official-catalog setup for normal clients.
 // Its source-bound confirmation is separate from the unchanged CLI authority plan.
-// Public 94 adds the exact local mod package review contract.
-pub const API_SCHEMA_VERSION: u32 = 95;
+// Public 94 adds exact local mod package review and apply.
+// Public 95 binds reviewed Thunderstore packages to their exact wrapper closure.
+// Public 96 adds saved original-instance selection and byte-verified relinking.
+pub const API_SCHEMA_VERSION: u32 = 96;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

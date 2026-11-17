@@ -1263,6 +1263,25 @@ export default interface Resources {
       "noneOn": "no mods on",
       "on_one": "{{count}} mod on",
       "on_other": "{{count}} mods on",
+      "original": {
+        "choose": "Choose an original",
+        "embedded": "This installation uses game data it already prepared. To use a different original, prepare another installation with it.",
+        "heading": "Original game files",
+        "identity": "File details",
+        "noAlternatives": "No other registered original is available for this setup.",
+        "registered": "Other registered originals",
+        "relink": "Find the same original",
+        "relinked": "Updated the saved location for this original.",
+        "review": "Review original game files",
+        "sameLocation": "{{path}} ({{identity}})",
+        "selected": "Saved the original game files for this setup.",
+        "status": {
+          "changed": "The saved original differs from the file this setup recorded.",
+          "missing": "The file this setup recorded is missing.",
+          "verified": "The original matches the file this setup recorded."
+        },
+        "use": "Use this original"
+      },
       "otherBuild": "This setup stays on the game version it was made with, so game updates don’t change it. To try these mods with the game’s current version, copy the setup onto it. This setup and its saves stay as they are.",
       "outcome": {
         "added": "Added a mod to {{name}}.",
@@ -1858,7 +1877,7 @@ export default interface Resources {
       "interrupted": "If interrupted, reopen Settings and check whether the location remains before trying again.",
       "keep": "Keep location",
       "noInstalled": "No installed game currently depends on this location.",
-      "notDeleted": "Removing this location does not move or delete files at the path above, installed game versions, game saves, backups, or other saved locations. Only this library's location is removed.",
+      "notDeleted": "Removing this location does not move or delete files at the path above, installed game versions, game saves, backups, or other saved locations. Only this library's location is removed. Setups that need these original files will ask you to find them again.",
       "refreshList": "Refresh saved-file list",
       "remove": "Remove saved location…",
       "removedRefresh": "The saved location was removed. Refresh the list to see the current files.",
