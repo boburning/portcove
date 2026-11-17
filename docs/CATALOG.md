@@ -854,11 +854,12 @@ provider digest, write locations and process lifetime remain the author's review
 Put the actual next game-setup step first in the authored manual guide: original
 files the game will request, a required manual preparation, or an explicit statement
 that the package is ready for Play. Avoid a redundant first step telling the player
-to install. Desktop uses this first step in the managed installation review and
-keeps the guide in Files even when Core needs no source profile. Listing guides
-also survive as saved-download handoffs after a definition disappears. Keep their
-steps truthful for both routes, spell out any external launch arguments, and put
-managed retention/backup/replacement details in the integration's
+to install. Put the managed step in the integration's guide when it belongs
+in the managed installation review. The full guide is available in Files even
+when Core needs no source profile. Listing guides also survive as saved-download
+handoffs after a definition disappears. Spell out any external launch arguments
+in the upstream guide and put managed retention, backup and replacement details
+in the integration's
 `presentation.manual_preparation`, which Desktop scopes to managed ownership.
 An empty Core
 input requirement describes Portcove's action; it does not assert that the upstream
@@ -1519,6 +1520,12 @@ presentation: preserve aspect ratio, show the complete cover, and use the card's
 surface instead of a generated colored matte. Discover and Library cards draw
 an offline controller illustration whenever a usable cover is missing or fails
 to render.
+
+A managed definition for two games can also declare `integration.presentation.companion_cover`
+in its authored record. Verify the second game's IGDB identity and image digest
+independently. Discover's Covers layout shows both full images when the primary
+is the current catalog default and the companion loads. A missing companion
+leaves the primary visible. The usual local cover choice takes precedence.
 
 The [2026-09-30 identity receipt](archive/2026-09-30-igdb-catalog-cover-identities.json)
 records the catalog-wide preparation, accepted port and original identities, and
@@ -2316,14 +2323,14 @@ execution identity. Because the catalog is embedded, acceptance reaches players
 with the next application release. A selected independent definition may keep
 or remove accepted uploaders but cannot add one.
 
-### Generated reviewed package shapes (shadow)
+<a id="generated-reviewed-package-shapes-shadow"></a>
 
-Issue #5359 generalizes the fingerprint into a Core-derived package shape for
-every managed portable route, without per-route authoring. Phase 1 only
-records a verdict; it refuses nothing, and the explicit fingerprint above stays
-the only package-layout refusal. The shape has six parts, each a sorted, bounded
-set of lowercase package-relative paths computed after wrapper look-through and
-declared-executable grants, before any adapter adds content:
+### Generated reviewed package shapes
+
+Core derives a package shape for each managed portable route (#5359). Its six
+parts are sorted, bounded sets of lowercase package-relative paths. Core derives
+them after package normalization and declared-executable grants, before adding
+original game inputs or bundled runtimes:
 
 - `programs`: the fingerprint's program and script classifier, unchanged;
 - `top_directories`;
@@ -2347,6 +2354,20 @@ reported as unknown, never as a pass: an explicit fingerprint knows only
 programs and top-level directories, and an unresolved declared executable, or a
 declared persistent path or pattern that cannot be located relative to the
 package root, leaves the persistent parts unknown.
+
+A known change against a reviewed baseline withholds the candidate before
+publication. A local shape can supply that baseline when its reviewed or
+inherited provenance is retained. Comparisons against an unreviewed local
+shape remain visible as observations.
+The native portable, staged-source, N64 recompilation, libultraship, PSX
+recompilation and generated-cache templates advertise the capability. The
+embedded catalog uses the installed template capability. Indexed definitions
+use the version they negotiate, so a definition capped below the enforcement
+capability still records the comparison without adding the refusal. Unknown
+parts remain visible, and the other acquisition and layout checks still apply.
+If an exact candidate has a retained refusal observation, an update check
+recomputes its verdict with the current applicable baseline before saying the
+release is waiting for review.
 
 The baseline is, in order: the generated table entry for the exact artifact,
 else the route's newest generated entry; the explicit fingerprint; the shape
@@ -2841,12 +2862,13 @@ the listing guide. The discovery directory keeps the upstream guide.
 
 For a warning specific to one managed package, author
 `managed_setup_platform_warnings` in the port record by exact managed platform.
-Catalog generation emits this copy for Desktop separately from signed and retained
-definitions. The managed install review combines the authored managed guide with
-warnings for the platform in its install plan, including when a port definition
-still carries an older guide. The route-wide guide also serves readers without
-this Desktop copy.
-Keep upstream package warnings in the listing.
+Catalog generation emits Desktop review copy from the authored integration guide
+or the explicit managed preparation in `route_facts_v1`. The managed install and
+managed-copy reviews use a matching managed step and the warnings in the selected
+definition. Explicit platform warnings can also supply the managed review for an
+older definition. Otherwise, legacy inherited guidance gets the standard package
+and ownership summary, with its existing warnings visible. The full guide remains
+available in the game instructions. Keep upstream package warnings in the listing.
 
 Managed PS1 generation and rebuild use the owned pinned toolchain, whose critical
 file identities are rechecked before each builder process. Both prohibit the kit's

@@ -4,6 +4,14 @@
     "id": "demonssoulsrecomp-jonathandc64-demon-s-souls",
     "name": "Demon's Souls — DemonsSoulsRecomp (JonathanDC64)",
     "original_game_title": "Demon's Souls",
+    "artwork": {
+      "game_id": 5619,
+      "cover_id": 103412,
+      "image_id": "co27sk",
+      "image_sha256": "65f71553ad5995532f8dbf93e6b10058f1b05372335ddf0cae4e44f69011bb0b",
+      "game_slug": "demon-s-souls",
+      "match_kind": "underlying-game"
+    },
     "summary": "The project reports early play of Boletarian Palace 1-1. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/JonathanDC64/Soulbrandt",
     "listed_at": "2026-10-25",

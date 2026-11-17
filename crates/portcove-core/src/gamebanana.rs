@@ -142,6 +142,7 @@ fn parse_file(value: &Value, web_root: &str) -> Option<ProviderFileCandidate> {
         claimed_md5: md5,
         archived: value["_bIsArchived"].as_bool().unwrap_or(false),
         claimed_scan: value["_sAvResult"].as_str().map(sanitize_text),
+        thunderstore_dependencies: None,
     })
 }
 

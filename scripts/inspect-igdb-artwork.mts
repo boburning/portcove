@@ -524,6 +524,59 @@ function acceptedOriginal(declared: DeclaredIdentity, context: ArtworkContext) {
   return unique.size === 1 ? structuredClone([...unique.values()][0]) : null;
 }
 
+async function inspectCoverContent(
+  imageId: string,
+  kind: IgdbArtworkMatch,
+  context: ArtworkContext,
+  exceptions: ArtworkException[],
+) {
+  if (!context.images.has(imageId)) {
+    if (context.metrics.image_queries >= 400 || context.metrics.image_bytes >= maximumBatchBytes) {
+      exceptions.push(exception(kind, "batch-image-budget-exhausted"));
+      return null;
+    }
+    context.metrics.image_queries++;
+    context.images.set(
+      imageId,
+      Promise.resolve()
+        .then(() => {
+          if (!context.inspectImage) throw new Error("Artwork image inspector unavailable.");
+          return context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes);
+        })
+        .then((value) => {
+          const content = observedContent(value);
+          context.metrics.image_bytes += content.bytes;
+          if (context.metrics.image_bytes > maximumBatchBytes)
+            throw new Error("Batch image byte budget exceeded.");
+          return content;
+        }),
+    );
+  }
+  let content;
+  try {
+    content = await context.images.get(imageId);
+    context.signal?.throwIfAborted();
+    if (!content) throw new Error("Image observation disappeared.");
+  } catch (error) {
+    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
+      context.goneImages.add(imageId);
+      exceptions.push(goneImageException(kind, imageId));
+    } else {
+      if (context.signal?.aborted) throw error;
+      exceptions.push(
+        exception(
+          kind,
+          error instanceof ArtworkBatchExhausted
+            ? "batch-provider-budget-exhausted"
+            : "image-unavailable-or-invalid",
+        ),
+      );
+    }
+    return null;
+  }
+  return content;
+}
+
 async function selectCover(
   identity: unknown,
   kind: IgdbArtworkMatch,
@@ -596,50 +649,8 @@ async function selectCover(
     return null;
   }
   const imageId = cover.image_id;
-  if (!context.images.has(imageId)) {
-    if (context.metrics.image_queries >= 400 || context.metrics.image_bytes >= maximumBatchBytes) {
-      exceptions.push(exception(kind, "batch-image-budget-exhausted"));
-      return null;
-    }
-    context.metrics.image_queries++;
-    context.images.set(
-      imageId,
-      Promise.resolve()
-        .then(() => {
-          if (!context.inspectImage) throw new Error("Artwork image inspector unavailable.");
-          return context.inspectImage(imageId, maximumBatchBytes - context.metrics.image_bytes);
-        })
-        .then((value) => {
-          const content = observedContent(value);
-          context.metrics.image_bytes += content.bytes;
-          if (context.metrics.image_bytes > maximumBatchBytes)
-            throw new Error("Batch image byte budget exceeded.");
-          return content;
-        }),
-    );
-  }
-  let content;
-  try {
-    content = await context.images.get(imageId);
-    context.signal?.throwIfAborted();
-    if (!content) throw new Error("Image observation disappeared.");
-  } catch (error) {
-    if (isRecord(error) && goneImageObservations.get(error) === imageId) {
-      context.goneImages.add(imageId);
-      exceptions.push(goneImageException(kind, imageId));
-    } else {
-      if (context.signal?.aborted) throw error;
-      exceptions.push(
-        exception(
-          kind,
-          error instanceof ArtworkBatchExhausted
-            ? "batch-provider-budget-exhausted"
-            : "image-unavailable-or-invalid",
-        ),
-      );
-    }
-    return null;
-  }
+  const content = await inspectCoverContent(imageId, kind, context, exceptions);
+  if (!content) return null;
   context.goneImages.delete(imageId);
   return {
     mapping: {
@@ -806,6 +817,24 @@ export async function prepareCatalogArtwork(
     const selected =
       (await selectCover(declarations?.port, "port", context, exceptions)) ??
       (await selectCover(declarations?.underlying_game, "underlying-game", context, exceptions));
+    const companion = port.presentation?.companion_cover;
+    if (context.refreshing && validArtworkMapping(companion)) {
+      const content = await inspectCoverContent(
+        companion.image_id,
+        companion.match_kind,
+        context,
+        exceptions,
+      );
+      if (content?.sha256 === companion.image_sha256) context.goneImages.delete(companion.image_id);
+      else if (content)
+        exceptions.push({
+          kind: companion.match_kind,
+          reason: "companion-image-digest-changed",
+          image_id: companion.image_id,
+          resume: "Review the changed cover before replacing its pinned digest.",
+        });
+    }
+
     if (!selected && reused && !context.goneImages.has(reused.image_id)) {
       port.presentation = { ...port.presentation, artwork: reused };
       context.metrics.reused++;
@@ -851,7 +880,7 @@ export async function prepareCatalogArtwork(
   // A later refreshed record can observe Gone for an earlier reused mapping.
   // Apply that exact-image fact to every output reference without extra requests.
   const invalidatedPortIds = applyGoneImageFallbacks(result, records, context);
-  removeWithdrawnCatalogMedia(result, [], context.goneImages);
+  const withdrawnCompanions = removeWithdrawnCatalogMedia(result, [], context.goneImages);
   assertPreparedArtwork(result);
   return {
     catalog: result,
@@ -861,7 +890,7 @@ export async function prepareCatalogArtwork(
     workset: {
       catalog_ports: catalog.ports.length,
       selected_port_ids: [...workset],
-      invalidated_port_ids: invalidatedPortIds,
+      invalidated_port_ids: [...new Set([...invalidatedPortIds, ...withdrawnCompanions])],
     },
   };
 }
@@ -887,7 +916,7 @@ export function reconcileCatalogArtworkWithdrawals(
     goneImages,
     metrics: prepared.metrics,
   });
-  removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages);
+  invalidated.push(...removeWithdrawnCatalogMedia(prepared.catalog, [], goneImages));
   prepared.gone_image_ids = [...goneImages].sort();
   prepared.workset.invalidated_port_ids = [
     ...new Set([...prepared.workset.invalidated_port_ids, ...invalidated]),
@@ -1565,6 +1594,14 @@ async function prepareHeroIdentity(
     }
   }
 }
+export function withdrawCompanionCover(port: ArtworkPort, gone: ReadonlySet<string>) {
+  const companion = port.presentation?.companion_cover;
+  if (!port.presentation || !validArtworkMapping(companion) || !gone.has(companion.image_id))
+    return false;
+  delete port.presentation.companion_cover;
+  return true;
+}
+
 function removeWithdrawnCatalogMedia(
   catalog: ArtworkCatalog,
   records: HeroMediaRecord[],
@@ -1572,7 +1609,9 @@ function removeWithdrawnCatalogMedia(
 ) {
   // A withdrawal invalidates every candidate reference, including unselected ports
   // and records completed earlier in this batch.
+  const companions = [];
   for (const port of catalog.ports) {
+    if (withdrawCompanionCover(port, gone)) companions.push(port.id);
     const artwork = port.presentation?.artwork;
     if (validArtworkMapping(artwork) && gone.has(artwork.image_id) && port.presentation)
       delete port.presentation.artwork;
@@ -1589,6 +1628,7 @@ function removeWithdrawnCatalogMedia(
   for (const record of records)
     if (record.image_id && gone.has(record.image_id))
       record.reason = "selected-image-gone-later-in-batch";
+  return companions;
 }
 
 /** Propose descriptive foreground assets through the existing identity/provider

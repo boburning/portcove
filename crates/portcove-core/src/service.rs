@@ -3037,7 +3037,9 @@ impl PortcoveService {
         release: &ResolvedRelease,
         observed_activity: Option<&crate::UpstreamActivity>,
     ) -> Result<UpdateCheck> {
-        let runtime = crate::runtime::required(self.catalog.port(port_id)?, Platform::current()?);
+        let port = self.catalog.port(port_id)?;
+        let platform = Platform::current()?;
+        let runtime = crate::runtime::required(port, platform);
         let installed_runtime = status
             .active
             .as_ref()
@@ -3056,7 +3058,35 @@ impl PortcoveService {
             .map(|install| self.install_matches_release(install, release, runtime.as_ref()))
             .transpose()?
             .is_none_or(|matches| !matches);
-        let port = self.catalog.port(port_id)?;
+        let withheld = if update_available
+            && let Some(capability) =
+                crate::package_shape::selected_enforcement_capability(&self.catalog, port)?
+        {
+            crate::package_shape::withheld::current(
+                &self.library,
+                port,
+                platform,
+                release,
+                capability,
+                || {
+                    Installer::new(self.library.clone())
+                        .and_then(|installer| installer.local_shape_baseline(port, platform))
+                        .ok()
+                        .flatten()
+                },
+            )
+            .unwrap_or_else(|error| {
+                tracing::warn!(%error, port_id, "could not read the package shape observation");
+                None
+            })
+        } else {
+            None
+        };
+        if let Some(verdict) = &withheld {
+            return Err(crate::package_shape::withheld::refusal(
+                port, release, verdict,
+            ));
+        }
         let check = UpdateCheck {
             port_id: port_id.into(),
             channel: status.channel,
@@ -16493,8 +16523,8 @@ fn main() {
         register_existing_test_install(&library, "opengoal-jak1", "v1", &install, true);
         let folder = temporary.path().join("nas");
         fs::create_dir(&folder).unwrap();
-        let folder = library.add_game_file_root(&folder).unwrap().path;
         let source_path = folder.join("jak1.iso");
+        let folder = library.add_game_file_root(&folder).unwrap().path;
         fs::write(&source_path, b"registered source").unwrap();
         let (storage_sha256, storage_size) = crate::adapter::hash_file(&source_path).unwrap();
         library

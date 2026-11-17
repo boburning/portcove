@@ -94,7 +94,7 @@ fn inspection_accepts_exported_bytes_and_rejects_malformed_or_forged_recipes() {
         "digest binds content"
     );
     let mut future = serde_json::to_value(&recipe).unwrap();
-    future["format"] = serde_json::json!(2);
+    future["format"] = serde_json::json!(RECIPE_FORMAT + 1);
     assert_eq!(
         ProfileRecipe::inspect(future.to_string().as_bytes())
             .unwrap_err()
@@ -153,6 +153,7 @@ fn dependency_conflicts_and_cycles_are_refused_with_concrete_reasons() {
         size: 1,
         enabled: true,
         requires: requires.iter().map(|r| r.to_string()).collect(),
+        provider_requires: Vec::new(),
     };
     let mut missing = recipe.clone();
     missing.packages = vec![package("a.o2r", &["b.o2r"])];

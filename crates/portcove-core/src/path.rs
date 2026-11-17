@@ -6,6 +6,23 @@ use crate::{PortcoveError, Result};
 #[path = "path_property_tests.rs"]
 mod property_tests;
 
+/// Normalizes a Win32 path for a case-insensitive containment comparison:
+/// verbatim prefixes are removed, separators unified and trailing separators
+/// dropped. It never touches the filesystem.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn comparable_windows_path(path: &str) -> String {
+    let path = path.replace('/', "\\");
+    // `\\?\` verbatim prefix; `\\?\UNC\server\share` becomes `\\server\share`.
+    let path = match path.strip_prefix("\\\\?\\") {
+        Some(verbatim) => match verbatim.strip_prefix("UNC\\") {
+            Some(unc) => format!("\\\\{unc}"),
+            None => verbatim.to_owned(),
+        },
+        None => path,
+    };
+    path.trim_end_matches('\\').to_lowercase()
+}
+
 pub(crate) fn is_portcove_metadata(path: &Path) -> bool {
     path.to_str().is_some_and(|relative| {
         relative.split(['/', '\\']).any(|name| {

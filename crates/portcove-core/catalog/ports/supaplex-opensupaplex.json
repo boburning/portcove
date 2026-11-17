@@ -4,6 +4,14 @@
     "id": "supaplex-opensupaplex",
     "name": "OpenSupaplex",
     "original_game_title": "Supaplex",
+    "artwork": {
+      "game_id": 14418,
+      "cover_id": 253827,
+      "image_id": "co5fur",
+      "image_sha256": "e996680efe55bd7bd6788d77f091849bbcb43115507a8abd39af6180cd77bbd0",
+      "game_slug": "supaplex",
+      "match_kind": "underlying-game"
+    },
     "summary": "Guide Murphy through puzzles, collect Infotrons and avoid falling Zonks.",
     "project_url": "https://github.com/sergiou87/open-supaplex",
     "issue_number": 5684,

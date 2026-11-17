@@ -99,6 +99,36 @@ pub(crate) enum ProfileCommand {
         #[arg(long, value_name = "SHA256")]
         allow_mod_code: Option<String>,
     },
+    /// Review a local file and its effects in the specified setup.
+    PackagePlan {
+        /// Catalog port ID for the game.
+        port_id: String,
+        /// Setup ID shown by `profile setups`.
+        profile_id: String,
+        /// Local package file to inspect.
+        path: PathBuf,
+        /// Current setup revision shown by `profile setups`.
+        #[arg(long)]
+        expected_revision: u64,
+    },
+    /// Add a local file after the exact package review.
+    PackageApply {
+        /// Catalog port ID used in the package review.
+        port_id: String,
+        /// Setup ID used in the package review.
+        profile_id: String,
+        /// The same local package file read by `profile package-plan`.
+        path: PathBuf,
+        /// SHA-256 from `profile package-plan` for this file and setup.
+        #[arg(long)]
+        expected_plan: String,
+        /// Allow the exact reviewed mod code to run inside the game.
+        #[arg(long)]
+        allow_mod_code: bool,
+        /// Confirm applying the reviewed changes without a prompt.
+        #[arg(long)]
+        yes: bool,
+    },
     /// Enable or disable an installed package as a new revision.
     SetPackage {
         /// Catalog port ID owning the profile.
@@ -250,6 +280,8 @@ impl ProfileCommand {
             Self::Policy { .. } => "profile.policy",
             Self::Revise { .. } => "profile.revise",
             Self::InstallPackage { .. } => "profile.install-package",
+            Self::PackagePlan { .. } => "profile.package-plan",
+            Self::PackageApply { .. } => "profile.package-apply",
             Self::SetPackage { .. } => "profile.set-package",
             Self::RemovePackage { .. } => "profile.remove-package",
             Self::Activate { .. } => "profile.activate",
@@ -274,6 +306,7 @@ impl ProfileCommand {
                 | Self::Revisions { .. }
                 | Self::Live { .. }
                 | Self::Setups { .. }
+                | Self::PackagePlan { .. }
                 | Self::RecipeExport { .. }
                 | Self::RecipeInspect { .. }
                 | Self::RecipePlan { .. }
@@ -437,6 +470,23 @@ fn plan_text(plan: &portcove_core::ProviderInstallPlan) -> String {
             clean(&plan.download_sha256)
         ),
     ];
+    if plan.wrappers.len() > 1 {
+        for wrapper in &plan.wrappers {
+            lines.push(format!(
+                "  {} {} ({} bytes, SHA-256 {}): {}",
+                clean(&wrapper.provider.project),
+                clean(&wrapper.file.file_id),
+                wrapper.download_size,
+                clean(&wrapper.download_sha256),
+                wrapper
+                    .members
+                    .keys()
+                    .map(|id| clean(id))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            ));
+        }
+    }
     for member in &plan.members {
         lines.push(format!(
             "  package {} ({} assets, {} bytes, SHA-256 {}){}",
@@ -821,6 +871,104 @@ pub(crate) async fn execute(
             },
             |revision| format!("Package installed\n{}", revision_line(revision)),
         ),
+        ProfileCommand::PackagePlan {
+            port_id,
+            profile_id,
+            path,
+            expected_revision,
+        } => {
+            let plan =
+                service.plan_local_mod_package(&port_id, &profile_id, &path, expected_revision)?;
+            render_read_success(mode, name, plan, |plan| {
+                let mut lines = vec![format!(
+                    "{} · {} asset(s) · plan SHA-256 {}",
+                    clean(&plan.native_id),
+                    plan.asset_count,
+                    plan.plan_sha256
+                )];
+                if !plan.replaces.is_empty() {
+                    lines.push(format!(
+                        "Replaces: {}",
+                        plan.replaces
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                if !plan.overlapping_mods.is_empty() {
+                    lines.push(format!(
+                        "Shares assets with: {}",
+                        plan.overlapping_mods
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                if plan.conflicts_truncated {
+                    lines.push("Some other packages were outside the comparison limit.".into());
+                }
+                if !plan.required_mods.is_empty() {
+                    lines.push(format!(
+                        "Requires: {}",
+                        plan.required_mods
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                if !plan.missing_required_mods.is_empty() {
+                    lines.push(format!(
+                        "Missing or disabled: {}",
+                        plan.missing_required_mods
+                            .iter()
+                            .map(|name| clean(name))
+                            .collect::<Vec<_>>()
+                            .join(", ")
+                    ));
+                }
+                if plan.needs_code_permission {
+                    lines.push(format!(
+                        "Requires permission to run code at SHA-256 {}",
+                        plan.sha256
+                    ));
+                }
+                lines.join("\n")
+            })
+        }
+        ProfileCommand::PackageApply {
+            port_id,
+            profile_id,
+            path,
+            expected_plan,
+            allow_mod_code,
+            yes,
+        } => {
+            crate::require_confirmation(
+                "Install exactly this reviewed mod package?",
+                yes,
+                non_interactive,
+            )?;
+            render_read_success(
+                mode,
+                name,
+                service.apply_local_mod_package(
+                    &port_id,
+                    &profile_id,
+                    &path,
+                    &expected_plan,
+                    allow_mod_code,
+                )?,
+                |revision| {
+                    format!(
+                        "Installed reviewed mod package\n{}",
+                        revision_line(revision)
+                    )
+                },
+            )
+        }
         ProfileCommand::SetPackage {
             port_id,
             profile_id,
@@ -1080,6 +1228,7 @@ mod provider_text_tests {
                 claimed_md5: None,
                 archived,
                 claimed_scan: Some("clean".into()),
+                thunderstore_dependencies: None,
             }],
             unreadable_files: unreadable,
         }

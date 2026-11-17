@@ -339,22 +339,29 @@ function immutableJson(directory: string, name: string, value: unknown) {
 }
 function artworkCatalog(records: readonly AuthoredPort[]): ArtworkCatalog {
   return {
-    ports: records.map(({ listing, integration }) => ({
-      id: listing.id,
-      name: listing.name,
-      project_url: listing.project_url,
-      ...(listing.original_game_title
-        ? {
-            underlying_game: {
-              names: [listing.original_game_title],
-              project_url: listing.project_url,
-              evidence_url: listing.project_url,
-            },
-          }
-        : {}),
-      ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
-      presentation: { ...(listing.artwork ? { artwork: listing.artwork } : {}) },
-    })),
+    ports: records.map(({ listing, integration }) => {
+      const presentation = integration?.presentation;
+      const companion = isRecord(presentation) ? presentation.companion_cover : undefined;
+      return {
+        id: listing.id,
+        name: listing.name,
+        project_url: listing.project_url,
+        ...(listing.original_game_title
+          ? {
+              underlying_game: {
+                names: [listing.original_game_title],
+                project_url: listing.project_url,
+                evidence_url: listing.project_url,
+              },
+            }
+          : {}),
+        ...(integration?.source_profile ? { source_profile: integration.source_profile } : {}),
+        presentation: {
+          ...(listing.artwork ? { artwork: listing.artwork } : {}),
+          ...(companion !== undefined ? { companion_cover: companion } : {}),
+        },
+      };
+    }),
   };
 }
 function cachedValue(directory: string, key: string, input: string): unknown {
@@ -449,6 +456,12 @@ function preparedRecordOutputs(
     if (isRecord(presentation) && presentation.artwork !== undefined)
       copy.listing.artwork = presentation.artwork;
     else delete copy.listing.artwork;
+    const integrationPresentation = copy.integration?.presentation;
+    if (isRecord(integrationPresentation)) {
+      if (isRecord(presentation) && presentation.companion_cover !== undefined)
+        integrationPresentation.companion_cover = presentation.companion_cover;
+      else delete integrationPresentation.companion_cover;
+    }
     return checkedAuthoredPort(copy);
   });
   const shared: Record<string, unknown> = structuredClone(authored.catalog);

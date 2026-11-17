@@ -4,6 +4,14 @@
     "id": "cars-race-o-rama-recompiled-m1ndcrap-cars-race-o-rama",
     "name": "Cars Race-O-Rama — Cars Race-O-Rama Recompiled (m1ndcrap)",
     "original_game_title": "Cars Race-O-Rama",
+    "artwork": {
+      "game_id": 4749,
+      "cover_id": 111700,
+      "image_id": "co2e6s",
+      "image_sha256": "ff8eedebe790250c026bb2686f2eb1c75b23b474d234297640f92c2cecaa9ff7",
+      "game_slug": "cars-race-o-rama",
+      "match_kind": "underlying-game"
+    },
     "summary": "Start-to-finish claimed; slowdowns and bright lighting defects remain. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/m1ndcrap/Cars-Race-O-Rama-Recompiled",
     "listed_at": "2026-10-25",

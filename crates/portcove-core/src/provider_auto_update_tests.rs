@@ -710,3 +710,59 @@ async fn changed_file_facts_reconsider_a_hold_at_the_same_provider_file_id() {
     ));
     assert!(w.service.mod_setups(PORT).unwrap().held_updates.is_empty());
 }
+
+#[test]
+fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() {
+    let candidate = ProviderFileCandidate {
+        file_id: "2.0.0".into(),
+        file_name: "Owner-Root-2.0.0.zip".into(),
+        size: 1024,
+        added_at: 12,
+        download_url: "https://thunderstore.io/package/download/Owner/Root/2.0.0/".into(),
+        claimed_md5: None,
+        archived: false,
+        claimed_scan: None,
+        thunderstore_dependencies: Some(vec![crate::ThunderstoreDependency {
+            namespace: "Tools".into(),
+            package: "Shared".into(),
+            version: "1.0.0".into(),
+        }]),
+    };
+    let observation = ProviderUpdateObservation {
+        native_id: "root.nrm".into(),
+        provider: crate::ProviderPackageRef {
+            provider: "thunderstore".into(),
+            project: "Owner-Root".into(),
+            file: Some("1.0.0".into()),
+            version: Some("1.0.0".into()),
+        },
+        state: ProviderUpdateState::NewerFiles,
+        installed_version: Some("1.0.0".into()),
+        observed_version: Some("2.0.0".into()),
+        version_changed: true,
+        newer_files: vec![candidate.clone()],
+        freshness: None,
+        reason: None,
+    };
+    let installed = InstalledFile {
+        project: "Owner-Root".into(),
+        file: "1.0.0".into(),
+        packages: Vec::new(),
+        observation: &observation,
+    };
+    let key = |file: &ProviderFileCandidate| hold_key("profile", 1, &installed, file);
+    let tmp = tempfile::tempdir().unwrap();
+    let layout = Layout::for_user(tmp.path());
+    remember_hold(&layout, key(&candidate), "review the new graph");
+
+    let mut offered = candidate.clone();
+    assert!(read_holds(&layout).contains_key(&key(&offered)));
+    offered.thunderstore_dependencies.as_mut().unwrap()[0].version = "1.0.1".into();
+    assert!(!read_holds(&layout).contains_key(&key(&offered)));
+    offered.thunderstore_dependencies = Some(Vec::new());
+    assert!(!read_holds(&layout).contains_key(&key(&offered)));
+
+    let without_requirements = key(&offered);
+    offered.thunderstore_dependencies = None;
+    assert_eq!(key(&offered), without_requirements);
+}

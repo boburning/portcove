@@ -42,7 +42,11 @@
       "entryVersion": "<name /> (<version />)",
       "file": "<file /> ({{size}})",
       "fileArchived": "<file /> ({{size}}); archived, so it can’t be installed",
+      "fileDetails": "File details",
+      "fileId": "Provider file ID {{id}}",
+      "filePublished": "Published {{date}}",
       "filesLabel": "Files of {{name}}",
+      "filterPage": "Filter this page by name, version, or submitter",
       "heading": "Mods on {{provider}} for <name />",
       "ignored_one": "{{count}} other entry in the download isn’t a mod package and isn’t installed.",
       "ignored_other": "{{count}} other entries in the download aren’t mod packages and aren’t installed.",
@@ -59,7 +63,9 @@
       "member": "<file /> ({{size}})",
       "modsLabel": "{{provider}} mods",
       "next": "Next page",
+      "noActiveFiles": "No current files are listed.",
       "noFiles": "This mod has no files Portcove can list.",
+      "noMatches": "No matches on this page.",
       "noMods": "No mods on this page.",
       "notInUse": "This setup isn’t in use; its mods change the next time you use it.",
       "obsolete": "Its author marked it obsolete, so Portcove won’t install it.",
@@ -70,8 +76,11 @@
       "reviewAgain": "Review the file again.",
       "reviewFile": "File <file />, {{size}}.",
       "reviewHeading": "Review <project /> for <name />",
+      "showArchived": "Show archived files",
       "showFiles": "Show files of {{name}}",
+      "sourcePage": "Open project on {{provider}}",
       "stale": "{{provider}} couldn’t be reached, so this is earlier data from {{time}}. Check again before installing anything.",
+      "submittedBy": "Submitted by <name />",
       "truncated": "More shared files exist than are listed here.",
       "unreadable_one": "{{count}} more file on {{provider}} couldn’t be read safely and isn’t listed.",
       "unreadable_other": "{{count}} more files on {{provider}} couldn’t be read safely and aren’t listed.",
@@ -82,7 +91,6 @@
       "allow": "Allow its code and add",
       "cancel": "Don’t add",
       "digest": "Your permission covers only this exact file: <digest />. Portcove asks again for a different file, including a later version.",
-      "intro": "<name /> (<id />) runs its own code inside the game. Portcove can’t tell whether that code is safe, who wrote it or whether it works with this version of the game. Add it only if you trust where it came from.",
       "runs": "The game’s mod runtime turns the mod’s code into game code and runs it while you play."
     },
     "copy": "Copy this setup",
@@ -105,6 +113,19 @@
     "inUse": "In use",
     "laterPriority": "Later mods in this list take priority when two mods change the same thing.",
     "loadOrder": "The game loads mods in this order.",
+    "local": {
+      "add": "Add reviewed file",
+      "asset_one": "{{count}} asset",
+      "asset_other": "{{count}} assets",
+      "code": "This exact mod runs its own code inside the game. Add it only if you trust its source.",
+      "incomplete": "Some installed packages were outside the comparison limit.",
+      "missing": "Add or enable these required mods first.",
+      "overlap": "Shares assets with",
+      "replaces": "Replaces",
+      "requires": "Requires",
+      "review": "Review <file />",
+      "staysOff": "The replacement stays off."
+    },
     "modsIn": "Mods in {{name}}",
     "modsInHeading": "Mods in <name />",
     "native": {
@@ -157,6 +178,8 @@
       "removed": "Removed {{name}} from this setup."
     },
     "reread": "Read setups again",
+    "runtimeHeld": "This setup’s runtime needs attention.",
+    "runtimeVersion": "Game version {{version}}",
     "separator": ", ",
     "setups": "Setups",
     "updates": {
@@ -194,7 +217,9 @@
       "reviewFiles": "Review update files",
       "setup": "This setup"
     },
-    "use": "Use {{name}}"
+    "use": "Use {{name}}",
+    "useClean": "Switch to clean play",
+    "useCleanNamed": "Use {{name}} for clean play"
   },
   "panel": {
     "fileUnavailable": "This settings file is unavailable.",

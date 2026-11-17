@@ -17,8 +17,9 @@ use sha2::{Digest, Sha256};
 
 use crate::{PortcoveError, Result, zip_read};
 
+pub(crate) const MAX_ARCHIVE_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const LIMITS: zip_read::Limits = zip_read::Limits {
-    bytes: 4 * 1024 * 1024 * 1024,
+    bytes: MAX_ARCHIVE_BYTES,
     entries: 100_000,
     metadata: 64 * 1024 * 1024,
     zip64: true,
@@ -177,17 +178,19 @@ pub(crate) struct ExtractedPackages {
     pub files: Vec<std::path::PathBuf>,
     /// Entries that were not packages and were neither read nor written.
     pub ignored: usize,
+    pub extracted_bytes: u64,
 }
 
 const MAX_MEMBER_BYTES: u64 = 4 * 1024 * 1024 * 1024;
-const MAX_MEMBERS: usize = 64;
+pub(crate) const MAX_MEMBERS: usize = 64;
 /// Total bytes one wrapper may extract, however many members it lists.
-const MAX_EXTRACTED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
+pub(crate) const MAX_EXTRACTED_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 
 /// Extracts only members whose file extension the loader contract accepts,
 /// flattened to their plain file names. Everything else in the wrapper is left
 /// unread. A matching member with an unsafe path, a duplicate name or a size that
 /// disagrees with its header refuses the whole archive; nothing is deployed.
+#[cfg(test)]
 pub(crate) fn extract_packages(
     archive: &Path,
     destination: &Path,
@@ -196,18 +199,46 @@ pub(crate) fn extract_packages(
     extract_packages_capped(archive, destination, extensions, MAX_EXTRACTED_BYTES)
 }
 
+#[cfg(test)]
 fn extract_packages_capped(
     archive: &Path,
     destination: &Path,
     extensions: &[&str],
     max_total: u64,
 ) -> Result<ExtractedPackages> {
-    let mut zip = zip_read::open(File::open(archive)?, LIMITS, &mut |_| Ok(()))
+    extract_provider_packages(
+        archive,
+        destination,
+        extensions,
+        max_total,
+        MAX_MEMBERS,
+        1,
+        None,
+    )
+}
+
+/// Divides raw ZIP parser budgets across the wrappers known before extraction.
+pub(crate) fn extract_provider_packages(
+    archive: &Path,
+    destination: &Path,
+    extensions: &[&str],
+    max_total: u64,
+    max_members: usize,
+    wrappers: usize,
+    manifest: Option<(&str, &crate::ProviderFileCandidate)>,
+) -> Result<ExtractedPackages> {
+    let limits = zip_read::Limits {
+        entries: LIMITS.entries / wrappers,
+        metadata: LIMITS.metadata / wrappers as u64,
+        ..LIMITS
+    };
+    let mut zip = zip_read::open(File::open(archive)?, limits, &mut |_| Ok(()))
         .map_err(|error| invalid(&error.message))?;
     let mut names = BTreeSet::new();
     let mut files = Vec::new();
     let mut ignored = 0usize;
     let mut extracted_total = 0u64;
+    let mut manifest_seen = false;
     for index in 0..zip.len() {
         let (name, size, is_file) = {
             let entry = zip
@@ -228,6 +259,29 @@ fn extract_packages_capped(
                 .into_owned();
             (name, entry.size(), entry.is_file())
         };
+        if let Some((project_id, file)) = manifest
+            && name.eq_ignore_ascii_case("manifest.json")
+        {
+            const MAX_MANIFEST_BYTES: u64 = 32 * 1024;
+            if manifest_seen || name != "manifest.json" || !is_file || size > MAX_MANIFEST_BYTES {
+                return Err(invalid(
+                    "the Thunderstore wrapper manifest is ambiguous or too large",
+                ));
+            }
+            let mut entry = zip
+                .by_index(index)
+                .map_err(|error| invalid(&format!("invalid manifest entry: {error}")))?;
+            let mut bytes = Vec::new();
+            (&mut entry).take(size + 1).read_to_end(&mut bytes)?;
+            if bytes.len() as u64 != size {
+                return Err(invalid(
+                    "the Thunderstore wrapper manifest size disagrees with its header",
+                ));
+            }
+            crate::thunderstore::verify_wrapper_manifest(&bytes, project_id, file)?;
+            manifest_seen = true;
+            continue;
+        }
         let lower = name.to_ascii_lowercase();
         let matches = is_file
             && lower
@@ -246,7 +300,7 @@ fn extract_packages_capped(
         if size == 0 || size > MAX_MEMBER_BYTES {
             return Err(invalid("a package member has an unsupported size"));
         }
-        if files.len() >= MAX_MEMBERS || !names.insert(file_name.to_ascii_lowercase()) {
+        if files.len() >= max_members || !names.insert(file_name.to_ascii_lowercase()) {
             return Err(invalid(
                 "too many package members or a repeated package name",
             ));
@@ -270,7 +324,16 @@ fn extract_packages_capped(
         }
         files.push(path);
     }
-    Ok(ExtractedPackages { files, ignored })
+    if manifest.is_some() && !manifest_seen {
+        return Err(invalid(
+            "the Thunderstore wrapper has no root manifest.json",
+        ));
+    }
+    Ok(ExtractedPackages {
+        files,
+        ignored,
+        extracted_bytes: extracted_total,
+    })
 }
 
 /// Finds asset paths several enabled packages provide. `ordered` lists

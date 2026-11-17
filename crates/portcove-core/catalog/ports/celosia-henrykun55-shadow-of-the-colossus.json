@@ -4,6 +4,14 @@
     "id": "celosia-henrykun55-shadow-of-the-colossus",
     "name": "Shadow of the Colossus — Celosia (HenryKun55)",
     "original_game_title": "Shadow of the Colossus",
+    "artwork": {
+      "game_id": 2207,
+      "cover_id": 79055,
+      "image_id": "co1ozz",
+      "image_sha256": "9c625bb9076a364924df706cf9e5cb0bf4fc962cf9241191ae16ca0ce94b68cf",
+      "game_slug": "shadow-of-the-colossus",
+      "match_kind": "underlying-game"
+    },
     "summary": "This independent USA port uses different original files from LightVelox’s PAL port. Check this project’s status guide for current gameplay limits. Original files and setup are described below. Portcove has not verified setup or gameplay.",
     "project_url": "https://github.com/HenryKun55/celosia",
     "listed_at": "2026-10-25",

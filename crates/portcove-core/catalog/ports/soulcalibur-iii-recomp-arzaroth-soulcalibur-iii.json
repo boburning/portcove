@@ -4,6 +4,14 @@
     "id": "soulcalibur-iii-recomp-arzaroth-soulcalibur-iii",
     "name": "Soulcalibur III — Soulcalibur III Recomp (Arzaroth)",
     "original_game_title": "Soulcalibur III",
+    "artwork": {
+      "game_id": 1566,
+      "cover_id": 213347,
+      "image_id": "co4kmb",
+      "image_sha256": "59c5025aa359bf8c20063b21b73d13444cd32e141723a9eea26c41e08865923d",
+      "game_slug": "soulcalibur-iii",
+      "match_kind": "underlying-game"
+    },
     "summary": "This work in progress is reported to reach menus, character selection and fights with voices and music at one-third speed. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/TheBozos/SoulCaliburIII_Recomp",
     "listed_at": "2026-10-25",

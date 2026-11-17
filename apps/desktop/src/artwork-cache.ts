@@ -33,7 +33,7 @@ export const maximumRemoteRequests = 6;
 export const maximumConcurrentArtworkReads = 4;
 
 interface QueuedThumbnail {
-  state: ArtworkState | CatalogMediaAsset;
+  isCurrent: () => boolean;
   stillInterested: () => boolean;
   fetch: () => Promise<void>;
 }
@@ -204,8 +204,7 @@ export class ArtworkCache {
       if (this.remoteActive.size >= maximumRemoteRequests) break;
       if (this.remoteActive.has(key)) continue;
       this.remoteQueued.delete(key);
-      const display = this.entries.get(key);
-      if ((display?.state ?? display?.media) !== request.state) continue;
+      if (!request.isCurrent()) continue;
       if (!request.stillInterested() && !this.listeners.has(key)) {
         // Do not retain a loading entry whose request was discarded: a later
         // visit must be able to load it again without an explicit refresh.
@@ -245,43 +244,95 @@ export class ArtworkCache {
     stillInterested: () => boolean,
     refresh = false,
   ) {
-    const key = this.mediaKey(portId, media);
+    this.loadRemotePreview(
+      this.mediaKey(portId, media),
+      { media },
+      media.sha256,
+      0,
+      () => desktopApi.catalogMediaThumbnail(portId, media.id, media.sha256, this.generation),
+      stillInterested,
+      refresh,
+    );
+  }
+
+  companionKey(portId: string, primaryCacheId: string, sha256: string, revision: number) {
+    return JSON.stringify([portId, "companion-cover", primaryCacheId, sha256, revision]);
+  }
+
+  readCompanion(key: string) {
+    return this.entries.get(key) ?? empty;
+  }
+
+  subscribeCompanion(key: string, listener: () => void) {
+    return this.subscribeKey(key, listener);
+  }
+
+  loadCompanion(
+    key: string,
+    portId: string,
+    primaryCacheId: string,
+    sha256: string,
+    revision: number,
+    stillInterested: () => boolean,
+  ) {
+    this.loadRemotePreview(
+      key,
+      {},
+      sha256,
+      revision,
+      () =>
+        desktopApi.companionCoverThumbnail(
+          portId,
+          primaryCacheId,
+          sha256,
+          revision,
+          this.generation,
+        ),
+      stillInterested,
+    );
+  }
+
+  private loadRemotePreview(
+    key: string,
+    details: Pick<ArtworkDisplay, "media">,
+    sha256: string,
+    revision: number,
+    thumbnail: () => Promise<DesktopArtworkThumbnail>,
+    stillInterested: () => boolean,
+    refresh = false,
+  ) {
     if (!refresh && this.entries.has(key)) {
       this.refreshQueuedInterest(key, stillInterested);
       return;
     }
     if (!stillInterested() && !this.listeners.has(key)) return;
     if (this.remoteActive.has(key)) return;
-    this.publishKey(key, { media, loading: true });
+    const requested = { ...details, loading: true };
+    const isCurrent = () => this.entries.get(key) === requested;
+    this.publishKey(key, requested);
     this.remoteQueued.set(key, {
-      state: media,
+      isCurrent,
       stillInterested,
       fetch: async () => {
         try {
-          const thumbnail = await desktopApi.catalogMediaThumbnail(
-            portId,
-            media.id,
-            media.sha256,
-            this.generation,
-          );
-          const image = verifiedThumbnailUrl(thumbnail, media.sha256, 0);
-          if (this.entries.get(key)?.media !== media) return;
+          const image = verifiedThumbnailUrl(await thumbnail(), sha256, revision);
+          if (!isCurrent()) return;
           this.publishKey(key, {
-            media,
+            ...details,
             image,
             loading: false,
             onImageError: () => {
               if (this.entries.get(key)?.image !== image) return;
               this.publishKey(key, {
-                media,
+                ...details,
                 loading: false,
                 error: "This catalog image cannot be displayed.",
               });
             },
           });
         } catch (error) {
-          if (this.entries.get(key)?.media === media)
-            this.publishKey(key, { media, loading: false, error: errorText(error) });
+          if (isCurrent())
+            this.publishKey(key, { ...details, loading: false, error: errorText(error) });
         }
       },
     });
@@ -370,7 +421,11 @@ export class ArtworkCache {
     if (state.resolved_source.kind === "igdb_cover") {
       // Keep remote work separate from the local read lanes. Only current
       // viewport requests reach IPC; newer state replaces an undispatched one.
-      this.remoteQueued.set(key, { state, stillInterested, fetch: fetchThumbnail });
+      this.remoteQueued.set(key, {
+        isCurrent: () => this.entries.get(key)?.state === state,
+        stillInterested,
+        fetch: fetchThumbnail,
+      });
       this.drainRemote();
       return;
     }

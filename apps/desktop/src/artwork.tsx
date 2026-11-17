@@ -41,6 +41,7 @@ export function ArtworkProvider({
         catalog?.ports.map(({ id, presentation }) => [
           id,
           presentation?.artwork,
+          presentation?.companion_cover,
           presentation?.media,
         ]) ?? [],
         listings?.listings.map(({ id, artwork, media }) => [id, artwork, media]) ?? [],
@@ -87,6 +88,41 @@ export function useArtwork(portId: string, slot: ArtworkSlot, visible = true) {
     };
   }, [cache, portId, slot, visible]);
   return { cache, display };
+}
+
+export function useCompanionCover(
+  portId: string,
+  sha256: string | undefined,
+  primary: ArtworkDisplay,
+  visible: boolean,
+) {
+  const cache = useContext(ArtworkContext);
+  const source = primary.state?.resolved_source;
+  const primaryCacheId = source?.kind === "igdb_cover" ? source.cache_id : undefined;
+  const revision = primary.state?.choice.revision;
+  const key =
+    primaryCacheId && sha256 && revision !== undefined
+      ? cache?.companionKey(portId, primaryCacheId, sha256, revision)
+      : undefined;
+  const subscribe = useCallback(
+    (listener: () => void) =>
+      cache && key && visible ? cache.subscribeCompanion(key, listener) : () => {},
+    [cache, key, visible],
+  );
+  const read = useCallback(
+    () => (key ? cache?.readCompanion(key) : undefined) ?? unavailable,
+    [cache, key],
+  );
+  const display = useSyncExternalStore(subscribe, read, () => unavailable);
+  useEffect(() => {
+    let current = true;
+    if (visible && key && sha256 && primaryCacheId && revision !== undefined)
+      cache?.loadCompanion(key, portId, primaryCacheId, sha256, revision, () => current);
+    return () => {
+      current = false;
+    };
+  }, [cache, key, portId, primaryCacheId, revision, sha256, visible]);
+  return display;
 }
 
 export function useArtworkVisibility() {

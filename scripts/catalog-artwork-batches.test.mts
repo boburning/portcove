@@ -862,6 +862,49 @@ void test("logical artwork maintenance crosses 400 IDs, checkpoints interruption
   }
 });
 
+void test("a verified Gone image removes an out-of-workset companion without changing its primary cover", async () => {
+  const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
+  const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-companion-"));
+  try {
+    const fixture = await capturedArtworkRefresh();
+    const primary = {
+      game_id: 102,
+      cover_id: 203,
+      image_id: "retained",
+      image_sha256: "b".repeat(64),
+      game_slug: "retained",
+      match_kind: "port",
+    };
+    fixture.accepted.ports.push({
+      id: "combined",
+      presentation: {
+        artwork: primary,
+        companion_cover: fixture.accepted.ports[0]?.presentation?.artwork,
+      },
+    });
+    const { prepareCatalogArtwork } = await import("./inspect-igdb-artwork.mts");
+    const prepared = await prepareCatalogArtwork(fixture.accepted, {
+      ...fixture.options,
+      selectedPortIds: ["refresh-probe"],
+    });
+    assert.deepEqual(prepared.catalog.ports[1]?.presentation, { artwork: primary });
+    assert.ok(prepared.workset.invalidated_port_ids.includes("combined"));
+    const result = await prepareArtworkWorkset(fixture.accepted, {
+      root: scratch,
+      identities: fixture.options.identities,
+      validatorIdentity: null,
+      selectedPortIds: ["refresh-probe"],
+      refreshPortIds: ["refresh-probe"],
+      inspector: fixture.inspector,
+    });
+    assert.deepEqual(result.gone_image_ids, ["coexisting"]);
+    assert.deepEqual(result.catalog.ports[1]?.presentation, { artwork: primary });
+    assert.ok(result.workset.invalidated_port_ids.includes("combined"));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 void test("reobserved artwork invalidates an original mapping inherited while its alternative was Gone", async () => {
   const { prepareArtworkWorkset } = await import("./artwork-preparation-progress.mts");
   const scratch = mkdtempSync(join(tmpdir(), "portcove-artwork-reobserved-"));

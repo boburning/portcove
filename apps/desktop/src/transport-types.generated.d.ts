@@ -1297,6 +1297,7 @@ export interface TransportOutputs {
   listing_delivery_status: ListingDeliveryStatus;
   listing_statuses: OutputListingStatuses;
   live_mods: LiveMods;
+  local_mod_package_plan: OutputLocalModPackagePlan;
   managed_route_change_preview: OutputManagedRouteChangePreview;
   managed_route_change_result: OutputManagedRouteChangeResult;
   mod_code_review: OutputModCodeReview;
@@ -2552,6 +2553,10 @@ export interface ReviewedHoldArtifact {
  */
 export interface PortPresentation {
   artwork?: IgdbArtwork | null;
+  /**
+   * Cover for the second game in a combined definition's Discover card.
+   */
+  companion_cover?: IgdbArtwork | null;
   installation_method: InstallationMethod;
   manual_preparation?: string | null;
   manual_setup?: ManualSetupGuide | null;
@@ -4748,12 +4753,22 @@ export interface ResolvedPackage {
   native_id: string;
   native_version?: string | null;
   provider?: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   /**
    * Native IDs this package requires, from native metadata (not provider claims).
    */
   requires?: string[];
   sha256: string;
   size: number;
+}
+/**
+ * One exact provider wrapper and the complete set of native members it supplied.
+ */
+export interface ProviderRequirement {
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
 }
 /**
  * One binding per (port, setup). The caller supplies a stable opaque setup ID,
@@ -4961,6 +4976,26 @@ export interface LiveMods {
   unmanaged: string[];
   [k: string]: unknown;
 }
+/**
+ * Exact review of a file chosen for one setup. Paths stay local to the caller.
+ */
+export interface OutputLocalModPackagePlan {
+  asset_count: number;
+  conflicts_truncated: boolean;
+  expected_revision: number;
+  missing_required_mods: string[];
+  native_id: string;
+  needs_code_permission: boolean;
+  overlapping_mods: string[];
+  plan_sha256: string;
+  profile_id: string;
+  replaces: string[];
+  replaces_enabled: boolean;
+  required_mods: string[];
+  sha256: string;
+  size: number;
+  [k: string]: unknown;
+}
 export interface OutputManagedRouteChangePreview {
   current_registration: ExternalRuntimeRecord;
   external_data_will_be_copied: boolean;
@@ -5071,6 +5106,10 @@ export interface ProfileInventory {
 }
 export interface ProfileView {
   build_availability: RetainedBuildAvailability;
+  /**
+   * Version of the exact installed runtime this setup resolves to.
+   */
+  build_version?: string | null;
   originals: OriginalStatus[];
   profile: Profile;
   revision: ProfileRevision;
@@ -5632,6 +5671,7 @@ export interface RecipePackage {
   native_id: string;
   native_version: string | null;
   provider: ProviderPackageRef | null;
+  provider_requires?: ProviderRequirement[];
   requires: string[];
   sha256: string;
   size: number;
@@ -5729,6 +5769,20 @@ export interface ProviderFileCandidate {
   file_id: string;
   file_name: string;
   size: number;
+  /**
+   * Exact provider coordinates, independent of native loader requirements.
+   * Absent for providers that do not supply this field.
+   */
+  thunderstore_dependencies?: ThunderstoreDependency[] | null;
+  [k: string]: unknown;
+}
+/**
+ * One exact Thunderstore dependency coordinate from a version listing.
+ */
+export interface ThunderstoreDependency {
+  namespace: string;
+  package: string;
+  version: string;
   [k: string]: unknown;
 }
 export interface OutputProviderInstallPlan {
@@ -5763,6 +5817,10 @@ export interface OutputProviderInstallPlan {
    * What this plan relies on without verifying.
    */
   unverified_claims: string[];
+  /**
+   * Exact Thunderstore wrapper closure in dependency-first order.
+   */
+  wrappers?: ProviderWrapper[];
   [k: string]: unknown;
 }
 /**
@@ -5789,6 +5847,16 @@ export interface PlanMember {
   runs_code?: RecompExecution[];
   sha256: string;
   size: number;
+  [k: string]: unknown;
+}
+export interface ProviderWrapper {
+  download_sha256: string;
+  download_size: number;
+  file: ProviderFileCandidate;
+  members: {
+    [k: string]: string;
+  };
+  provider: ProviderPackageRef;
   [k: string]: unknown;
 }
 export interface OutputProviderProjectView {

@@ -4,6 +4,14 @@
     "id": "tsapz-trapteamrecomp-tsapz-skylanders-trap-team",
     "name": "Skylanders: Trap Team — tsapZ TrapTeamRecomp (tsapZ)",
     "original_game_title": "Skylanders: Trap Team",
+    "artwork": {
+      "game_id": 8509,
+      "cover_id": 91741,
+      "image_id": "co1ysd",
+      "image_sha256": "6451b8490a0246ad47c6fd28dea12cb33ef7c90403db54b66df33d5315562c4d",
+      "game_slug": "skylanders-trap-team",
+      "match_kind": "underlying-game"
+    },
     "summary": "Chapter 1 is reported to work. Later sections and installation on a clean machine have not been tested. See below for original-file requirements and setup. Portcove has not confirmed setup or gameplay.",
     "project_url": "https://github.com/tsapZ/TrapTeamRecomp",
     "listed_at": "2026-10-25",

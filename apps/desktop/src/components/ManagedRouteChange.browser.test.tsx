@@ -219,13 +219,13 @@ it.each([
   expect(apply).not.toHaveBeenCalled();
 });
 
-it("keeps authored save consequences visible before creating a managed copy", async () => {
+it("keeps legacy save warnings visible without an unscoped setup instruction", async () => {
   const warned = {
     ...port,
     presentation: {
       ...port.presentation!,
       manual_setup: {
-        steps: [{ title: "Choose the player", instruction: "Keep the complete package." }],
+        steps: [{ title: "Set up macOS", instruction: "Open the macOS disk image." }],
         warnings: ["Back up shared saves before switching installations."],
         references: [
           { title: "Inspected version", instruction: "The old version used profile/save.bin." },
@@ -240,6 +240,9 @@ it("keeps authored save consequences visible before creating a managed copy", as
   });
   await expect.element(warning).toBeVisible();
   expect(warning.element().closest("details")).toBeNull();
+  expect(page.getByRole("dialog").element().textContent).not.toContain(
+    "Open the macOS disk image.",
+  );
   const confirm = page.getByRole("button", { name: "Create managed copy", exact: true });
   expect(
     Boolean(

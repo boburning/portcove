@@ -520,6 +520,7 @@ fn a_missing_target_package_fails_before_any_departing_mod_is_removed() {
         size: 1,
         enabled: true,
         requires: Vec::new(),
+        provider_requires: Vec::new(),
     };
     let request = ProfileRevisionRequest {
         expected_revision: 1,
@@ -1494,6 +1495,7 @@ fn code_revision_request(expected: u64, sha: &str, size: u64) -> crate::ProfileR
             size,
             enabled: true,
             requires: Vec::new(),
+            provider_requires: Vec::new(),
         }]),
         ..Default::default()
     }
@@ -1713,4 +1715,52 @@ fn reviewing_a_package_reports_its_code_without_changing_anything() {
             .flatten(),
         None
     );
+}
+
+#[test]
+fn local_mod_review_binds_exact_bytes_and_reports_asset_overlap() {
+    let w = world();
+    let active = archive(&w.scratch, "active.otr", &[("assets/shared.png", b"old")]);
+    let local = archive(&w.scratch, "local.o2r", &[("assets/shared.png", b"local")]);
+    let mut installed = w
+        .service
+        .install_mod_package("starship", &w.default, &active, 1)
+        .unwrap();
+    let reviewed = w
+        .service
+        .plan_local_mod_package("starship", &w.default, &local, installed.revision)
+        .unwrap();
+    assert_eq!(reviewed.native_id, "local.o2r");
+    assert_eq!(reviewed.overlapping_mods, ["active.otr"]);
+    assert!(!reviewed.needs_code_permission);
+    assert!(!reviewed.conflicts_truncated);
+
+    let changed = archive(&w.scratch, "local.o2r", &[("assets/another.png", b"new")]);
+    let refused = w
+        .service
+        .apply_local_mod_package(
+            "starship",
+            &w.default,
+            &changed,
+            &reviewed.plan_sha256,
+            false,
+        )
+        .unwrap_err();
+    assert_eq!(refused.code, crate::ErrorCode::Conflict);
+    let refreshed = w
+        .service
+        .plan_local_mod_package("starship", &w.default, &changed, installed.revision)
+        .unwrap();
+    installed = w
+        .service
+        .apply_local_mod_package(
+            "starship",
+            &w.default,
+            &changed,
+            &refreshed.plan_sha256,
+            false,
+        )
+        .unwrap();
+    assert_eq!(installed.revision, reviewed.expected_revision + 1);
+    assert_eq!(installed.packages.len(), 2);
 }

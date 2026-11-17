@@ -3564,14 +3564,15 @@ function UninstalledPrimaryActions(
 ) {
   const port = model.sources.port;
   const presentation = port.presentation;
-  const review = authoredManagedSetupReview(port.id, model.plan);
+  const review = authoredManagedSetupReview(port.id, model.plan, presentation?.manual_setup);
   return (
     <InstallAction
       gameName={gameIdentityLabel(model.sources.port)}
       setupNote={
         review?.note ??
-        presentation?.manual_setup?.steps[0]?.instruction ??
-        (!model.sources.port.source_profile && !model.sources.port.bios_source_profile
+        (!presentation?.manual_setup?.steps.length &&
+        !port.source_profile &&
+        !port.bios_source_profile
           ? (presentation?.manual_preparation ?? undefined)
           : undefined)
       }

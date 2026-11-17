@@ -289,6 +289,12 @@ fn hold_key(
         candidate.archived,
         candidate.claimed_scan,
     ]);
+    let observation = match candidate.thunderstore_dependencies.as_deref() {
+        Some(dependencies) if !dependencies.is_empty() => {
+            serde_json::json!([observation, dependencies])
+        }
+        _ => observation,
+    };
     let fingerprint = hex::encode(Sha256::digest(observation.to_string()));
     format!(
         "{profile_id}|{revision}|{}|{}|{}|{fingerprint}",

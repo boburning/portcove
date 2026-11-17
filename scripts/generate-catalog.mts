@@ -9,7 +9,6 @@ import {
   reviewCompatibilityFixture,
   serializeCurrentCatalog,
   readCatalogSource,
-  projectAuthoredPort,
   catalogSourceNames,
 } from "./catalog-authoring.mts";
 import type { CurrentCatalog, NamedRecord } from "./catalog-authoring.mts";
@@ -665,19 +664,29 @@ if (preparing) {
   const listingsOutput = `${JSON.stringify(authored.directory, null, 2)}\n`;
   const managedSetupReview = Object.fromEntries(
     authored.records.flatMap((record) => {
-      const { listing, managed_setup_platform_warnings } = record;
-      if (!managed_setup_platform_warnings) return [];
-      const guide = projectAuthoredPort(record)?.presentation?.manual_setup;
-      if (!isRecord(guide) || !Array.isArray(guide.steps) || !isRecord(guide.steps[0]))
-        throw new Error(`${listing.id} has no projected managed setup step.`);
+      const { integration, listing, route_facts_v1, managed_setup_platform_warnings } = record;
+      const presentation = integration?.presentation;
+      const guide =
+        isRecord(presentation) && isRecord(presentation.manual_setup)
+          ? presentation.manual_setup
+          : undefined;
+      const managedNative = route_facts_v1?.managed_native;
+      if (!guide && !managedNative) return [];
+      const step: unknown = Array.isArray(guide?.steps)
+        ? guide.steps[0]
+        : managedNative?.preparation;
+      if (!isRecord(step) || typeof step.instruction !== "string")
+        throw new Error(`${listing.id} has no authored managed setup step.`);
       return [
         [
           listing.id,
-          {
-            note: guide.steps[0].instruction,
-            warnings: guide.warnings,
-            platform_warnings: managed_setup_platform_warnings,
-          },
+          managed_setup_platform_warnings
+            ? {
+                note: step.instruction,
+                warnings: guide?.warnings ?? [],
+                platform_warnings: managed_setup_platform_warnings,
+              }
+            : step.instruction,
         ],
       ];
     }),

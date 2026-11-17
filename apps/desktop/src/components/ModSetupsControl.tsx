@@ -1,3 +1,4 @@
+import type { OutputLocalModPackagePlan } from "../transport-types.generated";
 import type { TFunction } from "i18next";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { Trans } from "react-i18next";
@@ -8,7 +9,7 @@ import {
 } from "../features/game-file-discovery/use-standing-setup";
 import { pickModPackagePath } from "../file-picker";
 import { useAppTranslation } from "../localization";
-import type { LiveMods, ModCodeReview, ModSetupView, ModSetupsView } from "../types";
+import type { LiveMods, ModSetupView, ModSetupsView } from "../types";
 import { errorText } from "../view-model";
 import { Button } from "./ui/button";
 import { Checkbox } from "./ui/checkbox";
@@ -160,12 +161,12 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const [browserBusy, setBrowserBusy] = useState(false);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
-  // A chosen package that runs code waits here for the player's explicit choice.
-  const [codeReview, setCodeReview] = useState<{
-    profileId: string;
+  const [localReview, setLocalReview] = useState<{
     path: string;
-    review: ModCodeReview;
+    review: OutputLocalModPackagePlan;
   }>();
+  const setupHeading = useRef<HTMLHeadingElement>(null);
+  const addFile = useRef<HTMLButtonElement>(null);
   const copyId = useId();
   const headingId = useId();
   // A picker answer that arrives after this view was replaced is dropped.
@@ -194,14 +195,21 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   // The provider browser's work or open review locks every other change, so a
   // review always lands on the setup and revision it was made for.
   const locked = working || !fresh || browserBusy || recipeBusy;
-
   const { setups, selectedId, selected, heldUpdates, onOtherBuild, blocked } =
     currentModSetup(view);
+  const applicableReview =
+    selected &&
+    localReview?.review.profile_id === selected.profile.id &&
+    localReview.review.expected_revision === selected.profile.current_revision
+      ? localReview
+      : undefined;
+  if (localReview && !applicableReview) setLocalReview(undefined);
+  const changing = locked || Boolean(applicableReview);
   const nativeMessage = nativeListMessage(t, view.live);
 
   return (
     <section aria-labelledby={headingId} className="grid gap-3">
-      <h3 id={headingId} className="text-base font-semibold">
+      <h3 ref={setupHeading} id={headingId} tabIndex={-1} className="text-base font-semibold">
         {t("mods.heading")}
       </h3>
       <p className="text-sm text-pc-muted-foreground">{t("mods.intro")}</p>
@@ -217,7 +225,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
           <p className="text-sm">{t("mods.none")}</p>
           <Button
             variant="outline"
-            disabled={locked}
+            disabled={changing}
             onClick={() =>
               void perform(
                 () => desktopApi.createDefaultModSetup(portId, generation),
@@ -244,7 +252,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 key={entry.profile.id}
                 entry={entry}
                 inUse={entry.profile.id === selectedId}
-                disabled={locked || blocked}
+                disabled={changing || blocked}
                 onUse={() =>
                   void perform(
                     () => desktopApi.useModSetup(portId, entry.profile.id, generation),
@@ -269,7 +277,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
               <ModSetupPackages
                 key={selected.profile.id}
                 selected={selected}
-                disabled={locked || blocked}
+                disabled={changing || blocked}
                 setEnabled={(nativeId, value) =>
                   void perform(
                     () =>
@@ -305,8 +313,9 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
               </p>
               <ActionRow>
                 <Button
+                  ref={addFile}
                   variant="outline"
-                  disabled={locked || blocked}
+                  disabled={changing || blocked}
                   onClick={() =>
                     void reviewSelectedModPackage({
                       portId,
@@ -317,36 +326,38 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                       setWorking,
                       setFailure,
                       setOutcome,
-                      setCodeReview,
-                      perform,
-                      t,
+                      setLocalReview,
                     })
                   }
                 >
                   {t("mods.add")}
                 </Button>
               </ActionRow>
-              {codeReview?.profileId === selected.profile.id && (
-                <ModCodeConsent
-                  review={codeReview.review}
-                  locked={locked}
-                  allow={() => {
-                    const { path, review } = codeReview;
-                    setCodeReview(undefined);
+              {applicableReview && (
+                <LocalModPackageReview
+                  review={applicableReview.review}
+                  locked={locked || blocked}
+                  add={() => {
+                    const { path, review } = applicableReview;
+                    setLocalReview(undefined);
+                    setupHeading.current?.focus();
                     void perform(
                       () =>
-                        desktopApi.addModPackage(
+                        desktopApi.applyLocalModPackage(
                           portId,
                           selected.profile.id,
                           path,
-                          selected.profile.current_revision,
+                          review.plan_sha256,
                           generation,
-                          review.sha256,
+                          review.needs_code_permission,
                         ),
                       t("mods.outcome.added", { name: selected.profile.display_name }),
                     );
                   }}
-                  cancel={() => setCodeReview(undefined)}
+                  cancel={() => {
+                    setLocalReview(undefined);
+                    requestAnimationFrame(() => addFile.current?.focus());
+                  }}
                 />
               )}
               {view.provider && (
@@ -359,7 +370,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   profileName={selected.profile.display_name}
                   inUse={selected.profile.id === selectedId}
                   onBusyChange={setBrowserBusy}
-                  disabled={working || !fresh || blocked || recipeBusy}
+                  disabled={working || !fresh || blocked || recipeBusy || Boolean(applicableReview)}
                   updates={{
                     policy: selected.profile.intent?.update_policy ?? "review_updates",
                     automaticChecks: (view.last_automatic_checks ?? []).filter(
@@ -419,7 +430,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
         portId={portId}
         profileId={selected?.profile.id}
         generation={generation}
-        disabled={locked}
+        disabled={changing}
         onBusyChange={setRecipeBusy}
         onImported={refreshAfterProviderInstall}
       />
@@ -427,49 +438,79 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   );
 }
 
-function ModCodeConsent({
+function LocalModPackageReview({
   review,
   locked,
-  allow,
+  add,
   cancel,
 }: {
-  review: ModCodeReview;
+  review: OutputLocalModPackagePlan;
   locked: boolean;
-  allow: () => void;
+  add: () => void;
   cancel: () => void;
 }) {
   const { t } = useAppTranslation("gameSettings");
+  const heading = useRef<HTMLHeadingElement>(null);
+  const title = useId();
+  useEffect(() => {
+    heading.current?.focus();
+  }, []);
   return (
-    <Notice intent="warning">
-      <div data-slot="notice-body" className="grid gap-2">
+    <section aria-labelledby={title} className="grid gap-2 text-sm">
+      <h4 ref={heading} id={title} tabIndex={-1} className="font-semibold">
+        <Trans
+          t={t}
+          i18nKey="mods.local.review"
+          components={{ file: <bdi>{review.native_id}</bdi> }}
+        />
+      </h4>
+      {review.asset_count > 0 && <p>{t("mods.local.asset", { count: review.asset_count })}</p>}
+      {review.replaces.length > 0 && (
         <p>
-          <Trans
-            t={t}
-            i18nKey="mods.code.intro"
-            components={{
-              name: <bdi>{review.display_name}</bdi>,
-              id: <code dir="ltr">{review.native_id}</code>,
-            }}
-          />
+          {t("mods.local.replaces")} <bdi>{review.replaces.join(", ")}</bdi>
         </p>
-        <p>{t("mods.code.runs")}</p>
-        <p className="[overflow-wrap:anywhere]">
-          <Trans
-            t={t}
-            i18nKey="mods.code.digest"
-            components={{ digest: <code dir="ltr">{review.sha256}</code> }}
-          />
+      )}
+      {!review.replaces_enabled && <p>{t("mods.local.staysOff")}</p>}
+      {review.overlapping_mods.length > 0 && (
+        <p>
+          {t("mods.local.overlap")} <bdi>{review.overlapping_mods.join(", ")}</bdi>
         </p>
-        <ActionRow>
-          <Button disabled={locked} onClick={allow}>
-            {t("mods.code.allow")}
-          </Button>
-          <Button variant="outline" onClick={cancel}>
-            {t("mods.code.cancel")}
-          </Button>
-        </ActionRow>
-      </div>
-    </Notice>
+      )}
+      {review.conflicts_truncated && <p>{t("mods.local.incomplete")}</p>}
+      {review.required_mods.length > 0 && (
+        <p>
+          {t("mods.local.requires")} <bdi>{review.required_mods.join(", ")}</bdi>
+        </p>
+      )}
+      {review.missing_required_mods.length > 0 && (
+        <p role="status">
+          {t("mods.local.missing")} <bdi>{review.missing_required_mods.join(", ")}</bdi>
+        </p>
+      )}
+      {review.needs_code_permission && (
+        <Notice intent="warning">
+          <div data-slot="notice-body" className="grid gap-1">
+            <p>{t("mods.local.code")}</p>
+            <p>{t("mods.code.runs")}</p>
+            <p className="[overflow-wrap:anywhere]">
+              <Trans
+                t={t}
+                i18nKey="mods.code.digest"
+                components={{ digest: <code dir="ltr">{review.sha256}</code> }}
+              />
+            </p>
+          </div>
+        </Notice>
+      )}
+      <ActionRow>
+        <Button disabled={locked || review.missing_required_mods.length > 0} onClick={add}>
+          {t(review.needs_code_permission ? "mods.code.allow" : "mods.local.add")}
+        </Button>
+        <Button variant="outline" onClick={cancel}>
+          {t("mods.code.cancel")}
+        </Button>
+      </ActionRow>
+    </section>
   );
 }
 
@@ -511,9 +552,7 @@ async function reviewSelectedModPackage({
   setWorking,
   setFailure,
   setOutcome,
-  setCodeReview,
-  perform,
-  t,
+  setLocalReview,
 }: {
   portId: string;
   generation: number;
@@ -523,45 +562,27 @@ async function reviewSelectedModPackage({
   setWorking: (working: boolean) => void;
   setFailure: (failure: { text: string } | undefined) => void;
   setOutcome: (outcome: string | undefined) => void;
-  setCodeReview: (review: { profileId: string; path: string; review: ModCodeReview }) => void;
-  perform: (action: () => Promise<unknown>, success: string) => Promise<boolean>;
-  t: TFunction<"gameSettings">;
+  setLocalReview: (review: { path: string; review: OutputLocalModPackagePlan }) => void;
 }) {
-  const path = await pickModPackagePath(packageTypes);
-  // Closing the picker changes nothing and is not an error, and an
-  // answer for a view that was replaced is dropped.
-  if (typeof path !== "string" || !alive.current) return;
-  let review: ModCodeReview | null;
   setWorking(true);
   try {
-    review = await desktopApi.reviewModPackageCode(portId, path, generation);
+    const path = await pickModPackagePath(packageTypes);
+    if (typeof path !== "string" || !alive.current) return;
+    setFailure(undefined);
+    setOutcome(undefined);
+    const review = await desktopApi.planLocalModPackage(
+      portId,
+      selected.profile.id,
+      path,
+      selected.profile.current_revision,
+      generation,
+    );
+    if (alive.current) setLocalReview({ path, review });
   } catch (failure) {
     if (alive.current) setFailure({ text: errorText(failure) });
-    return;
   } finally {
     if (alive.current) setWorking(false);
   }
-  if (!alive.current) return;
-  // Code the player has not allowed for these exact bytes waits for
-  // an explicit choice; bytes allowed before install directly.
-  if (review && !review.already_allowed) {
-    setOutcome(undefined);
-    setFailure(undefined);
-    setCodeReview({ profileId: selected.profile.id, path, review });
-    return;
-  }
-  await perform(
-    () =>
-      desktopApi.addModPackage(
-        portId,
-        selected.profile.id,
-        path,
-        selected.profile.current_revision,
-        generation,
-        review?.sha256 ?? null,
-      ),
-    t("mods.outcome.added", { name: selected.profile.display_name }),
-  );
 }
 
 function ModSetupNotices({
@@ -822,6 +843,8 @@ function SetupRow({
 }) {
   const { t } = useAppTranslation("gameSettings");
   const enabled = (entry.revision.packages ?? []).filter((item) => item.enabled).length;
+  const clean = entry.build_availability === "verified" && enabled === 0;
+  const needsRuntime = entry.build_availability && entry.build_availability !== "verified";
   return (
     <li className="flex flex-wrap items-center gap-2 rounded-pc-md border border-pc-border p-2">
       <span className="min-w-0 flex-1 [overflow-wrap:anywhere]">
@@ -831,11 +854,23 @@ function SetupRow({
           · {enabled === 0 ? t("mods.noneOn") : t("mods.on", { count: enabled })}
         </span>
       </span>
+      {entry.build_version && (
+        <span className="text-sm text-pc-muted-foreground">
+          {t("mods.runtimeVersion", { version: entry.build_version })}
+        </span>
+      )}
+      {needsRuntime && (
+        <span className="text-sm text-pc-muted-foreground">{t("mods.runtimeHeld")}</span>
+      )}
       {inUse ? (
         <span className="text-sm font-semibold">{t("mods.inUse")}</span>
       ) : (
         <Button variant="outline" disabled={disabled} onClick={onUse}>
-          {t("mods.use", { name: entry.profile.display_name })}
+          {clean && entry.profile.is_default
+            ? t("mods.useClean")
+            : clean
+              ? t("mods.useCleanNamed", { name: entry.profile.display_name })
+              : t("mods.use", { name: entry.profile.display_name })}
         </Button>
       )}
     </li>

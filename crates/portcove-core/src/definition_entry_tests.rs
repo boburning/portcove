@@ -1192,6 +1192,9 @@ fn fresh_direct_entries_require_v26_without_reinterpreting_retained_or_exact_old
         assert!(inspect(&entry).unwrap().capabilities().compatible);
         entry["required_capabilities"][0]["minimum_version"] = json!(37);
         entry["required_capabilities"][0]["maximum_version"] = json!(37);
+        assert!(inspect(&entry).unwrap().capabilities().compatible);
+        entry["required_capabilities"][0]["minimum_version"] = json!(38);
+        entry["required_capabilities"][0]["maximum_version"] = json!(38);
         assert!(!inspect(&entry).unwrap().capabilities().compatible);
         let old = packet["rows"]
             .as_array()
@@ -1518,6 +1521,9 @@ fn psx_package_preserving_activation_requires_new_admission_floor_but_retains_v1
     assert!(inspect(&entry).unwrap().capabilities().compatible);
     entry["required_capabilities"][0]["minimum_version"] = json!(5);
     entry["required_capabilities"][0]["maximum_version"] = json!(5);
+    assert!(inspect(&entry).unwrap().capabilities().compatible);
+    entry["required_capabilities"][0]["minimum_version"] = json!(6);
+    entry["required_capabilities"][0]["maximum_version"] = json!(6);
     assert!(!inspect(&entry).unwrap().capabilities().compatible);
 
     // A texture-pack folder needs the retained-scope reader.

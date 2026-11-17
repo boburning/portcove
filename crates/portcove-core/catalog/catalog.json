@@ -36125,31 +36125,13 @@
         "manual_preparation": "Select your own North American English/French DKC3 .sfc or .smc, with or without a copier header. Portcove installs the checked Windows package and manages its default local saves separately from existing external copies. This build needs a short installation folder using basic Latin characters; original files can stay where they are. The reviewed v0.0.6 build had a game-logic failure during startup; later releases have not been observed running here. Gameplay, visual correctness and save/load remain unqualified.",
         "original_game_title": "Donkey Kong Country 3: Dixie Kong's Double Trouble!",
         "manual_setup": {
+          "warnings": [
+            "Choose a short installation folder that uses basic Latin characters."
+          ],
           "steps": [
             {
-              "title": "Choose the setup for your system",
-              "instruction": "On Windows, select your own headerless North American English/French DKC3 ROM in Portcove and review the Windows installation. On Apple Silicon, use the upstream Mac app and its launcher."
-            },
-            {
-              "title": "Open the upstream Mac app",
-              "instruction": "On an Apple Silicon Mac with macOS 26 or later, download the official Mac arm64 ZIP from DKC3Recomp Releases. Extract it in Finder and keep DKC3Recomp.app intact in a permanent folder. Open the app directly. The reviewed alpha bundle is ad-hoc signed."
-            },
-            {
-              "title": "Select your original ROM",
-              "instruction": "In the app’s launcher, select your own unmodified headerless North American English/French Donkey Kong Country 3 ROM. Keep that file in place. The launcher uses the original at its selected location."
-            },
-            {
-              "title": "Keep your Mac profile before updating",
-              "instruction": "Quit the app and back up ~/Library/Application Support/Flat2VR/DKC3Recomp, including its saves folder, before replacing the app yourself. If you set DKC3_USER_DIR or use DKC3_PORTABLE, back up the actual selected location. Keep build-specific states with the app version that created them."
-            }
-          ],
-          "warnings": [
-            "The Mac app is an upstream-managed alpha. Use its own launcher and keep its profile separate from the Windows setup."
-          ],
-          "references": [
-            {
-              "title": "Reviewed Mac package",
-              "instruction": "The v0.0.6 release reuses the exact v0.0.4 Mac bundle. See https://github.com/elliotttate/DKC3Recomp/releases/tag/v0.0.6 for the publisher’s package and platform notes."
+              "title": "Set up the managed copy",
+              "instruction": "Use your own North American English/French DKC3 ROM. Portcove accepts .sfc or .smc files with or without a copier header."
             }
           ]
         },
@@ -40474,26 +40456,13 @@
         "manual_preparation": "The official Windows x64 package includes its game data and needs no original-file import or build. Portcove manages compatible runtime replacements and preserves local options.cfg, options.cfg.old, orgprefs.cfg and custom multiplayer data. Saves are external: back up your Windows user-profile folder/.mechcommander2/savegame separately; Portcove backups and runtime rollback do not include those saves. Generated texture and geometry caches, shader dumps and diagnostic files stay with each runtime version and are not carried into its replacement. Custom script output or custom data locations need separate preservation; unknown additions can block replacement until preserved. Runtime rollback carries current declared settings/custom data and does not rewind saves or guarantee older software can read newer data.",
         "original_game_title": "MechCommander 2",
         "manual_setup": {
-          "help_url": "https://github.com/alariq/mc2/blob/c428dfe02b609f0864933e715ca22ed07427a545/README.md",
           "warnings": [
-            "Close the game and back up that external user-data folder separately.",
-            "External profiles and custom paths are outside Portcove backups.",
-            "Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+            "Back up .mechcommander2/savegame in your Windows user profile separately."
           ],
           "steps": [
             {
-              "title": "Use the complete Windows player",
-              "instruction": "The official Windows x64 ZIP includes mc2.exe, its libraries and game data. Keep the complete package together. For an existing copy, select mc2.exe in the extracted mc2-win64 folder and use that folder as the working directory. Save launch details, then choose Play separately. The selected release has no Linux player archive; upstream provides separate Linux source/data build instructions. Follow all included notices: project code and components have their own licenses, and Microsoft’s Art Assets grant limits their use and distribution to noncommercial purposes."
-            }
-          ],
-          "references": [
-            {
-              "title": "Back up the external saves",
-              "instruction": "Normal saves use .mechcommander2/savegame under your Windows user-profile folder. Linux uses that path under XDG_CONFIG_HOME when set, otherwise HOME. Close the game and back up that external user-data folder separately. Keep options.cfg, options.cfg.old, orgprefs.cfg, data/multiplayer and any custom data locations with the copy you use. External profiles and custom paths are outside Portcove backups."
-            },
-            {
-              "title": "Keep an existing copy recoverable",
-              "instruction": "For a copy you registered yourself, you or upstream provide updates. Extract a new official player separately and keep the working copy. Follow upstream guidance for settings and custom content; copying old generated texture or geometry caches over a new package can replace its new files. Registration leaves every external file untouched."
+              "title": "Set up the managed copy",
+              "instruction": "The official Windows x64 ZIP includes the game data. Portcove installs the complete player from that package."
             }
           ]
         },
@@ -55527,6 +55496,14 @@
               "instruction": "Use the launcher’s Your files / Show controls to find its folder and each game’s data folder. Windows normally stores game data under %APPDATA%/<Game>/. A portable.txt file beside the launcher selects CPS2Recomp/user/, with separate launcher and game subfolders. Close all games and launchers before copying settings, save states, board memory, custom colours, scores, soundtrack files and logs. The launcher offers the initial copy to portable mode; Portcove does not move that data. Removing portable.txt changes where future sessions store data without moving existing files. Keep both locations and the working game version until the replacement works. Save-state compatibility and importing existing data have not been confirmed."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 206672,
+          "cover_id": 572032,
+          "image_id": "coc9ds",
+          "image_sha256": "e381af66be1e65fde7b7c5134e0d1a82a352267562103cc7ffbcb951116dc7fa",
+          "game_slug": "vampire-savior-the-lord-of-vampire",
+          "match_kind": "underlying-game"
         }
       }
     },
@@ -58340,6 +58317,14 @@
               "instruction": "Preserve the actual Crispy config, saves, demos and original IWADs. Linux normally uses ~/.local/share/crispy-doom or XDG_DATA_HOME/crispy-doom. Mac normally uses ~/Library/Application Support/crispy-doom. Keep any custom locations and the creating runtime before switching package versions. The external profile can be shared across games."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 10192,
+          "cover_id": 182448,
+          "image_id": "co3ws0",
+          "image_sha256": "3e8f2c48dc86aaf6bf763ce257c48678435bf3ef04572074ef46ce21c02a7b57",
+          "game_slug": "the-ultimate-doom",
+          "match_kind": "underlying-game"
         }
       },
       "executable_hints": {
@@ -61988,6 +61973,14 @@
         "installation_method": "portable-package",
         "source_requirements": [],
         "saves_and_settings": "external-user-owned",
+        "companion_cover": {
+          "game_id": 1032,
+          "cover_id": 132048,
+          "image_id": "co2tw0",
+          "image_sha256": "8de0ccb86885d58d628d46de9bd7cd9192eab1d670f22a6f7dbcdce5b46f08f9",
+          "game_slug": "the-legend-of-zelda-oracle-of-seasons",
+          "match_kind": "underlying-game"
+        },
         "manual_preparation": "Use your own supported USA/Europe Oracle of Ages or Oracle of Seasons cartridge dump. Configure one own supported Ages or Seasons input first through Add ROM in the normal Oracles.exe menu. Keep each title and region separate; this engine route does not qualify linked-game saves, migrate a second title or establish an observed game session. Then keep source originals outside the engine directory and retain each game's data separately. Core does not acquire or authenticate originals, unpack user ROM archives or grant game rights. The Windows package is the native SDL desktop application; retain the complete package. Normal data uses SDL's oracles-decomp/oracles user profile. The optional upstream Portable setting creates portable.txt beside the player and uses oracles-data; its interrupted staging directory is oracles-data.part. Core preserves only those declared local paths; the normal external profile and any --cache override remain outside Core backup/removal. On a portable-mode switch, upstream copies the other profile only into an empty destination through .part staging, leaves the source copy and does not overwrite populated destinations; preserve both actual creating roots and unfinished staging before changing modes or versions. Data includes cached original-derived content, settings/window state, per-game SRAM and states, thumbnails, diagnostics and optional sync configuration. Keep credentials private; this route grants no cloud or credential authority and performs no profile migration. Windows update notices open the upstream download URL in the browser; Core remains the Windows engine replacement owner. Linux self-replacement is a separate unoffered platform. Preserve the complete compatible old runtime before updates or rollback; source/static package evidence is not real-save, linked-game, gameplay or installed acceptance.",
         "original_game_title": "The Legend of Zelda: Oracle of Ages / Oracle of Seasons",
         "manual_setup": {
@@ -61998,6 +61991,14 @@
               "instruction": "Portcove installs the Windows Oracles player. After installation, choose Play and use Add ROM to select your own supported Oracle of Ages or Oracle of Seasons cartridge dump."
             }
           ]
+        },
+        "artwork": {
+          "game_id": 1041,
+          "cover_id": 132049,
+          "image_id": "co2tw1",
+          "image_sha256": "3ff3d35904233a4f851bcbd553ab111589089d7b1f040916e8af46cec397c034",
+          "game_slug": "the-legend-of-zelda-oracle-of-ages",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {
@@ -74486,6 +74487,14 @@
             "Use only game data and components you are already permitted to use. The engine license does not grant rights to unrelated assets, music or modifications.",
             "External and shared player-data locations remain outside Portcove backups and removal. Preserve the creating runtime, every actual state root and unknown files before changes."
           ]
+        },
+        "artwork": {
+          "game_id": 50167,
+          "cover_id": 27896,
+          "image_id": "amf1oxlh21jfbdvpso8j",
+          "image_sha256": "8960e96afabb01890379af2654d19c28852d0935a3c98059afcf7b7c418a5e87",
+          "game_slug": "wing-commander-the-kilrahi-saga",
+          "match_kind": "underlying-game"
         }
       },
       "reviewed_package_layouts": {

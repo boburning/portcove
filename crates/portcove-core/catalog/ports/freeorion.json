@@ -4,6 +4,14 @@
     "id": "freeorion",
     "name": "FreeOrion",
     "original_game_title": "FreeOrion",
+    "artwork": {
+      "game_id": 91478,
+      "cover_id": 135704,
+      "image_id": "co2wpk",
+      "image_sha256": "b5cb9428cbeaa20e1860f0a9d2313ea10e2437eddb94f94626b14be768b24f96",
+      "game_slug": "freeorion",
+      "match_kind": "underlying-game"
+    },
     "summary": "Explore the galaxy, develop colonies, and lead a space empire in turn-based strategy.",
     "project_url": "https://github.com/freeorion/freeorion",
     "issue_number": 6461,

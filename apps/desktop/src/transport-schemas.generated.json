@@ -6771,6 +6771,17 @@
               }
             ]
           },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
+          },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
           },
@@ -22747,6 +22758,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -22808,6 +22839,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -24313,6 +24350,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -24374,6 +24431,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -26111,6 +26174,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "ReleaseChannel": {
         "enum": [
           "stable",
@@ -26172,6 +26255,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -29713,6 +29802,90 @@
     "title": "LiveMods",
     "type": "object"
   },
+  "local_mod_package_plan": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Exact review of a file chosen for one setup. Paths stay local to the caller.",
+    "properties": {
+      "asset_count": {
+        "format": "uint",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "conflicts_truncated": {
+        "type": "boolean"
+      },
+      "expected_revision": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "missing_required_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "native_id": {
+        "type": "string"
+      },
+      "needs_code_permission": {
+        "type": "boolean"
+      },
+      "overlapping_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "plan_sha256": {
+        "type": "string"
+      },
+      "profile_id": {
+        "type": "string"
+      },
+      "replaces": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "replaces_enabled": {
+        "type": "boolean"
+      },
+      "required_mods": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "sha256": {
+        "type": "string"
+      },
+      "size": {
+        "format": "uint64",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "profile_id",
+      "expected_revision",
+      "native_id",
+      "sha256",
+      "size",
+      "asset_count",
+      "replaces",
+      "replaces_enabled",
+      "overlapping_mods",
+      "conflicts_truncated",
+      "needs_code_permission",
+      "required_mods",
+      "missing_required_mods",
+      "plan_sha256"
+    ],
+    "title": "LocalModPackagePlan",
+    "type": "object"
+  },
   "managed_route_change_preview": {
     "$defs": {
       "AcceptedSharedPreferencesBinding": {
@@ -31472,6 +31645,13 @@
           "build_availability": {
             "$ref": "#/$defs/RetainedBuildAvailability"
           },
+          "build_version": {
+            "description": "Version of the exact installed runtime this setup resolves to.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "originals": {
             "items": {
               "$ref": "#/$defs/OriginalStatus"
@@ -31651,6 +31831,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "RequestedPackage": {
         "additionalProperties": false,
         "properties": {
@@ -31704,6 +31904,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -35327,6 +35533,17 @@
                 "type": "null"
               }
             ]
+          },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"
@@ -42496,6 +42713,13 @@
           "build_availability": {
             "$ref": "#/$defs/RetainedBuildAvailability"
           },
+          "build_version": {
+            "description": "Version of the exact installed runtime this setup resolves to.",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "originals": {
             "items": {
               "$ref": "#/$defs/OriginalStatus"
@@ -42543,6 +42767,26 @@
         "required": [
           "provider",
           "project"
+        ],
+        "type": "object"
+      },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
         ],
         "type": "object"
       },
@@ -42599,6 +42843,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -42951,6 +43201,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "RecipeOriginal": {
         "additionalProperties": false,
         "description": "A reference to an original, by content identity only. No path, no payload.",
@@ -42998,6 +43268,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "items": {
@@ -43414,6 +43690,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "ResolvedPackage": {
         "additionalProperties": false,
         "description": "Exact package bytes plus its separate identities. A local import carries no\nprovider coordinates but still has its own native ID and digest.",
@@ -43439,6 +43735,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "description": "Native IDs this package requires, from native metadata (not provider claims).",
@@ -43708,6 +44010,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -43841,6 +44153,26 @@
           "submitter",
           "files",
           "unreadable_files"
+        ],
+        "type": "object"
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
         ],
         "type": "object"
       }
@@ -43994,6 +44326,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -44037,6 +44379,38 @@
         ],
         "type": "object"
       },
+      "ProviderWrapper": {
+        "properties": {
+          "download_sha256": {
+            "type": "string"
+          },
+          "download_size": {
+            "format": "uint64",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "file": {
+            "$ref": "#/$defs/ProviderFileCandidate"
+          },
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "file",
+          "download_sha256",
+          "download_size",
+          "members"
+        ],
+        "type": "object"
+      },
       "RecompExecution": {
         "description": "What the package would run on the player's machine if enabled.",
         "oneOf": [
@@ -44056,6 +44430,26 @@
             "type": "string"
           }
         ]
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -44127,6 +44521,13 @@
           "type": "string"
         },
         "type": "array"
+      },
+      "wrappers": {
+        "description": "Exact Thunderstore wrapper closure in dependency-first order.",
+        "items": {
+          "$ref": "#/$defs/ProviderWrapper"
+        },
+        "type": "array"
       }
     },
     "required": [
@@ -44189,6 +44590,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -44293,6 +44704,26 @@
           "unreadable_files"
         ],
         "type": "object"
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -44366,6 +44797,16 @@
             "format": "uint64",
             "minimum": 0,
             "type": "integer"
+          },
+          "thunderstore_dependencies": {
+            "description": "Exact provider coordinates, independent of native loader requirements.\nAbsent for providers that do not supply this field.",
+            "items": {
+              "$ref": "#/$defs/ThunderstoreDependency"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
@@ -44453,6 +44894,26 @@
             "type": "string"
           }
         ]
+      },
+      "ThunderstoreDependency": {
+        "description": "One exact Thunderstore dependency coordinate from a version listing.",
+        "properties": {
+          "namespace": {
+            "type": "string"
+          },
+          "package": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "namespace",
+          "package",
+          "version"
+        ],
+        "type": "object"
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -44771,6 +45232,26 @@
         ],
         "type": "object"
       },
+      "ProviderRequirement": {
+        "additionalProperties": false,
+        "description": "One exact provider wrapper and the complete set of native members it supplied.",
+        "properties": {
+          "members": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object"
+          },
+          "provider": {
+            "$ref": "#/$defs/ProviderPackageRef"
+          }
+        },
+        "required": [
+          "provider",
+          "members"
+        ],
+        "type": "object"
+      },
       "RecipeInputPlan": {
         "properties": {
           "detail": {
@@ -44856,6 +45337,12 @@
                 "type": "null"
               }
             ]
+          },
+          "provider_requires": {
+            "items": {
+              "$ref": "#/$defs/ProviderRequirement"
+            },
+            "type": "array"
           },
           "requires": {
             "items": {
@@ -51259,6 +51746,17 @@
                 "type": "null"
               }
             ]
+          },
+          "companion_cover": {
+            "anyOf": [
+              {
+                "$ref": "#/$defs/IgdbArtwork"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Cover for the second game in a combined definition's Discover card."
           },
           "installation_method": {
             "$ref": "#/$defs/InstallationMethod"

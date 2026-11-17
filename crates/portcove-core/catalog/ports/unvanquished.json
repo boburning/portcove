@@ -4,6 +4,14 @@
     "id": "unvanquished",
     "name": "Unvanquished",
     "original_game_title": "Unvanquished",
+    "artwork": {
+      "game_id": 139329,
+      "cover_id": 116302,
+      "image_id": "co2hqm",
+      "image_sha256": "cccaa8a21e2ffbe501b7867881abcc72882e04098d6d4d0e5a3a0f9ea375677e",
+      "game_slug": "unvanquished",
+      "match_kind": "underlying-game"
+    },
     "summary": "Build bases and play team matches as humans or aliens, online or in a local game.",
     "project_url": "https://github.com/Unvanquished/Unvanquished",
     "issue_number": 6468,
