@@ -88,7 +88,7 @@ export const DESKTOP_SCENARIOS = Object.freeze([
     "native-reviewed-discovery-setup-batch",
     "A reviewed native two-game setup batch preserves consent, originals and completed installs across restart.",
     {
-      prerequisites: ["desktop", "install-fixture"],
+      prerequisites: ["desktop", "install-fixture", "owned-fixture"],
       source: "desktop-setup-batch-test.mts",
       qualification_only: true,
       platforms: ["win32"],

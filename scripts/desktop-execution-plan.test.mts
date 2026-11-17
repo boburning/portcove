@@ -1215,6 +1215,21 @@ void test("reviewed discovery batch is standalone, fixture-scoped and positively
   assert.equal(plan.fixtures.holdFirstDownload, false);
   assert.equal(plan.session.identityBoundSession, true);
   assert.ok(plan.build.cliFeatures.includes("portcove-core/qualification-fixtures"));
+  const verification = buildDesktopVerifyPlan({
+    selection,
+    paths: { output_root: path.resolve("out"), target_directory: path.resolve("target") },
+    drivers: null,
+    source: { revision: "a".repeat(40), clean: true },
+    packages: { ready: false },
+  });
+  assert.ok(verification.paths.cli, "Prelaunch source registration needs the built CLI");
+  assert.ok(verification.paths.owned_probe);
+  for (const phase of ["scenario-context-preflight", "cli-build", "owned-probe-build"])
+    assert.ok(verification.phases.includes(phase));
+  for (const name of ["preparation-cli", "preparation-tool"])
+    assert.ok(
+      plan.receiptInputs.some((input) => input.kind === "executable" && input.name === name),
+    );
   assert.equal(
     plan.receiptInputs.filter(
       (input) => input.kind === "file" && input.path.endsWith("desktop-setup-batch-test.mts"),
