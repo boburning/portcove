@@ -72,14 +72,17 @@ mod tests {
     #[cfg(target_os = "linux")]
     #[test]
     fn linux_profile_uses_sdl_data_home_and_rejects_relative_override() {
-        let home = Some(OsStr::new("/personal"));
+        let temporary = tempfile::tempdir().unwrap();
+        let account = temporary.path().join("account");
+        let data = temporary.path().join("data");
+        let home = Some(account.as_os_str());
         assert_eq!(
-            linux_profile_root(Some(OsStr::new("/profiles")), home).unwrap(),
-            PathBuf::from("/profiles/endless-sky")
+            linux_profile_root(Some(data.as_os_str()), home).unwrap(),
+            data.join("endless-sky")
         );
         assert_eq!(
             linux_profile_root(None, home).unwrap(),
-            PathBuf::from("/personal/.local/share/endless-sky")
+            account.join(".local/share/endless-sky")
         );
         assert!(linux_profile_root(Some(OsStr::new("")), home).is_err());
         assert!(linux_profile_root(Some(OsStr::new("relative")), home).is_err());
