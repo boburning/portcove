@@ -13,6 +13,7 @@
  */
 import { createHash } from "node:crypto";
 import { MaintenanceStoreError } from "./maintenance-store.mts";
+import { decodeStoredObserverCheckpoint } from "./observer-checkpoint-storage.mts";
 import {
   catalogObservationSources,
   validateCatalogObserverCheckpoint,
@@ -355,13 +356,16 @@ export async function readUpstreamObservations(
         "The observer checkpoint artifact does not match its recorded digest",
       );
     let snapshot;
+    let checkpoint;
+    const deadline = Date.now() + 60_000;
     try {
       snapshot = await readRecoverableObserverSnapshotArchive(
         archive,
         config,
         Date.now(),
-        Date.now() + 60_000,
+        deadline,
       );
+      checkpoint = decodeStoredObserverCheckpoint(snapshot.files[checkpointMember], deadline);
     } catch (error) {
       throw new MaintenanceStoreError(
         error instanceof Error ? error.message : "Observer snapshot validation failed",
@@ -389,7 +393,7 @@ export async function readUpstreamObservations(
     return {
       revision: `upstream-observer-run:${run.id}-${run.run_attempt}@${run.head_sha}#sha256:${digest}`,
       config_sha256: config,
-      checkpoint: snapshot.files[checkpointMember],
+      checkpoint,
       catalog: { ...operational, listings: listings.listings },
     };
   }
