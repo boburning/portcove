@@ -936,7 +936,14 @@ it("keeps grouped short Covers usable at 320px with enlarged text and returns ke
   more.element().focus();
   await userEvent.keyboard("{Enter}");
   const menu = page.getByRole("menu", { name: /^More actions for/ });
-  await expect.element(menu).toHaveFocus();
+  await expect.element(menu).toBeVisible();
+  const firstEnabledItem = menu
+    .element()
+    .querySelector<HTMLElement>(
+      '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]):not([data-disabled])',
+    )!;
+  await expect.element(page.elementLocator(firstEnabledItem)).toHaveFocus();
+  expect(menu.element().contains(document.activeElement)).toBe(true);
   const bounds = menu.element().getBoundingClientRect();
   expect(bounds.left).toBeGreaterThanOrEqual(0);
   expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
@@ -970,7 +977,14 @@ it("keeps plain short Covers and their overflow menu reachable at 430px", async 
   more.element().focus();
   await userEvent.keyboard("{Enter}");
   const menu = page.getByRole("menu", { name: /^More actions for/ });
-  await expect.element(menu).toHaveFocus();
+  await expect.element(menu).toBeVisible();
+  const firstEnabledItem = menu
+    .element()
+    .querySelector<HTMLElement>(
+      '[role="menuitem"]:not([aria-disabled="true"]):not([disabled]):not([data-disabled])',
+    )!;
+  await expect.element(page.elementLocator(firstEnabledItem)).toHaveFocus();
+  expect(menu.element().contains(document.activeElement)).toBe(true);
   const bounds = menu.element().getBoundingClientRect();
   expect(bounds.left).toBeGreaterThanOrEqual(0);
   expect(bounds.right).toBeLessThanOrEqual(innerWidth + 1);
