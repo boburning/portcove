@@ -326,7 +326,13 @@ it.for(["library", "catalog"] as const)(
       expect(rect.height / rect.width).toBeCloseTo(1.5, 2);
       const identity = frame.closest<HTMLElement>(".collection-identity, .discover-game-identity")!;
       const title = identity.querySelector<HTMLElement>(".collection-title")!;
-      expect(title.getBoundingClientRect().top).toBeGreaterThanOrEqual(rect.bottom - 0.5);
+      const titleBounds = title.getBoundingClientRect();
+      const horizontal = view === "library" && matchMedia("(height <= 42rem)").matches;
+      expect(titleBounds.top).toBeGreaterThanOrEqual((horizontal ? rect.top : rect.bottom) - 0.5);
+      expect(
+        !horizontal || (titleBounds.left >= rect.right && titleBounds.top < rect.bottom),
+        JSON.stringify({ horizontal, artwork: rect, title: titleBounds }),
+      ).toBe(true);
       identity.focus();
       for (const text of identity.querySelectorAll<HTMLElement>(
         ".collection-title, .collection-project",
@@ -559,13 +565,21 @@ async function assertPortraitLayout(
       width: rect.width,
       height: rect.height,
       metadataTop: element.nextElementSibling!.getBoundingClientRect().top,
+      metadataLeft: element.nextElementSibling!.getBoundingClientRect().left,
+      top: rect.top,
+      right: rect.right,
       bottom: rect.bottom,
     };
   });
   console.log(JSON.stringify({ view, theme, viewport: [width, height], frames }));
   for (const frame of frames) {
     expect(frame.height / frame.width).toBeCloseTo(1.5, 2);
-    expect(frame.metadataTop).toBeGreaterThanOrEqual(frame.bottom - 0.5);
+    const horizontal = view === "library" && matchMedia("(height <= 42rem)").matches;
+    expect(frame.metadataTop).toBeGreaterThanOrEqual((horizontal ? frame.top : frame.bottom) - 0.5);
+    expect(
+      !horizontal || (frame.metadataLeft >= frame.right && frame.metadataTop < frame.bottom),
+      JSON.stringify({ horizontal, frame }),
+    ).toBe(true);
   }
   expect(document.documentElement.scrollWidth).toBeLessThanOrEqual(width);
   const projectRows = [...document.querySelectorAll<HTMLElement>(".collection-project")];
