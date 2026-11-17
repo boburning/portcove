@@ -15,8 +15,8 @@
 //!
 //! Like standing setup, the policy is consent, never an authorization: each
 //! update is planned again and authorized immediately before it is applied, under
-//! the same checks as a reviewed install. Whether a newer file suits the setup's
-//! game build is not assessed by the provider or by Portcove (UNKNOWN).
+//! the same checks as a reviewed install. The provider's claims do not verify
+//! the Recomp loader contract or the staged package's native dependencies.
 use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
@@ -29,7 +29,7 @@ use crate::{
     Result, asset_conflicts, inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
     provider_client::ProviderClient,
-    provider_install::ProviderInstallMode,
+    provider_install::{ProviderInstallMode, RECOMP_REVIEW_BINDING, recomp_review_binding},
 };
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
@@ -701,8 +701,24 @@ impl PortcoveService {
             .await
         {
             Ok(plan) => plan,
-            // Refusals here are not remembered: one may be a passing download
-            // fault, and the provider's flags are checked before any download.
+            Err(error)
+                if error.details.get("review_stage").is_some_and(|stage| {
+                    stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
+                }) =>
+            {
+                let same_review =
+                    recomp_review_binding(&revision.digest, candidate).is_ok_and(|binding| {
+                        error.details.get(RECOMP_REVIEW_BINDING) == Some(&binding)
+                    });
+                if !same_review {
+                    return Some(ProviderAutoUpdateOutcome::Deferred {
+                        reason: "the setup or offered file changed while reviewing native dependencies; check again".into(),
+                    });
+                }
+                remember_hold(layout, key, &error.message);
+                return held(&error.message);
+            }
+            // Transport and inspection errors may be transient.
             Err(error) => return Some(classify(error)),
         };
         if &plan.file != candidate {

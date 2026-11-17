@@ -757,8 +757,21 @@ fn changed_thunderstore_dependency_coordinates_invalidate_the_exact_file_hold() 
 
     let mut offered = candidate.clone();
     assert!(read_holds(&layout).contains_key(&key(&offered)));
+    let binding = recomp_review_binding("setup revision one", &candidate).unwrap();
+    assert_eq!(
+        recomp_review_binding("setup revision one", &offered).unwrap(),
+        binding
+    );
+    assert_ne!(
+        recomp_review_binding("setup revision two", &offered).unwrap(),
+        binding
+    );
     offered.thunderstore_dependencies.as_mut().unwrap()[0].version = "1.0.1".into();
     assert!(!read_holds(&layout).contains_key(&key(&offered)));
+    assert_ne!(
+        recomp_review_binding("setup revision one", &offered).unwrap(),
+        binding
+    );
     offered.thunderstore_dependencies = Some(Vec::new());
     assert!(!read_holds(&layout).contains_key(&key(&offered)));
 
