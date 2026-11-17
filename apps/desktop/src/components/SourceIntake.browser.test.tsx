@@ -249,6 +249,9 @@ describe("source intake dialog", () => {
       await expect
         .element(page.getByRole("region", { name: "Source import review", exact: true }))
         .toBeVisible();
+      await expect
+        .element(page.getByRole("heading", { name: "Move into Portcove", exact: true }))
+        .toHaveFocus();
       expect(preview.mock.lastCall).toEqual([profile.id, "D:/Game.z64", "move"]);
     };
     await openMove();
@@ -284,6 +287,9 @@ describe("source intake dialog", () => {
       .toBe(true);
     await captureParityState("source-move-initial-review-lower-fixture");
     await page.getByRole("button", { name: "Cancel review", exact: true }).click();
+    await expect
+      .element(page.getByRole("button", { name: "Review move", exact: true }))
+      .toHaveFocus();
     expect(imported).not.toHaveBeenCalled();
 
     vi.spyOn(desktopApi, "planPreparation").mockResolvedValue({

@@ -275,7 +275,7 @@ it("reviews without executing and binds explicit confirmation to the returned pl
     "The finished version goes in a new folder beside it.",
   );
   const reviewedFacts = document.body.querySelector(".preparation-plan dl");
-  expect(reviewedFacts?.textContent).toContain(plan.inputs.install.version);
+  expect(dialog?.textContent).toContain(`Installed version ${plan.inputs.install.version}`);
   expect(reviewedFacts?.textContent).toContain(plan.inputs.install.path);
   expect(reviewedFacts?.textContent).toContain(plan.inputs.source.path);
   expect(document.body.textContent).toContain("plus what the game creates");

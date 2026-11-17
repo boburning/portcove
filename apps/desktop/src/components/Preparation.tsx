@@ -202,10 +202,10 @@ export function PreparationControl({
                 ? t("preparation.description.running")
                 : t("preparation.description.review")}
             </DialogDescription>
-            <div className="mb-4 flex min-w-0 items-center gap-4 border-b border-[var(--color-border)] pb-4">
+            <div className="flex min-w-0 items-center gap-3 border-b border-pc-border pb-3">
               <ArtworkImage
                 port={{ id: portId }}
-                className="aspect-[2/3] w-12 shrink-0 rounded-pc-sm"
+                className="aspect-[2/3] w-10 shrink-0 rounded-pc-sm"
                 quietFallback
               />
               <div className="min-w-0">
@@ -223,8 +223,12 @@ export function PreparationControl({
             </div>
             {pending === "prepare" ? (
               <>
-                <p role="status">{message ?? t("preparation.status.starting")}</p>
-                <p>{t("preparation.keepOpen")}</p>
+                <div className="preparation-review-progress">
+                  <p role="status" className="font-medium">
+                    {message ?? t("preparation.status.starting")}
+                  </p>
+                  <p className="text-pc-muted-foreground">{t("preparation.keepOpen")}</p>
+                </div>
                 {operationId && (
                   <OperationCancellation
                     key={operationId}
@@ -258,6 +262,16 @@ export function PreparationControl({
               {pending !== "prepare" && (
                 <Button
                   data-focusable
+                  variant="outline"
+                  disabled={disabled}
+                  onClick={dismissReview}
+                >
+                  {t("preparation.cancelReview")}
+                </Button>
+              )}
+              {pending !== "prepare" && (
+                <Button
+                  data-focusable
                   variant="primary"
                   disabled={disabled || Boolean(pending)}
                   onClick={() => {
@@ -265,16 +279,6 @@ export function PreparationControl({
                   }}
                 >
                   {t("preparation.prepare")}
-                </Button>
-              )}
-              {pending !== "prepare" && (
-                <Button
-                  data-focusable
-                  variant="outline"
-                  disabled={disabled}
-                  onClick={dismissReview}
-                >
-                  {t("preparation.cancelReview")}
                 </Button>
               )}
             </DialogFooter>
@@ -309,13 +313,8 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
           <dt className="text-pc-secondary-foreground">{t("preparation.plan.current")}</dt>
           <dd className="m-0 [user-select:text]">
             <bdi dir="ltr">{plan.inputs.install.path}</bdi>
-            <span className="block">{t("preparation.plan.destination")}</span>
-            <span className="block text-[length:var(--text-xs)] text-[var(--color-text-secondary)]">
-              <Trans
-                t={t}
-                i18nKey="preparation.installedVersion"
-                components={{ version: <bdi>{plan.inputs.install.version}</bdi> }}
-              />
+            <span className="block text-pc-muted-foreground">
+              {t("preparation.plan.destination")}
             </span>
           </dd>
         </div>
@@ -336,7 +335,7 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
       </dl>
       <p>{t("preparation.plan.originalSafe")}</p>
       <details>
-        <summary data-focusable className="cursor-pointer py-2">
+        <summary data-focusable className="cursor-pointer py-1">
           {t("preparation.plan.ifWrong")}
         </summary>
         <div className="preparation-during" role="group" aria-label={t("preparation.plan.during")}>
@@ -346,7 +345,7 @@ function PreparationFacts({ plan }: { plan: PreparationPlan }) {
         </div>
       </details>
       <details>
-        <summary data-focusable className="cursor-pointer py-2">
+        <summary data-focusable className="cursor-pointer py-1">
           {t("preparation.plan.window")}
         </summary>
         <p className="mt-2 mb-0">{t("preparation.plan.windowText")}</p>

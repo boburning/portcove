@@ -142,6 +142,37 @@ it("one confirmation saves every game and installs only the ready ones", async (
   expect(text()).toContain("Second: Couldn't install. Download failed");
 });
 
+it("blocks a second confirmation while saving the waiting games", async () => {
+  let finish!: () => void;
+  const pending = new Promise<Awaited<ReturnType<typeof desktopApi.addGamesToLibrary>>>(
+    (resolve) => {
+      finish = () => resolve([]);
+    },
+  );
+  vi.mocked(desktopApi.addGamesToLibrary).mockReturnValue(pending);
+  vi.mocked(desktopApi.planInstallBatch).mockResolvedValue({
+    items: [{ port_id: "third", hold: "Missing files" }],
+    capacity: { download_bytes: 0, volumes: [] },
+  });
+  const done = vi.fn();
+  await root.rerender(
+    <InstallBatchPanel generation={1} ports={ports} portIds={["third"]} onDone={done} />,
+  );
+  await act(async () => {});
+  await act(async () => {
+    const confirm = button("Add 1 to Library");
+    confirm.click();
+    confirm.click();
+  });
+  expect(button("Add 1 to Library").getAttribute("aria-busy")).toBe("true");
+  expect(button("Cancel").disabled).toBe(true);
+  expect(desktopApi.addGamesToLibrary).toHaveBeenCalledOnce();
+  expect(done).not.toHaveBeenCalled();
+  await act(async () => finish());
+  expect(done).toHaveBeenCalledOnce();
+  expect(desktopApi.startInstallBatch).not.toHaveBeenCalled();
+});
+
 it("keeps the exact English space sentences for one game and for three", async () => {
   const volume = {
     path: "D:/Games",

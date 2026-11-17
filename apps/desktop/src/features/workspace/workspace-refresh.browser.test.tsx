@@ -1209,6 +1209,38 @@ describe("workspace refresh recovery", () => {
     expect(host.querySelector("section")).toBeNull();
   });
 
+  it("holds focus and accepts only one retry while recovery discovery is pending", async () => {
+    const pending = deferred<void>();
+    const retryRecovery = vi.fn().mockReturnValueOnce(pending.promise).mockResolvedValue(undefined);
+    await root.rerender(
+      <WorkspaceRefreshNotice
+        recoveryFailure={{ error: new Error("Retained recovery failure") }}
+        hasSnapshot
+        refreshing={false}
+        retry={vi.fn().mockResolvedValue(undefined)}
+        retryRecovery={retryRecovery}
+      />,
+    );
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    expect(retryRecovery).toHaveBeenCalledOnce();
+    expect(button.getAttribute("aria-busy")).toBe("true");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retryRecovery).toHaveBeenCalledOnce();
+
+    await act(async () => pending.reject(new Error("Refresh failed after recovery")));
+    expect(button.getAttribute("aria-busy")).toBe("false");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retryRecovery).toHaveBeenCalledTimes(2);
+  });
+
   it.each([true, false])(
     "qualifies the available library snapshot (%s) on recovery failure",
     async (hasSnapshot) => {
@@ -1490,6 +1522,34 @@ describe("workspace refresh recovery", () => {
         (button) => button.textContent === "Refresh now",
       ),
     ).toBeDefined();
+  });
+
+  it("keeps the manual refresh button focused while live updates are degraded", async () => {
+    const retry = vi.fn().mockResolvedValue(undefined);
+    const unavailable = new Error("event bridge unavailable");
+    const notice = (refreshing: boolean) => (
+      <WorkspaceRefreshNotice
+        subscriptionFailure={unavailable}
+        hasSnapshot
+        refreshing={refreshing}
+        retry={retry}
+        retryRecovery={vi.fn().mockResolvedValue(undefined)}
+      />
+    );
+    await root.rerender(notice(false));
+    const button = host.querySelector<HTMLButtonElement>("button")!;
+    button.focus();
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(true));
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    expect(button.textContent).toBe("Refreshing library…");
+    expect(document.activeElement).toBe(button);
+    await act(async () => button.click());
+    expect(retry).toHaveBeenCalledOnce();
+    await root.rerender(notice(false));
+    expect(button.textContent).toBe("Refresh now");
+    expect(document.activeElement).toBe(button);
   });
 
   it("refreshes once after an operation and never starts the removed 250ms refresh", async () => {

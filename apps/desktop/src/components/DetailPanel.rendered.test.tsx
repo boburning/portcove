@@ -1521,7 +1521,7 @@ describe("desktop components", () => {
       /<button[^>]*data-variant="outline"[^>]*>(?:(?!<\/button>)[^])*?Check for updates<\/button>/u,
     );
     expect(installed).toMatch(
-      /<button[^>]*data-variant="destructive"[^>]*aria-label="Delete backup/u,
+      /<button\b(?=[^>]*data-backup-action="delete")(?=[^>]*data-variant="outline")[^>]*aria-label="Delete backup/u,
     );
     expect(buttonLabels).toContain("Check for updates");
     expect(installed).toContain("Open folder for saved data");

@@ -1390,7 +1390,6 @@ export default interface Resources {
       "activeVersion": "<strong>Current active version:</strong> <version /><br /><path />",
       "ambiguous": "This folder matches more than one supported port. Choose the correct game to review its destination and saved-data changes before copying.",
       "appDestination": "<strong>Application destination:</strong> <path /><br />A new version folder is created here and becomes active. Existing versions remain.",
-      "assurance": "Review first, then confirm before copying.",
       "browse": "Browse",
       "cancel": "Cancel",
       "catalogId": "Catalog ID: <id />",
@@ -1428,6 +1427,7 @@ export default interface Resources {
       "skipped_other": "{{count}} unsupported items will remain only in the original folder",
       "stopFirst": "Stop the game before copying. Once copying starts, this dialog cannot cancel it. If interrupted, recovery may finish a verified copy; check the library and saved data before retrying.",
       "title": "Copy an existing installation",
+      "tryDifferentFolder": "Choose a different installation folder or find the game in Discover.",
       "unchanged": "The original folder, saved file locations, existing backups and other games remain unchanged.",
       "unknownPort": "Unknown catalog port"
     },

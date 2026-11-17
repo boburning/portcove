@@ -269,7 +269,6 @@ export function BootstrapRecovery({
   return (
     <main className="bootstrap-state bootstrap-error startup-recovery">
       <header className="startup-recovery-heading">
-        <p className="eyebrow">Startup recovery</p>
         <h1>Portcove couldn’t start</h1>
         <p className="text-pc-muted-foreground" role="alert">
           {errorText(error)}
@@ -303,7 +302,7 @@ export function BootstrapRecovery({
           )}
         </section>
       )}
-      <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]">
+      <p className="text-pc-muted-foreground">
         {recoveryRoot || importRoot
           ? "Review the recovery above first. Retry startup after resolving the unfinished transfer, or choose a different library."
           : "Review the error details, then retry startup. If the current library is the cause, choose another library or return to the platform default."}
@@ -341,11 +340,7 @@ export function BootstrapRecovery({
           Use platform default
         </Button>
       </ActionRow>
-      {actionError && (
-        <p className="[&:not(.eyebrow)]:text-[var(--color-text-muted)]" role="alert">
-          {actionError}
-        </p>
-      )}
+      {actionError && <p role="alert">{actionError}</p>}
       <section
         aria-label="Support report"
         className="grid min-w-0 gap-3 border-t border-pc-border pt-4"
@@ -710,7 +705,7 @@ function useWorkspace(props: WorkspaceProps) {
     (addGamesOpen && ui.view === "library" ? (
       <div className="add-games-heading grid justify-items-start gap-2">
         <Button variant="ghost" size="sm" className="add-games-back" onClick={closeAddGames}>
-          <ArrowLeft aria-hidden="true" className="size-3.5" />
+          <ArrowLeft aria-hidden="true" className="size-3.5 rtl:-scale-x-100" />
           Back to Library
         </Button>
         <h1 tabIndex={-1}>Add games</h1>

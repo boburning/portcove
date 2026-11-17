@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { FileSearch } from "lucide-react";
 import { desktopApi } from "../api";
 import { focusAndReveal, navigationScope } from "../focus";
@@ -56,7 +56,6 @@ interface SourceIntakeDialogProps {
 function sourceIntakeCopy(purpose: SourcePickerPurpose) {
   if (purpose === "bios")
     return {
-      eyebrow: "BIOS FILE CHECK",
       title: (portName: string) => `Check BIOS for ${portName}`,
       description: "Check this BIOS file for the game. Checking won't change the file.",
       checking: "Checking BIOS file…",
@@ -67,7 +66,6 @@ function sourceIntakeCopy(purpose: SourcePickerPurpose) {
       addExplanation: "Choose how to add this BIOS file.",
     };
   return {
-    eyebrow: "GAME FILE CHECK",
     title: (portName: string) => `Check files for ${portName}`,
     description: "Check these files for this game. Checking won't change them.",
     checking: "Checking game files…",
@@ -378,6 +376,9 @@ function useSourceIntakeSession({
 
 function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]) {
   const heading = useRef<HTMLHeadingElement>(null);
+  const planHeading = useRef<HTMLHeadingElement>(null);
+  const actions = useRef<HTMLDivElement>(null);
+  const reviewChoice = useRef<SourceImportMode>(undefined);
   const {
     request,
     returnFocus,
@@ -403,6 +404,21 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
     requiredTool,
     inlineToolActions,
   } = useSourceIntakeSession(props);
+  useLayoutEffect(() => {
+    if (plan && document.activeElement === document.body) {
+      planHeading.current?.focus();
+    } else if (!plan && reviewChoice.current && actions.current && !busy) {
+      const target = actions.current.querySelector<HTMLButtonElement>(
+        `[data-import-mode="${reviewChoice.current}"]`,
+      );
+      if (document.activeElement === document.body && target) focusAndReveal(target);
+      reviewChoice.current = undefined;
+    }
+  }, [busy, plan]);
+  const chooseMode = (mode: SourceImportMode) => {
+    reviewChoice.current = mode;
+    void review(mode);
+  };
   return (
     <Dialog
       open
@@ -414,7 +430,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
         initialFocus={heading}
         finalFocus={saved && returnFocus ? () => returnFocus() ?? false : undefined}
         showCloseButton={false}
-        className="max-h-[min(90vh,58rem)] w-[min(760px,90vw)] max-w-none [scroll-padding-block:var(--space-4)] gap-0 overflow-y-auto overscroll-contain p-8 sm:max-w-none"
+        reviewSize="wide"
         aria-describedby="source-intake-description"
       >
         <DialogTitle ref={heading} tabIndex={-1} id="source-intake-title" className="mb-2 text-xl">
@@ -424,28 +440,30 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           {copy.description}
         </DialogDescription>
         <NavigationHints />
-        <div className="flex min-w-0 flex-wrap items-center gap-3">
-          <Button
-            data-focusable
-            variant="primary"
-            type="button"
-            disabled={Boolean(busy) || Boolean(saved)}
-            onClick={() => {
-              void choose();
-            }}
-          >
-            <Icon glyph={FileSearch} />
-            {copy.choose}
-          </Button>
-          <small className="min-w-0 [overflow-wrap:anywhere] text-pc-muted-foreground">
-            {request.profile.label}
-          </small>
-        </div>
+        {!saved && (
+          <div className="grid min-w-0 justify-items-start gap-2">
+            <p className="m-0 text-sm text-pc-muted-foreground">{request.profile.label}</p>
+            <Button
+              data-focusable
+              variant={candidate ? "outline" : "primary"}
+              type="button"
+              disabled={Boolean(busy)}
+              onClick={() => {
+                void choose();
+              }}
+            >
+              <Icon glyph={FileSearch} />
+              {copy.choose}
+            </Button>
+          </div>
+        )}
         {!saved && request.setup?.savedOriginals && (
           <section aria-label="Originals found in saved folders" className="mt-3 grid gap-2">
             {request.setup.savedOriginals.paths.map((path) => (
               <div key={path} className="grid gap-1">
-                <code className="[overflow-wrap:anywhere] whitespace-normal">{path}</code>
+                <code dir="ltr" className="saved-file-path">
+                  {path}
+                </code>
                 <Button
                   data-focusable
                   variant="outline"
@@ -479,7 +497,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
                     Check {install.title} files from {storeLabel(install.store)}
                   </Button>
                   {storeOriginals.length > 1 && (
-                    <code className="[overflow-wrap:anywhere] whitespace-normal">
+                    <code dir="ltr" className="saved-file-path">
                       {folder.path}
                     </code>
                   )}
@@ -531,43 +549,37 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               </section>
             )}
             {candidate && !plan && !saved && (
-              <div
-                className="grid gap-3 rounded-pc-md border border-[var(--color-success-border)] bg-pc-success-subtle p-4"
-                aria-label={copy.addLabel}
-              >
+              <div className="grid gap-3 border-t border-pc-border pt-4" aria-label={copy.addLabel}>
                 <p className="m-0">
                   {result.state_code === "recognized_exact"
                     ? copy.addExplanation
                     : result.next_action}
                 </p>
-                <div className="actions mt-[24px] flex flex-wrap gap-[8px] [&.compact]:mt-[14px]">
+                <div ref={actions} className="actions flex flex-wrap gap-2">
                   <Button
                     data-focusable
+                    data-import-mode="use_current_location"
                     variant="primary"
                     disabled={Boolean(busy)}
-                    onClick={() => {
-                      void review("use_current_location");
-                    }}
+                    onClick={() => chooseMode("use_current_location")}
                   >
                     Use current location
                   </Button>
                   <Button
                     data-focusable
+                    data-import-mode="copy"
                     variant="outline"
                     disabled={Boolean(busy)}
-                    onClick={() => {
-                      void review("copy");
-                    }}
+                    onClick={() => chooseMode("copy")}
                   >
                     Copy into Portcove
                   </Button>
                   <Button
                     data-focusable
-                    variant="destructive"
+                    data-import-mode="move"
+                    variant="outline"
                     disabled={Boolean(busy)}
-                    onClick={() => {
-                      void review("move");
-                    }}
+                    onClick={() => chooseMode("move")}
                   >
                     Review move
                   </Button>
@@ -578,6 +590,7 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
         )}
         <SourceImportReview
           plan={plan}
+          headingRef={planHeading}
           profiles={[request.profile]}
           busy={Boolean(busy)}
           onCancel={() => setPlan(undefined)}
@@ -589,11 +602,14 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
           </p>
         )}
         {error && (
-          <p className="mt-3" role="alert">
+          <p className="mt-3 text-pc-danger-strong" role="alert">
             {error}
           </p>
         )}
         <DialogFooter className="mt-4">
+          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
+            {saved && !refreshFailed && !continueSetup ? "Return to game" : "Close"}
+          </Button>
           {refreshFailed && (
             <Button data-focusable disabled={Boolean(busy)} onClick={() => void retryRefresh()}>
               Retry refresh
@@ -609,9 +625,6 @@ function SourceIntakeSession(props: Parameters<typeof useSourceIntakeSession>[0]
               Continue setup
             </Button>
           )}
-          <Button data-focusable variant="outline" disabled={Boolean(busy)} onClick={dismiss}>
-            {saved && !refreshFailed && !continueSetup ? "Return to game" : "Close"}
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
