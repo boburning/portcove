@@ -69200,9 +69200,13 @@
           }
         ],
         "warnings": [
-          "The upstream desktop player can register a handler for Discord join links when it starts. Package replacement and backups are player-managed."
+          "The upstream desktop player can register a handler for Discord join links when it starts. The publisher Linux package writes the handler and MIME association outside its selected profile. Removing a Portcove registration leaves those files in place. Package replacement and backups are player-managed."
         ],
         "references": [
+          {
+            "title": "Register the publisher Linux player with Portcove CLI",
+            "instruction": "For the publisher's extracted Ubuntu x64 DEB, review the absolute usr/bin/warzone2100 path with external select-preview and use its usr/bin directory as --working-directory. Pass --datadir for the extracted usr/share/warzone2100 and --configdir for your profile as literal --arg values with absolute paths. Repeat the details with external select and pass the preview SHA-256 to --expected-preview. Start with portcove exec warzone-2100-official-maintained-source-port."
+          },
           {
             "title": "Keep the Ubuntu package’s campaign files",
             "instruction": "The Ubuntu 26.04 repository package starts through its own sandboxed launcher. Its default profile is ~/.local/share/warzone2100. Close the game before copying your campaign saves and other player data. When switching from a separately installed copy of the same release, keep the original backup until the loaded campaign is working."
