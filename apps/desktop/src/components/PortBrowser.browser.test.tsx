@@ -225,10 +225,24 @@ describe("Library empty browsing context", () => {
           />,
         ),
       );
+    host.style.width = "338px";
     await render(0);
     const introduction = host.querySelector('[aria-label="Connect your game files"]')!;
-    expect(introduction.textContent).toContain("Your originals stay in place");
-    await act(async () => introduction.querySelector<HTMLButtonElement>("button")!.click());
+    const description = introduction.querySelector("p")!;
+    const action = introduction.querySelector<HTMLButtonElement>("button")!;
+    expect(description.textContent).toContain("Your originals stay in place");
+    expect(action.getBoundingClientRect().top).toBeGreaterThanOrEqual(
+      description.getBoundingClientRect().bottom,
+    );
+    expect(description.getBoundingClientRect().width).toBeCloseTo(
+      introduction.getBoundingClientRect().width,
+    );
+
+    host.style.width = "736px";
+    expect(action.getBoundingClientRect().top).toBeLessThan(
+      description.getBoundingClientRect().bottom,
+    );
+    await act(async () => action.click());
     expect(connect).toHaveBeenCalledOnce();
     expect(select).not.toHaveBeenCalled();
     expect(host.textContent).toContain(port.name);
