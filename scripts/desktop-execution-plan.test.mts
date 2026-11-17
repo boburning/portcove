@@ -169,6 +169,12 @@ void test("real prepared runtimes use production builds and positive owned closu
     () => resolveDesktopSelection({ scenarios: [id, "empty-library"], platform: "win32" }),
     /standalone/,
   );
+  for (const platform of ["linux", "darwin"] as const)
+    assert.throws(() => resolveDesktopSelection({ scenarios: [id], platform }), /Windows/);
+  assert.deepEqual(
+    resolveDesktopSelection({ scenarios: [id, id], platform: "win32" }).selected_scenarios,
+    [id],
+  );
 });
 
 void test("publication interruption is standalone, instrumented and positively supervised", () => {

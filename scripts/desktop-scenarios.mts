@@ -777,9 +777,6 @@ export function resolveDesktopSelection({
   platform?: NodeJS.Platform;
 } = {}) {
   if (profile && scenarios.length) throw new Error("--profile and --scenario cannot be combined");
-  // Supplied panel projections remain cached until the disposable session closes.
-  if (scenarios.includes("native-secondary-panel-presentation") && scenarios.length !== 1)
-    throw new Error("Native secondary-panel presentation requires one standalone scenario");
   const selectedProfile = profile ?? (scenarios.length ? null : defaultProfile);
   const profileScenarios = selectedProfile
     ? Object.entries(DESKTOP_PROFILES).find(([name]) => name === selectedProfile)?.[1]
@@ -799,6 +796,12 @@ export function resolveDesktopSelection({
   if (unknown.length)
     throw new Error(`Unknown desktop scenario: ${[...new Set(unknown)].join(", ")}`);
   const uniqueRequested = ordered(requested);
+  // Supplied projections remain cached until this Windows chooser session closes.
+  if (
+    uniqueRequested.includes("native-secondary-panel-presentation") &&
+    (uniqueRequested.length !== 1 || platform !== "win32")
+  )
+    throw new Error("Native secondary-panel presentation requires one standalone Windows scenario");
   if (
     uniqueRequested.includes("native-interface-size") &&
     (uniqueRequested.length !== 1 || platform !== "win32")
