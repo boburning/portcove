@@ -6,6 +6,14 @@
     "summary": "Explore procedurally generated dungeons with Brogue Community Edition.",
     "original_game_title": "Brogue",
     "project_url": "https://github.com/tmewett/BrogueCE",
+    "artwork": {
+      "game_id": 12516,
+      "cover_id": 217851,
+      "image_id": "co4o3f",
+      "image_sha256": "a27394f83e0d0e2ae36f5592e78e9465592c2f2e6eb334b6589867ad32c7ef5d",
+      "game_slug": "brogue",
+      "match_kind": "underlying-game"
+    },
     "issue_number": 6047,
     "listed_at": "2026-11-17",
     "platforms": ["windows-x86-64", "linux-x86-64", "macos-x86-64", "macos-aarch64"],
