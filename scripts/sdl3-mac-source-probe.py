@@ -7,12 +7,13 @@ import platform
 import subprocess
 
 
-def run(*args, timeout=180):
+def run(*args, timeout=180, expected=0):
     print("RUN", json.dumps(args), flush=True)
     p = subprocess.run(args, text=True, stdout=subprocess.PIPE,
                        stderr=subprocess.STDOUT, timeout=timeout)
     print(p.stdout, flush=True)
-    p.check_returncode()
+    if p.returncode != expected:
+        raise RuntimeError("Unexpected exit " + str(p.returncode) + "; expected " + str(expected))
     return p.stdout.strip()
 
 
@@ -27,7 +28,7 @@ print(json.dumps({"controller": os.environ["GITHUB_SHA"],
                   "attempt": os.environ["GITHUB_RUN_ATTEMPT"],
                   "machine": platform.machine(), "os": platform.platform(),
                   "image": os.environ.get("ImageVersion"),
-                  "scope": "native source build only; no player execution"}), flush=True)
+                  "scope": "native source build and usage-loader checks only; no game/GUI execution"}), flush=True)
 run("sw_vers")
 run("clang", "--version")
 run("cmake", "--version")
@@ -68,8 +69,14 @@ for source, commit, subdir, target, option in [
         if archs != [platform.machine()]:
             raise RuntimeError("Output is not native to this host")
         deps = run("otool", "-L", str(binary))
+        # Both upstream parsers reject unknown long options before original-file or SDL initialization.
+        # Expect their documented usage exit, not successful game startup.
+        usage = run(str(binary), "--help", timeout=20, expected=2)
+        if "usage:" not in usage:
+            raise RuntimeError("Expected upstream usage response is absent")
         results.append({"source": source, "commit": commit, "binary_sha256": digest(binary),
-                        "machine": machine, "dependencies": deps, "scope": "source build only"})
+                        "machine": machine, "dependencies": deps, "usage_exit": 2,
+                        "scope": "native source build and runtime-loader/usage only; no game execution"})
         if run("git", "-C", source, "status", "--porcelain"):
             raise RuntimeError("Build changed upstream source")
     except Exception as error:

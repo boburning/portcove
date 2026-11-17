@@ -30,5 +30,5 @@ jobs:
           ref: 5f3017dd7bd8c054fb010153e2983893bb471c67
           path: jetstrike
           persist-credentials: false
-      - name: Build unchanged upstream native targets without executing players
+      - name: Build unchanged targets and check native runtime loading without game startup
         run: python3 scripts/sdl3-mac-source-probe.py
