@@ -1,0 +1,28 @@
+{
+  "signatures": [
+    {
+      "keyid": "5972f173654769c9fe2cad7258c9fb4b777e4c66d864b318bbb56616650031f5",
+      "sig": "2eefb8b01190d4027fd85768a3e4eab747295e81abe2fbe7532937a00221772d0fd6ba01d15badca3a04b585a03753c51131978e3ca0094034a82e38e3354003"
+    }
+  ],
+  "signed": {
+    "_type": "targets",
+    "expires": "2026-11-24T23:46:45.668Z",
+    "spec_version": "1.0.0",
+    "targets": {
+      "policy/official/chameleon-twist-jp-recompiled.json": {
+        "hashes": {
+          "sha256": "fa75fbd0f69fbc1569dda322ac46ff69cb679a5da504c02389fe59a6f448dbf3"
+        },
+        "length": 738
+      },
+      "policy/official/chameleon-twist-jp-recompiled.launch.json": {
+        "hashes": {
+          "sha256": "7a9c59539806acd222865418f2c3102309deeae85d805542b09cbf9d4ec7f0a0"
+        },
+        "length": 229
+      }
+    },
+    "version": 7
+  }
+}
