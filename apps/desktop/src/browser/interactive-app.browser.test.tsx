@@ -337,7 +337,8 @@ it("uses real App search, readiness filters, chips, artwork fallback, and detail
 });
 
 it("reviews preparation through desktopApi, waits for progress, cancels, fails and completes a fresh review", async () => {
-  mount("setup");
+  await page.viewport(960, 640);
+  mount("setup", true);
   await userEvent.click(
     page.getByRole("button", {
       name: "View details for Harbor Adventure",
@@ -356,6 +357,7 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
     )
     .toBeEnabled();
   expect(next.element().textContent).toContain("Harbor Adventure");
+  await userEvent.click(page.getByRole("tab", { name: "Game files", exact: true }));
   await userEvent.click(setupReview());
   await expect.element(page.getByRole("dialog").getByText("Uses", { exact: true })).toBeVisible();
   await expect.element(page.getByText("fixture/owned.iso", { exact: true })).toBeVisible();
@@ -394,7 +396,17 @@ it("reviews preparation through desktopApi, waits for progress, cancels, fails a
   await expect
     .poll(() => document.querySelector('[aria-labelledby="port-detail-title"]')?.textContent)
     .toContain("Ready to play");
-  await expect.element(page.getByRole("button", { name: "Play", exact: true })).toHaveFocus();
+  const play = page.getByRole("button", { name: "Play", exact: true });
+  await expect.element(play).toHaveFocus();
+  // Leading feedback also moves during completion. Measure after its reflow
+  // so focus on an offscreen button cannot pass this handoff check.
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  const { left, top, width, height } = play.element().getBoundingClientRect();
+  expect(
+    play.element().contains(document.elementFromPoint(left + width / 2, top + height / 2)),
+  ).toBe(true);
   await captureParityState("preparation-completed-fixture");
 }, 45_000);
 
