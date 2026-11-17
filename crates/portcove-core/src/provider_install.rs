@@ -201,6 +201,126 @@ fn validate_offer(
     Ok(())
 }
 
+fn matches_dependency_coordinates(
+    recorded: &[ProviderRequirement],
+    offered: &ProviderFileCandidate,
+) -> bool {
+    offered
+        .thunderstore_dependencies
+        .as_ref()
+        .is_some_and(|dependencies| {
+            dependencies.len() == recorded.len()
+                && dependencies.iter().all(|dependency| {
+                    let project = format!("{}-{}", dependency.namespace, dependency.package);
+                    recorded.iter().any(|required| {
+                        required.provider.project == project
+                            && required.provider.file.as_deref()
+                                == Some(dependency.version.as_str())
+                    })
+                })
+        })
+}
+
+/// Only previously reviewed, complete and enabled dependencies can be reused.
+/// A fresh listing must still name the same exact graph before any download.
+fn retained_dependencies(
+    layout: &Layout,
+    revision: &ProfileRevision,
+    project: &str,
+    file: &ProviderFileCandidate,
+    observed: Option<&[(ProviderProject, ProviderFileCandidate)]>,
+) -> Result<Vec<ProviderRequirement>> {
+    let changed = || {
+        PortcoveError::unsupported(
+        "the Thunderstore dependency set changed or has no complete prior review; review this update",
+    ).detail("project", project)
+    };
+    let mut roots = revision.packages.iter().filter(|package| {
+        package.provider.as_ref().is_some_and(|provider| {
+            provider.provider == crate::thunderstore::PROVIDER && provider.project == project
+        })
+    });
+    let root = roots.next().ok_or_else(changed)?;
+    if !root.enabled
+        || !matches_dependency_coordinates(&root.provider_requires, file)
+        || roots.any(|package| {
+            !package.enabled
+                || package.provider != root.provider
+                || package.provider_requires != root.provider_requires
+        })
+    {
+        return Err(changed());
+    }
+
+    let mut pending = root.provider_requires.iter().collect::<Vec<_>>();
+    let mut reviewed = BTreeMap::<&str, &ProviderRequirement>::new();
+    let mut remaining_members = MAX_MEMBERS;
+    let mut remaining_bytes = MAX_EXTRACTED_BYTES;
+    while let Some(required) = pending.pop() {
+        let name = required.provider.project.as_str();
+        if let Some(previous) = reviewed.get(name) {
+            if *previous != required {
+                return Err(changed());
+            }
+            continue;
+        }
+        if name == project || reviewed.len() >= MAX_MEMBERS {
+            return Err(changed());
+        }
+        let missing = || {
+            PortcoveError::unsupported(
+            "a required Thunderstore package is missing, changed or turned off; review this update",
+        ).detail("project", name)
+            .detail("version", required.provider.version.as_deref().unwrap_or_default())
+        };
+        let packages = revision
+            .packages
+            .iter()
+            .filter(|package| package.provider.as_ref() == Some(&required.provider))
+            .collect::<Vec<_>>();
+        let primary = *packages.first().ok_or_else(missing)?;
+        if packages.len() != required.members.len() {
+            return Err(missing());
+        }
+        remaining_members = remaining_members
+            .checked_sub(packages.len())
+            .ok_or_else(changed)?;
+        for package in packages {
+            remaining_bytes = remaining_bytes
+                .checked_sub(package.size)
+                .ok_or_else(changed)?;
+            if !package.enabled
+                || package.provider_requires != primary.provider_requires
+                || required.members.get(&package.native_id) != Some(&package.sha256)
+            {
+                return Err(missing());
+            }
+            let path = layout.package(&package.sha256, &package.native_id);
+            if !crate::external_runtime::hash_stable_regular(&path, package.size, &|| Ok(()))
+                .is_ok_and(|(digest, size)| size == package.size && digest == package.sha256)
+            {
+                return Err(missing());
+            }
+        }
+        if let Some(observed) = observed {
+            let observation = observed
+                .iter()
+                .find(|(project, file)| {
+                    project.project_id == name
+                        && required.provider.file.as_deref() == Some(file.file_id.as_str())
+                })
+                .map(|(_, file)| file)
+                .ok_or_else(changed)?;
+            if !matches_dependency_coordinates(&primary.provider_requires, observation) {
+                return Err(changed());
+            }
+        }
+        pending.extend(&primary.provider_requires);
+        reviewed.insert(name, required);
+    }
+    Ok(reviewed.into_values().cloned().collect())
+}
+
 struct ReviewedMember<'a> {
     provider: &'a ProviderPackageRef,
     requirements: Vec<ProviderRequirement>,
@@ -208,7 +328,10 @@ struct ReviewedMember<'a> {
 
 /// Validate that every reviewed native member belongs to exactly one wrapper,
 /// with all exact prerequisites earlier in the same reviewed closure.
-fn wrapper_members(plan: &ProviderInstallPlan) -> Result<BTreeMap<&str, ReviewedMember<'_>>> {
+fn wrapper_members<'a>(
+    plan: &'a ProviderInstallPlan,
+    retained: &[ProviderRequirement],
+) -> Result<BTreeMap<&'a str, ReviewedMember<'a>>> {
     let mut members = BTreeMap::new();
     if plan.provider.provider != crate::thunderstore::PROVIDER {
         if !plan.wrappers.is_empty() {
@@ -236,7 +359,10 @@ fn wrapper_members(plan: &ProviderInstallPlan) -> Result<BTreeMap<&str, Reviewed
         .iter()
         .map(|member| (member.file_name.as_str(), &member.sha256))
         .collect::<BTreeMap<_, _>>();
-    let mut seen = BTreeMap::<&str, &ProviderWrapper>::new();
+    let mut seen = retained
+        .iter()
+        .map(|required| (required.provider.project.as_str(), required.clone()))
+        .collect::<BTreeMap<_, _>>();
     for wrapper in &plan.wrappers {
         if wrapper.provider.provider != crate::thunderstore::PROVIDER
             || wrapper.provider.file.as_ref() != Some(&wrapper.file.file_id)
@@ -255,14 +381,17 @@ fn wrapper_members(plan: &ProviderInstallPlan) -> Result<BTreeMap<&str, Reviewed
             let project = format!("{}-{}", dependency.namespace, dependency.package);
             let required = seen
                 .get(project.as_str())
-                .filter(|required| required.file.file_id == dependency.version)
+                .filter(|required| {
+                    required.provider.file.as_deref() == Some(dependency.version.as_str())
+                })
                 .ok_or_else(invalid)?;
-            requirements.push(ProviderRequirement {
-                provider: required.provider.clone(),
-                members: required.members.clone(),
-            });
+            requirements.push(required.clone());
         }
-        if seen.insert(&wrapper.provider.project, wrapper).is_some() {
+        let proof = ProviderRequirement {
+            provider: wrapper.provider.clone(),
+            members: wrapper.members.clone(),
+        };
+        if seen.insert(&wrapper.provider.project, proof).is_some() {
             return Err(invalid());
         }
         for (id, hash) in &wrapper.members {
@@ -402,14 +531,24 @@ impl PortcoveService {
                 "another enabled mod needs the installed Thunderstore version; review the dependent mod first",
             ));
         }
-        if mode == ProviderInstallMode::Automatic && projects.len() > 1 {
-            return Err(PortcoveError::unsupported(
-                "a Thunderstore dependency set needs review before it can be installed",
-            ));
-        }
         let (project, file) = projects
             .last()
             .ok_or_else(|| PortcoveError::verification("the provider returned no exact package"))?;
+        let reuse_dependencies = mode == ProviderInstallMode::Automatic
+            && matches!(client, ProviderClient::Thunderstore { .. });
+        let retained = if reuse_dependencies {
+            retained_dependencies(&layout, &current, project_id, file, Some(&projects))?
+        } else {
+            Vec::new()
+        };
+        let projects =
+            if reuse_dependencies {
+                std::slice::from_ref(projects.last().ok_or_else(|| {
+                    PortcoveError::state("the exact package changed during review")
+                })?)
+            } else {
+                projects.as_slice()
+            };
         fs::create_dir_all(layout.tmp())?;
         let staging = tempfile::tempdir_in(layout.tmp())?;
         let mut member_paths = Vec::new();
@@ -670,7 +809,7 @@ impl PortcoveService {
             .collect(),
             plan_sha256: String::new(),
         };
-        let reviewed = wrapper_members(&plan)?;
+        let reviewed = wrapper_members(&plan, &retained)?;
         if !reviewed.is_empty() {
             for installed in &current.packages {
                 if !plan
@@ -937,7 +1076,6 @@ impl PortcoveService {
                 "the plan does not match its recorded digest",
             ));
         }
-        let wrapper_members = wrapper_members(plan)?;
         if mode == ProviderInstallMode::Automatic && plan.wrappers.len() > 1 {
             return Err(PortcoveError::usage(
                 "a Thunderstore dependency set needs explicit permission",
@@ -955,6 +1093,19 @@ impl PortcoveService {
                 ));
             }
         }
+        let retained = if mode == ProviderInstallMode::Automatic
+            && plan.provider.provider == crate::thunderstore::PROVIDER
+        {
+            let current = profile::current_revision(
+                &self.library.connection()?,
+                &plan.port_id,
+                &plan.profile_id,
+            )?;
+            retained_dependencies(&layout, &current, &plan.provider.project, &plan.file, None)?
+        } else {
+            Vec::new()
+        };
+        let wrapper_members = wrapper_members(plan, &retained)?;
         let runs_code = plan
             .members
             .iter()

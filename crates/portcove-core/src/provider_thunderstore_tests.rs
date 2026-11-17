@@ -644,3 +644,148 @@ async fn a_thunderstore_wrapper_disclosing_an_unlisted_requirement_has_no_review
     );
     assert!(live(&w).is_empty());
 }
+
+#[tokio::test]
+async fn automatic_thunderstore_updates_stage_only_the_root_of_an_exact_retained_graph() {
+    let dependency = wrapper(
+        "Shared",
+        "2.1.0",
+        &[],
+        &[
+            ("first.nrm", &nrm("shared_first", false)),
+            ("second.nrm", &nrm("shared_second", true)),
+        ],
+    );
+    let w = world_with_dependency(Some(dependency));
+    let prior = w
+        .service
+        .plan_provider_install_via(&w.client, PORT, &w.profile, "Owner-Timer", "1.0.0")
+        .await
+        .unwrap();
+    let token = w
+        .service
+        .authorize_provider_install_allowing_code(&prior)
+        .unwrap()
+        .token;
+    let current = w.service.apply_provider_install(&prior, &token).unwrap();
+    w.service
+        .set_profile_update_policy(
+            PORT,
+            &w.profile,
+            crate::ProfileUpdatePolicy::AutomaticEligible,
+        )
+        .unwrap();
+    w._requests.try_iter().for_each(drop);
+
+    let asset_manifest = serde_json::to_vec(&serde_json::json!({
+        "game_id": "mm", "id": "speed_timer", "display_name": "Timer", "version": "1.1.0",
+        "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+    }))
+    .unwrap();
+    let asset_update = zip_bytes(&[
+        ("mod.json", &asset_manifest),
+        ("textures/a.png", b"new texture"),
+    ]);
+    w.versions.lock().unwrap().push((
+        "1.1.0".into(),
+        "2026-11-05T00:00:00Z".into(),
+        wrapper(
+            "Timer",
+            "1.1.0",
+            &["Tools-Shared-2.1.0"],
+            &[("timer.nrm", &asset_update)],
+        ),
+    ));
+    let first = current
+        .packages
+        .iter()
+        .find(|member| member.native_id == "shared_first.nrm")
+        .unwrap();
+    let layout = w.service.deploy_layout(PORT).unwrap();
+    let stored = layout.package(&first.sha256, &first.native_id);
+    let exact = fs::read(&stored).unwrap();
+    fs::write(&stored, b"changed").unwrap();
+    let held = w
+        .service
+        .run_eligible_provider_updates_via(&w.client, PORT)
+        .await
+        .unwrap();
+    assert!(held.iter().any(|update| {
+        matches!(&update.outcome, ProviderAutoUpdateOutcome::Held { reason } if reason.contains("required Thunderstore package"))
+    }), "{held:?}");
+    assert!(
+        !w._requests
+            .try_iter()
+            .any(|request| request.contains("/package/download/"))
+    );
+    fs::write(stored, exact).unwrap();
+
+    let updates = w
+        .service
+        .run_eligible_provider_updates_via(&w.client, PORT)
+        .await
+        .unwrap();
+    assert!(updates.iter().any(|update| {
+        matches!(&update.outcome, ProviderAutoUpdateOutcome::Applied { file_id, .. } if file_id == "1.1.0")
+    }), "{updates:?}");
+    let requests = w._requests.try_iter().collect::<Vec<_>>();
+    assert!(
+        requests
+            .iter()
+            .any(|request| request.contains("/package/download/Owner/Timer/1.1.0/"))
+    );
+    assert!(
+        !requests
+            .iter()
+            .any(|request| request.contains("/package/download/Tools/Shared/"))
+    );
+    let next = crate::profile::current_revision(
+        &w.service.library().connection().unwrap(),
+        PORT,
+        &w.profile,
+    )
+    .unwrap();
+    for member in current
+        .packages
+        .iter()
+        .filter(|member| member.native_id.starts_with("shared_"))
+    {
+        assert!(next.packages.contains(member));
+    }
+    let previous_root = current
+        .packages
+        .iter()
+        .find(|member| member.native_id == "speed_timer.nrm")
+        .unwrap();
+    let next_root = next
+        .packages
+        .iter()
+        .find(|member| member.native_id == "speed_timer.nrm")
+        .unwrap();
+    assert_ne!(previous_root.sha256, next_root.sha256);
+    assert_eq!(previous_root.provider_requires, next_root.provider_requires);
+
+    w.versions.lock().unwrap().push((
+        "1.2.0".into(),
+        "2026-11-06T00:00:00Z".into(),
+        wrapper(
+            "Timer",
+            "1.2.0",
+            &["Tools-Shared-2.1.0"],
+            &[("timer.nrm", &nrm("speed_timer", true))],
+        ),
+    ));
+    let updates = w
+        .service
+        .run_eligible_provider_updates_via(&w.client, PORT)
+        .await
+        .unwrap();
+    assert!(updates.iter().any(|update| {
+        matches!(&update.outcome, ProviderAutoUpdateOutcome::Held { reason } if reason.contains("runs its own code"))
+    }), "{updates:?}");
+    assert!(
+        !w._requests
+            .try_iter()
+            .any(|request| request.contains("/package/download/Tools/Shared/"))
+    );
+}
