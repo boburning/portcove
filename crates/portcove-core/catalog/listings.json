@@ -38970,7 +38970,7 @@
           },
           {
             "title": "Start the native Windows engine",
-            "instruction": "Extract the Windows x64 package into a writable folder. Run MageBrosNative.exe with --game followed by the quoted path to the original MageBros.exe. Use Windows 10 or 11 with OpenGL support."
+            "instruction": "Extract the Windows x64 package into a writable folder. Run MageBrosNative.exe with --game followed by the quoted path to the original MageBros.exe. Use Windows 10 or 11 with OpenGL 3.3. If Windows reports missing MSVCP140.dll or VCRUNTIME140.dll, install Microsoft’s Visual C++ v14 x64 Redistributable."
           }
         ],
         "warnings": [
