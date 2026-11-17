@@ -181,8 +181,8 @@ pub struct StandingSetupFailure {
     pub reason: String,
 }
 
-/// What one standing-setup pass did for each game it considered.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+/// What one standing pass did for the games and mods it considered.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 pub struct StandingSetupResult {
     /// Another process is already running a pass; this one did nothing.
     pub already_running: bool,
@@ -192,6 +192,9 @@ pub struct StandingSetupResult {
     pub batches: Vec<InstallBatchRecord>,
     /// Games that could not start; the others were not affected.
     pub failures: Vec<StandingSetupFailure>,
+    /// The game setup queue could not be read. Mod updates still ran.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub game_setup_unavailable: Option<String>,
     /// Matched files in folders with automatic setup that wait for a person
     /// or a requirement.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -726,16 +729,42 @@ impl PortcoveService {
             Err(error) if error.code == crate::ErrorCode::Conflict => {
                 return Ok(StandingSetupResult {
                     already_running: true,
-                    assessments: Vec::new(),
-                    not_assessed: 0,
-                    batches: Vec::new(),
-                    failures: Vec::new(),
-                    root_waiting: Vec::new(),
-                    mod_updates: Vec::new(),
+                    ..Default::default()
                 });
             }
             Err(error) => return Err(error),
         };
+        let mut result = self
+            .run_standing_game_setup(&mut emit)
+            .await
+            .unwrap_or_else(|error| {
+                tracing::warn!(error = %error.message, "game setup queue is unavailable");
+                StandingSetupResult {
+                    game_setup_unavailable: Some(error.message),
+                    ..Default::default()
+                }
+            });
+        for port_id in crate::provider_install::provider_ports() {
+            match self.run_eligible_provider_updates(port_id).await {
+                Ok(updates) => result.mod_updates.extend(updates),
+                Err(error) => result.mod_updates.push(crate::ProviderAutoUpdate {
+                    port_id: port_id.into(),
+                    profile_id: String::new(),
+                    profile_name: String::new(),
+                    native_ids: Vec::new(),
+                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
+                        reason: error.message,
+                    },
+                }),
+            }
+        }
+        Ok(result)
+    }
+
+    async fn run_standing_game_setup(
+        &self,
+        emit: &mut impl FnMut(OperationEvent),
+    ) -> Result<StandingSetupResult> {
         self.recover_interrupted_setups();
         let assessed = self.assess_port_intents().await?;
         let busy = self
@@ -762,7 +791,7 @@ impl PortcoveService {
                 continue;
             }
             match self
-                .standing_setup_one(&assessment.port_id, plan_sha256, &mut emit)
+                .standing_setup_one(&assessment.port_id, plan_sha256, emit)
                 .await
             {
                 Ok(Some(record)) => batches.push(record),
@@ -782,7 +811,7 @@ impl PortcoveService {
         }
         // A folder pass error leaves the per-game results intact.
         let root_waiting = match self
-            .run_root_setup(&busy, &mut handled, &mut batches, &mut failures, &mut emit)
+            .run_root_setup(&busy, &mut handled, &mut batches, &mut failures, emit)
             .await
         {
             Ok(waiting) => waiting,
@@ -791,29 +820,13 @@ impl PortcoveService {
                 Vec::new()
             }
         };
-        let mut mod_updates = Vec::new();
-        for port_id in crate::provider_install::provider_ports() {
-            match self.run_eligible_provider_updates(port_id).await {
-                Ok(updates) => mod_updates.extend(updates),
-                Err(error) => mod_updates.push(crate::ProviderAutoUpdate {
-                    port_id: port_id.into(),
-                    profile_id: String::new(),
-                    profile_name: String::new(),
-                    native_ids: Vec::new(),
-                    outcome: crate::ProviderAutoUpdateOutcome::Unavailable {
-                        reason: error.message,
-                    },
-                }),
-            }
-        }
         Ok(StandingSetupResult {
-            already_running: false,
             assessments: assessed.assessments,
             not_assessed: assessed.not_assessed,
             batches,
             failures,
             root_waiting,
-            mod_updates,
+            ..Default::default()
         })
     }
 
@@ -978,6 +991,22 @@ mod tests {
         let library = Library::open(temporary.path().join("library")).unwrap();
         register_zelda_install(&library, "v1", false);
         (temporary, service_with_release(library, "v1"))
+    }
+
+    #[tokio::test]
+    async fn unreadable_game_setup_queue_does_not_abort_the_standing_pass() {
+        let (_temporary, service) = ready_service().await;
+        service
+            .library()
+            .connection()
+            .unwrap()
+            .execute("DROP TABLE port_intents", [])
+            .unwrap();
+
+        let result = service.run_standing_setup(|_| {}).await.unwrap();
+        assert!(!result.already_running);
+        assert!(result.game_setup_unavailable.is_some());
+        assert!(result.batches.is_empty());
     }
 
     #[tokio::test]

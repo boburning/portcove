@@ -825,6 +825,31 @@ export type OutputListingStatuses = PortListingStatus[];
 export type RecompExecution = "recompiled_code" | "native_libraries" | "external_code";
 export type RetainedBuildAvailability = "verified" | "missing" | "changed" | "held" | "unavailable";
 export type OriginalAvailability = "verified" | "missing" | "changed";
+/**
+ * What one standing pass did about one installed provider file.
+ */
+export type ProviderAutoUpdateOutcome =
+  | {
+      file_id: string;
+      outcome: "applied";
+      revision: number;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "held";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "deferred";
+      reason: string;
+      [k: string]: unknown;
+    }
+  | {
+      outcome: "unavailable";
+      reason: string;
+      [k: string]: unknown;
+    };
 export type OfficialCatalogAutomaticOutcome =
   "turned_off" | "not_configured" | "already_running" | "unavailable" | "refreshed";
 export type DefinitionDeliveryServing =
@@ -5077,6 +5102,10 @@ export interface OutputModSetupsView {
    */
   inventory: ProfileInventory | null;
   /**
+   * Results of the last automatic check, even after reopening the library.
+   */
+  last_automatic_checks?: ProviderAutoUpdateCheck[];
+  /**
    * True when reviewed loader source shows that the later of two mods changing
    * the same asset wins. False when the order is kept but which mod wins is not
    * established.
@@ -5139,6 +5168,21 @@ export interface ProfileView {
 export interface OriginalStatus {
   availability: OriginalAvailability;
   binding: OriginalBinding;
+  [k: string]: unknown;
+}
+/**
+ * The last automatic check of an installed provider file or setup.
+ */
+export interface ProviderAutoUpdateCheck {
+  candidate_file_id: string | null;
+  checked_at: number;
+  native_ids: string[];
+  profile_id: string;
+  project_id: string | null;
+  /**
+   * None means a current observation offered no update.
+   */
+  result: ProviderAutoUpdateOutcome | null;
   [k: string]: unknown;
 }
 /**
@@ -6971,7 +7015,7 @@ export interface RootSetupImplementation {
   [k: string]: unknown;
 }
 /**
- * What one standing-setup pass did for each game it considered.
+ * What one standing pass did for the games and mods it considered.
  */
 export interface OutputDesktopStandingSetup {
   /**
@@ -6987,6 +7031,10 @@ export interface OutputDesktopStandingSetup {
    * Games that could not start; the others were not affected.
    */
   failures: StandingSetupFailure[];
+  /**
+   * The game setup queue could not be read. Mod updates still ran.
+   */
+  game_setup_unavailable?: string | null;
   /**
    * Provider updates for mod setups whose policy allows unattended updates.
    */

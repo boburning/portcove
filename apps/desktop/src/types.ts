@@ -79,6 +79,9 @@ export type ModSetupOriginalTarget = {
   requirementId: string;
 };
 export type ModSetup = ModSetupView["profile"];
+export type ModUpdatePolicy = ModSetup["intent"]["update_policy"];
+export type ModAutoUpdateCheck = NonNullable<ModSetupsView["last_automatic_checks"]>[number];
+export type ProviderUpdateObservation = Generated.TransportOutputs["provider_update_observation"];
 export type ModSetupRevision = Generated.TransportOutputs["profile_revision"];
 export type ModSetupRecoveryBuild =
   Generated.TransportOutputs["retained_build_resolution"]["history"][number];

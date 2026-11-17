@@ -2780,8 +2780,9 @@ Results are reported in `mod_updates`, one per installed file:
   mod, changes which mod wins an asset, or contains a mod that runs code, which
   always waits for the player's consent); nothing changed and its staging is
   discarded. A hold found by comparing the newer file with the setup is remembered
-  for that setup revision and candidate file, so it is not downloaded again until
-  either changes.
+  for that setup revision and the candidate's observed file details. A change to
+  the revision, the candidate ID, or reported file details such as size causes
+  a new check. Exact byte inspection still governs any update.
 - `deferred`: something temporary, such as the game running, another change in
   progress, or files in the live `mods` folder the setup did not add, prevented it;
   this is checked before downloading, and the next pass tries again.
@@ -2793,11 +2794,25 @@ or by Portcove (UNKNOWN). `profile setups` reports `held_updates`: the remembere
 holds for each setup's current revision, only while its policy is
 `automatic-eligible`, with the setup's affected mods, the candidate file and the
 reason. A new revision of the setup, another outcome for that installed file (other than
-a deferral or an outage), or a newer candidate replaces or ends a hold, and the remembered holds are cleared
-entirely if they ever exceed 256. Desktop's Setups and mods panel shows the held
-updates for the setup in use and refreshes after an applied one; it does not show
-deferred or unavailable updates or holds for other setups, which
-`games setup-ready` lists.
+a deferral or an outage), or changed provider file details replace or end a hold.
+Portcove clears the remembered holds if their count reaches 256.
+
+`profile setups` also reports the last automatic check for each setup with automatic
+updates. It records the time, affected mods and the result, including a current
+provider response that offered no newer file. These results remain available when
+reopening the library. An outage or a deferral is never shown as current. If the
+game setup queue cannot be read, `games setup-ready` returns a partial success
+with `game_setup_unavailable` and still checks automatic mods. Consumers must
+check that field before treating empty game work as a completed game assessment.
+Earlier clients returned an error for that queue failure before checking mods. The
+`profile setups` field `last_automatic_checks` may be absent when there is no
+receipt to show. It provides status for review and grants no update permission.
+
+In Desktop, use **Setups and mods** to choose the current setup's mod update
+policy or check for a newer file. An explicit check reads provider metadata and
+lets you open the project's files for review. An automatic update that needs a
+decision stays held until an eligible plan can be applied or you review the
+provider's exact files.
 
 Library metadata schema 6 carries profiles, revisions and the selected profile.
 Schema 11 also carries historical profile revisions whose runtime offers were

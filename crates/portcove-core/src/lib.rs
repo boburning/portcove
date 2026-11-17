@@ -372,7 +372,9 @@ pub use profile_file_preservation::{
     ModFileIdentity, ModFilePreservationPlan, ModFilePreservationResult,
 };
 pub use profile_originals::{ProfileOriginalInstance, ProfileOriginalReview};
-pub use provider_auto_update::{HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateOutcome};
+pub use provider_auto_update::{
+    HeldModUpdate, ProviderAutoUpdate, ProviderAutoUpdateCheck, ProviderAutoUpdateOutcome,
+};
 pub use provider_browse::{ProviderBrowsePage, ProviderProjectView};
 pub use provider_install::{PlanMember, ProviderInstallPlan, ProviderWrapper};
 pub use provider_update::{ProviderUpdateObservation, ProviderUpdateState};
@@ -513,7 +515,8 @@ pub use windows_runtime::{
 // Public 96 adds saved original-instance selection and byte-verified relinking.
 // Public 97 exposes exact setup recovery and isolated progress copying.
 // Public 98 adds reviewed mod-file inspection and preservation receipts.
-pub const API_SCHEMA_VERSION: u32 = 98;
+// Public 99 reports partial results when the game setup queue is unavailable.
+pub const API_SCHEMA_VERSION: u32 = 99;
 /// Oldest library schema this build can read and migrate.
 pub const MIN_LIBRARY_SCHEMA_VERSION: u32 = 1;
 /// Library schema this build writes after opening a library.

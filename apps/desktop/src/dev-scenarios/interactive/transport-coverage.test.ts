@@ -49,12 +49,12 @@ const unsupportedByReason: Record<string, string[]> = {
     set_root_setup_consent set_root_setup_implementation set_root_setup_local_copy
     set_channel
     set_default_library set_github_token set_host_tool_path set_locale_preference
-    remove_mod_package select_mod_setup_original set_mod_package_enabled
+    remove_mod_package select_mod_setup_original set_mod_package_enabled set_mod_update_policy
     set_output_location set_policy trust_catalog_key use_cached_catalog
     use_embedded_catalog use_mod_setup verify_port verify_sources
   `.split(/\s+/),
   "review, plan or inspection step of a user-started flow the fixtures do not mount": `
-    catalog_download_candidates check_definition_capabilities check_installed
+    check_provider_mod_updates catalog_download_candidates check_definition_capabilities check_installed
     check_port discover_setup_launch_targets discover_sources inspect_launcher_library preview_adoption_batch
     inspect_mod_file inspect_mod_recipe inspect_source
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import

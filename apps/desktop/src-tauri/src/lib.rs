@@ -3069,6 +3069,8 @@ pub fn run() -> std::process::ExitCode {
             mod_setup_commands::retire_mod_setup_recovery_build,
             mod_setup_commands::set_mod_package_enabled,
             mod_setup_commands::remove_mod_package,
+            mod_setup_commands::set_mod_update_policy,
+            mod_setup_commands::check_provider_mod_updates,
             mod_setup_commands::add_mod_package,
             mod_setup_commands::browse_provider_mods,
             mod_setup_commands::open_provider_mod_project,

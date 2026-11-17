@@ -11,7 +11,7 @@ use crate::{
 };
 use portcove_core::{
     ModSetupsView, PortcoveError, Profile, ProfileProgressCopy, ProfileRecipe, ProfileRecoveryPlan,
-    ProfileRevision, RecipeImportPlan,
+    ProfileRevision, ProfileUpdatePolicy, ProviderUpdateObservation, RecipeImportPlan,
 };
 
 #[tauri::command]
@@ -285,6 +285,43 @@ fn require_recipe_port(port_id: &str, recipe: &ProfileRecipe) -> portcove_core::
         )
         .detail("recipe_game", &recipe.port_id))
     }
+}
+
+#[tauri::command]
+pub(crate) async fn set_mod_update_policy(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+    policy: ProfileUpdatePolicy,
+) -> DesktopResult<Profile> {
+    let state = state.inner().clone();
+    blocking_worker(move || {
+        service_at_generation(&state, generation)?
+            .set_profile_update_policy(&port_id, &profile_id, policy)
+            .map_err(Into::into)
+    })
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn check_provider_mod_updates(
+    state: tauri::State<'_, DesktopState>,
+    generation: u64,
+    port_id: String,
+    profile_id: String,
+) -> DesktopResult<Vec<ProviderUpdateObservation>> {
+    crate::blocking_async_service_at_generation(
+        state.inner().clone(),
+        generation,
+        move |service| async move {
+            service
+                .check_provider_updates(&port_id, &profile_id)
+                .await
+                .map_err(Into::into)
+        },
+    )
+    .await
 }
 
 #[tauri::command]

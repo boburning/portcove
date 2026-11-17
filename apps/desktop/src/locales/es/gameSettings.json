@@ -289,6 +289,41 @@
     "runtimeVersion": "Versión del juego {{version}}",
     "separator": ", ",
     "setups": "Perfiles",
+    "updates": {
+      "automatic": {
+        "applied": "Se actualizó automáticamente.",
+        "current": "No se ofreció ningún archivo más reciente.",
+        "deferred": "Se volverá a comprobar la actualización.",
+        "held": "La actualización requiere revisión.",
+        "unavailable": "No se pudo comprobar. Portcove volverá a intentarlo."
+      },
+      "check": "Buscar actualizaciones de mods",
+      "checking": "Buscando actualizaciones de mods…",
+      "detail": {
+        "automatic_eligible": "Portcove instala las actualizaciones de mods aptas mientras está abierto. Las que requieren una decisión esperan a que las revises.",
+        "keep_current": "Portcove conserva los mods instalados y omite las comprobaciones automáticas.",
+        "review_updates": "Busca archivos más recientes y revisa sus cambios antes de instalarlos."
+      },
+      "heading": "Actualizaciones de mods",
+      "lastAutomatic": "Última comprobación automática",
+      "manual": {
+        "current": "No se ofreció ningún archivo más reciente.",
+        "installed_file_removed": "El proveedor dejó de ofrecer el archivo instalado.",
+        "newer_files": "Hay un archivo más reciente.",
+        "unavailable": "No se pudo comprobar."
+      },
+      "manualResults": "Resultados de la búsqueda de actualizaciones",
+      "noAutomaticCheck": "Aún no se ha registrado una comprobación automática para este perfil.",
+      "noProviderMods": "Este perfil no tiene mods de su proveedor.",
+      "policy": {
+        "automatic_eligible": "Instalar automáticamente actualizaciones aptas",
+        "keep_current": "Conservar las versiones instaladas",
+        "review_updates": "Revisar actualizaciones"
+      },
+      "policySaved": "Se guardó la opción de actualizaciones para este perfil.",
+      "reviewFiles": "Revisar archivos de actualización",
+      "setup": "Este perfil"
+    },
     "use": "Usar {{name}}",
     "useClean": "Cambiar al juego sin mods",
     "useCleanNamed": "Usar {{name}} para jugar sin mods"

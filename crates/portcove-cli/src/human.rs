@@ -1027,6 +1027,24 @@ pub(crate) fn port_intent(intent: &portcove_core::PortIntent) -> String {
     text
 }
 
+pub(crate) fn mod_update_outcome(outcome: &portcove_core::ProviderAutoUpdateOutcome) -> String {
+    match outcome {
+        portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
+            "updated to provider file {}; the earlier version stays recoverable",
+            clean(file_id)
+        ),
+        portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
+            format!("a mod update waits for your review - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
+            format!("a mod update will be tried again later - {}", clean(reason))
+        }
+        portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
+            format!("couldn't check for mod updates - {}", clean(reason))
+        }
+    }
+}
+
 fn port_readiness_line(assessment: &portcove_core::PortIntentAssessment) -> String {
     use portcove_core::PortReadiness;
     let state = match &assessment.readiness {
@@ -1129,8 +1147,13 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
         .iter()
         .map(port_readiness_line)
         .collect::<Vec<_>>();
-    if value.batches.is_empty() {
-        lines.push("No game was ready for automatic setup, so nothing was installed.".to_owned());
+    if let Some(reason) = &value.game_setup_unavailable {
+        lines.push(format!(
+            "Couldn't read the automatic game setup queue - {}",
+            clean(reason)
+        ));
+    } else if value.batches.is_empty() {
+        lines.push("No game was ready for automatic setup, so no games were installed.".to_owned());
     }
     for batch in &value.batches {
         lines.push(install_batch(batch));
@@ -1171,30 +1194,10 @@ pub(crate) fn standing_setup(value: &portcove_core::StandingSetupResult) -> Stri
                     .join(", ")
             )
         };
-        lines.push(match &update.outcome {
-            portcove_core::ProviderAutoUpdateOutcome::Applied { file_id, .. } => format!(
-                "{subject}: updated to GameBanana file {}; the earlier version stays recoverable",
-                clean(file_id)
-            ),
-            portcove_core::ProviderAutoUpdateOutcome::Held { reason } => {
-                format!(
-                    "{subject}: a mod update waits for your review - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Deferred { reason } => {
-                format!(
-                    "{subject}: a mod update will be tried again later - {}",
-                    clean(reason)
-                )
-            }
-            portcove_core::ProviderAutoUpdateOutcome::Unavailable { reason } => {
-                format!(
-                    "{subject}: couldn't check for mod updates - {}",
-                    clean(reason)
-                )
-            }
-        });
+        lines.push(format!(
+            "{subject}: {}",
+            mod_update_outcome(&update.outcome)
+        ));
     }
     if value.not_assessed > 0 {
         lines.push(format!(

@@ -32,6 +32,7 @@ use crate::{
 
 const MAX_DOWNLOAD_BYTES: u64 = 4 * 1024 * 1024 * 1024;
 const MAX_REPORTED_CONFLICTS: usize = 100;
+pub(crate) const RECOMP_REVIEW_BINDING: &str = "recomp_review_binding";
 const STAGED_RETENTION_SECONDS: u64 = 24 * 60 * 60;
 const ACTION: &str = "install_provider_package";
 /// A plan whose packages run code is authorized separately, only when the player
@@ -141,6 +142,16 @@ impl ProviderInstallMode {
             Self::Automatic => self.staging_root(layout).join(digest),
         }
     }
+}
+
+pub(crate) fn recomp_review_binding(
+    revision_digest: &str,
+    file: &ProviderFileCandidate,
+) -> Result<String> {
+    Ok(hex::encode(Sha256::digest(serde_json::to_vec(&(
+        revision_digest,
+        file,
+    ))?)))
 }
 
 pub(crate) fn digest(plan: &ProviderInstallPlan) -> Result<String> {
@@ -749,7 +760,21 @@ impl PortcoveService {
                     "the setup changed; review the package again",
                 ));
             }
-            self.review_recomp_changes(&layout, &latest, recomp_members.values(), None)?;
+            if let Err(error) =
+                self.review_recomp_changes(&layout, &latest, recomp_members.values(), None)
+            {
+                if mode == ProviderInstallMode::Automatic
+                    && error.details.get("review_stage").is_some_and(|stage| {
+                        stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
+                    })
+                {
+                    return Err(error.detail(
+                        RECOMP_REVIEW_BINDING,
+                        recomp_review_binding(&latest.digest, &plan.file)?,
+                    ));
+                }
+                return Err(error);
+            }
         }
         plan.plan_sha256 = digest(&plan)?;
 

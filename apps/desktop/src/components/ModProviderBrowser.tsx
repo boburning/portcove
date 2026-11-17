@@ -8,6 +8,7 @@ import type { ProviderBrowsePage, ProviderInstallPlan, ProviderProjectView } fro
 import { errorText, formatBytes } from "../view-model";
 import { ExternalLink } from "./ExternalLink";
 import { Button } from "./ui/button";
+import { ModUpdateControl, type ModUpdateControlProps } from "./ModUpdateControl";
 import { Input } from "./ui/input";
 import { ActionRow, Notice } from "./ui/patterns";
 
@@ -26,6 +27,7 @@ type Props = {
   onBusyChange: (busy: boolean) => void;
   /** Called after an install so the setups panel reads Core again. */
   onInstalled: (message: string) => void;
+  updates?: Pick<ModUpdateControlProps, "policy" | "setPolicy" | "automaticChecks">;
 };
 
 /** The provider's own name, which is not translated. */
@@ -64,6 +66,7 @@ export function ModProviderBrowser(props: Props) {
     disabled,
     onBusyChange,
     onInstalled,
+    updates,
   } = props;
   const provider = providerName(providerId);
   const { t } = useAppTranslation("gameSettings");
@@ -146,20 +149,37 @@ export function ModProviderBrowser(props: Props) {
     showPlan(undefined);
   };
 
+  const updateControl = updates && (
+    <ModUpdateControl
+      portId={portId}
+      profileId={profileId}
+      generation={generation}
+      disabled={disabled || busy}
+      {...updates}
+      showProject={(projectId) => {
+        setOpen(true);
+        showProject(projectId);
+      }}
+    />
+  );
+
   if (!open)
     return (
-      <ActionRow>
-        <Button
-          variant="outline"
-          disabled={disabled}
-          onClick={() => {
-            setOpen(true);
-            showPage(1);
-          }}
-        >
-          {t("mods.browse.open", { provider })}
-        </Button>
-      </ActionRow>
+      <>
+        {updateControl}
+        <ActionRow>
+          <Button
+            variant="outline"
+            disabled={disabled}
+            onClick={() => {
+              setOpen(true);
+              showPage(1);
+            }}
+          >
+            {t("mods.browse.open", { provider })}
+          </Button>
+        </ActionRow>
+      </>
     );
 
   const locked = disabled || Boolean(working);
@@ -171,7 +191,7 @@ export function ModProviderBrowser(props: Props) {
     : undefined;
   const pageStale = page ? staleNote(t, provider, page.freshness, page.observed_at) : undefined;
   const name = <bdi>{profileName}</bdi>;
-  return (
+  const browser = (
     <section aria-labelledby={headingId} className="grid gap-2">
       <h4 id={headingId} className="text-sm font-semibold">
         <Trans t={t} i18nKey="mods.browse.heading" values={{ provider }} components={{ name }} />
@@ -275,7 +295,8 @@ export function ModProviderBrowser(props: Props) {
           showProject={showProject}
           back={() => {
             setError(undefined);
-            setProject(undefined);
+            if (page) setProject(undefined);
+            else showPage(1);
           }}
           reviewFile={(file) =>
             void run(
@@ -319,6 +340,12 @@ export function ModProviderBrowser(props: Props) {
         </ActionRow>
       )}
     </section>
+  );
+  return (
+    <>
+      {updateControl}
+      {browser}
+    </>
   );
 }
 

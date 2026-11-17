@@ -15,24 +15,28 @@
 //!
 //! Like standing setup, the policy is consent, never an authorization: each
 //! update is planned again and authorized immediately before it is applied, under
-//! the same checks as a reviewed install. Whether a newer file suits the setup's
-//! game build is not assessed by the provider or by Portcove (UNKNOWN).
+//! the same checks as a reviewed install. The provider's claims do not verify
+//! the Recomp loader contract or the staged package's native dependencies.
 use std::collections::{BTreeMap, BTreeSet};
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 use crate::{
     ErrorCode, PortcoveError, PortcoveService, ProfileRevision, ProfileUpdatePolicy,
-    ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState, Result, asset_conflicts,
-    inspect_asset_archive, profile,
+    ProviderFileCandidate, ProviderInstallPlan, ProviderUpdateObservation, ProviderUpdateState,
+    Result, asset_conflicts, inspect_asset_archive, profile,
     profile_deploy::{Layout, enabled_in_override_order},
     provider_client::ProviderClient,
-    provider_install::ProviderInstallMode,
+    provider_install::{ProviderInstallMode, RECOMP_REVIEW_BINDING, recomp_review_binding},
 };
 
 const HOLDS_FILE: &str = "auto-update-holds.json";
 const MAX_REMEMBERED_HOLDS: usize = 256;
+const CHECKS_FILE: &str = "last-automatic-checks.json";
+const MAX_CHECKS: usize = 256;
+const MAX_CHECKS_BYTES: u64 = 512 * 1024;
 
 /// What one standing pass did about one installed provider file.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -60,6 +64,58 @@ pub struct ProviderAutoUpdate {
     pub native_ids: Vec<String>,
     #[serde(flatten)]
     pub outcome: ProviderAutoUpdateOutcome,
+}
+
+/// The last automatic check of an installed provider file or setup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderAutoUpdateCheck {
+    pub checked_at: i64,
+    pub profile_id: String,
+    pub native_ids: Vec<String>,
+    pub project_id: Option<String>,
+    pub candidate_file_id: Option<String>,
+    /// None means a current observation offered no update.
+    pub result: Option<ProviderAutoUpdateOutcome>,
+}
+
+pub(crate) fn last_checks(
+    layout: &Layout,
+    inventory: &crate::ProfileInventory,
+) -> Vec<ProviderAutoUpdateCheck> {
+    let checks: Vec<ProviderAutoUpdateCheck> =
+        crate::path::read_bounded_regular(&layout.store().join(CHECKS_FILE), MAX_CHECKS_BYTES)
+            .ok()
+            .and_then(|bytes| serde_json::from_slice(&bytes).ok())
+            .unwrap_or_default();
+    checks
+        .into_iter()
+        .take(MAX_CHECKS)
+        .filter(|check| {
+            // Keep observed Unix timestamps within the portable date range.
+            (0..=253_402_300_799).contains(&check.checked_at)
+                && inventory.profiles.iter().any(|view| {
+                    view.profile.id == check.profile_id
+                        && view.profile.intent.update_policy
+                            == ProfileUpdatePolicy::AutomaticEligible
+                })
+        })
+        .collect()
+}
+
+fn remember_checks(layout: &Layout, checks: &[ProviderAutoUpdateCheck]) -> Result<()> {
+    let path = layout.store().join(CHECKS_FILE);
+    if checks.is_empty() && !path.is_file() {
+        return Ok(());
+    }
+    let bytes = serde_json::to_vec(checks)?;
+    if bytes.len() as u64 > MAX_CHECKS_BYTES {
+        return Err(PortcoveError::state(
+            "automatic mod check results exceed their storage bound",
+        ));
+    }
+    std::fs::create_dir_all(layout.store())?;
+    crate::durability::write_bytes_atomically(&path, &bytes, true)?;
+    Ok(())
 }
 
 /// Packages installed from one provider file, and what the provider says about it.
@@ -221,11 +277,28 @@ fn hold_key(
     profile_id: &str,
     revision: u64,
     installed: &InstalledFile<'_>,
-    candidate: &str,
+    candidate: &ProviderFileCandidate,
 ) -> String {
+    // A provider may revise a file without changing its displayed version or ID.
+    // These claims only tell us when to check again. The plan inspects the bytes.
+    let observation = serde_json::json!([
+        candidate.file_name,
+        candidate.size,
+        candidate.added_at,
+        candidate.claimed_md5,
+        candidate.archived,
+        candidate.claimed_scan,
+    ]);
+    let observation = match candidate.thunderstore_dependencies.as_deref() {
+        Some(dependencies) if !dependencies.is_empty() => {
+            serde_json::json!([observation, dependencies])
+        }
+        _ => observation,
+    };
+    let fingerprint = hex::encode(Sha256::digest(observation.to_string()));
     format!(
-        "{profile_id}|{revision}|{}|{}|{candidate}",
-        installed.project, installed.file
+        "{profile_id}|{revision}|{}|{}|{}|{fingerprint}",
+        installed.project, installed.file, candidate.file_id
     )
 }
 
@@ -284,11 +357,13 @@ pub(crate) fn held_updates(
     held
 }
 
-/// The parts of a key `hold_key` built: profile, revision, project, installed
-/// file and candidate file. None for anything else.
+/// The display identity shared by current keys and legacy keys with no observed
+/// file facts. Legacy keys keep their explanation until the next fresh check.
 fn parse_hold_key(key: &str) -> Option<(&str, u64, &str, &str, &str)> {
     let parts = key.split('|').collect::<Vec<_>>();
-    let [profile, revision, project, file, candidate] = parts.as_slice() else {
+    let ([profile, revision, project, file, candidate]
+    | [profile, revision, project, file, candidate, _]) = parts.as_slice()
+    else {
         return None;
     };
     Some((profile, revision.parse().ok()?, project, file, candidate))
@@ -327,9 +402,8 @@ fn settle_holds(
 }
 
 fn read_holds(layout: &Layout) -> BTreeMap<String, String> {
-    std::fs::read(layout.store().join(HOLDS_FILE))
+    crate::path::read_bounded_regular(&layout.store().join(HOLDS_FILE), 256 * 1024)
         .ok()
-        .filter(|bytes| bytes.len() <= 256 * 1024)
         .and_then(|bytes| serde_json::from_slice(&bytes).ok())
         .unwrap_or_default()
 }
@@ -433,21 +507,40 @@ impl PortcoveService {
             .map(|view| view.profile)
             .collect::<Vec<_>>();
         let mut results = Vec::new();
+        let mut checks = Vec::new();
         for setup in setups {
-            let result = |native_ids: Vec<String>, outcome| ProviderAutoUpdate {
-                port_id: port_id.into(),
-                profile_id: setup.id.clone(),
-                profile_name: setup.display_name.clone(),
-                native_ids,
-                outcome,
-            };
+            let mut record =
+                |native_ids: Vec<String>,
+                 project_id: Option<String>,
+                 candidate_file_id: Option<String>,
+                 outcome: Option<ProviderAutoUpdateOutcome>| {
+                    if checks.len() < MAX_CHECKS {
+                        checks.push(ProviderAutoUpdateCheck {
+                            checked_at: crate::Library::now(),
+                            profile_id: setup.id.clone(),
+                            native_ids: native_ids.clone(),
+                            project_id,
+                            candidate_file_id,
+                            result: outcome.clone(),
+                        });
+                    }
+                    if let Some(outcome) = outcome {
+                        results.push(ProviderAutoUpdate {
+                            port_id: port_id.into(),
+                            profile_id: setup.id.clone(),
+                            profile_name: setup.display_name.clone(),
+                            native_ids,
+                            outcome,
+                        });
+                    }
+                };
             let revision =
                 match self.library.connection().and_then(|connection| {
                     profile::current_revision(&connection, port_id, &setup.id)
                 }) {
                     Ok(revision) => revision,
                     Err(error) => {
-                        results.push(result(Vec::new(), classify(error)));
+                        record(Vec::new(), None, None, Some(classify(error)));
                         continue;
                     }
                 };
@@ -457,7 +550,7 @@ impl PortcoveService {
             {
                 Ok(observations) => observations,
                 Err(error) => {
-                    results.push(result(Vec::new(), classify(error)));
+                    record(Vec::new(), None, None, Some(classify(error)));
                     continue;
                 }
             };
@@ -467,13 +560,20 @@ impl PortcoveService {
                     .iter()
                     .map(|package| package.native_id.clone())
                     .collect::<Vec<_>>();
-                if let Some(outcome) = self
+                let outcome = self
                     .update_one(client, &layout, port_id, &setup.id, &installed)
-                    .await
-                {
-                    results.push(result(names, outcome));
-                }
+                    .await;
+                record(
+                    names,
+                    Some(installed.project.clone()),
+                    chosen_candidate(client, installed.observation)
+                        .map(|file| file.file_id.clone()),
+                    outcome,
+                );
             }
+        }
+        if let Err(error) = remember_checks(&layout, &checks) {
+            tracing::warn!(port_id, error = %error, "automatic mod check results could not be saved");
         }
         Ok(results)
     }
@@ -497,9 +597,7 @@ impl PortcoveService {
                 .connection()
                 .and_then(|connection| profile::current_revision(&connection, port_id, profile_id))
                 .ok()
-                .map(|revision| {
-                    hold_key(profile_id, revision.revision, installed, &candidate.file_id)
-                })
+                .map(|revision| hold_key(profile_id, revision.revision, installed, candidate))
                 .filter(|key| read_holds(layout).contains_key(key)),
             _ => None,
         };
@@ -583,7 +681,7 @@ impl PortcoveService {
                 reason: "the setup's installed mods changed while checking; check again".into(),
             });
         }
-        let key = hold_key(profile_id, revision.revision, installed, &candidate.file_id);
+        let key = hold_key(profile_id, revision.revision, installed, candidate);
         if let Some(reason) = read_holds(layout).get(&key) {
             return held(reason);
         }
@@ -608,12 +706,29 @@ impl PortcoveService {
                     stage == crate::profile_loader::RECOMP_DEPENDENCY_REVIEW
                 }) =>
             {
+                let same_review =
+                    recomp_review_binding(&revision.digest, candidate).is_ok_and(|binding| {
+                        error.details.get(RECOMP_REVIEW_BINDING) == Some(&binding)
+                    });
+                if !same_review {
+                    return Some(ProviderAutoUpdateOutcome::Deferred {
+                        reason: "the setup or offered file changed while reviewing native dependencies; check again".into(),
+                    });
+                }
                 remember_hold(layout, key, &error.message);
                 return held(&error.message);
             }
             // Transport and inspection errors may be transient.
             Err(error) => return Some(classify(error)),
         };
+        if &plan.file != candidate {
+            let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
+            return Some(ProviderAutoUpdateOutcome::Deferred {
+                reason:
+                    "the provider changed the offered file while planning the update; check again"
+                        .into(),
+            });
+        }
         if plan.expected_revision != revision.revision {
             let _ = self.discard_provider_install_in_mode(&plan, ProviderInstallMode::Automatic);
             return Some(ProviderAutoUpdateOutcome::Deferred {

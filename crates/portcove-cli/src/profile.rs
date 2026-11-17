@@ -10,7 +10,11 @@ use portcove_core::{
     ProfileUpdatePolicy, Result,
 };
 
-use crate::{OutputMode, human::clean, render_read_success};
+use crate::{
+    OutputMode,
+    human::{clean, mod_update_outcome, utc_time},
+    render_read_success,
+};
 
 const MAX_REQUEST_BYTES: u64 = 256 * 1024;
 
@@ -1283,6 +1287,32 @@ pub(crate) async fn execute(
                     .collect::<Vec<_>>();
                 if let Some(live) = &view.live {
                     lines.push(live_text(live));
+                }
+                for check in &view.last_automatic_checks {
+                    let setup = inventory
+                        .profiles
+                        .iter()
+                        .find(|entry| entry.profile.id == check.profile_id)
+                        .map(|entry| clean(&entry.profile.display_name))
+                        .unwrap_or_else(|| clean(&check.profile_id));
+                    let mods = check
+                        .native_ids
+                        .iter()
+                        .map(|id| clean(id))
+                        .collect::<Vec<_>>();
+                    let subject = if mods.is_empty() {
+                        setup
+                    } else {
+                        format!("{setup} ({})", mods.join(", "))
+                    };
+                    let status = check.result.as_ref().map_or_else(
+                        || "no newer mod file was offered".to_owned(),
+                        mod_update_outcome,
+                    );
+                    lines.push(format!(
+                        "{subject}, checked {}: {status}",
+                        utc_time(check.checked_at)
+                    ));
                 }
                 for held in &view.held_updates {
                     let setup = inventory

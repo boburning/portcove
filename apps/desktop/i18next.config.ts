@@ -83,6 +83,7 @@ export default defineConfig({
       "src/components/ModSetupRuntimeRetirement.tsx",
       "src/components/ModProviderBrowser.tsx",
       "src/components/ModRecipeControl.tsx",
+      "src/components/ModUpdateControl.tsx",
       "src/features/browsing/CatalogFilters.tsx",
       "src/features/browsing/GroupedDiscover.tsx",
       "src/features/port-actions/BrowsePortObservations.tsx",

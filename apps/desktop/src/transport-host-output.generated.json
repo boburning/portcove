@@ -16332,7 +16332,7 @@
       }
     },
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "description": "What one standing-setup pass did for each game it considered.",
+    "description": "What one standing pass did for the games and mods it considered.",
     "properties": {
       "already_running": {
         "description": "Another process is already running a pass; this one did nothing.",
@@ -16357,6 +16357,13 @@
           "$ref": "#/$defs/StandingSetupFailure"
         },
         "type": "array"
+      },
+      "game_setup_unavailable": {
+        "description": "The game setup queue could not be read. Mod updates still ran.",
+        "type": [
+          "string",
+          "null"
+        ]
       },
       "mod_updates": {
         "description": "Provider updates for mod setups whose policy allows unattended updates.",
