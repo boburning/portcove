@@ -133,9 +133,12 @@ object alongside `schema_version`, `kind`, `investigator` and `candidates`:
 }
 ```
 
-Replace the comment-hash placeholders with `observationHash(comment.body)` from
-`scripts/upstream-observer.mts`. This helper hashes the canonical JSON encoding of
-the string. Copy the retained plan hash from the matching bot receipt.
+Use `observationHash` from `scripts/upstream-observer.mts` for comment hashes.
+For `request_sha256`, hash the original proposal portion beginning at
+`<!-- portcove-hosted-intake:v1 -->`, after the withdrawal prefix. For
+`receipt_sha256`, hash the complete bot comment body. The helper hashes the
+canonical JSON encoding of the string. Copy the retained plan hash from the
+matching bot receipt.
 The executor requires that exact withdrawn owner source, one exact bot receipt,
 its original request/plan/body bindings and at least one confirmed canonical ID.
 It rejects reordered, dropped, added or revised candidate bodies. Reconciliation
