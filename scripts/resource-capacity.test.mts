@@ -31,6 +31,7 @@ import {
   probeLinuxCustody,
   proveUnboundLinuxRecovery,
   verifyBridgedCapacity,
+  observeBridgedCapacity,
   verifyHostReference,
   acquireBridgedCapacity,
   bridgeLaunchArguments,
@@ -461,13 +462,18 @@ void test(
   },
 );
 
-async function mockHost(t: TestContext, failure: string) {
+async function mockHost(t: TestContext, failure: string, queuedRows = 0) {
   const root = await fixture(t);
   await mkdir(path.join(root, "scripts"));
   const entry = path.join(root, "scripts/mock.mjs"),
     closed = path.join(root, "closed.json");
   const source = [
     'import {writeFileSync} from "node:fs";',
+    'if(process.argv[2]==="--status"){' +
+      "const queued=Array.from({length:" +
+      queuedRows +
+      '},(_,id)=>({id,command:"x".repeat(650)}));' +
+      "console.log(JSON.stringify({capacity:{running:[],queued}}));}else{",
     'const messages=[];let pending="";',
     "const timer=setTimeout(()=>process.exit(97),5000);",
     'process.stdin.setEncoding("utf8");',
@@ -481,7 +487,9 @@ async function mockHost(t: TestContext, failure: string) {
       ";",
     'else if(m.action==="release")action="released";',
     'process.stdout.write(JSON.stringify({version:1,action,code:"PORTCOVE_RESOURCE_QUEUE_TIMEOUT",message:"fixture refusal",reference:{root:"fixture",slots:[{name:"slot-0",token:"fixture"}]}})+"\\n");',
-    "}}clearTimeout(timer);writeFileSync(" + JSON.stringify(closed) + ",JSON.stringify(messages));",
+    "}}clearTimeout(timer);writeFileSync(" +
+      JSON.stringify(closed) +
+      ",JSON.stringify(messages));}",
   ].join("\n");
   await writeFile(entry, source);
   const manifest = JSON.stringify({
@@ -529,6 +537,19 @@ async function mockHost(t: TestContext, failure: string) {
     },
   };
 }
+
+void test("Windows bridge status receives a full queue within its response limit", async (t) => {
+  const host = await mockHost(t, "queue", 131);
+  const result = await observeBridgedCapacity(host.config);
+  assert.deepEqual(result, {
+    capacity: {
+      running: [],
+      queued: Array.from({ length: 131 }, (_, id) => ({ id, command: "x".repeat(650) })),
+    },
+  });
+  const oversized = await mockHost(t, "queue", 512);
+  await assert.rejects(observeBridgedCapacity(oversized.config), { code: "ENOBUFS" });
+});
 
 void test("host bridge actual client preserves queue refusal and rejects changed verifier bytes", async (t) => {
   const host = await mockHost(t, "queue");

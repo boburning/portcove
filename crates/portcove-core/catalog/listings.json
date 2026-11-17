@@ -38238,6 +38238,50 @@
       "release_url": "https://github.com/linkzenic/Zelda64Recomp-Android/releases"
     },
     {
+      "id": "little-big-adventure-2-lba2-classic-community",
+      "name": "Little Big Adventure 2 / LBA2 Classic Community",
+      "summary": "Play the classic Little Big Adventure 2 with the LBA2 Classic Community engine.",
+      "original_game_title": "Little Big Adventure 2",
+      "project_url": "https://github.com/LBALab/lba2-classic-community",
+      "issue_number": 5431,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64",
+        "linux-x86-64",
+        "macos-x86-64",
+        "macos-aarch64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data",
+      "release_url": "https://github.com/LBALab/lba2-classic-community/releases/tag/v0.13.2",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Choose your classic game data",
+            "instruction": "Use the original PC retail files or the classic installation from GOG or Steam. When the engine asks, choose the folder containing LBA2.HQR and keep the other game files and media directories together. In a store installation, look for the classic data under Common or CommonClassic. For an owned disc image, follow the publisher’s game-data guide."
+          },
+          {
+            "title": "Open the package for your desktop",
+            "instruction": "On Windows x64, extract the ZIP and run lba2cc.exe. On Linux x86-64 or ARM64, choose the matching AppImage, make it executable and open it with FUSE available. The matching TAR.GZ avoids FUSE and needs glibc 2.38 or later. On Intel or Apple Silicon Mac with macOS 11 or later, open the universal DMG, copy the app to Applications and follow its first-run instructions."
+          }
+        ],
+        "warnings": [
+          "These stable packages need the classic retail data. The 1997 demo has different game files and needs its own engine build."
+        ],
+        "references": [
+          {
+            "title": "Set up the Android release",
+            "instruction": "Use the publisher’s arm64-v8a or armeabi-v7a APK on Android 7 or later and follow its Android guide to place your original data. The shared lba2cc folder requires Android’s All Files Access on Android 11 or later. Check the active save folder in the startup log. With shared storage, back up lba2cc/user/LBA2. App-owned fallback folders can be erased on uninstall, so verify a separate copy of your saves before uninstalling."
+          },
+          {
+            "title": "Keep your saves when changing packages",
+            "instruction": "With the game closed, copy Twinsen/LBA2 under %APPDATA% on Windows, $XDG_DATA_HOME or ~/.local/share on Linux, or ~/Library/Application Support on Mac. If you chose --user-dir or LBA2_USER_DIR, copy that directory with its profiles. If you added portable.txt, copy User/LBA2 beside the engine. Keep originals and profiles separate from replacement package files."
+          }
+        ],
+        "help_url": "https://github.com/LBALab/lba2-classic-community/blob/v0.13.2/README.md#game-data"
+      }
+    },
+    {
       "id": "little-fighter-2-lf2-port",
       "artwork": {
         "game_id": 8700,
@@ -38946,6 +38990,48 @@
         "image_sha256": "f5536fd9ce283a8ee839d1910dafd3d947f63187dd96d84ade058f4335a126b5",
         "game_slug": "madden-nfl-08",
         "match_kind": "underlying-game"
+      }
+    },
+    {
+      "id": "mage-bros-magebrosnative",
+      "name": "Mage Bros. / Mage Bros. Native",
+      "summary": "Play the original Mage Bros. levels with widescreen, modern controls and local co-op.",
+      "original_game_title": "Mage Bros.",
+      "project_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative",
+      "issue_number": 5436,
+      "listed_at": "2026-11-17",
+      "platforms": [
+        "windows-x86-64"
+      ],
+      "availability": "packages",
+      "setup_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative/blob/v0.4.47/README.md#getting-started",
+      "release_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative/releases/tag/v0.4.47",
+      "manual_setup": {
+        "steps": [
+          {
+            "title": "Keep the original Mage Bros. files together",
+            "instruction": "Get the freeware 2.0 release from Saito Games, using the publisher link in the setup guide. Keep MageBros.exe and Music01.mid through Music06.mid together. The native engine checks the original executable before reading its game data."
+          },
+          {
+            "title": "Start the native Windows engine",
+            "instruction": "Extract the Windows x64 package into a writable folder. Run MageBrosNative.exe with --game followed by the quoted path to the original MageBros.exe. Use Windows 10 or 11 with OpenGL 3.3. If Windows reports missing MSVCP140.dll or VCRUNTIME140.dll, install Microsoft’s Visual C++ v14 x64 Redistributable."
+          }
+        ],
+        "warnings": [
+          "The upstream package includes reconstructed Mage Bros. and DirectX framework code. The MIT grant covers the port’s own code. Rights to the reconstructed code remain with their original owners.",
+          "Mage Bros. Native keeps its own progress. Start a new native save if you previously played the original game."
+        ],
+        "references": [
+          {
+            "title": "Keep settings and progress before replacing the engine",
+            "instruction": "Close the game and copy magebros_native.ini and your screenshots from the engine directory. Back up %APPDATA%/MageBrosNative/saves/original or the folder you chose in save_path. Keep the original executable and music in their own folder."
+          },
+          {
+            "title": "Build for Apple Silicon or a Linux handheld",
+            "instruction": "The publisher’s build guide covers Apple Silicon on macOS 12 or later and the R36S Linux handheld. The Apple Silicon build stores settings and saves under ~/Library/Application Support/MageBrosNative. The R36S needs the original files and a General MIDI SoundFont for music. The tagged release provides a ready-made package for Windows."
+          }
+        ],
+        "help_url": "https://github.com/Exo-MDR-CD2000/MageBrosNative/blob/v0.4.47/README.md#getting-started"
       }
     },
     {
