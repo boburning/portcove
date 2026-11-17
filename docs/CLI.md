@@ -2307,7 +2307,7 @@ build protected (see [earlier builds](#earlier-builds-stay-offered-for-recovery)
 ```text
 portcove --library PATH --json profile list PORT_ID
 portcove --library PATH --json profile ensure-default PORT_ID
-portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build]
+portcove --library PATH --json profile copy PORT_ID PROFILE_ID NAME [--current-build] [--progress-from-revision SHA256 --progress-target-install INSTALL_ID --progress-target-revision SHA256]
 portcove --library PATH --json profile revisions PORT_ID PROFILE_ID
 portcove --library PATH --json profile original-instances PORT_ID PROFILE_ID REQUIREMENT_ID
 portcove --library PATH --json profile select-original PORT_ID PROFILE_ID REQUIREMENT_ID INSTANCE_ID --expected-revision N
@@ -2319,6 +2319,8 @@ portcove --library PATH --json profile activate PORT_ID PROFILE_ID
 portcove --library PATH --json profile live PORT_ID
 portcove --library PATH --json profile setups PORT_ID
 portcove --library PATH --json profile revise PORT_ID PROFILE_ID REQUEST.json
+portcove --library PATH --json profile recover-plan PORT_ID PROFILE_ID REVISION
+portcove --library PATH --json profile recover PORT_ID PROFILE_ID REVISION --expected-plan SHA256 --yes
 ```
 
 Register each original through the existing source command. A customized setup
@@ -2359,11 +2361,19 @@ same result.
 
 `ensure-default` gives an installed port its equivalent default profile and is safe
 to repeat; a player with one setup needs nothing else. `copy` starts a new profile
-from a profile's current revision with its **own save group**: progress is not
-copied. When the active runtime changes, Default receives a new revision with
+from a profile's current revision with its own save group and fresh progress by
+default. To copy supported saves, supply the current source revision digest,
+exact destination installation ID and destination revision digest. Without
+`--current-build`, the destination revision is the source revision. With
+`--current-build`, it is the current Default revision. Portcove
+checks both installed save contracts and copies only reviewed save slots into
+the new save group. Shipwright 9.3.1 is supported on the reviewed Windows and
+Linux save paths. Mods may affect whether copied saves load.
+When the active runtime changes, Default receives a new revision with
 that runtime in the same library transaction. Its save group and earlier
 recovery builds stay available. Run `ensure-default` to refresh a Default
-revision left behind by an older client before copying or exporting it. Library
+revision left behind by an older client before copying or exporting it. Desktop
+offers Refresh Default setup when the recorded installation differs. Library
 database schema 62 requires Desktop and CLI versions that coordinate this
 change. Other profiles launch the exact build their revisions name, so a game
 update never changes a customized setup. `copy --current-build` makes an upgraded copy on the current
@@ -2372,6 +2382,19 @@ When Default reaches its recovery-build limit, `installation reference-retire`
 can retire a superseded offer after review. Retirement keeps the recorded setup
 revision and progress. A build still used by the selected setup must stay retained.
 Stale `--expected-revision` values fail as `conflict`.
+
+`recover-plan` reviews an earlier revision from `profile revisions`. It lists
+the retained runtime, packages, enabled state, native order, settings,
+original availability, standing update policy and any holds. Applying the exact
+plan appends a new revision and keeps current progress. Recover an older save
+separately through the save recovery workflow. Default follows the active
+runtime, so use game rollback first when Default's earlier runtime is available
+there. If live setup recovery was interrupted, run `profile activate` for the
+selected setup to finish it before playing. In Desktop, open Setup history
+under Setups and mods to review an earlier revision. Use Finish using with the
+setup's name when a previous change still needs to finish. Library database
+schema 65 requires Desktop and CLI versions that honor interrupted recovery
+before launch.
 
 `install-package` inspects a local archive without extracting or executing it, stores
 its bytes by SHA-256, records a new revision and, for the selected profile, deploys
@@ -2418,16 +2441,18 @@ when it is created, including a new profile from a recipe (whose plan holds it),
 a switch to an older revision with such packages refuses before anything is parked.
 
 `profile live` reports `native_list`: `in-sync`, `not-written`, `reordered`,
-`differs` (with `missing` and `unexpected` names) or `unreadable`. A reorder made in
-the game's mod menu (the same mods in another order) is kept as the profile's next
-revision when supervised play ends (or, if that cannot be recorded, at the next
-profile change or launch). A revision created this way changes only the order, so
-an install, a mod turned on or off, or a provider plan reviewed against the earlier
-revision still applies; any other newer revision makes it refuse. Any other difference among the profile's own entries, such as a mod
-disabled in the game's menu (which the game would re-enable at its next start), is
-reported and rewritten from the revision before the next launch. An unreadable or
-unexpectedly shaped configuration is never rewritten: the game itself discards a
-configuration it cannot parse.
+`differs` (with `missing` and `unexpected` names) or `unreadable`. Portcove
+records supported game-menu reorders after supervised play. For Recomp, an
+explicit enabled list can also turn off known managed mods. The disabled
+packages remain available in Portcove and their deployed files are removed
+from the next launch. A missing list is initialized from the setup. Ship's
+Clear List requests a rebuilt list and keeps the setup's enabled packages.
+Use Portcove to turn individual Ship mods on or off.
+
+An unexpected enabled entry or a disable that would break a dependency stays
+visible for review. Check your enabled mods and their dependencies in Setups
+and mods before playing. Other configuration keys and unmanaged list entries
+are preserved.
 
 These behaviors come from Shipwright 9.2.3 (`cb71e22a`) and 9.3.1 (`f0599f96`)
 and libultraship (`fdcaf633`) source; they have not yet been observed in a running
@@ -2601,13 +2626,21 @@ portcove --library PATH --json profile recipe-plan recipe.json
 portcove --library PATH --json profile recipe-apply recipe.json --name NAME --expected-plan SHA256 --yes
 ```
 
-A recipe (`format` 1) records a profile revision's identity: runtime artifact,
+A recipe (format 1, or format 2 when sharing typed mod settings) records a profile revision's identity: runtime artifact,
 runtime and definition identities, original inputs by content digest, packages with
 their provider coordinates, enabled state, dependency requirements and typed
 orderings. It never contains original game files, credentials, private machine
-paths, local profile or install IDs, saves or settings, and always lists what it
+paths, local profile or install IDs, saves or arbitrary settings, and always lists what it
 cannot reproduce. A recipe is untrusted data and grants no URL, path, script,
 acquisition or execution authority.
+
+On reviewed Zelda64Recomp builds, supervised play captures exact declared numeric
+ranges and choices for enabled, managed packages. Profile recovery restores
+those recorded values using the same package’s declaration and keeps newer
+progress. Recomp recipes can share these typed values. Free-form text, unknown
+keys and files, unrelated built-ins, and ordinary preferences stay in the
+profile’s mutable native data. For a supported option a malformed live value
+holds reconciliation and lists the affected setting for review.
 
 `recipe-inspect` is local: no provider account, no network, bounded to 256 KiB. It
 refuses unknown fields at any depth, duplicate keys, an unsupported future format, a
@@ -2789,8 +2822,10 @@ portcove --library PATH --json installation reference-retire PORT_ID SETUP_ID RE
 `installation.reference` reports each offered revision's current availability
 under `history`. Retirement uses the same review-and-consent model as reference
 removal and is bound to the reviewed revision and the setup's current binding
-revision. It removes only the metadata hold; build files and player data stay in
-place for ordinary cleanup to evaluate.
+revision. It removes one offer for that setup. The runtime files and player data
+stay on disk, and other setups keep their references. Desktop offers the same
+review under Retained game versions in Setups and mods. The confirmation
+identifies the exact recovery offer and changes only retention metadata.
 
 ### Review and remove a setup reference
 
@@ -2809,20 +2844,22 @@ existing protections. Missing or held build bytes do not erase the reference or
 prevent its explicit removal when the operation's locking and lifecycle checks
 permit it.
 
-The four inspection/review commands use read-only Core startup and do not advance
-pending recovery. Binding and removal use ordinary recovering startup and accept
-CLI cancellation signals before durable publication. After interruption or lost
-output, read `installation reference` or `installation retained` to establish
-the saved outcome before obtaining another review; do not assume an interrupted
-caller means the reference change was rolled back.
+Inspection and review commands use read-only Core startup. Binding, removal
+and retirement use ordinary recovering startup and accept CLI cancellation
+signals before durable publication. After interruption or lost output, read
+`installation reference` or `installation retained` to establish the saved
+outcome before obtaining another review.
 
 JSON command names are `installation.retained`, `installation.reference`,
 `installation.reference-plan`, `installation.reference-bind`,
-`installation.reference-removal-plan`, and `installation.reference-remove`.
+`installation.reference-removal-plan`, `installation.reference-remove`,
+`installation.reference-retire-plan`, and `installation.reference-retire`.
 Each command also supports JSONL's terminal result envelope. `schema export`
 includes `retained_build_inventory`, `retained_build_reference`,
-`retained_build_resolution`, `retained_build_binding_preview`, and
-`retained_build_removal_preview` in both input and output directions. Check the
+`retained_build_resolution`, `retained_build_binding_preview`,
+`retained_build_removal_preview`, and `retained_build_retirement_preview` in both
+input and output directions. The retirement result has the same shape as the
+preview's `revision` member. Check the
 selected CLI's capabilities and schemas before using this maintained-source
 contract with a released binary.
 

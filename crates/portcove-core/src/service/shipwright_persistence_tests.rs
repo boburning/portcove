@@ -133,6 +133,64 @@ fn shipwright_profile_switches_round_trip_the_windows_save_root() {
 }
 
 #[test]
+fn copied_setup_progress_is_isolated_on_the_reviewed_current_runtime() {
+    let (_temporary, service, active, qualification) = fixture();
+    let default = service.ensure_default_profile(PORT).unwrap();
+    let pinned = service.copy_profile(PORT, &default.id, "Pinned").unwrap();
+    service.activate_profile(PORT, &pinned.id).unwrap();
+    let root = service.library.user_dir(PORT);
+    let save = root.join("Save/file1.sav");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"pinned progress").unwrap();
+    fs::write(root.join("Save/global.sav"), b"file select options").unwrap();
+    fs::write(root.join("Save/some-other-file"), b"unknown data").unwrap();
+    let revision = service
+        .profile_revisions(PORT, &pinned.id)
+        .unwrap()
+        .remove(0);
+    let current = register(&service.library, &qualification, "new-current", true);
+    let mut request = crate::ProfileProgressCopy {
+        source_revision_sha256: revision.digest.clone(),
+        target_install_id: active.id.clone(),
+        target_revision_sha256: service
+            .profile_revisions(PORT, &default.id)
+            .unwrap()
+            .pop()
+            .unwrap()
+            .digest,
+    };
+    assert_eq!(
+        service
+            .copy_profile_with_progress(PORT, &pinned.id, "stale target", true, &request)
+            .unwrap_err()
+            .code,
+        crate::ErrorCode::Conflict
+    );
+    request.target_install_id = current.id.clone();
+    let copied = service
+        .copy_profile_with_progress(PORT, &pinned.id, "Copy", true, &request)
+        .unwrap();
+    let result = service
+        .profile_revisions(PORT, &copied.id)
+        .unwrap()
+        .remove(0);
+    assert_eq!(result.build.install_id, current.id);
+    assert_ne!(result.save_group, revision.save_group);
+    assert_eq!(fs::read(&save).unwrap(), b"pinned progress");
+
+    // The source survives subsequent mutations of the copied bytes.
+    service.activate_profile(PORT, &copied.id).unwrap();
+    assert_eq!(fs::read(&save).unwrap(), b"pinned progress");
+    assert!(!root.join("Save/global.sav").exists());
+    assert!(!root.join("Save/some-other-file").exists());
+    fs::write(&save, b"copy advanced").unwrap();
+    service.activate_profile(PORT, &pinned.id).unwrap();
+    assert_eq!(fs::read(&save).unwrap(), b"pinned progress");
+    assert!(root.join("Save/global.sav").exists());
+    assert!(root.join("Save/some-other-file").exists());
+}
+
+#[test]
 fn shipwright_holds_legacy_switches_with_ambiguous_live_saves() {
     for phase in ["parked", "deployed"] {
         let (_temporary, service, _, _) = fixture();

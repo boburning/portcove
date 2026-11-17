@@ -671,7 +671,9 @@ fn a_reorder_in_the_game_menu_becomes_the_next_revision() {
             native_order: vec!["a".into(), "b".into()]
         }
     );
-    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    w.service
+        .reconcile_native_mod_list_locked("starship")
+        .unwrap();
     let inventory = w.service.profile_inventory("starship").unwrap();
     let current = inventory
         .profiles
@@ -684,21 +686,24 @@ fn a_reorder_in_the_game_menu_becomes_the_next_revision() {
     assert_eq!(adopted.orderings[0].native_ids, ["a.o2r", "b.o2r"]);
     assert_eq!(native_status(&w), NativeModListStatus::InSync);
     // Adopting again is a no-op; the unrelated setting is untouched.
-    w.service.adopt_native_mod_order_locked("starship").unwrap();
+    w.service
+        .reconcile_native_mod_list_locked("starship")
+        .unwrap();
     assert_eq!(revision(&w, &w.default), 4);
     let value: serde_json::Value = serde_json::from_slice(&fs::read(&config).unwrap()).unwrap();
     assert_eq!(value["CVars"]["gSettings"]["Volume"]["Master"], 20);
 }
 
 #[test]
-fn other_differences_are_reported_and_rewritten_before_launch_without_a_revision() {
+fn ship_partial_lists_hold_play_and_clear_list_keeps_enabled_packages() {
     let w = world();
     install(&w, &w.default, "b.o2r", 1).unwrap();
     install(&w, &w.default, "a.o2r", 2).unwrap();
-    // A disable in the game's menu would not survive its next start anyway.
-    // `mine` is the player's own entry and is neither reported nor moved.
+    let config = user(&w).join("starship.cfg.json");
+    // A partial list is ambiguous in Ship's order-only menu. Keep the
+    // player's entry and avoid interpreting the absence as a disable.
     fs::write(
-        user(&w).join("starship.cfg.json"),
+        &config,
         br#"{"CVars":{"gSettings":{"EnabledMods":"mine|b"}}}"#,
     )
     .unwrap();
@@ -709,15 +714,24 @@ fn other_differences_are_reported_and_rewritten_before_launch_without_a_revision
             unexpected: Vec::new(),
         }
     );
+    let held = w
+        .service
+        .prepare_native_mod_list_locked("starship")
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Conflict);
+    assert_eq!(native_list(&w).as_deref(), Some("mine|b"));
+    assert_eq!(revision(&w, &w.default), 3);
+    assert_eq!(live_mods(&w), ["a.o2r", "b.o2r"]);
+
+    // Clear List is Ship's explicit request for a rebuild. Both packages
+    // still belong to the setup and its reviewed projection stays effective.
+    fs::write(&config, br#"{"CVars":{"gSettings":{"EnabledMods":""}}}"#).unwrap();
     w.service
         .prepare_native_mod_list_locked("starship")
         .unwrap();
-    assert_eq!(native_list(&w).as_deref(), Some("mine|b|a"));
-    assert_eq!(revision(&w, &w.default), 3, "no revision was created");
-    assert!(
-        restore_pending(&user(&w)),
-        "the build copy is refreshed at launch"
-    );
+    assert_eq!(native_list(&w).as_deref(), Some("b|a"));
+    assert_eq!(revision(&w, &w.default), 3);
+    assert!(restore_pending(&user(&w)));
 }
 
 #[test]
@@ -965,6 +979,30 @@ fn launch_pins_a_non_default_profiles_exact_build_without_moving_the_active_poin
 }
 
 #[test]
+fn a_retained_pin_keeps_projection_pending_instead_of_refreshing_global_active() {
+    let w = world();
+    install(&w, &w.default, "a.o2r", 1).unwrap();
+    let pinned = w
+        .service
+        .copy_profile("starship", &w.default, "Pinned")
+        .unwrap();
+    crate::retained_build::tests::install(
+        w.service.library(),
+        "new-active",
+        b"different runtime",
+        true,
+    );
+    w.service.activate_profile("starship", &pinned.id).unwrap();
+    let selected = w
+        .service
+        .set_mod_package_enabled("starship", &pinned.id, "a.o2r", false, 1)
+        .unwrap();
+    assert!(!selected.packages[0].enabled);
+    assert!(live_mods(&w).is_empty());
+    assert!(restore_pending(&user(&w)));
+}
+
+#[test]
 fn an_unavailable_pinned_build_holds_the_launch_instead_of_substituting_latest() {
     use crate::retained_build::tests::install;
     let w = world();
@@ -1189,7 +1227,7 @@ fn recomp_dependencies_must_be_installed_and_stay_on() {
 }
 
 #[test]
-fn recomp_menu_changes_are_adopted_or_restored_and_player_entries_kept() {
+fn recomp_menu_reorders_and_disables_become_revisions_and_keep_player_entries() {
     let w = recomp_world();
     w.install("a.nrm", "alpha", &[]).unwrap();
     w.install("b.nrm", "beta", &[]).unwrap();
@@ -1209,13 +1247,13 @@ fn recomp_menu_changes_are_adopted_or_restored_and_player_entries_kept() {
     );
     let shown = w.revision();
     let _guard = w.service.library().try_lock_port(RECOMP, "test").unwrap();
-    w.service.adopt_native_mod_order_locked(RECOMP).unwrap();
+    w.service.reconcile_native_mod_list_locked(RECOMP).unwrap();
     drop(_guard);
     assert_eq!(w.revision(), shown + 1, "the reorder became a revision");
     assert_eq!(w.status(), NativeModListStatus::InSync);
 
-    // Disabling a managed mod in the menu is reported, then restored on the next
-    // change, while the player's own entries keep their place and state.
+    // Disabling a managed mod becomes a successor and removes only the
+    // deployed file. The retained package stays available in Portcove.
     fs::write(
         w.user().join("mods.json"),
         br#"{"enabled_mods":["beta","own_mod"],
@@ -1230,24 +1268,75 @@ fn recomp_menu_changes_are_adopted_or_restored_and_player_entries_kept() {
             unexpected: Vec::new(),
         }
     );
+    w.service.prepare_native_mod_list_locked(RECOMP).unwrap();
+    assert_eq!(w.revision(), shown + 2);
+    assert_eq!(w.live(), ["beta.nrm"]);
+    assert_eq!(w.status(), NativeModListStatus::InSync);
+    assert!(restore_pending(&w.user()));
+
     w.install("c.nrm", "gamma", &[]).unwrap();
     let list = w.list();
     assert_eq!(
         list["mod_order"],
-        serde_json::json!([
-            "mm_recomp_dpad_builtin",
-            "beta",
-            "own_mod",
-            "alpha",
-            "gamma"
-        ])
+        serde_json::json!(["mm_recomp_dpad_builtin", "beta", "own_mod", "gamma"])
     );
     assert_eq!(
         list["enabled_mods"],
-        serde_json::json!(["own_mod", "beta", "alpha", "gamma"])
+        serde_json::json!(["own_mod", "beta", "gamma"])
     );
     assert_eq!(list["future"]["kept"], true);
     assert_eq!(w.status(), NativeModListStatus::InSync);
+}
+
+#[test]
+fn recomp_native_disable_with_an_enabled_dependent_stays_in_review() {
+    let w = recomp_world();
+    w.install("base.nrm", "base_pack", &[]).unwrap();
+    w.install("addon.nrm", "addon", &["base_pack:1.0.0"])
+        .unwrap();
+    let before = w.revision();
+    let path = w.user().join("mods.json");
+    let native = br#"{"enabled_mods":["addon"],"mod_order":["base_pack","addon"],"custom":true}"#;
+    fs::write(&path, native).unwrap();
+    let held = w
+        .service
+        .prepare_native_mod_list_locked(RECOMP)
+        .unwrap_err();
+    assert_eq!(held.code, crate::ErrorCode::Conflict);
+    assert_eq!(held.details["missing"], "base_pack");
+    assert_eq!(fs::read(&path).unwrap(), native);
+    assert_eq!(w.revision(), before);
+    assert_eq!(w.live(), ["addon.nrm", "base_pack.nrm"]);
+
+    // A deliberate choice in Portcove can resolve the held native change.
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "addon.nrm", false, before)
+        .unwrap();
+    w.service
+        .set_mod_package_enabled(RECOMP, &w.default, "base_pack.nrm", false, before + 1)
+        .unwrap();
+    assert!(w.live().is_empty());
+    assert!(w.list()["custom"].as_bool().unwrap());
+}
+
+#[test]
+fn recomp_missing_enabled_field_is_not_a_disable() {
+    let w = recomp_world();
+    w.install("a.nrm", "alpha", &[]).unwrap();
+    let before = w.revision();
+    fs::write(
+        w.user().join("mods.json"),
+        br#"{"mod_order":["own_mod","alpha"],"custom":true}"#,
+    )
+    .unwrap();
+    assert_eq!(w.status(), NativeModListStatus::NotWritten);
+    w.service.prepare_native_mod_list_locked(RECOMP).unwrap();
+    assert_eq!(w.revision(), before);
+    assert_eq!(w.live(), ["alpha.nrm"]);
+    assert_eq!(
+        w.list()["mod_order"],
+        serde_json::json!(["own_mod", "alpha"])
+    );
 }
 
 #[test]
@@ -1714,6 +1803,286 @@ fn reviewing_a_package_reports_its_code_without_changing_anything() {
             .ok()
             .flatten(),
         None
+    );
+}
+
+#[test]
+fn recovery_restores_exact_custom_runtime_and_disabled_state_while_keeping_newer_progress() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let customized = service.copy_profile(port, &w.default, "Play").unwrap();
+    let profile_id = &customized.id;
+    service.activate_profile(port, profile_id).unwrap();
+    let mod_file = archive(&w.scratch, "custom.o2r", &[("asset.bin", b"mod asset")]);
+    let earlier = service
+        .install_mod_package(port, profile_id, &mod_file, 1)
+        .unwrap();
+    let active =
+        crate::retained_build::tests::install(service.library(), "updated", b"newer runtime", true);
+    let moved = service
+        .create_profile_revision(
+            port,
+            profile_id,
+            &ProfileRevisionRequest {
+                expected_revision: earlier.revision,
+                install_id: Some(active.id.clone()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    service.activate_profile(port, profile_id).unwrap();
+    let disabled = service
+        .set_mod_package_enabled(port, profile_id, "custom.o2r", false, moved.revision)
+        .unwrap();
+    fs::create_dir_all(user(&w).join("saves")).unwrap();
+    let save = user(&w).join("saves/file1.sav");
+    fs::write(&save, b"newer progress").unwrap();
+    let active_save = active.path.join("saves/file1.sav");
+    fs::create_dir_all(active_save.parent().unwrap()).unwrap();
+    fs::write(&active_save, b"other runtime bytes").unwrap();
+    fs::write(active.path.join(".portcove-launched"), b"").unwrap();
+
+    let plan = service
+        .plan_profile_recovery(port, profile_id, earlier.revision)
+        .unwrap();
+    assert!(plan.holds.is_empty(), "{:?}", plan.holds);
+    assert_eq!(plan.progress, ProfileRecoveryProgress::KeepCurrent);
+    assert_eq!(plan.target, earlier);
+    assert_eq!(plan.current, disabled);
+    let layout = service.deploy_layout(port).unwrap();
+    let package = &plan.target.packages[0];
+    let kept = layout.package(&package.sha256, &package.native_id);
+    fs::remove_file(&kept).unwrap();
+    let held = service
+        .plan_profile_recovery(port, profile_id, earlier.revision)
+        .unwrap();
+    assert!(
+        held.holds
+            .iter()
+            .any(|hold| hold.details.get("package") == Some(&package.native_id))
+    );
+    assert!(
+        service
+            .apply_profile_recovery(port, profile_id, earlier.revision, &plan.plan_sha256)
+            .is_err()
+    );
+    assert_eq!(revision(&w, profile_id), disabled.revision);
+
+    fs::copy(mod_file, kept).unwrap();
+    let next = service
+        .apply_profile_recovery(port, profile_id, earlier.revision, &plan.plan_sha256)
+        .unwrap();
+    assert_eq!(next.parent_revision, Some(disabled.revision));
+    assert_eq!(next.build, earlier.build);
+    assert_eq!(next.save_group, disabled.save_group);
+    assert_eq!(live_mods(&w), ["custom.o2r"]);
+    assert_eq!(fs::read(&save).unwrap(), b"newer progress");
+    assert_eq!(fs::read(active_save).unwrap(), b"other runtime bytes");
+    assert!(restore_pending(&user(&w)));
+    assert_eq!(
+        service
+            .profile_pinned_install(port, Some(active.clone()))
+            .unwrap()
+            .unwrap()
+            .id,
+        earlier.build.install_id
+    );
+    assert_eq!(
+        service
+            .library()
+            .status(port, crate::ReleaseChannel::Stable)
+            .unwrap()
+            .active
+            .unwrap()
+            .id,
+        active.id
+    );
+    let plan = service
+        .plan_profile_recovery(port, profile_id, disabled.revision)
+        .unwrap();
+    let next = service
+        .apply_profile_recovery(port, profile_id, disabled.revision, &plan.plan_sha256)
+        .unwrap();
+    assert!(!next.packages[0].enabled);
+    assert!(live_mods(&w).is_empty());
+    assert_eq!(fs::read(save).unwrap(), b"newer progress");
+}
+
+#[test]
+fn interrupted_recovery_blocks_launch_until_its_committed_revision_is_materialized() {
+    let w = world();
+    let service = &w.service;
+    let port = "starship";
+    let package = archive(&w.scratch, "custom.o2r", &[("asset.bin", b"mod asset")]);
+    let current = service
+        .install_mod_package(port, &w.default, &package, 1)
+        .unwrap();
+    let config = user(&w).join("starship.cfg.json");
+    fs::write(
+        &config,
+        br#"{"CVars":{"gSettings":{"EnabledMods":"custom|unmanaged"}}}"#,
+    )
+    .unwrap();
+    let plan = service.plan_profile_recovery(port, &w.default, 1).unwrap();
+    assert!(plan.holds.is_empty());
+    let guard = service
+        .library()
+        .try_lock_port(port, "recover-profile")
+        .unwrap();
+    let layout = service.deploy_layout(port).unwrap();
+    mark_restore_pending(&layout).unwrap();
+    let committed = service
+        .publish_profile_successor_locked(port, &current, plan.target)
+        .unwrap();
+    drop(guard);
+    assert_eq!(live_mods(&w), ["custom.o2r"]);
+    let restarted = PortcoveService::new(service.library().clone()).unwrap();
+    assert!(
+        restarted
+            .require_materialized_profile_recovery(port)
+            .is_err()
+    );
+    assert_eq!(
+        restarted.activate_profile(port, &w.default).unwrap(),
+        committed
+    );
+    restarted
+        .require_materialized_profile_recovery(port)
+        .unwrap();
+    assert!(live_mods(&w).is_empty());
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(config).unwrap()).unwrap();
+    assert_eq!(config["CVars"]["gSettings"]["EnabledMods"], "unmanaged");
+    assert_eq!(revision(&w, &w.default), committed.revision);
+    assert!(
+        restarted
+            .apply_profile_recovery(port, &w.default, 1, &plan.plan_sha256)
+            .is_err()
+    );
+}
+
+#[test]
+fn recomp_captures_typed_settings_and_recovers_them_with_newer_progress() {
+    let w = recomp_world();
+    let manifest = serde_json::json!({
+        "game_id": "mm", "id": "buffer_size", "display_name": "Buffer",
+        "version": "1.0.0", "authors": ["someone"], "minimum_recomp_version": "1.2.0",
+        "config_schema": {"options": [
+            {"id": "size", "name": "Size", "type": "Number", "default": 1024, "min": 128, "max": 8192},
+            {"id": "local", "name": "Local name", "type": "String", "default": ""}
+        ]}
+    })
+    .to_string();
+    let package = archive(
+        &w.scratch,
+        "buffer.nrm",
+        &[("mod.json", manifest.as_bytes())],
+    );
+    let installed = w
+        .service
+        .install_mod_package(RECOMP, &w.default, &package, 1)
+        .unwrap();
+    let custom = w
+        .service
+        .copy_profile(RECOMP, &w.default, "Buffer setup")
+        .unwrap();
+    w.service.activate_profile(RECOMP, &custom.id).unwrap();
+    let path = w.user().join("mod_config/buffer_size.json");
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let edit = |value| {
+        let document = serde_json::json!({
+            "mod_id": "buffer_size", "mod_version": "1.0.0", "future": true,
+            "storage": {"size": value, "local": "/private/player/value", "future_value": 3}
+        });
+        fs::write(&path, document.to_string()).unwrap();
+        let _guard = w.service.library().try_lock_port(RECOMP, "test").unwrap();
+        w.service.reconcile_native_mod_list_locked(RECOMP).unwrap();
+        w.service
+            .profile_revisions(RECOMP, &custom.id)
+            .unwrap()
+            .pop()
+            .unwrap()
+    };
+    let earlier = edit(1024);
+    let later = edit(2048);
+    let key = format!(
+        "recomp-config/buffer_size/{}/size",
+        installed.packages[0].sha256
+    );
+    assert_eq!(earlier.settings.get(&key).unwrap(), "1024.0");
+    assert_eq!(later.settings.get(&key).unwrap(), "2048.0");
+    assert_eq!(later.settings.len(), 1);
+    let uncaptured = w
+        .service
+        .plan_profile_recovery(RECOMP, &custom.id, 1)
+        .unwrap();
+    assert!(uncaptured.holds.iter().any(|hold| {
+        hold.message
+            .contains("did not capture all supported settings")
+    }));
+    let save = w.user().join("saves/modern.bin");
+    fs::create_dir_all(save.parent().unwrap()).unwrap();
+    fs::write(&save, b"newer progress").unwrap();
+    let plan = w
+        .service
+        .plan_profile_recovery(RECOMP, &custom.id, earlier.revision)
+        .unwrap();
+    assert!(plan.holds.is_empty(), "{:?}", plan.holds);
+    let restored = w
+        .service
+        .apply_profile_recovery(RECOMP, &custom.id, earlier.revision, &plan.plan_sha256)
+        .unwrap();
+    assert_eq!(restored.settings, earlier.settings);
+    assert_eq!(fs::read(&save).unwrap(), b"newer progress");
+    let config: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(config["storage"]["size"].as_f64(), Some(1024.0));
+    assert_eq!(config["storage"]["local"], "/private/player/value");
+    assert_eq!(config["storage"]["future_value"], 3);
+    assert_eq!(config["future"], true);
+
+    let recipe = w
+        .service
+        .export_profile_recipe(RECOMP, &custom.id, None)
+        .unwrap();
+    let encoded = serde_json::to_vec(&recipe).unwrap();
+    assert!(!String::from_utf8_lossy(&encoded).contains("/private/player/value"));
+    assert_eq!(crate::ProfileRecipe::inspect(&encoded).unwrap(), recipe);
+    assert_eq!(recipe.format, 2);
+    assert_eq!(recipe.settings[0].option_id, "size");
+    let review = w.service.plan_recipe_import(&recipe).unwrap();
+    assert!(review.can_apply, "{:?}", review.holds);
+    let approval = w
+        .service
+        .authorize_recipe_import(&review, "Shared options")
+        .unwrap();
+    let imported = w
+        .service
+        .apply_recipe_import(&review, "Shared options", &approval.token)
+        .unwrap();
+    assert_eq!(
+        w.service.profile_revisions(RECOMP, &imported.id).unwrap()[0].settings,
+        earlier.settings,
+    );
+
+    // An invalid arriving document is held before any switch journal or file
+    // movement. The player can still park a setup with an invalid active edit.
+    fs::write(&path, b"{broken").unwrap();
+    w.service.activate_profile(RECOMP, &w.default).unwrap();
+    let layout = w.service.deploy_layout(RECOMP).unwrap();
+    let parked = layout
+        .parked(&custom.id)
+        .join("mod_config/buffer_size.json");
+    assert_eq!(fs::read(&parked).unwrap(), b"{broken");
+    assert!(w.service.activate_profile(RECOMP, &custom.id).is_err());
+    assert!(!layout.journal().exists());
+    assert_eq!(fs::read(&parked).unwrap(), b"{broken");
+    assert_eq!(
+        w.service
+            .observe_live_mods(RECOMP)
+            .unwrap()
+            .profile_id
+            .as_deref(),
+        Some(w.default.as_str())
     );
 }
 

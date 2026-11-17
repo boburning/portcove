@@ -18,6 +18,9 @@
 //! Consequences Portcove relies on: a disabled package must be absent from the
 //! mods folder (the menu cannot keep it disabled across a restart), and the
 //! revision's order is effective only once it is written into this list.
+//! Shipwright 9.3.1's per-package toggle widget remains disabled in source.
+//! Its Clear List action requests a rebuild on restart, so an empty list never
+//! disables the packages in a Portcove revision.
 use std::{fs, path::Path};
 
 use serde_json::Value;

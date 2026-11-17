@@ -3192,6 +3192,21 @@ workspace remount clears it, and the core activity ledger and recovery state
 remain authoritative for completed, interrupted and failed operations. Evicting
 an event never removes durable history or declares recovery successful.
 
+### Local setup revision recovery
+
+Core reviews an exact earlier profile revision against the current head and
+materialized selection. A plan verifies the retained runtime and its policy,
+stored package bytes and current code consent. It reports original availability
+separately from the inputs needed to apply a retained runtime. An exact plan
+digest binds the inputs and live effects for the port-locked apply.
+
+Apply appends the earlier setup state as a successor and retains the current
+save group. A selected setup uses its existing materialized-revision checkpoint
+and restore-pending marker to finish deployment after interruption. Launch holds
+before selecting an executable until the selected setup finishes materializing.
+Runtime rollback still owns the active executable for Default. A customized
+setup can recover an offered exact runtime without changing that pointer.
+
 ### Runtime diagnostic writer
 
 Desktop and CLI use `portcove-diagnostics` for structured JSONL records, approved

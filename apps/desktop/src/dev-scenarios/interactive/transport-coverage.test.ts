@@ -19,7 +19,8 @@ const unsupportedByReason: Record<string, string[]> = {
   "interactive fixtures publish no saved scan": ["get_game_file_scan_registered_matches"],
   "interactive fixture catalogs have no paired cover mappings": ["get_companion_cover_thumbnail"],
   "mutation or native action the fixtures do not model; they never change the host": `
-    apply_provider_install discard_provider_install
+    apply_profile_recovery apply_provider_install discard_provider_install
+    retire_mod_setup_recovery_build
     choose_steamgriddb_artwork check_steamgriddb_listings set_steamgriddb_key
     clear_steamgriddb_key
     export_portable_saves import_portable_saves export_mod_recipe apply_mod_recipe
@@ -58,7 +59,7 @@ const unsupportedByReason: Record<string, string[]> = {
     inspect_source inspect_mod_recipe
     inspect_source_intake plan_catalog_update plan_game_update preview_portable_save_import
     plan_game_update_acquisition plan_ghostship_legacy_recovery plan_library_import
-    plan_provider_install
+    plan_profile_recovery plan_provider_install preview_mod_setup_retirement
     plan_library_move plan_output_relocation plan_port plan_source_import
     plan_source_relink preview_adoption preview_backup_action preview_bug_report
     preview_catalog_download preview_external_removal preview_external_runtime
@@ -66,14 +67,13 @@ const unsupportedByReason: Record<string, string[]> = {
     preview_source_removal preview_steam_artwork preview_steam_batch_add
     preview_steam_entry
     preview_user_selected_runtime preview_user_selected_runtime_relink
-    plan_install_batch review_game_setting review_mod_setup_original review_mod_package_code
-    plan_local_mod_package review_source_reuse
+    plan_install_batch review_game_setting review_mod_setup_original review_mod_package_code plan_local_mod_package review_source_reuse
     scan_game_file_roots
     scan_source_inbox
   `.split(/\s+/),
   "read-only getter that the mounted fixture surfaces do not request, or a user-started flow they do not mount (get_catalog and get_statuses are replaced by get_workspace_snapshot)":
     `
-    browse_provider_mods get_provider_project
+    browse_provider_mods get_provider_project list_mod_setup_revisions list_mod_setup_recovery_builds
     forecast_installed_update_checks get_catalog get_catalog_media_thumbnail get_default_library_root
     get_engine_capabilities get_game_settings get_install_batch get_library_identity
     get_library_memberships get_runtime_diagnostic_health get_sources get_statuses

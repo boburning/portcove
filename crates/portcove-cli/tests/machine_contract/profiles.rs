@@ -226,6 +226,35 @@ fn profile_commands_migrate_default_append_revisions_and_refuse_stale_review() {
     assert_eq!(inventory["profiles"].as_array().unwrap().len(), 2);
     assert_eq!(inventory["profiles"][0]["profile"]["id"], default["id"]);
 
+    // The archived revision endpoint is available, with setup recovery limited
+    // to ports with a supported mod deployment contract.
+    for arguments in [
+        &["--json", "profile", "recover-plan", PORT, profile_id, "1"][..],
+        &[
+            "--json",
+            "--non-interactive",
+            "profile",
+            "recover",
+            PORT,
+            profile_id,
+            "1",
+            "--expected-plan",
+            "reviewed",
+            "--yes",
+        ][..],
+    ] {
+        let output = invoke(root, arguments);
+        assert!(!output.status.success(), "{arguments:?}: {output:?}");
+        let envelope = json_stdout(&output);
+        let command = if arguments.contains(&"recover-plan") {
+            "profile.recover-plan"
+        } else {
+            "profile.recover"
+        };
+        assert_eq!(envelope["command"], command);
+        assert_eq!(envelope["error"]["code"], "unsupported");
+    }
+
     // Recipes: export identity only, inspect locally, plan, and import as a new profile.
     let exported = result(
         root,

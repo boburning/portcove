@@ -56,6 +56,13 @@ capability 36, so an older reader refuses it rather than copying a headered file
 
 ## Documented API changes
 
+API 97 adds `profile recover-plan` and `profile recover`. The
+`profile_recovery_plan` identifies the exact target revision, holds and policy.
+Applying that plan appends a successor and keeps current progress. `profile
+copy` may copy supported saves after verifying the source digest and the
+destination installation and revision. Writer schema 65 requires clients that
+honor incomplete setup materialization. The operation-event schema stays 3.
+
 API96 adds `profile original-instances`, `profile select-original` and
 `profile relink-original`. A customized setup can select a registered
 original's exact content and storage identity in a new revision. Relinking

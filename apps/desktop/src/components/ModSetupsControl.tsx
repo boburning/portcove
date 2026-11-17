@@ -17,6 +17,8 @@ import { Input } from "./ui/input";
 import { ModSetupOriginalControl } from "./ModSetupOriginalControl";
 import { ModProviderBrowser, providerName } from "./ModProviderBrowser";
 import { ModRecipeControl } from "./ModRecipeControl";
+import { ModSetupRecovery } from "./ModSetupRecovery";
+import { ModSetupRuntimeRetirement } from "./ModSetupRuntimeRetirement";
 import { ActionRow, Notice } from "./ui/patterns";
 
 type Props = {
@@ -162,6 +164,7 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   const [browserBusy, setBrowserBusy] = useState(false);
   const [recipeBusy, setRecipeBusy] = useState(false);
   const [copyName, setCopyName] = useState("");
+  const [historyEpoch, setHistoryEpoch] = useState(0);
   const [localReview, setLocalReview] = useState<{
     path: string;
     review: OutputLocalModPackagePlan;
@@ -207,6 +210,11 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
   if (localReview && !applicableReview) setLocalReview(undefined);
   const changing = locked || Boolean(applicableReview);
   const nativeMessage = nativeListMessage(t, view.live);
+  const defaultInstallId = setups.find((entry) => entry.profile.is_default)?.revision.build
+    ?.install_id;
+  const staleDefault = Boolean(
+    defaultInstallId && view.current_install_id && defaultInstallId !== view.current_install_id,
+  );
 
   return (
     <section aria-labelledby={headingId} className="grid gap-3">
@@ -247,6 +255,46 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
             provider={view.provider}
             heldUpdates={heldUpdates}
           />
+          {staleDefault && (
+            <Notice intent="warning">
+              <div data-slot="notice-body">
+                <p>{t("mods.defaultRefreshRequired")}</p>
+                <Button
+                  variant="outline"
+                  disabled={changing}
+                  onClick={() =>
+                    void perform(
+                      () => desktopApi.createDefaultModSetup(portId, generation),
+                      t("mods.outcome.refreshedDefault"),
+                    )
+                  }
+                >
+                  {t("mods.refreshDefault")}
+                </Button>
+              </div>
+            </Notice>
+          )}
+          {selected &&
+            view.live?.revision != null &&
+            view.live.revision < selected.profile.current_revision && (
+              <Notice intent="warning">
+                <div data-slot="notice-body">
+                  <p>{t("mods.recovery.pending")}</p>
+                  <Button
+                    variant="outline"
+                    disabled={changing}
+                    onClick={() =>
+                      void perform(
+                        () => desktopApi.useModSetup(portId, selected.profile.id, generation),
+                        t("mods.recovery.finished"),
+                      )
+                    }
+                  >
+                    {t("mods.recovery.finish", { name: selected.profile.display_name })}
+                  </Button>
+                </div>
+              </Notice>
+            )}
           <ul aria-label={t("mods.setups")} className="m-0 grid list-none gap-2 p-0">
             {setups.map((entry) => (
               <SetupRow
@@ -330,6 +378,33 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                   )
                 }
               />
+              {selected.profile.current_revision > 1 && (
+                <ModSetupRecovery
+                  key={JSON.stringify([
+                    "recovery",
+                    selected.profile.id,
+                    selected.profile.current_revision,
+                    historyEpoch,
+                  ])}
+                  portId={portId}
+                  profileId={selected.profile.id}
+                  currentRevision={selected.profile.current_revision}
+                  generation={generation}
+                  locked={changing}
+                  blocked={blocked}
+                  perform={perform}
+                />
+              )}
+              {selected.profile.current_revision > 1 && (
+                <ModSetupRuntimeRetirement
+                  key={JSON.stringify([selected.profile.id, selected.profile.current_revision])}
+                  portId={portId}
+                  profileId={selected.profile.id}
+                  generation={generation}
+                  locked={changing}
+                  onRetired={() => setHistoryEpoch((epoch) => epoch + 1)}
+                />
+              )}
               <p className="text-sm text-pc-muted-foreground">
                 {view.later_mods_take_priority ? t("mods.laterPriority") : t("mods.loadOrder")}
               </p>
@@ -404,28 +479,44 @@ function BoundModSetupsControl({ portId, generation, busy }: Props) {
                 </Notice>
               )}
               <CopyModSetup
+                key={selected.revision.digest}
                 copyId={copyId}
                 copyName={copyName}
                 setCopyName={setCopyName}
                 locked={locked}
                 onOtherBuild={onOtherBuild}
-                copy={(name, currentBuild) =>
-                  perform(
+                canCopyProgress={view.progress_copy_supported ?? false}
+                copy={(name, currentBuild, copyProgress) => {
+                  const targetInstallId = currentBuild
+                    ? view.current_install_id
+                    : selected.revision.build.install_id;
+                  if (!targetInstallId) return Promise.resolve(false);
+                  const targetRevision = currentBuild
+                    ? view.inventory?.profiles.find((entry) => entry.profile.is_default)?.revision
+                    : selected.revision;
+                  return perform(
                     () =>
-                      currentBuild
-                        ? desktopApi.copyModSetup(
-                            portId,
-                            selected.profile.id,
-                            name,
-                            generation,
-                            true,
-                          )
-                        : desktopApi.copyModSetup(portId, selected.profile.id, name, generation),
-                    currentBuild
-                      ? t("mods.outcome.copiedCurrent", { name })
-                      : t("mods.outcome.copied", { name }),
-                  )
-                }
+                      desktopApi.copyModSetup(
+                        portId,
+                        selected.profile.id,
+                        name,
+                        generation,
+                        currentBuild,
+                        copyProgress
+                          ? {
+                              source_revision_sha256: selected.revision.digest,
+                              target_install_id: targetInstallId,
+                              target_revision_sha256: targetRevision?.digest ?? "",
+                            }
+                          : undefined,
+                      ),
+                    copyProgress
+                      ? t("mods.outcome.copiedProgress", { name })
+                      : currentBuild
+                        ? t("mods.outcome.copiedCurrent", { name })
+                        : t("mods.outcome.copied", { name }),
+                  );
+                }}
               />
             </section>
           )}
@@ -663,6 +754,7 @@ function CopyModSetup({
   setCopyName,
   locked,
   onOtherBuild,
+  canCopyProgress,
   copy,
 }: {
   copyId: string;
@@ -670,18 +762,41 @@ function CopyModSetup({
   setCopyName: (name: string) => void;
   locked: boolean;
   onOtherBuild: boolean;
-  copy: (name: string, currentBuild: boolean) => Promise<boolean>;
+  canCopyProgress: boolean;
+  copy: (name: string, currentBuild: boolean, copyProgress: boolean) => Promise<boolean>;
 }) {
   const { t } = useAppTranslation("gameSettings");
+  const progressId = useId();
+  const [copyProgress, setCopyProgress] = useState(false);
   const name = copyName.trim();
   const disabled = locked || name === "";
   const submit = (currentBuild: boolean) =>
-    void copy(name, currentBuild).then((created) => {
-      if (created) setCopyName("");
+    void copy(name, currentBuild, canCopyProgress && copyProgress).then((created) => {
+      if (created) {
+        setCopyName("");
+        setCopyProgress(false);
+      }
     });
   return (
     <>
       <p className="text-sm text-pc-muted-foreground">{t("mods.copyIntro")}</p>
+      {canCopyProgress && (
+        <div>
+          <label htmlFor={progressId} className="flex items-center gap-2 text-sm">
+            <Checkbox
+              id={progressId}
+              aria-describedby={`${progressId}-description`}
+              checked={copyProgress}
+              onCheckedChange={(checked) => setCopyProgress(checked === true)}
+              disabled={locked}
+            />
+            {t("mods.copyProgress")}
+          </label>
+          <p id={`${progressId}-description`} className="text-sm text-pc-muted-foreground">
+            {t("mods.copyProgressDescription")}
+          </p>
+        </div>
+      )}
       <ActionRow>
         <label htmlFor={copyId} className="text-sm">
           {t("mods.copyName")}

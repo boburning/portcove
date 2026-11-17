@@ -153,7 +153,7 @@ it("explains held changes and Core refusals without claiming success", async () 
   const host = await render();
   expect(host.textContent).toContain("files this setup did not add");
   expect(host.textContent).toContain("mine.o2r");
-  expect(host.textContent).toContain("restores this setup's mods and order");
+  expect(host.textContent).toContain("Review the enabled mods and their dependencies");
   expect(button(host, "Use Clean").disabled).toBe(true);
   expect(button(host, "Add mod file…").disabled).toBe(true);
 });
@@ -395,13 +395,43 @@ it("words held updates with the locale's plural forms", async () => {
   }
 });
 
+it("refreshes a Default setup whose recorded runtime predates the active game", async () => {
+  const base = view();
+  const [defaultView, ...other] = base.inventory!.profiles;
+  if (!defaultView) throw new Error("missing Default setup fixture");
+  const withDefault = (install_id: string) =>
+    view({
+      current_install_id: "current",
+      inventory: {
+        ...base.inventory!,
+        profiles: [
+          { ...defaultView, revision: { ...defaultView.revision, build: { install_id } } },
+          ...other,
+        ],
+      },
+    } as unknown as Partial<ModSetupsView>);
+  vi.spyOn(desktopApi, "modSetups")
+    .mockResolvedValueOnce(withDefault("previous"))
+    .mockResolvedValue(withDefault("current"));
+  const repair = vi
+    .spyOn(desktopApi, "createDefaultModSetup")
+    .mockResolvedValue(defaultView.profile);
+  await render();
+  const update = page.getByRole("button", { name: "Refresh Default setup" });
+  await expect.element(update).toBeVisible();
+  await update.click();
+  expect(repair).toHaveBeenCalledWith("shipwright", 7);
+  await expect.element(update).not.toBeInTheDocument();
+});
+
 it("offers a copy on the current version only for a customized setup on another version", async () => {
   const onBuild = (entry: ReturnType<typeof setup>, install_id: string) => ({
     ...entry,
-    revision: { ...entry.revision, build: { install_id } },
+    revision: { ...entry.revision, build: { install_id }, digest: "a".repeat(64) },
   });
   const customized = view({
     current_install_id: "v2",
+    progress_copy_supported: true,
     inventory: {
       port_id: "shipwright",
       profiles: [
@@ -425,10 +455,22 @@ it("offers a copy on the current version only for a customized setup on another 
   expect(host.textContent).toContain("stays on the game version it was made with");
   await page.getByRole("textbox", { name: "New setup name" }).fill("Custom updated");
   await act(async () => button(host, "Copy onto the current version").click());
-  expect(copy).toHaveBeenCalledWith("shipwright", "custom", "Custom updated", 7, true);
+  expect(copy).toHaveBeenCalledWith("shipwright", "custom", "Custom updated", 7, true, undefined);
   expect(host.querySelector("[role=status]")?.textContent).toContain(
     "Created Custom updated on the game’s current version",
   );
+
+  await page.getByRole("checkbox", { name: "Copy supported saves" }).click();
+  await page.getByRole("textbox", { name: "New setup name" }).fill("Custom with saves");
+  await act(async () => button(host, "Copy onto the current version").click());
+  expect(copy).toHaveBeenLastCalledWith("shipwright", "custom", "Custom with saves", 7, true, {
+    source_revision_sha256: "a".repeat(64),
+    target_install_id: "v2",
+    target_revision_sha256: "a".repeat(64),
+  });
+  await expect
+    .element(page.getByRole("checkbox", { name: "Copy supported saves" }))
+    .not.toBeChecked();
 
   // The default setup follows updates, and a setup already on the current
   // version needs no upgraded copy.
@@ -809,4 +851,141 @@ it("offers verified relinking for the recorded original of an already prepared i
     "game",
   );
   expect(relink).toHaveBeenCalledWith(originalTarget, "D:/Moved/recorded.z64");
+});
+
+it("reviews an earlier setup, keeps progress, and applies only the eligible exact review", async () => {
+  const read = vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  const revision = (number: number, asset: string, enabled: boolean) =>
+    ({
+      ...setup("default", "Default", number, [["hd.o2r", enabled]]).revision,
+      build: { port_id: "shipwright", artifact: { asset_name: asset } },
+    }) as Awaited<ReturnType<typeof desktopApi.modSetupRevisions>>[number];
+  const current = revision(3, "Shipwright 9.4", true);
+  const target = revision(2, "Shipwright 9.3", false);
+  const history = vi.spyOn(desktopApi, "modSetupRevisions").mockResolvedValue([target, current]);
+  const reviewed = {
+    current,
+    target,
+    selected_revision: 3,
+    progress: "keep_current",
+    update_policy: "review_updates",
+    originals: [],
+    holds: [],
+    plan_sha256: "b".repeat(64),
+  } as Awaited<ReturnType<typeof desktopApi.planProfileRecovery>>;
+  const plan = vi
+    .spyOn(desktopApi, "planProfileRecovery")
+    .mockResolvedValueOnce({ ...reviewed, current: revision(4, "Shipwright 9.4", true) })
+    .mockResolvedValueOnce({
+      ...reviewed,
+      holds: [
+        {
+          code: "not_found",
+          message: "The exact stored mod file is missing.",
+          details: { package: "hd.o2r" },
+        },
+      ],
+    })
+    .mockResolvedValueOnce(reviewed);
+  const apply = vi.spyOn(desktopApi, "applyProfileRecovery").mockResolvedValue(current);
+  vi.mocked(picker.pickModPackagePath).mockResolvedValue("/mods/ui.o2r");
+  vi.spyOn(desktopApi, "planLocalModPackage").mockResolvedValue(localPlan);
+  const host = await render();
+
+  expect(history).not.toHaveBeenCalled();
+  const openHistory = button(host, "Setup history");
+  await act(async () => button(host, "Add mod file…").click());
+  expect(openHistory.disabled).toBe(true);
+  expect(button(host, "Retained game versions").disabled).toBe(true);
+  await act(async () => button(host, "Don’t add").click());
+  await expect.element(page.getByRole("button", { name: "Add mod file…" })).toHaveFocus();
+  expect(openHistory.disabled).toBe(false);
+  await act(async () => openHistory.click());
+  expect(history).toHaveBeenCalledWith("shipwright", "default", 7);
+  await act(async () => button(host, "Review revision 2").click());
+  expect(plan).toHaveBeenCalledWith("shipwright", "default", 2, 7);
+  expect(host.textContent).toContain("This game changed.");
+  expect(host.textContent).not.toContain("Recover setup");
+  await act(async () => button(host, "Review revision 2").click());
+  expect(document.activeElement?.textContent).toBe("Recover revision 2");
+  expect(host.textContent).toContain("Your current progress stays in this setup.");
+  expect(host.textContent).toContain("Shipwright 9.3");
+  expect(host.textContent).toContain("hd.o2r · Disabled");
+  expect(host.textContent).toContain("hd.o2r · The exact stored mod file is missing.");
+  expect(button(host, "Recover setup").disabled).toBe(true);
+  expect(apply).not.toHaveBeenCalled();
+
+  await act(async () => button(host, "Close recovery review").click());
+  expect(document.activeElement).toBe(button(host, "Review revision 2"));
+  await act(async () => button(host, "Review revision 2").click());
+  await act(async () => button(host, "Recover setup").click());
+  expect(apply).toHaveBeenCalledWith("shipwright", "default", 2, reviewed.plan_sha256, 7);
+  expect(read).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("Recovered the setup and kept its current progress.");
+});
+
+it("can finish the selected setup change even when partially placed files appear unmanaged", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(
+    view({
+      live: {
+        profile_id: "default",
+        revision: 2,
+        unmanaged: ["new.o2r"],
+        changed_owned: [],
+        native_list: { state: "in-sync" },
+      },
+    }),
+  );
+  const finish = vi
+    .spyOn(desktopApi, "useModSetup")
+    .mockResolvedValue({} as Awaited<ReturnType<typeof desktopApi.useModSetup>>);
+  const host = await render();
+  expect(host.textContent).toContain("Finish the setup change before playing.");
+  await act(async () => button(host, "Finish using Default").click());
+  expect(finish).toHaveBeenCalledWith("shipwright", "default", 7);
+  expect(host.textContent).toContain("Finished applying the setup change.");
+});
+
+it("retires an exact recovery offer only after review and refreshes the retained versions", async () => {
+  vi.spyOn(desktopApi, "modSetups").mockResolvedValue(view());
+  const revision = {
+    revision: 7,
+    build: {
+      port_id: "shipwright",
+      install_id: "ship-previous",
+      manifest_sha256: "a".repeat(64),
+      installed_contract_sha256: "b".repeat(64),
+      artifact: { asset_name: "ship-previous.zip" },
+    },
+  } as unknown as Awaited<ReturnType<typeof desktopApi.previewModSetupRetirement>>["revision"];
+  const read = vi
+    .spyOn(desktopApi, "modSetupRecoveryBuilds")
+    .mockResolvedValueOnce([{ revision, availability: "verified", install: null, gap: null }])
+    .mockResolvedValue([]);
+  const preview = vi
+    .spyOn(desktopApi, "previewModSetupRetirement")
+    .mockResolvedValueOnce({ setup_id: "other-setup", revision, preview_sha256: "c".repeat(64) })
+    .mockResolvedValue({ setup_id: "default", revision, preview_sha256: "d".repeat(64) });
+  const apply = vi.spyOn(desktopApi, "retireModSetupRecoveryBuild").mockResolvedValue(revision);
+  await render();
+
+  await page.getByRole("button", { name: "Retained game versions", exact: true }).click();
+  const review = page.getByRole("button", { name: "Review retiring ship-previous.zip (offer 7)" });
+  await review.click();
+  const dialog = page.getByRole("dialog");
+  await expect.element(dialog.getByText("This game changed.", { exact: false })).toBeVisible();
+  await expect
+    .element(dialog.getByRole("button", { name: "Retire recovery offer" }))
+    .not.toBeInTheDocument();
+  await dialog.getByRole("button", { name: "Keep recovery offer" }).click();
+  expect(apply).not.toHaveBeenCalled();
+
+  await review.click();
+  await expect.element(dialog.getByText("ship-previous.zip")).toBeVisible();
+  await dialog.getByRole("button", { name: "Retire recovery offer" }).click();
+  expect(preview).toHaveBeenLastCalledWith("shipwright", "default", 7, 7);
+  expect(apply).toHaveBeenCalledExactlyOnceWith("shipwright", "default", 7, "d".repeat(64), 7);
+  await expect.element(page.getByText("Recovery offer retired.")).toBeVisible();
+  await expect.element(review).not.toBeInTheDocument();
+  expect(read).toHaveBeenCalledTimes(2);
 });

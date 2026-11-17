@@ -222,6 +222,15 @@ pub struct ProfileInventory {
     pub profiles: Vec<ProfileView>,
 }
 
+/// Explicitly opt into cloning the source setup's current, supported save files.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ProfileProgressCopy {
+    pub source_revision_sha256: String,
+    pub target_install_id: String,
+    pub target_revision_sha256: String,
+}
+
 impl PortcoveService {
     /// Gives a port with an active installation its equivalent default profile.
     /// Idempotent: a player with one setup needs no further profile ceremony.
@@ -276,7 +285,7 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
     ) -> Result<Profile> {
-        self.copy_profile_with(port_id, source_profile_id, display_name, false)
+        self.copy_profile_with(port_id, source_profile_id, display_name, false, None)
     }
 
     fn copy_profile_with(
@@ -285,6 +294,7 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
         onto_current_build: bool,
+        progress: Option<&ProfileProgressCopy>,
     ) -> Result<Profile> {
         let _guard = self.library.try_lock_port(port_id, "copy-profile")?;
         let connection = self.library.connection()?;
@@ -305,14 +315,55 @@ impl PortcoveService {
         };
         let mut profile = new_profile(port_id, display_name, false);
         profile.intent = source.intent.clone();
-        self.publish_new_profile(
+        let build = self.verified_retained_build(port_id, &install_id)?;
+        let parked = if let Some(progress) = progress {
+            let target_revision = if onto_current_build {
+                let current = default_profile(&connection, port_id)?.ok_or_else(|| {
+                    PortcoveError::state(
+                        "review the Default setup before copying onto the current runtime",
+                    )
+                })?;
+                revision_from(&connection, &current.id, current.current_revision)?
+            } else {
+                revision.clone()
+            };
+            if progress.source_revision_sha256 != revision.digest
+                || progress.target_install_id != install_id
+                || progress.target_revision_sha256 != target_revision.digest
+                || target_revision.build != build
+            {
+                return Err(PortcoveError::conflict(
+                    "the source setup or destination runtime changed; review the progress copy again",
+                ));
+            }
+            Some(crate::profile_deploy::copy_supported_progress(
+                self,
+                &connection,
+                &source,
+                &revision,
+                &profile,
+                &build,
+            )?)
+        } else {
+            None
+        };
+        let result = self.publish_new_profile(
             &profile,
             &install_id,
-            self.verified_retained_build(port_id, &install_id)?,
+            build,
             revision.originals.clone(),
             Some(&revision),
             None,
-        )
+        );
+        if let Some(parked) = parked
+            && result.is_err()
+            && owns_reference(&connection, port_id, &profile.id).is_ok_and(|exists| !exists)
+        {
+            // A failed or ambiguous database commit may have become visible.
+            // Only remove this attempt's private copy after successful readback.
+            let _ = std::fs::remove_dir_all(parked);
+        }
+        result
     }
 
     /// Like [`Self::copy_profile`], but the copy uses the game's current build.
@@ -325,7 +376,25 @@ impl PortcoveService {
         source_profile_id: &str,
         display_name: &str,
     ) -> Result<Profile> {
-        self.copy_profile_with(port_id, source_profile_id, display_name, true)
+        self.copy_profile_with(port_id, source_profile_id, display_name, true, None)
+    }
+
+    /// Copy the source setup and its reviewed progress into a distinct save group.
+    pub fn copy_profile_with_progress(
+        &self,
+        port_id: &str,
+        source_profile_id: &str,
+        display_name: &str,
+        onto_current_build: bool,
+        progress: &ProfileProgressCopy,
+    ) -> Result<Profile> {
+        self.copy_profile_with(
+            port_id,
+            source_profile_id,
+            display_name,
+            onto_current_build,
+            Some(progress),
+        )
     }
 
     /// Appends a successor revision. Stale callers, missing builds and unreviewed
@@ -399,37 +468,58 @@ impl PortcoveService {
             ));
         }
         let build = self.verified_retained_build(port_id, &install_id)?;
-        let previous = self.current_retained_reference(port_id, profile_id)?;
-        let mut originals = current.originals.clone();
+        let mut next = current.clone();
+        next.build = build;
+        next.loader = request.loader.clone().or(next.loader);
+        next.packages = request.packages.clone().unwrap_or(next.packages);
+        next.orderings = request.orderings.clone().unwrap_or(next.orderings);
+        next.settings = request.settings.clone().unwrap_or(next.settings);
+        next.limits = request.limits.clone().unwrap_or(next.limits);
         let original_changed = replacement_original.is_some();
         if let Some(replacement) = replacement_original {
-            originals.retain(|binding| binding.requirement_id != replacement.requirement_id);
-            originals.push(replacement);
-            originals.sort_by(|left, right| left.requirement_id.cmp(&right.requirement_id));
+            next.originals
+                .retain(|binding| binding.requirement_id != replacement.requirement_id);
+            next.originals.push(replacement);
+            next.originals
+                .sort_by(|left, right| left.requirement_id.cmp(&right.requirement_id));
         }
-        let mut next = ProfileRevision {
-            profile_id: profile_id.into(),
-            revision: current
-                .revision
-                .checked_add(1)
-                .ok_or_else(|| PortcoveError::state("profile revision exhausted"))?,
-            parent_revision: Some(current.revision),
-            build: build.clone(),
-            originals,
-            loader: request.loader.clone().or_else(|| current.loader.clone()),
-            packages: request.packages.clone().unwrap_or(current.packages.clone()),
-            orderings: request
-                .orderings
-                .clone()
-                .unwrap_or(current.orderings.clone()),
-            settings: request.settings.clone().unwrap_or(current.settings.clone()),
-            save_group: current.save_group.clone(),
-            limits: request.limits.clone().unwrap_or(current.limits.clone()),
-            created_at: Library::now(),
-            digest: String::new(),
-        };
+        self.publish_profile_successor(port_id, &current, next, original_changed)
+    }
+
+    /// Publishes the caller's verified exact state while holding the port lock.
+    /// The existing save group stays current even when the state comes from history.
+    pub(crate) fn publish_profile_successor_locked(
+        &self,
+        port_id: &str,
+        current: &ProfileRevision,
+        next: ProfileRevision,
+    ) -> Result<ProfileRevision> {
+        self.publish_profile_successor(port_id, current, next, false)
+    }
+
+    fn publish_profile_successor(
+        &self,
+        port_id: &str,
+        current: &ProfileRevision,
+        mut next: ProfileRevision,
+        original_changed: bool,
+    ) -> Result<ProfileRevision> {
+        let profile_id = &current.profile_id;
+        let previous = self.current_retained_reference(port_id, profile_id)?;
+        next.profile_id = profile_id.clone();
+        next.parent_revision = Some(current.revision);
+        next.revision = current
+            .revision
+            .checked_add(1)
+            .ok_or_else(|| PortcoveError::state("profile revision exhausted"))?;
+        next.save_group = current.save_group.clone();
+        next.created_at = Library::now();
+        let needs_loader = next.packages.iter().any(|package| package.enabled);
+        next.loader =
+            self.profile_loader_binding(&next.build, next.loader.as_ref(), needs_loader)?;
         // A revision the game could not load unambiguously is never recorded.
         crate::profile_deploy::require_projectable(port_id, &next)?;
+        self.require_revision_loader(&next)?;
         // Mod code the player has not allowed is never recorded as a setup to run.
         if let Ok(layout) = self.deploy_layout(port_id) {
             crate::profile_deploy::require_code_allowed(&layout, &next)?;
@@ -438,7 +528,7 @@ impl PortcoveService {
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let latest = profile_from(&transaction, port_id, profile_id)?;
-        if latest.current_revision != request.expected_revision {
+        if latest.current_revision != current.revision {
             return Err(PortcoveError::conflict(
                 "the profile changed after review; review its current revision again",
             ));
@@ -447,8 +537,8 @@ impl PortcoveService {
             &transaction,
             port_id,
             profile_id,
-            &install_id,
-            build,
+            &next.build.install_id,
+            next.build.clone(),
             previous.as_ref(),
         )?;
         write_revision(&transaction, &next)?;
@@ -566,7 +656,7 @@ impl PortcoveService {
             parent_revision: None,
             build: build.clone(),
             originals,
-            loader: loader.or_else(|| base.and_then(|b| b.loader.clone())),
+            loader,
             packages: base.map(|b| b.packages.clone()).unwrap_or_default(),
             orderings: base.map(|b| b.orderings.clone()).unwrap_or_default(),
             settings: base.map(|b| b.settings.clone()).unwrap_or_default(),
@@ -575,7 +665,15 @@ impl PortcoveService {
             created_at: profile.created_at,
             digest: String::new(),
         };
+        let needs_loader = revision.packages.iter().any(|package| package.enabled);
+        let declared_loader = revision.loader.as_ref().or_else(|| {
+            base.and_then(|b| b.loader.as_ref())
+                .filter(|_| needs_loader)
+        });
+        revision.loader =
+            self.profile_loader_binding(&revision.build, declared_loader, needs_loader)?;
         crate::profile_deploy::require_projectable(&profile.port_id, &revision)?;
+        self.require_revision_loader(&revision)?;
         seal(&mut revision)?;
         let mut connection = self.library.connection()?;
         let transaction = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
@@ -734,7 +832,7 @@ pub(crate) fn bind_original(requirement_id: &str, source: &SourceRecord) -> Orig
 
 /// Compares bindings with the registry by content identity. A path change alone
 /// never changes the result; a missing original holds only its own operations.
-fn original_statuses(
+pub(crate) fn original_statuses(
     connection: &Connection,
     bindings: &[OriginalBinding],
     sources: &[SourceRecord],

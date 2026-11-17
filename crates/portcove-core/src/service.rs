@@ -5303,6 +5303,7 @@ impl PortcoveService {
         let mut legacy_data_seal = None;
         let result = (|| {
             self.require_completed_restore(port_id)?;
+            self.require_materialized_profile_recovery(port_id)?;
             let launch_catalog = self.catalog_for_installed_fallback(port_id)?;
             let port = launch_catalog.port(port_id).ok();
             let active = self
@@ -6494,15 +6495,14 @@ impl PortcoveService {
         let catalog = self.catalog_for_installed_fallback(port_id)?;
         let port = catalog.port(port_id)?;
         let collected = self.collect_user_data_from(port, &install_root)?;
-        // A reorder made in the game's mod menu becomes the profile's next revision.
-        // Best effort: the data is already collected, so a failure here must not
-        // leave the session unfinished. The reorder stays reported and is adopted
-        // again before the next profile change or launch.
-        if let Err(error) = self.adopt_native_mod_order_locked(port_id) {
+        // A supported edit in the game's mod menu becomes the next setup
+        // revision. The session can finish after saving player data even if
+        // the native edit needs review or an interrupted projection must resume.
+        if let Err(error) = self.reconcile_native_mod_list_locked(port_id) {
             tracing::warn!(
                 port_id,
                 error = %error.message,
-                "the game's mod order could not be recorded after play"
+                "the game's mod changes could not be recorded after play"
             );
         }
         Ok(collected)
@@ -6676,6 +6676,13 @@ impl PortcoveService {
         Ok(self.catalog.port(port_id)?.persistent_paths.clone())
     }
 
+    pub(crate) fn installed_progress_paths(&self, install: &InstallRecord) -> Result<Vec<String>> {
+        Ok(self
+            .persistence_contract_for_install(install)?
+            .port
+            .persistent_paths)
+    }
+
     fn persistence_contract_for_install(
         &self,
         install: &InstallRecord,
@@ -6813,7 +6820,7 @@ impl PortcoveService {
         Ok(contracts)
     }
 
-    fn require_completed_restore(&self, port_id: &str) -> Result<()> {
+    pub(crate) fn require_completed_restore(&self, port_id: &str) -> Result<()> {
         self.library.require_no_settings_recovery(port_id)?;
         self.require_completed_backup_restore(port_id)
     }

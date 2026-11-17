@@ -608,8 +608,8 @@ impl PortcoveService {
         )
     }
 
-    /// Stops offering one superseded build for recovery. Metadata only: the build's
-    /// bytes become eligible for ordinary cleanup, and progress is never touched.
+    /// Stops offering one superseded build for this setup. The installation,
+    /// player data and all other references stay in place.
     pub fn retire_retained_build_revision(
         &self,
         port_id: &str,
