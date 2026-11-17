@@ -18200,7 +18200,7 @@
           },
           {
             "title": "Select the IWAD for the game you want to play",
-            "instruction": "Point the matching player at your IWAD with -iwad followed by the file path. Chocolate Doom accepts Doom IWADs or the freely available Freedoom data. Use Heretic data with Chocolate Heretic, hexen.wad with Chocolate Hexen and strife1.wad with Chocolate Strife. Keep any accompanying Strife voice data with the IWAD. The engine packages contain no original game data."
+            "instruction": "Point the matching player at your IWAD with -iwad followed by the file path. Chocolate Doom accepts Doom IWADs or the freely available Freedoom data. Chocolate Heretic accepts the original Heretic IWAD or heretic1.wad from the v1.2 shareware release. Use hexen.wad or the original four-level demo IWAD with Chocolate Hexen, and strife1.wad with Chocolate Strife. Keep accompanying Strife voice data with the IWAD. The engine packages contain no original game data."
           }
         ],
         "warnings": [
@@ -18220,6 +18220,10 @@
           {
             "title": "Find settings and saves",
             "instruction": "For a portable Windows copy, start the player in its own folder and keep the configuration and saves it writes there. On Linux the default profile is $XDG_DATA_HOME/chocolate-doom, normally ~/.local/share/chocolate-doom. On Mac it is normally ~/Library/Application Support/chocolate-doom. Preserve the actual paths if you use -config, -extraconfig or -savedir. The default per-game save folders can differ by IWAD."
+          },
+          {
+            "title": "Use a short save directory for Chocolate Hexen 3.1.1",
+            "instruction": "Chocolate Hexen 3.1.1 can fail to save when the path is long. Create a writable folder with a short absolute path and start Chocolate Hexen with -savedir followed by that path. Use a different folder for the demo and full game. Before moving either, close the game and copy its whole save folder so each slot stays with its map files."
           }
         ]
       },
